@@ -1,0 +1,50 @@
+`ifndef {{ class_prefix | upper }}DEVICE_CONFIGURATION
+`define {{ class_prefix | upper }}DEVICE_CONFIGURATION
+
+class {{ class_prefix }}device_configuration extends {{ class_prefix }}base_configuration;
+    `uvm_object_utils_begin({{ class_prefix }}device_configuration)
+        `uvm_field_int(device_addr, UVM_ALL_ON)
+        `uvm_field_int(configuration_value, UVM_ALL_ON)
+        `uvm_field_int(control_max_retry, UVM_ALL_ON)
+        `uvm_field_int(transfer_max_retry, UVM_ALL_ON)
+        `uvm_field_int(tend_to_end_timeout_ps, UVM_ALL_ON)
+        `uvm_field_int(default_endpoint_in_id, UVM_ALL_ON)
+        `uvm_field_int(default_endpoint_out_id, UVM_ALL_ON)
+        {% for ep_id in range(16) %}
+        `uvm_field_object(ep_cfg[{{ ep_id }}], UVM_ALL_ON)
+        {%- endfor %}
+    `uvm_object_utils_end
+
+    rand bit[6:0] device_addr; // control 传输中使用的地址 value
+    rand int configuration_value; // control 中 set_configuration value
+    rand int control_max_retry; // 控制传输的最大失败重试次数
+    rand int transfer_max_retry; // 传输重试次数
+    rand int tend_to_end_timeout_ps; // 从 transaction 开始到结束的超时时间
+    rand int default_endpoint_in_id; // 默认 endpoint IN id
+    rand int default_endpoint_out_id; // 默认 endpoint OUT id
+    rand {{ class_prefix }}endpoint_configuration ep_cfg[16];
+
+    constraint cst_device {
+        soft device_addr == 7'h0;
+        soft configuration_value == 1;
+        soft control_max_retry == 1000;
+        soft transfer_max_retry == 10000;
+        soft tend_to_end_timeout_ps == 5000000000; // 5MS
+
+        default_endpoint_in_id inside {[1:15]};
+        default_endpoint_out_id inside {[1:15]};
+
+        foreach(ep_cfg[i]) {
+            ep_cfg[i].ep_number == i;
+        }
+    }
+
+    function new(string name="{{ class_prefix }}device_configuration");
+        super.new(name);
+
+        foreach(ep_cfg[i])
+            ep_cfg[i] = {{ class_prefix }}endpoint_configuration::type_id::create({get_full_name(), $spsprintf(".ep_cfg[%0d]", i)});
+    endfunction
+endclass
+
+`endif

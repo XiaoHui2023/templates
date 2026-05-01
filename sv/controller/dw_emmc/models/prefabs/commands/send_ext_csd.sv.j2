@@ -1,0 +1,23 @@
+#ifndef {{ class_prefix | upper }}SEND_EXT_CSD_COMMAND_REQUEST
+#define {{ class_prefix | upper }}SEND_EXT_CSD_COMMAND_REQUEST
+
+// 发送CMD8，要求设备发送EXT_CSD寄存器，需要从机处于 selected 状态
+class {{ class_prefix }}send_ext_csd_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils({{ class_prefix }}send_ext_csd_command_request)
+
+    function new(string name="{{ class_prefix }}send_ext_csd_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_prefab {
+        cmd_index == 8;
+        resp == R1;
+        block_count == 1;
+        block_size == 512;
+        data_present_sel == 1;
+        data_xfer_dir == XFER_READ;
+        multi_blk_sel == SINGLE;
+    }
+endclass
+
+`endif

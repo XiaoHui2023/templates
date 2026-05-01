@@ -1,0 +1,26 @@
+models/prefabs/commands/app_cmd.sv.j2: {{is_sd}}
+models/prefabs/commands/send_if_cond.sv.j2: {{is_sd}}
+models/prefabs/commands/send_relative_addr.sv.j2: {{is_sd}}
+models/prefabs/commands/voltage_switch.sv.j2: {{is_sd}}
+models/prefabs/acmds: {{is_sd}}
+
+models/prefabs/commands/boot_initiation.sv.j2: {{is_emmc}}
+models/prefabs/commands/go_pre_idle_state.sv.j2: {{is_emmc}}
+models/prefabs/commands/send_ext_csd.sv.j2: {{is_emmc}}
+models/prefabs/commands/set_relative_addr.sv.j2: {{is_emmc}}
+models/prefabs/commands/switch: {{is_emmc}}
+
+models/prefabs/commands/io_rw_extended.sv.j2: {{is_sdio}}
+models/prefabs/commands/io_send_op_cond.sv.j2: {{is_sdio}}
+models/prefabs/commands/io_rw_direct: {{is_sdio}}
+
+models/prefabs/commands/switch_func.sv.j2: {{is_sdcard}}
+
+sequences/prefabs/acmds.sv.j2: {{is_sd}}
+sequences/prefabs/voltage_switch.sv.j2: {{is_sd}}
+sequences/prefabs/io_rw_direct: {{is_sdio}}
+sequences/prefabs/send_ext_csd.sv.j2: {{is_emmc}}
+
+sequences/tests/reg.sv.j2: {{is_emmc}} or {{is_sdcard}}
+
+insides.sv.j2: false

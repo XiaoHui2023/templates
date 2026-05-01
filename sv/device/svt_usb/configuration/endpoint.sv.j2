@@ -1,0 +1,55 @@
+`ifndef {{ class_prefix | upper }}ENDPOINT_CONFIGURATION
+`define {{ class_prefix | upper }}ENDPOINT_CONFIGURATION
+
+class {{ class_prefix }}endpoint_configuration extends {{ class_prefix }}base_configuration;
+    `uvm_object_utils_begin({{ class_prefix }}endpoint_configuration)
+        `uvm_field_int(ep_number, UVM_ALL_ON)
+        `uvm_field_int(valid, UVM_ALL_ON)
+        `uvm_field_enum(direction_e, direction, UVM_ALL_ON)
+        `uvm_field_int(allow_aligned_transfer_without_zero_length, UVM_ALL_ON)
+        `uvm_field_enum(ep_type_e, ep_type, UVM_ALL_ON)
+        `uvm_field_int(interval, UVM_ALL_ON)
+        `uvm_field_int(can_input, UVM_ALL_ON)
+        `uvm_field_int(can_output, UVM_ALL_ON)
+        `uvm_field_int(num_streams, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand int ep_number;      // 端点号
+    rand direction_e direction; // 传输方向
+    rand bit valid;          // 是否有效
+    rand bit allow_aligned_transfer_without_zero_length;
+    rand ep_type_e ep_type;  // 端点类型
+    rand int interval;       // 传输间隔
+    rand bit can_input;      // 配置输入
+    rand bit can_output;     // 配置输出
+    rand int num_streams;
+
+    constraint cst {
+        soft direction == DIRECTION_UNKNOWN;
+        soft ep_type == EP_TYPE_BULK;
+        soft interval == 3;
+        // if ep_type == EP_TYPE_CONTROL
+        //     soft allow_aligned_transfer_without_zero_length == `SVT_USB_ENDPOINT_CONFIGURATION_SUPER_ALIGNED_TRANSFER;
+        // else
+        soft allow_aligned_transfer_without_zero_length == 1;
+
+        // 根据类型约束方向
+        if(ep_type == EP_TYPE_CONTROL) {
+            direction == DIRECTION_IN;
+        }
+        // EP0 为控制端点
+        if(ep_number == 0) {
+            ep_type == EP_TYPE_CONTROL;
+        }
+
+        can_input == (direction == DIRECTION_IN);
+        can_output == (direction == DIRECTION_OUT);
+        valid == (direction != DIRECTION_UNKNOWN);
+    }
+
+    function new(string name="{{ class_prefix }}endpoint_configuration");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

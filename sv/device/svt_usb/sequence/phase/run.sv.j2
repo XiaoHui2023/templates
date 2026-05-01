@@ -1,0 +1,21 @@
+`ifndef {{ class_prefix | upper }}RUN_PHASE_SEQ
+`define {{ class_prefix | upper }}RUN_PHASE_SEQ
+
+class {{ class_prefix }}run_phase_seq extends uvm_sequence;
+  `uvm_object_utils({{ class_prefix }}run_phase_seq)
+  `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+  {{ class_prefix }}boot_generate_clock_seq gen_clk_seq;
+
+  task body();
+    fork
+      `uvm_do(gen_clk_seq)
+    join
+  endtask
+
+  function new(string name = "{{ class_prefix }}run_phase_seq");
+    super.new(name);
+  endfunction
+endclass
+
+`endif

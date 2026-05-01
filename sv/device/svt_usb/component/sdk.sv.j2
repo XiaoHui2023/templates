@@ -1,0 +1,264 @@
+`ifndef {{ class_prefix | upper }}SDK
+`define {{ class_prefix | upper }}SDK
+
+class {{ class_prefix }}sdk extends {{ class_prefix }}sequencer;
+    `uvm_component_utils({{ class_prefix }}sdk)
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+    endfunction
+
+    // 设置传输结束中断
+    extern function void set_transfer_end_int(bit value=1);
+    extern function void clear_transfer_end_int();
+
+    // 等待 device active
+    extern task wait_device_active();
+
+    // 发送数据
+    extern task send_data(bit[7:0] data[$]);
+    extern task send_byte(bit[7:0] data);
+    extern task send_word(bit[31:0] data);
+    extern task send_file(string path);
+    extern task send_str(string s);
+
+    // 接收数据
+    extern task receive_data(input int len, output bit[7:0] data[$]);
+    extern task receive_byte(output bit[7:0] data);
+    extern task receive_word(output bit[31:0] data);
+
+    // 接收设备描述符
+    extern task get_device_descriptor(output {{ class_prefix }}xfer_host_get_device_descriptor_struct struc);
+
+    // 获取制造商字符串
+    extern task get_manufacturer(input int id, input int len, output {{ class_prefix }}xfer_host_get_manufacturer_struct struc);
+
+    // 字符串检测
+    extern task predict_str(string s);
+    extern task wait_str(string s);
+
+    // 文件读写
+    extern protected function void file_read(input string src, output bit[7:0] data[$]);
+endclass
+
+task {{ class_prefix }}sdk::wait_device_active();
+    fork
+        forever begin
+            if(has_auto_done) return;
+            wait(has_auto_done);
+            `uvm_info("", "Enter wait device initialized", UVM_LOW)
+            wait(vif.enable);
+            `uvm_info("", "Exit wait device initialized", UVM_LOW)
+        end
+    join_any
+endtask
+
+task {{ class_prefix }}sdk::send_data(bit[7:0] data[$]);
+    {{ class_prefix }}xfer_host_out_seq xfer_seq;
+
+    wait_auto_done();
+
+    xfer_seq = {{ class_prefix }}xfer_host_out_seq::type_id::create({get_full_name(), ".xfer_seq"});
+    xfer_seq.set_item_context(null, this);
+    assert(xfer_seq.randomize() with {
+        len == local::data.size;
+        foreach(local::data[i])
+            data[i] == local::data[i];
+    }) else `uvm_fatal("", "")
+
+    xfer_seq.start(this);
+endtask
+
+task {{ class_prefix }}sdk::send_byte(bit[7:0] data);
+    send_data(data);
+endtask
+
+task {{ class_prefix }}sdk::send_word(bit[31:0] data);
+    bit[7:0] qs[$];
+
+    qs = {<<8{data}};
+    send_data(qs);
+endtask
+
+task {{ class_prefix }}sdk::send_file(string path);
+    bit[7:0] bytes[$];
+
+    `uvm_info("", $spsprintf("send file '%s'", path), UVM_LOW)
+    file_read(path, bytes);
+    send_data(bytes);
+    `uvm_info("", $spsprintf("file over"), UVM_LOW)
+endtask
+
+task {{ class_prefix }}sdk::send_str(string s);
+    bit[7:0] qs[$];
+
+    `uvm_info("", $spsprintf("send str '%s'", s), UVM_LOW)
+
+    for(int i=0; i<s.len(); i++)
+        qs.push_back(s.getc(i));
+
+    send_data(qs);
+endtask
+
+task {{ class_prefix }}sdk::receive_data(input int len, output bit[7:0] data[$]);
+    {{ class_prefix }}xfer_host_in_seq xfer_seq;
+
+    wait_auto_done();
+
+    xfer_seq = {{ class_prefix }}xfer_host_in_seq::type_id::create({get_full_name(), ".xfer_seq"});
+    xfer_seq.set_item_context(null, this);
+    assert(xfer_seq.randomize() with {
+        len == local::len;
+    }) else `uvm_fatal("", "")
+
+    xfer_seq.start(this);
+    data = xfer_seq.rx_data;
+endtask
+
+task {{ class_prefix }}sdk::receive_byte(output bit[7:0] data);
+    bit[7:0] qs[$];
+
+    receive_data(1, qs);
+    data = qs[0];
+endtask
+
+task {{ class_prefix }}sdk::receive_word(output bit[31:0] data);
+    bit[7:0] qs[$];
+
+    receive_data(4, qs);
+    data = {<<8{qs}};
+endtask
+
+task {{ class_prefix }}sdk::get_device_descriptor(output {{ class_prefix }}xfer_host_get_device_descriptor_struct struc);
+    {{ class_prefix }}xfer_host_get_device_descriptor_seq xfer_seq;
+    bit[7:0] data[$];
+
+    wait_auto_done();
+    wait_auto_done();
+
+    xfer_seq = {{ class_prefix }}xfer_host_get_device_descriptor_seq::type_id::create({get_full_name(), ".xfer_seq"});
+    xfer_seq.set_item_context(null, this);
+    assert(xfer_seq.randomize()) else `uvm_fatal("", "")
+
+    xfer_seq.start(this);
+
+    data = xfer_seq.rx_data;
+    struc = {{ class_prefix }}xfer_host_get_device_descriptor_struct::type_id::create({get_full_name(), "get_device_descriptor.struc"});
+    struc.unpack(data);
+endtask
+
+task {{ class_prefix }}sdk::get_manufacturer(input int id, input int len, output {{ class_prefix }}xfer_host_get_manufacturer_struct struc);
+    {{ class_prefix }}xfer_host_get_manufacturer_seq xfer_seq;
+    bit[7:0] data[$];
+
+    wait_auto_done();
+    wait_auto_done();
+
+    xfer_seq = {{ class_prefix }}xfer_host_get_manufacturer_seq::type_id::create({get_full_name(), ".xfer_seq"});
+    xfer_seq.set_item_context(null, this);
+    assert(xfer_seq.randomize() with {
+        req.manufacturer_id == local::id;
+        req.length == local::len;
+    }) else `uvm_fatal("", "")
+
+    xfer_seq.start(this);
+
+    data = xfer_seq.rx_data;
+    struc = {{ class_prefix }}xfer_host_get_manufacturer_struct::type_id::create({get_full_name(), "get_manufacturer.struc"});
+    struc.unpack(data);
+endtask
+
+task {{ class_prefix }}sdk::predict_str(string s);
+    bit[7:0] data[$];
+    string t;
+
+    `uvm_info("", $spsprintf("Ready to receive '%s'", s), UVM_LOW)
+
+    receive_data(s.len, data);
+
+    foreach(data[i])
+        t = {t, $spsprintf("%s", data[i])};
+
+    if(t == s)
+        `uvm_info("", $spsprintf("receive '%s' successful", s), UVM_LOW)
+    else
+        `uvm_error("", $spsprintf("require '%s', but '%s'", s, t))
+endtask
+
+task {{ class_prefix }}sdk::wait_str(string s);
+    `uvm_info("", $spsprintf("Ready to wait '%s'", s), UVM_LOW)
+
+    forever begin
+        bit err;
+
+        for(int i=0; i<s.len(); i++) begin
+            bit[7:0] d;
+            string c;
+
+            receive_byte(d);
+
+            c = $spsprintf("%s", d);
+            if(c != s[i]) begin
+                err = 1;
+                break;
+            end
+        end
+
+        if(!err)
+            break;
+    end
+
+    `uvm_info("", $spsprintf("wait '%s' successful", s), UVM_LOW)
+endtask
+
+function void {{ class_prefix }}sdk::file_read(input string src, output bit[7:0] data[$]);
+    int f_test;
+    bit[31:0] d_test;
+    bit hex;
+    int file;
+
+    // 试探文件可以用十六进制格式读取，则按文本读取，否则按二进制读取
+    f_test = $fopen(src, "r");
+    if(!f_test)
+        $fatal($spsprintf("Failed to read '%s'", src));
+    hex = $fscanf(f_test, "%h", d_test);
+    $fclose(f_test);
+
+    if(hex) begin
+        file = $fopen(src, "r");
+
+        while(!$feof(file)) begin
+            string s;
+
+            $fscanf(file, "%s", s);
+
+            for(int j=s.len()-1; j>=0; j-=2) begin
+                bit[7:0] d;
+                string _s;
+
+                _s = s.substr(j-1, j);
+                d = _s.atohex();
+                data.push_back(d);
+            end
+        end
+    end
+    else begin
+        file = $fopen(src, "rb");
+
+        while(!$feof(file)) begin
+            bit[31:0] d;
+
+            $fscanf(file, "%c", d);
+            if(!$feof(file)) begin
+                repeat(4) begin
+                    data.push_back(d);
+                    d >>= 8;
+                end
+            end
+        end
+    end
+
+    $fclose(file);
+endfunction
+
+`endif

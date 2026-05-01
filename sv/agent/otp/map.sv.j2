@@ -1,0 +1,98 @@
+`ifndef {{ class_map | upper }}
+`define {{ class_map | upper }}
+
+class {{ class_map }} extends {{ class_manifest }};
+  `uvm_component_utils_begin({{ class_map }})
+    `uvm_field_string(filename,UVM_ALL_ON)
+  `uvm_component_utils_end
+
+  string filename; // ini文件名
+  {{ class_ini_io }} ini_io;
+
+  /*
+   * 等待otp准备好
+   *
+   *   timeout_ms : 超时时间(ms)
+   *   timeout_us : 超时时间(us)
+   */
+  extern task wait_ready(int timeout_ms={{ WAIT_READY_TIMEOUT_MS }},int timeout_us={{ WAIT_READY_TIMEOUT_US }});
+
+  // 在等待otp准备时间，将执行信号等相关需要的实现
+  extern protected task on_wait_ready();
+
+  function new(string name="{{ class_map }}",uvm_component parent=null);
+    super.new(name,parent);
+
+    ini_io = {{ class_ini_io }}::type_id::create("ini_io",this);
+  endfunction
+
+  extern function void build();
+  extern task pre_reset_phase(uvm_phase phase);
+
+  // 自动加载ini文件中的配置
+  extern protected function void auto_load_ini();
+endclass
+
+task {{ class_map }}::wait_ready(int timeout_ms,int timeout_us);
+  fork
+    begin
+      on_wait_ready();
+    end
+    begin
+      repeat(timeout_ms)
+        #1ms;
+      repeat(timeout_us)
+        #1us;
+      `uvm_fatal("","wait ready timeout")
+    end
+  join_any
+  disable fork;
+endtask
+
+function void {{ class_map }}::build();
+  super.build();
+
+  uvm_config_db#(string)::set(this,"ini_io","filename",filename);
+endfunction
+
+task {{ class_map }}::pre_reset_phase(uvm_phase phase);
+  super.pre_reset_phase(phase);
+  phase.raise_objection(this);
+
+  // 自动加载ini
+  auto_load_ini();
+
+  `uvm_info("",$psprintf("config:\n%s",sprint()),UVM_LOW)
+
+  phase.drop_objection(this);
+endtask
+
+function void {{ class_map }}::auto_load_ini();
+  if(!ini_io.data.size)
+    return;
+
+  // 更新section
+  foreach(ini_io.data[section,key]) begin
+    bit[{{ max_width-1 }}:0] value;
+    string content;
+
+    content = ini_io.get_str(key,section);
+
+    `uvm_info("",$psprintf("auto load ini[%s] = %s",key,content),UVM_LOW)
+
+    // 支持16进制或10进制
+    if(ini_io.is_hex(key,section))
+      value = ini_io.get_hex(key,section);
+    else if(ini_io.is_int(key,section))
+      value = ini_io.get_int(key,section);
+    else
+      `uvm_fatal("",$psprintf("invalid value for key '%s'! require int or hex, but '%s'",key,content))
+
+    if(!map.exists(key))
+      `uvm_fatal("",$psprintf("Not found key '%s' in map",key))
+
+    map[key].set(value);
+  end
+endfunction
+
+`endif

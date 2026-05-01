@@ -1,0 +1,23 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_SET_FEATURE_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_SET_FEATURE_REQUEST
+
+class {{ class_prefix }}xfer_host_set_feature_request extends {{ class_prefix }}xfer_host_control_request;
+    `uvm_object_utils({{ class_prefix }}xfer_host_set_feature_request)
+
+    function new(string name = "{{ class_prefix }}xfer_host_set_feature_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_set_feature_preset {
+        request == REQUEST_SET_FEATURE;
+        request_dir == REQUEST_DIR_HOST_TO_DEVICE;
+        request_recipient == REQUEST_RECIPIENT_DEVICE;
+        request_type == REQUEST_TYPE_STANDARD;
+        w_index == 0;
+        w_length == 0;
+        w_value == 0;
+        payload_intended_byte_count == 0;
+    }
+endclass
+
+`endif

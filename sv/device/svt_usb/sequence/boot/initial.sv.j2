@@ -1,0 +1,24 @@
+`ifndef {{ class_prefix | upper }}BOOT_INITIAL_SEQ
+`define {{ class_prefix | upper }}BOOT_INITIAL_SEQ
+
+class {{ class_prefix }}boot_initial_seq extends {{ class_prefix }}base_seq;
+  `uvm_object_utils({{ class_prefix }}boot_initial_seq)
+
+  function new(string name = "{{ class_prefix }}boot_initial_seq");
+    super.new(name);
+  endfunction
+
+  extern task body();
+endclass
+
+task {{ class_prefix }}boot_initial_seq::body();
+  case(sys_cfg.otg_mode)
+    sys_cfg.OTG_DEVICE : p_sequencer.vif.id = 0;
+    sys_cfg.OTG_HOST   : p_sequencer.vif.id = 1;
+    default: `uvm_fatal("", "NotImplemented")
+  endcase
+
+  `uvm_info("", $spsrintf("initial id = %0d", p_sequencer.vif.id), UVM_LOW)
+endtask
+
+`endif

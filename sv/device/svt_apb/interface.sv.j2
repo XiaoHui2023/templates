@@ -1,0 +1,71 @@
+`ifndef {{ class_interface | upper }}
+`define {{ class_interface | upper }}
+
+`define assign(ID) \
+    assign ssel[ID] = svt_if.slave_if[ID].psel; \
+    assign senable[ID] = svt_if.slave_if[ID].penable; \
+    assign swrite[ID] = svt_if.slave_if[ID].pwrite; \
+    assign saddr[ID] = svt_if.slave_if[ID].paddr; \
+    assign swdata[ID] = svt_if.slave_if[ID].pwdata; \
+    assign svt_if.slave_if[ID].prdata = srdata[ID]; \
+    assign svt_if.slave_if[ID].pready = sready[ID]; \
+    assign svt_if.slave_if[ID].pslverr = 0;
+
+interface {{ class_interface }}(
+    input wire clk,
+    input wire rst_n,
+    // master 0 bus相关
+    input wire [`SVT_APB_MAX_NUM_SLAVES-1:0] msel,
+    input wire menable,
+    input wire mwrite,
+    input wire [`SVT_APB_MAX_ADDR_WIDTH-1:0] maddr,
+    input wire [`SVT_APB_MAX_DATA_WIDTH-1:0] mwdata,
+    output wire [`SVT_APB_MAX_DATA_WIDTH-1:0] mrdata[`SVT_APB_MAX_NUM_SLAVES-1:0],
+    output wire mready[`SVT_APB_MAX_NUM_SLAVES-1:0],
+    output wire ssel[`SVT_APB_MAX_NUM_SLAVES],
+    output wire senable[`SVT_APB_MAX_NUM_SLAVES],
+    output wire swrite[`SVT_APB_MAX_NUM_SLAVES],
+    output wire [`SVT_APB_MAX_ADDR_WIDTH-1:0] saddr[`SVT_APB_MAX_NUM_SLAVES],
+    output wire [`SVT_APB_MAX_DATA_WIDTH-1:0] swdata[`SVT_APB_MAX_NUM_SLAVES],
+    input wire [`SVT_APB_MAX_DATA_WIDTH-1:0] srdata[`SVT_APB_MAX_NUM_SLAVES],
+    input wire sready[`SVT_APB_MAX_NUM_SLAVES]
+);
+
+    // svt if
+    svt_apb_if svt_if();
+    assign svt_if.pclk = clk;
+    assign svt_if.presetn = rst_n;
+    assign svt_if.psel = msel;
+    assign svt_if.penable = menable;
+    assign svt_if.pwrite = mwrite;
+    assign svt_if.paddr = maddr;
+    assign svt_if.pwdata = mwdata;
+    assign mrdata = svt_if.prdata;
+    assign mready = svt_if.pready;
+
+    `assign(0)
+    `assign(1)
+    `assign(2)
+    `assign(3)
+    `assign(4)
+    `assign(5)
+    `assign(6)
+    `assign(7)
+    `assign(8)
+    `assign(9)
+    `assign(10)
+    `assign(11)
+    `assign(12)
+    `assign(13)
+    `assign(14)
+    `assign(15)
+endinterface
+
+`undef assign
+`endif
+
+//  initial begin
+//      force svt_if.slave_if[0].pready = 1;
+//      force svt_if.slave_if[0].prdata = 0;
+//      release svt_if.slave_if[0].pready;
+//      release svt_if.slave_if[0].prdata;

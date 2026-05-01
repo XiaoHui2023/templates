@@ -1,0 +1,19 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_DEVICE_DESCRIPTOR_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_GET_DEVICE_DESCRIPTOR_REQUEST
+
+// 获取设备描述符
+class {{ class_prefix }}xfer_host_get_device_descriptor_request extends {{ class_prefix }}xfer_host_get_descriptor_request;
+    `uvm_object_utils({{ class_prefix }}xfer_host_get_device_descriptor_request)
+
+    function new(string name = "{{ class_prefix }}xfer_host_get_device_descriptor_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_get_device_descriptor_preset {
+        w_value == 'h100;
+        w_index == 0;
+        extra_sizeof_response == 'h8;
+    }
+endclass
+
+`endif

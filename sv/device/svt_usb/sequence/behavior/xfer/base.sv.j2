@@ -1,0 +1,12 @@
+`ifndef {{ class_prefix | upper }}XFER_BASE_SEQ
+`define {{ class_prefix | upper }}XFER_BASE_SEQ
+
+class {{ class_prefix | lower }}xfer_base_seq extends {{ class_prefix }}base_seq;
+  `uvm_object_utils({{ class_prefix }}xfer_base_seq)
+
+  function new(string name = "{{ class_prefix }}xfer_base_seq");
+    super.new(name);
+  endfunction
+endclass
+
+`endif

@@ -1,0 +1,28 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_PRESET
+`define {{ class_prefix | upper }}XFER_HOST_PRESET
+
+{% macro typedef(name) -%}
+{% set mid = "xfer_host" %}
+class {{ class_prefix }}{{ mid }}_{{ name }}_seq extends {{ class_prefix }}xfer_host_seq#({{ class_prefix }}{{ mid }}_{{ name }}_request);
+  `uvm_object_utils({{ class_prefix }}{{ mid }}_{{ name }}_seq)
+  function new(string name="{{ class_prefix }}{{ mid }}_{{ name }}_seq");
+    super.new(name);
+  endfunction
+endclass
+{%- endmacro -%}
+
+{{ typedef("ctrl") }}
+{{ typedef("get_status") }}
+{{ typedef("set_address") }}
+{{ typedef("set_configuration") }}
+{{ typedef("get_configuration") }}
+{{ typedef("get_feature") }}
+{{ typedef("set_feature") }}
+{{ typedef("get_device_descriptor") }}
+{{ typedef("get_language_id") }}
+{{ typedef("get_manufacturer") }}
+
+{{ typedef("in") }}
+{{ typedef("out") }}
+
+`endif

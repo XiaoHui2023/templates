@@ -1,0 +1,58 @@
+`ifndef {{ class_prefix | upper }}INTERCONNECT
+`define {{ class_prefix | upper }}INTERCONNECT
+
+module {{ class_prefix }}interconnect (
+  input clk,
+  input sel,
+  inout dp,
+  inout dn,
+  input IDPULLUP
+);
+
+wire vbus;
+
+svt_usb_if module_usb_20_if();
+
+tranif1 dp_xhdl(dp, module_usb_20_if.usb_20_serial_if.dp, sel);
+tranif1 dn_xhdl(dn, module_usb_20_if.usb_20_serial_if.dn, sel);
+// Full Speed and Low Speed mode, pull up on the dp line, if the VIP is not active driver
+//tran strong1 weak0(strong1, weak0) usb_20_if.usb_20_if.id_fsdp;
+//tran vbus_20_init(vbus, module_usb_20_if.usb_20_serial_if.vbus);
+
+wire usb_if_en = module_usb_20_if.usb_20_serial_if.HS_speed_enabled && module_usb_20_if.usb_20_serial_if.active_driver;
+
+assign (supply0,supply1) dp = usb_if_en ? module_usb_20_if.usb_20_serial_if.gtx_dp : 1'bz;
+assign (supply0,supply1) dn = usb_if_en ? module_usb_20_if.usb_20_serial_if.gtx_dn : 1'bz;
+
+assign module_usb_20_if.testbench_clock = clk;
+assign module_usb_20_if.usb_20_serial_if.clk = clk;
+assign module_usb_20_if.usb_20_serial_if.clk = clk;
+assign module_usb_20_if.usb_if.utmi_dat = 8'hff;
+assign module_usb_20_if.utmi_dut_phy_if.clk = clk;
+assign module_usb_20_if.usb_20_serial_if.ch_hs_termination = 1'b1;
+
+assign module_usb_20_if.usb_gtx_if.out_dp = 1'b0;
+assign module_usb_20_if.usb_otg_if.dut_attached = 1'b0;
+assign module_usb_20_if.usb_otg_if.dut_sess_vld = 1'b0;
+assign module_usb_20_if.usb_otg_if.IDPULLUP = IDPULLUP;
+assign module_usb_20_if.usb_otg_if.OpPullDown = 1'b0;
+assign module_usb_20_if.usb_otg_if.DmPullDown = 1'b0;
+assign module_usb_20_if.usb_otg_if.DrvVbus = 1'b0;
+assign module_usb_20_if.usb_otg_if.ChrgVbus = 1'b0;
+assign module_usb_20_if.usb_otg_if.DischrgVbus = 0;
+
+initial begin
+  force module_usb_20_if.usb_20_serial_if.data_phase = 0;
+  repeat(3)@(posedge module_usb_20_if.usb_20_serial_if.clk);
+  release module_usb_20_if.usb_20_serial_if.data_phase;
+end
+
+initial begin
+  force vbus = 0;
+  #10000ps;
+  force vbus = 1;
+end
+
+endmodule
+
+`endif

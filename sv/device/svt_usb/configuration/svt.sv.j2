@@ -1,0 +1,335 @@
+`ifndef {{ class_prefix | upper }}SVT_CONFIGURATION
+`define {{ class_prefix | upper }}SVT_CONFIGURATION
+
+class {{ class_prefix }}svt_configuration extends svt_usb_agent_configuration;
+    `uvm_object_utils_begin({{ class_prefix }}svt_configuration)
+        `uvm_field_int(scaledown, UVM_ALL_ON)
+        `uvm_field_int(usbfs_ls_spd, UVM_ALL_ON)
+        `uvm_field_int(usbfs_fs_spd, UVM_ALL_ON)
+        `uvm_field_int(use_fs_phy, UVM_ALL_ON)
+        `uvm_field_int(use_srh_phy, UVM_ALL_ON)
+        `uvm_field_int(use_usb2_built_in, UVM_ALL_ON)
+        `uvm_field_int(vtb_por_spk, UVM_ALL_ON)
+        `uvm_field_int(vtb_rdn, UVM_ALL_ON)
+        `uvm_field_int(instr_run, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    int scaledown; // 加速
+    bit usbfs_ls_spd;
+    bit usbfs_fs_spd;
+    bit use_fs_phy;
+    bit use_srh_phy;
+    bit use_usb2_built_in;
+    bit vtb_por_spk;
+    bit vtb_rdn;
+    bit instr_run;
+
+    function new(string name="{{ class_prefix }}svt_configuration");
+        super.new(name);
+    endfunction
+
+    // 配置
+    extern function void configure({{ class_prefix }}system_configuration cfg, virtual svt_usb_if module_usb_2_0_if);
+
+    // 配置约束关系
+    extern protected function void configure_constraint({{ class_prefix }}system_configuration cfg);
+
+    // 配置 Device
+    extern protected function void configure_device({{ class_prefix }}system_configuration cfg);
+
+    // 配置 Host
+    extern protected function void configure_host({{ class_prefix }}system_configuration cfg);
+
+    // 创建设备 endpoint 配置
+    extern protected function svt_usb_endpoint_configuration create_endpoint_config({{ class_prefix }}system_configuration cfg, {{ class_prefix }}endpoint_configuration ep_cfg, svt_usb_types::ep_direction_enum dir);
+
+    // 为 device 创建设备 endpoint
+    extern function void create_endpoint_config_for_device({{ class_prefix }}system_configuration cfg, svt_usb_device_configuration svt_cfg);
+endclass
+
+function void {{ class_prefix }}svt_configuration::configure({{ class_prefix }}system_configuration cfg, virtual svt_usb_if module_usb_2_0_if);
+    configure_constraint(cfg);
+
+    case(cfg.otg_mode)
+        cfg.OTG_DEVICE: begin
+            instr_run = 'h04;
+            configure_device(cfg);
+        end
+        cfg.OTG_HOST: begin
+            instr_run = 'h02;
+            configure_host(cfg);
+        end
+        default: `uvm_fatal("", "NotImplemented")
+    endcase
+
+    usb_2_0_if = module_usb_2_0_if;
+
+    enable_prot_xm1_gen = 1;
+    enable_link_xm1_gen = 1;
+    enable_phys_xm1_gen = 1;
+
+    enable_link_tracing = 1;
+    enable_phys_tracing = 1;
+    enable_prot_tracing = 1;
+
+    enable_link_pa_gen = 10;
+    enable_phys_pa_gen = 10;
+    enable_prot_pa_gen = 10;
+
+    enable_link_chk = 1;
+    enable_link_reporting = 1;
+    enable_link_tracing = 1;
+endfunction
+
+function void {{ class_prefix }}svt_configuration::configure_constraint({{ class_prefix }}system_configuration cfg);
+    scaledown = 0;
+    use_fs_phy = 0;
+    usbfs_bus_hsic = 0;
+    vtb_usb2 = 0;
+    use_usb2_phy = 0;
+    vtb_usb3ss = 0;
+    vtb_por_spk = 0;
+    hibernation = 0;
+
+    usbfs_ls_spd = (cfg.speed == cfg.SPEED_LOW);
+    usbfs_fs_spd = (cfg.speed == cfg.SPEED_FULL);
+
+    use_fs_phy = (cfg.version == cfg.VERSION_1_0);
+    use_utmi_phy = (cfg.version == cfg.VERSION_2_0);
+endfunction
+
+function void {{ class_prefix }}svt_configuration::configure_device({{ class_prefix }}system_configuration cfg);
+    svt_usb_device_configuration local_device_cfg = new();
+    remote_host_cfg = new();
+
+    component_type = svt_usb_types::DEVICE;
+    usb_capability = svt_usb_configuration::USB_20_ONLY;
+    capability = svt_usb_configuration::PLAIN;
+    if(usbfs_bus_hsic) begin
+        usb_20_signal_interface = svt_usb_configuration::USB_20_HSIC_IF;
+        hwp_supported = 0;
+        srp_supported = 0;
+    end
+    else if(vtb_usb2) begin
+        usb_20_signal_interface = svt_usb_configuration::UTMI_IF;
+        hwp_supported = 0;
+        srp_supported = 0;
+    end
+    else begin
+        usb_20_signal_interface = svt_usb_configuration::NO_SS_IF;
+    end
+
+    local_device_cfg.size = 1;
+
+    if(usbfs_ls_spd) begin
+        local_device_cfg[0].low_speed_capable = 1'b1;
+        local_device_cfg[0].connected_bus_speed = svt_usb_types::LS;
+        speed = svt_usb_types::LS;
+        local_device_cfg[0].functionality_support = svt_usb_types::LS;
+    end
+    else if(usbfs_fs_spd) begin
+        local_device_cfg[0].full_speed_capable = 1'b1;
+        local_device_cfg[0].connected_bus_speed = svt_usb_types::FS;
+        speed = svt_usb_types::FS;
+        local_device_cfg[0].functionality_support = svt_usb_types::FS;
+    end
+    else begin
+        local_device_cfg[0].high_speed_capable = 1'b1;
+        local_device_cfg[0].connected_bus_speed = svt_usb_types::HS;
+        speed = svt_usb_types::HS;
+        local_device_cfg[0].functionality_support = svt_usb_types::HS;
+    end
+
+    if(usbfs_fs_spd) begin
+        local_device_cfg[0].num_endpoints = 3;
+    end
+    else if(usbfs_ls_spd) begin
+        local_device_cfg[0].num_endpoints = 7;
+    end
+    else begin
+        local_device_cfg[0].num_endpoints = 9;
+    end
+
+    create_endpoint_config_for_device(cfg, local_device_cfg[0]);
+
+    enable_prot_chk = 0;
+    enable_prot_reporting = 1;
+    enable_prot_tracing = 1;
+    enable_link_chk = 0;
+    enable_link_reporting = 1;
+    enable_link_tracing = 1;
+    enable_phys_chk = 0;
+    enable_phys_tracing = 0;
+    enable_phys_reporting = 0;
+
+    set_20_scaledown_values();
+
+    tb_fs_bits = 150us;
+    ta_bcon_srat = 1us;
+    ta_aon_bcon = 7us;
+    tattach = 30us;
+    usbfs_detection_delay_in_suspend_state = 15us;
+    usb_20_hsic_idle_drive_time_min = 0us;
+    tbdis_dischg = 1us;
+    tb_aidl_bdis = 15us;
+
+    local_device_cfg[0].device_address = cfg.dev_cfg.device_addr;
+endfunction
+
+function void {{ class_prefix }}svt_configuration::configure_host({{ class_prefix }}system_configuration cfg);
+    remote_device_cfg[0] = new();
+    local_host_cfg = new();
+
+    component_type = svt_usb_types::HOST;
+    usb_capability = svt_usb_configuration::USB_20_ONLY;
+    if(usbfs_bus_hsic) begin
+        usb_20_signal_interface = svt_usb_configuration::USB_20_HSIC_IF;
+        capability = svt_usb_configuration::PLAIN;
+        hwp_supported = 0;
+        srp_supported = 0;
+    end
+    else if(vtb_usb2) begin
+        usb_20_signal_interface = svt_usb_configuration::UTMI_IF;
+        hwp_supported = 0;
+        srp_supported = 0;
+        capability = svt_usb_configuration::PLAIN;
+    end
+    else begin
+        usb_20_signal_interface = svt_usb_configuration::NO_SS_IF;
+    end
+
+    remote_device_cfg.size = 1;
+    local_host_cfg.micro_frame_period = 125us;
+
+    if(usbfs_ls_spd) begin
+        remote_device_cfg[0].low_speed_capable = 1'b1;
+        remote_device_cfg[0].connected_bus_speed = svt_usb_types::LS;
+        speed = svt_usb_types::LS;
+        remote_device_cfg[0].functionality_support = svt_usb_types::LS;
+    end
+    else if(usbfs_fs_spd) begin
+        remote_device_cfg[0].full_speed_capable = 1'b1;
+        remote_device_cfg[0].connected_bus_speed = svt_usb_types::FS;
+        speed = svt_usb_types::FS;
+        remote_device_cfg[0].functionality_support = svt_usb_types::FS;
+    end
+    else begin
+        remote_device_cfg[0].high_speed_capable = 1'b1;
+        remote_device_cfg[0].connected_bus_speed = svt_usb_types::HS;
+        speed = svt_usb_types::HS;
+        remote_device_cfg[0].functionality_support = svt_usb_types::HS;
+    end
+
+    create_endpoint_config_for_device(cfg, remote_device_cfg[0]);
+
+    enable_prot_chk = 0;
+    enable_prot_reporting = 1;
+    enable_prot_tracing = 0;
+    enable_link_chk = 0;
+    enable_link_reporting = 1;
+    enable_link_tracing = 0;
+    enable_phys_chk = 0;
+    enable_phys_tracing = 0;
+    enable_phys_reporting = 0;
+
+    set_scaledown_values();
+
+    tursm = 9us;
+    if(vtb_por_spk) begin
+        if(usbfs_bus_hsic) begin
+            tdrstr = 200us;
+            tdrstfs = 50us;
+            tdrstrcy = 5us;
+            tdchse0 = 2.5us;
+        end
+        else begin
+            tdrstr = 50us;
+            tdchse0 = 2.5us;
+        end
+    end
+
+    tb_vbus_rise = 1us;
+    ta_bidl_adis = 20us;
+    tdics_dbchg = 5us;
+    micro_sof_phy_type = svt_usb_types::IA;
+    tdido_detection_delay_in_suspend_state = 15us;
+    ta_bdis_acon = 1us;
+    tb_fs_bdis = 15us;
+    ta_bcon_srat = 1us;
+    tb_aon_bdis = 7us;
+    tattach = 30us;
+
+    tllpktexitdevrecovery = 2us;
+    tsend_lkg = 10us;
+    tb_data_pls_min = 5us;
+
+    tursm = 9us;
+    if(tbchannel)
+        tdchse0 = 200us;
+    else
+        tdrsdn = 50us;
+
+    usb_20_hsic_idle_drive_time_min = 0us;
+
+    tend_to_end_delay_fs = cfg.dev_cfg.tend_to_end_timeout_ps * 1ps;
+    tend_to_end_delay_hs = cfg.dev_cfg.tend_to_end_timeout_ps * 1ps;
+endfunction
+
+function svt_usb_endpoint_configuration {{ class_prefix }}svt_configuration::create_endpoint_config({{ class_prefix }}system_configuration cfg, {{ class_prefix }}endpoint_configuration ep_cfg, svt_usb_types::ep_direction_enum dir);
+    svt_usb_endpoint_configuration svt_ep_cfg;
+
+    svt_ep_cfg = new();
+    svt_ep_cfg.direction = dir;
+
+    case(cfg.speed)
+        cfg.SPEED_HIGH: case(ep_cfg.ep_type)
+            ep_cfg.EP_TYPE_BULK: svt_ep_cfg.max_packet_size = `SVT_USB_HS_BULK_MAX_PACKET_SIZE;
+            ep_cfg.EP_TYPE_ISOCHRONOUS: svt_ep_cfg.max_packet_size = `SVT_USB_HS_ISOC_MAX_PACKET_SIZE;
+            ep_cfg.EP_TYPE_INTERRUPT: svt_ep_cfg.max_packet_size = `SVT_USB_HS_INTR_MAX_PACKET_SIZE;
+            ep_cfg.EP_TYPE_CONTROL: svt_ep_cfg.max_packet_size = `SVT_USB_HS_CONTROL_MAX_PACKET_SIZE;
+            default: `uvm_fatal("", "NotImplemented")
+        endcase
+        cfg.SPEED_FULL: case(ep_cfg.ep_type)
+            ep_cfg.EP_TYPE_BULK: svt_ep_cfg.max_packet_size = `SVT_USB_FS_BULK_MAX_PACKET_SIZE;
+            ep_cfg.EP_TYPE_ISOCHRONOUS: svt_ep_cfg.max_packet_size = `SVT_USB_FS_ISOC_MAX_PACKET_SIZE;
+            ep_cfg.EP_TYPE_INTERRUPT: svt_ep_cfg.max_packet_size = `SVT_USB_FS_INTR_MAX_PACKET_SIZE;
+            ep_cfg.EP_TYPE_CONTROL: svt_ep_cfg.max_packet_size = `SVT_USB_FS_CONTROL_MAX_PACKET_SIZE;
+            default: `uvm_fatal("", "NotImplemented")
+        endcase
+    endcase
+
+    svt_ep_cfg.ep_number = ep_cfg.ep_number;
+    svt_ep_cfg.allow_aligned_transfer_without_zero_length = 1;
+    svt_ep_cfg.interval = ep_cfg.interval;
+    svt_ep_cfg.max_retry_due_to_timeout = cfg.dev_cfg.control_max_retry;
+    svt_ep_cfg.max_retry_due_to_nak = cfg.dev_cfg.transfer_max_retry;
+    svt_ep_cfg.max_retry_due_to_stall = cfg.dev_cfg.transfer_max_retry;
+    svt_ep_cfg.max_retry_due_to_error = cfg.dev_cfg.transfer_max_retry;
+
+    return svt_ep_cfg;
+endfunction
+
+function void {{ class_prefix }}svt_configuration::create_endpoint_config_for_device({{ class_prefix }}system_configuration cfg, svt_usb_device_configuration svt_cfg);
+    foreach(cfg.dev_cfg.ep_cfg[i]) begin
+        {{ class_prefix }}endpoint_configuration ep_cfg;
+        svt_usb_endpoint_configuration svt_ep_cfgs[$];
+
+        if(!$cast(ep_cfg, cfg.dev_cfg.ep_cfg[i]))
+            continue;
+        if(ep_cfg == null)
+            continue;
+
+        if(ep_cfg.can_input)
+            svt_ep_cfgs.push_back(create_endpoint_config(cfg, ep_cfg, svt_usb_types::IN));
+
+        if(ep_cfg.can_output)
+            svt_ep_cfgs.push_back(create_endpoint_config(cfg, ep_cfg, svt_usb_types::OUT));
+
+        foreach(svt_ep_cfgs[j])
+            svt_cfg.endpoint_cfg[svt_cfg.endpoint_cfg.size] = svt_ep_cfgs[j];
+    end
+
+    svt_cfg.num_endpoints = svt_cfg.endpoint_cfg.size;
+endfunction
+
+`endif

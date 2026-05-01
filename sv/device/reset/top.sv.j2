@@ -1,0 +1,27 @@
+`ifndef {{ class_prefix | upper }}TOP
+`define {{ class_prefix | upper }}TOP
+
+module {{ class_prefix }}top(
+    input wire clk,
+    output wire rst_n
+);
+    parameter CYCLE = 10;
+
+    {{ class_prefix }}interface rst_vif(clk,rst_n);
+    {{ class_prefix }}env env;
+
+    initial begin
+        env = {{ class_prefix }}env::type_id::create($spsprintf("env"),null);
+        uvm_config_db#(virtual {{ class_prefix }}interface)::set(env, "", "rst_vif", rst_vif);
+
+        // default
+        set(CYCLE);
+    end
+
+    // 设置初始化时间
+    function automatic void set(int cycle);
+        env.set(cycle);
+    endfunction
+endmodule
+
+`endif

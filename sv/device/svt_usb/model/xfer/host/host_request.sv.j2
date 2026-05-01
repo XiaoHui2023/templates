@@ -1,0 +1,77 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_REQUEST
+
+class {{ class_prefix }}xfer_host_request extends {{ class_prefix }}xfer_request;
+    typedef enum {
+        REQUEST_SET_ADDRESS=svt_usb_types::SET_ADDRESS,
+        REQUEST_GET_DESCRIPTOR=svt_usb_types::GET_DESCRIPTOR, // [in]描述符
+        REQUEST_GET_CONFIGURATION=svt_usb_types::GET_CONFIGURATION,
+        REQUEST_SET_CONFIGURATION=svt_usb_types::SET_CONFIGURATION,
+        REQUEST_SET_FEATURE=svt_usb_types::SET_FEATURE
+    } request_e;
+
+    typedef enum {
+        ATTRIBUTE_CONTROL, // 控制传输
+        ATTRIBUTE_BULK, // 批量传输
+        ATTRIBUTE_INTERRUPT, // 中断传输
+        ATTRIBUTE_ISOCHRONOUS // 等时传输
+    } attribute_e;
+
+    typedef enum {
+        DIR_CONTROL,
+        DIR_IN,
+        DIR_OUT
+    } dir_e;
+
+    typedef enum {
+        REQUEST_DIR_HOST_TO_DEVICE=svt_usb_types::HOST_TO_DEVICE,
+        REQUEST_DIR_DEVICE_TO_HOST=svt_usb_types::DEVICE_TO_HOST // IN方向
+    } request_dir_e;
+
+    typedef enum {
+        REQUEST_RECIPIENT_DEVICE=svt_usb_types::BMREQ_DEVICE // [out]
+    } request_recipient_e;
+
+    typedef enum {
+        REQUEST_TYPE_STANDARD=svt_usb_types::STANDARD // [out]
+    } request_type_e;
+
+    `uvm_object_utils_begin({{ class_prefix }}xfer_host_request)
+        `uvm_field_enum(dir_e,dir,UVM_ALL_ON)
+        `uvm_field_enum(attribute_e,attribute,UVM_ALL_ON)
+        `uvm_field_int(endpoint_id,UVM_ALL_ON)
+        `uvm_field_int(device_addr,UVM_ALL_ON)
+        `uvm_field_int(device_model,UVM_ALL_ON)
+        `uvm_field_int(xfer_num,UVM_ALL_ON)
+        // Setup
+        `uvm_field_enum(request_e,request,UVM_ALL_ON)
+        `uvm_field_enum(request_dir_e,request_dir,UVM_ALL_ON)
+        `uvm_field_enum(request_recipient_e,request_recipient,UVM_ALL_ON)
+        `uvm_field_enum(request_type_e,request_type,UVM_ALL_ON)
+        `uvm_field_int(w_index,UVM_ALL_ON)
+        `uvm_field_int(w_length,UVM_ALL_ON)
+        `uvm_field_int(w_value,UVM_ALL_ON)
+        `uvm_field_int(payload_intended_byte_count,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand dir_e dir; // 方向
+    rand attribute_e attribute; // 属性
+    rand int endpoint_id; // EP ID
+    rand int device_addr; // 设备地址
+    rand int xfer_num;
+    // setup
+    rand request_e request; // 请求
+    rand request_dir_e request_dir; // 请求方向
+    rand request_recipient_e request_recipient; // 请求对象
+    rand request_type_e request_type; // 请求类型
+    rand int w_index;
+    rand int w_length;
+    rand int w_value;
+    rand int payload_intended_byte_count;
+
+    function new(string name = "{{ class_prefix }}xfer_host_request");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

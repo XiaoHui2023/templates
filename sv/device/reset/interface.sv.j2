@@ -1,0 +1,10 @@
+`ifndef {{ class_prefix | upper }}INTERFACE
+`define {{ class_prefix | upper }}INTERFACE
+
+interface {{ class_prefix }}interface(input logic clk,output reg rst_n);
+    initial begin
+        rst_n <= 1;
+    end
+endinterface
+
+`endif

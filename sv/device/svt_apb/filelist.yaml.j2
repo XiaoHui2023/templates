@@ -1,0 +1,6 @@
+template: >-
+{% raw %}{{ fileitem }}{% endraw %}
+reg_test_seq.sv.j2: ${reg_test.is_enabled}
+adapter.sv.j2: ${is_adapt_enabled}
+reporter.sv.j2: ${report.is_enabled}
+reg_sync_agent.sv.j2: ${reg_sync.is_enabled}

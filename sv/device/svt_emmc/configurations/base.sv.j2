@@ -1,0 +1,35 @@
+`ifndef {{ class_prefix | upper }}BASE_CONFIGURATION
+`define {{ class_prefix | upper }}BASE_CONFIGURATION
+
+class {{ class_prefix }}base_configuration extends uvm_sequence_item;
+    `uvm_object_utils({{ class_prefix }}base_configuration)
+
+    typedef enum {
+        {%- if is_emmc %}
+        VERSION_5_1,
+        VERSION_5_0
+        {%- elif is_sdio %}
+        VERSION_4_0
+        {%- elif is_sdcard %}
+        VERSION_6_00,
+        VERSION_5_10,
+        VERSION_5_00,
+        VERSION_4_20,
+        VERSION_3_00,
+        VERSION_2_00,
+        VERSION_1_10,
+        VERSION_1_01
+        {%- endif %}
+    } version_e;
+
+    typedef enum {
+        SDSC, // Standard, <=2GB
+        SDHC, // High, >2GB, <=32GB
+        SDXC  // Extended, >32GB, <=2TB
+    } capacity_type_e;
+
+    function new(string name="{{ class_prefix }}base_configuration");
+        super.new(name);
+    endfunction
+endclass
+`endif

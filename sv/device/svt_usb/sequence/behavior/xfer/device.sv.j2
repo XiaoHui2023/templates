@@ -1,0 +1,40 @@
+`ifndef {{ class_prefix | upper }}XFER_DEVICE_SEQ
+`define {{ class_prefix | upper }}XFER_DEVICE_SEQ
+
+class {{ class_prefix | lower }}xfer_device_seq extends {{ class_prefix }}xfer_base_seq;
+  `uvm_object_utils({{ class_prefix }}xfer_device_seq)
+
+  function new(string name = "{{ class_prefix }}xfer_device_seq");
+    super.new(name);
+  endfunction
+
+  extern task send_data();
+  extern task receive_data();
+endclass
+
+task {{ class_prefix }}xfer_device_seq::send_data();
+  `uvm_fatal("", "NoImplement")
+
+  //foreach(tx_data[i])
+  //    p_sequencer.callback.tx_fifo.push_back(tx_data[i]);
+  //wait(p_sequencer.callback.tx_fifo.size);
+  //p_sequencer.callback.wait_transaction_end_event();
+endtask
+
+task {{ class_prefix }}xfer_device_seq::receive_data();
+  `uvm_fatal("", "NoImplement")
+
+  //`uvm_info("", $spsrintf("ready rec %0d byte from host", len), UVM_LOW)
+
+  //repeat(len) begin
+  //    bit [9:0] tmp;
+  //
+  //    wait(p_sequencer.callback.rx_fifo.size);
+  //    tmp = p_sequencer.callback.rx_fifo.pop_front();
+  //    rx_data.push_back(tmp);
+  //end
+
+  //`uvm_info("", "receive data finish", UVM_LOW)
+endtask
+
+`endif

@@ -1,0 +1,18 @@
+`ifndef {{ class_prefix | upper }}POWER_UP_TEST_SEQ
+`define {{ class_prefix | upper }}POWER_UP_TEST_SEQ
+
+class {{ class_prefix }}power_up_test_seq extends {{ class_prefix }}default_seq;
+    `uvm_object_utils({{ class_prefix }}power_up_test_seq)
+
+    function new(string name = "{{ class_prefix }}power_up_test_seq");
+        super.new(name);
+    endfunction
+
+    {{ class_prefix }}power_up_request_seq power_up_seq;
+
+    task body();
+        uvm_do(power_up_seq)
+    endtask
+endclass
+
+`endif

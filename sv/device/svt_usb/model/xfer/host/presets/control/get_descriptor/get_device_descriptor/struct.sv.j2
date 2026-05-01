@@ -1,0 +1,38 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_DEVICE_DESCRIPTOR_STRUCT
+`define {{ class_prefix | upper }}XFER_HOST_GET_DEVICE_DESCRIPTOR_STRUCT
+
+class {{ class_prefix }}xfer_host_get_device_descriptor_struct extends {{ class_prefix }}xfer_host_get_descriptor_base_struct;
+    `uvm_object_utils_begin({{ class_prefix }}xfer_host_get_device_descriptor_struct)
+        `uvm_field_int(cd_usb,UVM_ALL_ON)
+        `uvm_field_int(device_class,UVM_ALL_ON)
+        `uvm_field_int(device_subclass,UVM_ALL_ON)
+        `uvm_field_int(device_protocol,UVM_ALL_ON)
+        `uvm_field_int(max_packet_size,UVM_ALL_ON)
+        `uvm_field_int(id_vendor,UVM_ALL_ON)
+        `uvm_field_int(id_product,UVM_ALL_ON)
+        `uvm_field_int(bcd_device,UVM_ALL_ON)
+        `uvm_field_int(manufacturer,UVM_ALL_ON)
+        `uvm_field_int(product,UVM_ALL_ON)
+        `uvm_field_int(serial_number,UVM_ALL_ON)
+        `uvm_field_int(num_configurations,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit[15:0] cd_usb; // usb协议版本
+    bit[7:0] device_class; // 设备类
+    bit[7:0] device_subclass; // 设备子类
+    bit[7:0] device_protocol; // 设备协议
+    bit[7:0] max_packet_size; // EP0最大包长
+    bit[15:0] id_vendor; // VID
+    bit[15:0] id_product; // PID
+    bit[15:0] cd_device; // device版本
+    bit[7:0] manufacturer; // 制造商描述索引
+    bit[7:0] product; // 产品描述索引
+    bit[7:0] serial_number; // 序列号描述索引
+    bit[7:0] num_configurations; // 配置数量
+
+    function new(string name="{{ class_prefix }}xfer_host_get_device_descriptor_struct");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

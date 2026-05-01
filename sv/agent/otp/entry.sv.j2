@@ -1,0 +1,41 @@
+`ifndef {{ class_entry | upper }}
+`define {{ class_entry | upper }}
+
+class {{ class_entry }} extends uvm_sequence_item;
+  typedef enum {
+    NIBBLE_HIGH,
+    NIBBLE_LOW,
+    NIBBLE_ALL
+  } nibble_e;
+
+  typedef enum {
+{% for type in types %}
+    TYPE_{{ type | upper }}{{ ',' if not loop.last }}
+{% endfor %}
+  } type_e;
+
+  `uvm_object_utils_begin({{ class_entry }})
+    `uvm_field_int(address,UVM_ALL_ON)
+    `uvm_field_int(width,UVM_ALL_ON | UVM_DEC)
+    `uvm_field_int(bytes,UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_field_enum(nibble_e,nibble,UVM_ALL_ON | (width<=8?UVM_NOPRINT:0))
+    `uvm_field_enum(type_e,T,UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  int address;
+  int width;
+  int bytes;
+  nibble_e nibble;
+  type_e T;
+
+  function new(string name="{{ class_entry }}");
+    super.new(name);
+  endfunction
+
+  // 设置值（需要额外实现）
+  extern function void set(bit[{{ max_width-1 }}:0] value);
+
+  // 获取值（需要额外实现）
+  extern function bit[{{ max_width-1 }}:0] get();
+endclass
+`endif

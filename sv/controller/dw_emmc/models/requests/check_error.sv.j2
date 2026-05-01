@@ -1,0 +1,75 @@
+`ifndef {{ class_prefix | upper }}CHECK_ERROR_REQUEST
+`define {{ class_prefix | upper }}CHECK_ERROR_REQUEST
+
+class {{ class_prefix }}check_error_request extends {{ class_prefix }}base_request;
+    uvm_object_utils_begin({{ class_prefix }}check_error_request)
+        `uvm_field_int(all_err_en,UVM_ALL_ON|UVM_NOPRINT)
+        `uvm_field_int(cmd_tout_err_en,UVM_ALL_ON)
+        `uvm_field_int(cmd_crc_err_en,UVM_ALL_ON)
+        `uvm_field_int(cmd_end_bit_err_en,UVM_ALL_ON)
+        `uvm_field_int(cmd_idx_err_en,UVM_ALL_ON)
+        `uvm_field_int(data_tout_err_en,UVM_ALL_ON)
+        `uvm_field_int(data_crc_err_en,UVM_ALL_ON)
+        `uvm_field_int(data_end_bit_err_en,UVM_ALL_ON)
+        `uvm_field_int(cur_lmt_err_en,UVM_ALL_ON)
+        `uvm_field_int(auto_cmd_err_en,UVM_ALL_ON)
+        `uvm_field_int(adma_err_en,UVM_ALL_ON)
+        `uvm_field_int(tuning_err_en,UVM_ALL_ON)
+        `uvm_field_int(resp_err_en,UVM_ALL_ON)
+        `uvm_field_int(boot_ack_err_en,UVM_ALL_ON)
+        `uvm_field_int(should_fatal,UVM_ALL_ON)
+    uvm_object_utils_end
+
+    rand bit[12:0] all_err_en; // 全部错误检查使能
+    rand bit cmd_tout_err_en; // 命令超时错误检查
+    rand bit cmd_crc_err_en; // 命令CRC错误检查
+    rand bit cmd_end_bit_err_en; // 命令结束位错误检查
+    rand bit cmd_idx_err_en; // 命令索引错误检查
+    rand bit data_tout_err_en; // 数据超时错误检查
+    rand bit data_crc_err_en; // 数据CRC错误检查
+    rand bit data_end_bit_err_en; // 数据结束位错误检查
+    rand bit cur_lmt_err_en; // Current Limit 错误检查
+    rand bit auto_cmd_err_en; // 自动命令错误检查
+    rand bit adma_err_en; // ADMA错误检查
+    rand bit tuning_err_en; // 调谐错误检查
+    rand bit resp_err_en; // 响应错误检查
+    rand bit boot_ack_err_en; // BOOT应答错误检查
+    rand bit should_fatal; // 说明是fatal
+
+    constraint cst_check_error_request {
+        soft cmd_tout_err_en == 1;
+        soft cmd_crc_err_en == 1;
+        soft cmd_end_bit_err_en == 1;
+        soft cmd_idx_err_en == 1;
+        soft data_tout_err_en == 1;
+        soft data_crc_err_en == 1;
+        soft data_end_bit_err_en == 1;
+        soft cur_lmt_err_en == 1;
+        soft auto_cmd_err_en == 1;
+        soft adma_err_en == 1;
+        soft tuning_err_en == 1;
+        soft resp_err_en == 1;
+        soft boot_ack_err_en == 1;
+        soft should_fatal == 1;
+
+        all_err_en[0]  == cmd_tout_err_en;
+        all_err_en[1]  == cmd_crc_err_en;
+        all_err_en[2]  == cmd_end_bit_err_en;
+        all_err_en[3]  == cmd_idx_err_en;
+        all_err_en[4]  == data_tout_err_en;
+        all_err_en[5]  == data_crc_err_en;
+        all_err_en[6]  == data_end_bit_err_en;
+        all_err_en[7]  == cur_lmt_err_en;
+        all_err_en[8]  == auto_cmd_err_en;
+        all_err_en[9]  == adma_err_en;
+        all_err_en[10] == tuning_err_en;
+        all_err_en[11] == resp_err_en;
+        all_err_en[12] == boot_ack_err_en;
+    }
+
+    function new(string name="{{ class_prefix }}check_error_request");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -1,0 +1,27 @@
+`ifndef {{ class_prefix | upper }}REQUEST
+`define {{ class_prefix | upper }}REQUEST
+
+class {{ class_prefix }}request extends {{ class_prefix }}base_configuration;
+    `uvm_object_utils({{ class_prefix }}request)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    {{ class_prefix }}system_configuration sys_cfg;
+    {{ class_prefix }}device_configuration dev_cfg;
+    {{ class_prefix }}boot_configuration boot_cfg;
+
+    function new(string name = "{{ class_prefix }}request");
+        super.new(name);
+    endfunction
+
+    extern function void pre_randomize();
+endclass
+
+function void {{ class_prefix }}request::pre_randomize();
+    super.pre_randomize();
+
+    $cast(sys_cfg,p_sequencer.sys_cfg);
+    $cast(boot_cfg,sys_cfg.boot_cfg);
+    $cast(dev_cfg,sys_cfg.dev_cfg);
+endfunction
+
+`endif

@@ -1,0 +1,83 @@
+`ifndef {{ class_prefix | upper }}BASE_CALLBACK
+`define {{ class_prefix | upper }}BASE_CALLBACK
+
+class {{ class_prefix }}base_callback extends svt_usb_protocol_callback;
+    `uvm_object_utils({{ class_prefix }}base_callback)
+
+    bit[7:0] rx_fifo[$]; // 日志接收
+    bit[7:0] tx_fifo[$]; // 日志发送
+    bit e_transfer_ended; // 传输结束事件
+    bit e_transaction_ended; // 传输包结束事件
+    semaphore transfer_key; // 所有传输
+
+    function new(string name="{{ class_prefix }}base_callback");
+        super.new(name);
+    endfunction
+
+    // 提取接收数据到 rx_fifo
+    extern function void extract_receive_data(svt_usb_packet pkt);
+
+    // 复位全部
+    extern function void reset_all();
+
+    // 复位 fifo
+    extern function void reset_fifo();
+
+    // 复位传输结束事件
+    extern function void reset_transfer_end_event();
+
+    // 复位包传输结束事件
+    extern function void reset_transaction_end_event();
+
+    // 等待传输结束事件
+    extern task wait_transfer_end_event();
+
+    // 等待事务结束事件
+    extern task wait_transaction_end_event();
+endclass
+
+function void {{ class_prefix }}base_callback::extract_receive_data(svt_usb_packet pkt);
+    bit[7:0] tmp[];
+    bit[7:0] data[$];
+
+    tmp = pkt.payload.data;
+    foreach(tmp[i])
+        data[i] = tmp[i];
+
+    foreach(data[i])
+        `uvm_info("", $spsprintf("receive[%0d] 0x%h\n%s", i, data[i], data), UVM_LOW)
+
+    foreach(data[i])
+        rx_fifo.push_back(data[i]);
+endfunction
+
+function void {{ class_prefix }}base_callback::reset_all();
+    transfer_key = new(1);
+
+    reset_fifo();
+    reset_transfer_end_event();
+    reset_transaction_end_event();
+endfunction
+
+function void {{ class_prefix }}base_callback::reset_fifo();
+    rx_fifo.delete();
+    tx_fifo.delete();
+endfunction
+
+function void {{ class_prefix }}base_callback::reset_transfer_end_event();
+    e_transfer_ended = 0;
+endfunction
+
+function void {{ class_prefix }}base_callback::reset_transaction_end_event();
+    e_transaction_ended = 0;
+endfunction
+
+task {{ class_prefix }}base_callback::wait_transfer_end_event();
+    wait(e_transfer_ended);
+endtask
+
+task {{ class_prefix }}base_callback::wait_transaction_end_event();
+    wait(e_transaction_ended);
+endtask
+
+`endif

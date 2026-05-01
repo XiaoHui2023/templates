@@ -1,0 +1,48 @@
+`ifndef {{ class_prefix | upper }}INTERFACE
+`define {{ class_prefix | upper }}INTERFACE
+
+interface {{ class_prefix }}interface(
+  output reg id,
+  output reg clk,
+  input wire dp,
+  input wire dn,
+  input wire [3:0] dssr_state
+);
+
+virtual svt_usb_if svt_if;
+
+wire dp;
+wire dm;
+wire select; // 是否连到device的dp/dn
+wire connected; // 是否连接
+wire fs_connected; // 是否全速不是真空状态
+wire inactive; // 是否上拉
+wire active; // 是否下拉
+wire send_chirp_k; // 是否device发送CHIRP_K
+
+parameter DSSR_STATE_DEV_INIT = 0;
+parameter DSSR_STATE_SEND_CHIRP = 4;
+
+assign connected = !isunknown(dp) || !isunknown(dn);
+assign fs_connected = connected && !(dp == 1'b0 && dm == 1'b0);
+assign inactive = dssr_state == DSSR_STATE_DEV_INIT;
+assign active = ~inactive;
+assign send_chirp_k = dssr_state == DSSR_STATE_SEND_CHIRP;
+
+initial begin
+  clk <= 0;
+  select = 0; // 初始断开
+end
+
+// 连接
+function automatic connect();
+  select = 1;
+endfunction
+
+// 断开
+function automatic disconnect();
+  select = 0;
+endfunction
+endinterface
+
+`endif

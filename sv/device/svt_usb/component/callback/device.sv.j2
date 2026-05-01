@@ -1,0 +1,152 @@
+`ifndef {{ class_prefix | upper }}DEVICE_CALLBACK
+`define {{ class_prefix | upper }}DEVICE_CALLBACK
+
+class {{ class_prefix }}device_callback extends {{ class_prefix }}base_callback;
+    `uvm_object_utils({{ class_prefix }}device_callback)
+
+    function new(string name="{{ class_prefix }}device_callback");
+        super.new(name);
+    endfunction
+
+    extern function void new_2_response_transfer(svt_usb_protocol_component component, ref svt_usb_transfer transfer);
+    extern function void received_data_packet(svt_usb_protocol_component component, svt_usb_transfer transfer, svt_usb_packet packet);
+    extern virtual function void transaction_ended(svt_usb_protocol_component component, svt_usb_transfer transfer, int transaction_ix);
+    extern virtual function void pre_tx_packet(svt_usb_protocol_component component, svt_usb_transfer transfer, int transaction_ix, int packet_ix);
+    extern virtual function void pre_tx_packet_in_port_cov(svt_usb_protocol_component component, int chan_id, svt_usb_packet packet);
+    extern virtual function void transfer_ended(svt_usb_protocol_component component, svt_usb_transfer transfer);
+endclass
+
+function void {{ class_prefix }}device_callback::new_2_response_transfer(svt_usb_protocol_component component, ref svt_usb_transfer transfer);
+    bit[7:0] data[$];
+    int len;
+    bit aligned_transfer_ends_with_zero_length = 1;
+
+    data = tx_fifo;
+    tx_fifo.delete();
+    len = data.size;
+
+    `uvm_info("new_2_response_transfer", $sformatf("Enter in new_2_response_transfer"), UVM_LOW)
+    if(transfer.xfer_type == svt_usb_transfer::BULK_IN_TRANSFER || transfer.xfer_type == svt_usb_transfer::INTERRUPT_IN_TRANSFER || transfer.xfer_type == svt_usb_transfer::ISOCHRONOUS_IN_TRANSFER) begin
+        `uvm_info("new_2_response_transfer", "Change payload for BULK_IN_TRANSFER || INTERRUPT_IN_TRANSFER || ISOCHRONOUS_IN_TRANSFER", UVM_HIGH)
+        transfer.payload.rand_mode(0);
+        transfer.payload.intended_byte_count = len;
+        transfer.payload.data.delete();
+        transfer.payload.byte_count = len;
+        transfer.payload.start_ix = 0;
+        transfer.payload.data_generation_algorithm = svt_usb_payload::USER_DEFINED_ALGORITHM;
+        transfer.payload.bytes_remaining = transfer.payload.intended_byte_count;
+        transfer.payload.end_ix = transfer.payload.start_ix + transfer.payload.intended_byte_count;
+        transfer.aligned_transfer_ends_with_zero_length = aligned_transfer_ends_with_zero_length;
+        transfer.payload.data = new[transfer.payload.intended_byte_count];
+        transfer.payload.data = data;
+
+        foreach(data[i]) begin
+            `uvm_info("new_2_response_transfer", $sformatf("data[%0d] = %0h", i, data[i]), UVM_LOW)
+        end
+    end
+    else if(transfer.xfer_type == svt_usb_transfer::INTERRUPT_OUT_TRANSFER || transfer.xfer_type == svt_usb_transfer::ISOCHRONOUS_OUT_TRANSFER || transfer.xfer_type == svt_usb_transfer::BULK_OUT_TRANSFER) begin
+        transfer.payload.intended_byte_count = len;
+        transfer.aligned_transfer_ends_with_zero_length = aligned_transfer_ends_with_zero_length;
+    end
+    `uvm_info("new_2_response_transfer", "Exit in new_2_response_transfer", UVM_LOW)
+endfunction
+
+function void {{ class_prefix }}device_callback::received_data_packet(svt_usb_protocol_component component, svt_usb_transfer transfer, svt_usb_packet packet);
+    if(transfer.xfer_type == svt_usb_transfer::BULK_OUT_TRANSFER || transfer.xfer_type == svt_usb_transfer::INTERRUPT_OUT_TRANSFER || transfer.xfer_type == svt_usb_transfer::ISOCHRONOUS_OUT_TRANSFER) begin
+        if(packet.pid_type == svt_usb_packet::DATA) begin
+            foreach(packet.payload.data[i]) begin
+                `uvm_info("received data packet", $sformatf("packet.payload.data[%0d] = %0h", i, packet.payload.data[i]), UVM_HIGH);
+            end
+            extract_receive_data(packet);
+        end
+    end
+endfunction
+
+function void {{ class_prefix }}device_callback::transaction_ended(svt_usb_protocol_component component, svt_usb_transfer transfer, int transaction_ix);
+    svt_usb_transaction lpm_xact;
+    svt_usb_packet lpm_packet;
+    svt_usb_packet lmp_packet;
+    bit lpm_bremotewake = 1'b0;
+    bit[3:0] lpm_hird = 4'h0;
+    bit[3:0] lpm_blinkstate = 4'b0001;
+    bit lpm_ack_received;
+
+    if($cast(lpm_xact, transfer.implementation[transaction_ix])) begin
+        if(lpm_xact.xact_type == svt_usb_types::LPM_TRANSACTION) begin
+            if($cast(lpm_packet, lpm_xact.implementation[1])) begin
+                if(lpm_packet != null) begin
+                    if(lpm_blinkstate <= lpm_packet.blinkstate && (lpm_bremotewake == lpm_packet.bremotewake) && (lpm_hird == lpm_packet.hird)) begin
+                        `uvm_info("transaction_ended", "Received Expected LPM transaction", UVM_LOW)
+                    end
+                    else begin
+                        `uvm_error("transaction_ended", "Wrong LPM data received by device")
+                    end
+                end
+            end
+        end
+
+        if($cast(lpm_packet, lpm_xact.implementation[2])) begin
+            if(lpm_packet.pid_type == svt_usb_packet::HANDSHAKE && lpm_packet.pid_name == svt_usb_packet::ACK) begin
+                lpm_ack_received = 1;
+                `uvm_info("transaction_ended", "ACK got in last call back", UVM_LOW)
+            end
+        end
+    end
+
+    e_transaction_ended++;
+    `uvm_info("", "callback transaction ended", UVM_LOW)
+endfunction
+
+function void {{ class_prefix }}device_callback::pre_tx_packet_in_port_cov(svt_usb_protocol_component component, int chan_id, svt_usb_packet packet);
+    bit ext_token_received;
+    bit lpm_suppid_received;
+
+    if(packet.pid_type == svt_usb_packet::SPECIAL && packet.pid_name == svt_usb_packet::EXT) begin
+        ext_token_received = 1;
+        `uvm_info("usb_20_packet_in_port_cov", "EXT got in hst call back", UVM_LOW)
+    end
+    if(packet.pid_type == svt_usb_packet::EXT_TOKEN && packet.suppid_name == svt_usb_packet::LPM) begin
+        lpm_suppid_received = 1;
+        `uvm_info("usb_20_packet_in_port_cov", "LPM SUPPID got in hst call back", UVM_LOW)
+    end
+endfunction
+
+function void {{ class_prefix }}device_callback::pre_tx_packet(svt_usb_protocol_component component, svt_usb_transfer transfer, int transaction_ix, int packet_ix);
+    svt_usb_transaction lpm_xact;
+    svt_usb_packet lpm_response_packet;
+    string custom_lpm_response;
+    bit custom_handshake_response = 0;
+
+    if($cast(lpm_xact, transfer.implementation[transaction_ix])) begin
+        if(lpm_xact.xact_type == svt_usb_types::LPM_TRANSACTION) begin
+            if($cast(lpm_response_packet, lpm_xact.implementation[packet_ix])) begin
+                if(lpm_response_packet.pid_type == svt_usb_packet::HANDSHAKE && custom_handshake_response) begin
+                    case(custom_lpm_response)
+                    "NYET": begin
+                        lpm_response_packet.pid_name = svt_usb_packet::NYET;
+                        lpm_xact.device_response = svt_usb_transaction::NYET_RESPONSE;
+                    end
+                    "STALL": begin
+                        lpm_response_packet.pid_name = svt_usb_packet::STALL;
+                        lpm_xact.device_response = svt_usb_transaction::STALL_RESPONSE;
+                    end
+                    "NO HANDSHAKE": begin
+                        lpm_xact.device_response = svt_usb_transaction::TIMEOUT_RESPONSE;
+                    end
+                    "ACK": begin
+                        lpm_response_packet.pid_name = svt_usb_packet::ACK;
+                        lpm_xact.device_response = svt_usb_transaction::NORMAL_RESPONSE;
+                    end
+                    endcase
+                end
+            end
+        end
+    end
+endfunction
+
+function void {{ class_prefix }}device_callback::transfer_ended(svt_usb_protocol_component component, svt_usb_transfer transfer);
+    e_transfer_ended++;
+    `uvm_info("", "callback transfer ended", UVM_LOW)
+endfunction
+
+`endif

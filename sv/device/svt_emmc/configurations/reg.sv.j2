@@ -1,0 +1,34 @@
+`ifndef {{ class_prefix | upper }}REG_CONFIGURATION
+`define {{ class_prefix | upper }}REG_CONFIGURATION
+
+class {{ class_prefix }}reg_configuration extends {{ class_prefix }}base_configuration;
+    `uvm_object_utils_begin({{ class_prefix }}reg_configuration)
+        `uvm_field_enum(version_e, version, UVM_ALL_ON)
+        {%- if is_sd %}
+        `uvm_field_int(allow_single_range_ocr_voltage_validation,UVM_ALL_ON)
+        `uvm_field_int(ocr_voltage_window_supported_by_card,UVM_ALL_ON)
+        {%- endif %}
+    `uvm_object_utils_end
+
+    rand version_e version;
+    {%- if is_sd %}
+    rand bit allow_single_range_ocr_voltage_validation; // ACMD41 ???????????
+    rand int ocr_voltage_window_supported_by_card; // ACMD41 ????
+    {%- endif %}
+
+    function new(string name="{{ class_prefix }}reg_configuration");
+        super.new(name);
+    endfunction
+
+    constraint cst_svt_reg_cfg {
+        {%- if is_sd %}
+        soft allow_single_range_ocr_voltage_validation == 1;
+
+        if(version inside {VERSION_1_01, VERSION_1_10})
+            soft ocr_voltage_window_supported_by_card == 16'hffff;
+        else
+            soft ocr_voltage_window_supported_by_card == 9'h1ff;
+        {%- endif %}
+    }
+endclass
+`endif

@@ -1,0 +1,94 @@
+`ifndef {{ class_prefix | upper }}BOOT_AUTO_SEQ
+`define {{ class_prefix | upper }}BOOT_AUTO_SEQ
+
+class {{ class_prefix }}boot_auto_seq extends {{ class_prefix }}base_seq;
+  `uvm_object_utils({{ class_prefix }}boot_auto_seq)
+
+  function new(string name = "{{ class_prefix }}boot_auto_seq");
+    super.new(name);
+  endfunction
+
+  {{ class_prefix }}wait_device_dssr_state_seq wait_dev_dssr_state_seq;
+  {{ class_prefix }}wait_device_stable_seq wait_dev_stable_seq;
+
+  extern task body();
+
+  // 等待device的VCC稳定时钟稳定
+  extern task auto_boot();
+
+  // 自动控制
+  extern task auto_control();
+
+  // 自动 set address
+  extern task auto_set_address();
+
+  // 自动 set configuration
+  extern task auto_set_configuration();
+endclass
+
+task {{ class_prefix }}boot_auto_seq::body();
+  auto_boot();
+  auto_control();
+
+  p_sequencer.has_auto_done = 1;
+endtask
+
+task {{ class_prefix }}boot_auto_seq::auto_boot();
+  if(!boot_cfg.auto_boot)
+    return;
+
+  `uvm_info("", "enter auto connect", UVM_LOW)
+
+  // 等待ID稳定
+  `uvm_do_with(wait_dev_dssr_state_seq, {
+    state == DEV_IDLE;
+    stay_us == local::boot_cfg.auto_when_idle_stay_us;
+  })
+
+  // 连接
+  p_sequencer.vif.connect();
+
+  // HS等待握手
+  if(sys_cfg.speed inside {sys_cfg.SPEED_HIGH}) begin
+    `uvm_do_with(wait_dev_dssr_state_seq, {
+      state == WAIT_HST_CHIRP;
+    })
+  end
+
+  `uvm_do(wait_dev_stable_seq)
+
+  `uvm_info("", "exit auto connect", UVM_LOW)
+endtask
+
+task {{ class_prefix }}boot_auto_seq::auto_control();
+  auto_set_address();
+  auto_set_configuration();
+endtask
+
+task {{ class_prefix }}boot_auto_seq::auto_set_address();
+  {{ class_prefix }}xfer_host_set_address_seq set_addr_seq;
+
+  if(!boot_cfg.auto_set_address)
+    return;
+
+  `uvm_info("", "enter auto set address", UVM_LOW)
+
+  `uvm_do(set_addr_seq)
+
+  `uvm_info("", "exit auto set address", UVM_LOW)
+endtask
+
+task {{ class_prefix }}boot_auto_seq::auto_set_configuration();
+  {{ class_prefix }}xfer_host_set_configuration_seq set_cfg_seq;
+
+  if(!boot_cfg.auto_set_configuration)
+    return;
+
+  `uvm_info("", "enter auto set system configuration", UVM_LOW)
+
+  `uvm_do(set_cfg_seq)
+
+  `uvm_info("", "exit auto set system configuration", UVM_LOW)
+endtask
+
+`endif

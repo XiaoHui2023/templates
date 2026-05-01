@@ -1,0 +1,354 @@
+`ifndef {{ class_ini_io | upper }}
+`define {{ class_ini_io | upper }}
+
+class {{ class_ini_io }} extends uvm_component;
+  `uvm_component_utils_begin({{ class_ini_io }})
+    `uvm_field_string(filename,UVM_ALL_ON)
+  `uvm_component_utils_end
+
+  function new(string name="{{ class_ini_io }}",uvm_component parent=null);
+    super.new(name,parent);
+  endfunction
+
+  string filename; // 文件名
+  string data[string][string]; // [Section][Key] = Value
+
+  extern function void start_of_simulation();
+
+  // 自动加载文件
+  extern protected function void auto_load_file();
+
+  // 读ini文件
+  extern function void read_ini(input string src,output string data[string][string]);
+
+  // 读文件
+  extern protected function void file_read(input string src,output string lines[$]);
+
+  // 输入一行，匹配Section，返回是否成功
+  extern protected function bit match_section(input string line,output string section);
+
+  // 输入一行，匹配键和值，返回是否成功
+  extern protected function bit match_key_value(input string line,output string key,output string value);
+
+  // 去除字符串两端空格
+  extern protected function string strip(string s);
+
+  // 字符串转十六进制(以0x开头)
+  extern protected function bit[{{ max_width-1 }}:0] to_hex(string value);
+
+  // 字符串转数（十进制）
+  extern protected function bit[{{ max_width-1 }}:0] to_int(string value);
+
+  // 得到字符串
+  extern function string get_str(string key,string section="");
+
+  // 是否是十六进制
+  extern function bit is_hex(string key,string section="");
+
+  // 是否是十进制
+  extern function bit is_int(string key,string section="");
+
+  // 得到十六进制
+  extern function bit[{{ max_width-1 }}:0] get_hex(string key,string section="");
+
+  // 得到整数（十进制）
+  extern function bit[{{ max_width-1 }}:0] get_int(string key,string section="");
+
+  // 判断Section是否存在
+  extern function bit has_section(string section);
+
+  // 判断Key是否存在
+  extern function bit has_key(string key,string section="");
+
+  /*
+   * 在字符串中找子字符串的位置
+   *
+   *   s   : 母字符串
+   *   tar : 子字符串
+   *   n   : 找到第几次出现的子字符串,默认1
+   *   lo  : 起始位置,默认0
+   *
+   * 失败返回-1
+   */
+  extern protected function int find_str(string s,string tar,int n=1,int lo=0);
+endclass
+
+function void {{ class_ini_io }}::start_of_simulation();
+  super.start_of_simulation();
+
+  `uvm_info("",$psprintf("config:\n%s",sprint()),UVM_LOW)
+
+  auto_load_file();
+endfunction
+
+function void {{ class_ini_io }}::read_ini(input string src,output string data[string][string]);
+  string lines[$];
+  string section_cur;
+
+  file_read(src,lines);
+
+  foreach(lines[j]) begin
+    string line_raw;
+    string line;
+    string section;
+    string key;
+    string value;
+
+    line_raw = lines[j];
+    line = strip(line_raw);
+
+    if(!line.len)
+      ; // 空白，什么都不做
+    else if(match_section(line,section))
+      section_cur = section;
+    else if(match_key_value(line,key,value))
+      data[section_cur][key] = value;
+    else
+      `uvm_fatal("",$psprintf("Invalid content: %s",line_raw))
+  end
+endfunction
+
+function void {{ class_ini_io }}::file_read(input string src,output string lines[$]);
+  int file;
+  string str;
+
+  // 打开文件
+  file = $fopen(src,"r");
+  if(file == 0)
+    return;
+
+  // 读文件
+  while(!$feof(file)) begin
+    $fgets(str,file);
+    if(str.len)
+      lines.push_back(str);
+  end
+  $fclose(file);
+
+  // 去掉换行
+  for(int i=0;i<lines.size-1;i++)
+    lines[i] = lines[i].substr(0,lines[i].len-2);
+endfunction
+
+function void {{ class_ini_io }}::auto_load_file();
+  if(!filename.len)
+    return;
+
+  `uvm_info("",$psprintf("load ini: '%s'",filename),UVM_LOW)
+  read_ini(filename,data);
+endfunction
+
+function bit {{ class_ini_io }}::match_section(input string line,output string section);
+  int i, j;
+  string s;
+
+  s = line;
+
+  // 空行或注释行直接返回
+  if(s.len() == 0 || s[0] == ";" || s[0] == "#")
+    return 0;
+
+  // 必须以 '[' 开头，以 ']' 结尾
+  if(s.len() < 3 || s[0] != "[" || s[s.len()-1] != "]")
+    return 0;
+
+  // 提取中间内容
+  section = s.substr(1, s.len()-2);
+
+  // 去掉中间的多余空格
+  section = strip(section);
+
+  // 如果节名为空，也视为无效
+  if(section.len() == 0)
+    return 0;
+
+  return 1;
+endfunction
+
+function bit {{ class_ini_io }}::match_key_value(input string line,output string key,output string value);
+  int pos;
+  string s;
+
+  // 去掉前后空格
+  s = line;
+
+  // 空行或注释行直接返回
+  if(s.len() == 0 || s[0] == ";" || s[0] == "#")
+    return 0;
+
+  // 查找 '=' 位置
+  pos = find_str(s,"=");
+  if(pos == -1)
+    return 0; // 没有等号，不是 key=value 行
+
+  // 提取 key 和 value
+  key   = s.substr(0, pos-1);
+  value = s.substr(pos+1, s.len()-1);
+
+  // 去掉首尾空格
+  key   = strip(key);
+  value = strip(value);
+
+  // 如果 key 为空，则无效
+  if(key.len() == 0)
+    return 0;
+
+  return 1;
+endfunction
+
+function string {{ class_ini_io }}::strip(string s);
+  int i, j;
+  // 找到第一个非空格字符
+  for (i = 0; i < s.len(); i++)
+    if (s[i] != " " && s[i] != "\t" && s[i] != "\n") break;
+
+  // 找到最后一个非空格字符
+  for (j = s.len()-1; j >= 0; j--)
+    if (s[j] != " " && s[j] != "\t" && s[j] != "\n") break;
+
+  if (i > j)
+    return ""; // 全是空格
+  else
+    return s.substr(i, j);
+endfunction
+
+function bit[{{ max_width-1 }}:0] {{ class_ini_io }}::to_hex(string value);
+  bit [{{ max_width-1 }}:0] result;
+  string s;
+  int i, start;
+  byte c;
+  int nibble;
+
+  s = value;
+
+  // 如果以 "0x" 或 "0X" 开头，跳过前缀
+  if (s.len() >= 2 && ((s[0] == "0" && (s[1] == "x" || s[1] == "X"))))
+    start = 2;
+  else
+    start = 0;
+
+  // 从左到右解析
+  for (i = start; i < s.len(); i++) begin
+    c = s[i];
+    if (c >= "0" && c <= "9")
+      nibble = c - "0";
+    else if (c >= "a" && c <= "f")
+      nibble = 10 + (c - "a");
+    else if (c >= "A" && c <= "F")
+      nibble = 10 + (c - "A");
+    else
+      continue; // 忽略非法字符
+
+    // 左移4位并加上当前nibble
+    result = (result << 4) | nibble;
+  end
+
+  return result;
+endfunction
+
+function bit[{{ max_width-1 }}:0] {{ class_ini_io }}::to_int(string value);
+  bit [{{ max_width-1 }}:0] result;
+  string s;
+  int i;
+  bit negative;
+  byte c;
+
+  s = value;
+
+  if (s.len() == 0)
+    return '0;
+
+  // 处理符号
+  if (s[0] == "-") begin
+    negative = 1;
+    s = s.substr(1, s.len()-1);
+  end
+  else if (s[0] == "+") begin
+    s = s.substr(1, s.len()-1);
+  end
+
+  // 逐字符解析
+  for (i = 0; i < s.len(); i++) begin
+    c = s[i];
+    if (c >= "0" && c <= "9")
+      result = result * 10 + (c - "0");
+    else
+      break; // 遇到非数字字符停止
+  end
+
+  if (negative)
+    result = -result;
+
+  return result;
+endfunction
+
+function string {{ class_ini_io }}::get_str(string key,string section);
+  return data[section][key];
+endfunction
+
+function bit[{{ max_width-1 }}:0] {{ class_ini_io }}::get_hex(string key,string section);
+  return to_hex(data[section][key]);
+endfunction
+
+function bit[{{ max_width-1 }}:0] {{ class_ini_io }}::get_int(string key,string section);
+  return to_int(data[section][key]);
+endfunction
+
+function bit {{ class_ini_io }}::is_hex(string key,string section);
+  string s;
+
+  s = data[section][key];
+
+  return s.len() >= 2 && ((s[0] == "0") && (s[1] == "x" || s[1] == "X"));
+endfunction
+
+function bit {{ class_ini_io }}::is_int(string key,string section);
+  string s;
+
+  s = data[section][key];
+
+  for (int i = 0; i < s.len(); i++) begin
+    byte c;
+
+    c = s[i];
+    if (c < "0" || c > "9")
+      return 0;
+  end
+
+  return 1;
+endfunction
+
+function bit {{ class_ini_io }}::has_section(string section);
+  return data.exists(section);
+endfunction
+
+function bit {{ class_ini_io }}::has_key(string key,string section="");
+  return has_section(section) && data[section].exists(key);
+endfunction
+
+function int {{ class_ini_io }}::find_str(string s,string tar,int n,int lo);
+  int sum;
+
+  // 计算
+  sum = s.len-tar.len+1;
+
+  while(lo < sum) begin
+    string t;
+
+    // 计算
+    t = s.substr(lo,lo+tar.len-1);
+
+    if(t == tar)
+      if(--n <= 0)
+        return lo;
+      else
+        lo += tar.len-1;
+
+    // ++
+    lo++;
+  end
+
+  return -1;
+endfunction
+
+`endif

@@ -1,0 +1,73 @@
+`ifndef EMMC_VIP_MEASURE_TOP
+`define EMMC_VIP_MEASURE_TOP
+
+
+/*
+    测量时钟频率
+
+    使用 frequence 获取当前频率
+*/
+module emmc_vip_measure_top(
+    input wire clk
+);
+
+    timeunit 1fs;
+    timeprecision 1fs;
+
+    real frequence;
+    bit is_stable; // 时钟是否稳定
+    bit is_death; // 是否死亡（长时间没反应）
+    int count; // 计数
+    real lst[4]; // 时间FIFO
+    real frequence_last; // 上一次频率
+
+    initial run();
+
+    task automatic run();
+        bit clk_last; // 记录clk，防止运行速度不同造成错拍
+
+        // 等待开始
+        wait(!$isunknown(clk));
+
+        forever begin
+            real cur;
+            real period;
+
+            @(clk);
+            if(clk == clk_last) // 忽略没有变化的边沿
+                continue;
+            else
+                clk_last = clk;
+            cur = $realtime;
+
+            period = (cur-lst[3]) / 2;
+            frequence = 1e15/period;
+            is_stable = ($abs(frequence_last - frequence) / frequence) < 0.01;
+            frequence_last = frequence;
+            lst[3] = lst[2];
+            lst[2] = lst[1];
+            lst[1] = lst[0];
+            lst[0] = cur;
+            is_death = 0;
+            count++;
+
+            // is death ?
+            death_detect(period,count);
+        end
+    endtask
+
+    /*
+        延迟一段时间检测死亡状态
+    */
+    task automatic death_detect(real period,int id);
+        fork begin
+            #(period*2);
+            if(count <= id) begin
+                is_death = 1;
+            end
+        end join_none
+    endtask
+
+endmodule
+
+`endif

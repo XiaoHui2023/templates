@@ -1,0 +1,193 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_SEQ
+`define {{ class_prefix | upper }}XFER_HOST_SEQ
+
+class {{ class_prefix }}xfer_host_seq#(type REQUEST={{ class_prefix }}xfer_host_request) extends {{ class_prefix }}xfer_base_seq;
+  `uvm_object_param_utils_begin({{ class_prefix }}xfer_host_seq#(REQUEST))
+    `uvm_field_object(req, UVM_ALL_ON)
+    `uvm_field_int(len, UVM_ALL_ON)
+    `uvm_field_queue_int(tx_data, UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  rand REQUEST req;
+  rand int len; // 数据长度
+  rand bit[7:0] tx_data[$]; // 发送数据
+  bit[7:0] rx_data[$]; // 接收数据
+  rand bit should_read; // 是否需要读数据
+
+  function new(string name="{{ class_prefix }}xfer_host_seq");
+    super.new(name);
+  endfunction
+
+  constraint cst_xfer_host {
+    if(req.xfer_type == req.CTRL_CONTROL) {
+      if(req.request_dir == req.REQUEST_DIR_DEVICE_TO_HOST)
+        len == req.w_length;
+      else
+        len == 0;
+    }
+
+    if(req.dir inside {req.DIR_IN, req.DIR_OUT}) {
+      len > 0;
+    }
+
+    if(req.dir == req.DIR_OUT) {
+      tx_data.size == len;
+    } else {
+      tx_data.size == 0;
+    }
+
+    should_read == (len > 0 && req.dir inside {req.DIR_IN, req.DIR_CONTROL});
+  }
+
+  extern function void pre_randomize();
+  extern task pre_start();
+  extern task body();
+  extern task post_start();
+
+  extern protected task execute();
+endclass
+
+function void {{ class_prefix }}xfer_host_seq::pre_randomize();
+  super.pre_randomize();
+
+  if(!req)
+    req.create(req);
+endfunction
+
+task {{ class_prefix }}xfer_host_seq::pre_start();
+  super.pre_start();
+
+  `uvm_info("", $spsrintf("xfer:%s", sprint()), UVM_LOW)
+endtask
+
+task {{ class_prefix }}xfer_host_seq::post_start();
+  super.post_start();
+
+  if(should_read) begin
+    repeat(len) begin
+      wait(p_sequencer.callback.rx_fifo.size);
+      rx_data.push_back(p_sequencer.callback.rx_fifo.pop_front());
+    end
+  end
+endtask
+
+task {{ class_prefix }}xfer_host_seq::body();
+  execute();
+endtask
+
+task {{ class_prefix }}xfer_host_seq::execute();
+  svt_usb_transfer xfer;
+
+  // 占据资源
+  p_sequencer.callback.transfer_key.get();
+
+  // 准备
+  p_sequencer.callback.reset_transfer_end_event();
+
+  // 创建
+  xfer = svt_usb_transfer::type_id::create("xfer");
+  $cast(xfer.cfg,p_sequencer.svt_cfg);
+
+  // 传输速率
+  case(1)
+    p_sequencer.svt_cfg.usbfe_ls_spd: xfer.device_connected_bus_speed = svt_usb_types::LS;
+    p_sequencer.svt_cfg.usbfe_fs_spd: xfer.device_connected_bus_speed = svt_usb_types::FS;
+    p_sequencer.svt_cfg.usbfe_hs_phy: xfer.device_connected_bus_speed = svt_usb_types::FS;
+    default: xfer.device_connected_bus_speed = svt_usb_types::HS;
+  endcase
+
+  // 传输类型
+  case(req.dir)
+    req.DIR_CONTROL: xfer.xfer_type = svt_usb_transfer::CONTROL_TRANSFER;
+    req.DIR_IN: begin
+      case(req.attribute)
+        req.ATTRIBUTE_BULK : xfer.xfer_type = svt_usb_transfer::BULK_IN_TRANSFER;
+        req.ATTRIBUTE_INTERRUPT : xfer.xfer_type = svt_usb_transfer::INTERRUPT_IN_TRANSFER;
+        req.ATTRIBUTE_ISOCHRONOUS : xfer.xfer_type = svt_usb_transfer::ISOCHRONOUS_IN_TRANSFER;
+        default: `uvm_fatal("", "NotImplemented")
+      endcase
+    end
+    req.DIR_OUT: begin
+      case(req.attribute)
+        req.ATTRIBUTE_BULK : xfer.xfer_type = svt_usb_transfer::BULK_OUT_TRANSFER;
+        req.ATTRIBUTE_INTERRUPT : xfer.xfer_type = svt_usb_transfer::INTERRUPT_OUT_TRANSFER;
+        req.ATTRIBUTE_ISOCHRONOUS : xfer.xfer_type = svt_usb_transfer::ISOCHRONOUS_OUT_TRANSFER;
+        default: `uvm_fatal("", "NotImplemented")
+      endcase
+    end
+    default: `uvm_fatal("", "NotImplemented")
+  endcase
+
+  // 控制
+  xfer.setup_data.brequest = int'(req.request);
+  xfer.setup_data.bmrequesttype.dir = int'(req.request_dir);
+  xfer.setup_data.bmrequesttype.recipient = int'(req.request_recipient);
+  xfer.setup_data.bmrequesttype.type = int'(req.request_type);
+  xfer.setup_data.w_index = req.w_index;
+  xfer.setup_data.w_length = req.w_length;
+  xfer.setup_data.w_value = req.w_value;
+  xfer.payload_intended_byte_count = req.payload_intended_byte_count;
+
+  case(req.dir)
+    req.DIR_IN: begin
+      case(req.attribute)
+        req.ATTRIBUTE_ISOCHRONOUS : begin
+          if(req.xfers_num == 1) begin
+            xfer.first_iso_transaction = 1;
+            xfer.last_iso_transaction = 0;
+          end else if(req.xfers_num == 2) begin
+            xfer.first_iso_transaction = 0;
+            xfer.last_iso_transaction = 0;
+          end else if(req.xfers_num == 3) begin
+            xfer.first_iso_transaction = 0;
+            xfer.last_iso_transaction = 1;
+          end
+        end
+      endcase
+      xfer.payload_intended_byte_count = len;
+    end
+    req.DIR_OUT: begin
+      case(req.attribute)
+        req.ATTRIBUTE_ISOCHRONOUS : begin
+          if(req.xfers_num == 1) begin
+            xfer.first_iso_transaction = 1;
+            xfer.last_iso_transaction = 0;
+          end else if(req.xfers_num == 2) begin
+            xfer.first_iso_transaction = 0;
+            xfer.last_iso_transaction = 0;
+          end else if(req.xfers_num == 3) begin
+            xfer.first_iso_transaction = 0;
+            xfer.last_iso_transaction = 1;
+          end
+        end
+      endcase
+      xfer.payload_rand_mode(0);
+      xfer.payload_intended_byte_count = len;
+      xfer.payload_data.delete();
+      xfer.payload_byte_count = len;
+      xfer.payload_data.start = 0;
+      xfer.payload_data.generation_algorithm = svt_usb_payload::USER_DEFINED_ALGORITHM;
+      xfer.payload_bytes_remaining = xfer.payload_intended_byte_count;
+      xfer.payload_end_ix = xfer.payload_data.size() + xfer.payload_intended_byte_count;
+
+      xfer.payload_data = new[xfer.payload_intended_byte_count];
+      foreach(tx_data[i])
+        xfer.payload_data[i] = tx_data[i];
+    end
+  endcase
+
+  xfer.device_address = req.device_addr;
+  xfer.endpoint_number = req.endpoint_id;
+  xfer.aligned_transfer_mode = int'(rx_zero_length);
+  p_sequencer.svt_sqr.xfer_sequencer.execute_item(xfer);
+
+  // 用完，等待结束
+  p_sequencer.callback.wait_transfer_end_event();
+
+  // 不管马上执行下个传输，要等一个包儿，否则可能出错
+  #1us;
+
+  p_sequencer.callback.transfer_key.put();
+endtask
+
+`endif

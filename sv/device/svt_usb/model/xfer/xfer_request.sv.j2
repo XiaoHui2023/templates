@@ -1,0 +1,12 @@
+`ifndef {{ class_prefix | upper }}XFER_REQUEST
+`define {{ class_prefix | upper }}XFER_REQUEST
+
+class {{ class_prefix }}xfer_request extends {{ class_prefix }}request;
+    `uvm_object_utils({{ class_prefix }}xfer_request)
+
+    function new(string name = "{{ class_prefix }}xfer_request");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

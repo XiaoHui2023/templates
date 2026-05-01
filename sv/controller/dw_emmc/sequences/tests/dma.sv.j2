@@ -1,0 +1,22 @@
+`ifndef {{ class_prefix | upper }}DMA_TEST_SEQ
+`define {{ class_prefix | upper }}DMA_TEST_SEQ
+
+// 调试
+class {{ class_prefix }}dma_test_seq extends {{ class_prefix }}default_seq;
+    `uvm_object_utils({{ class_prefix }}dma_test_seq)
+
+    function new(string name = "{{ class_prefix }}dma_test_seq");
+        super.new(name);
+    endfunction
+
+    {{ class_prefix }}rw_test_seq rw_test_seq; // 调试
+
+    task body();
+        uvm_do_with(rw_test_seq, {
+            dma_enable == 1;
+            dma_sel == SDMA; // 目前只实现了SDMA
+        })
+    endtask
+endclass
+
+`endif

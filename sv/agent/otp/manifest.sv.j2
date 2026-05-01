@@ -1,0 +1,31 @@
+`ifndef {{ class_manifest | upper }}
+`define {{ class_manifest | upper }}
+
+class {{ class_manifest }} extends uvm_component;
+  {{ class_entry }} map[string]; // [otp] -> entry
+
+{% for data in entries %}
+  {{ class_entry }} {{ data.name_legal }};
+{% endfor %}
+
+  `uvm_component_utils_begin({{ class_manifest }})
+{% for data in entries %}
+    `uvm_field_object({{ data.name_legal }},UVM_ALL_ON)
+{% endfor %}
+  `uvm_component_utils_end
+
+  function new(string name="{{ class_manifest }}",uvm_component parent=null);
+    super.new(name,parent);
+{% for data in entries %}
+
+    {{ data.name_legal }} = {{ class_entry }}::type_id::create(get_full_name(),"{{ data.name_legal }}");
+    {{ data.name_legal }}.address = {{ data.address_hex }};
+    {{ data.name_legal }}.width = {{ data.width }};
+    {{ data.name_legal }}.bytes = {{ data.bytes }};
+    {{ data.name_legal }}.nibble = {{ data.name_legal }}.NIBBLE_{{ data.nibble_upper }};
+    {{ data.name_legal }}.T = {{ data.name_legal }}.TYPE_{{ data.type | upper }};
+    map["{{ data.name_legal }}"] = {{ data.name_legal }};
+{% endfor %}
+  endfunction
+endclass
+`endif

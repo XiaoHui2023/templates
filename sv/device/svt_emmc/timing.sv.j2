@@ -1,0 +1,189 @@
+`ifndef EMMC_VIP_TIMING_TOP
+`define EMMC_VIP_TIMING_TOP
+
+
+/*
+    ????
+*/
+module emmc_vip_timing_top #(
+    parameter EMMC=0, // ??? EMMC ??
+    parameter SDIO=0, // ??? SDIO ??
+    parameter SD=0, // ??? SD ??
+    parameter EN=1 // ???????
+)(
+    input wire clk,
+    output wire o_clk,
+    input wire i_cmd_in,
+    output wire o_cmd_in,
+    input wire i_cmd_out,
+    output wire o_cmd_out,
+    input wire i_cmd_out_en,
+    output wire o_cmd_out_en,
+    input wire[7:0] i_dat_in,
+    output wire[7:0] o_dat_in,
+    input wire[7:0] i_dat_out,
+    output wire[7:0] o_dat_out,
+    input wire[7:0] i_dat_out_en,
+    output wire[7:0] o_dat_out_en,
+    input wire i_dat_stb,
+    output wire o_dat_stb
+);
+
+    timeunit 1ns;
+    timeprecision 1ps;
+
+    parameter B_CLK = 0.1;
+    parameter B_DAT_STB = 0.4;
+    parameter B_DLY = 1; // >= 0.5
+    parameter MAX_BYTES = 512+64+32+16; // ??????
+
+    wire[7:0] tmp_dat_out_en;
+    wire[7:0] tmp_dat_out;
+    wire tmp_dat_stb;
+    wire[7:0] dly_dat_out_en;
+    wire[7:0] dly_dat_out;
+    wire dly_dat_stb;
+    reg[7:0] adp_dat_out_en;
+    reg[7:0] adp_dat_out;
+    reg adp_dat_stb;
+    wire is_adapting; // adapt = ?????
+    bit adapt_enable; // ?????
+    int size_last;
+    bit is_pushing;
+    int threshold_max; // ??????
+    int threshold_min; // ??????
+    int fifo_limit; // FIFO????
+
+    assign o_cmd_in = i_cmd_in;
+    assign o_dat_in = i_dat_in;
+    assign o_cmd_out = i_cmd_out;
+    assign o_cmd_out_en = i_cmd_out_en;
+    assign o_dat_stb = is_adapting ? adp_dat_stb : dly_dat_stb;
+    assign o_dat_out = is_adapting ? adp_dat_out : dly_dat_out;
+    assign o_dat_out_en = is_adapting ? adp_dat_out_en : dly_dat_out_en;
+    assign is_adapting = EN & EMMC & adapt_enable & measure_clk_top.frequence > 55e6;
+
+    emmc_vip_shift_top #(
+        .EN(EN),
+        .B(B_CLK)
+    ) shift_clk(
+        .clk(clk),
+        .in(clk),
+        .out(o_clk)
+    );
+
+    emmc_vip_measure_top measure_clk_top(
+        .clk(clk)
+    );
+
+    emmc_vip_measure_top measure_ds_top(
+        .clk(i_dat_stb)
+    );
+
+    emmc_vip_shift_top #(
+        .EN(EN),
+        .B(B_DAT_STB)
+    ) shift_dat_stb_tmp(
+        .clk(clk),
+        .in(i_dat_stb),
+        .out(tmp_dat_stb)
+    );
+
+    assign tmp_dat_out = i_dat_out;
+    assign tmp_dat_out_en = i_dat_out_en;
+
+    emmc_vip_shift_top #(.EN(EN), .B(B_DLY)) shift_dat_stb_dly(.clk(clk), .in(tmp_dat_stb), .out(dly_dat_stb));
+    emmc_vip_shift_top #(.EN(EN), .B(B_DLY)) shift_dat_out_dly(.clk(clk), .in(tmp_dat_out), .out(dly_dat_out));
+    emmc_vip_shift_top #(.EN(EN), .B(B_DLY)) shift_dat_out_en_dly(.clk(clk), .in(tmp_dat_out_en), .out(dly_dat_out_en));
+
+    initial begin
+        run_dat_stb();
+    end
+
+    task automatic run_dat_stb();
+        bit[7:0] q_dat[$];
+        bit[7:0] q_dat_en[$];
+        bit tmp_dat_stb_last;
+        bit clk_last;
+
+        fork
+            forever begin
+                @(tmp_dat_stb);
+                if(tmp_dat_stb == tmp_dat_stb_last) // ??????
+                    continue;
+                else
+                    tmp_dat_stb_last = tmp_dat_stb;
+
+                q_dat.push_back(tmp_dat_out);
+                q_dat_en.push_back(tmp_dat_out_en);
+
+                if(!adapt_enable) begin
+                    adp_dat_out = dly_dat_out;
+                    adp_dat_out_en = dly_dat_out_en;
+                end
+
+                adapt_enable = 1;
+            end
+
+            forever begin
+                @(clk);
+                if(clk == clk_last) // ??????
+                    continue;
+                else
+                    clk_last = clk;
+
+                if(q_dat.size) begin
+                    bit isPop;
+                    bit isFirst;
+                    bit isLast;
+
+                    isFirst = size_last == 0;
+                    isLast = size_last == 1;
+                    if(isFirst) begin
+                        is_pushing = 1;
+                    end
+
+                    if(is_pushing) begin
+                        if(measure_ds_top.is_stable && measure_clk_top.is_stable) begin
+                            real f1;
+                            real f2;
+                            int d;
+
+                            f1 = measure_clk_top.frequence;
+                            f2 = measure_ds_top.frequence;
+                            threshold_max = MAX_BYTES;
+                            threshold_min = $ceil(1.0*threshold_max*f2/f1);
+                            d = $abs(threshold_max-threshold_min);
+                            d = 1 / offset;
+                            fifo_limit = d;
+                        end
+                    end
+
+                    if(fifo_limit) begin
+                        if(q_dat.size >= fifo_limit)
+                            is_pushing = 0;
+                    end
+
+                    if(q_dat.size >= 4 && q_dat[0] == 'hfe && q_dat[1] == 'hfe && q_dat[2] == 'hfe && q_dat[3] == 'hfe)
+                        is_pushing = 0;
+
+                    isPop = !is_pushing | measure_ds_top.is_death;
+                    if(isPop) begin
+                        adp_dat_out = q_dat.pop_front();
+                        adp_dat_out_en = q_dat_en.pop_front();
+                        adp_dat_stb = ~adp_dat_stb;
+                    end
+
+                    size_last = q_dat.size;
+                    fifo_limit = 0;
+                end
+                else begin
+                    if(adapt_enable && measure_ds_top.is_death) begin
+                        adapt_enable = 0;
+                    end
+                end
+            end
+        join
+    endtask
+endmodule
+`endif

@@ -1,0 +1,74 @@
+`ifndef {{ class_prefix | upper }}WAIT_DEVICE_DSSR_STATE_SEQ
+`define {{ class_prefix | upper }}WAIT_DEVICE_DSSR_STATE_SEQ
+
+class {{ class_prefix }}wait_device_dssr_state_seq extends {{ class_prefix }}base_seq;
+  typedef enum {
+    DEV_INIT,
+    DEV_IDLE,
+    PULLUP_EN,
+    CHK_BUS,
+    SEND_CHIRP,
+    WAIT_HST_CHIRP,
+    SUSPENDED,
+    RESUME,
+    HS_RESET,
+    PULLING_DOWN,
+    PULLSING_DONE,
+    DEV_CHIRP_DONE,
+    REMOTE_WAKEUP,
+    PREWAKEUP_DONE,
+    PRE_CHIRP
+  } state_t;
+
+  `uvm_object_utils_begin({{ class_prefix }}wait_device_dssr_state_seq)
+    `uvm_field_int(stay_us, UVM_ALL_ON)
+    `uvm_field_enum(state_t, state, UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  rand int stay_us; // 想要保持一段时间
+  rand state_t state; // 目标状态
+
+  constraint cst {
+    soft stay_us == 500;
+  }
+
+  function new(string name = "{{ class_prefix }}wait_device_dssr_state_seq");
+    super.new(name);
+  endfunction
+
+  extern task body();
+endclass
+
+task {{ class_prefix }}wait_device_dssr_state_seq::body();
+  if($isunknown(p_sequencer.vif.dssr_state))
+    return;
+
+  `uvm_info("", $spsrintf("wait %s for %0d us", state.name, stay_us), UVM_LOW)
+
+  forever begin
+    int cnt;
+    bit failed;
+
+    wait(p_sequencer.vif.dssr_state == state);
+
+    cnt = stay_us;
+    failed = 0;
+
+    // 防抖
+    while(cnt-- > 0) begin
+      #1us;
+
+      if(p_sequencer.vif.dssr_state != state) begin
+        failed = 1;
+        break;
+      end
+    end
+
+    if(failed)
+      continue;
+
+    break;
+  end
+endtask
+
+`endif

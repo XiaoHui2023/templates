@@ -1,0 +1,86 @@
+`ifndef {{ class_prefix | upper }}SEQUENCER
+`define {{ class_prefix | upper }}SEQUENCER
+
+class {{ class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ class_prefix }}sequencer)
+
+    {% if info_store.catch %}
+    int e_catch; // 捕获次数
+    {{ class_prefix }}entry entry;
+    {%- endif %}
+    {%- if info_store.to_write_value %}
+    bit[31:0] to_write_value[bit[31:0]]; // 写数据
+    {%- endif %}
+    {%- if info_store.to_read_value %}
+    bit[31:0] to_read_value[bit[31:0]]; // 读数据
+    {%- endif %}
+    {%- if info_store.to_value %}
+    bit[31:0] to_value[bit[31:0]]; // 数据
+    {%- endif %}
+    {%- if info_store.read_fifo %}
+    {{ class_prefix }}entry read_fifo[$]; // 读FIFO
+    {%- endif %}
+    {%- if info_store.write_fifo %}
+    {{ class_prefix }}entry write_fifo[$]; // 写FIFO
+    {%- endif %}
+    {%- if info_store.to_write_fifo %}
+    {{ class_prefix }}entry to_write_fifo[bit[31:0]][$]; // 写FIFO映射
+    {%- endif %}
+    {%- if info_store.to_read_fifo %}
+    {{ class_prefix }}entry to_read_fifo[bit[31:0]][$]; // 读FIFO映射
+    {%- endif %}
+
+    function new(string name="{{ class_prefix }}sequencer", uvm_component parent);
+        super.new(name, parent);
+    endfunction
+
+    extern task reset_phase(uvm_phase phase);
+    {%- if info_store.to_value %}
+    // 预测值
+    extern function void predict(bit[31:0] addr, bit[31:0] exp);
+    {%- endif %}
+endclass
+
+task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    {% if info_store.catch %}
+    e_catch = 0;
+    entry = null;
+    {%- endif %}
+    {%- if info_store.to_write_value %}
+    to_write_value.delete;
+    {%- endif %}
+    {%- if info_store.to_read_value %}
+    to_read_value.delete;
+    {%- endif %}
+    {%- if info_store.to_value %}
+    to_value.delete;
+    {%- endif %}
+    {%- if info_store.read_fifo %}
+    read_fifo.delete;
+    {%- endif %}
+    {%- if info_store.write_fifo %}
+    write_fifo.delete;
+    {%- endif %}
+    {%- if info_store.to_write_fifo %}
+    to_write_fifo.delete;
+    {%- endif %}
+    {%- if info_store.to_read_fifo %}
+    to_read_fifo.delete;
+    {%- endif %}
+endtask
+
+{%- if info_store.to_value %}
+function void {{ class_prefix }}sequencer::predict(bit[31:0] addr, bit[31:0] exp);
+    bit[31:0] act;
+
+    act = to_value[addr];
+    if(act != exp)
+        `uvm_error("", $psprintf("(0x%0h) require 0x%0h, but 0x%0h", addr, exp, act))
+    else
+        `uvm_info("", $psprintf("predict 0x%0h = 0x%0h successful", addr, exp), UVM_LOW)
+endfunction
+{%- endif %}
+
+`endif

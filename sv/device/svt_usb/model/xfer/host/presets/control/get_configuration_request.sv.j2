@@ -1,0 +1,23 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_CONFIGURATION_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_GET_CONFIGURATION_REQUEST
+
+class {{ class_prefix }}xfer_host_get_configuration_request extends {{ class_prefix }}xfer_host_control_request;
+    `uvm_object_utils({{ class_prefix }}xfer_host_get_configuration_request)
+
+    function new(string name = "{{ class_prefix }}xfer_host_get_configuration_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_get_configuration_preset {
+        request == REQUEST_GET_CONFIGURATION;
+        request_dir == REQUEST_DIR_DEVICE_TO_HOST;
+        request_recipient == REQUEST_RECIPIENT_DEVICE;
+        request_type == REQUEST_TYPE_STANDARD;
+        w_index == 0;
+        w_length == 1;
+        w_value == 0;
+        payload_intended_byte_count == 1;
+    }
+endclass
+
+`endif

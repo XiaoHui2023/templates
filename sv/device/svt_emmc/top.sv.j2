@@ -1,0 +1,291 @@
+`ifndef {{ class_prefix | upper }}TOP
+`define {{ class_prefix | upper }}TOP
+
+module {{ class_prefix }}top#(
+    parameter DW={{ default_data_width }} // ????
+)(
+    input wire clk,
+    input wire rst_n,
+    input wire cmd,
+    inout wire [DW-1:0] dat,
+    output wire dat_stb
+);
+
+    timeunit 1fs;
+    timeprecision 1fs;
+
+    pullup (cmd);
+    pullup (dat[0]);
+    {%- for i in range(1,max_data_width) %}
+    if(DW > {{ i }}) pullup (dat[{{ i }}]);
+    {%- endfor %}
+
+    // tap
+    wire cmd_in;
+    wire[DW-1:0] dat_in;
+    wire cmd_out;
+    wire cmd_out_en;
+    wire[DW-1:0] dat_out;
+    wire[DW-1:0] dat_out_en;
+
+    assign cmd_in = !cmd_out_en ? cmd : 1'bz;
+    assign cmd = cmd_out_en ? cmd_out : 1'bz;
+    assign dat_in = !dat_out_en ? dat : {DW{1'bz}};
+    assign dat = dat_out_en ? dat_out : {DW{1'bz}};
+
+    // internal
+    reg clk_dl;
+    wire dat_stb_s;
+    wire cmd_in_dl;
+    reg[7:0] dat_in_dl;
+    wire cmd_out_s;
+    wire cmd_out_en_s;
+    wire[7:0] dat_out_s;
+    wire[7:0] dat_out_en_s;
+    bit vss, vssq, vcc, vccq;
+
+    // Interface
+    svt_emmc_if svt_if(clk_dl); // ???????
+    assign svt_if.rst_n = rst_n;
+    assign svt_if.vss1 = vss;
+    assign svt_if.vss2 = vss;
+    assign svt_if.vdd = vcc;
+    assign svt_if.vss3 = vssq;
+    assign svt_if.vdd2 = vccq;
+    assign svt_if.clk_plus = clk_dl;
+    assign svt_if.clk = clk_dl;
+    assign dat_out_s = svt_if.ds;
+    assign dat_out_en_s[0] = svt_if.dat0_rclk_plus_out;
+    assign dat_out_s[0] = svt_if.dat0_rclk_minus_in_out;
+    assign dat_out_en_s[1] = svt_if.dat1_r_reg_out;
+    assign dat_out_s[1] = svt_if.dat1_cs_out;
+    assign dat_out_en_s[2] = svt_if.dat2_out;
+    assign dat_out_s[2] = svt_if.dat2_out;
+    assign dat_out_en_s[3] = svt_if.dat3_out;
+    assign dat_out_s[3] = svt_if.dat3_out;
+    assign dat_out_en_s[4] = svt_if.dat4_out;
+    assign dat_out_s[4] = svt_if.dat4_out;
+    assign dat_out_en_s[5] = svt_if.dat5_out;
+    assign dat_out_s[5] = svt_if.dat5_out;
+    assign dat_out_en_s[6] = svt_if.dat6_out;
+    assign dat_out_s[6] = svt_if.dat6_out;
+    assign dat_out_en_s[7] = svt_if.dat7_out;
+    assign dat_out_s[7] = svt_if.dat7_out;
+    assign svt_if.dat0_rclk_plus = dat_out_en_s[0] ? 1'bz : dat_in_dl[0];
+    assign svt_if.dat1_r_reg = dat_out_en_s[1] ? 1'bz : dat_in_dl[1];
+    assign svt_if.dat2 = dat_out_en_s[2] ? 1'bz : dat_in_dl[2];
+    assign svt_if.dat3 = dat_out_en_s[3] ? 1'bz : dat_in_dl[3];
+    assign svt_if.dat4 = dat_out_en_s[4] ? 1'bz : dat_in_dl[4];
+    assign svt_if.dat5 = dat_out_en_s[5] ? 1'bz : dat_in_dl[5];
+    assign svt_if.dat6 = dat_out_en_s[6] ? 1'bz : dat_in_dl[6];
+    assign svt_if.dat7 = dat_out_en_s[7] ? 1'bz : dat_in_dl[7];
+    assign cmd_out_en_s = svt_if.cmd_di_en;
+    assign cmd_out_s = svt_if.cmd_di_out;
+    assign svt_if.cmd_di = cmd_out_en_s ? 1'bz : cmd_in_dl;
+
+    assign clk_dl = clk;
+    assign cmd_in_dl = cmd_in;
+    assign cmd_out = cmd_out_s;
+    assign cmd_out_en = cmd_out_en_s;
+    assign dat_in_dl = dat_in;
+    assign dat_out = dat_out_s;
+    assign dat_out_en = dat_out_en_s;
+    assign dat_stb = dat_stb_s;
+
+    string hdl; // ??
+    {{ class_prefix }}env env; // ??
+
+    // build environment
+    initial begin
+        hdl = $psprintf("%m");
+        env = {{ class_prefix }}env::type_id::create({hdl,".env"},null);
+        uvm_config_db#(virtual svt_emmc_if)::set(env, "", "svt_if", svt_if);
+    end
+
+    // reset
+    initial begin
+        vss = 1;
+        vssq = 1;
+        vcc = 0;
+        vccq = 0;
+        #50ns;
+        vss = 0;
+        vssq = 0;
+        vcc = 1;
+        vccq = 1;
+    end
+
+    // memory
+    function automatic svt_mem_backdoor get_mem();
+        return env.svt_agt.mem_sequencer.get_backdoor();
+    endfunction
+
+    function automatic void load_memory(string filename,bit[63:0] start_addr=0
+        {%- if is_emmc -%}
+        ,bit[2:0] partition=0
+        {%- endif -%}
+    );
+        bit[7:0] data[$];
+        int size;
+        bit is_hex;
+        bit[63:0] addr;
+
+        addr = start_addr;
+        {%- if is_emmc %}
+        addr += partition * 'h1_0000_0000;
+        {%- endif %}
+        is_hex = !is_binary(filename);
+
+        read_file(filename,is_hex,data);
+        size = data.size;
+        write_memory(addr,data);
+
+        `uvm_info("",$psprintf("%m: load memory[0x%16h+: %0d] = '%s'",addr,size,filename),UVM_LOW)
+        for(int i=0;i<$min(size,16);i++)
+            `uvm_info("",$psprintf("display memory[%0d] : 0x%0h",i,data[i]),UVM_LOW)
+        if(!size)
+            `uvm_fatal("","empty file")
+    endfunction
+
+    function automatic void write_memory(bit[63:0] addr,bit[7:0] data[$]);
+        int mw;
+        int cnt;
+        int len;
+
+        mw = get_mem().get_data_width();
+        cnt = mw/8;
+        len = $ceil(1.0 * data.size / cnt);
+
+        while(data.size % cnt > 0)
+            data.push_back(0);
+
+        for(int i=0;i<len;i++) begin
+            bit[SVT_MEM_MAX_DATA_WIDTH-1:0] d;
+
+            repeat(cnt) begin
+                if(!data.size)
+                    `uvm_fatal("","")
+
+                d >>= 8;
+                d[SVT_MEM_MAX_DATA_WIDTH-1-:8] = data.pop_front();
+            end
+            d >>= SVT_MEM_MAX_DATA_WIDTH - mw;
+
+            {%- if is_emmc %}
+            void'(get_mem().poke(addr + i, d));
+            {%- else %}
+            get_mem().initialize(svt_mem_backdoor::INIT_CONST, d, addr+i, addr+i);
+            {%- endif %}
+        end
+
+        if(data.size)
+            `uvm_fatal("","")
+    endfunction
+
+    function automatic void read_memory(output bit[7:0] rdata[$],input int len,input bit[63:0] addr=0);
+        int mw;
+        bit[4096-1:0] mem[$];
+        bit[7:0] tmp[$];
+        int cnt;
+
+        mw = get_mem().get_data_width();
+        cnt = $ceil(1.0 * len * 8 / mw);
+
+        for(int i=0;i<cnt;i++)
+            void'(get_mem().peek(addr + i, mem[i]));
+        {{ 'tmp = {<<8{{<<4096{mem}}}};' }}
+
+        while(tmp.size) begin
+            int n_valid;
+            int sum;
+
+            n_valid = mw/8;
+            sum = 4096/8;
+
+            for(int i=0;i<sum;i++) begin
+                bit[7:0] v;
+
+                v = tmp.pop_front();
+                if(i < n_valid)
+                    rdata.push_back(v);
+            end
+        end
+    endfunction
+
+    function automatic void clean();
+        get_mem().free_all();
+    endfunction
+
+    function automatic bit is_binary(string src);
+        int f;
+        bit can_hex;
+        bit[31:0] d;
+
+        f = $fopen(src,"r");
+        if(!f)
+            $fatal("",$psprintf("Failed to read '%s'",src));
+        can_hex = $fscanf(f,"%h",d);
+        $fclose(f);
+
+        return !can_hex;
+    endfunction
+
+    function automatic void read_file(input string src,input bit hex,output bit[7:0] out[$],input int padding=-1);
+        int file;
+        string s[$];
+
+        file = $fopen(src,hex ? "r" : "rb");
+        if(!file)
+            $fatal("",$psprintf("Failed to read '%s'",src));
+
+        if(hex) begin
+            forever begin
+                byte c;
+                bit lf;
+                bit ed;
+
+                c = $fgetc(file);
+                lf = c == 10; // ??
+                ed = c == -1; // ??
+
+                if(ed)
+                    break;
+                if(lf)
+                    continue;
+
+                if(s[$].len <= 1)
+                    s[$] = $psprintf("%s%s",s[$],c);
+                else
+                    s.push_back($psprintf("%s",c));
+            end
+
+            foreach(s[i])
+                out.push_back(s[i].atohex());
+        end
+        else begin
+            while(!$feof(file)) begin
+                bit[31:0] data;
+
+                $fscanf(file,"%u",data);
+                if($feof(file))
+                    break;
+
+                repeat(4) begin
+                    out.push_back(data);
+                    data >>= 8;
+                end
+            end
+        end
+
+        if(padding > 0) begin
+            if(out.size > padding)
+                $fatal("'%s' require %0d bytes,but %0d bytes",src,padding,out.size);
+
+            while(out.size < padding)
+                out.push_back(0);
+        end
+
+        $fclose(file);
+    endfunction
+endmodule
+`endif

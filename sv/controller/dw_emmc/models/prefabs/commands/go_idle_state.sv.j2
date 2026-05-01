@@ -1,0 +1,18 @@
+#ifndef {{ class_prefix | upper }}GO_IDLE_STATE_COMMAND_REQUEST
+#define {{ class_prefix | upper }}GO_IDLE_STATE_COMMAND_REQUEST
+
+// 发送CMD0，复位到 idle 状态
+class {{ class_prefix }}go_idle_state_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils({{ class_prefix }}go_idle_state_command_request)
+
+    function new(string name="{{ class_prefix }}go_idle_state_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_prefab {
+        cmd_index == 0;
+        resp == NR;
+    }
+endclass
+
+`endif

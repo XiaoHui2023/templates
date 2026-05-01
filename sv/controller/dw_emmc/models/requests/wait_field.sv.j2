@@ -1,0 +1,41 @@
+`ifndef {{ class_prefix | upper }}WAIT_FIELD_REQUEST
+`define {{ class_prefix | upper }}WAIT_FIELD_REQUEST
+
+class {{ class_prefix }}wait_field_request extends {{ class_prefix }}base_request;
+    uvm_object_utils_begin({{ class_prefix }}wait_field_request)
+        `uvm_field_int(cmd_uninhbit,UVM_ALL_ON| (cmd_uninhbit?0:UVM_NOPRINT))
+        `uvm_field_int(cmd_uninhbit_dat,UVM_ALL_ON| (cmd_uninhbit_dat?0:UVM_NOPRINT))
+        `uvm_field_int(internal_clk_stable,UVM_ALL_ON| (internal_clk_stable?0:UVM_NOPRINT))
+        `uvm_field_int(card_inserted,UVM_ALL_ON| (card_inserted?0:UVM_NOPRINT))
+        `uvm_field_int(card_stable,UVM_ALL_ON| (card_stable?0:UVM_NOPRINT))
+        `uvm_field_int(xfer_inactive,UVM_ALL_ON| (xfer_inactive?0:UVM_NOPRINT))
+        `uvm_field_int(int_tune_inactive,UVM_ALL_ON| (int_tune_inactive?0:UVM_NOPRINT))
+        `uvm_field_int(timeout_us,UVM_ALL_ON)
+    uvm_object_utils_end
+
+    rand bit cmd_uninhbit; // 命令抑制
+    rand bit cmd_uninhbit_dat; // 命令（数据）抑制
+    rand bit internal_clk_stable;
+    rand bit card_inserted;
+    rand bit card_stable;
+    rand bit xfer_inactive; // 从传输中出来
+    rand bit int_tune_inactive; // 调谐时钟结束
+    rand int timeout_us; // 超时时间（us）
+
+    constraint cst_wait_field_request {
+        soft cmd_uninhbit == 0;
+        soft cmd_uninhbit_dat == 0;
+        soft internal_clk_stable == 0;
+        soft card_inserted == 0;
+        soft card_stable == 0;
+        soft xfer_inactive == 0;
+        soft int_tune_inactive == 0;
+        soft timeout_us == 1000;
+    }
+
+    function new(string name="{{ class_prefix }}wait_field_request");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

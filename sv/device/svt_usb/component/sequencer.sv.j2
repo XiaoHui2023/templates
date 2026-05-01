@@ -1,0 +1,29 @@
+`ifndef {{ class_prefix | upper }}SEQUENCER
+`define {{ class_prefix | upper }}SEQUENCER
+
+class {{ class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ class_prefix }}sequencer)
+
+    virtual {{ class_prefix }}interface vif;
+    {{ class_prefix }}svt_configuration svt_cfg;
+    {{ class_prefix }}system_configuration sys_cfg;
+    svt_usb_agent svt_agt;
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+    endfunction
+
+    bit has_auto_done; // 是否 device 初始化完成
+    {{ class_prefix }}base_callback callback; // 回调对象
+
+    extern task reset_phase(uvm_phase phase);
+endclass
+
+task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    has_auto_done = 0;
+    callback.reset_all();
+endtask
+
+`endif

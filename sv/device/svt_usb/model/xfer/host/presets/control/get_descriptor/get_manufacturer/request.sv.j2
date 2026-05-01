@@ -1,0 +1,26 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_MANUFACTURER_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_GET_MANUFACTURER_REQUEST
+
+// 获取制造商ID
+class {{ class_prefix }}xfer_host_get_manufacturer_request extends {{ class_prefix }}xfer_host_get_descriptor_request;
+    `uvm_object_utils_begin({{ class_prefix }}xfer_host_get_manufacturer_request)
+        `uvm_field_int(manufacturer_id,UVM_ALL_ON)
+        `uvm_field_int(length,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand int manufacturer_id; // 对应 device descriptor 读取出的字符串描述符ID
+    rand int length; // 待获取的长度
+
+    function new(string name = "{{ class_prefix }}xfer_host_get_manufacturer_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_get_manufacturer_preset {
+        extra_sizeof_response == length;
+        manufacturer_id > 0;
+        w_value == 'h300 + manufacturer_id;
+        w_index == 'h409;
+    }
+endclass
+
+`endif

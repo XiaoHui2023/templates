@@ -1,0 +1,127 @@
+`ifndef {{ class_prefix | upper }}MONITOR
+`define {{ class_prefix | upper }}MONITOR
+
+class {{ class_prefix }}monitor extends uvm_component;
+    `uvm_component_utils({{ class_prefix }}monitor)
+
+    virtual {{ class_prefix }}interface vif;
+    {{ class_prefix }}sequencer sqr;
+
+    function new(string name="{{ class_prefix }}monitor", uvm_component parent);
+        super.new(name, parent);
+    endfunction
+
+    protected bit is_reseting; // 是否正在复位
+
+    extern task run();
+    extern task pre_reset_phase(uvm_phase phase);
+    extern task reset_phase(uvm_phase phase);
+    extern task pre_configure_phase(uvm_phase phase);
+
+    // 监控函数
+    extern task monitor_entry();
+
+    // 记录函数
+    extern function void record_entry({{ class_prefix }}entry entry);
+endclass
+
+task {{ class_prefix }}monitor::run();
+    super.run();
+
+    fork
+        forever monitor_entry();
+    join
+endtask
+
+task {{ class_prefix }}monitor::pre_reset_phase(uvm_phase phase);
+    super.pre_reset_phase(phase);
+
+    is_reseting = 1;
+endtask
+
+task {{ class_prefix }}monitor::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    is_reseting = 1;
+endtask
+
+task {{ class_prefix }}monitor::pre_configure_phase(uvm_phase phase);
+    super.pre_configure_phase(phase);
+
+    is_reseting = 0;
+endtask
+
+task {{ class_prefix }}monitor::monitor_entry();
+    {{ class_prefix }}entry entry;
+
+    wait(!is_reseting);
+    vif.wait_active_posedge();
+
+    entry = {{ class_prefix }}entry::type_id::create({get_full_name(), ".monitor_entry"});
+    entry.addr = vif.get_addr();
+    entry.access = vif.get_write() ? entry.WRITE : entry.READ;
+    entry.data = vif.get_data();
+
+    record_entry(entry);
+endtask
+
+function void {{ class_prefix }}monitor::record_entry({{ class_prefix }}entry entry);
+    `uvm_info("", $psprintf("monitor:\n%s", entry.sprint()), UVM_DEBUG)
+
+    {%- if info_store.to_write_value %}
+    // 写数据
+    if(entry.access == entry.WRITE)
+        sqr.to_write_value[entry.addr] = entry.data;
+    {%- endif %}
+
+    {%- if info_store.to_read_value %}
+    // 读数据
+    if(entry.access == entry.READ)
+        sqr.to_read_value[entry.addr] = entry.data;
+    {%- endif %}
+
+    {%- if info_store.to_value %}
+    // 数据
+    sqr.to_value[entry.addr] = entry.data;
+    {%- endif %}
+
+    {%- if info_store.read_fifo %}
+    // 读FIFO
+    if(entry.access == entry.READ) begin
+        $cast(entry, entry.clone());
+        sqr.read_fifo.push_back(entry);
+    end
+    {%- endif %}
+
+    {%- if info_store.write_fifo %}
+    // 写FIFO
+    if(entry.access == entry.WRITE) begin
+        $cast(entry, entry.clone());
+        sqr.write_fifo.push_back(entry);
+    end
+    {%- endif %}
+
+    {%- if info_store.catch %}
+    // 捕获
+    $cast(sqr.entry, entry.clone());
+    sqr.e_catch++;
+    {%- endif %}
+
+    {%- if info_store.to_read_fifo %}
+    // 读FIFO映射
+    if(entry.access == entry.READ) begin
+        $cast(entry, entry.clone());
+        sqr.to_read_fifo[entry.addr].push_back(entry);
+    end
+    {%- endif %}
+
+    {%- if info_store.to_write_fifo %}
+    // 写FIFO映射
+    if(entry.access == entry.WRITE) begin
+        $cast(entry, entry.clone());
+        sqr.to_write_fifo[entry.addr].push_back(entry);
+    end
+    {%- endif %}
+endfunction
+
+`endif

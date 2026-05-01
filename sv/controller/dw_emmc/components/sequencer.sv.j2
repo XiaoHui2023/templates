@@ -1,0 +1,33 @@
+`ifndef {{ class_prefix | upper }}SEQUENCER
+`define {{ class_prefix | upper }}SEQUENCER
+
+class {{ class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ class_prefix }}sequencer)
+
+    {{ class_prefix }}system_configuration sys_cfg; // 系统配置
+    {{ class_prefix }}context ctx; // 上下文
+    virtual {{ class_prefix }}interface vif; // 接口
+
+    function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
+        super.new(name,parent);
+    endfunction
+
+    extern virtual void start_of_simulation();
+    extern task reset_phase(uvm_phase phase);
+
+endclass
+
+task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    stop_sequences(); // 结束当前活跃的sequence,清空仲裁队列
+    start_phase_sequence(phase);
+endtask
+
+function void {{ class_prefix }}sequencer::start_of_simulation();
+    super.start_of_simulation();
+
+    vif = sys_cfg.vif;
+endfunction
+
+`endif

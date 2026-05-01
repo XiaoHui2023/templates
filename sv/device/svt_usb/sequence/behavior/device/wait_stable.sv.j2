@@ -1,0 +1,41 @@
+`ifndef {{ class_prefix | upper }}WAIT_DEVICE_STABLE_SEQ
+`define {{ class_prefix | upper }}WAIT_DEVICE_STABLE_SEQ
+
+class {{ class_prefix }}wait_device_stable_seq extends {{ class_prefix }}base_seq;
+  `uvm_object_utils({{ class_prefix }}wait_device_stable_seq)
+
+  {{ class_prefix }}wait_device_dssr_state_seq wait_dev_dssr_state_seq;
+
+  function new(string name = "{{ class_prefix }}wait_device_stable_seq");
+    super.new(name);
+  endfunction
+
+  extern task body();
+endclass
+
+task {{ class_prefix }}wait_device_stable_seq::body();
+  `uvm_info("", "wait wait stable", UVM_LOW)
+
+  forever begin
+    `uvm_do_with(wait_dev_dssr_state_seq, {
+      state == DEV_IDLE;
+    })
+
+    case(sys_cfg.speed)
+      sys_cfg.SPEED_FULL: if(!p_sequencer.vif.fs_connected) begin
+        wait(p_sequencer.vif.fs_connected);
+        continue;
+      end
+      default: if(!p_sequencer.vif.connected) begin
+        wait(p_sequencer.vif.connected);
+        continue;
+      end
+    endcase
+
+    break;
+  end
+
+  `uvm_info("", "exit wait stable", UVM_LOW)
+endtask
+
+`endif

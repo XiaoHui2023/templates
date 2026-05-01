@@ -1,0 +1,24 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_MANUFACTURER_STRUCT
+`define {{ class_prefix | upper }}XFER_HOST_GET_MANUFACTURER_STRUCT
+
+class {{ class_prefix }}xfer_host_get_manufacturer_struct extends {{ class_prefix }}xfer_host_get_descriptor_base_struct;
+    `uvm_object_utils_begin({{ class_prefix }}xfer_host_get_manufacturer_struct)
+        `uvm_field_sarray_int(str,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit[7:0] str[]; // 字符串
+
+    function new(string name="{{ class_prefix }}xfer_host_get_manufacturer_struct");
+        super.new(name);
+    endfunction
+
+    extern virtual function void pre_unpack(bit[7:0] data[$],bit big_endian);
+endclass
+
+function void {{ class_prefix }}xfer_host_get_manufacturer_struct::pre_unpack(bit[7:0] data[$],bit big_endian);
+    super.pre_unpack(data,big_endian);
+
+    str = new[length-BASIC_LENGTH];
+endfunction
+
+`endif

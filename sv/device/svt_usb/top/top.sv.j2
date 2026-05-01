@@ -1,0 +1,177 @@
+`ifndef {{ class_prefix | upper }}TOP
+`define {{ class_prefix | upper }}TOP
+
+module {{ class_prefix }}top (
+  inout wire dp,
+  inout wire dn,
+  output wire id,
+  input wire[3:0] dssr_state
+);
+
+  {{ class_prefix }}interface vif(
+    .id(id),
+    .dp(dp),
+    .dn(dn),
+    .dssr_state(dssr_state)
+  );
+
+  {{ class_prefix }}interconnect inter_connect (
+    .dp(dp),
+    .dn(dn),
+    .sel(vif.select),
+    .IDPULLUP(id),
+    .clk(vif.clk)
+  );
+
+  string hdl; // 模块路径
+  // {{ class_prefix }}env env; // 环境
+  longint send_chirp_k_debounce_counter_us; // 发送chirp-k期间计时
+  bit send_chirp_k_control; // 是否已经force send_chirp_k
+  bit dp_control; // 是否正在force dp
+  bit dn_control; // 是否正在force dn
+
+  parameter string DSSR_STATE_NAME[int] = '{
+    0 : "DEV_INIT",
+    1 : "DEV_IDLE",
+    2 : "PULLUP_EN",
+    3 : "CHK_BUS",
+    4 : "SEND_CHIRP",
+    5 : "WAIT_HST_CHIRP",
+    6 : "SUSPENDED",
+    7 : "RESUME",
+    8 : "HS_RESET",
+    9 : "PULLING_DOWN",
+    10 : "PULLSING_DONE",
+    11 : "DEV_CHIRP_DONE",
+    12 : "DEV_CHIRP_DONE",
+    13 : "REMOTE_WAKEUP",
+    14 : "PREWAKEUP_DONE",
+    15 : "PRE_CHIRP"
+  };
+
+  // 获取 sequencer
+  function automatic {{ class_prefix }}skd get_sequencer();
+    return env.skt.sqr;
+  endfunction
+
+  initial begin
+    hdl = $spsrintf("%m");
+  end
+
+  // env
+  {{ class_prefix }}env::type_id::create("env",,uvm_null);
+  uvm_config_db#(virtual {{ class_prefix }}interface)::set(uvm_root::get(),"*","if", vif);
+  vif.svt_if = inter_connect.module_usb_20_if;
+
+  // 发送chirp-k时，判断
+  initial begin
+    wait(env != null);
+    wait(env.e_initial_done);
+    wait(env.e_final_done);
+    if(env.sys_cfg.boot_cfg.use_reset_debounce)
+      forever send_chirp_k_debounce(env.sys_cfg.boot_cfg.reset_debounce_delay_us);
+  end
+
+  // 固定 dssr state 状态机
+  initial forever debug_for_dssr_state();
+
+  // 监视dssr state状态变化
+  task automatic debug_for_dssr_state();
+    string state_name;
+
+    @(dssr_state);
+    if($isunknown(dssr_state))
+      return;
+
+    state_name = DSSR_STATE_NAME[dssr_state];
+
+    `uvm_info("", $spsrintf("dssr_state -> %0s\t(%0d)", state_name, dssr_state), UVM_LOW)
+  endtask
+
+  // device 发送 chirp K 时间
+  task automatic send_chirp_k_debounce(longint delay_us);
+    if(vif.send_chirp_k) begin
+      if(send_chirp_k_debounce_counter_us++ > delay_us) begin
+        // 开始
+        if(!send_chirp_k_control) begin
+          `uvm_info("", "send_chirp_k runcontrol", UVM_LOW)
+          release dn;
+          send_chirp_k_control = 0;
+        end
+
+        // 等待下次状态
+        wait(!vif.send_chirp_k);
+      end else begin
+        if(!send_chirp_k_control) begin
+          `uvm_info("", $spsrintf("send_chirp_k control(%0dus)", delay_us), UVM_LOW)
+          force dn = 0;
+          send_chirp_k_control = 1;
+        end
+
+        // interval
+        #1us;
+      end
+    end else begin
+      // 释放
+      if(send_chirp_k_control) begin
+        `uvm_info("", "send_chirp_k out of state", UVM_LOW)
+        release dn;
+        send_chirp_k_control = 0;
+      end
+
+      // 清除
+      send_chirp_k_debounce_counter_us = 0;
+
+      // 等待下次生效
+      wait(vif.send_chirp_k);
+    end
+  endtask
+
+  // force dp
+  function automatic void force_dp(bit value);
+    if(dp_control)
+      `uvm_error("", "dp is already under control")
+
+    if(value)
+      force dp = 1;
+    else
+      force dp = 0;
+
+    dp_control = 1;
+  endfunction
+
+  // force dn
+  function automatic void force_dn(bit value);
+    if(dn_control)
+      `uvm_error("", "dn is already under control")
+
+    if(value)
+      force dn = 1;
+    else
+      force dn = 0;
+
+    dn_control = 1;
+  endfunction
+
+  // release dp
+  function automatic void release_dp();
+    if(!dp_control)
+      `uvm_warning("", "dp is not under control")
+
+    release dp;
+
+    dp_control = 0;
+  endfunction
+
+  // release dn
+  function automatic void release_dn();
+    if(!dn_control)
+      `uvm_warning("", "dn is not under control")
+
+    release dn;
+
+    dn_control = 0;
+  endfunction
+endmodule
+
+`endif

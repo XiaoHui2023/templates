@@ -1,0 +1,16 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_IN_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_IN_REQUEST
+
+class {{ class_prefix }}xfer_host_in_request extends {{ class_prefix }}xfer_host_request;
+    `uvm_object_utils({{ class_prefix }}xfer_host_in_request)
+
+    function new(string name = "{{ class_prefix }}xfer_host_in_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_in_preset {
+        dir == DIR_IN;
+    }
+endclass
+
+`endif

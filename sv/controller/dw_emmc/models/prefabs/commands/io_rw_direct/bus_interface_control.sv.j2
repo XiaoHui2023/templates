@@ -1,0 +1,33 @@
+#ifndef {{ class_prefix | upper }}IO_RW_DIRECT_BUS_INTERFACE_CONTROL_COMMAND_REQUEST
+#define {{ class_prefix | upper }}IO_RW_DIRECT_BUS_INTERFACE_CONTROL_COMMAND_REQUEST
+
+// CCCR bus interface control 总线位宽
+class {{ class_prefix }}io_rw_direct_bus_interface_control_command_request extends {{ class_prefix }}io_rw_direct_command_request;
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_bus_interface_control_command_request)
+        `uvm_field_int(bus_width,UVM_ALL_ON)
+        `uvm_field_int(cd_disable,UVM_ALL_ON)
+        `uvm_field_int(data_width,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand int bus_width; // 总线位宽
+    rand bit cd_disable; // card detect disable
+    rand int data_width; // 数据位宽
+
+    function new(string name="{{ class_prefix }}io_rw_direct_bus_interface_control_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_io_rw_direct_prefab {
+        soft cd_disable == 1;
+        function_number == 0;
+        register_address == 'h07;
+        if(bus_width == 1) write_data[1:0] == 2'b00;
+        else if(bus_width == 4) write_data[1:0] == 2'b10;
+        write_data[7] == cd_disable;
+        (data_width == 1) -> bus_width == 1;
+        (data_width == 4) -> bus_width == 4;
+        bus_width inside {1,4};
+    }
+endclass
+
+`endif

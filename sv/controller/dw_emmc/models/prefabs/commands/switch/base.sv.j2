@@ -1,0 +1,67 @@
+#ifndef {{ class_prefix | upper }}SWITCH_COMMAND_REQUEST
+#define {{ class_prefix | upper }}SWITCH_COMMAND_REQUEST
+
+// 设置EXT_CSD寄存器
+class {{ class_prefix }}switch_command_request extends {{ class_prefix }}command_request;
+    typedef enum {
+        COMMAND_SET,
+        SET_BITS,
+        CLEAR_BITS,
+        WRITE_BYTE
+    } access_e;
+
+    `uvm_object_utils_begin({{ class_prefix }}switch_command_request)
+        `uvm_field_enum(access_e,access,UVM_ALL_ON)
+        `uvm_field_int(index,UVM_ALL_ON)
+        `uvm_field_int(offset,UVM_ALL_ON)
+        `uvm_field_int(value,UVM_ALL_ON)
+        `uvm_field_int(cmd_set,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand access_e access;
+    rand bit[7:0] index;
+    rand int offset;
+    rand bit[7:0] value;
+    rand bit[2:0] cmd_set;
+
+    function new(string name="{{ class_prefix }}switch_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_switch_base_prefab {
+        // access
+        cmd_index == 6;
+        access == argument[25:24];
+        index == argument[23:16];
+        value == argument[15:8];
+        0 == argument[7:3];
+        cmd_set == argument[2:0];
+        resp == R1b;
+
+        if(access == COMMAND_SET) {
+            index == 0;
+            value == 0;
+        }
+        else {
+            cmd_set == 0;
+        }
+        soft access == WRITE_BYTE;
+        soft offset == 0;
+        foreach(value[BIT]) soft value[BIT] == 0;
+
+        // offset
+        //index == PWR_WP_EN_VDD_R_CSD_SIZE -> offset inside {[0:21-181]};
+        //index == PRE_LOADING_DATA_SIZE    -> offset inside {[0:25-22]};
+        //index == CONTEXT_CONF             -> offset inside {[0:51-37]};
+        //index == EXT_PARTITIONS_ATTRIBUTE -> offset inside {[0:53-52]};
+        //index == EXCEPTION_EVENTS_STATUS  -> offset inside {[0:55-54]};
+        //index == EXCEPTION_EVENTS_CTRL    -> offset inside {[0:57-56]};
+        //index == VENDOR_SPECIFIC_FIELD    -> offset inside {[0:127-64]};
+        //index == FIRMWARE_VERSION         -> offset inside {[0:261-254]};
+        //index == ENH_SIZE_MULT            -> offset inside {[0:142-140]};
+        //index == GP_SIZE_MULT             -> offset inside {[0:154-143]};
+        //index == MAX_ENH_SIZE_MULT        -> offset inside {[0:159-157]};
+    }
+endclass
+
+`endif

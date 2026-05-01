@@ -1,0 +1,65 @@
+from typing import List, Literal
+from pydantic import BaseModel, Field, model_validator
+
+
+class Monitor(BaseModel):
+    is_enabled: bool = Field(False, description="是否使能")
+    output_port_name: str = Field("o_ap", description="输出端口名")
+    output_read_port_name: str = Field("o_r_ap", description="输出读端口名")
+    output_write_port_name: str = Field("o_w_ap", description="输出写端口名")
+
+
+class RegSync(BaseModel):
+    is_enabled: bool = Field(False, description="是否使能")
+
+
+class RegTest(BaseModel):
+    is_enabled: bool = Field(False, description="是否使能")
+
+
+class Report(BaseModel):
+    is_enabled: bool = Field(False, description="是否使能")
+
+
+class Models(BaseModel):
+    class_prefix: str = Field(..., description="默认类名前缀")
+
+    class_env: str = Field("", description="env组件类名")
+    class_core: str = Field("", description="core组件类名")
+    class_config: str = Field("", description="配置类名")
+    class_adapter: str = Field("", description="adapter类名")
+    class_interface: str = Field("", description="interface名")
+    class_reg_sync_agent: str = Field("", description="reg sync agent类名")
+    class_reg_test_seq: str = Field("", description="reg test seq类名")
+    class_reporter: str = Field("", description="reporter类名")
+    class_slave_memory_seq: str = Field("", description="slave memory seq类名")
+
+    monitor: Monitor = Field(default_factory=Monitor, description="监听")
+    reg_sync: RegSync = Field(default_factory=RegSync, description="寄存器同步")
+    reg_test: RegTest = Field(default_factory=RegTest, description="寄存器测试")
+    report: Report = Field(default_factory=Report, description="报告")
+
+    is_adapt_enabled: bool = None
+
+    @model_validator(mode="after")
+    def _post_init(self):
+        if not self.class_env:
+            self.class_env = f"{self.class_prefix}env"
+        if not self.class_config:
+            self.class_config = f"{self.class_prefix}configuration"
+        if not self.class_core:
+            self.class_core = f"{self.class_prefix}core"
+        if not self.class_adapter:
+            self.class_adapter = f"{self.class_prefix}adapter"
+        if not self.class_interface:
+            self.class_interface = f"{self.class_prefix}interface"
+        if not self.class_reg_sync_agent:
+            self.class_reg_sync_agent = f"{self.class_prefix}reg_sync_agent"
+        if not self.class_reg_test_seq:
+            self.class_reg_test_seq = f"{self.class_prefix}reg_test_seq"
+        if not self.class_reporter:
+            self.class_reporter = f"{self.class_prefix}reporter"
+        if not self.class_slave_memory_seq:
+            self.class_slave_memory_seq = f"{self.class_prefix}slave_memory_seq"
+        self.is_adapt_enabled = self.monitor.is_enabled or self.report.is_enabled
+        return self

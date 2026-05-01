@@ -1,0 +1,35 @@
+`ifndef {{ class_prefix | upper }}CATCHER
+`define {{ class_prefix | upper }}CATCHER
+
+class {{ class_prefix }}catcher extends uvm_report_catcher;
+
+    // ??ID
+    function void add(string id);
+        ids.push_back(id);
+    endfunction
+
+    protected string ids[$]; // ??????
+    protected int count[string]; // ????
+
+    function action_e catch();
+        string id;
+
+        id = get_id();
+
+        if(get_severity() inside {UVM_INFO,UVM_WARNING}) begin
+            if(id inside ids) begin
+                if(count.exists(id))
+                    return CAUGHT;
+                else
+                    count[id]++;
+            end
+        end
+
+        return THROW;
+    endfunction
+
+    function new(string name="{{ class_prefix }}catcher");
+        super.new(name);
+    endfunction
+endclass
+`endif

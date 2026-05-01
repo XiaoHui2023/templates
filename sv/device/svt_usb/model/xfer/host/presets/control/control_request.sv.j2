@@ -1,0 +1,16 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_CONTROL_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_CONTROL_REQUEST
+
+class {{ class_prefix }}xfer_host_control_request extends {{ class_prefix }}xfer_host_request;
+    `uvm_object_utils({{ class_prefix }}xfer_host_control_request)
+
+    function new(string name = "{{ class_prefix }}xfer_host_control_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_control_preset {
+        dir == DIR_CONTROL;
+    }
+endclass
+
+`endif

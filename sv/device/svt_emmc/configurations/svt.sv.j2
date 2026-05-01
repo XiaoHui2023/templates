@@ -1,0 +1,113 @@
+`ifndef {{ class_prefix | upper }}SVT_CONFIGURATION
+`define {{ class_prefix | upper }}SVT_CONFIGURATION
+
+class {{ class_prefix }}svt_configuration extends svt_emmc_card_agent_configuration;
+    `uvm_object_utils({{ class_prefix }}svt_configuration)
+
+    function new(string name="{{ class_prefix }}svt_configuration");
+        super.new(name);
+    endfunction
+
+    extern function void configure({{ class_prefix }}system_configuration sys_cfg);
+    extern function void load_emmc_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    extern function void load_sdio_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    extern function void load_sd_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+endclass
+
+function void {{ class_prefix }}svt_configuration::configure({{ class_prefix }}system_configuration sys_cfg);
+    this.reg_cfg = svt_emmc_register_configuration::type_id::create("reg_cfg");
+    this.timing_cfg = svt_emmc_timing_configuration::type_id::create("card_timing");
+
+    this.enable_setup_hold_time_checks = sys_cfg.should_check_timing;
+    this.enable_transaction_tracing = 1;
+    this.enable_card_reporting = 1;
+    this.enable_card_tracing = 1;
+    this.enable_tolerated_td_fp = 1;
+    this.config_fifo_switch_time = 20;
+    this.timing_cfg.Ncr_min_ck = 64;
+    this.timing_cfg.Ncr_max_ck = 64;
+    this.timing_cfg.Ncc_ck = 8;
+    this.timing_cfg.Nwr_min_ck = 8;
+    this.timing_cfg.Nwr_max_ck = 8;
+    this.timing_cfg.Ncrc_min_ck = 8;
+    this.timing_cfg.Ncrc_max_ck = 8;
+    this.timing_cfg.Ncrc_hs200_min_ck = 8;
+    this.timing_cfg.Ncrc_hs200_max_ck = 8;
+    this.timing_cfg.Ncrc_hs400_min_ck = 8;
+    this.timing_cfg.Ncrc_hs400_max_ck = 8;
+
+    {%- if is_emmc %}
+    load_emmc_config(sys_cfg,this.reg_cfg);
+    {%- elif is_sdio %}
+    load_sdio_config(sys_cfg,this.reg_cfg);
+    {%- elif is_sdcard %}
+    load_sd_config(sys_cfg,this.reg_cfg);
+    {%- endif %}
+endfunction
+
+function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    this.card_type = svt_emmc_types::EMMC;
+    this.card_capacity = svt_emmc_types::EMMC_CAP_REG_HS_2GB;
+    this.emmc_spec_ver = (sys_cfg.version == sys_cfg.VERSION_5_1) ? svt_emmc_types::EMMC_5_1 : svt_emmc_types::EMMC_5_0;
+
+    // Default values for CID/CSD/EXT_CSD/Device Status registers.
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_MID, 8'hff);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_CBX, 2'b01);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_PNM, 48'h0);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_PRV, 8'h0);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_PSN, 32'h0);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_MDT, 8'h0);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_CRC, 7'h0);
+
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_CSD_STRUCTURE, 2'b11);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_SPEC_VERS, 4'b0100);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_TAAC, 8'h0E);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_NSAC, 8'h00);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_TRAN_SPEED, 8'h32);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_CCC, 12'h1F5);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_READ_BL_LEN, 4'h9);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_C_SIZE, 12'hFFF);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_SIZE, 5'h1F);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_MULT, 5'h1F);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_WP_GRP_SIZE, 5'h1F);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_WRITE_BL_LEN, 4'h9);
+
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_READY_FOR_DATA, 1'b1);
+    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CURRENT_STATE, 4'h4);
+endfunction
+
+function void {{ class_prefix }}svt_configuration::load_sdio_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    this.card_type = svt_emmc_types::SDIO;
+    case(sys_cfg.capacity_type)
+        sys_cfg.SDSC : this.card_capacity = svt_emmc_types::SDSC;
+        sys_cfg.SDHC : this.card_capacity = svt_emmc_types::SDHC;
+        sys_cfg.SDXC : this.card_capacity = svt_emmc_types::SDXC;
+        default : `uvm_fatal("","Not Implemented")
+    endcase
+    this.sd_card_support = svt_emmc_types::UHS104;
+
+    reg_cfg.set_emmc_sdio_reg_field('d16, svt_emmc_types::SDIO_RCA_REG_RCA, 16'h0);
+    for(int i=0;i<24;i++)
+        reg_cfg.set_emmc_sdio_reg_field(i, svt_emmc_types::SDIO_OCR_REG_VDD_20_21P, 1'b1);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CARD_STATUS_REG_READY_FOR_DATA, 1'b1);
+endfunction
+
+function void {{ class_prefix }}svt_configuration::load_sd_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    this.card_type = svt_emmc_types::SDCARD;
+    case(sys_cfg.capacity_type)
+        sys_cfg.SDSC : this.card_capacity = svt_emmc_types::SDSC;
+        sys_cfg.SDHC : this.card_capacity = svt_emmc_types::SDHC;
+        sys_cfg.SDXC : this.card_capacity = svt_emmc_types::SDXC;
+        default : `uvm_fatal("","Not Implemented")
+    endcase
+    this.sd_card_support = svt_emmc_types::UHS104;
+
+    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_CID_REG_MID, 8'hFF);
+    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_CSD_REG_CSD_STRUCTURE, 2'b10);
+    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_OCR_REG_CARD_CAPACITY_STATUS, 1'b1);
+    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_STATUS_REG_READY_FOR_DATA, 1'b1);
+    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_CARD_STATUS_REG_READY_FOR_DATA, 1'b1);
+    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_SMB, 1'b1);
+endfunction
+
+`endif

@@ -1,0 +1,35 @@
+`ifndef {{ class_prefix | upper }}ASSERT_CONNECTION_TEST_SEQ
+`define {{ class_prefix | upper }}ASSERT_CONNECTION_TEST_SEQ
+
+class {{ class_prefix }}assert_connection_test_seq extends {{ class_prefix }}default_seq;
+    `uvm_object_utils_begin({{ class_prefix }}assert_connection_test_seq)
+        uvm_field_int(should_{{ con.name }}, UVM_ALL_ON)            {%- for con in connections %}
+                                                                    {%- endfor %}
+    `uvm_object_utils_end
+
+    function new(string name="{{ class_prefix }}assert_connection_test_seq");
+        super.new(name);
+    endfunction
+
+    rand bit should_{{ con.name }}; // 是否检查{{ con.name }}       {%- for con in connections %}
+                                                                    {%- endfor %}
+
+    constraint cst_test {
+        soft should_{{ con.name }} == sys_cfg.assert_con_cfg.should_{{ con.name }};  {%- for con in connections %}
+                                                                    {%- endfor %}
+    }
+
+    extern task body();
+endclass
+
+task {{ class_prefix }}assert_connection_test_seq::body();
+    if(!should)
+        return;
+
+    uvm_info("", $soprintf("assert connections:\n%s", sprint()), UVM_DEBUG)
+
+    if(should_{{ con.name }})                                      {%- for con in connections %}
+        p_sequencer.vif.connections_if.request_{{ con.name }}();   {%- endfor %}
+endtask
+
+`endif

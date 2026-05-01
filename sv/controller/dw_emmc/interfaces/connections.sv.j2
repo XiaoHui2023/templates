@@ -1,0 +1,30 @@
+`ifndef {{ class_prefix | upper }}CONNECTIONS_INTERFACE
+`define {{ class_prefix | upper }}CONNECTIONS_INTERFACE
+
+interface {{ class_prefix }}connections_interface#(
+{% for con in connections %}
+    input wire {{ con.name }}_lhs,
+    input wire {{ con.name }}_rhs{{ "," if not loop.last }}
+{% endfor %}
+);
+
+timeunit 1fs;
+timeprecision 1fs;
+
+{% for con in connections %}
+{{ class_prefix }}connection_interface#(.DW({{ con.width }})) {{ con.name }}_if({{ con.name }}_lhs, {{ con.name }}_rhs);
+{% endfor %}
+
+{% for con in connections %}
+// 请求检查 {{ con.name }}
+function automatic void request_{{ con.name }}();
+    if($isunknown({{ con.name }}_lhs) || $isunknown({{ con.name }}_rhs)) begin
+        `uvm_fatal("", "require connect {{ con.name }} signal to connections if")
+    end
+    {{ con.name }}_if.request();
+endfunction
+{% endfor %}
+
+endinterface
+
+`endif

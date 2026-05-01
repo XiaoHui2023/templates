@@ -1,0 +1,82 @@
+`ifndef {{ class_prefix | upper }}HOST_CALLBACK
+`define {{ class_prefix | upper }}HOST_CALLBACK
+
+class {{ class_prefix }}host_callback extends {{ class_prefix }}base_callback;
+    `uvm_object_utils({{ class_prefix }}host_callback)
+
+    function new(string name="{{ class_prefix }}host_callback");
+        super.new(name);
+    endfunction
+
+    extern virtual function void received_data_packet(svt_usb_protocol_component, svt_usb_transfer transfer, svt_usb_packet packet);
+    extern virtual function void transaction_ended(svt_usb_protocol_component, svt_usb_transfer transfer, int transaction_ix);
+    extern virtual function void transfer_ended(svt_usb_protocol_component, svt_usb_transfer transfer);
+    extern virtual function void pre_usb_2_0_packet_out_port_put(svt_usb_protocol_component component, int chan_id, svt_usb_packet packet, svt_usb_transaction transaction, int packet_ix, svt_usb_transfer transfer, int transaction_ix, ref bit drop);
+endclass
+
+function void {{ class_prefix }}host_callback::received_data_packet(svt_usb_protocol_component, svt_usb_transfer transfer, svt_usb_packet packet);
+    `uvm_info("", $spsprintf("callback received data packet:%0p", packet.sprint()), UVM_HIGH)
+
+    extract_receive_data(packet);
+endfunction
+
+function void {{ class_prefix }}host_callback::transaction_ended(svt_usb_protocol_component, svt_usb_transfer transfer, int transaction_ix);
+    e_transaction_ended++;
+    `uvm_info("", $spsprintf("callback transaction ended:%0s", transfer.sprint()), UVM_HIGH)
+endfunction
+
+function void {{ class_prefix }}host_callback::transfer_ended(svt_usb_protocol_component, svt_usb_transfer transfer);
+    e_transfer_ended++;
+    `uvm_info("", $spsprintf("callback transfer ended:%0s", transfer.sprint()), UVM_HIGH)
+endfunction
+
+function void {{ class_prefix }}host_callback::pre_usb_2_0_packet_out_port_put(svt_usb_protocol_component component, int chan_id, svt_usb_packet packet, svt_usb_transaction transaction, int packet_ix, svt_usb_transfer transfer, int transaction_ix, ref bit drop);
+    svt_usb_packet_exception pkt_exception;
+    bit corrupt_sof = 0;
+    bit short_packet_error = 0;
+    bit babble_error = 0;
+    bit crc16_error = 0;
+
+    if(corrupt_sof) begin
+        if(packet.get_pid_name_val() == svt_usb_packet::SOF) begin
+            pkt_exception = new();
+            pkt_exception.error_kind = svt_usb_packet_exception::PID_CHECK_ERROR;
+            pkt_exception.error_group = svt_usb_packet_exception::RANDOM_ERROR_GROUP;
+            pkt_exception.list = new[1];
+            pkt_exception.txt = packet;
+            pkt_exception.byte_offset = 1;
+            packet.exception_list.add_exception(pkt_exception);
+            `uvm_info("pre_usb_2_0_packet_out_port_put", "Injecting SOF", UVM_LOW)
+        end
+    end
+
+    if(short_packet_error) begin
+        if(packet.get_ept_num_val() == 1 && packet.get_pid_name_val() == svt_usb_packet::DATA0) begin
+            pkt_exception = new();
+            pkt_exception.error_kind = svt_usb_packet_exception::LENGTH_ERROR;
+            pkt_exception.error_group = svt_usb_packet_exception::RANDOM_ERROR_GROUP;
+            pkt_exception.length_error = svt_usb_packet_exception::SHORT_PACKET_ERROR;
+            pkt_exception.list = new[1];
+            pkt_exception.txt = packet;
+            pkt_exception.byte_offset = 1;
+            packet.exception_list.add_exception(pkt_exception);
+            `uvm_info("pre_usb_2_0_packet_out_port_put", "Injecting Short Packet error", UVM_LOW)
+        end
+    end
+
+    if(babble_error) begin
+        if(packet.get_ept_num_val() == 1 && packet.get_pid_name_val() == svt_usb_packet::DATA0) begin
+            pkt_exception = new();
+            pkt_exception.error_kind = svt_usb_packet_exception::CRC_ERROR;
+            pkt_exception.error_group = svt_usb_packet_exception::RANDOM_ERROR_GROUP;
+            pkt_exception.crc_error = svt_usb_packet_exception::CRC16_ERROR;
+            pkt_exception.list = new[1];
+            pkt_exception.txt = packet;
+            pkt_exception.byte_offset = 1;
+            packet.exception_list.add_exception(pkt_exception);
+            `uvm_info("pre_usb_2_0_packet_out_port_put", "Injecting CRC16 error", UVM_LOW)
+        end
+    end
+endfunction
+
+`endif

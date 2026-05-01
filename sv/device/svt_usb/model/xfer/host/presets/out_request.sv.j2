@@ -1,0 +1,16 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_OUT_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_OUT_REQUEST
+
+class {{ class_prefix }}xfer_host_out_request extends {{ class_prefix }}xfer_host_request;
+    `uvm_object_utils({{ class_prefix }}xfer_host_out_request)
+
+    function new(string name = "{{ class_prefix }}xfer_host_out_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_out_preset {
+        dir == DIR_OUT;
+    }
+endclass
+
+`endif

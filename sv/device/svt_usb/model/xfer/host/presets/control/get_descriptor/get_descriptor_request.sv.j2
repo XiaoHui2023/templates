@@ -1,0 +1,30 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_DESCRIPTOR_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_GET_DESCRIPTOR_REQUEST
+
+class {{ class_prefix }}xfer_host_get_descriptor_request extends {{ class_prefix }}xfer_host_control_request;
+    `uvm_object_utils_begin({{ class_prefix }}xfer_host_get_descriptor_request)
+        `uvm_field_int(basic_sizeof_response,UVM_ALL_ON)
+        `uvm_field_int(extra_sizeof_response,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand int basic_sizeof_response; // 基础描述长度
+    rand int extra_sizeof_response; // 额外描述长度
+
+    function new(string name = "{{ class_prefix }}xfer_host_get_descriptor_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_get_descriptor_preset {
+        basic_sizeof_response > 0;
+        extra_sizeof_response > 0;
+
+        request == REQUEST_GET_DESCRIPTOR;
+        request_dir == REQUEST_DIR_DEVICE_TO_HOST;
+        request_recipient == REQUEST_RECIPIENT_DEVICE;
+        request_type == REQUEST_TYPE_STANDARD;
+        payload_intended_byte_count == w_length;
+        w_length == basic_sizeof_response + extra_sizeof_response;
+    }
+endclass
+
+`endif

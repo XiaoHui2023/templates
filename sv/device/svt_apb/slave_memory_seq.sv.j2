@@ -1,0 +1,135 @@
+`ifndef {{ class_slave_memory_seq | upper }}
+`define {{ class_slave_memory_seq | upper }}
+`define SVT_APB_PWDATA_WIDTH 32
+`define SVT_APB_PRDATA_WIDTH 32
+`define SVT_APB_MAX_DATA_WIDTH 32
+`include "svt_apb_if.svi"
+`include "svt_apb.uvm.pkg"
+
+import uvm_pkg::*;
+import svt_uvm_pkg::*;
+import svt_apb_uvm_pkg::*;
+
+
+class {{ class_slave_memory_seq }} extends svt_apb_slave_base_sequence;
+
+    `svt_xvm_object_utils({{ class_slave_memory_seq }})
+    `svt_xvm_declare_p_sequencer(svt_apb_slave_sequencer)
+
+    /** Slave memory. */
+    svt_apb_memory apb_slave_mem;
+
+    function new(string name="{{ class_slave_memory_seq }}");
+        super.new(name);
+    endfunction
+
+    virtual task body();
+        // Status bit for randomization
+        integer status;
+
+        // Container for pstrb value
+        bit[`SVT_APB_MAX_DATA_WIDTH/8 -1 :0] byteen;
+
+        // Number of pstrb bits
+        int byteen_bits;
+
+        super.body();
+
+        //fork off a thread to pull the responses out of response queue
+        sink_responses();
+
+        // Instantiate the slave memory
+        create_apb_slave_mem();
+
+        // 设初值，随机值填充
+        apb_slave_mem.set_meminit(svt_mem::RANDOM);
+
+        forever begin
+            // Gets the request from monitor
+            p_sequencer.response_request_port.peek(req);
+
+            // 设置 pready 等待周期参数
+            req.ZERO_WAIT_CYCLES_wt = 1;
+            req.SHORT_WAIT_CYCLES_wt = 1;
+            req.LONG_WAIT_CYCLES_wt = 0;
+            if (req.cfg == null) begin
+                req.cfg = cfg;
+            end
+
+            if (req.xact_type != svt_apb_transaction::IDLE && !apb_slave_mem.is_in_bounds(req.address)) begin
+                `svt_xvm_warning("body", $sformatf("Attempted bus failed. Returning pslverr with this transaction.: %s", `SVT_APB_PRINT_PREFIX(req)));
+                req.pslverr_enable = 1;
+            end
+            else begin
+                // Store cfg and mode for the payload since it is retrieved from the memory and
+                // then randomized the response.
+                req.data.rand_mode(0);
+                req.pslverr_enable.rand_mode(0);
+            end
+
+            status = req.randomize() with {
+                num_wait_cycles dist {0:=1,1:=1,[2:10]:=0};
+            };
+
+            byteen_bits = req.cfg.sys_cfg.pdata_width/8;
+
+            if(req.cfg.sys_cfg.apb4_enable) begin
+                byteen = req.pstrb;
+            end
+            else begin
+                byteen = ((1<< byteen_bits) -1);
+            end
+            if(!status)
+                `svt_xvm_fatal("body", "Randomization of slave response failed");
+            if (!req.pslverr_enable) begin
+                // For write transaction, put the write data to memory
+                if(req.xact_type == svt_apb_slave_transaction::WRITE) begin
+                    `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0x.", `SVT_APB_PRINT_PREFIX(req), byteen));
+                    void'(apb_slave_mem.write(req.address, req.data, byteen));
+                end
+                // For Read transaction, get the read data from memory
+                else if(req.xact_type == svt_apb_slave_transaction::READ)begin
+                    req.data = apb_slave_mem.read(req.address);
+                    `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0x.", `SVT_APB_PRINT_PREFIX(req), byteen));
+`ifdef SVT_APB_SLAVE_DRIVE_X_IF_MEMDATA_X
+                    // If the value read from apb slave mem contains X, set the following.
+                    // $isunknown(data) can be used, but using this for performance.
+                    req.read_data_contains_x = 0;
+                    if (^(apb_slave_mem.read(req.address)) === 1'bx) begin
+                        req.read_data_contains_x = 1;
+                    end
+`endif
+                end
+            end
+            else begin
+                `svt_xvm_debug("body", $sformatf("pslverr issued for this transaction %s, so the memory was not updated.", `SVT_APB_PRINT_PREFIX(req)));
+            end
+
+            // Finally send the response
+            `svt_xvm_send(req)
+        end
+    endtask: body
+
+    virtual function void create_apb_slave_mem();
+        svt_apb_slave_agent slave_agent;
+
+        if ($cast(slave_agent, p_sequencer.get_parent())) begin
+            if (slave_agent.apb_slave_mem != null) begin
+                apb_slave_mem = slave_agent.apb_slave_mem;
+            end
+            else begin
+                apb_slave_mem = new("apb_slave_mem",       // Memory name
+                                    cfg.sys_cfg.pdata_width, // Data width
+                                    0,                      // Address region
+                                    0,                      // Lower address bound
+                                    (1<<cfg.sys_cfg.paddr_width)-1); // Upper address bound
+                slave_agent.apb_slave_mem = apb_slave_mem;
+            end
+        end
+        else begin
+            `svt_xvm_fatal("create_apb_slave_mem", "This sequence must be run by the sequencer contained by svt_apb_slave_agent.");
+        end
+    endfunction: create_apb_slave_mem
+endclass
+
+`endif

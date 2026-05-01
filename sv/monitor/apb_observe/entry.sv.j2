@@ -1,0 +1,25 @@
+`ifndef {{ class_prefix | upper }}ENTRY
+`define {{ class_prefix | upper }}ENTRY
+
+class {{ class_prefix }}entry extends uvm_sequence_item;
+    typedef enum {
+        READ,
+        WRITE
+    } access_e;
+
+    access_e access; // 访问方式
+    bit[31:0] addr; // 地址
+    bit[31:0] data; // 数据
+
+    `uvm_object_utils_begin({{ class_prefix }}entry)
+        `uvm_field_enum(access_e, access, UVM_ALL_ON)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(data, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    function new(string name="{{ class_prefix }}env");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

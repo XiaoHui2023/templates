@@ -1,0 +1,31 @@
+`ifndef {{ class_prefix | upper }}BOOT_GENERATE_CLOCK_SEQ
+`define {{ class_prefix | upper }}BOOT_GENERATE_CLOCK_SEQ
+
+class {{ class_prefix }}boot_generate_clock_seq extends {{ class_prefix }}base_seq;
+  `uvm_object_utils({{ class_prefix }}boot_generate_clock_seq)
+
+  function new(string name = "{{ class_prefix }}boot_generate_clock_seq");
+    super.new(name);
+  endfunction
+
+  extern task body();
+endclass
+
+task {{ class_prefix }}boot_generate_clock_seq::body();
+  realtime usb_20_simulation_cycle;
+
+  if(p_sequencer.vif.cfg.max_fs_phy) begin
+    usb_20_simulation_cycle = 521.33ps;
+  end else begin
+    usb_20_simulation_cycle = 20839ps/4;
+  end
+
+  p_sequencer.vif.clk = 0;
+
+  forever begin
+    #(usb_20_simulation_cycle/2);
+    p_sequencer.vif.clk = ~p_sequencer.vif.clk;
+  end
+endtask
+
+`endif

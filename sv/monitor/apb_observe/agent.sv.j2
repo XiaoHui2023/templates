@@ -1,0 +1,29 @@
+`ifndef {{ class_prefix | upper }}AGENT
+`define {{ class_prefix | upper }}AGENT
+
+class {{ class_prefix }}agent extends uvm_component;
+    `uvm_component_utils({{ class_prefix }}agent)
+
+    {{ class_prefix }}sequencer sqr;
+    {{ class_prefix }}monitor mon;
+
+    function new(string name="{{ class_prefix }}agent", uvm_component parent);
+        super.new(name, parent);
+
+        sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
+        mon = {{ class_prefix }}monitor::type_id::create("mon", this);
+    endfunction
+
+    extern function void build();
+endclass
+
+function void {{ class_prefix }}agent::build();
+    super.build();
+
+    if(!uvm_config_db#(virtual {{ class_prefix }}interface)::get(this, "", "if", mon.vif))
+        `uvm_fatal("", "require if")
+
+    $cast(mon.sqr, sqr);
+endfunction
+
+`endif

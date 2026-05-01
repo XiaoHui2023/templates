@@ -1,0 +1,31 @@
+`ifndef {{ class_prefix | upper }}MAIN_PHASE_SEQ
+`define {{ class_prefix | upper }}MAIN_PHASE_SEQ
+
+class {{ class_prefix }}main_phase_seq extends uvm_sequence;
+  `uvm_object_utils({{ class_prefix }}main_phase_seq)
+  `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+  {{ class_prefix }}boot_auto_seq boot_auto_seq;
+
+  function new(string name = "{{ class_prefix }}main_phase_seq");
+    super.new(name);
+  endfunction
+
+  task pre_start();
+    super.pre_start();
+
+    starting_phase.raise_objection(this);
+  endtask
+
+  task body();
+    `uvm_do(boot_auto_seq)
+  endtask
+
+  task post_start();
+    super.post_start();
+
+    starting_phase.drop_objection(this);
+  endtask
+endclass
+
+`endif

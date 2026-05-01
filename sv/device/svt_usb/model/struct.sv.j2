@@ -1,0 +1,63 @@
+`ifndef {{ class_prefix | upper }}STRUCT
+`define {{ class_prefix | upper }}STRUCT
+
+class {{ class_prefix }}struct extends {{ class_prefix }}base_configuration;
+    `uvm_object_utils_begin({{ class_prefix }}struct)
+        `uvm_field_int(sizeof,UVM_ALL_ON | UVM_NOPACK)
+        `uvm_field_int(data,UVM_ALL_ON | UVM_NOPACK)
+    `uvm_object_utils_end
+
+    int sizeof; // 字节数
+
+    function new(string name="{{ class_prefix }}struct");
+        super.new(name);
+    endfunction
+
+    // 打包为字节
+    extern function void pack(output bit[7:0] data[$], input bit big_endian=0);
+
+    // 解包使用
+    virtual function void pre_unpack(bit[7:0] data[$],bit big_endian); endfunction
+
+    // 解包为结构
+    extern function void unpack(bit[7:0] data[$],bit big_endian=0);
+
+    // 解包使用后
+    virtual function void post_unpack(bit[7:0] data[$],bit big_endian); endfunction
+endclass
+
+function void {{ class_prefix }}struct::pack(output bit[7:0] data[$], input bit big_endian);
+    uvm_packer pk;
+    byte unsigned all[];
+
+    pk = new();
+    pk.big_endian = big_endian;
+
+    this.pack_bytes(pk);
+    foreach(all[i])
+        data[i] = all[i];
+    sizeof = data.size;
+endfunction
+
+function void {{ class_prefix }}struct::unpack(bit[7:0] data[$],bit big_endian);
+    uvm_packer pk;
+    byte unsigned all[];
+
+    // callback
+    pre_unpack(data,big_endian);
+
+    pk = new(data.size);
+    foreach(data[i])
+        all[i] = data[i];
+
+    pk = new();
+    pk.big_endian = big_endian;
+
+    this.unpack_bytes(pk);
+    sizeof = data.size;
+
+    // callback
+    post_unpack(data,big_endian);
+endfunction
+
+`endif

@@ -1,0 +1,69 @@
+`ifndef {{ class_prefix | upper }}BASE_CONFIGURATION
+`define {{ class_prefix | upper }}BASE_CONFIGURATION
+
+class {{ class_prefix }}base_configuration extends uvm_sequence_item;
+    `uvm_object_utils({{ class_prefix }}base_configuration)
+
+    typedef enum {
+        SPEED_LOW,
+        SPEED_FULL,
+        SPEED_HIGH
+    } speed_e;
+
+    typedef enum {
+        OTG_DEVICE,
+        OTG_HOST
+    } otg_mode_e;
+
+    typedef enum {
+        DIRECTION_UNKNOWN,
+        DIRECTION_INOUT,
+        DIRECTION_IN,
+        DIRECTION_OUT
+    } direction_e;
+
+    typedef enum {
+        EP_TYPE_BULK,
+        EP_TYPE_ISOCHRONOUS,
+        EP_TYPE_INTERRUPT,
+        EP_TYPE_CONTROL
+    } ep_type_e;
+
+    typedef enum {
+        VERSION_1_0,
+        VERSION_2_0,
+        VERSION_3_0
+    } version_e;
+
+    function new(string name="{{ class_prefix }}base_configuration");
+        super.new(name);
+    endfunction
+
+    // 当随机化失败时，自动报错并终止仿真
+    protected int cnt_pre_randomize;
+    protected int cnt_post_randomize;
+
+    extern function void pre_randomize();
+    extern function void post_randomize();
+endclass
+
+function void {{ class_prefix }}base_configuration::pre_randomize();
+    super.pre_randomize();
+    cnt_pre_randomize++;
+
+    fork
+        begin
+            #0;
+            if(cnt_pre_randomize != cnt_post_randomize)
+                `uvm_fatal("", "randomize failed")
+        end
+    join_none
+endfunction
+
+function void {{ class_prefix }}base_configuration::post_randomize();
+    super.post_randomize();
+
+    cnt_post_randomize++;
+endfunction
+
+`endif

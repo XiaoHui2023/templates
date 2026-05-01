@@ -1,0 +1,67 @@
+{%- if not is_emu -%}
+`ifndef {{ class_prefix | upper }}INTERFACE
+`define {{ class_prefix | upper }}INTERFACE
+{% endif -%}
+
+interface {{ class_prefix }}interface(
+    input wire clk,
+    input wire enable,
+    input wire write,
+    input wire sel,
+    input wire[31:0] addr,
+    input wire[31:0] wdata,
+    input wire[31:0] rdata,
+    input wire ready
+);
+{%- if is_emu %}
+// pragma attribute {{ class_prefix }}interface partition_interface_xif
+{%- endif %}
+
+wire active;
+assign active = clk & enable & sel & ready;
+{%- if is_emu %}
+
+task wait_active_posedge();
+    // pragma tbx xtf
+    @(posedge active);
+endtask
+
+function bit get_write();
+    // pragma tbx xtf
+    return write;
+endfunction
+
+function bit[31:0] get_data();
+    // pragma tbx xtf
+    return write ? wdata : rdata;
+endfunction
+
+function bit[31:0] get_addr();
+    // pragma tbx xtf
+    return addr;
+endfunction
+
+{%- else %}
+
+task automatic wait_active_posedge();
+    @(posedge active);
+endtask
+
+function automatic bit get_write();
+    return write;
+endfunction
+
+function automatic bit[31:0] get_data();
+    return write ? wdata : rdata;
+endfunction
+
+function automatic bit[31:0] get_addr();
+    return addr;
+endfunction
+
+{%- endif %}
+endinterface
+
+{%- if not is_emu %}
+`endif
+{%- endif %}

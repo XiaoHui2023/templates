@@ -1,0 +1,52 @@
+`ifndef {{ class_prefix | upper }}SYSTEM_CONFIGURATION
+`define {{ class_prefix | upper }}SYSTEM_CONFIGURATION
+
+class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_configuration;
+    `uvm_object_utils_begin({{ class_prefix }}system_configuration)
+        `uvm_field_enum(speed_e, speed, UVM_ALL_ON)
+        `uvm_field_enum(otg_mode_e, otg_mode, UVM_ALL_ON)
+        `uvm_field_enum(version_e, version, UVM_ALL_ON)
+        `uvm_field_object(boot_cfg, UVM_ALL_ON)
+        `uvm_field_object(dev_cfg, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand speed_e speed;
+    rand otg_mode_e otg_mode;
+    rand version_e version; // 版本号
+    rand {{ class_prefix }}boot_configuration boot_cfg;
+    rand {{ class_prefix }}device_configuration dev_cfg;
+
+    function new(string name="{{ class_prefix }}system_configuration");
+        super.new(name);
+
+        boot_cfg = {{ class_prefix }}boot_configuration::type_id::create("boot_cfg");
+        dev_cfg = {{ class_prefix }}device_configuration::type_id::create("dev_cfg");
+    endfunction
+
+    constraint cst {
+        soft speed == SPEED_HIGH;
+        soft version == VERSION_2_0;
+
+        // 主机只能使用 OTG_HOST
+        boot_cfg.use_auto == (otg_mode == OTG_HOST);
+
+        (version == VERSION_1_0) -> speed inside {
+            SPEED_LOW,
+            SPEED_FULL
+        };
+        (version == VERSION_2_0) -> speed inside {
+            SPEED_LOW,
+            SPEED_FULL,
+            SPEED_HIGH
+        };
+
+        // 默认端点
+        dev_cfg.ep_cfg[dev_cfg.default_endpoint_in_id].direction == DIRECTION_IN;
+        dev_cfg.ep_cfg[dev_cfg.default_endpoint_out_id].direction == DIRECTION_OUT;
+    }
+
+    constraint cst_user;
+    constraint cst_case;
+endclass
+
+`endif

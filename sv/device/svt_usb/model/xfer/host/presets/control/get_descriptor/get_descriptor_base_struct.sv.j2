@@ -1,0 +1,28 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_DESCRIPTOR_BASE_STRUCT
+`define {{ class_prefix | upper }}XFER_HOST_GET_DESCRIPTOR_BASE_STRUCT
+
+class {{ class_prefix }}xfer_host_get_descriptor_base_struct extends {{ class_prefix }}struct;
+    `uvm_object_utils_begin({{ class_prefix }}xfer_host_get_descriptor_base_struct)
+        `uvm_field_int(length,UVM_ALL_ON)
+        `uvm_field_int(descriptor_type,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit[7:0] length; // 描述长度
+    bit[7:0] descriptor_type; // 描述符类型
+    parameter BASIC_LENGTH = 2; // 结构体基础描述符占多少字节
+
+    function new(string name="{{ class_prefix }}xfer_host_get_descriptor_base_struct");
+        super.new(name);
+    endfunction
+
+    // 解析基础信息，派生子类定义额外内容
+    extern virtual function void pre_unpack(bit[7:0] data[$],bit big_endian);
+endclass
+
+function void {{ class_prefix }}xfer_host_get_descriptor_base_struct::pre_unpack(bit[7:0] data[$],bit big_endian);
+    super.pre_unpack(data,big_endian);
+
+    length = data[0];
+endfunction
+
+`endif

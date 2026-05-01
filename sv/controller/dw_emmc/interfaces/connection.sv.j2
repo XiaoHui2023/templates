@@ -1,0 +1,87 @@
+`ifndef {{ class_prefix | upper }}CONNECTION_INTERFACE
+`define {{ class_prefix | upper }}CONNECTION_INTERFACE
+
+interface {{ class_prefix }}connection_interface#(
+    parameter int DW=1,
+    parameter int LATENCY=6ns // 支持稳定延迟
+)(
+    input wire[DW-1:0] lhs,
+    input wire[DW-1:0] rhs
+);
+
+timeunit 1fs;
+timeprecision 1fs;
+
+bit req; // 请求，调用时开始检查，检查完成后清除
+
+{{ class_prefix }}sample_interface#(.DW(DW)) sample_lhs_if(lhs);
+{{ class_prefix }}sample_interface#(.DW(DW)) sample_rhs_if(rhs);
+
+initial begin
+    req <= 0;
+end
+
+// 允许检查
+function automatic void request();
+    req <= 1;
+endfunction
+
+// 请求发出检查
+initial forever begin
+    wait(req);
+    check();
+    req = 0;
+end
+
+// 进行检查
+task automatic check();
+    bit failed;
+
+    sample_lhs_if.enable(1);
+    sample_rhs_if.enable(1);
+
+    // 立即检查
+    if(!failed) begin
+        fork
+            check_connection(sample_lhs_if.r,sample_rhs_if.r,failed);
+            check_connection(sample_rhs_if.r,sample_lhs_if.r,failed);
+        join
+    end
+
+    // 下次改变检查
+    if(!failed) begin
+        fork
+            check_changed_connection(sample_lhs_if.r,sample_rhs_if.r,failed);
+            check_changed_connection(sample_rhs_if.r,sample_lhs_if.r,failed);
+        join
+    end
+
+    // 报错
+    if(failed)
+        `uvm_error("",$spsrintf("%m: connect failed"))
+
+    sample_lhs_if.enable(0);
+    sample_rhs_if.enable(0);
+endtask
+
+// 静态检查
+task automatic check_connection(ref reg[DW-1:0] l,ref reg[DW-1:0] r,ref bit failed);
+    bit[DW-1:0] value;
+
+    value = l;
+    #LATENCY;
+    if(l != value)
+        failed = 1;
+    if(r !== l)
+        failed = 1;
+endtask
+
+// 生命周期内连续检查
+task automatic check_changed_connection(ref reg[DW-1:0] l,ref reg[DW-1:0] r,ref bit failed);
+    @(l);
+    check_connection(l,r,failed);
+endtask
+
+endinterface
+
+`endif

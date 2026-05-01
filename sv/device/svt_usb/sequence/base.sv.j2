@@ -1,0 +1,62 @@
+`ifndef {{ class_prefix | upper }}BASE_SEQ
+`define {{ class_prefix | upper }}BASE_SEQ
+
+class {{ class_prefix }}base_seq extends uvm_sequence;
+  `uvm_object_utils({{ class_prefix }}base_seq)
+  `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+  {{ class_prefix }}system configuration sys_cfg;
+  {{ class_prefix }}device_configuration dev_cfg;
+  {{ class_prefix }}boot_configuration boot_cfg;
+
+  function new(string name = "{{ class_prefix }}base_seq");
+    super.new(name);
+  endfunction
+
+  extern task pre_start();
+  extern task post_start();
+
+  // 当前随机失败时，自动重新开始计算
+  protected int cnt_pre_randomize;
+  protected int cnt_post_randomize;
+
+  extern function void pre_randomize();
+  extern function void post_randomize();
+endclass
+
+task {{ class_prefix }}base_seq::pre_start();
+  super.pre_start();
+
+  `uvm_info("", "Enter", UVM_HIGH)
+endtask
+
+task {{ class_prefix }}base_seq::post_start();
+  super.post_start();
+
+  `uvm_info("", "Exit", UVM_HIGH)
+endtask
+
+function void {{ class_prefix }}base_seq::pre_randomize();
+  super.pre_randomize();
+
+  $cast(sys_cfg,p_sequencer.sys_cfg);
+  $cast(boot_cfg,sys_cfg.boot_cfg);
+  $cast(dev_cfg,sys_cfg.dev_cfg);
+
+  cnt_pre_randomize++;
+  fork
+    begin
+      @(cnt_pre_randomize != cnt_post_randomize)
+      if(cnt_pre_randomize != cnt_post_randomize)
+        `uvm_fatal("", "randomize failed")
+    end
+  join_none
+endfunction
+
+function void {{ class_prefix }}base_seq::post_randomize();
+  super.post_randomize();
+
+  cnt_post_randomize++;
+endfunction
+
+`endif

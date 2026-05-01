@@ -1,0 +1,115 @@
+`ifndef EMMC_VIP_SHIFT_TOP
+`define EMMC_VIP_SHIFT_TOP
+
+
+/*
+    ?????????
+*/
+module emmc_vip_shift_top #(
+    parameter DW=1, // ??
+    parameter real K=0, // ???????????????-?????0.5???
+    parameter real B=0, // ????(ns)
+    parameter EN=1 // ???????
+)(
+    input wire clk,
+    input wire[DW-1:0] in,
+    output reg[DW-1:0] out
+);
+
+    timeunit 1fs;
+    timeprecision 1fs;
+
+    real k=0; // ??????
+    real b=0; // ??????
+
+    typedef struct {
+        int n; // half k, k/2
+        real b;
+        bit[DW-1:0] v; // value
+    } shift_s;
+
+    if(EN)
+        initial begin
+            run_shift();
+        end
+    else
+        assign out = in;
+
+    task automatic run_shift();
+        shift_s q[$]; // shift ??
+        real lst; // ???clock????
+        bit clk_last;
+        bit[DW-1:0] in_last;
+
+        fork
+            forever begin
+                @(clk);
+                if(clk == clk_last) // ??????
+                    continue;
+                else
+                    clk_last = clk;
+
+                foreach(q[i])
+                    if(q[i].n)
+                        q[i].n--;
+
+                if(q.size && !q[0].n) begin
+                    shift_s sh;
+
+                    sh = q.pop_front();
+
+                    fork begin
+                        #(sh.b);
+                        out = sh.v;
+                    end join_none
+                end
+
+                lst = $realtime;
+            end
+
+            forever begin
+                real cur;
+                int kt;
+                real bt;
+                shift_s sh;
+
+                @(in);
+                if(in == in_last) // ????????
+                    continue;
+                else
+                    in_last = in;
+
+                cur = $realtime;
+                kt = (k+K)*2;
+                bt = (b+B)*1e6;
+                if(kt)
+                    bt += cur - lst;
+
+                // pack
+                sh = '{
+                    n: kt,
+                    b: bt,
+                    v: in
+                };
+
+                if(!sh.n) begin
+                    if(sh.b) begin
+                        fork begin
+                            #(sh.b);
+                            out = sh.v;
+                        end join_none
+                    end
+                    else begin
+                        out = sh.v;
+                    end
+                end
+                else begin
+                    q.push_back(sh);
+                end
+            end
+        join
+    endtask
+
+endmodule
+
+`endif

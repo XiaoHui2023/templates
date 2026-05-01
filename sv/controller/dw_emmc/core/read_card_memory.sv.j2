@@ -1,0 +1,42 @@
+`ifndef {{ class_prefix | upper }}READ_CARD_MEMORY
+`define {{ class_prefix | upper }}READ_CARD_MEMORY
+
+// Read Memory
+//
+// card_mem : card vip 中的mem对象
+// len : 数据长度（字节）
+// addr : 起始地址
+function automatic {{ class_prefix }}bytes {{ class_prefix }}read_card_memory(svt_mem_backdoor card_mem,int len,bit[63:0] addr=0);
+    int mby;
+    bit[4096-1:0] mem[$];
+    bit[7:0] tmp[$];
+    bit[7:0] out[$];
+    int cnt;
+
+    cnt = card_mem.get_data_width();
+    cnt = $ceil(1.0 * len * 8 / cnt);
+
+    for(int j=0;j<cnt;j++)
+        mem[j] = card_mem.peek(.addr(j),.bank(1));
+    tmp = { {<<8{mem}} };
+
+    while(tmp.size) begin
+        int n_valid;
+        int sum;
+
+        n_valid = mby;
+        sum = 4096/8;
+
+        for(int j=0;j<sum;j++) begin
+            bit[7:0] v;
+
+            v = tmp.pop_front();
+            if(j < n_valid)
+                out.push_back(v);
+        end
+    end
+
+    return out;
+endfunction
+
+`endif

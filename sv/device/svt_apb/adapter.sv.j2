@@ -1,0 +1,62 @@
+`ifndef {{ class_adapter | upper }}
+`define {{ class_adapter | upper }}
+
+typedef class Data_packet;
+
+class {{ class_adapter }} extends uvm_component;
+    `uvm_component_utils({{ class_adapter }})
+
+    `uvm_analysis_imp_decl(_i)
+    uvm_analysis_imp_i #(svt_apb_transaction, {{ class_adapter }}) imp; // 输入 apb 采样数据
+    uvm_analysis_port #(Data_packet) o_ap;
+    uvm_analysis_port #(Data_packet) o_r_ap;
+    uvm_analysis_port #(Data_packet) o_w_ap;
+
+    function new(string name="{{ class_adapter }}", uvm_component parent=null);
+        super.new(name,parent);
+
+        imp = new("imp",this);
+        o_ap = new("o_ap",this);
+        o_r_ap = new("o_r_ap",this);
+        o_w_ap = new("o_w_ap",this);
+    endfunction
+
+    // 写数据
+    extern virtual function void write(svt_apb_transaction i);
+endclass
+
+function void {{ class_adapter }}::write(svt_apb_transaction i);
+    Data_packet o;
+    Data_packet o_r;
+    Data_packet o_w;
+
+    $cast(i,i.clone());
+    o = Data_packet::type_id::create({get_full_name(),".o"});
+
+    `uvm_info("", $spsprintf("input:\n%s",i.sprint()),UVM_DEBUG)
+
+    case(i.xact_type)
+        I_READ  : o.xact_type = O_READ;
+        I_WRITE : o.xact_type = O_WRITE;
+        default : `uvm_fatal("", "")
+    endcase
+
+    o.addr = i.address;
+    o.data = `SVT_APB_MAX_DATA_WIDTH'(i.data);
+    o.len = 4;
+    o.data = o.data[0+:o.len-1];
+
+    `uvm_info("", $spsprintf("output:\n%s", o.sprint()), UVM_DEBUG)
+
+    o_ap.write(o);
+    if(o.xact_type == O_READ) begin
+        $cast(o_r,o.clone());
+        o_r_ap.write(o_r);
+    end
+    if(o.xact_type == O_WRITE) begin
+        $cast(o_w,o.clone());
+        o_w_ap.write(o_w);
+    end
+endfunction
+
+`endif

@@ -1,0 +1,28 @@
+#ifndef {{ class_prefix | upper }}SLEEP_AWAKE_COMMAND_REQUEST
+#define {{ class_prefix | upper }}SLEEP_AWAKE_COMMAND_REQUEST
+
+// 发送CMD5，睡眠/唤醒
+class {{ class_prefix }}sleep_awake_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils_begin({{ class_prefix }}sleep_awake_command_request)
+        `uvm_field_int(rca,UVM_ALL_ON)
+        `uvm_field_int(sleep_awake,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit[15:0] rca; // 相对地址
+    rand bit sleep_awake; // 1=睡眠，0=唤醒
+
+    function new(string name="{{ class_prefix }}sleep_awake_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_sleep_awake_req_valid {
+        cmd_index == 5;
+        argument[31:16] == rca;
+        argument[15] == sleep_awake;
+        resp == R1b;
+        rca != 0;
+        soft rca == sys_cfg.boot_cfg.relative_addr;
+    }
+endclass
+
+`endif

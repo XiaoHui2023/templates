@@ -1,0 +1,17 @@
+slave_memory_seq.sv
+{% if reg_test.is_enabled %}
+reg_test_seq.sv
+{% endif %}
+interface.sv
+{% if is_adapt_enabled %}
+adapter.sv
+{% endif %}
+{% if report.is_enabled %}
+reporter.sv
+{% endif %}
+configuration.sv
+{% if reg_sync.is_enabled %}
+reg_sync_agent.sv
+{% endif %}
+core.sv
+env.sv

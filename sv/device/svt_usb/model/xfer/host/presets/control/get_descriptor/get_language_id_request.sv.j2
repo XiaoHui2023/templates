@@ -1,0 +1,19 @@
+`ifndef {{ class_prefix | upper }}XFER_HOST_GET_LANGUAGE_ID_REQUEST
+`define {{ class_prefix | upper }}XFER_HOST_GET_LANGUAGE_ID_REQUEST
+
+// 获取语言ID
+class {{ class_prefix }}xfer_host_get_language_id_request extends {{ class_prefix }}xfer_host_get_descriptor_request;
+    `uvm_object_utils({{ class_prefix }}xfer_host_get_language_id_request)
+
+    function new(string name = "{{ class_prefix }}xfer_host_get_language_id_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_get_language_id_preset {
+        w_value == 'h300;
+        w_index == 0;
+        w_length == 'h4; // 2字节长度
+    }
+endclass
+
+`endif

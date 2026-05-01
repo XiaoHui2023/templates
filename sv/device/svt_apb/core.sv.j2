@@ -1,0 +1,78 @@
+`ifndef {{ class_core | upper }}
+`define {{ class_core | upper }}
+
+class {{ class_core }} extends uvm_component;
+    `uvm_component_utils({{ class_core }})
+
+    function new(string name="{{ class_core }}", uvm_component parent=null);
+        super.new(name,parent);
+    endfunction
+
+    {{ class_config }} cfg;
+    svt_apb_system_env svt_env;
+    protected uvm_apb_system_configuration svt_cfg;
+
+    protected virtual svt_apb_if svt_if;
+
+    extern function void build();
+    extern function void connect();
+endclass
+
+function void {{ class_core }}::build();
+    super.build();
+
+    if(!cfg.vif)
+        `uvm_fatal("", "require cfg.vif")
+
+    svt_env = svt_apb_system_env::type_id::create("svt_env", this);
+
+    uvm_config_db#(virtual svt_apb_if)::set(this, "svt_env", "vif", cfg.vif.svt_if);
+    if(cfg.regmodel)
+        uvm_config_db#(uvm_reg_block)::set(this, "svt_env.master", "apb_regmodel", cfg.regmodel);
+    uvm_config_db#(object_wrapper)::set(this,
+        "svt_env.slave_sequencer.run_phase",
+        "default_sequence",
+        {{ class_slave_memory_seq }}::type_id::get());
+
+    // config
+    svt_cfg = svt_apb_system_configuration::type_id::create({get_full_name(), ".svt_cfg"});
+
+    // master
+    svt_cfg.paddr_width = cfg.addr_width;
+    svt_cfg.pdata_width = cfg.data_width;
+    svt_cfg.apb4_enable = 0;
+    svt_cfg.create_sub_cfgs(cfg.num_slave);
+    svt_cfg.enable_xml_gen = 0;
+    svt_cfg.is_active = cfg.master_active;
+    svt_cfg.disable_x_check_of_pclk = 1;
+    svt_cfg.disable_x_check_of_presetn = 1;
+
+    // slave
+    for(int i=0;i<cfg.num_slave;i++) begin
+        svt_cfg.slave_cfg[i].is_active = cfg.slave_active[i];
+        svt_cfg.slave_cfg[i].enable_xml_gen = 0;
+        svt_cfg.slave_cfg[i].default_pready = 1;
+    end
+
+    // reg
+    if(cfg.regmodel)
+        svt_cfg.use_regmodel = 1;
+
+    if(!svt_cfg.is_valid())
+        `uvm_fatal("", "svt_cfg invalid")
+
+    uvm_config_db#(uvm_apb_system_configuration)::set(this, "svt_env", "cfg", svt_cfg);
+    uvm_config_db#(uvm_active_passive_enum)::set(this, "svt_env.master", "is_active", svt_cfg.is_active ? UVM_ACTIVE : UVM_PASSIVE);
+endfunction
+
+function void {{ class_core }}::connect();
+    super.connect();
+
+    // ignore info
+    if(cfg.master_active)
+        svt_env.master.set_report_verbosity_level_hier(UVM_NONE);
+    for(int i=0;i<cfg.num_slave;i++)
+        svt_env.slave[i].set_report_verbosity_level_hier(UVM_NONE);
+endfunction
+
+`endif

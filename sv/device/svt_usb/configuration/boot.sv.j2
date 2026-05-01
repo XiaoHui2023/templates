@@ -1,0 +1,54 @@
+`ifndef {{ class_prefix | upper }}BOOT_CONFIGURATION
+`define {{ class_prefix | upper }}BOOT_CONFIGURATION
+
+class {{ class_prefix }}boot_configuration extends {{ class_prefix }}base_configuration;
+    `uvm_object_utils_begin({{ class_prefix }}boot_configuration)
+        // auto
+        `uvm_field_int(use_auto, UVM_ALL_ON)
+        `uvm_field_int(init_disconnect, UVM_ALL_ON)
+        `uvm_field_int(auto_when_idle_stay_us, UVM_ALL_ON)
+        `uvm_field_int(auto_boot, UVM_ALL_ON)
+        `uvm_field_int(auto_set_address, UVM_ALL_ON)
+        `uvm_field_int(auto_set_configuration, UVM_ALL_ON)
+        // reset debounce
+        `uvm_field_int(use_reset_debounce, UVM_ALL_ON)
+        `uvm_field_int(reset_debounce_delay_us, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    // Auto
+    rand bit use_auto; // 是否使用自动化
+    rand bit init_disconnect; // 正常枚举前，需要进行 release dp/dm 操作
+    rand int auto_when_idle_stay_us; // 启动之前等待链路稳定时间
+    rand bit auto_boot; // 是否 auto boot，自动配置设备一系列寄存器
+    rand bit auto_set_address; // 是否自动 set address
+    rand bit auto_set_configuration; // 是否自动 set_configuration
+
+    // reset debounce
+    rand bit use_reset_debounce; // 是否使用复位防抖
+    rand int reset_debounce_delay_us; // 复位防抖延时
+
+    constraint cst {
+        soft init_disconnect == 1;
+        soft auto_boot == 1;
+        soft auto_when_idle_stay_us == 500;
+        soft auto_set_address == 1;
+        soft auto_set_configuration == 1;
+        soft use_reset_debounce == 0;
+        soft reset_debounce_delay_us == 800;
+
+        (init_disconnect) -> auto_boot;
+        reset_debounce_delay_us inside {[0:999]}; // DesignWare 建议时间 2ms，此处保持小于 1ms
+
+        if(!use_auto) {
+            auto_boot == 0;
+            auto_set_address == 0;
+            auto_set_configuration == 0;
+        }
+    }
+
+    function new(string name="{{ class_prefix }}boot_configuration");
+        super.new(name);
+    endfunction
+endclass
+
+`endif
