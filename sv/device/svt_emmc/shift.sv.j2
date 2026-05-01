@@ -3,13 +3,13 @@
 
 
 /*
-    ?????????
+    使信号按指定时间平移
 */
 module emmc_vip_shift_top #(
-    parameter DW=1, // ??
-    parameter real K=0, // ???????????????-?????0.5???
-    parameter real B=0, // ????(ns)
-    parameter EN=1 // ???????
+    parameter DW=1, // 位宽
+    parameter real K=0, // 延时，单位为时钟周期，支持0.5个周期
+    parameter real B=0, // 延时(ns)
+    parameter EN=1 // 是否使能
 )(
     input wire clk,
     input wire[DW-1:0] in,
@@ -19,8 +19,8 @@ module emmc_vip_shift_top #(
     timeunit 1fs;
     timeprecision 1fs;
 
-    real k=0; // ??????
-    real b=0; // ??????
+    real k=0; // 额外拍数变量
+    real b=0; // 额外时间变量
 
     typedef struct {
         int n; // half k, k/2
@@ -36,15 +36,15 @@ module emmc_vip_shift_top #(
         assign out = in;
 
     task automatic run_shift();
-        shift_s q[$]; // shift ??
-        real lst; // ???clock????
+        shift_s q[$]; // shift 队列
+        real lst; // 上一次clock变化时间
         bit clk_last;
         bit[DW-1:0] in_last;
 
         fork
             forever begin
                 @(clk);
-                if(clk == clk_last) // ??????
+                if(clk == clk_last) // 驱动值不变
                     continue;
                 else
                     clk_last = clk;
@@ -74,7 +74,7 @@ module emmc_vip_shift_top #(
                 shift_s sh;
 
                 @(in);
-                if(in == in_last) // ????????
+                if(in == in_last) // 驱动值不变
                     continue;
                 else
                     in_last = in;

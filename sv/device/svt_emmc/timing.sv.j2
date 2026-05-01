@@ -3,13 +3,13 @@
 
 
 /*
-    ????
+    延时控制
 */
 module emmc_vip_timing_top #(
-    parameter EMMC=0, // ??? EMMC ??
-    parameter SDIO=0, // ??? SDIO ??
-    parameter SD=0, // ??? SD ??
-    parameter EN=1 // ???????
+    parameter EMMC=0, // 是否为 EMMC 类型
+    parameter SDIO=0, // 是否为 SDIO 类型
+    parameter SD=0, // 是否为 SD 类型
+    parameter EN=1 // 是否使能
 )(
     input wire clk,
     output wire o_clk,
@@ -35,7 +35,7 @@ module emmc_vip_timing_top #(
     parameter B_CLK = 0.1;
     parameter B_DAT_STB = 0.4;
     parameter B_DLY = 1; // >= 0.5
-    parameter MAX_BYTES = 512+64+32+16; // ??????
+    parameter MAX_BYTES = 512+64+32+16; // 最大传输数据量
 
     wire[7:0] tmp_dat_out_en;
     wire[7:0] tmp_dat_out;
@@ -46,13 +46,13 @@ module emmc_vip_timing_top #(
     reg[7:0] adp_dat_out_en;
     reg[7:0] adp_dat_out;
     reg adp_dat_stb;
-    wire is_adapting; // adapt = ?????
-    bit adapt_enable; // ?????
+    wire is_adapting; // adapt = 自适应中
+    bit adapt_enable; // 自适应使能
     int size_last;
     bit is_pushing;
-    int threshold_max; // ??????
-    int threshold_min; // ??????
-    int fifo_limit; // FIFO????
+    int threshold_max; // 最大阈值
+    int threshold_min; // 最小阈值
+    int fifo_limit; // FIFO限制
 
     assign o_cmd_in = i_cmd_in;
     assign o_dat_in = i_dat_in;
@@ -109,7 +109,7 @@ module emmc_vip_timing_top #(
         fork
             forever begin
                 @(tmp_dat_stb);
-                if(tmp_dat_stb == tmp_dat_stb_last) // ??????
+                if(tmp_dat_stb == tmp_dat_stb_last) // 驱动值不变
                     continue;
                 else
                     tmp_dat_stb_last = tmp_dat_stb;
@@ -127,7 +127,7 @@ module emmc_vip_timing_top #(
 
             forever begin
                 @(clk);
-                if(clk == clk_last) // ??????
+                if(clk == clk_last) // 驱动值不变
                     continue;
                 else
                     clk_last = clk;

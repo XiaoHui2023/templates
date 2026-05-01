@@ -11,14 +11,14 @@ class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_conf
         `uvm_field_object(reg_cfg,UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand version_e version; // ???
+    rand version_e version; // 版本号
     {%- if is_sd %}
-    rand capacity_type_e capacity_type; // ????
+    rand capacity_type_e capacity_type; // 容量类型
     {%- endif %}
-    rand bit should_check_timing; // ??????
+    rand bit should_check_timing; // 时序检查使能
 
-    rand bit has_randomized; // ?????
-    rand {{ class_prefix }}reg_configuration reg_cfg; // ?????
+    rand bit has_randomized; // 是否已随机化
+    rand {{ class_prefix }}reg_configuration reg_cfg; // 寄存器配置
 
     function new(string name="{{ class_prefix }}system_configuration");
         super.new(name);

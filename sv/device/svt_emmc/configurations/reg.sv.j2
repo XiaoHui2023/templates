@@ -12,8 +12,8 @@ class {{ class_prefix }}reg_configuration extends {{ class_prefix }}base_configu
 
     rand version_e version;
     {%- if is_sd %}
-    rand bit allow_single_range_ocr_voltage_validation; // ACMD41 ???????????
-    rand int ocr_voltage_window_supported_by_card; // ACMD41 ????
+    rand bit allow_single_range_ocr_voltage_validation; // ACMD41 是否允许只支持一个电压范围
+    rand int ocr_voltage_window_supported_by_card; // ACMD41 电压窗口
     {%- endif %}
 
     function new(string name="{{ class_prefix }}reg_configuration");

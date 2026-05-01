@@ -2,7 +2,7 @@
 `define {{ class_prefix | upper }}TOP
 
 module {{ class_prefix }}top#(
-    parameter DW={{ default_data_width }} // ????
+    parameter DW={{ default_data_width }} // 数据位宽
 )(
     input wire clk,
     input wire rst_n,
@@ -45,7 +45,7 @@ module {{ class_prefix }}top#(
     bit vss, vssq, vcc, vccq;
 
     // Interface
-    svt_emmc_if svt_if(clk_dl); // ???????
+    svt_emmc_if svt_if(clk_dl); // 也可以是芯片管脚
     assign svt_if.rst_n = rst_n;
     assign svt_if.vss1 = vss;
     assign svt_if.vss2 = vss;
@@ -92,8 +92,8 @@ module {{ class_prefix }}top#(
     assign dat_out_en = dat_out_en_s;
     assign dat_stb = dat_stb_s;
 
-    string hdl; // ??
-    {{ class_prefix }}env env; // ??
+    string hdl; // 模块路径
+    {{ class_prefix }}env env; // 环境
 
     // build environment
     initial begin
@@ -245,8 +245,8 @@ module {{ class_prefix }}top#(
                 bit ed;
 
                 c = $fgetc(file);
-                lf = c == 10; // ??
-                ed = c == -1; // ??
+                lf = c == 10; // 换行
+                ed = c == -1; // 结束
 
                 if(ed)
                     break;

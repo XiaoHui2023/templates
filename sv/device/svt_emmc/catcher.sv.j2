@@ -3,13 +3,13 @@
 
 class {{ class_prefix }}catcher extends uvm_report_catcher;
 
-    // ??ID
+    // 添加报告ID
     function void add(string id);
         ids.push_back(id);
     endfunction
 
-    protected string ids[$]; // ??????
-    protected int count[string]; // ????
+    protected string ids[$]; // 只显示一次的报告
+    protected int count[string]; // 次数记录
 
     function action_e catch();
         string id;
