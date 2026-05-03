@@ -1,0 +1,64 @@
+`ifndef {{ class_name | upper }}
+`define {{ class_name | upper }}
+
+class {{ class_name }}#(type T=int) extends uvm_component;
+    `uvm_component_param_utils({{ class_name }}#(T))
+
+    uvm_analysis_port #(T) {{ port_name }};
+    `uvm_analysis_imp_decl(_protected_uvm_analysis_imp)
+    uvm_analysis_imp_protected_uvm_analysis_imp #(T,{{ class_name }}#(T)) imp;
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ port_name }} = new("{{ port_name }}",this);
+        imp = new("imp",this);
+    endfunction
+
+    static bit silent_success=1; // ????????????????0???
+    protected static bit has_reported; // ?????
+
+    extern function void connect();
+    extern function void check();
+    extern function void pre_abort();
+
+    // ??
+    extern function void write(input T data_in);
+
+    // ?????
+    extern function void check_silent_success();
+endclass
+
+function void {{ class_name }}::connect();
+    super.connect();
+
+    {{ port_name }}.connect(imp);
+endfunction
+
+function void {{ class_name }}::check();
+    super.check();
+
+    check_silent_success();
+endfunction
+
+function void {{ class_name }}::pre_abort();
+    super.pre_abort();
+
+    check();
+endfunction
+
+function void {{ class_name }}::check_silent_success();
+    if(has_reported)
+        return;
+
+    if(silent_success)
+        `uvm_error("","silent success")
+
+    has_reported = 1;
+endfunction
+
+function void {{ class_name }}::write(input T data_in);
+    silent_success = 0;
+endfunction
+
+`endif

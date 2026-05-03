@@ -1,0 +1,256 @@
+`ifndef {{ class_sheet | upper }}
+`define {{ class_sheet | upper }}
+
+class {{ class_sheet }};
+    function new(string head[$]='{},int align[$]='{},int min_width[$]='{});
+        this.head = head;
+        this.align = align;
+        this.min_width = min_width;
+    endfunction
+
+    int align[$]; // ?????0=?????=??????=????????
+    int min_width[$]; // ???????????????????????
+    string head[$]; // ??
+
+    /*
+        ????
+    */
+    extern function string main(string body[$][$]);
+
+    /*
+        ????????
+    */
+    extern protected function string table2str(string tb[$][$],int width[$]);
+
+    /*
+        ????????????????
+    */
+    extern protected function void lf(input string i[$],ref string o[$][$]);
+
+    /*
+        ??
+    */
+    extern protected function void transpose(input string i[$][$],output string o[$][$]);
+
+    /*
+        ???????????????
+
+        s : ???
+        len : ?????
+        sign : ??????????
+        align : ??????????????????
+    */
+    extern protected function string layout(string s,int len,string sign=" ",int align=0);
+
+    /*
+        ???????
+    */
+    extern protected function int length(string s);
+
+    /*
+        ??????????????
+
+        s : ????
+        tar : ????
+    */
+    extern protected function int count(string s,string tar);
+endclass
+
+function int {{ class_sheet }}::count(string s,string tar);
+    int sum;
+    int n;
+    int lo;
+
+    // alias
+    lo = 0;
+    n = 0;
+
+    // ??
+    sum = s.len-tar.len+1;
+
+    while(lo < sum) begin
+        string t;
+
+        // ??
+        t = s.substr(lo,lo+tar.len-1);
+
+        if(t == tar) begin
+            n++;
+            lo += tar.len-1;
+        end
+
+        // ++
+        lo++;
+    end
+
+    return n;
+endfunction
+
+function int {{ class_sheet }}::length(string s);
+    int n;
+
+    // alias
+    n = 0;
+
+    for(int j=0;j<s.len;j++) begin
+        int asc;
+
+        asc = s.getc(j);
+
+        if(asc >= 0)
+            n += 1;
+        else begin
+            j += 2;
+            if(asc < -28)
+                n += 1;
+            else
+                n += 2;
+        end
+    end
+
+    return n;
+endfunction
+
+function string {{ class_sheet }}::layout(string s,int len,string sign,int align);
+    int n;
+
+    // alias
+    n = 0;
+
+    for(int j=0;j<s.len;j++) begin
+        int asc;
+
+        asc = s.getc(j);
+
+        if(asc >= 0)
+            n += 1;
+        else begin
+            j += 2;
+            if(asc < -28)
+                n += 1;
+            else
+                n += 2;
+        end
+    end
+
+    while(n < len) begin
+        if(align < 0) begin
+            s = {s,sign};
+            n++;
+        end
+        else if(align > 0) begin
+            s = {sign,s};
+            n++;
+        end
+        else begin
+            s = {s,sign};
+            n++;
+            if(n < len) begin
+                s = {sign,s};
+                n++;
+            end
+        end
+    end
+
+    return s;
+endfunction
+
+function void {{ class_sheet }}::transpose(input string i[$][$],output string o[$][$]);
+    foreach(i[j,k])
+        o[k][j] = i[j][k];
+endfunction
+
+function void {{ class_sheet }}::lf(input string i[$],ref string o[$][$]);
+    string sp[$][$]; // [?][?]
+    string tr[$][$]; // [?][?]
+    int max_size;
+
+    foreach(i[j])
+        uvm_split_string(i[j],"\n",sp[j]);
+
+    foreach(sp[j])
+        max_size = $max(max_size,sp[j].size);
+
+    foreach(sp[j])
+        while(sp[j].size < max_size)
+            sp[j].push_back("");
+
+    transpose(sp,tr);
+    o = {o,tr};
+endfunction
+
+function string {{ class_sheet }}::table2str(string tb[$][$],int width[$]);
+    string sign_split; // ????
+    string s;
+    string ss[$];
+    string head_sp[$][$]; // [?][?]
+    int line_head; // ?????
+
+    // compute
+    sign_split = "|";
+
+    // format
+    foreach(tb[row]) begin
+        s = sign_split;
+        foreach(tb[row][column])
+            s = {s,layout(tb[row][column],width[column],.align(align[column])),sign_split};
+        ss.push_back(s);
+    end
+
+    while(ss.size) begin
+        if(table2str.len)
+            table2str = {table2str,"\n"};
+        table2str = {table2str,ss.pop_front()};
+    end
+endfunction
+
+function string {{ class_sheet }}::main(string body[$][$]);
+    string tb[$][$];
+    int width[$];
+    string split[$];
+    int num_padding; // ?????
+    string str_padding; // ??????
+
+    // compute
+    split = '{};
+    num_padding = 2;
+    str_padding = {num_padding{" "}};
+
+    // ??
+    tb.push_back(split);
+    tb.push_back(this.head);
+    tb.push_back(split);
+
+    // ???
+    foreach(body[j]) begin
+        lf(body[j],tb);
+
+        // ???
+        tb.push_back(split);
+    end
+
+    // ???
+    foreach(tb[row,column])
+        if(tb[row] != split)
+            tb[row][column] = {str_padding,tb[row][column],str_padding};
+
+    // ????
+    foreach(tb[row,column])
+        width[column] = $max(width[column],length(tb[row][column]));
+
+    // ??????
+    foreach(width[column])
+        width[column] = $max(width[column],this.min_width[column]);
+
+    // ????????
+    foreach(tb[row])
+        if(tb[row] == split) begin
+            tb[row] = '{};
+            foreach(width[column])
+                tb[row].push_back(width[column]{"-"});
+        end
+
+    return table2str(tb,width);
+endfunction
+
+`endif

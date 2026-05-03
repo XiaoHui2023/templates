@@ -1,0 +1,120 @@
+`ifndef {{ class_prefix | upper }}INTERFACE
+`define {{ class_prefix | upper }}INTERFACE
+
+`define connect_test_signal(NAME,IN,OUT,IS_PASS) \
+begin \
+    bit val; \
+    bit fail; \
+    \
+    val = 0; \
+    fail = 0; \
+    \
+    // 0 \
+    #10ns; \
+    IN = 0; \
+    #10ns; \
+    val = OUT; \
+    if(val == 0) ; else fail = 1; \
+    \
+    // 1 \
+    #10ns; \
+    IN = 1; \
+    #10ns; \
+    val = OUT; \
+    if(val == 1) ; else fail = 1; \
+    \
+    IS_PASS = !fail; \
+end
+
+interface {{ class_prefix }}interface(
+    output wire mst_tms,
+    output wire mst_tck,
+    output wire mst_trst,
+    output wire mst_tdi,
+    input wire mst_tdo,
+    input wire cpu_tms,
+    input wire cpu_tck,
+    input wire cpu_trst,
+    input wire cpu_tdi,
+    output wire cpu_tdo
+);
+
+    {{ class_prefix }}logic_interface logic_if
+    (.tdo(mst_tdo)
+    );
+
+    reg bypass_en; // 旁路使能
+    reg bypass_tms;
+    reg bypass_tck;
+    reg bypass_trst;
+    reg bypass_tdi;
+    reg bypass_tdo;
+
+    assign mst_tms  = bypass_en ? bypass_tms  : logic_if.tms;
+    assign mst_tck  = bypass_en ? bypass_tck  : logic_if.tck;
+    assign mst_trst = bypass_en ? bypass_trst : logic_if.trst;
+    assign mst_tdi  = bypass_en ? bypass_tdi  : logic_if.tdi;
+    assign cpu_tdo  = bypass_en ? bypass_tdo  : 1'bz;
+
+    initial begin
+        bypass_en   = 0;
+        bypass_tms  = 1;
+        bypass_tck  = 1;
+        bypass_trst = 1;
+        bypass_tdi  = 1;
+        bypass_tdo  = 1;
+    end
+
+    // 读测试
+    task automatic read(input bit[7:0] addr,input int len,output bit[255:0] rdata);
+        logic_if.goto_run_test_idle();
+        logic_if.goto_run_test_idle();
+        logic_if.set_instruction(addr);
+        logic_if.read(rdata,len);
+    endtask
+
+    // 写测试
+    task automatic write(input bit[7:0] addr,bit[255:0] data,int len);
+        logic_if.goto_run_test_idle();
+        logic_if.set_instruction(addr);
+        logic_if.write(data,len);
+    endtask
+
+    // 连接测试
+    task automatic connect_test(output bit is_pass,output bit is_tck_pass,output bit is_tms_pass,output bit is_tdi_pass,output bit is_tdo_pass,output bit is_trst_pass);
+        is_pass = 1;
+
+        bypass_en = 1;
+        #10ns;
+
+        // TCK
+        `connect_test_signal("TCK",bypass_tck,cpu_tck,is_tck_pass);
+        is_pass &= is_tck_pass;
+
+        // TMS
+        `connect_test_signal("TMS",bypass_tms,cpu_tms,is_tms_pass);
+        is_pass &= is_tms_pass;
+
+        // TDI
+        `connect_test_signal("TDI",bypass_tdi,cpu_tdi,is_tdi_pass);
+        is_pass &= is_tdi_pass;
+
+        // TDO
+        `connect_test_signal("TDO",bypass_tdo,mst_tdo,is_tdo_pass);
+        is_pass &= is_tdo_pass;
+
+        // TRST
+        `connect_test_signal("TRST",bypass_trst,cpu_trst,is_trst_pass);
+        is_pass &= is_trst_pass;
+
+        #10ns;
+        bypass_en = 0;
+
+        // TDO单独测试:由外部连接中间UATAG mdl connect时的控制线回环来传递TDO值
+        // 该接口本身已经考虑了TDO无输出时开发板无连接
+    endtask
+
+endinterface
+
+`undef connect_test_signal
+`endif

@@ -1,0 +1,115 @@
+`ifndef {{ class_core | upper }}
+`define {{ class_core | upper }}
+
+class {{ class_core }} extends uvm_component;
+    `uvm_component_utils({{ class_core }})
+
+    uvm_analysis_port #(Data_packet) i_ap;
+    uvm_analysis_imp #(Data_packet, {{ class_core }}) imp;
+
+    function new(string name="{{ class_core }}", uvm_component parent=null);
+        super.new(name, parent);
+        i_ap = new("i_ap", this);
+        imp = new("imp", this);
+    endfunction
+
+    {{ class_data }} save_fifo[int][int]; // 自动保存的数据[第几次复位][第几次运行](计数从1开始)
+    protected {{ class_data }} current_data; // 当前正在记录的数据
+    protected int reset_count; // 复位计数
+    protected int net_count; // 运行计数
+
+    extern function void connect();
+    extern task reset_phase(uvm_phase phase);
+    extern function void check();
+
+    // 检查回调函数。可以重写
+    virtual function void {{ on_check_name }}(); endfunction
+
+    // 清除当前记录的数据
+    extern function void {{ func_clear_name }}();
+
+    // 根据 reset 与 net 下标取已存数据；参数 <=0 表示当前计数
+    extern function {{ class_data }} {{ func_get_name }}(int net_count=-1, int reset_count=-1);
+
+    // 按复位次数取已存数据
+    extern function {{ class_data }} {{ func_get_by_reset_name }}(int count=-1);
+
+    // 按运行次数取已存数据
+    extern function {{ class_data }} {{ func_get_by_net_name }}(int count=-1);
+
+    // 返回当前数据并开始新一轮记录
+    extern function {{ class_data }} restart();
+
+    // 将之前数据存为快照并开始新一轮记录
+    extern function {{ class_data }} {{ func_snapshot_name }}();
+
+    // 写入数据
+    extern function void write(Data_packet data_in);
+endclass
+
+function void {{ class_core }}::connect();
+    super.connect();
+    i_ap.connect(imp);
+endfunction
+
+task {{ class_core }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+    reset_count++;
+    net_count = 1;
+    restart();
+endtask
+
+function void {{ class_core }}::check();
+    super.check();
+
+    {{ on_check_name }}();
+endfunction
+
+function void {{ class_core }}::{{ func_clear_name }}();
+    current_data.data.delete();
+endfunction
+
+function {{ class_data }} {{ class_core }}::{{ func_get_name }}(int net_count=-1, int reset_count=-1);
+    if (net_count <= 0)
+        net_count = this.net_count;
+    if (reset_count <= 0)
+        reset_count = this.reset_count;
+    return save_fifo[reset_count][net_count];
+endfunction
+
+function {{ class_data }} {{ class_core }}::{{ func_get_by_reset_name }}(int count=-1);
+    return {{ func_get_name }}(.reset_count(count));
+endfunction
+
+function {{ class_data }} {{ class_core }}::{{ func_get_by_net_name }}(int count=-1);
+    return {{ func_get_name }}(.net_count(count));
+endfunction
+
+function {{ class_data }} {{ class_core }}::restart();
+    restart = current_data;
+
+    // 新建
+    current_data = {{ class_data }}::type_id::create($psprintf("%s.data-%0d-%0d", get_full_name(), reset_count, net_count));
+    current_data.net_count = net_count;
+    current_data.reset_count = reset_count;
+
+    // 存档
+    save_fifo[reset_count][net_count] = current_data;
+endfunction
+
+function {{ class_data }} {{ class_core }}::{{ func_snapshot_name }}();
+    `uvm_info("", $psprintf("snapshot %0d.%0d", reset_count, net_count), UVM_LOW);
+
+    // 计数
+    net_count++;
+
+    // 重新开始记录
+    return restart();
+endfunction
+
+function void {{ class_core }}::write(Data_packet data_in);
+    Data_packet pkt;
+    void'($cast(pkt, data_in.clone()));
+    current_data.data.push_back(pkt);
+endfunction
+`endif

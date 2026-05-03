@@ -1,0 +1,279 @@
+`ifndef {{ class_scoreboard | upper }}
+`define {{ class_scoreboard | upper }}
+
+class {{ class_scoreboard }} extends uvm_component;
+    `uvm_component_utils({{ class_scoreboard }})
+
+    uvm_analysis_port #({{ class_data }}) {{ gld_port_name }};
+    uvm_analysis_port #({{ class_data }}) {{ mon_port_name }};
+    `uvm_analysis_imp_decl(_golden) protected uvm_analysis_imp_golden #({{ class_data }},{{ class_scoreboard }}) gld_imp;
+    `uvm_analysis_imp_decl(_monitor) protected uvm_analysis_imp_monitor #({{ class_data }},{{ class_scoreboard }}) mon_imp;
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ gld_port_name }} = new("{{ gld_port_name }}",this);
+        {{ mon_port_name }} = new("{{ mon_port_name }}",this);
+        gld_imp = new("gld_imp",this);
+        mon_imp = new("mon_imp",this);
+    endfunction
+
+    {{ data_type }} fifo_gld[$];
+    {{ data_type }} fifo_mon[$];
+    string report_filename; // 输出报告文件路径
+    bit record_result[$]; // 记录结果
+    string record_gld_infos[$]; // 记录golden信息
+    string record_mon_infos[$]; // 记录monitor信息
+    int record_time[$]; // 记录时间
+
+    extern function void connect();
+    extern function void start_of_simulation();
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern function void pre_abort();
+    extern function void report();
+
+    // 原子化，将数据拆成最小的、用于比较的小数据，需要额外实现
+    extern function void atomize(input {{ class_data }} data_in,output {{ data_type }} data_out[$]);
+
+    // 将数据转换为字符串，用于报告，需要额外实现
+    extern protected function string to_report(ref {{ data_type }} data_in);
+
+    // 比较两端数据，返回是否成功，需要额外实现
+    extern protected function bit compare({{ data_type }} lhs,{{ data_type }} rhs);
+
+    // 将结果格式化，返回表格内容
+    extern protected function bit format(input bit results[$],input int times[$],input string gld_infos[$],input string mon_infos[$],output string body[$][$],output int first_failed_id);
+
+    // 运行，返回是否继续运行
+    extern function bit main();
+
+    // 匹配
+    extern function bit match(output {{ data_type }} gld,output {{ data_type }} mon);
+
+    // fifo检查
+    extern function void fifo_check();
+
+    // 写入 golden 数据
+    extern function void write_golden({{ class_data }} data_in);
+
+    // 写入 monitor 数据
+    extern function void write_monitor({{ class_data }} data_in);
+endclass
+
+function void {{ class_scoreboard }}::connect();
+    super.connect();
+
+    {{ gld_port_name }}.connect(gld_imp);
+    {{ mon_port_name }}.connect(mon_imp);
+endfunction
+
+function void {{ class_scoreboard }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(uvm_config_db#(string)::get(this,"","report",report_filename))
+        `uvm_info("",$psprintf("report filename:%s",report_filename),UVM_LOW)
+endfunction
+
+task {{ class_scoreboard }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    fifo_gld.delete();
+    fifo_mon.delete();
+endtask
+
+task {{ class_scoreboard }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    fifo_check();
+endtask
+
+function void {{ class_scoreboard }}::report();
+    string head[$];
+    {{ class_table }} tb;
+    string content;
+    string body[$][$];
+    int first_failed_id; // 首个错误数据的序号，为本条记录
+    bit result; // 是否成功
+    string msg;
+    {{ class_handler }} handler;
+
+    super.report();
+
+    if(!report_filename.len)
+        return;
+
+    `uvm_info("","Enter report",UVM_DEBUG)
+
+    if(!format(record_result,record_time,record_gld_infos,record_mon_infos,body,first_failed_id))
+        return;
+
+    `uvm_info("","format finish",UVM_DEBUG)
+
+    result = first_failed_id == -1;
+
+    head = '{
+        "ID",
+        $psprintf("time\n%s",{{ class_package }}::get_timeunit($realtime)),
+        "result",
+        $psprintf("failed id:%0d",first_failed_id),
+        "golden",
+        "monitor"
+    };
+
+    msg = $psprintf("OK : %0d, result : %s",result,report_filename);
+
+    tb = new(.head(head));
+    content = tb.tostring(body);
+
+    handler = new;
+    handler.write_text(report_filename,content);
+    if(result) begin
+        `uvm_info("",msg,UVM_LOW)
+    end
+    else begin
+        `uvm_error("",msg)
+    end
+
+    `uvm_info("","Exit report",UVM_DEBUG)
+endfunction
+
+function void {{ class_scoreboard }}::pre_abort();
+    super.pre_abort();
+
+    fifo_check();
+    report();
+endfunction
+
+function bit {{ class_scoreboard }}::format(input bit results[$],input int times[$],input string gld_infos[$],input string mon_infos[$],output string body[$][$],output int first_failed_id);
+    int count;
+    string sign_error="";
+
+    first_failed_id = -1;
+
+    while(gld_infos.size || mon_infos.size) begin
+        string line[$];
+        int t;
+        string gld_info;
+        string mon_info;
+        bit result;
+
+        count++;
+        t = times.pop_front();
+        gld_info = gld_infos.pop_front();
+        mon_info = mon_infos.pop_front();
+        result = results.pop_front();
+
+        line.push_back($psprintf("%0d",count));
+        line.push_back($psprintf("%0t",t));
+        line.push_back(result ? "" : sign_error);
+        line.push_back(gld_info);
+        line.push_back(mon_info);
+
+        body.push_back(line);
+
+        if(!result && first_failed_id < 0)
+            first_failed_id = count;
+    end
+
+    return body.size > 0;
+endfunction
+
+function bit {{ class_scoreboard }}::main();
+    {{ data_type }} gld;
+    {{ data_type }} mon;
+    bit result;
+
+    if(!match(gld,mon))
+        return 0;
+
+    // 比较
+    result = compare(gld,mon);
+
+    // 记录
+    record_result.push_back(result);
+
+    return 1;
+endfunction
+
+function bit {{ class_scoreboard }}::match(output {{ data_type }} gld,output {{ data_type }} mon);
+    if(!fifo_gld.size || !fifo_mon.size)
+        return 0;
+
+    gld = fifo_gld.pop_front();
+    mon = fifo_mon.pop_front();
+
+    return 1;
+endfunction
+
+function void {{ class_scoreboard }}::write_golden({{ class_data }} data_in);
+    {{ data_type }} data_ins[$];
+
+    $cast(data_in,data_in.clone());
+
+    `uvm_info("",$psprintf("input golden:\n%s",data_in.sprint()),UVM_HIGH)
+
+    `uvm_info("","atomize golden",UVM_DEBUG)
+
+    atomize(data_in,data_ins);
+
+    `uvm_info("","record golden",UVM_DEBUG)
+
+    foreach(data_ins[J]) begin
+        {{ data_type }} data_rpt;
+
+        data_rpt = data_ins[J];
+
+        record_gld_infos.push_back(to_report(data_rpt));
+        fifo_gld.push_back(data_ins[J]);
+    end
+
+    `uvm_info("","Exit push golden",UVM_DEBUG)
+
+    while(main());
+endfunction
+
+function void {{ class_scoreboard }}::write_monitor({{ class_data }} data_in);
+    {{ data_type }} data_ins[$];
+    time accept_time;
+
+    $cast(data_in,data_in.clone());
+
+    `uvm_info("",$psprintf("input monitor:\n%s",data_in.sprint()),UVM_HIGH)
+
+    `uvm_info("","atomize monitor",UVM_DEBUG)
+
+    accept_time = $time;
+    atomize(data_in,data_ins);
+
+    `uvm_info("","record monitor",UVM_DEBUG)
+
+    foreach(data_ins[J]) begin
+        {{ data_type }} data_rpt;
+
+        data_rpt = data_ins[J];
+
+        record_time.push_back(accept_time);
+        record_mon_infos.push_back(to_report(data_rpt));
+        fifo_mon.push_back(data_ins[J]);
+    end
+
+    `uvm_info("","Exit push monitor",UVM_DEBUG)
+
+    while(main());
+endfunction
+
+function void {{ class_scoreboard }}::fifo_check();
+    int num_gld;
+    int num_mon;
+
+    num_gld = fifo_gld.size();
+    num_mon = fifo_mon.size();
+
+    if(num_gld)
+        `uvm_error("",$psprintf("remain : num_gld = %0d",num_gld))
+    if(num_mon)
+        `uvm_error("",$psprintf("remain : num_mon = %0d",num_mon))
+endfunction
+
+`endif

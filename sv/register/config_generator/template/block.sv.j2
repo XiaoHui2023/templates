@@ -1,0 +1,148 @@
+{% macro declare(block) %}
+class {{ block.class_name }} extends {{ block.extend }};
+                                                        {%- for reg in block.regs %}
+    rand {{ block.format_class_name(reg.class_name) }} {{reg.name}};
+                                                        {%- endfor %}
+                                                        {%- for sub_block in block.blocks %}
+    rand {{ block.format_class_name(sub_block.class_name) }} {{sub_block.name}}[{{ sub_block.depth }}];
+                                                        {%- endfor %}
+                                                        {%- if has_virtual_field %}
+    rand {{ virtual_field_class_name }} virtual_fields[string];
+                                                        {%- endif %}
+
+    `uvm_object_utils_begin({{ block.class_name }})
+                                                        {%- for reg in block.regs %}
+        `uvm_field_object({{reg.name}},UVM_ALL_ON)
+                                                        {%- endfor %}
+                                                        {%- for sub_block in block.blocks %}
+        `uvm_field_array_object({{sub_block.name}},UVM_ALL_ON)
+                                                        {%- endfor %}
+                                                        {%- if has_virtual_field %}
+        `uvm_field_aa_object_string(virtual_fields,UVM_ALL_ON | (virtual_fields.size ? 0 : UVM_NOPRINT))
+                                                        {%- endif %}
+    `uvm_object_utils_end
+
+    function new(string name="{{ block.class_name }}");
+        super.new(name);
+                                                        {%- for reg in block.regs %}
+        {{ reg.name }} = {{ reg.class_name }}::type_id::create({get_full_name(), ".", {{ reg.name }}});
+                                                        {%- endfor %}
+                                                        {%- for sub_block in block.blocks %}
+        foreach({{ sub_block.name }}[i])
+            {{ sub_block.name }}[i] = {{ sub_block.class_name }}::type_id::create({get_full_name(), $spsrintf(".{{ sub_block.name }}_%0d", i)});
+                                                        {%- endfor %}
+    endfunction
+                                                        {%- if has_virtual_field %}
+    virtual function {{ virtual_int_class_name }} create_vint(string name);
+        {{ virtual_int_class_name }} f;
+
+        f = {{ virtual_int_class_name }}::type_id::create({get_full_name(), ".", name});
+        $cast(virtual_fields[name], f);
+        return f;
+    endfunction
+
+    virtual function {{ virtual_bit_class_name }} create_vbit(string name);
+        {{ virtual_bit_class_name }} f;
+
+        f = {{ virtual_bit_class_name }}::type_id::create({get_full_name(), ".", name});
+        $cast(virtual_fields[name], f);
+        return f;
+    endfunction
+                                                        {%- endif %}
+                                                        {%- if has_sync %}
+    virtual function void sync({{ block.class_name }} rhs);
+        rand_mode_lock();
+                                                        {%- for reg in block.regs %}
+        {{ reg.name }}.value = rhs.{{ reg.name }}.value;
+                                                        {%- endfor %}
+                                                        {%- for sub_block in block.blocks %}
+        foreach({{ sub_block.name }}[i])
+            {{ sub_block.name }}[i].sync(rhs.{{ sub_block.name }}[i]);
+                                                        {%- endfor %}
+                                                        {%- if has_virtual_field %}
+        foreach(virtual_fields[i])
+            virtual_fields[i].set_value(rhs.virtual_fields[i].get_value());
+                                                        {%- endif %}
+    endfunction
+                                                        {%- endif %}
+                                                        {%- if has_pack %}
+    virtual function void pack({{ block.reg_model_class_name }} blk);
+        rand_mode_lock();
+                                                        {%- for reg in block.regs %}
+        {{ reg.name }}.value = blk.{{ reg.reg_model_name }}.get();
+                                                        {%- endfor %}
+                                                        {%- for sub_block in block.blocks %}
+        foreach({{ sub_block.name }}[i])
+            {{ sub_block.name }}[i].pack(blk.{{ sub_block.reg_model_name }}[i]);
+                                                        {%- endfor %}
+    endfunction
+
+    function void rand_mode_lock();
+                                                        {%- for reg in block.regs %}
+        {{ reg.name }}.rand_mode_locked = 1;
+                                                        {%- endfor %}
+                                                        {%- for sub_block in block.blocks %}
+        foreach({{ sub_block.name }}[i])
+            {{ sub_block.name }}[i].rand_mode_lock();
+                                                        {%- endfor %}
+                                                        {%- if has_virtual_field %}
+        foreach(virtual_fields[i])
+            virtual_fields[i].rand_mode_locked = 1;
+                                                        {%- endif %}
+    endfunction
+                                                        {%- endif %}
+                                                        {%- if has_stream %}
+    virtual function void dump(ref bit[7:0] bytes[$]);
+        bit[31:0] words[$];
+        bit[7:0] stream[$];
+
+        words = {
+                                                        {%- for reg in block.regs %}
+            {{ reg.name }}.value{{ ',' if not loop.last }}
+                                                        {%- endfor %}
+        };
+                                                        {%- if has_virtual_field %}
+        foreach(virtual_fields[i])
+            words.push_back(virtual_fields[i].get_value());
+                                                        {%- endif %}
+                                                        {%- raw %}
+        stream = {<<8{{<<32{words}}}};
+                                                        {%- endraw %}
+        bytes = {bytes,stream};
+                                                        {%- for sub_block in block.blocks %}
+        foreach({{ sub_block.name }}[i])
+            {{ sub_block.name }}[i].dump(bytes);
+                                                        {%- endfor %}
+    endfunction
+
+    virtual function void load(ref bit[7:0] bytes[$]);
+        bit[7:0] stream[$];
+        bit[31:0] words[$];
+        int sum;
+
+        sum = (1+len(block.regs)) + 4*virtual_fields.size;
+
+        if(bytes.size < sum)
+            `uvm_fatal("", $psprintf("bytes.size require %0d at least,but %0d", sum, bytes.size))
+
+        stream = bytes[0:sum-1];
+        bytes = bytes[sum:$];
+                                                        {%- raw %}
+        words = {<<32{<<8{stream}}};
+                                                        {%- endraw %}
+        rand_mode_lock();
+                                                        {%- for reg in block.regs %}
+        {{ reg.name }}.value = words.pop_front();
+                                                        {%- endfor %}
+                                                        {%- if has_virtual_field %}
+        foreach(virtual_fields[i])
+            virtual_fields[i].set_value(words.pop_front());
+                                                        {%- endif %}
+                                                        {%- for sub_block in block.blocks %}
+        foreach({{ sub_block.name }}[i])
+            {{ sub_block.name }}[i].load(bytes);
+                                                        {%- endfor %}
+    endfunction
+                                                        {%- endif %}
+endclass
+{%- endmacro -%}

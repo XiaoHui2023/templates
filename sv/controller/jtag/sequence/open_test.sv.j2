@@ -1,0 +1,27 @@
+`ifndef {{ class_prefix | upper }}OPEN_TEST_SEQ
+`define {{ class_prefix | upper }}OPEN_TEST_SEQ
+
+// OPEN测试(应当连通)
+class {{ class_prefix }}open_test_seq extends {{ class_prefix }}base_seq;
+    `uvm_object_utils({{ class_prefix }}open_test_seq)
+
+    function new(string name = "{{ class_prefix }}open_test_seq");
+        super.new(name);
+    endfunction
+
+    task body();
+        execute_test();
+    endtask
+
+    extern virtual task execute_test();
+endclass
+
+task {{ class_prefix }}open_test_seq::execute_test();
+    {{ class_prefix }}connect_test_seq con_test_seq;
+
+    `uvm_do_with(con_test_seq,{
+        should_connected == 1;
+    })
+endtask
+
+`endif

@@ -1,0 +1,100 @@
+`ifndef {{ class_sdk | upper }}
+`define {{ class_sdk | upper }}
+
+class {{ class_sdk }} extends uvm_object;
+    `uvm_object_utils({{ class_sdk }})
+
+    {{ class_configuration }} cfg; // 需要输入配置包
+
+    // 得到中断状态（信号）
+    extern function bit get_intr_status();
+
+    // 等待中断
+    extern task wait_intr(int timeout=100);
+
+    // 清除中断
+    extern task clear_intr_status();
+
+    // 屏蔽数据
+    extern task set_mask(bit[31:0] data);
+
+    // 打开中断使能，并设置上升沿中断为开
+    extern task set_rise_intr(bit[31:0] data);
+
+    // 设置输出
+    extern task set_value(bit[31:0] data);
+
+    // 读数据
+    extern task get_value(output bit[31:0] data);
+
+    /*
+        设置方向
+
+        0: 高为输出，低为输入
+    */
+    extern task set_dir(bit[31:0] data);
+
+    /*
+        得到方向
+
+        0: 高为输出，低为输入
+    */
+    extern task get_dir(output bit[31:0] data);
+
+    function new(string name = "{{ class_sdk }}");
+        super.new(name);
+    endfunction
+
+    protected uvm_status_e status;
+endclass
+
+function bit {{ class_sdk }}::get_intr_status();
+    return cfg.vif.intr;
+endfunction
+
+task {{ class_sdk }}::wait_intr(int timeout);
+    fork begin
+        fork
+            begin
+                repeat(timeout)
+                    @(posedge cfg.vif.clk);
+                `uvm_fatal("", "wait interrupt timeout")
+            end
+            begin
+                wait(cfg.vif.intr);
+            end
+        join_any
+        disable fork;
+    end join
+endtask
+
+task {{ class_sdk }}::clear_intr_status();
+    cfg.regmodel.gpio_int0_status.write(status,'hffff_ffff);
+endtask
+
+task {{ class_sdk }}::set_mask(bit[31:0] data);
+    //cfg.regmodel.gpio_mask.write(status,data);
+endtask
+
+task {{ class_sdk }}::set_rise_intr(bit[31:0] data);
+    cfg.regmodel.gpio_int0_en.write(status,data);
+    cfg.regmodel.gpio_int_rise_en.write(status,data);
+endtask
+
+task {{ class_sdk }}::set_value(bit[31:0] data);
+    cfg.regmodel.gpio_dout.write(status,data);
+endtask
+
+task {{ class_sdk }}::get_value(output bit[31:0] data);
+    cfg.regmodel.gpio_pin_val.read(status,data);
+endtask
+
+task {{ class_sdk }}::set_dir(bit[31:0] data);
+    cfg.regmodel.gpio_dir.write(status,data);
+endtask
+
+task {{ class_sdk }}::get_dir(output bit[31:0] data);
+    cfg.regmodel.gpio_dir.read(status,data);
+endtask
+
+`endif

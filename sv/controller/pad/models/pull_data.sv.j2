@@ -1,0 +1,31 @@
+`ifndef {{ class_pull_data | upper }}
+`define {{ class_pull_data | upper }}
+
+class {{ class_pull_data }};
+    /*
+        id : 窗口数据索引
+        reg_pull_up : 上拉动作寄存器
+        reg_pull_down : 下拉动作寄存器
+        is_fixed_pull_up : 是否固定上拉
+        is_fixed_pull_down : 是否固定下拉
+    */
+    function new(int id,{{ class_reg_struct }} reg_pull_up,{{ class_reg_struct }} reg_pull_down,bit is_fixed_pull_up=0,bit is_fixed_pull_down=0);
+        this.id = id;
+        this.reg_pull_up = reg_pull_up;
+        this.reg_pull_down = reg_pull_down;
+        this.is_fixed_pull_up = is_fixed_pull_up;
+        this.is_fixed_pull_down = is_fixed_pull_down;
+    endfunction
+
+    int id;
+    {{ class_reg_struct }} reg_pull_up;
+    {{ class_reg_struct }} reg_pull_down;
+    bit is_fixed_pull_up;
+    bit is_fixed_pull_down;
+
+    constraint cst {
+        $countones({is_fixed_pull_up,is_fixed_pull_down}) <= 1;
+    }
+endclass
+
+`endif

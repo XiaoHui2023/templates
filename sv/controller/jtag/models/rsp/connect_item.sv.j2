@@ -1,0 +1,18 @@
+`ifndef {{ class_prefix | upper }}CONNECT_ITEM_RSP
+`define {{ class_prefix | upper }}CONNECT_ITEM_RSP
+
+class {{ class_prefix }}connect_item_rsp extends {{ class_prefix }}base_item;
+    `uvm_object_utils_begin({{ class_prefix }}connect_item_rsp)
+        `uvm_field_string(name,UVM_ALL_ON)
+        `uvm_field_int(is_pass,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    string name; // 名字
+    bit is_pass; // 是否通过
+
+    function new(string name="{{ class_prefix }}connect_item_rsp");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

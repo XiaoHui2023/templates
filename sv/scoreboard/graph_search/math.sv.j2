@@ -1,0 +1,66 @@
+`ifndef {{ class_math | upper }}
+`define {{ class_math | upper }}
+
+class {{ class_math }}#(bit NO_DATA=0);
+    typedef int int_queue[$];
+
+    function bit compare(Data_packet l,Data_packet r);
+        if(l.addr != r.addr)
+            return 0;
+
+        if(!(l.dat_no_cmp || r.dat_no_cmp)) begin
+            if(l.data != r.data)
+                return 0;
+        end
+
+        return 1;
+    endfunction
+
+    function int_queue main(Data_packet q_mon[$],Data_packet q_glds[int][$]);
+        int path[$];
+        string indexs[$];
+        int channel;
+
+        foreach(q_glds[j])
+            if(q_glds[j].size)
+                indexs.push_back(j);
+        channel = indexs.size;
+
+        while(q_mon.size && indexs.size) begin
+            bit done;
+            Data_packet d_mon;
+
+            d_mon = q_mon.pop_front();
+
+            repeat(channel) begin
+                int index;
+                Data_packet d_gld;
+
+                index = indexs[0];
+                d_gld = q_glds[index][0];
+
+                if(compare(d_mon,d_gld)) begin
+                    path.push_back(index);
+                    q_glds[index].pop_front();
+
+                    if(!q_glds[index].size) begin
+                        channel -= 1;
+                        indexs.pop_front();
+                    end
+
+                    done = 1;
+                    break;
+                end
+
+                indexs.push_back(indexs.pop_front());
+            end
+
+            if(!done)
+                break;
+        end
+
+        return path;
+    endfunction
+endclass
+
+`endif

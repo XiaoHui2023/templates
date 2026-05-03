@@ -1,0 +1,48 @@
+`ifndef {{ class_prefix | upper }}CONNECT_RSP
+`define {{ class_prefix | upper }}CONNECT_RSP
+
+class {{ class_prefix }}connect_rsp extends {{ class_prefix }}base_rsp;
+    `uvm_object_utils_begin({{ class_prefix }}connect_rsp)
+        `uvm_field_int(is_pass,UVM_ALL_ON)
+        `uvm_field_object(tck,UVM_ALL_ON)
+        `uvm_field_object(tms,UVM_ALL_ON)
+        `uvm_field_object(tdi,UVM_ALL_ON)
+        `uvm_field_object(tdo,UVM_ALL_ON)
+        `uvm_field_object(trst,UVM_ALL_ON)
+        `uvm_field_queue_object(items,UVM_ALL_ON|UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    bit is_pass; // 是否全部通过
+    {{ class_prefix }}connect_item_rsp tck;
+    {{ class_prefix }}connect_item_rsp tms;
+    {{ class_prefix }}connect_item_rsp tdi;
+    {{ class_prefix }}connect_item_rsp tdo;
+    {{ class_prefix }}connect_item_rsp trst;
+    {{ class_prefix }}connect_item_rsp items[$];
+
+    function new(string name="{{ class_prefix }}connect_rsp");
+        super.new(name);
+
+        tck = {{ class_prefix }}connect_item_rsp::type_id::create({get_full_name(),".tck"});
+        tms = {{ class_prefix }}connect_item_rsp::type_id::create({get_full_name(),".tms"});
+        tdi = {{ class_prefix }}connect_item_rsp::type_id::create({get_full_name(),".tdi"});
+        tdo = {{ class_prefix }}connect_item_rsp::type_id::create({get_full_name(),".tdo"});
+        trst = {{ class_prefix }}connect_item_rsp::type_id::create({get_full_name(),".trst"});
+
+        tck.name = "tck";
+        tms.name = "tms";
+        tdi.name = "tdi";
+        tdo.name = "tdo";
+        trst.name = "trst";
+
+        items = '{
+            trst,
+            tms,
+            tdi,
+            tdo,
+            tck
+        };
+    endfunction
+endclass
+
+`endif

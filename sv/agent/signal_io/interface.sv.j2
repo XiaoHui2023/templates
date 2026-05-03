@@ -1,0 +1,23 @@
+﻿`ifndef {{ class_interface | upper }}
+`define {{ class_interface | upper }}
+
+interface {{ class_interface }};
+    timeunit 1fs;
+    timeprecision 1fs;
+
+{% for signal in all_signals %}
+    logic[{{ data_width }}-1:0] {{ signal }};
+{% endfor %}
+
+    // 获得时间
+    function automatic bit[{{ time_width }}-1:0] get_time();
+        return $time;
+    endfunction
+
+    // 延迟时间
+    task automatic wait_time(bit[{{ time_width }}-1:0] t);
+        #(t);
+    endtask
+
+endinterface
+`endif

@@ -1,0 +1,174 @@
+`ifndef {{ class_reporter | upper }}
+`define {{ class_reporter | upper }}
+
+class {{ class_reporter }} extends uvm_component;
+    `uvm_component_utils({{ class_reporter }})
+    typedef {{ class_token }} queue_token[$];
+
+    uvm_analysis_port #(queue_token) {{ axi_port_name }};
+    `uvm_analysis_imp_decl(_axi) protected uvm_analysis_imp_axi #(queue_token,{{ class_reporter }}) axi_imp;
+    {%- for data_type in data_types %}
+    uvm_analysis_port #(queue_token) {{ data_type.in_port_name }}{{ data_type.array_declaration }};
+    `{{ define_array_imp_decl }}(_{{ data_type.name }}) protected uvm_analysis_imp_{{ data_type.name }} #(queue_token,{{ class_reporter }}) {{ data_type.imp_name }}{{ data_type.array_declaration }};
+    {%- endfor %}
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ axi_port_name }} = new("{{ axi_port_name }}",this);
+        axi_imp = new("axi_imp",this);
+
+        {%- for data_type in data_types %}
+        {%- if data_type.depth %}
+        foreach({{ data_type.in_port_name }}[J])
+            {{ data_type.in_port_name }}[J] = new($psprintf("{{ data_type.in_port_name }}[%0d]",J),this);
+        foreach({{ data_type.imp_name }}[J])
+            {{ data_type.imp_name }}[J] = new($psprintf("{{ data_type.imp_name }}[%0d]",J),this,J);
+        {%- else %}
+        {{ data_type.in_port_name }} = new("{{ data_type.in_port_name }}",this);
+        {{ data_type.imp_name }} = new("{{ data_type.imp_name }}",this);
+        {%- endif %}
+        {%- endfor %}
+    endfunction
+
+    string report_text; // 报表文本文件路径
+    string report_csv; // 报表CSV路径
+    protected bit valid; // 是否有效
+    {{ class_token }} fifo_axi[$]; // axi fifo
+    {{ class_token }} fifo_gld[string][$]; // 计算结果 fifo
+
+    extern function void connect();
+    extern function void start_of_simulation();
+    extern function void report();
+    extern function void pre_abort();
+
+    // 写入AXI数据
+    extern function void write_axi(queue_token tokens);
+    {%- for data_type in data_types %}
+
+    // 写入 {{ data_type.name }} 地址
+    extern function void write_{{ data_type.name }}(queue_token tokens{{ ',int id' if data_type.depth }});
+    {%- endfor %}
+
+    // 运行
+    extern function void main();
+endclass
+
+function void {{ class_reporter }}::connect();
+    super.connect();
+
+    {{ axi_port_name }}.connect(axi_imp);
+    {%- for data_type in data_types %}
+    {%- if data_type.depth %}
+    foreach({{ data_type.in_port_name }}[J])
+        {{ data_type.in_port_name }}[J].connect({{ data_type.imp_name }}[J]);
+    {%- else %}
+    {{ data_type.in_port_name }}.connect({{ data_type.imp_name }});
+    {%- endif %}
+    {%- endfor %}
+endfunction
+
+function void {{ class_reporter }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(uvm_config_db#(string)::get(this,"","report",report_text))
+        `uvm_info("",$psprintf("report = %s",report_text),UVM_LOW)
+    if(uvm_config_db#(string)::get(this,"","report_csv",report_csv))
+        `uvm_info("",$psprintf("report_csv = %s",report_csv),UVM_LOW)
+
+    valid = report_text.len || report_csv.len;
+endfunction
+
+function void {{ class_reporter }}::pre_abort();
+    super.pre_abort();
+
+    report();
+endfunction
+
+function void {{ class_reporter }}::report();
+    super.report();
+
+    if(!valid)
+        return;
+
+    main();
+endfunction
+
+function void {{ class_reporter }}::main();
+    {{ class_space }} space;
+    {{ class_comparator }} comparator;
+    {{ class_formatter }} formatter;
+    {{ class_handler }} handler;
+    string content;
+    string title[$];
+    string body[$][$];
+    string csv_title[$];
+    string csv_body[$][$];
+    bit is_pass;
+    bit is_report;
+    bit is_csv;
+
+    // 检查
+    if(!fifo_axi.size || !(fifo_gld.sum() with (item.size)))
+        return;
+
+    `uvm_info("","Enter compare",UVM_LOW)
+
+    // compute
+    is_report = report_text.len > 0;
+    is_csv = report_csv.len > 0;
+
+    comparator = new;
+    space = comparator.match(fifo_axi,fifo_gld);
+    if(space.is_empty) begin
+        `uvm_info("","Exit compare",UVM_LOW)
+        return;
+    end
+
+    // 压缩
+    foreach(space.block_list[J]) begin
+        {{ class_compressor }} compressor;
+
+        compressor = new(space.block_list[J]);
+
+        if(space.block_list[J].pass)
+            compressor.compress_together();
+        else
+            compressor.compress_single();
+    end
+
+    // 格式
+    formatter = new(space);
+    title = formatter.get_title();
+    body = formatter.body;
+    content = formatter.layout();
+    is_pass = formatter.pass;
+
+    // 报告
+    handler = new;
+    if(is_csv)
+        handler.write_csv(report_csv,title,body);
+    if(is_report)
+        handler.write_text(report_text,content);
+endfunction
+
+function void {{ class_reporter }}::write_axi(queue_token tokens);
+    if(!valid)
+        return;
+
+    fifo_axi = {fifo_axi,tokens};
+endfunction
+
+{%- for data_type in data_types %}
+
+function void {{ class_reporter }}::write_{{ data_type.name }}(queue_token tokens{{ ',int id' if data_type.depth }});
+    if(!valid)
+        return;
+
+    foreach(tokens[J])
+        fifo_gld[{{ '$psprintf("' ~ data_type.name ~ '[%0d]",id)' if data_type.depth else '"' ~ data_type.name ~ '"' }}].push_back(tokens[J]);
+endfunction
+
+{%- endfor %}
+
+`endif

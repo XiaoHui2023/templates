@@ -1,0 +1,3 @@
+base_core.j2: true
+model.j2: true
+transpose.j2: ${has_transpose}

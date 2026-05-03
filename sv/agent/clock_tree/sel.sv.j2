@@ -1,0 +1,21 @@
+`ifndef {{ class_sel | upper }}
+`define {{ class_sel | upper }}
+
+class {{ class_sel }} extends {{ class_base_cell }};
+    `uvm_object_utils_begin({{ class_sel }})
+        `uvm_field_int(sel,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    function new(string name="{{ class_sel }}");
+        super.new(name);
+    endfunction
+
+    rand bit sel;
+    {{ class_reg }} reg_sel;
+
+    constraint cst {
+        reg_sel != null;
+    }
+endclass
+
+`endif

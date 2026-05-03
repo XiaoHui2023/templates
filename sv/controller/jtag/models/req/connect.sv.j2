@@ -1,0 +1,17 @@
+`ifndef {{ class_prefix | upper }}CONNECT_REQ
+`define {{ class_prefix | upper }}CONNECT_REQ
+
+// 连接检测，检查全局线路
+class {{ class_prefix }}connect_req extends {{ class_prefix }}base_req;
+    `uvm_object_utils_begin({{ class_prefix }}connect_req)
+        `uvm_field_int(should_connected,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit should_connected; // 是否应该连接上
+
+    function new(string name="{{ class_prefix }}connect_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

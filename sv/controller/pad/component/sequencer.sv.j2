@@ -1,0 +1,33 @@
+`ifndef {{ class_sequencer | upper }}
+`define {{ class_sequencer | upper }}
+
+class {{ class_sequencer }} extends uvm_sequencer;
+    `uvm_component_utils({{ class_sequencer }})
+
+    {{ class_configuration }} cfg; // 配置包
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+    endfunction
+
+    extern task reset_phase(uvm_phase phase);
+    extern function void start_of_simulation();
+endclass
+
+task {{ class_sequencer }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    stop_sequences(); // 结束当前活跃的sequence,清空仲裁队列
+    start_phase_sequence(phase);
+endtask
+
+function void {{ class_sequencer }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(!cfg.has_randomized)
+        assert(cfg.randomize()) else `uvm_fatal("", "randomize failed")
+    cfg.build();
+    `uvm_info("",$spsrintf("config:\n%s",cfg.sprint()),UVM_LOW)
+endfunction
+
+`endif

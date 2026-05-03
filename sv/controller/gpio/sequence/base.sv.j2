@@ -1,0 +1,27 @@
+`ifndef {{ class_base_seq | upper }}
+`define {{ class_base_seq | upper }}
+
+class {{ class_base_seq }} extends uvm_sequence;
+    `uvm_object_utils({{ class_base_seq }})
+    `uvm_declare_p_sequencer({{ class_sequencer }})
+
+    {{ class_sdk }} sdk;
+    {{ class_configuration }} cfg;
+    virtual {{ class_interface }} vif;
+
+    function new(string name = "{{ class_base_seq }}");
+        super.new(name);
+    endfunction
+
+    extern function void pre_randomize();
+endclass
+
+function void {{ class_base_seq }}::pre_randomize();
+    super.pre_randomize();
+
+    $cast(sdk,p_sequencer.sdk);
+    $cast(cfg,p_sequencer.cfg);
+    vif = cfg.vif;
+endfunction
+
+`endif

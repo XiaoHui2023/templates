@@ -1,0 +1,279 @@
+`ifndef {{ class_column | upper }}
+`define {{ class_column | upper }}
+
+class {{ class_column }};
+    typedef {{ class_transfer }} transfer_queue[$];
+
+    function new(int id=-1,{{ class_transfer }} transfer_list[$]='{},int pointer=0);
+        this.id = id;
+        this.transfer_list = transfer_list;
+        this.pointer = pointer;
+    endfunction
+
+    {{ class_transfer }} transfer_list[$]; // ?????????? null
+    int id; // ??
+    int pointer; // ??
+    int valid_size; // ????
+
+    // ???N?????
+    extern function {{ class_transfer }} get_transfer(int n);
+
+    // ??????
+    extern function void add({{ class_transfer }} transfer);
+
+    // ??????
+    extern function void delete(int index);
+
+    // ????N??????
+    extern function bit get_leading_empty(int n);
+
+    // ????
+    extern function bit is_empty;
+
+    // ??????????
+    extern function int size;
+
+    // ?????(?N?)
+    extern function bit get_mergeable(int n);
+
+    // ??(?N?)
+    extern function void merge(int n);
+
+    // ??????????????
+    extern function bit amend();
+
+    // ??
+    extern protected function {{ class_transfer }} cur;
+
+    // ???
+    extern protected function {{ class_transfer }} nxt;
+
+    // ???
+    extern protected function {{ class_transfer }} nnxt;
+
+    // ?????
+    extern function void delete_nxt();
+
+    // ?????
+    extern function void delete_nnxt();
+
+    // ???3???(?????????bursts??1)
+    extern protected function bit is_mergeable_3;
+
+    // ???????(?????????????bursts??1)
+    extern protected function bit is_mergeable_continuous;
+
+    // ???2???(????????????????burst??1,???burst??1?)
+    extern protected function bit is_mergeable_2;
+
+    // 3???(????burst?3,????)
+    extern protected function void merge_3();
+
+    // ??????????
+    extern protected function void merge_continuous();
+
+    // 2???(burst+1)
+    extern protected function void merge_2();
+
+    // ?????????????????????????????
+    extern protected function bit do_amend({{ class_transfer }} transfer);
+
+    // ????????????????
+    extern function bit pointer_step();
+endclass
+
+function void {{ class_column }}::add({{ class_transfer }} transfer);
+    this.transfer_list.push_back(transfer);
+    if(transfer)
+        valid_size += 1;
+endfunction
+
+function void {{ class_column }}::delete(int index);
+    int lo;
+
+    lo = this.pointer+index;
+
+    if(this.transfer_list.size > lo)
+        this.transfer_list.delete(lo);
+endfunction
+
+function {{ class_transfer }} {{ class_column }}::cur;
+    return this.transfer_list[this.pointer];
+endfunction
+
+function {{ class_transfer }} {{ class_column }}::nxt;
+    return this.transfer_list[this.pointer+1];
+endfunction
+
+function {{ class_transfer }} {{ class_column }}::nnxt;
+    return this.transfer_list[this.pointer+2];
+endfunction
+
+function void {{ class_column }}::delete_nxt();
+    if(this.transfer_list[this.pointer+1])
+        valid_size -= 1;
+
+    delete(2-1);
+endfunction
+
+function void {{ class_column }}::delete_nnxt();
+    if(this.transfer_list[this.pointer+2])
+        valid_size -= 1;
+
+    delete(3-1);
+endfunction
+
+function bit {{ class_column }}::is_empty;
+    return this.valid_size == 0;
+endfunction
+
+function bit {{ class_column }}::get_leading_empty(int n);
+    for(int j=0;j<n;j++)
+        if(get_transfer(j))
+            return 0;
+
+    return 1;
+endfunction
+
+function int {{ class_column }}::size;
+    return this.transfer_list.size;
+endfunction
+
+function bit {{ class_column }}::get_mergeable(int n);
+    case(n)
+        2 : return this.is_mergeable_continuous || this.is_mergeable_2;
+        3 : return this.is_mergeable_3;
+        default : `uvm_fatal("","")
+    endcase
+
+    return 0;
+endfunction
+
+function void {{ class_column }}::merge(int n);
+    case(n)
+        2 : begin
+            if(this.is_mergeable_continuous)
+                merge_continuous();
+            else if(this.is_mergeable_2)
+                merge_2();
+        end
+        3 : begin
+            if(this.is_mergeable_3)
+                merge_3();
+        end
+        default : `uvm_fatal("","")
+    endcase
+endfunction
+
+function bit {{ class_column }}::amend();
+    return do_amend(cur) || do_amend(nxt) || do_amend(nnxt);
+endfunction
+
+function bit {{ class_column }}::is_mergeable_3;
+    if(!(cur && nxt && nnxt))
+        return 0;
+
+    // ??????
+    if(!(cur.is_single && nxt.is_single && nnxt.is_single))
+        return 0;
+
+    // ????
+    if(!(cur.len == nxt.len && nxt.len == nnxt.len))
+        return 0;
+
+    // ????
+    if(!(nxt.addr - cur.addr == nnxt.addr - nxt.addr))
+        return 0;
+
+    // ??
+    if(!(nxt.addr > cur.addr))
+        return 0;
+
+    return 1;
+endfunction
+
+function bit {{ class_column }}::is_mergeable_continuous;
+    if(!(cur && nxt))
+        return 0;
+
+    // ??????
+    if(!(cur.is_single && nxt.is_single))
+        return 0;
+
+    // ????
+    if(!(cur.addr + cur.len == nxt.addr))
+        return 0;
+
+    return 1;
+endfunction
+
+function bit {{ class_column }}::is_mergeable_2;
+    if(!(cur && nxt))
+        return 0;
+
+    // ????????????
+    if(!(cur.is_multiple && nxt.is_single))
+        return 0;
+
+    // ????
+    if(!(cur.len == nxt.len))
+        return 0;
+
+    // ????
+    if(!(cur.addr + cur.stride * cur.burst == nxt.addr))
+        return 0;
+
+    return 1;
+endfunction
+
+function void {{ class_column }}::merge_3();
+    cur.stride = nxt.addr - cur.addr;
+    cur.burst = 3;
+    cur.data = {cur.data,nxt.data,nnxt.data};
+
+    delete_nnxt();
+    delete_nxt();
+endfunction
+
+function void {{ class_column }}::merge_continuous();
+    cur.len += nxt.len;
+    cur.data = {cur.data,nxt.data};
+
+    delete_nxt();
+endfunction
+
+function void {{ class_column }}::merge_2();
+    cur.burst += 1;
+    cur.data = {cur.data,nxt.data};
+
+    delete_nxt();
+endfunction
+
+function bit {{ class_column }}::do_amend({{ class_transfer }} transfer);
+    if(!transfer)
+        return 0;
+
+    if(!transfer.is_multiple)
+        return 0;
+
+    if(!transfer.is_sequential)
+        return 0;
+
+    transfer.len *= transfer.burst;
+    transfer.stride = 0;
+    transfer.burst = 1;
+
+    return 1;
+endfunction
+
+function bit {{ class_column }}::pointer_step();
+    this.pointer += 1;
+
+    return this.pointer <= this.size;
+endfunction
+
+function {{ class_transfer }} {{ class_column }}::get_transfer(int n);
+    return this.transfer_list[this.pointer+n];
+endfunction
+
+`endif

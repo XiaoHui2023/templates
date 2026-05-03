@@ -1,0 +1,139 @@
+`ifndef {{ class_compressor | upper }}
+`define {{ class_compressor | upper }}
+
+class {{ class_compressor }};
+    typedef {{ class_column }} column_queue[$];
+
+    function new({{ class_block }} block);
+        this.block = block;
+    endfunction
+
+    protected {{ class_block }} block;
+    protected int pointer; // ??
+
+    // ????/?????
+    extern function void compress_together();
+
+    // ????
+    extern function void compress_single();
+
+    // ??????????????
+    extern function bit amend();
+
+    // ???????????????????????????
+    extern protected function bit merge_together();
+
+    // ?????????????????
+    extern protected function bit merge_any();
+endclass
+
+function void {{ class_compressor }}::compress_together();
+    forever begin
+        // ??
+        amend();
+
+        // ??
+        if(merge_together())
+            continue;
+
+        if(this.block.pointer_step())
+            continue;
+
+        break;
+    end
+endfunction
+
+function void {{ class_compressor }}::compress_single();
+    forever begin
+        // ??
+        amend();
+
+        // ??
+        if(merge_any())
+            continue;
+
+        if(this.block.pointer_step())
+            continue;
+
+        break;
+    end
+endfunction
+
+function bit {{ class_compressor }}::amend();
+    foreach(block.column_list[j])
+        amend |= block.column_list[j].amend();
+endfunction
+
+function bit {{ class_compressor }}::merge_together();
+    {{ class_column }} col;
+    int n;
+
+    if(!block.column_list.size)
+        return 0;
+
+    if(block.get_leading_identical(2)) begin
+        bit is_merge;
+
+        foreach(block.column_list[j])
+            if(block.column_list[j].get_mergeable(2)) begin
+                is_merge = 1;
+            end else if(!block.column_list[j].get_leading_empty(2)) begin
+                is_merge = 0;
+                break;
+            end
+
+        if(is_merge) begin
+            foreach(block.column_list[j])
+                if(block.column_list[j].get_leading_empty(2)) begin
+                    block.column_list[j].delete_nxt();
+                end else begin
+                    block.column_list[j].merge(2);
+                end
+
+            return 1;
+        end
+    end
+
+    if(block.get_leading_identical(3)) begin
+        bit is_merge;
+
+        foreach(block.column_list[j])
+            if(block.column_list[j].get_mergeable(3)) begin
+                is_merge = 1;
+            end else if(!block.column_list[j].get_leading_empty(3)) begin
+                is_merge = 0;
+                break;
+            end
+
+        if(is_merge) begin
+            foreach(block.column_list[j])
+                if(block.column_list[j].get_leading_empty(3)) begin
+                    block.column_list[j].delete_nnxt();
+                    block.column_list[j].delete_nxt();
+                end else begin
+                    block.column_list[j].merge(3);
+                end
+
+            return 1;
+        end
+    end
+endfunction
+
+function bit {{ class_compressor }}::merge_any();
+    bit is_merged;
+
+    // merge
+    foreach(block.column_list[j])
+        if(block.column_list[j].get_mergeable(2)) begin
+            block.column_list[j].merge(2);
+            is_merged = 1;
+        end
+        else if(block.column_list[j].get_mergeable(3)) begin
+            block.column_list[j].merge(3);
+            is_merged = 1;
+        end
+
+    return is_merged;
+endfunction
+
+`endif

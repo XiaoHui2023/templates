@@ -1,0 +1,196 @@
+`ifndef BP_FIFO2AXI_ROUTER
+`define BP_FIFO2AXI_ROUTER
+
+class BP_fifo2axi_router #(int SUM_ID = 8) extends uvm_component;
+    `uvm_component_param_utils(BP_fifo2axi_router#(SUM_ID))
+
+    uvm_analysis_port #(Data_packet) o_axi_ap[SUM_ID];
+    uvm_analysis_port #(Data_packet) o_fifo_ap[SUM_ID];
+
+    `uvm_analysis_imp_decl(_axi)
+    `uvm_analysis_imp_decl(_fifo)
+    uvm_analysis_imp_axi #(Data_packet, BP_fifo2axi_router#(SUM_ID)) axi_imp;
+    uvm_analysis_imp_fifo #(Data_packet, BP_fifo2axi_router#(SUM_ID)) fifo_imp;
+
+    virtual BP_fifo2axi_fifo_if vif[SUM_ID];
+    BP_fifo2axi_config cfg;
+
+    Data_packet f_axi[$];
+    Data_packet f_fifo[$];
+
+    int reallocate_map_id[int];
+    int reallocate_new_id[$];
+    bit reallocate_seen[int];
+    bit unallocated_id[int];
+
+    function new(string name="BP_fifo2axi_router", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern task reset_phase(uvm_phase phase);
+    extern function void check_phase(uvm_phase phase);
+
+    extern protected function void try_match();
+    extern protected function void match_normal();
+    extern protected function void match_reallocate_id();
+    extern protected function bit is_id_valid(int id);
+
+    extern function void write_axi(Data_packet data_in);
+    extern function void write_fifo(Data_packet data_in);
+    extern function void out_axi(Data_packet data_out, int id);
+    extern function void out_fifo(Data_packet data_out, int id);
+    extern protected function bit check_fifo();
+    extern protected function bit check_id();
+    extern protected function bit check_all();
+endclass
+
+function void BP_fifo2axi_router::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    foreach (o_axi_ap[id])
+        o_axi_ap[id] = new($sformatf("o_axi_ap[%0d]", id), this);
+    foreach (o_fifo_ap[id])
+        o_fifo_ap[id] = new($sformatf("o_fifo_ap[%0d]", id), this);
+    axi_imp = new("axi_imp", this);
+    fifo_imp = new("fifo_imp", this);
+endfunction
+
+task BP_fifo2axi_router::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+    check_all();
+    f_axi.delete();
+    f_fifo.delete();
+    reallocate_map_id.delete();
+    reallocate_new_id.delete();
+    reallocate_seen.delete();
+    unallocated_id.delete();
+endtask
+
+function void BP_fifo2axi_router::check_phase(uvm_phase phase);
+    super.check_phase(phase);
+    check_all();
+endfunction
+
+function void BP_fifo2axi_router::write_axi(Data_packet data_in);
+    int id;
+    $cast(data_in, data_in.clone());
+    id = data_in.id;
+    if (!is_id_valid(id)) begin
+        `uvm_info("", $sformatf("drop axi [%0d] 0x%0h(%0d)", id, data_in.addr, data_in.len), UVM_HIGH)
+        return;
+    end
+    `uvm_info("", $sformatf("I axi:%s", data_in.sprint()), UVM_DEBUG)
+    f_axi.push_back(data_in);
+    try_match();
+endfunction
+
+function void BP_fifo2axi_router::write_fifo(Data_packet data_in);
+    $cast(data_in, data_in.clone());
+    `uvm_info("", $sformatf("I fifo:%s", data_in.sprint()), UVM_DEBUG)
+    f_fifo.push_back(data_in);
+    try_match();
+endfunction
+
+function bit BP_fifo2axi_router::is_id_valid(int id);
+    if (cfg.is_reallocate_id)
+        return 1;
+    if (!$isunknown(vif[id].req))
+        return 1;
+    return 0;
+endfunction
+
+function void BP_fifo2axi_router::try_match();
+    if (cfg.is_reallocate_id)
+        match_reallocate_id();
+    else
+        match_normal();
+endfunction
+
+function void BP_fifo2axi_router::match_normal();
+    while (f_axi.size()) begin
+        Data_packet d = f_axi.pop_front();
+        out_axi(d, d.id);
+    end
+    while (f_fifo.size()) begin
+        Data_packet d = f_fifo.pop_front();
+        out_fifo(d, d.id);
+    end
+endfunction
+
+function void BP_fifo2axi_router::match_reallocate_id();
+    while (f_fifo.size()) begin
+        Data_packet d;
+        int id;
+        d = f_fifo.pop_front();
+        id = d.id;
+        if (!reallocate_seen.exists(id)) begin
+            reallocate_seen[id] = 1;
+            reallocate_new_id.push_back(id);
+        end
+        out_fifo(d, id);
+    end
+    while (f_axi.size()) begin
+        Data_packet d;
+        int old_id;
+        int new_id;
+        d = f_axi.pop_front();
+        old_id = d.id;
+        if (!reallocate_map_id.exists(old_id)) begin
+            if (!reallocate_new_id.size()) begin
+                unallocated_id[old_id] = 1;
+                return;
+            end
+            new_id = reallocate_new_id.pop_front();
+            reallocate_map_id[old_id] = new_id;
+        end else begin
+            new_id = reallocate_map_id[old_id];
+        end
+        d.id = new_id;
+        if (unallocated_id.exists(old_id))
+            unallocated_id.delete(old_id);
+        out_axi(d, new_id);
+    end
+endfunction
+
+function void BP_fifo2axi_router::out_axi(Data_packet data_out, int id);
+    `uvm_info("", $sformatf("[%0d] axi: %s", id, data_out.sprint()), UVM_DEBUG)
+    o_axi_ap[id].write(data_out);
+endfunction
+
+function void BP_fifo2axi_router::out_fifo(Data_packet data_out, int id);
+    `uvm_info("", $sformatf("[%0d] fifo: %s", id, data_out.sprint()), UVM_DEBUG)
+    o_fifo_ap[id].write(data_out);
+endfunction
+
+function bit BP_fifo2axi_router::check_fifo();
+    int num_fifo;
+    int num_axi;
+    num_fifo = f_fifo.size();
+    num_axi = f_axi.size();
+    if (num_fifo > 0 || num_axi > 0) begin
+        `uvm_error("", $sformatf("remain : num_fifo = %0d, num_axi = %0d", num_fifo, num_axi))
+        return 0;
+    end
+    return 1;
+endfunction
+
+function bit BP_fifo2axi_router::check_id();
+    int id_err[$];
+    foreach (unallocated_id[id])
+        id_err.push_back(id);
+    if (id_err.size()) begin
+        `uvm_error("", $sformatf("无法分配的ID : %p, 你可能漏掉了fifo总线(需要在 fifo2axi 总线上补充连接)", id_err))
+        return 0;
+    end
+    return 1;
+endfunction
+
+function bit BP_fifo2axi_router::check_all();
+    bit ok;
+    ok = 1;
+    ok &= check_id();
+    ok &= check_fifo();
+    return ok;
+endfunction
+
+`endif

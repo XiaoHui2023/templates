@@ -1,0 +1,41 @@
+`ifndef {{ class_prefix | upper }}REGISTER_TEST_SEQ
+`define {{ class_prefix | upper }}REGISTER_TEST_SEQ
+
+// 寄存器测试
+class {{ class_prefix }}register_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}register_rsp);
+    `uvm_object_utils({{ class_prefix }}register_test_seq)
+
+    rand {{ class_prefix }}register_public_id_req public_id_req;
+    rand {{ class_prefix }}register_idcode_req idcode_req;
+
+    function new(string name = "{{ class_prefix }}register_test_seq");
+        super.new(name);
+    endfunction
+
+    task body();
+        execute_test(public_id_req);
+        execute_test(idcode_req);
+    endtask
+
+    extern function void pre_randomize();
+    extern virtual task execute_test({{ class_prefix }}register_req req);
+endclass
+
+function void {{ class_prefix }}register_test_seq::pre_randomize();
+    super.pre_randomize();
+
+    `uvm_create(public_id_req)
+    `uvm_create(idcode_req)
+endfunction
+
+task {{ class_prefix }}register_test_seq::execute_test({{ class_prefix }}register_req req);
+    `uvm_send(req)
+    get_response(rsp);
+
+    if(rsp.value != req.value)
+        `uvm_error("",$spsprintf("%s exp=0x%0h, but rddata=0x%0h",req.name,req.value,rsp.value))
+    else
+        `uvm_info("",$spsprintf("%s test pass",req.name),UVM_LOW)
+endtask
+
+`endif

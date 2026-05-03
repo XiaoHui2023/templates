@@ -1,0 +1,13 @@
+`ifndef {{ class_prefix | upper }}BASE_REQ
+`define {{ class_prefix | upper }}BASE_REQ
+
+// 基础的传输请求
+class {{ class_prefix }}base_req extends {{ class_prefix }}base_item;
+    `uvm_object_utils({{ class_prefix }}base_req)
+
+    function new(string name="{{ class_prefix }}base_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

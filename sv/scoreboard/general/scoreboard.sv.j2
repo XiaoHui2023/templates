@@ -1,0 +1,117 @@
+`ifndef {{ class_name | upper }}
+`define {{ class_name | upper }}
+
+class {{ class_name }}#(type T=uvm_sequence_item) extends uvm_component;
+    `uvm_component_param_utils({{ class_name }}#(T))
+
+    uvm_analysis_port #(T) {{ golden_port_name }};
+    uvm_analysis_port #(T) {{ monitor_port_name }};
+    `uvm_analysis_imp_decl(_golden) protected uvm_analysis_imp_golden #(T,{{ class_name }}#(T)) gld_imp;
+    `uvm_analysis_imp_decl(_monitor) protected uvm_analysis_imp_monitor #(T,{{ class_name }}#(T)) mon_imp;
+
+    function new(string name="{{ class_name }}",uvm_component parent);
+        super.new(name,parent);
+
+        {{ golden_port_name }} = new("{{ golden_port_name }}",this);
+        {{ monitor_port_name }} = new("{{ monitor_port_name }}",this);
+        gld_imp = new("gld_imp",this);
+        mon_imp = new("mon_imp",this);
+    endfunction
+
+    protected T fifo_golden[$];
+    protected T fifo_monitor[$];
+    protected bit has_compared; // ???????
+
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+
+    // ??????
+    extern function void main();
+
+    // ????
+    extern function bit match(output T gld,output T mon);
+
+    // ??fifo
+    extern function void check_fifo();
+
+    // ?? golden ??
+    extern function void write_golden(T data_in);
+
+    // ?? monitor ??
+    extern function void write_monitor(T data_in);
+endclass
+
+task {{ class_name }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    fifo_golden.delete();
+    fifo_monitor.delete();
+endtask
+
+task {{ class_name }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    check_fifo();
+endtask
+
+function void {{ class_name }}::main();
+    T gld;
+    T mon;
+
+    if(!match(gld,mon))
+        return;
+
+    if(!gld.compare(mon))
+        `uvm_error("",$psprintf("compare failed:",
+            "\ngolden:\n%s",gld.sprint(),
+            "\nmonitor:\n%s",mon.sprint()
+        ))
+
+    // ??????
+    has_compared = 1;
+
+    main();
+endfunction
+
+function bit {{ class_name }}::match(output T gld,output T mon);
+    if(!fifo_golden.size || !fifo_monitor.size)
+        return 0;
+
+    gld = fifo_golden.pop_front();
+    mon = fifo_monitor.pop_front();
+
+    return 1;
+endfunction
+
+function void {{ class_name }}::check_fifo();
+    int num_gld;
+    int num_mon;
+
+    num_gld = fifo_golden.size();
+    num_mon = fifo_monitor.size();
+
+    if(num_gld)
+        `uvm_error("",$psprintf("golden remain %0d, first :\n%s",num_gld,fifo_golden[0].sprint()))
+    else if(num_mon)
+        `uvm_error("",$psprintf("monitor remain %0d, first :\n%s",num_mon,fifo_monitor[0].sprint()))
+    else if(has_compared)
+        `uvm_info("","compare success",UVM_LOW)
+endfunction
+
+function void {{ class_name }}::write_golden(T data_in);
+    $cast(data_in, data_in.clone());
+    `uvm_info("",$psprintf("input golden :\n%s",data_in.sprint()),UVM_DEBUG)
+
+    fifo_golden.push_back(data_in);
+    main();
+endfunction
+
+function void {{ class_name }}::write_monitor(T data_in);
+    $cast(data_in, data_in.clone());
+    `uvm_info("",$psprintf("input monitor :\n%s",data_in.sprint()),UVM_DEBUG)
+
+    fifo_monitor.push_back(data_in);
+    main();
+endfunction
+
+`endif

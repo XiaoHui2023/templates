@@ -1,0 +1,125 @@
+`ifndef {{ class_generator | upper }}
+`define {{ class_generator | upper }}
+
+class {{ class_generator }} extends uvm_component;
+    `uvm_component_utils({{ class_generator }})
+
+    {%- for data in data_types %}
+    uvm_analysis_port #(Data_packet) {{ data.out_port_name }}{{ data.array_declaration }};
+    {%- endfor %}
+    uvm_analysis_port #({{ class_config }}) {{ config_port_name }};
+    `uvm_analysis_imp_decl(_config) protected uvm_analysis_imp_config #({{ class_config }},{{ class_generator }}) config_imp;
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ config_port_name }} = new("{{ config_port_name }}",this);
+
+        {%- for data in data_types %}
+        {%- if data.depth %}
+        foreach({{ data.out_port_name }}[J])
+            {{ data.out_port_name }}[J] = new($psprintf("{{ data.out_port_name }}[%0d]",J),this);
+        {%- else %}
+        {{ data.out_port_name }} = new("{{ data.out_port_name }}",this);
+        {%- endif %}
+        {%- endfor %}
+
+        config_imp = new("config_imp",this);
+    endfunction
+
+    extern function void connect();
+
+    /*
+     * 计算方式
+     * addr  : 首地址
+     * len   : 突发长度
+     * burst : 突发类型
+     * stride: 每次之间步进（默认等于长度）
+     */
+    extern function void compute(
+        input bit[31:0] addr,
+        input int len,
+        input int burst=1,
+        input int stride=1,
+        output Data_packet out[$]
+    );
+
+    {%- for data in data_types %}
+
+    // 计算数据 {{ data.name }}
+    extern function void compute_{{ data.name }}(int id, bit [{{ data.depth }}][31:0] addr,int len,int burst=1,int stride=1);
+    {%- endfor %}
+
+    // 写入配置
+    extern function void write_config({{ class_config }} {{ config_var_name }});
+
+    // 钩子函数，输入配置时调用一次，需要额外实现
+    extern function void {{ hook_name }}({{ class_config }} {{ config_var_name }});
+endclass
+
+function void {{ class_generator }}::connect();
+    super.connect();
+
+    {{ config_port_name }}.connect(config_imp);
+endfunction
+
+function void {{ class_generator }}::compute(
+    input bit[31:0] addr,
+    input int len,
+    input int burst,
+    input int stride,
+    output Data_packet out[$]
+);
+    bit[31:0] adr;
+
+    if(stride < 0)
+        stride = len;
+
+    adr = addr;
+
+    repeat(burst) begin
+        Data_packet o;
+
+        o = Data_packet::type_id::create("adr");
+        o.addr = adr;
+        o.len = len;
+        o.dat_no_cmp = 1;
+
+        // step
+        adr += stride;
+
+        out.push_back(o);
+    end
+endfunction
+
+{%- for data in data_types %}
+
+function void {{ class_generator }}::compute_{{ data.name }}(int id, bit [{{ data.depth }}][31:0] addr,int len,int burst,int stride);
+    Data_packet out[$];
+
+    `uvm_info("",$psprintf("compute {{ data.name }}:{% if data.depth %} id:%0d{% endif %}\naddr{% if data.depth %}[%0d]{% endif %}=%0h\nlen=%0d%s%s",
+        {%- if data.depth %} id,id,{%- endif %}
+        addr{{ '[id]' if data.depth }},
+        len,
+        burst > 1 ? $psprintf(",burst=%0d",burst) : "",
+        burst > 1 ? $psprintf(",stride=%0d",stride) : "",
+    ),UVM_HIGH)
+
+    compute(addr,len,burst,stride,out);
+
+    foreach(out[J])
+        {{ data.out_port_name }}{{ '[id]' if data.depth }}.write(out[J]);
+endfunction
+
+{%- endfor %}
+
+function void {{ class_generator }}::write_config({{ class_config }} {{ config_var_name }});
+    // 克隆
+    $cast({{ config_var_name }},{{ config_var_name }}.clone());
+
+    `uvm_info("",$psprintf("input config:\n%s",{{ config_var_name }}.sprint()),UVM_HIGH)
+
+    {{ hook_name }}({{ config_var_name }});
+endfunction
+
+`endif

@@ -1,0 +1,16 @@
+`ifndef {{ class_reg | upper }}
+`define {{ class_reg | upper }}
+
+class {{ class_reg }};
+    function new(uvm_reg r,int lsb,int width);
+        this.r = r;
+        this.lsb = lsb;
+        this.width = width;
+    endfunction
+
+    uvm_reg r;
+    int lsb;
+    int width;
+endclass
+
+`endif

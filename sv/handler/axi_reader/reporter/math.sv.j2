@@ -1,0 +1,58 @@
+`ifndef {{ class_math | upper }}
+`define {{ class_math | upper }}
+
+class {{ class_math }};
+    typedef string string_queue[$];
+
+    function bit compare({{ class_token }} l,{{ class_token }} r);
+        return l.addr == r.addr;
+    endfunction
+
+    function string_queue main({{ class_token }} mons[$],{{ class_token }} glds[string][$]);
+        string path[$];
+        string indexs[$];
+        int channel;
+
+        foreach(glds[J])
+            if(glds[J].size)
+                indexs.push_back(J);
+        channel = indexs.size;
+
+        while(mons.size && indexs.size) begin
+            bit done;
+            {{ class_token }} mon;
+
+            mon = mons.pop_front();
+
+            repeat(channel) begin
+                string index;
+                {{ class_token }} gld;
+
+                index = indexs[0];
+                gld = glds[index][0];
+
+                if(compare(mon,gld)) begin
+                    path.push_back(index);
+                    glds[index].pop_front();
+
+                    if(!glds[index].size) begin
+                        channel -= 1;
+                        indexs.pop_front();
+                    end
+
+                    done = 1;
+                    break;
+                end
+
+                indexs.push_back(indexs.pop_front());
+            end
+
+            if(!done)
+                break;
+        end
+
+        return path;
+    endfunction
+endclass
+
+`endif

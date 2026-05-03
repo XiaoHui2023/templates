@@ -1,0 +1,147 @@
+`ifndef {{ class_prefix | upper }}LOGIC_INTERFACE
+`define {{ class_prefix | upper }}LOGIC_INTERFACE
+
+interface {{ class_prefix }}logic_interface(
+    output reg tms,
+    output reg tck,
+    output reg trst,
+    output reg tdi,
+    input wire tdo
+);
+
+    parameter Tp = 1;
+    parameter Tck = 50; // 参考二级JTAG标准时钟
+    parameter IR_LENGTH = 8;
+
+    // reg
+    reg [255:0] in_data_le_256;
+    reg [255:0] in_data_be_256;
+
+    // tck时钟
+    task gen_clk;
+        input reg [31:0] number;
+        integer i;
+        begin
+            for (i = 0; i < number; i = i + 1) begin
+                #(Tck) tck <= 1;
+                #(Tck) tck <= 0;
+            end
+        end
+    endtask
+
+    // 复位tap
+    task reset_tap;
+        begin
+            trst <= 1'b1;
+            #(Tck)
+            trst <= 1'b0;
+            #(Tck)
+            trst <= 1'b1;
+            tms <= 1'b1;
+            gen_clk(5);
+        end
+    endtask
+
+    // 等待
+    task goto_run_test_idle;
+        begin
+            tms <= #1 1'b0;
+            gen_clk(5);
+        end
+    endtask
+
+    // 设置指令
+    task set_instruction;
+        input reg [7:0] instr;
+
+        integer i;
+        begin
+            tms <= #1 1;
+            gen_clk(2);
+            tms <= #1 0;
+            gen_clk(2);
+            tms <= #1 0;
+            gen_clk(1);
+            for (i = 0; i < IR_LENGTH - 1; i = i + 1) begin
+                tdi <= #1 instr[i];
+                $display("instr.tdi=%d,tms=%d",instr[i],tms);
+                gen_clk(1);
+            end
+            tdi <= #1 instr[i];
+            tms <= #1 1;
+            gen_clk(1);
+            tms <= #1 1;
+            gen_clk(1);
+            tms <= #1 0;
+            gen_clk(1);
+        end
+    endtask
+
+    // 写数据
+    task write;
+        input reg [255:0] in;
+        input reg [8:0] n;
+        reg [255:0] out;
+        integer i;
+        begin
+            tms <= #(Tp) 1;
+            gen_clk(1);
+            tms <= #(Tp) 0;
+            gen_clk(2);
+            $display("run:wr.stime");
+            for (i = 0; i < (n - 1); i = i + 1) begin
+                tdi <= #(Tp) in[i];
+                gen_clk(1);
+            end
+            $display("run:wr.stime");
+            tdi <= #(Tp) in[i];
+            tms <= #(Tp) 1;
+            gen_clk(1);
+            out <= #(Tp) in_data_be_256;
+            tdi <= #(Tp) 1'bz;
+            gen_clk(1);
+            tms <= #(Tp) 0;
+            gen_clk(1);
+        end
+    endtask
+
+    // 读数据
+    task read;
+        output reg [63:0] code;
+        input reg [8:0] n;
+        begin
+            tms <= #1 1;
+            gen_clk(1);
+            tms <= #1 0;
+            gen_clk(2);
+            gen_clk(1);
+            tms <= #1 0;
+            for (int i = 0; i < 256; i = i + 1) begin
+                tdi <= #1 1'bz;
+                gen_clk(1);
+            end
+            tms <= #1 1;
+            gen_clk(1);
+            tms <= #1 1;
+            gen_clk(1);
+        end
+    endtask
+
+    initial begin
+        tms = 1'b1;
+        tck = 1'b1;
+        trst = 1'b1;
+        tdi = 1'b1;
+    end
+
+    always @(posedge tck) begin
+        in_data_be_256[255:0] <= #1 {tdo, in_data_be_256[254:0]};
+        in_data_be_256[0] <= #1 tdo;
+        in_data_le_256[255:0] <= #1 {in_data_le_256[255:1]};
+        in_data_le_256[255] <= #1 tdo;
+        $display("get_tdo.tdo,time:%d",tdo,$time);
+    end
+
+endinterface
+
+`endif

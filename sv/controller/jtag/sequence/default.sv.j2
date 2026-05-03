@@ -1,0 +1,26 @@
+`ifndef {{ class_prefix | upper }}DEFAULT_SEQ
+`define {{ class_prefix | upper }}DEFAULT_SEQ
+
+class {{ class_prefix }}default_seq extends {{ class_prefix }}base_seq;
+    `uvm_object_utils({{ class_prefix }}default_seq)
+
+    function new(string name = "{{ class_prefix }}default_seq");
+        super.new(name);
+    endfunction
+
+    task pre_start();
+        super.pre_start();
+
+        if(starting_phase)
+            starting_phase.raise_objection(this);
+    endtask
+
+    task post_start();
+        super.post_start();
+
+        if(starting_phase)
+            starting_phase.drop_objection(this);
+    endtask
+endclass
+
+`endif

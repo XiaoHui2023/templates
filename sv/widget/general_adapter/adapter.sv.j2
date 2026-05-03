@@ -1,0 +1,72 @@
+`ifndef {{ class_adapter | upper }}
+`define {{ class_adapter | upper }}
+
+class {{ class_adapter }} extends uvm_component;
+    `uvm_component_utils({{ class_adapter }})
+
+    uvm_analysis_port #({{ class_data }}) {{ in_port_name }};
+    `uvm_analysis_imp_decl() protected uvm_analysis_imp#({{ class_data }},{{ class_adapter }}) imp;
+    {%- for data_type in data_types %}
+    uvm_analysis_port #({{ data_type.class_name }}) {{ data_type.out_port_name }};
+    {%- endfor %}
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ in_port_name }} = new("{{ in_port_name }}",this);
+        imp = new("imp",this);
+        {%- for data_type in data_types %}
+        {{ data_type.out_port_name }} = new("{{ data_type.out_port_name }}",this);
+        {%- endfor %}
+    endfunction
+
+    extern function void connect();
+
+    extern function void write({{ class_data }} data);
+    {%- for data_type in data_types %}
+
+    // 转换为 {{ data_type.name }}，需要额外实现
+    extern function void {{ data_type.hook_name }}(input {{ class_data }} {{ name_input_data }},output {{ data_type.class_name }} {{ name_output_data }}{{ '[$]' if data_type.is_queue }});
+    {%- endfor %}
+endclass
+
+function void {{ class_adapter }}::connect();
+    super.connect();
+
+    {{ in_port_name }}.connect(imp);
+endfunction
+
+function void {{ class_adapter }}::write({{ class_data }} data);
+    {%- for data_type in data_types %}
+    {{ class_data }} in_{{ data_type.name }};
+    {%- endfor %}
+    {%- for data_type in data_types %}
+    {{ data_type.class_name }} out_{{ data_type.name }}{{ '[$]' if data_type.is_queue }};
+    {%- endfor %}
+
+    `uvm_info("",$psprintf("input:\n%s",data.sprint()),UVM_LOW)
+
+    // clone
+    {%- for data_type in data_types %}
+    $cast(in_{{ data_type.name }},data.clone());
+    {%- endfor %}
+
+    {%- for data_type in data_types %}
+
+    // {{ data_type.name }}
+    {{ data_type.hook_name }}(in_{{ data_type.name }},out_{{ data_type.name }});
+    {%- if data_type.is_queue %}
+    foreach(out_{{ data_type.name }}[J]) begin
+        `uvm_info("",$psprintf("output {{ data_type.name }}[%0d]:\n%s",J,out_{{ data_type.name }}[J].sprint()),UVM_LOW)
+        {{ data_type.out_port_name }}.write(out_{{ data_type.name }}[J]);
+    end
+    {%- else %}
+    if(out_{{ data_type.name }}) begin
+        `uvm_info("",$psprintf("output {{ data_type.name }}:\n%s",out_{{ data_type.name }}.sprint()),UVM_LOW)
+        {{ data_type.out_port_name }}.write(out_{{ data_type.name }});
+    end
+    {%- endif %}
+    {%- endfor %}
+endfunction
+
+`endif

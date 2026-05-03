@@ -1,0 +1,18 @@
+﻿`ifndef {{ class_item | upper }}
+`define {{ class_item | upper }}
+
+class {{ class_item }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_item }})
+        `uvm_field_int(width, UVM_ALL_ON)
+        `uvm_field_queue_int(data, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit[UVM_HDL_MAX_WIDTH-1:0] data[$]; // 数据
+    int width; // 数据位宽
+
+    function new(string name="{{ class_item }}");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

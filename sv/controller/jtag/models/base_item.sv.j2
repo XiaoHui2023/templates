@@ -1,0 +1,36 @@
+`ifndef {{ class_prefix | upper }}BASE_ITEM
+`define {{ class_prefix | upper }}BASE_ITEM
+
+typedef class {{ class_prefix }}sequencer;
+
+class {{ class_prefix }}base_item extends uvm_sequence_item;
+    `uvm_object_utils({{ class_prefix }}base_item)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}base_item");
+        super.new(name);
+    endfunction
+
+    // 当前随机状态，需要设置外部开关
+    extern function void pre_randomize();
+    extern function void post_randomize();
+    protected int cnt_pre_randomize;
+    protected int cnt_post_randomize;
+endclass
+
+function void {{ class_prefix }}base_item::pre_randomize();
+    cnt_pre_randomize++;
+    fork
+        begin
+            #0;
+            if(cnt_pre_randomize != cnt_post_randomize)
+                `uvm_fatal("","randomize failed")
+        end
+    join_none
+endfunction
+
+function void {{ class_prefix }}base_item::post_randomize();
+    cnt_post_randomize++;
+endfunction
+
+`endif

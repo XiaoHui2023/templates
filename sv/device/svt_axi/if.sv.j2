@@ -1,0 +1,95 @@
+`ifndef BP_AXI_IF
+`define BP_AXI_IF
+
+interface BP_axi_if (
+    input wire clk,
+    input wire rst_n,
+    input wire [7:0] awid,
+    input wire [31:0] awaddr,
+    input wire [7:0] awlen,
+    input wire [2:0] awsize,
+    input wire [1:0] awburst,
+    input wire [1:0] awlock,
+    input wire [3:0] awcache,
+    input wire [2:0] awprot,
+    input wire awvalid,
+    output wire awready,
+    input wire wvalid,
+    input wire wlast,
+    input wire [127:0] wdata,
+    input wire [15:0] wstrb,
+    input wire [7:0] wid,
+    output wire wready,
+    output wire bvalid,
+    output wire [1:0] bresp,
+    output wire [7:0] bid,
+    input wire bready,
+    input wire arvalid,
+    input wire [7:0] arid,
+    input wire [31:0] araddr,
+    input wire [7:0] arlen,
+    input wire [2:0] arsize,
+    input wire [1:0] arburst,
+    input wire [1:0] arlock,
+    input wire [3:0] arcache,
+    input wire [2:0] arprot,
+    output wire arready,
+    output wire rvalid,
+    output wire rlast,
+    output wire [127:0] rdata,
+    output wire [1:0] rresp,
+    output wire [7:0] rid,
+    input wire rready
+);
+    svt_axi_if axi_if ();
+
+    assign axi_if.common_aclk = clk;
+    assign axi_if.slave_if[0].aresetn = rst_n;
+    assign axi_if.master_if[0].aresetn = rst_n;
+
+    assign axi_if.slave_if[0].awid = awid;
+    assign axi_if.slave_if[0].awaddr = awaddr;
+    assign axi_if.slave_if[0].awlen = awlen;
+    assign axi_if.slave_if[0].awsize = awsize;
+    assign axi_if.slave_if[0].awburst = awburst;
+    assign axi_if.slave_if[0].awlock = awlock;
+    assign axi_if.slave_if[0].awcache = awcache;
+    assign axi_if.slave_if[0].awprot = awprot;
+    assign axi_if.slave_if[0].awvalid = awvalid;
+    assign awready = axi_if.slave_if[0].awready;
+
+    assign axi_if.slave_if[0].wid = wid;
+    assign axi_if.slave_if[0].wdata = wdata;
+    assign axi_if.slave_if[0].wstrb = wstrb;
+    assign axi_if.slave_if[0].wlast = wlast;
+    assign axi_if.slave_if[0].wvalid = wvalid;
+    assign wready = axi_if.slave_if[0].wready;
+
+    assign bid = axi_if.slave_if[0].bid;
+    assign bresp = axi_if.slave_if[0].bresp;
+    assign bvalid = axi_if.slave_if[0].bvalid;
+    assign axi_if.slave_if[0].bready = bready;
+
+    assign axi_if.slave_if[0].arid = arid;
+    assign axi_if.slave_if[0].araddr = araddr;
+    assign axi_if.slave_if[0].arlen = arlen;
+    assign axi_if.slave_if[0].arsize = arsize;
+    assign axi_if.slave_if[0].arburst = arburst;
+    assign axi_if.slave_if[0].arlock = arlock;
+    assign axi_if.slave_if[0].arcache = arcache;
+    assign axi_if.slave_if[0].arprot = arprot;
+    assign axi_if.slave_if[0].arvalid = arvalid;
+    assign arready = axi_if.slave_if[0].arready;
+
+    assign rid = axi_if.slave_if[0].rid;
+    assign rdata = axi_if.slave_if[0].rdata;
+    assign rresp = axi_if.slave_if[0].rresp;
+    assign rlast = axi_if.slave_if[0].rlast;
+    assign rvalid = axi_if.slave_if[0].rvalid;
+    assign axi_if.slave_if[0].rready = rready;
+
+    wire [0:0] is_slave_working;
+    assign is_slave_working[0] = axi_if.slave_if[0].awvalid | axi_if.slave_if[0].wvalid | axi_if.slave_if[0].bvalid;
+endinterface
+
+`endif

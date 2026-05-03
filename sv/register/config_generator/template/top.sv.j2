@@ -1,0 +1,14 @@
+{% import "block.j2" as block_template with context -%}
+{%- import "reg.j2" as reg_template with context -%}
+`ifndef {{class_name | upper }}
+`define {{class_name | upper }}
+                                                        {%- for reg in regs %}
+{{ reg_template.declare(reg) }}
+                                                        {%- endfor %}
+
+{% include "virtual_field.j2" %}
+                                                        {%- for group in groups %}
+{{ block_template.declare(group) }}
+                                                        {%- endfor %}
+{{ block_template.declare(block) }}
+`endif

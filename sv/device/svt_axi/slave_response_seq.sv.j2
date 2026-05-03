@@ -1,0 +1,35 @@
+`ifndef BP_AXI_SLAVE_RESPONSE_SEQ
+`define BP_AXI_SLAVE_RESPONSE_SEQ
+
+class BP_axi_slave_response_seq extends svt_axi_slave_base_sequence;
+    `uvm_object_utils(BP_axi_slave_response_seq)
+
+    svt_axi_slave_transaction resp_req;
+    BP_axi_config cfg;
+
+    function new(string name="BP_axi_slave_response_seq");
+        super.new(name);
+    endfunction
+
+    virtual task body();
+        `uvm_info("body", "Entered BP_axi_slave_response_seq", UVM_LOW)
+        if (cfg == null)
+            `uvm_fatal("body", "BP_axi_config not set on sequence")
+        sink_responses();
+        forever begin
+            p_sequencer.response_request_port.peek(resp_req);
+            resp_req.reasonable_rvalid_delay_constraint_mode(0);
+            resp_req.reasonable_wready_delay_constraint_mode(0);
+            if (!resp_req.randomize())
+                `uvm_fatal("body", "randomize failed on slave response")
+            if (resp_req.xact_type == svt_axi_slave_transaction::WRITE)
+                put_write_transaction_data_to_mem(resp_req);
+            else
+                get_read_data_from_mem_to_transaction(resp_req);
+            $cast(req, resp_req);
+            `uvm_send(req)
+        end
+    endtask
+endclass
+
+`endif

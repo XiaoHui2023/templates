@@ -1,0 +1,43 @@
+`ifndef {{ class_prefix | upper }}CONNECT_TEST_SEQ
+`define {{ class_prefix | upper }}CONNECT_TEST_SEQ
+
+// 连通测试
+class {{ class_prefix }}connect_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}connect_rsp);
+    `uvm_object_utils({{ class_prefix }}connect_test_seq)
+
+    rand bit should_connected;
+
+    function new(string name = "{{ class_prefix }}connect_test_seq");
+        super.new(name);
+    endfunction
+
+    task body();
+        execute_test(should_connected);
+    endtask
+
+    extern virtual task execute_test(bit should_connected);
+endclass
+
+task {{ class_prefix }}connect_test_seq::execute_test(bit should_connected);
+    {{ class_prefix }}connect_req con_req;
+    {{ class_prefix }}connect_rsp con_rsp;
+
+    `uvm_do_with(con_req,{
+        should_connected == local::should_connected;
+    })
+    get_response(rsp);
+
+    // 报告
+    foreach(rsp.items[i])
+        `uvm_info("",$sformatf("%s %s",rsp.items[i].name,rsp.items[i].is_pass ? "connected" : "disconnected"),UVM_LOW)
+    if(should_connected != rsp.is_pass) begin
+        `uvm_error("",$sformatf("expect %s,but %s",
+            should_connected?"connected":"disconnected",
+            rsp.is_pass?"connected":"disconnected"
+        ))
+    end
+    else
+        `uvm_info("",$sformatf("connect test %s pass",should_connected?"connected":"disconnected"),UVM_LOW)
+endtask
+
+`endif

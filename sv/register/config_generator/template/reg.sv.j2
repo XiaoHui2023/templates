@@ -1,0 +1,37 @@
+{% macro declare(reg) %}
+class {{ reg.class_name }} extends uvm_sequence_item;
+    function new(string name="{{ reg.class_name }}");
+        super.new(name);
+    endfunction
+
+    rand {{ reg.value_type }} value;
+                                                        {%- for field in reg.fields_order(little_endian=False) %}
+    {{ field.modifier_prefix }}{{ field.type }} {{ field.name }};
+                                                        {%- endfor %}
+    bit rand_mode_locked;
+    parameter reset_value={{reg.reset_value}};
+
+    `uvm_object_utils_begin({{reg.class_name}})
+        `uvm_field_int(value,UVM_ALL_ON)
+                                                        {%- for field in reg.fields_order(little_endian=False) %}
+        `uvm_field_int({{field.name}},{{field.option}})
+                                                        {%- endfor %}
+        `uvm_field_int(rand_mode_locked,UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    constraint cst {
+                                                        {%- for field in reg.fields %}
+                                                        {%- if field.msb <= reg.msb %}
+        value[{{field.range | join(':')}}] == {{field.name}};
+                                                        {%- endif %}
+                                                        {%- endfor %}
+    }
+
+    function void pre_randomize();
+        super.pre_randomize();
+
+        if(rand_mode_locked)
+            value.rand_mode(0);
+    endfunction
+endclass
+{% endmacro -%}

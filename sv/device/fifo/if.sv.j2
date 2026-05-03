@@ -1,0 +1,129 @@
+`ifndef BP_FIFO2AXI_IF
+`define BP_FIFO2AXI_IF
+
+`define port_id(WR, ID) \
+    input wire [3:0] WR``ch``ID, \
+    input wire WR``req``ID, \
+    input wire WR``dvalid``ID, \
+    input wire [31:0] WR``addr``ID, \
+    input wire WR``ack``ID, \
+    input wire [31:0] WR``len``ID, \
+    input wire WR``last``ID, \
+    input wire [31:0] WR``bits``ID, \
+    input wire [UVM_HDL_MAX_WIDTH-1:0] WR``data``ID,
+
+`define port(WR) \
+    `port_id(WR, 0) \
+    `port_id(WR, 1) \
+    `port_id(WR, 2) \
+    `port_id(WR, 3) \
+    `port_id(WR, 4) \
+    `port_id(WR, 5) \
+    `port_id(WR, 6) \
+    `port_id(WR, 7) \
+    `port_id(WR, 8) \
+    `port_id(WR, 9) \
+    `port_id(WR, 10) \
+    `port_id(WR, 11) \
+    `port_id(WR, 12) \
+    `port_id(WR, 13) \
+    `port_id(WR, 14) \
+    `port_id(WR, 15)
+
+`define inst_id(WR, ID) \
+    BP_fifo2axi_fifo_if WR``if``ID ( \
+        .clk(clk), \
+        .ch(WR``ch``ID), \
+        .req(WR``req``ID), \
+        .dvalid(WR``dvalid``ID), \
+        .addr(WR``addr``ID), \
+        .ack(WR``ack``ID), \
+        .len(WR``len``ID), \
+        .data(WR``data``ID), \
+        .bits(WR``bits``ID), \
+        .last(WR``last``ID) \
+    );
+
+`define inst(WR) \
+    `inst_id(WR, 0) \
+    `inst_id(WR, 1) \
+    `inst_id(WR, 2) \
+    `inst_id(WR, 3) \
+    `inst_id(WR, 4) \
+    `inst_id(WR, 5) \
+    `inst_id(WR, 6) \
+    `inst_id(WR, 7) \
+    `inst_id(WR, 8) \
+    `inst_id(WR, 9) \
+    `inst_id(WR, 10) \
+    `inst_id(WR, 11) \
+    `inst_id(WR, 12) \
+    `inst_id(WR, 13) \
+    `inst_id(WR, 14) \
+    `inst_id(WR, 15)
+
+interface BP_fifo2axi_if (
+    `port(w)
+    `port(r)
+    input wire clk
+);
+    string hdl;
+
+    initial begin
+        hdl = $sformatf("%m");
+    end
+
+    `inst(w)
+    `inst(r)
+
+    function virtual BP_fifo2axi_fifo_if get_w_if(int id);
+        case (id)
+            0: return wif0;
+            1: return wif1;
+            2: return wif2;
+            3: return wif3;
+            4: return wif4;
+            5: return wif5;
+            6: return wif6;
+            7: return wif7;
+            8: return wif8;
+            9: return wif9;
+            10: return wif10;
+            11: return wif11;
+            12: return wif12;
+            13: return wif13;
+            14: return wif14;
+            15: return wif15;
+            default: `uvm_fatal("", $sformatf("Invalid w id=%0d", id))
+        endcase
+    endfunction
+
+    function virtual BP_fifo2axi_fifo_if get_r_if(int id);
+        case (id)
+            0: return rif0;
+            1: return rif1;
+            2: return rif2;
+            3: return rif3;
+            4: return rif4;
+            5: return rif5;
+            6: return rif6;
+            7: return rif7;
+            8: return rif8;
+            9: return rif9;
+            10: return rif10;
+            11: return rif11;
+            12: return rif12;
+            13: return rif13;
+            14: return rif14;
+            15: return rif15;
+            default: `uvm_fatal("", $sformatf("Invalid r id=%0d", id))
+        endcase
+    endfunction
+endinterface
+
+`undef port_id
+`undef port
+`undef inst_id
+`undef inst
+
+`endif

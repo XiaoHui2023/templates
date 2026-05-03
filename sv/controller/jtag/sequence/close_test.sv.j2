@@ -1,0 +1,32 @@
+`ifndef {{ class_prefix | upper }}CLOSE_TEST_SEQ
+`define {{ class_prefix | upper }}CLOSE_TEST_SEQ
+
+// CLOSE测试，应当不能连通
+class {{ class_prefix }}close_test_seq extends {{ class_prefix }}base_seq;
+    `uvm_object_utils({{ class_prefix }}close_test_seq)
+
+    function new(string name = "{{ class_prefix }}close_test_seq");
+        super.new(name);
+    endfunction
+
+    task body();
+        execute_test();
+    endtask
+
+    extern virtual task execute_test();
+endclass
+
+task {{ class_prefix }}close_test_seq::execute_test();
+    {{ class_prefix }}connect_test_seq con_test_seq;
+    {{ class_prefix }}register_password_req pwd_req;
+
+    `uvm_do_with(pwd_req,{
+        value == p_sequencer.cfg.password;
+    })
+
+    `uvm_do_with(con_test_seq,{
+        should_connected == 0;
+    })
+endtask
+
+`endif

@@ -1,0 +1,104 @@
+﻿`ifndef {{ class_struct | upper }}
+`define {{ class_struct | upper }}
+
+class {{ class_struct }};
+    bit[7:0] id;
+    bit[{{ time_width }}-1:0] delay;
+    bit[{{ data_width }}-1:0] value;
+
+    function new(bit[7:0] id, bit[{{ time_width }}-1:0] delay, bit[{{ data_width }}-1:0] value);
+        this.id = id;
+        this.delay = delay;
+        this.value = value;
+    endfunction
+
+    // 解码
+    extern static function {{ class_struct }} decode(ref bit[7:0] in[$]);
+
+    // 编码
+    extern function void encode(ref bit[7:0] out[$]);
+
+    // 将结构拆分到字节（大端）
+    extern function int value_to_byte(input bit[{{ data_width }}-1:0] v, output int len, output bit[7:0] data[$]);
+endclass
+
+function {{ class_struct }} {{ class_struct }}::decode(ref bit[7:0] in[$]);
+    bit[7:0] len_delay;
+    bit[7:0] id;
+    bit[7:0] q_delay[$];
+    bit[{{ time_width }}-1:0] delay;
+    bit[7:0] len_value;
+    bit[7:0] q_value[$];
+    bit[{{ data_width }}-1:0] value;
+
+    // id
+    if(!in.size) begin
+        `uvm_fatal("", "invalid id")
+    end
+    id = in.pop_front();
+
+    // len_delay
+    if(!in.size) begin
+        `uvm_fatal("", "invalid len delay")
+    end
+    len_delay = in.pop_front();
+
+    // delay
+    if(in.size < len_delay)
+        `uvm_fatal("", "invalid delay")
+    repeat(len_delay) begin
+        q_delay.push_back(in.pop_front());
+    end
+    delay = {>>8{q_delay}};
+
+    // len_value
+    if(!in.size) begin
+        `uvm_fatal("", "invalid len value")
+    end
+    len_value = in.pop_front();
+
+    // value
+    if(in.size < len_value)
+        `uvm_fatal("", "invalid value")
+    repeat(len_value) begin
+        q_value.push_back(in.pop_front());
+    end
+    value = {>>8{q_value}};
+
+    decode = new(
+        .delay(delay),
+        .id(id),
+        .value(value)
+    );
+endfunction
+
+function void {{ class_struct }}::encode(ref bit[7:0] out[$]);
+    bit[7:0] len_delay;
+    bit[7:0] q_delay[$];
+    bit[7:0] q_value[$];
+    bit[7:0] len_value;
+
+    // delay
+    value_to_byte(delay, len_delay, q_delay);
+
+    // value
+    value_to_byte(value, len_value, q_value);
+
+    out.push_back(id);
+    out.push_back(len_delay);
+    foreach(q_delay[i])
+        out.push_back(q_delay[i]);
+    out.push_back(len_value);
+    foreach(q_value[i])
+        out.push_back(q_value[i]);
+endfunction
+
+function int {{ class_struct }}::value_to_byte(input bit[{{ data_width }}-1:0] v, output int len, output bit[7:0] data[$]);
+    while(v > 0) begin
+        data.push_front(v[7:0]);
+        v >>= 8;
+        len++;
+    end
+endfunction
+
+`endif

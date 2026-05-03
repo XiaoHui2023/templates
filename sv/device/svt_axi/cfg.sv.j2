@@ -1,0 +1,102 @@
+`ifndef BP_AXI_CONFIG
+`define BP_AXI_CONFIG
+
+class BP_axi_config extends uvm_sequence_item;
+    `uvm_object_utils_begin(BP_axi_config)
+        `uvm_field_int(num_masters, UVM_ALL_ON)
+        `uvm_field_int(num_slaves, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+        `uvm_field_int(outstanding, UVM_ALL_ON)
+        `uvm_field_int(first_rdata_delay, UVM_ALL_ON)
+        `uvm_field_int(first_wdata_delay, UVM_ALL_ON)
+        `uvm_field_int(max_rdata_delay, UVM_ALL_ON)
+        `uvm_field_int(max_wdata_delay, UVM_ALL_ON)
+        `uvm_field_int(zero_delay_wt, UVM_ALL_ON)
+        `uvm_field_int(short_delay_wt, UVM_ALL_ON)
+        `uvm_field_int(long_delay_wt, UVM_ALL_ON)
+        `uvm_field_int(extreme_delay_wt, UVM_ALL_ON)
+        `uvm_field_int(is_high_latency, UVM_ALL_ON)
+        `uvm_field_int(is_extreme_latency, UVM_ALL_ON)
+        `uvm_field_int(is_no_latency, UVM_ALL_ON)
+        `uvm_field_int(is_mask_write_error, UVM_ALL_ON)
+        `uvm_field_int(is_snapshot, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand int num_masters;
+    rand int num_slaves;
+    rand int data_width;
+    rand int outstanding;
+
+    rand int first_rdata_delay;
+    rand int first_wdata_delay;
+    rand int max_rdata_delay;
+    rand int max_wdata_delay;
+    rand int zero_delay_wt;
+    rand int short_delay_wt;
+    rand int long_delay_wt;
+    rand int extreme_delay_wt;
+
+    rand bit is_high_latency;
+    rand bit is_extreme_latency;
+    rand bit is_no_latency;
+    rand bit is_mask_write_error;
+    rand bit is_snapshot;
+
+    constraint c_bp_range {
+        data_width inside {64, 128};
+        outstanding inside {[1:32]};
+        num_masters inside {[0:16]};
+        num_slaves inside {[0:16]};
+    }
+
+    constraint c_bp_default {
+        soft num_masters == 0;
+        soft num_slaves == 1;
+        soft data_width == 128;
+        soft outstanding == 32;
+        soft zero_delay_wt == 40;
+        soft short_delay_wt == 50;
+        soft long_delay_wt == 10;
+        soft extreme_delay_wt == 0;
+        soft first_rdata_delay == -1;
+        soft first_wdata_delay == -1;
+        soft is_high_latency == 0;
+        soft is_extreme_latency == 0;
+        soft is_no_latency == 0;
+        soft is_mask_write_error == 0;
+        soft is_snapshot == 0;
+        first_rdata_delay <= max_rdata_delay;
+        first_wdata_delay <= max_wdata_delay;
+        max_rdata_delay == `SVT_AXI_MAX_RVALID_DELAY;
+        max_wdata_delay == `SVT_AXI_MAX_WREADY_DELAY;
+    }
+
+    constraint c_bp_alias {
+        if (is_high_latency) {
+            first_rdata_delay == 100;
+            first_wdata_delay == 100;
+            zero_delay_wt == 0;
+            short_delay_wt == 50;
+            long_delay_wt == 50;
+        }
+        if (is_extreme_latency) {
+            first_rdata_delay == max_rdata_delay;
+            first_wdata_delay == max_wdata_delay;
+            zero_delay_wt == 0;
+            short_delay_wt == 0;
+            long_delay_wt == 100;
+        }
+        if (is_no_latency) {
+            zero_delay_wt == 100;
+            short_delay_wt == 0;
+            long_delay_wt == 0;
+            extreme_delay_wt == 0;
+        }
+    }
+
+    function new(string name="BP_axi_config");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

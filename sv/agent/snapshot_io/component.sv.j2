@@ -1,0 +1,65 @@
+`ifndef {{ class_component | upper }}
+`define {{ class_component | upper }}
+
+class {{ class_component }} extends uvm_component;
+    `uvm_component_utils({{ class_component }})
+
+{% for data in datas %}
+    uvm_analysis_port #(Data_packet) {{ data.port_name }};
+{% endfor %}
+
+    function new(string name="{{ class_component }}", uvm_component parent=null);
+        super.new(name, parent);
+
+{% for data in datas %}
+        {{ data.port_name }} = new("{{ data.port_name }}", this);
+{% endfor %}
+
+{% for data in datas %}
+        {{ data.name }} = {{ class_core }}::type_id::create("{{ data.name }}", this);
+{% endfor %}
+    endfunction
+
+{% for data in datas %}
+    {{ class_core }} {{ data.name }};
+{% endfor %}
+
+    extern function void connect();
+    extern function void check();
+
+    // 检查回调函数。可以重写
+    virtual function void {{ on_check_name }}(); endfunction
+
+    // 清除当前记录的数据
+    extern function void {{ func_clear_name }}();
+
+    // 将之前的所有数据保存为快照，并重新开始记录
+    extern function void {{ func_snapshot_name }}();
+endclass
+
+function void {{ class_component }}::connect();
+    super.connect();
+
+{% for data in datas %}
+    {{ data.port_name }}.connect({{ data.name }}.i_ap);
+{% endfor %}
+endfunction
+
+function void {{ class_component }}::check();
+    super.check();
+
+    {{ on_check_name }}();
+endfunction
+
+function void {{ class_component }}::{{ func_clear_name }}();
+{% for data in datas %}
+    {{ data.name }}.{{ func_clear_name }}();
+{% endfor %}
+endfunction
+
+function void {{ class_component }}::{{ func_snapshot_name }}();
+{% for data in datas %}
+    {{ data.name }}.{{ func_snapshot_name }}();
+{% endfor %}
+endfunction
+`endif

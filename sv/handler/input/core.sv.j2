@@ -1,0 +1,178 @@
+﻿`ifndef {{ class_core | upper }}
+`define {{ class_core | upper }}
+
+class {{ class_core }} extends uvm_component;
+    `uvm_component_utils({{ class_core }})
+
+    uvm_analysis_port #(Data_packet) data_ap;
+    uvm_analysis_port #({{ class_item }}) o_ap;
+    `uvm_analysis_imp_decl(_data)
+    uvm_analysis_imp_data #(Data_packet, {{ class_core }}) data_imp;
+    `uvm_analysis_imp_decl(_config)
+    uvm_analysis_imp_config #({{ class_sub_config }}, {{ class_core }}) config_imp;
+
+    function new(string name="{{ class_core }}",uvm_component parent);
+        super.new(name,parent);
+
+        data_ap = new("data_port",this);
+        o_ap = new("o_ap",this);
+        data_imp = new("data_imp",this);
+        config_imp = new("config_imp",this);
+    endfunction
+
+    {{ class_sub_config }} fifo_config[$]; // 配置队列
+    bit buffer[$]; // 缓存
+    {{ class_sub_config }} cfg; // 当前配置
+
+    extern function void connect();
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern function void pre_abort();
+
+    // 检查buffer
+    extern function void check_buffer();
+
+    // 检查fifo_config
+    extern function void check_fifo_config();
+
+    extern protected function void write_data(Data_packet data_in);
+    extern protected function void write_config({{ class_sub_config }} cfg);
+    extern function void execute_config();
+    extern function bit main();
+    extern function {{ class_item }} cast(bit data_in[$], int width);
+endclass
+
+function void {{ class_core }}::connect();
+    super.connect();
+
+    data_ap.connect(data_imp);
+endfunction
+
+task {{ class_core }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    buffer.delete();
+    fifo_config.delete();
+    cfg = null;
+endtask
+
+task {{ class_core }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    check_buffer();
+    check_fifo_config();
+endtask
+
+function void {{ class_core }}::pre_abort();
+    super.pre_abort();
+
+    check_buffer();
+    check_fifo_config();
+endfunction
+
+function void {{ class_core }}::check_buffer();
+    if(buffer.size)
+        `uvm_error("",$psprintf("buffer remains %0d bytes",buffer.size))
+endfunction
+
+function void {{ class_core }}::check_fifo_config();
+    if(fifo_config.size)
+        `uvm_error("",$psprintf("fifo_config remains %0d",fifo_config.size))
+endfunction
+
+function void {{ class_core }}::write_data(Data_packet data_in);
+    int data_i = 0;
+
+    if(data_in.data.size != data_in.len)
+        `uvm_fatal("",$psprintf("size=%0d,but len=%0d",data_in.data.size,data_in.len))
+
+    foreach(data_in.data[i]) begin
+        for(int k=0;k<8;k++) begin
+            buffer.push_back(data_in.data[i][k]);
+        end
+    end
+
+    `uvm_info("",$psprintf("input data[%0d] %0d",buffer.size,data_in.len),UVM_HIGH)
+
+    while(main());
+endfunction
+
+function void {{ class_core }}::write_config({{ class_sub_config }} cfg);
+    if(!cfg.valid)
+        return;
+
+    `uvm_info("",$psprintf("input config:\n%s",cfg.sprint()),UVM_HIGH)
+
+    fifo_config.push_back(cfg);
+
+    while(main());
+endfunction
+
+function void {{ class_core }}::execute_config();
+    if(!fifo_config.size)
+        return;
+
+    if(!cfg)
+        cfg = fifo_config.pop_front();
+
+    if(!cfg.valid)
+        return;
+
+    `uvm_info("",$psprintf("configure:\n%s",cfg.sprint()),UVM_HIGH)
+endfunction
+
+function bit {{ class_core }}::main();
+    bit data_in[$];
+    {{ class_item }} data_out;
+
+    if(!cfg) begin
+        execute_config();
+        if(!cfg)
+            return 0;
+    end
+
+    if(buffer.size < cfg.quota) begin
+        `uvm_info("","not enough buffer",UVM_DEBUG)
+        return 0;
+    end
+
+    repeat(cfg.quota)
+        data_in.push_back(buffer.pop_front());
+
+    data_out = cast(data_in, cfg.width);
+    o_ap.write(data_out);
+
+    cfg = null;
+    return 1;
+endfunction
+
+function {{ class_item }} {{ class_core }}::cast(bit data_in[$], int width);
+    {{ class_item }} data_out;
+    int len_out;
+
+    if(width <= 0)
+        `uvm_fatal("","invalid width")
+
+    len_out = data_in.size / width;
+
+    data_out = {{ class_item }}::type_id::create({get_full_name(),".data_out"});
+    data_out.width = width;
+
+    repeat(len_out) begin
+        bit[UVM_HDL_MAX_WIDTH-1:0] t;
+
+        for(int j=0;j<width;j++) begin
+            if(data_in.size)
+                t[j] = data_in.pop_front();
+        end
+
+        data_out.data.push_back(t);
+    end
+
+    if(data_in.size)
+        `uvm_fatal("","remain bits")
+
+    return data_out;
+endfunction
+
+`endif

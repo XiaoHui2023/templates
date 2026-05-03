@@ -1,0 +1,93 @@
+`ifndef BP_AXI_SNAPSHOT
+`define BP_AXI_SNAPSHOT
+
+class BP_axi_snapshot extends uvm_component;
+    `uvm_component_utils(BP_axi_snapshot)
+
+    `uvm_analysis_imp_decl(_snap)
+    uvm_analysis_imp_snap #(Data_packet, BP_axi_snapshot) imp;
+    uvm_analysis_port #(Data_packet) o_ap;
+
+    protected bit [7:0] pre_mem[bit [31:0]];
+    protected bit [7:0] cur_mem[bit [31:0]];
+    protected bit has_snapshot;
+
+    function new(string name="BP_axi_snapshot", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern function void write_snap(Data_packet data_in);
+    extern function void cover_by_random();
+    extern function void compare();
+endclass
+
+function void BP_axi_snapshot::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    imp = new("imp", this);
+    o_ap = new("o_ap", this);
+endfunction
+
+task BP_axi_snapshot::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+    cur_mem.delete();
+endtask
+
+task BP_axi_snapshot::shutdown_phase(uvm_phase phase);
+    bit is_empty;
+    super.shutdown_phase(phase);
+    `uvm_info("", "Enter snapshot", UVM_LOW)
+    is_empty = (cur_mem.num() == 0);
+    if (has_snapshot && !is_empty)
+        compare();
+    cover_by_random();
+    if (!is_empty) begin
+        pre_mem.delete();
+        foreach (cur_mem[i])
+            pre_mem[i] = cur_mem[i];
+        has_snapshot = 1;
+    end
+    `uvm_info("", "Exit snapshot", UVM_LOW)
+endtask
+
+function void BP_axi_snapshot::write_snap(Data_packet data_in);
+    if (data_in.xact_type != Data_packet::WRITE)
+        return;
+    `uvm_info("", $sformatf("snapshot in:\n%s", data_in.sprint()), UVM_DEBUG)
+    for (int j = 0; j < data_in.len; j++)
+        cur_mem[data_in.addr + j] = data_in.data[j];
+endfunction
+
+function void BP_axi_snapshot::cover_by_random();
+endfunction
+
+function void BP_axi_snapshot::compare();
+    if (pre_mem == cur_mem) begin
+        `uvm_info("", "snapshot compare success", UVM_LOW)
+        return;
+    end
+    if (pre_mem.num() && !cur_mem.num()) begin
+        `uvm_error("", "compare failed, current snapshot is empty")
+        return;
+    end
+    if (!pre_mem.num() && cur_mem.num()) begin
+        `uvm_error("", "compare failed, previous snapshot is empty")
+        return;
+    end
+    foreach (pre_mem[a]) begin
+        if (!cur_mem.exists(a) || pre_mem[a] != cur_mem[a]) begin
+            `uvm_error("", $sformatf("compare mismatch @0x%0h", a))
+            return;
+        end
+    end
+    foreach (cur_mem[a]) begin
+        if (!pre_mem.exists(a) || pre_mem[a] != cur_mem[a]) begin
+            `uvm_error("", $sformatf("compare mismatch @0x%0h", a))
+            return;
+        end
+    end
+endfunction
+
+`endif

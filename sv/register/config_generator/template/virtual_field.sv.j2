@@ -1,0 +1,76 @@
+{% if virtual_field_class_name %}
+class {{ virtual_field_class_name }} extends uvm_sequence_item;
+    function new(string name="{{ virtual_field_class_name }}");
+        super.new(name);
+    endfunction
+
+    bit rand_mode_locked;
+
+    `uvm_object_utils_begin({{ virtual_field_class_name }})
+        `uvm_field_int(rand_mode_locked,UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    virtual function void set_value(int data);
+        `uvm_fatal("", "NotImplemented")
+    endfunction
+
+    virtual function int get_value();
+        `uvm_fatal("", "NotImplemented")
+    endfunction
+endclass
+
+class {{ virtual_int_class_name }} extends {{ virtual_field_class_name }};
+    rand int value;
+    `uvm_object_utils_begin({{ virtual_int_class_name }})
+        `uvm_field_int(value,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand int value;
+
+    function new(string name="{{ virtual_int_class_name }}");
+        super.new(name);
+    endfunction
+
+    function void pre_randomize();
+        super.pre_randomize();
+
+        if(rand_mode_locked)
+            value.rand_mode(0);
+    endfunction
+
+    function void set_value(int data);
+        this.value = data;
+    endfunction
+
+    function int get_value();
+        return this.value;
+    endfunction
+endclass
+
+class {{ virtual_bit_class_name }} extends {{ virtual_field_class_name }};
+    `uvm_object_utils_begin({{ virtual_bit_class_name }})
+        `uvm_field_int(value,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit value;
+
+    function new(string name="{{ virtual_bit_class_name }}");
+        super.new(name);
+    endfunction
+
+    function void pre_randomize();
+        super.pre_randomize();
+
+        if(rand_mode_locked)
+            value.rand_mode(0);
+    endfunction
+
+    function void set_value(int data);
+        this.value = data;
+    endfunction
+
+    function int get_value();
+        return this.value;
+    endfunction
+endclass
+{% endif %}

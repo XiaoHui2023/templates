@@ -1,0 +1,67 @@
+`ifndef {{ class_package | upper }}
+`define {{ class_package | upper }}
+
+package {{ class_package }};
+timeunit 1fs;
+timeprecision 1fs;
+
+/*
+ * 时间转换
+ *
+ * time_ref : 输入 $realtime
+ */
+function automatic string get_timeunit(real time_ref);
+    string s;
+    real t;
+    real d;
+
+    // 读取
+    t = $realtime;
+
+    if(!t)
+        return "";
+
+    // 计算
+    d = t/time_ref;
+
+    // fs
+    s = "fs";
+
+    // ps
+    if(d >= 1000) begin
+        d /= 1000;
+        s = "ps";
+    end
+
+    // ns
+    if(d >= 1000) begin
+        d /= 1000;
+        s = "ns";
+    end
+
+    // us
+    if(d >= 1000) begin
+        d /= 1000;
+        s = "us";
+    end
+
+    // ms
+    if(d >= 1000) begin
+        d /= 1000;
+        s = "ms";
+    end
+
+    // s
+    if(d >= 1000) begin
+        d /= 1000;
+        s = "s";
+    end
+
+    if(int'(d) > 1)
+        s = {$psprintf("%0d",d),s};
+
+    return s;
+endfunction
+
+endpackage
+`endif

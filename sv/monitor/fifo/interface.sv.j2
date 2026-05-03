@@ -1,0 +1,40 @@
+﻿`ifndef {{ class_interface | upper }}
+`define {{ class_interface | upper }}
+
+interface {{ class_interface }};
+    input wire clk; // 时钟
+    input wire req; // 请求
+    input wire valid; // 有效
+    input wire[31:0] addr; // 地址
+    input wire ack; // 应答
+    input wire[31:0] len; // 字节长度
+    input wire last; // 结束
+    input wire[31:0] bits; // 读取为bits(PATH_TO_DATA)，未声明自动检测
+    input wire[UVM_HDL_MAX_WIDTH-1:0] data; // 数据
+
+    int data_width; // 数据线宽
+
+    // 自动检测配置
+    initial begin
+        #0;
+        data_width = get_bits(data);
+    end
+
+    // 获得bits
+    function int get_bits(data);
+        if(data_width == 0) begin
+            return bits;
+        end
+        `uvm_fatal("", $psprintf("%m:require bits"))
+    endfunction
+
+    // 开启监测
+    function int get_bits(reg[UVM_HDL_MAX_WIDTH-1:0] d);
+        for(int i=$bits(d); i>=0; i--) begin
+            if($isunknown(d[i])) begin
+                return i;
+            end
+        end
+    endfunction
+endinterface
+`endif

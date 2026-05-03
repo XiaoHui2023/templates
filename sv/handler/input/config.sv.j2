@@ -1,0 +1,36 @@
+﻿`ifndef {{ class_config | upper }}
+`define {{ class_config | upper }}
+
+class {{ class_config }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_config }})
+{% for data_type in data_types %}
+{% if data_type.depth %}
+        `uvm_field_sarray_object({{ data_type.name }}, UVM_ALL_ON)
+{% else %}
+        `uvm_field_object({{ data_type.name }}, UVM_ALL_ON)
+{% endif %}
+{% endfor %}
+    `uvm_object_utils_end
+
+{% for data_type in data_types %}
+    rand {{ class_sub_config }} {{ data_type.name }}{{ data_type.array_declaration }};
+{% endfor %}
+
+    function new(string name="{{ class_config }}");
+        super.new(name);
+
+{% for data_type in data_types %}
+{% if data_type.depth %}
+        foreach({{ data_type.name }}[id]) begin
+            {{ data_type.name }}[id] = {{ class_sub_config }}::type_id::create($sformatf("{{ data_type.name }}[%0d]", id));
+        end
+{% else %}
+        if(!{{ data_type.name }}) begin
+            {{ data_type.name }} = {{ class_sub_config }}::type_id::create("{{ data_type.name }}");
+        end
+{% endif %}
+{% endfor %}
+    endfunction
+endclass
+
+`endif

@@ -1,0 +1,21 @@
+`ifndef {{ class_prefix | upper }}REGISTER_IDCODE_REQ
+`define {{ class_prefix | upper }}REGISTER_IDCODE_REQ
+
+class {{ class_prefix }}register_idcode_req extends {{ class_prefix }}register_req;
+    `uvm_object_utils({{ class_prefix }}register_idcode_req)
+
+    function new(string name = "{{ class_prefix }}register_idcode_req");
+        super.new(name);
+
+        this.name = "idcode";
+    endfunction
+
+    constraint cst_prefab {
+        addr == 8'b0000_0000;
+        bits == 32;
+        act_type == READ;
+        soft value == p_sequencer.cfg.idcode;
+    }
+endclass
+
+`endif

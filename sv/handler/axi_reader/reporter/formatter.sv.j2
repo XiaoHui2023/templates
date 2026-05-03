@@ -1,0 +1,148 @@
+﻿`ifndef {{ class_formatter | upper }}
+`define {{ class_formatter | upper }}
+
+class {{ class_formatter }};
+    typedef string string_queue[$];
+    typedef string string_queue2[$][$];
+
+    parameter SIGN_ERROR = '*';
+
+    function new({{ class_space }} space,int line_byte=8);
+        this.space = space;
+        this.line_byte = line_byte;
+    endfunction
+
+    protected {{ class_space }} space;
+    protected int line_byte; // 每行显示数据最大多少字节
+
+    // 生成正文
+    extern function string_queue2 body();
+
+    // 布局
+    extern function string layout();
+
+    // 标题
+    extern function string_queue get_title();
+
+    // 是否成功
+    extern function bit pass;
+
+    // 把一行转换为一个字符串列表，符合表格输出
+    extern function string_queue cast_row_to_text_list({{ class_block }} blk,int index);
+
+    // 将地址转为文本
+    extern protected function string cast_track_to_text({{ class_track }} track,int data_byte);
+endclass
+
+function {{ class_formatter }}::string_queue2 {{ class_formatter }}::body();
+    int id;
+
+    foreach(space.block_list[j]) begin
+        {{ class_block }} blk;
+        int sum;
+
+        blk = space.block_list[j];
+        sum = blk.max_size;
+
+        for(int J=0;J<sum;J++) begin
+            string line[$];
+
+            id += 1;
+
+            line.push_back($psprintf("%0d",id));
+            line.push_back(blk.pass ? "" : SIGN_ERROR);
+            line = {line,cast_row_to_text_list(blk,J)};
+
+            body.push_back(line);
+        end
+    end
+endfunction
+
+function string {{ class_formatter }}::layout();
+    {{ class_table }} tb;
+    string content;
+
+    if(!this.space.first_block)
+        return;
+
+    // tb
+    tb = new(.head(get_title()));
+    content = tb.main(this.body);
+
+    return content;
+endfunction
+
+function {{ class_formatter }}::string_queue {{ class_formatter }}::get_title();
+    string title[$];
+
+    title = '{"id","result"};
+
+    if(!this.space.first_block)
+        return;
+
+    foreach(this.space.first_block.column_list[j])
+        title.push_back(this.space.first_block.column_list[j].name);
+
+    return title;
+endfunction
+
+function bit {{ class_formatter }}::pass;
+    if(!this.space.first_block)
+        return 0;
+
+    foreach(this.space.block_list[j])
+        if(!this.space.block_list[j].pass)
+            return 0;
+
+    return 1;
+endfunction
+
+function {{ class_formatter }}::string_queue {{ class_formatter }}::cast_row_to_text_list({{ class_block }} blk,int index);
+    string text_list[$];
+
+    foreach(blk.column_list[j]) begin
+        {{ class_track }} track;
+
+        track = blk.column_list[j].track_list[index];
+
+        if(track)
+            text_list.push_back(cast_track_to_text(track,this.line_byte));
+        else
+            text_list.push_back("");
+    end
+
+    return text_list;
+endfunction
+
+function string {{ class_formatter }}::cast_track_to_text({{ class_track }} track,int data_byte);
+    string s_addr;
+    int len;
+    int burst;
+
+    // compute
+    len = track.len;
+    burst = track.burst;
+
+    if(!track.is_valid)
+        return;
+
+    // 连续突发合并显示
+    if(burst > 1 && track.is_sequential) begin
+        len *= burst;
+        burst = 1;
+    end
+
+    // addr
+    s_addr = {s_addr,$psprintf("0x%0h",track.addr)};
+    if(len > 1)
+        s_addr = {s_addr,$psprintf(" ~ %0d",len)};
+    if(burst > 1) begin
+        s_addr = {s_addr,$psprintf(" * %0d",burst)};
+        if(!track.is_sequential)
+            s_addr = {s_addr,$psprintf(" + 0x%0h",track.stride)};
+    end
+
+    return s_addr;
+endfunction
+
+`endif

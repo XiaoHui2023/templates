@@ -1,0 +1,103 @@
+`ifndef {{ class_pull_test_seq | upper }}
+`define {{ class_pull_test_seq | upper }}
+
+class {{ class_pull_test_seq }} extends {{ class_base_seq }};
+    `uvm_object_utils({{ class_pull_test_seq }})
+
+    function new(string name = "{{ class_pull_test_seq }}");
+        super.new(name);
+    endfunction
+
+    // 复用上下拉测试，配置寄存器方向和使能
+    extern task body();
+
+    // 测试拉手是否上拉
+    extern virtual task test_pull_up({{ class_pull_data }} data,bit wdata);
+
+    // 测试拉手是否下拉
+    extern virtual task test_pull_down({{ class_pull_data }} data,bit wdata);
+
+    // 写寄存器
+    extern task write_reg({{ class_reg_struct }} s,bit[31:0] value);
+endclass
+
+task {{ class_pull_test_seq }}::body();
+    foreach(cfg.pull_datas[i]) begin
+        `uvm_info("",$spsrintf("test pin %0d",cfg.pull_datas[i].id),UVM_LOW)
+
+        test_pull_up(cfg.pull_datas[i],1);
+        test_pull_up(cfg.pull_datas[i],0);
+        test_pull_down(cfg.pull_datas[i],1);
+        test_pull_down(cfg.pull_datas[i],0);
+    end
+endtask
+
+task {{ class_pull_test_seq }}::test_pull_up({{ class_pull_data }} data,bit wdata);
+    reg exp;
+    reg value;
+
+    if(wdata)
+        exp = 1;
+    else
+        exp = 1'bz;
+
+    if(data.is_fixed_pull_up)
+        exp = 1;
+    if(data.is_fixed_pull_down)
+        exp = 0;
+
+    write_reg(data.reg_pull_up,wdata);
+    value = cfg.pin_if.data[data.id];
+
+    if(value !== exp)
+        `uvm_error("",$spsrintf("pin[%0d] pull up is require %x,but %x",
+            data.id,
+            wdata ? "valid" : "invalid",
+            exp,
+            value
+        ))
+endtask
+
+task {{ class_pull_test_seq }}::test_pull_down({{ class_pull_data }} data,bit wdata);
+    reg exp;
+    reg value;
+
+    if(wdata)
+        exp = 0;
+    else
+        exp = 1'bz;
+
+    if(data.is_fixed_pull_up)
+        exp = 1;
+    if(data.is_fixed_pull_down)
+        exp = 0;
+
+    write_reg(data.reg_pull_down,wdata);
+    value = cfg.pin_if.data[data.id];
+
+    if(value !== exp)
+        `uvm_error("",$spsrintf("pin[%0d] pull down is require %x,but %x",
+            data.id,
+            wdata ? "valid" : "invalid",
+            exp,
+            value
+        ))
+endtask
+
+task {{ class_pull_test_seq }}::write_reg({{ class_reg_struct }} s,bit[31:0] value);
+    uvm_status_e status;
+    bit[31:0] rdata;
+    bit[31:0] wdata;
+    bit[31:0] mask;
+    uvm_reg r;
+
+    r = s.r;
+
+    mask = (2**s.width-1) << s.lsb;
+    r.read(status,rdata);
+
+    wdata = (rdata & ~mask) | (value << s.lsb) & mask;
+    r.write(status,wdata);
+endtask
+
+`endif

@@ -1,0 +1,68 @@
+﻿`ifndef {{ class_signal_io | upper }}
+`define {{ class_signal_io | upper }}
+
+class {{ class_signal_io }} extends uvm_component;
+    `uvm_component_utils({{ class_signal_io }})
+
+    function new(string name="{{ class_signal_io }}", uvm_component parent=null);
+        super.new(name,parent);
+    endfunction
+
+    virtual {{ class_interface }} vif;
+    protected static bit has_written[string]; // 是否曾经写过
+    protected string load_filename; // 输入文件名
+    protected string save_filename; // 输出文件名
+    protected bit[{{ time_width }}-1:0] last_time;
+    protected bit ls_load_done; // 是否加载完成
+    protected bit ls_save; // 是否保存
+    protected bit ls_load; // 是否加载
+    protected bit first_reset; // 首次复位标记
+
+    extern function void start_of_simulation();
+    extern task run();
+    extern task main_phase(uvm_phase phase);
+
+    // 复位加载
+    extern function void reset_load();
+
+    // 运行前载入
+    extern task run_save();
+
+    // 运行加载
+    extern task run_load();
+
+    // 保存信号
+    extern function void save_signal(int id, bit[{{ data_width }}-1:0] value);
+
+    // 读取信号
+    extern function void byte_to_packet(input bit[7:0] in[$], output {{ class_struct }} out[$]);
+
+    // 解包
+    extern function void packet_to_byte(input {{ class_struct }} in, ref bit[7:0] out[$]);
+
+    // 记录到文件，返回是否成功
+    extern function bit read_file(input string src, output bit[7:0] data[$]);
+
+    // 写二进制文件
+    extern function void write_file(string src, bit[7:0] data[$]);
+
+    // 获取路径
+    extern function string dirname(string path);
+
+    // 生成目录
+    extern function void mkdir(string path);
+endclass
+
+function void {{ class_signal_io }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(uvm_config_db#(virtual {{ class_interface }})::get(this,"","vif",vif))
+        `uvm_fatal("","require vif")
+
+    if(uvm_config_db#(string)::get(this,"","load",load_filename))
+        `uvm_info("",$psprintf("load filename: %s",load_filename),UVM_LOW)
+    if(uvm_config_db#(string)::get(this,"","save",save_filename))
+        `uvm_info("",$psprintf("save filename: %s",save_filename),UVM_LOW)
+endfunction
+
+`endif

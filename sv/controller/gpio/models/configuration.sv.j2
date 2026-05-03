@@ -1,0 +1,53 @@
+`ifndef {{ class_configuration | upper }}
+`define {{ class_configuration | upper }}
+
+class {{ class_configuration }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_configuration }})
+        `uvm_field_string(group_name,UVM_ALL_ON)
+        `uvm_field_int(num,UVM_ALL_ON)
+        `uvm_field_int(pin_mask,UVM_ALL_ON)
+        `uvm_field_object(regmodel,UVM_ALL_ON|UVM_NOPRINT|UVM_NOCOPY)
+        `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    string group_name; // 组名
+    virtual {{ class_interface }} vif; // 接口
+    {{ class_regmodel }} regmodel; // 寄存器模型
+
+    rand int num; // 管脚数量
+    rand bit[31:0] pin_mask; // 管脚掩码
+    rand bit has_randomized; // 是否随机过
+
+    function new(string name="{{ class_configuration }}");
+        super.new(name);
+    endfunction
+
+    constraint cst {
+        regmodel != null;
+        has_randomized == 1;
+
+        // 默认全有效
+        foreach(pin_mask[i]) {
+            if(i < num)
+                soft pin_mask[i] == 1;
+            else
+                pin_mask[i] == 0;
+        }
+
+        // 数量
+        soft num == 32;
+        num inside {[0:32]};
+    }
+
+    function void post_randomize();
+        super.post_randomize();
+
+        if(!vif)
+            `uvm_fatal("", "require vif")
+    endfunction
+
+    constraint cst_user;
+    constraint cst_case;
+endclass
+
+`endif

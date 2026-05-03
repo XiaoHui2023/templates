@@ -1,0 +1,112 @@
+`ifndef BP_FIFO2AXI_MDL
+`define BP_FIFO2AXI_MDL
+
+class BP_fifo2axi_mdl #(bit AUTO_ID = 0) extends uvm_component;
+    `uvm_component_param_utils(BP_fifo2axi_mdl#(AUTO_ID))
+
+    uvm_analysis_port #(Data_packet) i_fifo_ap;
+    uvm_analysis_port #(Data_packet) i_axi_ap;
+    uvm_analysis_port #(Data_packet) o_fifo_ap;
+
+    `uvm_analysis_imp_decl(_axi)
+    `uvm_analysis_imp_decl(_fifo)
+    uvm_analysis_imp_axi #(Data_packet, BP_fifo2axi_mdl#(AUTO_ID)) axi_imp;
+    uvm_analysis_imp_fifo #(Data_packet, BP_fifo2axi_mdl#(AUTO_ID)) fifo_imp;
+
+    function new(string name="BP_fifo2axi_mdl", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
+    extern task reset_phase(uvm_phase phase);
+    extern function void check_phase(uvm_phase phase);
+
+    Data_packet f_fifo[$];
+    Data_packet f_axi[$];
+
+    BP_fifo2axi_config cfg;
+
+    extern function void main();
+    extern function bit fifo_check();
+    extern function void write_axi(Data_packet data_in);
+    extern function void write_fifo(Data_packet data_in);
+endclass
+
+function void BP_fifo2axi_mdl::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    i_axi_ap = new("i_axi_ap", this);
+    i_fifo_ap = new("i_fifo_ap", this);
+    axi_imp = new("axi_imp", this);
+    fifo_imp = new("fifo_imp", this);
+    o_fifo_ap = new("o_fifo_ap", this);
+endfunction
+
+function void BP_fifo2axi_mdl::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    i_axi_ap.connect(axi_imp);
+    i_fifo_ap.connect(fifo_imp);
+endfunction
+
+task BP_fifo2axi_mdl::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+    fifo_check();
+    f_fifo.delete();
+    f_axi.delete();
+endtask
+
+function void BP_fifo2axi_mdl::check_phase(uvm_phase phase);
+    super.check_phase(phase);
+    fifo_check();
+endfunction
+
+function void BP_fifo2axi_mdl::main();
+    while (cfg.enable && f_fifo.size() && f_axi.size()) begin
+        Data_packet fifo;
+        Data_packet axi;
+        Data_packet out;
+        Data_packet residue[$];
+        BP_fifo2axi_core core;
+        fifo = f_fifo.pop_front();
+        axi = f_axi.pop_front();
+        core = new(fifo, axi, cfg);
+        core.transfer(out, residue);
+        f_fifo = {residue, f_fifo};
+        `uvm_info("", $sformatf("Out fifo:\n%s\nref axi:\n%s", out.sprint(), axi.sprint()), UVM_DEBUG)
+        o_fifo_ap.write(out);
+    end
+endfunction
+
+function void BP_fifo2axi_mdl::write_axi(Data_packet data_in);
+    if (!cfg.enable)
+        return;
+    $cast(data_in, data_in.clone());
+    `uvm_info("", $sformatf("In axi:\n%s", data_in.sprint()), UVM_DEBUG)
+    f_axi.push_back(data_in);
+    main();
+endfunction
+
+function void BP_fifo2axi_mdl::write_fifo(Data_packet data_in);
+    if (!cfg.enable)
+        return;
+    $cast(data_in, data_in.clone());
+    `uvm_info("", $sformatf("In fifo:\n%s", data_in.sprint()), UVM_DEBUG)
+    f_fifo.push_back(data_in);
+    main();
+endfunction
+
+function bit BP_fifo2axi_mdl::fifo_check();
+    int num_fifo;
+    int num_axi;
+    if (!cfg.enable)
+        return 1;
+    num_fifo = f_fifo.size();
+    num_axi = f_axi.size();
+    if (num_fifo > 0 || num_axi > 0) begin
+        `uvm_error("", $sformatf("remain : num fifo = %0d num axi = %0d", num_fifo, num_axi))
+        return 0;
+    end
+    return 1;
+endfunction
+
+`endif

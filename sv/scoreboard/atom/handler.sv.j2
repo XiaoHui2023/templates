@@ -1,0 +1,81 @@
+`ifndef {{ class_handler | upper }}
+`define {{ class_handler | upper }}
+
+class {{ class_handler }};
+    typedef string string_queue[$];
+
+    protected static bit file_reported[string]; // 是否输出过文件
+
+    /*
+     * 输出文件
+     *
+     * file_path : 文件路径
+     * content : 文件内容
+     *
+     * 文件内容不会重复打印
+     */
+    extern function void write_text(string file_path,string content);
+
+    // 获取目录
+    extern protected function string dir(string path);
+
+    // 创建目录
+    extern protected function void mkdir(string path);
+
+    // 写文件
+    extern protected function void file_write(string dst,string str,string op="w");
+endclass
+
+function void {{ class_handler }}::write_text(string file_path,string content);
+    string msg;
+
+    if(!content.len)
+        return;
+
+    // 清空原文件
+    if(!file_reported[file_path]) begin
+        mkdir(dir(file_path));
+        file_write(file_path,"");
+    end
+
+    content = $psprintf("@ %0t result :\n%s",$time,content);
+    file_write(file_path,content,"a");
+
+    file_reported[file_path] = 1;
+endfunction
+
+function string {{ class_handler }}::dir(string path);
+    string c;
+
+    // 查找目录
+    for(int i=path.len-1;i>=0;i--) begin
+        c = path.getc(i);
+
+        if(c == "/")
+            return path.substr(0,i-1);
+    end
+
+    return "";
+endfunction
+
+function void {{ class_handler }}::mkdir(string path);
+    if(!path.len)
+        return;
+
+    $system($psprintf("mkdir -p %s",path));
+endfunction
+
+function void {{ class_handler }}::file_write(string dst,string str,string op);
+    int file;
+
+    // alias
+    if(op == "a")
+        str = {"\n",str};
+
+    // 写文件
+    file = $fopen(dst,op);
+    $fwrite(file,"%s",str);
+    $fclose(file);
+endfunction
+
+`endif

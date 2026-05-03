@@ -1,0 +1,214 @@
+`ifndef {{ base_core.class_name | upper }}
+`define {{ base_core.class_name | upper }}
+
+class {{ base_core.class_name }} extends uvm_component;
+    `uvm_component_utils({{ base_core.class_name }})
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+    endfunction
+
+    // 计算一次。有效的输出都从对应端口发出。需要重载
+    virtual function void {{ base_core.hook_run_name }}(
+        {%- for data_type in input_data_types -%}
+        input {{ data_type.class_name }} {{ data_type.var_name }}{{ data_type.array_declaration }},
+        {%- endfor %}
+        {%- for data_type in output_data_types %}
+        output {{ data_type.class_name }} {{ data_type.var_name }}{{ data_type.array_declaration }}{{ ',' if not loop.last else '' }}
+        {%- endfor -%}
+    ); `uvm_fatal("","require override") endfunction
+
+    {%- if include_function.is_from_twos_complement_active %}
+/*
+    补码转源码
+
+    d : 数值
+    width : 位宽
+    sign : 是否是有符号数，默认否
+*/
+extern function bit[UVM_HDL_MAX_WIDTH-1:0] from_twos_complement(bit[UVM_HDL_MAX_WIDTH-1:0] d,int width,bit sign=0);
+    {%- endif %}
+
+    {%- if include_function.is_to_twos_complement_active %}
+/*
+    原码转补码
+
+    d : 数值
+    width : 位宽
+    sign : 是否是有符号数，默认否
+    saturate : 是否饱和，默认否
+*/
+extern function bit[UVM_HDL_MAX_WIDTH-1:0] to_twos_complement(bit signed[UVM_HDL_MAX_WIDTH-1:0] d,int width,bit sign=0,bit saturate=0);
+    {%- endif %}
+
+    {%- if include_function.cut %}
+/*
+    裁剪
+
+    data : 数值
+    width : 位宽
+    start_bit : 起始位，默认0
+*/
+extern function reg[UVM_HDL_MAX_WIDTH-1:0] cut(reg[UVM_HDL_MAX_WIDTH-1:0] data,int width,int start_bit=0);
+    {%- endif %}
+
+    {%- if include_function.slice %}
+/*
+    msb 和 lsb可以调换位置
+*/
+extern function reg[UVM_HDL_MAX_WIDTH-1:0] slice(reg[UVM_HDL_MAX_WIDTH-1:0] data,int msb,int lsb);
+    {%- endif %}
+
+    {%- if include_function.resize %}
+/*
+    重新设置位宽（考虑符号）
+
+    data : 数值
+    in_width : 输入位宽
+    out_width : 输出位宽
+    sign : 是否是有符号数
+*/
+extern function bit[UVM_HDL_MAX_WIDTH-1:0] resize(bit[UVM_HDL_MAX_WIDTH-1:0] data,int in_width,int out_width,bit sign);
+    {%- endif %}
+
+    {%- if include_function.pad %}
+/*
+    填充高位
+
+    data : 数值
+    in_width : 输入位宽
+    out_width : 输出位宽
+    padding : 填充数据
+*/
+extern function reg[UVM_HDL_MAX_WIDTH-1:0] pad(reg[UVM_HDL_MAX_WIDTH-1:0] data,int in_width,int out_width,reg padding='1bx);
+    {%- endif %}
+endclass
+
+    {%- if include_function.is_from_twos_complement_active %}
+function bit signed[UVM_HDL_MAX_WIDTH-1:0] {{ base_core.class_name }}::from_twos_complement(bit[UVM_HDL_MAX_WIDTH-1:0] d,int width,bit sign);
+    bit[UVM_HDL_MAX_WIDTH-1:0] mask;
+    bit negative;
+
+    if(sign)
+        mask = ~0 >> $size(mask)-width+1;
+    else
+        mask = ~0 >> $size(mask)-width;
+
+    // 无符号数
+    if(!sign) begin
+        d &= mask;
+        return d;
+    end
+
+    negative = d[width-1];
+    d &= mask;
+
+    // 负数
+    if(negative) begin
+        d != ~mask;
+        d = ~d + 1;
+
+        from_twos_complement = d;
+        from_twos_complement *= -1;
+    end
+    else begin
+        from_twos_complement = d;
+    end
+endfunction
+    {%- endif %}
+
+    {%- if include_function.is_to_twos_complement_active %}
+function bit[UVM_HDL_MAX_WIDTH-1:0] {{ base_core.class_name }}::to_twos_complement(bit signed[UVM_HDL_MAX_WIDTH-1:0] d,int width,bit sign,bit saturate);
+    bit[UVM_HDL_MAX_WIDTH-1:0] mask;
+    bit negative;
+
+    negative = d < 0;
+
+    if(!sign && negative)
+        `uvm_fatal("",$psprintf("illegal negative data=>%0d",d))
+
+    if(sign)
+        mask = ~0 >> $size(mask)-width+1;
+    else
+        mask = ~0 >> $size(mask)-width;
+
+    // 饱和
+    if(saturate) begin
+        bit signed[UVM_HDL_MAX_WIDTH-1:0] limit;
+
+        limit = mask;
+        if(negative)
+            limit = -1 * limit - 1;
+
+        if(!negative && d > limit)
+            d = limit;
+        else if(negative && d < limit)
+            d = limit;
+    end
+
+    if(negative) begin
+        //d = ~d + 1;
+        d &= mask;
+        d[width-1] = 1;
+    end
+    else begin
+        d &= mask;
+    end
+
+    return d;
+endfunction
+    {%- endif %}
+
+    {%- if include_function.cut %}
+function reg[UVM_HDL_MAX_WIDTH-1:0] {{ base_core.class_name }}::cut(reg[UVM_HDL_MAX_WIDTH-1:0] data,int width,int start_bit);
+    reg[UVM_HDL_MAX_WIDTH-1:0] m;
+
+    m = 2**width-1;
+
+    if(start_bit)
+        m <<= start_bit;
+
+    cut = data & m;
+
+    if(start_bit)
+        cut >>= start_bit;
+endfunction
+    {%- endif %}
+
+    {%- if include_function.slice %}
+function reg[UVM_HDL_MAX_WIDTH-1:0] {{ base_core.class_name }}::slice(reg[UVM_HDL_MAX_WIDTH-1:0] data,int msb,int lsb);
+    int width;
+
+    if(lsb > msb) begin
+        int tmp;
+
+        tmp = lsb;
+        lsb = msb;
+        msb = tmp;
+    end
+
+    width = msb-lsb+1;
+
+    return cut(data,width,lsb);
+endfunction
+    {%- endif %}
+
+    {%- if include_function.resize %}
+function bit[UVM_HDL_MAX_WIDTH-1:0] {{ base_core.class_name }}::resize(bit[UVM_HDL_MAX_WIDTH-1:0] data,int in_width,int out_width,bit sign);
+    data = from_twos_complement(data,in_width,.sign(sign));
+    data = to_twos_complement(data,out_width,.saturate(1),.sign(sign));
+    return data;
+endfunction
+    {%- endif %}
+
+    {%- if include_function.pad %}
+function reg[UVM_HDL_MAX_WIDTH-1:0] {{ base_core.class_name }}::pad(reg[UVM_HDL_MAX_WIDTH-1:0] data,int in_width,int out_width,reg padding);
+    if(out_width <= in_width)
+        return data;
+
+    pad = data;
+    for(int i=in_width;i<out_width;i++)
+        pad[i] = padding;
+endfunction
+    {%- endif %}
+`endif

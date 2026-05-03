@@ -1,0 +1,61 @@
+`ifndef {{ class_model | upper }}
+`define {{ class_model | upper }}
+
+class {{ class_model }} extends uvm_component;
+    `uvm_component_utils({{ class_model }})
+
+    {%- if is_run_return_queue %}
+typedef {{ run_return.class_name }} {{ get_run_return_type() }};
+    {%- endif %}
+    {%- for data in output_data_types %}
+    uvm_analysis_port#({{ data.class_name }}) {{ data.port_name }};
+    {%- endfor %}
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {%- for data in output_data_types %}
+        {{ data.port_name }} = new("{{ data.port_name }}",this);
+        {%- endfor %}
+
+        core = {{ class_core }}::type_id::create("core",this);
+    endfunction
+
+    {{ class_core }} core;
+
+    // 计算
+    extern function {{ get_run_return_type() }} {{ hook_run_name }}({{ run_argument_declare(is_extern=False) }});
+endclass
+
+function {{ get_run_return_type(is_extern=True) }} {{ class_model }}::{{ hook_run_name }}({{ run_argument_declare(is_extern=True) }});
+    {%- for data in run_output_locals %}
+    {{ data.class_name }} {{ data.var_name }}{{ data.array_declaration }};
+    {%- endfor %}
+
+    // 打印输入
+    {%- for data in input_data_types %}
+{{ print_data(data,'input ') | indent(4) }}
+    {%- endfor %}
+
+    // 复制
+    {%- for data in input_data_types %}
+{{ clone_data(data) | indent(4) }}
+    {%- endfor %}
+
+    // 计算
+    core.{{ base_core.hook_run_name }}(
+        {%- for data in input_data_types+output_data_types %}
+        {{ data.var_name }}{{ ',' if not loop.last else '' }}
+        {%- endfor -%}
+    );
+
+    // 输出
+    {%- for data in output_data_types %}
+{{ run_write_data(data) | indent(4) }}
+    {%- endfor %}
+    {%- if run_return %}
+
+    return {{ run_return.var_name }};
+    {%- endif %}
+endfunction
+`endif

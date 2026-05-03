@@ -1,0 +1,34 @@
+﻿`ifndef {{ class_sub_config | upper }}
+`define {{ class_sub_config | upper }}
+
+class {{ class_sub_config }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_sub_config }})
+        `uvm_field_int(bytes, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(len, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(main, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(valid, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(quota, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(width, UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    rand int bytes; // 输入数据占几个字节
+    rand int len; // 数据长度
+    rand bit valid; // 是否有效
+    rand int quota; // 端口额度
+    rand int width; // 输入数据占几个字节
+
+    constraint cst {
+        soft bytes == 0;
+        soft len == 0;
+
+        valid == (len > 0 && width > 0);
+        quota == width + len;
+        width == bytes * 8;
+    }
+
+    function new(string name="{{ class_sub_config }}");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

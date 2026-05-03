@@ -1,0 +1,132 @@
+`ifndef {{ class_generator | upper }}
+`define {{ class_generator | upper }}
+
+class {{ class_generator }} extends uvm_component;
+    `uvm_component_utils({{ class_generator }})
+    typedef {{ class_token }} queue_token[$];
+
+    {%- for data_type in data_types %}
+    uvm_analysis_port #(queue_token) {{ data_type.out_port_name }}{{ data_type.array_declaration }};
+    {%- endfor %}
+    uvm_analysis_port #({{ class_config }}) {{ config_port_name }};
+    `uvm_analysis_imp_decl(_config) protected uvm_analysis_imp_config #({{ class_config }},{{ class_generator }}) config_imp;
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ config_port_name }} = new("{{ config_port_name }}",this);
+        config_imp = new("config_imp",this);
+
+        {%- for data_type in data_types %}
+        {%- if data_type.depth %}
+        foreach({{ data_type.out_port_name }}[J])
+            {{ data_type.out_port_name }}[J] = new($psprintf("{{ data_type.out_port_name }}[%0d]",J),this);
+        {%- else %}
+        {{ data_type.out_port_name }} = new("{{ data_type.out_port_name }}",this);
+        {%- endif %}
+        {%- endfor %}
+    endfunction
+
+    extern function void connect();
+
+    /*
+     * 计算一次
+     *
+     * addr   : 起始地址
+     * len    : 数据长度
+     * burst  : 突发次数
+     * stride : 每次之间步进（默认等于长度）
+     */
+    extern function void compute(
+        input bit[31:0] addr,
+        input int len,
+        input int burst=1,
+        input int stride=-1,
+        output {{ class_token }} out_queue[$]
+    );
+
+    {%- for data_type in data_types %}
+
+    // 计算数据 {{ data_type.name }}
+    extern function void compute_{{ data_type.name }}({{ 'int id, ' if data_type.depth }}bit[31:0] addr,int len,int burst=1,int stride=-1);
+    {%- endfor %}
+
+    // 写入配置
+    extern function void write_config({{ class_config }} {{ name_config }});
+
+    // 钩子函数，输入配置时调用一次，需要额外实现
+    extern function void {{ hook_name }}({{ class_config }} {{ name_config }});
+endclass
+
+function void {{ class_generator }}::connect();
+    super.connect();
+
+    {{ config_port_name }}.connect(config_imp);
+endfunction
+
+function void {{ class_generator }}::compute(
+    input bit[31:0] addr,
+    input int len,
+    input int burst,
+    input int stride,
+    output {{ class_token }} out_queue[$]
+);
+    bit[31:0] adr;
+
+    // default
+    if(stride < 0)
+        stride = len;
+
+    // init
+    adr = addr;
+
+    repeat(burst) begin
+        for(int J=0;J<len;J++) begin
+            {{ class_token }} data;
+
+            data = new(.addr(adr+J));
+            out_queue.push_back(data);
+        end
+
+        // step
+        adr += stride;
+    end
+endfunction
+
+{%- for data_type in data_types %}
+
+function void {{ class_generator }}::compute_{{ data_type.name }}({{ 'int id, ' if data_type.depth }}bit[31:0] addr,int len,int burst,int stride);
+    {{ class_token }} out_queue[$];
+
+    `uvm_info("",$psprintf("compute {{ data_type.name }}:"
+        {%- if data_type.depth %}
+        " id:%0d,"
+        {%- endif %}
+        "addr=%0h,"
+        "len=%0d,"
+        "burst=%0d,"
+        "stride=%0d",
+        {%- if data_type.depth %}id,{%- endif %}
+        addr,
+        len,
+        burst,
+        stride
+    ),UVM_HIGH)
+
+    compute(addr,len,burst,stride,out_queue);
+
+    {{ data_type.out_port_name }}{{ '[id]' if data_type.depth }}.write(out_queue);
+endfunction
+
+{%- endfor %}
+
+function void {{ class_generator }}::write_config({{ class_config }} {{ name_config }});
+    // 克隆
+    $cast({{ name_config }},{{ name_config }}.clone());
+
+    `uvm_info("",$psprintf("input config:\n%s",{{ name_config }}.sprint()),UVM_HIGH)
+
+    {{ hook_name }}({{ name_config }});
+endfunction
+
+`endif

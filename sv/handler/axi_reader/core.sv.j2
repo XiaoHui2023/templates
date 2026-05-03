@@ -1,0 +1,197 @@
+`ifndef {{ class_core | upper }}
+`define {{ class_core | upper }}
+
+class {{ class_core }} extends uvm_component;
+    `uvm_component_utils({{ class_core }})
+    typedef {{ class_token }} queue_token[$];
+
+    uvm_analysis_port #(queue_token) {{ axi_port_name }};
+    `uvm_analysis_imp_decl(_axi) protected uvm_analysis_imp_axi #(queue_token,{{ class_core }}) axi_imp;
+    {%- for data_type in data_types %}
+    uvm_analysis_port #(queue_token) {{ data_type.in_port_name }}{{ data_type.array_declaration }};
+    uvm_analysis_port #(Data_packet) {{ data_type.out_port_name }}{{ data_type.array_declaration }};
+    `{{ define_array_imp_decl }}(_{{ data_type.name }}) protected uvm_analysis_imp_{{ data_type.name }} #(queue_token,{{ class_core }}) {{ data_type.imp_name }}{{ data_type.array_declaration }};
+    {%- endfor %}
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ axi_port_name }} = new("{{ axi_port_name }}",this);
+        axi_imp = new("axi_imp",this);
+
+        {%- for data_type in data_types %}
+        {%- if data_type.depth %}
+        foreach({{ data_type.in_port_name }}[J])
+            {{ data_type.in_port_name }}[J] = new($psprintf("{{ data_type.in_port_name }}[%0d]",J),this);
+        foreach({{ data_type.out_port_name }}[J])
+            {{ data_type.out_port_name }}[J] = new($psprintf("{{ data_type.out_port_name }}[%0d]",J),this);
+        foreach({{ data_type.imp_name }}[J])
+            {{ data_type.imp_name }}[J] = new($psprintf("{{ data_type.imp_name }}[%0d]",J),this,J);
+        {%- else %}
+        {{ data_type.in_port_name }} = new("{{ data_type.in_port_name }}",this);
+        {{ data_type.out_port_name }} = new("{{ data_type.out_port_name }}",this);
+        {{ data_type.imp_name }} = new("{{ data_type.imp_name }}",this);
+        {%- endif %}
+        {%- endfor %}
+    endfunction
+
+    {{ class_token }} buffer_axi[$];
+    {%- for data_type in data_types %}
+    {{ class_token }} {{ data_type.buffer_name }}{{ data_type.array_declaration }}[$];
+    {%- endfor %}
+
+    extern function void connect();
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+
+    // 写入AXI数据
+    extern function void write_axi(queue_token tokens);
+    {%- for data_type in data_types %}
+
+    // 写入 {{ data_type.name }} 地址
+    extern function void write_{{ data_type.name }}(queue_token tokens{{ ',int id' if data_type.depth }});
+    {%- endfor %}
+
+    // 运行
+    extern function void main();
+
+    /*
+     * 根据地址匹配，输出找到的数据包
+     *
+     * buf_real : 真实数据
+     * buf_ref  : 参考地址
+     * outs     : 输出数据包列表
+     */
+    extern function bit match(ref {{ class_token }} buf_real[$],ref {{ class_token }} buf_ref[$],output Data_packet outs[$]);
+endclass
+
+function void {{ class_core }}::connect();
+    super.connect();
+
+    {{ axi_port_name }}.connect(axi_imp);
+
+    {%- for data_type in data_types %}
+    {%- if data_type.depth %}
+    foreach({{ data_type.in_port_name }}[J])
+        {{ data_type.in_port_name }}[J].connect({{ data_type.imp_name }}[J]);
+    {%- else %}
+    {{ data_type.in_port_name }}.connect({{ data_type.imp_name }});
+    {%- endif %}
+    {%- endfor %}
+endfunction
+
+task {{ class_core }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    buffer_axi.delete();
+    {%- for data_type in data_types %}
+    {%- if data_type.depth %}
+    foreach({{ data_type.buffer_name }}[J])
+        {{ data_type.buffer_name }}[J].delete();
+    {%- else %}
+    {{ data_type.buffer_name }}.delete();
+    {%- endif %}
+    {%- endfor %}
+endtask
+
+task {{ class_core }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    if(buffer_axi.size)
+        `uvm_error("",$psprintf("axi remain %0d",buffer_axi.size))
+
+    {%- for data_type in data_types %}
+    {%- if data_type.depth %}
+    foreach({{ data_type.buffer_name }}[J])
+        if({{ data_type.buffer_name }}[J].size)
+            `uvm_error("",$psprintf("{{ data_type.name }}[%0d] remain %0d",J,{{ data_type.buffer_name }}[J].size))
+    {%- else %}
+    if({{ data_type.buffer_name }}.size)
+        `uvm_error("",$psprintf("{{ data_type.name }} remain %0d",{{ data_type.buffer_name }}.size))
+    {%- endif %}
+    {%- endfor %}
+endtask
+
+function void {{ class_core }}::write_axi(queue_token tokens);
+    buffer_axi = {buffer_axi,tokens};
+    main();
+endfunction
+
+{%- for data_type in data_types %}
+
+function void {{ class_core }}::write_{{ data_type.name }}(queue_token tokens{{ ',int id' if data_type.depth }});
+    {{ data_type.buffer_name }}{{ '[id]' if data_type.depth }} = { {{ data_type.buffer_name }}{{ '[id]' if data_type.depth }}, tokens };
+    main();
+endfunction
+
+{%- endfor %}
+
+function void {{ class_core }}::main();
+    forever begin
+        Data_packet outs[$];
+
+        {%- for data_type in data_types %}
+        {%- if data_type.depth %}
+        foreach({{ data_type.buffer_name }}[J])
+            if(match(buffer_axi,{{ data_type.buffer_name }}[J],outs)) begin
+                foreach(outs[K])
+                    {{ data_type.out_port_name }}[J].write(outs[K]);
+                break;
+            end
+        {%- else %}
+        if(match(buffer_axi,{{ data_type.buffer_name }},outs)) begin
+            foreach(outs[K])
+                {{ data_type.out_port_name }}.write(outs[K]);
+            continue;
+        end
+        {%- endif %}
+        {%- endfor %}
+
+        break;
+    end
+endfunction
+
+function bit {{ class_core }}::match(ref {{ class_token }} buf_real[$],ref {{ class_token }} buf_ref[$],output Data_packet outs[$]);
+    Data_packet last;
+
+    forever begin
+        {{ class_token }} cur;
+        bit is_continue;
+
+        // 空数据
+        if(!buf_real.size || !buf_ref.size)
+            break;
+
+        // 地址对不上
+        if(buf_real[0].addr != buf_ref[0].addr)
+            break;
+
+        // pop
+        buf_ref.delete(0);
+        cur = buf_real.pop_front();
+
+        // compute
+        is_continue = last && (last.addr+last.len == cur.addr);
+
+        // new
+        if(!is_continue) begin
+            if(last) begin
+                outs.push_back(last);
+            end
+
+            last = Data_packet::type_id::create({get_full_name(),".match"});
+            last.addr = cur.addr;
+        end
+
+        last.len++;
+        last.data.push_back(cur.data);
+    end
+
+    // output
+    if(last)
+        outs.push_back(last);
+
+    return outs.size > 0;
+endfunction
+
+`endif

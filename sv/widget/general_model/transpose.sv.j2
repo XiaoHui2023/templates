@@ -1,0 +1,160 @@
+{%- set class_name = include_function.transpose.class_name -%}
+{%- set depth = include_function.transpose.depth -%}
+`ifndef {{ class_name | upper }}
+`define {{ class_name | upper }}
+
+/*
+    转置(Transpose)
+
+    T : 类型
+    LEN=({{ depth }}): 维度大小(0->{{ depth-1 }}) 表示从高维到低维
+        每个维度的长度(含多少个低一维)
+        不填则默认1
+
+    MAP=({{ depth-1 }}): 映射关系
+        输入的第几维度对应输出的第几维度
+        每个维度只能一对一
+        不填则默认对应
+*/
+class {{ class_name }}#(
+    type T,
+
+    {%- for i in range(depth) %}
+    int LEN{{ i }}=1,
+    {%- endfor %}
+    {%- for i in range(depth) %}
+    int MAP{{ i }}={{ i }}{{ ',' if not loop.last }}
+    {%- endfor %}
+);
+
+/*
+    in[$] : 输入数据。长度必须为tensor总长度的整数倍
+    out[$] : 输出数据
+    len[$] : 维度长度
+    map[$] : 维度映射表
+*/
+static function void main(input T in[$],output T out[$],input int len[$],input int map[$]);
+    int sum;
+    int _len[int];
+    int _map[int];
+
+    while(len.size < {{ depth }})
+        len.push_back(-1);
+    while(map.size < {{ depth }})
+        map.push_back(-1);
+
+    // alias
+    foreach(len[J])
+        _len[J] = len[J];
+    foreach(map[J])
+        _map[J] = map[J];
+
+    // 默认值
+    setdefault(_len,_map);
+
+    // get
+    sum = get_sum(_len);
+
+    if(in.size % sum != 0)
+        $fatal($psprintf("in.size %% sum = %0d %% %0d = %0d != 0",in.size,sum,in.size%sum));
+
+    repeat(in.size / sum) begin
+        T i[$];
+        T o[$];
+
+        repeat(sum)
+            i.push_back(in.pop_front());
+
+        do_transpose(i,o,_len,_map);
+
+        {{ 'out = {out,o};' }}
+    end
+endfunction
+
+static function void do_transpose(input T in[$],output T out[$],input int len[int],input int map[int]);
+    int o[int];
+    T i{%- for i in range(depth) %}[$]{%- endfor %};
+    T d{%- for i in range(depth) %}[$]{%- endfor %};
+
+    // 检查
+    check(len,map);
+
+    // 输出维长度
+    get_ol(len,map,o);
+
+    // 变形
+    do_shape(i,len);
+    do_shape(d,o);
+
+    // 赋值
+    do_value(i,in,len);
+
+    // 转置
+    foreach(i{%- for i in range(depth) %}[{{ i }}]{{ ',' if not loop.last }}{%- endfor %}) begin
+        int m[{{ depth }}];
+
+        m = '{ {%- for i in range(depth) %}{{ i }}{{ ',' if not loop.last }}{%- endfor %} };
+        d{%- for i in range(depth) %}[m[map[{{ i }}]]]{%- endfor %} = i{%- for i in range(depth) %}[{{ i }}]{%- endfor %};
+    end
+
+    // 流操作
+    {{ 'out = {<<byte{<<byte{d}}};' }}
+endfunction
+
+static function void check(input int len[int],input int map[int]);
+    int _m[int][$];
+
+    foreach(len[J])
+        if(len[J] <= 0)
+            $fatal($psprintf("len[%0d] < 0. len=",J,len));
+
+    foreach(map[J])
+        _m[map[J]].push_back(J);
+
+    for(int J=0;J<{{ depth }};J++) begin
+        if(!_m[J].size)
+            $fatal($psprintf("map error. map=%p",map));
+        if(_m[J].size > 1)
+            $fatal($psprintf("map conflict, dimension %0d -> %p,map=%p",J,_m[J],map));
+    end
+endfunction
+
+static function void setdefault(ref int len[int],ref int map[int]);
+    {%- for i in range(depth) %}
+    if(len[{{ i }}] < 0) len[{{ i }}] = LEN{{ i }};
+    {%- endfor %}
+
+    {%- for i in range(depth) %}
+    if(map[{{ i }}] < 0) map[{{ i }}] = MAP{{ i }};
+    {%- endfor %}
+endfunction
+
+// 总共有多少个数据
+static function int get_sum(int l[int]);
+    int s;
+
+    // 声明
+    s = 1;
+
+    foreach(l[J])
+        s *= l[J];
+
+    return s;
+endfunction
+
+// 得到输出的维度长度表
+static function void get_ol(input int il[int],input int map[int],output int ol[int]);
+    foreach(il[J])
+        ol[J] = il[map[J]];
+endfunction
+
+// 给一个最多{{ depth }}维的空动态数组赋形
+static function void do_shape(ref T d{%- for i in range(depth) %}[$]{%- endfor %},input int l[int]);
+    d = new[l[0]];
+
+    {%- for i in range(1,depth) %}
+    foreach(d{%- for j in range(i) %}[{{ j }}]{%- if not loop.last %},{%- endif %}{%- endfor %})
+        d{%- for j in range(i) %}[{{ j }}]{%- endfor %} = new[l[{{ i }}]];
+    {%- endfor %}
+endfunction
+`endif

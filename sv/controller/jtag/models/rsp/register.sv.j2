@@ -1,0 +1,18 @@
+`ifndef {{ class_prefix | upper }}REGISTER_RSP
+`define {{ class_prefix | upper }}REGISTER_RSP
+
+class {{ class_prefix }}register_rsp extends {{ class_prefix }}base_rsp;
+    `uvm_object_utils_begin({{ class_prefix }}register_rsp)
+        `uvm_field_string(name,UVM_ALL_ON)
+        `uvm_field_int(value,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    string name;
+    bit[255:0] value;
+
+    function new(string name="{{ class_prefix }}register_rsp");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

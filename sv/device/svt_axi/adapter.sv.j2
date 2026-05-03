@@ -1,0 +1,84 @@
+`ifndef BP_AXI_ADAPTER
+`define BP_AXI_ADAPTER
+
+class BP_axi_adapter extends uvm_component;
+    `uvm_analysis_imp_decl(_cmd)
+    `uvm_component_utils(BP_axi_adapter)
+
+    uvm_analysis_imp_cmd #(svt_axi_transaction, BP_axi_adapter) in_port;
+    uvm_analysis_port #(Data_packet) out_data_ap;
+
+    svt_axi_transaction mon_data;
+    svt_axi_transaction mon_data_q[$];
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+    endfunction
+
+    task reset_phase(uvm_phase phase);
+        super.reset_phase(phase);
+        mon_data_q.delete();
+    endtask
+
+    virtual function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        in_port = new("in_port", this);
+        out_data_ap = new("out_data_ap", this);
+    endfunction
+
+    virtual function void write_cmd(input svt_axi_transaction mon_in);
+        `uvm_info("adapter", $sformatf("in:\n%s", mon_in.sprint()), UVM_DEBUG)
+        mon_data_q.push_back(mon_in);
+    endfunction
+
+    function bit [1:0] rresp_check(svt_axi_transaction mon_pkg);
+        bit [1:0] rresp;
+        string rresp_info;
+        bit equal;
+        equal = 1;
+        rresp = mon_pkg.rresp[0];
+        rresp_info = $sformatf("rresp[0] = %s\n", mon_pkg.rresp[0]);
+        for (int i = 1; i <= mon_pkg.burst_length; i++) begin
+            rresp_info = {rresp_info, $sformatf("rresp[%0d] = %s\n", i, mon_pkg.rresp[i])};
+            if (rresp != mon_pkg.rresp[i])
+                equal = 0;
+        end
+        if (!equal)
+            `uvm_fatal("AXI MON", $sformatf("Axi addr %h, %s, rresp not equal", mon_pkg.addr, rresp_info))
+        return rresp;
+    endfunction
+
+    virtual function void trans_data(output Data_packet out_data);
+        out_data = Data_packet::type_id::create({get_full_name(), ".out_data"});
+        out_data.xact_type = (mon_data.xact_type == svt_axi_transaction::READ) ? Data_packet::READ : Data_packet::WRITE;
+        out_data.id = mon_data.id;
+        out_data.addr = mon_data.addr;
+        out_data.port_type = Data_packet::AXI;
+        out_data.burst_size = mon_data.burst_size;
+        out_data.len = mon_data.burst_length;
+        out_data.data.delete();
+        if (mon_data.xact_type == svt_axi_transaction::READ)
+            out_data.resp = rresp_check(mon_data);
+    endfunction
+
+    virtual function void put_axi_data(Data_packet bus_data);
+        Data_packet tmp;
+        $cast(tmp, bus_data.clone());
+        out_data_ap.write(tmp);
+    endfunction
+
+    virtual task main_phase(uvm_phase phase);
+        super.main_phase(phase);
+        forever begin
+            wait (mon_data_q.size() > 0);
+            mon_data = mon_data_q.pop_front();
+            begin
+                Data_packet d;
+                trans_data(d);
+                put_axi_data(d);
+            end
+        end
+    endtask
+endclass
+
+`endif

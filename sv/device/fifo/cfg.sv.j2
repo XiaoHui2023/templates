@@ -1,0 +1,60 @@
+`ifndef BP_FIFO2AXI_CONFIG
+`define BP_FIFO2AXI_CONFIG
+
+class BP_fifo2axi_config extends uvm_sequence_item;
+    `uvm_object_utils_begin(BP_fifo2axi_config)
+        `uvm_field_int(enable,UVM_ALL_ON)
+        `uvm_field_int(is_reallocate_id,UVM_ALL_ON)
+        `uvm_field_int(boundary,UVM_ALL_ON)
+        `uvm_field_int(len_boundary,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    // props
+    rand bit enable; // 是否启用
+    rand bit is_reallocate_id; // 是否重新分配ID
+    rand int boundary; // 边界大小
+    int reset_cycle; // 复位周期次数
+
+    constraint c_bp_default {
+        soft enable == 1;
+        soft is_reallocate_id == 0;
+        soft boundary == 'h1000;
+    }
+
+    function new(string name="BP_fifo2axi_config");
+        super.new(name);
+    endfunction
+
+    extern function void pre_randomize();
+
+    // 获取当前复位次数
+    extern protected function int get_reset_count();
+
+    // 外部约束
+    constraint cst_base;
+    constraint cst_extern;
+    constraint cst_case;
+endclass
+
+function void BP_fifo2axi_config::pre_randomize();
+    super.pre_randomize();
+
+    reset_cycle = get_reset_count();
+endfunction
+
+function int BP_fifo2axi_config::get_reset_count();
+    uvm_domain domains[string];
+    uvm_domain domain;
+    uvm_phase schedule;
+    uvm_phase phase;
+
+    // 获得 reset phase
+    uvm_domain::get_domains(domains);
+    domain = domains["uvm"];
+    schedule = domain.find_by_name("uvm_sched");
+    phase = schedule.find_by_name("reset");
+
+    return phase.get_run_count();
+endfunction
+
+`endif

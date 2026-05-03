@@ -1,0 +1,19 @@
+`ifndef BP_AXI_IMPORT
+`define BP_AXI_IMPORT
+
+`ifndef SVT_AXI_MAX_RVALID_DELAY
+`define SVT_AXI_MAX_RVALID_DELAY 400
+`endif
+`ifndef SVT_AXI_MAX_WREADY_DELAY
+`define SVT_AXI_MAX_WREADY_DELAY 400
+`endif
+
+`include "svt_axi.uvm.pkg"
+
+import uvm_pkg::*;
+import svt_uvm_pkg::*;
+import svt_axi_uvm_pkg::*;
+
+typedef class axi4_packet;
+
+`endif

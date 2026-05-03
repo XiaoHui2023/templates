@@ -1,0 +1,119 @@
+`ifndef {{ class_reference | upper }}
+`define {{ class_reference | upper }}
+
+class {{ class_reference }} extends uvm_component;
+    `uvm_component_utils({{ class_reference }})
+
+    uvm_analysis_port #({{ class_config }}) {{ config_port_name }};
+    {%- for port in ports %}
+    uvm_analysis_port #({{ port.class_name }}) {{ port.name }}{{ port.array_declaration }};
+    {%- endfor %}
+
+    `uvm_analysis_imp_decl(_config) protected uvm_analysis_imp_config #({{ class_config }},{{ class_reference }}) config_imp;
+    `uvm_analysis_imp_decl(_data) protected uvm_analysis_imp_data #({{ class_data }},{{ class_reference }}) {{ data_port_name }};
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ config_port_name }} = new("{{ config_port_name }}",this);
+        config_imp = new("config_imp",this);
+        {{ data_port_name }} = new("{{ data_port_name }}",this);
+
+        {%- for port in ports %}
+        {%- if port.depth %}
+        foreach({{ port.name }}[J])
+            {{ port.name }}[J] = new($psprintf("{{ port.name }}[%0d]",J),this);
+        {%- else %}
+        {{ port.name }} = new("{{ port.name }}",this);
+        {%- endif %}
+        {%- endfor %}
+        {%- for component in components %}
+        {%- if component.depth %}
+        foreach({{ component.name }}[J])
+            {{ component.name }}[J] = {{ component.class_name }}::type_id::create($psprintf("{{ component.name }}[%0d]",J),this);
+        {%- else %}
+        {{ component.name }} = {{ component.class_name }}::type_id::create("{{ component.name }}",this);
+        {%- endif %}
+        {%- endfor %}
+    endfunction
+
+    {{ class_config }} fifo_config[$];
+
+    {%- for component in components %}
+    {{ component.class_name }} {{ component.name }}{{ component.array_declaration }};
+    {%- endfor %}
+
+    extern function void connect();
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern function void pre_abort();
+
+    // 检查fifo
+    extern function void check_fifo();
+
+    // 写入配置
+    extern function void write_config({{ class_config }} cfg);
+
+    // 写入数据
+    extern function void write_data({{ class_data }} data_in);
+
+    // 连接回调，连接配置项，数据等对象
+    extern function void {{ connect_callback_name }}();
+
+    // 配置项回调，输入配置项，回调到对应配置对象
+    extern function void {{ config_callback_name }}({{ class_config }} {{ config_var_name }});
+
+    // 数据项回调，输入数据项，回调到对应数据对象，需要额外实现
+    extern function void {{ data_callback_name }}({{ class_config }} {{ config_var_name }},{{ class_data }} {{ data_var_name }});
+endclass
+
+function void {{ class_reference }}::connect();
+    super.connect();
+
+    {{ config_port_name }}.connect(config_imp);
+
+    {{ connect_callback_name }}();
+endfunction
+
+task {{ class_reference }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    fifo_config.delete();
+endtask
+
+task {{ class_reference }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    check_fifo();
+endtask
+
+function void {{ class_reference }}::pre_abort();
+    super.pre_abort();
+
+    check_fifo();
+endfunction
+
+function void {{ class_reference }}::check_fifo();
+    if(fifo_config.size)
+        `uvm_error("",$psprintf("fifo_config remains %0d",fifo_config.size))
+endfunction
+
+function void {{ class_reference }}::write_config({{ class_config }} cfg);
+    $cast(cfg,cfg.clone());
+
+    fifo_config.push_back(cfg);
+    $cast(cfg,cfg.clone());
+
+    {{ config_callback_name }}(cfg);
+endfunction
+
+function void {{ class_reference }}::write_data({{ class_data }} data_in);
+    {{ class_config }} cfg;
+
+    $cast(data_in,data_in.clone());
+    cfg = fifo_config.pop_front();
+
+    {{ data_callback_name }}(cfg,data_in);
+endfunction
+
+`endif

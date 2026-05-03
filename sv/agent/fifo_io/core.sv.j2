@@ -1,0 +1,222 @@
+﻿`ifndef {{ class_core | upper }}
+`define {{ class_core | upper }}
+
+class {{ class_core }} extends uvm_component;
+    `uvm_component_utils({{ class_core }})
+
+    uvm_analysis_port #(Data_packet) {{ input_port_name }};
+    uvm_analysis_port #(Data_packet) {{ output_port_name }};
+    `uvm_analysis_imp_decl(_protected)
+    protected uvm_analysis_imp_protected #(Data_packet,{{ class_core }}) i_imp;
+
+    function new(string name="{{ class_core }}", uvm_component parent=null);
+        super.new(name,parent);
+
+        {{ input_port_name }} = new("{{ input_port_name }}",this);
+        {{ output_port_name }} = new("{{ output_port_name }}",this);
+        i_imp = new("imp",this);
+    endfunction
+
+    protected static bit has_written[string]; // 是否曾经写过
+    protected string load_filename; // 加载文件名
+    protected string save_filename; // 保存文件名
+    protected bit[{{ time_width }}-1:0] last_time;
+    protected bit ls_load_done; // 是否加载完成
+    protected bit ls_save; // 是否保存
+    protected bit ls_load; // 是否加载
+
+    extern function void connect();
+    extern function void start_of_simulation();
+    extern task run();
+    extern task main_phase(uvm_phase phase);
+
+    // 写数据
+    extern function void save(Data_packet data);
+
+    // 读数据
+    extern task load();
+
+    // 二进制文件，返回是否成功
+    extern function bit read_file(input string src, output bit[7:0] data[$]);
+
+    // 写二进制文件
+    extern function void write_file(string src, bit[7:0] data[$]);
+
+    // 获取目录
+    extern function string dirname(string path);
+
+    // 生成目录
+    extern function void mkdir(string path);
+
+    // byte转结构
+    extern function void byte_to_packet(input bit[7:0] in[$], output {{ class_struct }} out[$]);
+
+    // 解码成byte
+    extern function void packet_to_byte(input Data_packet in, ref bit[7:0] out[$]);
+
+    // 写入队列
+    extern function void write(Data_packet data_in);
+endclass
+
+function void {{ class_core }}::connect();
+    super.connect();
+
+    {{ input_port_name }}.connect(i_imp);
+endfunction
+
+function void {{ class_core }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(uvm_config_db#(string)::get(this,"","load",load_filename))
+        `uvm_info("",$psprintf("load filename: %s",load_filename),UVM_DEBUG)
+    if(uvm_config_db#(string)::get(this,"","save",save_filename))
+        `uvm_info("",$psprintf("save filename: %s",save_filename),UVM_DEBUG)
+
+    ls_save = save_filename.len > 0;
+    ls_load = load_filename.len > 0;
+endfunction
+
+task {{ class_core }}::run();
+    super.run();
+
+    load();
+endtask
+
+task {{ class_core }}::main_phase(uvm_phase phase);
+    super.main_phase(phase);
+
+    if(ls_load) begin
+        phase.raise_objection(this);
+        wait(!ls_load_done);
+        phase.drop_objection(this);
+    end
+endtask
+
+function void {{ class_core }}::write(Data_packet data_in);
+    save(data_in);
+endfunction
+
+function void {{ class_core }}::write_file(string src, bit[7:0] data[$]);
+    integer file;
+
+    if(!has_written[src]) begin
+        mkdir(dirname(src));
+        file = $fopen(src,"wb");
+    end else begin
+        file = $fopen(src,"ab");
+    end
+
+    if(!file)
+        `uvm_fatal("",$psprintf("failed to write %s",src))
+
+    foreach(data[i])
+        $fwrite(file,"%c",data[i]);
+    $fclose(file);
+    has_written[src] = 1;
+endfunction
+
+function bit {{ class_core }}::read_file(input string src, output bit[7:0] data[$]);
+    integer file;
+
+    file = $fopen(src,"rb");
+    if(!file)
+        return 0;
+
+    while(!$feof(file)) begin
+        bit[7:0] read_data;
+        $fread(read_data,file);
+        if($feof(file))
+            break;
+        data.push_back(read_data);
+    end
+    $fclose(file);
+    return 1;
+endfunction
+
+function void {{ class_core }}::byte_to_packet(input bit[7:0] in[$], output {{ class_struct }} out[$]);
+    while(in.size) begin
+        {{ class_struct }} struc;
+        struc = {{ class_struct }}::decode(in);
+        out.push_back(struc);
+    end
+endfunction
+
+function void {{ class_core }}::packet_to_byte(input Data_packet in, ref bit[7:0] out[$]);
+    {{ class_struct }} struc;
+    bit[{{ time_width }}-1:0] delay;
+    delay = {{ class_package }}::get_time() - last_time;
+    struc = new(
+        .delay(delay),
+        .addr(in.addr),
+        .len(in.len),
+        .data(in.data)
+    );
+    struc.encode(out);
+    last_time = {{ class_package }}::get_time();
+endfunction
+
+function void {{ class_core }}::save(Data_packet data);
+    bit[7:0] bytes[$];
+
+    if(!ls_save)
+        return;
+
+    `uvm_info("",$psprintf("in: \n%s",data.sprint()),UVM_DEBUG)
+    packet_to_byte(data,bytes);
+    write_file(save_filename,bytes);
+endfunction
+
+task {{ class_core }}::load();
+    bit[7:0] bytes[$];
+    {{ class_struct }} datas[$];
+
+    if(!ls_load)
+        return;
+
+    `uvm_info("","enter load",UVM_LOW)
+
+    if(!read_file(load_filename,bytes)) begin
+        `uvm_info("",$psprintf("failed to read '%s'",load_filename),UVM_LOW)
+        return;
+    end
+
+    byte_to_packet(bytes,datas);
+    foreach(datas[i]) begin
+        Data_packet pkt;
+        {{ class_struct }} struc;
+        struc = datas[i];
+        pkt = Data_packet::type_id::create({get_full_name(),".byte_to_pack"});
+        pkt.addr = struc.addr;
+        pkt.len = struc.len;
+        pkt.data = struc.data;
+
+        if(struc.delay)
+            {{ class_package }}::wait_time(struc.delay);
+
+        `uvm_info("",$psprintf("output[%0d]: \n%s",i,pkt.sprint()),UVM_DEBUG)
+        {{ output_port_name }}.write(pkt);
+    end
+
+    `uvm_info("","exit load",UVM_LOW)
+endtask
+
+function string {{ class_core }}::dirname(string path);
+    string s;
+
+    // 从末尾开始
+    for(int i=path.len-1;i>=0;i--) begin
+        s = path.substr(i,i);
+        if(s == "/")
+            return path.substr(0,i-1);
+    end
+    return "";
+endfunction
+
+function void {{ class_core }}::mkdir(string path);
+    if(!path.len)
+        return;
+
+    $system($psprintf("mkdir -p %s",path));
+endfunction
+
+`endif

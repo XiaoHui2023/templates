@@ -1,0 +1,203 @@
+`ifndef {{ class_formatter | upper }}
+`define {{ class_formatter | upper }}
+
+class {{ class_formatter }};
+    typedef string string_queue[$];
+    typedef string string_queue2[$][$];
+
+    parameter SIGN_ERROR = '*';
+
+    function new({{ class_table }} tb,int line_byte=8);
+        this.tb = tb;
+        this.line_byte = line_byte;
+    endfunction
+
+    protected {{ class_table }} tb;
+    protected int line_byte; // ?????????????
+
+    // ????
+    extern function string_queue2 body;
+
+    // ??
+    extern function string layout();
+
+    // ??
+    extern function string_queue get_title();
+
+    // ???????????????????
+    extern function bit pass;
+
+    /*
+        ??????
+
+        ?? dat_no_cmp????????? dat_no_cmp?????????
+    */
+    extern function string_queue cast_row_to_text_list({{ class_block }} blk,int index);
+
+    // ???????
+    extern protected function string cast_transfer_to_text({{ class_transfer }} transfer,bit no_data,int data_byte);
+endclass
+
+function {{ class_formatter }}::string_queue2 {{ class_formatter }}::body;
+    int id;
+
+    foreach(tb.block_list[j]) begin
+        {{ class_block }} blk;
+        int sum;
+
+        blk = tb.block_list[j];
+        sum = blk.max_size;
+
+        for(int j=0;j<sum;j++) begin
+            string line[$];
+
+            id += 1;
+
+            line.push_back($psprintf("%0d",id));
+            line.push_back(blk.pass ? "" : SIGN_ERROR);
+            line = {line,cast_row_to_text_list(blk,j)};
+
+            body.push_back(line);
+        end
+    end
+endfunction
+
+function string {{ class_formatter }}::layout();
+    {{ class_sheet }} tb;
+    string content;
+
+    if(!this.tb.first_block)
+        return;
+
+    // table
+    tb = new(.head(get_title()));
+    content = tb.main(this.body);
+
+    return content;
+endfunction
+
+function {{ class_formatter }}::string_queue {{ class_formatter }}::get_title();
+    string title[$];
+
+    title = '{"id","result"};
+
+    if(!this.tb.first_block)
+        return;
+
+    foreach(this.tb.first_block.column_list[j]) begin
+        if(j == 0)
+            title.push_back("monitor");
+        else
+            title.push_back($psprintf("golden[%0d]",j-1));
+    end
+
+    return title;
+endfunction
+
+function bit {{ class_formatter }}::pass;
+    if(!this.tb.first_block)
+        return 0;
+
+    foreach(this.tb.block_list[j])
+        if(!this.tb.block_list[j].pass)
+            return 0;
+
+    return 1;
+endfunction
+
+function {{ class_formatter }}::string_queue {{ class_formatter }}::cast_row_to_text_list({{ class_block }} blk,int index);
+    bit no_data;
+    string text_list[$];
+
+    // compute
+    no_data = blk.dat_no_cmp;
+    foreach(blk.column_list[j]) begin
+        if(blk.column_list[j].transfer_list[index])
+            no_data |= blk.column_list[j].transfer_list[index].dat_no_cmp;
+        if(blk.column_list[j].transfer_list[0])
+            no_data |= blk.column_list[j].transfer_list[0].dat_no_cmp;
+
+        if(no_data)
+            break;
+    end
+
+    foreach(blk.column_list[j]) begin
+        {{ class_transfer }} transfer;
+
+        transfer = blk.column_list[j].transfer_list[index];
+
+        if(transfer)
+            text_list.push_back(cast_transfer_to_text(transfer,no_data,this.line_byte));
+        else
+            text_list.push_back("");
+    end
+
+    return text_list;
+endfunction
+
+function string {{ class_formatter }}::cast_transfer_to_text({{ class_transfer }} transfer,bit no_data,int data_byte);
+    string s_addr;
+    string s_data;
+    int len;
+    int burst;
+    bit is_data;
+    string s;
+
+    // compute
+    len = transfer.len;
+    burst = transfer.burst;
+    is_data = !no_data && transfer.data.size > 0;
+
+    if(!transfer.is_valid)
+        return;
+
+    // ??????????
+    if(burst > 1 && transfer.is_sequential) begin
+        len *= burst;
+        burst = 1;
+    end
+
+    // addr
+    s_addr = {s_addr,$psprintf("0x%0h",transfer.addr)};
+    if(len > 1)
+        s_addr = {s_addr,$psprintf(" ~ %0d",len)};
+    if(burst > 1) begin
+        s_addr = {s_addr,$psprintf(" * %0d",burst)};
+        if(!transfer.is_sequential)
+            s_addr = {s_addr,$psprintf(" + 0x%0h",transfer.stride)};
+    end
+
+    if(is_data)
+        s_addr = {"[",s_addr,"]"};
+
+    // data
+    if(is_data) begin
+        int n;
+
+        while(n < transfer.data.size) begin
+            string s_size;
+
+            if(s_data.len)
+                s_data = {s_data,"\n"};
+
+            repeat(data_byte) begin
+                s_size = {$psprintf("%h",transfer.data[n]),s_size};
+                n++;
+
+                if(n >= transfer.data.size)
+                    break;
+            end
+
+            s_data = {s_data,"0x",s_size};
+        end
+    end
+
+    // out
+    s = s_addr;
+    if(s_data.len)
+        s = {s,"\n",s_data};
+
+    return s;
+endfunction
+
+`endif

@@ -1,0 +1,13 @@
+﻿`ifndef {{ class_callback | upper }}
+`define {{ class_callback | upper }}
+
+class {{ class_callback }};
+{% for class_type in class_types %}
+
+    // 转换 {{ class_type }} 类型的实现
+    extern function {{ class_type }} get_callback_name{{ class_type }}({{ class_data_name }} {{ callback_data_name }});
+{% endfor %}
+
+endclass
+
+`endif

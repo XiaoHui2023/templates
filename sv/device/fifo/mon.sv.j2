@@ -1,0 +1,71 @@
+`ifndef BP_FIFO2AXI_MON
+`define BP_FIFO2AXI_MON
+
+class BP_fifo2axi_mon #(bit WRITE = 0, int SUM_CH = 8) extends uvm_component;
+    `uvm_component_param_utils(BP_fifo2axi_mon#(WRITE, SUM_CH))
+
+    uvm_analysis_port #(Data_packet) o_ap[SUM_CH];
+    virtual BP_fifo2axi_fifo_if vif;
+    int id;
+    BP_fifo2axi_config cfg;
+
+    function new(string name="BP_fifo2axi_mon", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern task post_reset_phase(uvm_phase phase);
+    extern task main_phase(uvm_phase phase);
+    extern virtual task do_out();
+endclass
+
+function void BP_fifo2axi_mon::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    foreach (o_ap[ch])
+        o_ap[ch] = new($sformatf("o_ap[%0d]", ch), this);
+endfunction
+
+task BP_fifo2axi_mon::post_reset_phase(uvm_phase phase);
+    super.post_reset_phase(phase);
+    vif.reset();
+endtask
+
+task BP_fifo2axi_mon::main_phase(uvm_phase phase);
+    super.main_phase(phase);
+    forever
+        do_out();
+endtask
+
+task BP_fifo2axi_mon::do_out();
+    Data_packet pkt;
+    bit [7:0] data[$];
+    bit [31:0] addr;
+    int len;
+    int ch;
+    vif.get(
+        .ch(ch),
+        .addr(addr),
+        .data(data),
+        .len(len)
+    );
+    if (len > data.size()) begin
+        `uvm_error("", $sformatf("%m : len > data.size() len=%0d data.size=%0d", len, data.size()))
+    end
+    if (len <= 0)
+        `uvm_fatal("", $sformatf("%m : invalid len", len))
+    data = data[0:len-1];
+    pkt = Data_packet::type_id::create({get_full_name(), ".pkt"});
+    pkt.accept_tr();
+    pkt.addr = addr;
+    pkt.data = data;
+    pkt.len = len;
+    pkt.xact_type = WRITE ? Data_packet::WRITE : Data_packet::READ;
+    pkt.id = id;
+    if (len <= 0 || data.size() <= 0)
+        `uvm_error("", $sformatf("%m : invalid len or data", len))
+    `uvm_info("", $sformatf("%m :\n%s", pkt.sprint()), UVM_DEBUG)
+    $cast(pkt, pkt.clone());
+    o_ap[ch].write(pkt);
+endtask
+
+`endif

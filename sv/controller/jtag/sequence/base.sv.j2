@@ -1,0 +1,31 @@
+`ifndef {{ class_prefix | upper }}BASE_SEQ
+`define {{ class_prefix | upper }}BASE_SEQ
+
+class {{ class_prefix }}base_seq #(type RSP={{ class_prefix }}base_rsp) extends uvm_sequence#(.RSP(RSP));
+    `uvm_object_param_utils({{ class_prefix }}base_seq#(RSP))
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name = "{{ class_prefix }}base_seq");
+        super.new(name);
+    endfunction
+
+    // 获取当前测试迭代次数
+    extern function int get_reset_count();
+endclass
+
+function int {{ class_prefix }}base_seq::get_reset_count();
+    uvm_domain domains[string];
+    uvm_domain domain;
+    uvm_phase schedule;
+    uvm_phase rp_phase;
+
+    // 获取 reset phase
+    uvm_domain::get_domains(domains);
+    domain = domains["uvm"];
+    schedule = domain.find_by_name("uvm_sched");
+    rp_phase = schedule.find_by_name("reset");
+
+    return rp_phase.get_run_count();
+endfunction
+
+`endif

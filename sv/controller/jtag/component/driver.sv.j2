@@ -1,0 +1,95 @@
+`ifndef {{ class_prefix | upper }}DRIVER
+`define {{ class_prefix | upper }}DRIVER
+
+class {{ class_prefix }}driver extends uvm_driver#({{ class_prefix }}base_req,{{ class_prefix }}base_rsp);
+    `uvm_component_utils({{ class_prefix }}driver)
+
+    {{ class_prefix }}configuration cfg; // 配置
+
+    function new(string name="{{ class_prefix }}driver",uvm_component parent=null);
+        super.new(name,parent);
+    endfunction
+
+    extern task reset_phase(uvm_phase phase);
+    extern task main_phase(uvm_phase phase);
+
+    // 路由
+    extern task route();
+
+    // 所有连接请求
+    extern virtual task execute_connect(input {{ class_prefix }}connect_req req,output {{ class_prefix }}connect_rsp rsp);
+
+    // 所有寄存器请求
+    extern virtual task execute_register(input {{ class_prefix }}register_req req,output {{ class_prefix }}register_rsp rsp);
+endclass
+
+task {{ class_prefix }}driver::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+    phase.raise_objection(this);
+
+    cfg.vif.logic_if.reset_tap();
+
+    phase.drop_objection(this);
+endtask
+
+task {{ class_prefix }}driver::main_phase(uvm_phase phase);
+    super.main_phase(phase);
+
+    fork
+        route();
+    join
+endtask
+
+task {{ class_prefix }}driver::route();
+    {{ class_prefix }}connect_req con_req;
+    {{ class_prefix }}register_req reg_req;
+
+    forever begin
+        {{ class_prefix }}base_req req;
+
+        seq_item_port.get_next_item(req);
+
+        // copy
+        $cast(req,req.clone());
+        `uvm_info("",$sformatf("get requirement:\n%s",req.sprint()),UVM_LOW)
+
+        if($cast(con_req,req))
+            execute_connect(con_req,rsp);
+        else if($cast(reg_req,req))
+            execute_register(reg_req,rsp);
+        else
+            `uvm_fatal("",$sformatf("invalid req\n%s",req.sprint()))
+
+        rsp.set_id_info(req);
+        `uvm_info("",$sformatf("response:\n%s",rsp.sprint()),UVM_LOW)
+        seq_item_port.item_done(rsp);
+    end
+endtask
+
+task {{ class_prefix }}driver::execute_connect(input {{ class_prefix }}connect_req req,output {{ class_prefix }}connect_rsp rsp);
+    rsp = {{ class_prefix }}connect_rsp::type_id::create({get_full_name(),".connect_test"});
+
+    cfg.vif.connect_test(
+        .is_pass(rsp.is_pass),
+        .is_tck_pass(rsp.tck.is_pass),
+        .is_tms_pass(rsp.tms.is_pass),
+        .is_tdi_pass(rsp.tdi.is_pass),
+        .is_tdo_pass(rsp.tdo.is_pass),
+        .is_trst_pass(rsp.trst.is_pass)
+    );
+endtask
+
+task {{ class_prefix }}driver::execute_register(input {{ class_prefix }}register_req req,output {{ class_prefix }}register_rsp rsp);
+    rsp = {{ class_prefix }}register_rsp::type_id::create({get_full_name(),".register_test"});
+    rsp.name = req.name;
+
+    if(req.is_read) begin
+        cfg.vif.read(req.addr,req.len,rsp.value);
+    end
+    else if(req.is_write) begin
+        cfg.vif.write(req.addr,req.value,req.len);
+        rsp.value = req.value;
+    end
+endtask
+
+`endif

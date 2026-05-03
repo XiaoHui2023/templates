@@ -1,0 +1,140 @@
+`ifndef {{ class_reporter | upper }}
+`define {{ class_reporter | upper }}
+
+class {{ class_reporter }};
+    typedef string string_queue[$];
+
+    static bit file_reported[string]; // ???????
+
+    /*
+        ????
+
+        file_path : ????
+        content : ????
+
+        ??????????
+    */
+    extern function void write_text(string file_path,string content);
+
+    /*
+        ??CSV??
+
+        file_path : ????
+        title : ??
+        body : ??
+
+        ???????????
+    */
+    extern function void write_csv(string file_path,string title[$],string body[$][$]);
+
+    // ?????
+    extern protected function string dir(string path);
+
+    // ?????
+    extern protected function void mkdir(string path);
+
+    // ???
+    extern protected function void file_write(string dst,string str,string op="w");
+
+    // ??
+    extern protected function string split(string data[$],string sign);
+
+    // ??????????????
+    extern protected function string_queue enquote_list(string data[$]);
+endclass
+
+function void {{ class_reporter }}::write_text(string file_path,string content);
+    string msg;
+
+    if(!content.len)
+        return;
+
+    // ??????
+    if(!file_reported[file_path]) begin
+        mkdir(dir(file_path));
+        file_write(file_path,"");
+        file_reported[file_path] = 1;
+    end
+
+    content = $psprintf("@ %0t result :\n%s",$time,content);
+    file_write(file_path,content,"a");
+endfunction
+
+function void {{ class_reporter }}::write_csv(string file_path,string title[$],string body[$][$]);
+    string s_body;
+    int sign;
+
+    // compute
+    sign = ",";
+    title = enquote_list(title);
+    foreach(body[j])
+        body[j] = enquote_list(body[j]);
+
+    // ??????
+    if(!file_reported[file_path]) begin
+        mkdir(dir(file_path));
+        file_write(file_path,split(title,sign));
+        file_reported[file_path] = 1;
+    end
+
+    foreach(body[j]) begin
+        if(j > 0)
+            s_body = {s_body,"\n"};
+        s_body = {s_body,split(body[j],sign)};
+    end
+    file_write(file_path,s_body,"a");
+endfunction
+
+function string {{ class_reporter }}::dir(string path);
+    string c;
+
+    // ?????
+    for(int i=path.len-1;i>=0;i--) begin
+        c = path.get(i);
+
+        if(c == "/")
+            return path.substr(0,i-1);
+    end
+
+    return "";
+endfunction
+
+function void {{ class_reporter }}::mkdir(string path);
+    if(!path.len)
+        return;
+
+    $system($psprintf("mkdir -p %s",path));
+endfunction
+
+function void {{ class_reporter }}::file_write(string dst,string str,string op);
+    int file;
+
+    // alias
+    if(op == "a")
+        str = {"\n",str};
+
+    // ?
+    file = $fopen(dst,op);
+    $fwrite(file,"%s",str);
+    $fclose(file);
+endfunction
+
+function string {{ class_reporter }}::split(string data[$],string sign);
+    string s;
+
+    foreach(data[j]) begin
+        if(j > 0)
+            s = {s,sign};
+        s = {s,data[j]};
+    end
+
+    return s;
+endfunction
+
+function {{ class_reporter }}::string_queue {{ class_reporter }}::enquote_list(string data[$]);
+    foreach(data[j])
+        data[j] = {"\"",data[j],"\""};
+    return data;
+endfunction
+
+`endif

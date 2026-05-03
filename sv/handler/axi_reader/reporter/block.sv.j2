@@ -1,0 +1,66 @@
+`ifndef {{ class_block | upper }}
+`define {{ class_block | upper }}
+
+class {{ class_block }};
+    function new(bit pass,{{ class_column }} column_list[$]='{});
+        this.column_list = column_list;
+        this.pass = pass;
+    endfunction
+
+    bit pass;
+    {{ class_column }} column_list[$];
+
+    // ????????
+    extern function int valid_size_sum;
+
+    // ????????????????
+    extern function int max_size;
+
+    // ????
+    extern function bit is_empty;
+
+    // ???????????????????
+    extern function bit pointer_step();
+
+    // ???N??????????(??????)
+    extern function bit get_leading_identical(int n);
+endclass
+
+function int {{ class_block }}::valid_size_sum;
+    foreach(this.column_list[j])
+        valid_size_sum += this.column_list[j].valid_size;
+endfunction
+
+function int {{ class_block }}::max_size;
+    foreach(this.column_list[j])
+        max_size = $max(max_size,this.column_list[j].size);
+endfunction
+
+function bit {{ class_block }}::is_empty;
+    return this.valid_size_sum == 0;
+endfunction
+
+function bit {{ class_block }}::pointer_step();
+    foreach(this.column_list[j])
+        pointer_step |= this.column_list[j].pointer_step();
+endfunction
+
+function bit {{ class_block }}::get_leading_identical(int n);
+    bit pre[$];
+
+    for(int j=0;j<n;j++) begin
+        bit cur[$];
+
+        foreach(column_list[k])
+            cur[k] = column_list[k].get_track(j) != null;
+
+        if(pre.size && pre != cur)
+            return 0;
+
+        pre = cur;
+    end
+
+    return 1;
+endfunction
+
+`endif

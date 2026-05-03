@@ -1,0 +1,39 @@
+`ifndef {{ class_row | upper }}
+`define {{ class_row | upper }}
+
+class {{ class_row }};
+    typedef bit bit_queue[$];
+
+    bit pass; // ????
+    {{ class_transfer }} transfer_list[$]; // ????,?????null
+
+    // ????
+    extern function bit is_valid;
+
+    // ??????????????????
+    extern function bit_queue transfer_valid_state;
+
+    // ????????????
+    extern function bit dat_no_cmp;
+endclass
+
+function bit {{ class_row }}::is_valid;
+    foreach(transfer_list[j])
+        if(transfer_list[j])
+            return 1;
+
+    return 0;
+endfunction
+
+function {{ class_row }}::bit_queue {{ class_row }}::transfer_valid_state;
+    foreach(transfer_list[j])
+        transfer_valid_state[j] = transfer_list[j]!=null;
+endfunction
+
+function bit {{ class_row }}::dat_no_cmp;
+    foreach(transfer_list[j])
+        if(transfer_list[j])
+            dat_no_cmp |= transfer_list[j].dat_no_cmp;
+endfunction
+
+`endif

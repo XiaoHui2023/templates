@@ -1,0 +1,64 @@
+﻿`ifndef {{ class_file_io | upper }}
+`define {{ class_file_io | upper }}
+
+class {{ class_file_io }} extends uvm_component;
+    `uvm_component_utils({{ class_file_io }})
+
+{% for data in datas %}
+    uvm_analysis_port #(Data_packet) {{ data.in_port_name }};
+    uvm_analysis_port #(Data_packet) {{ data.out_port_name }};
+{% endfor %}
+
+    function new(string name="{{ class_file_io }}", uvm_component parent=null);
+        super.new(name,parent);
+
+{% for data in datas %}
+        {{ data.in_port_name }} = new("{{ data.in_port_name }}",this);
+        {{ data.out_port_name }} = new("{{ data.out_port_name }}",this);
+{% endfor %}
+
+{% for data in datas %}
+        {{ data.core_name }} = {{ class_core }}::type_id::create("{{ data.core_name }}",this);
+{% endfor %}
+    endfunction
+
+{% for data in datas %}
+    {{ class_core }} {{ data.core_name }};
+{% endfor %}
+
+    protected string load_dirname; // 输入路径所在目录
+    protected string save_dirname; // 输出文件所在目录
+
+    extern function void build();
+    extern function void connect();
+endclass
+
+function void {{ class_file_io }}::build();
+    super.build();
+
+    if(uvm_config_db #(string)::get(this,"","load",load_dirname))
+        `uvm_info("",$psprintf("load dirname: %s",load_dirname),UVM_LOW)
+    if(uvm_config_db #(string)::get(this,"","save",save_dirname))
+        `uvm_info("",$psprintf("save dirname: %s",save_dirname),UVM_LOW)
+
+    if(load_dirname.len) begin
+{% for data in datas %}
+        uvm_config_db #(string)::set(this,"{{ data.core_name }}","load",{load_dirname,"/{{ data.bin_name }}"});
+{% endfor %}
+    end
+    if(save_dirname.len) begin
+{% for data in datas %}
+        uvm_config_db #(string)::set(this,"{{ data.core_name }}","save",{save_dirname,"/{{ data.bin_name }}"});
+{% endfor %}
+    end
+endfunction
+
+function void {{ class_file_io }}::connect();
+    super.connect();
+
+{% for data in datas %}
+    {{ data.in_port_name }}.connect({{ data.core_name }}.i_ap);
+    {{ data.core_name }}.o_ap.connect({{ data.out_port_name }});
+{% endfor %}
+endfunction
+`endif

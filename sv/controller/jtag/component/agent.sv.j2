@@ -1,0 +1,53 @@
+`ifndef {{ class_prefix | upper }}AGENT
+`define {{ class_prefix | upper }}AGENT
+
+class {{ class_prefix }}agent extends uvm_component;
+    `uvm_component_utils({{ class_prefix }}agent)
+
+    {{ class_prefix }}configuration cfg; // 配置
+    {{ class_prefix }}sequencer sqr;
+    {{ class_prefix }}driver drv;
+
+    function new(string name="{{ class_prefix }}agent", uvm_component parent);
+        super.new(name,parent);
+    endfunction
+
+    extern function void build();
+    extern function void connect();
+    extern function void start_of_simulation();
+endclass
+
+function void {{ class_prefix }}agent::build();
+    super.build();
+
+    uvm_config_db#({{ class_prefix }}configuration)::get(this,"","cfg",cfg);
+    if(!cfg)
+        cfg = {{ class_prefix }}configuration::type_id::create({get_full_name(),".cfg"});
+
+    sqr = {{ class_prefix }}sequencer::type_id::create("sqr",this);
+    drv = {{ class_prefix }}driver::type_id::create("drv",this);
+
+    uvm_config_db#(uvm_object_wrapper)::set(sqr,
+        "main_phase",
+        "default_sequence",
+        {{ class_prefix }}default_seq::type_id::get());
+endfunction
+
+function void {{ class_prefix }}agent::connect();
+    super.connect();
+
+    drv.seq_item_port.connect(sqr.seq_item_export);
+    $cast(sqr.cfg,cfg);
+    $cast(drv.cfg,cfg);
+endfunction
+
+function void {{ class_prefix }}agent::start_of_simulation();
+    super.start_of_simulation();
+
+    uvm_config_db#(virtual {{ class_prefix }}interface)::get(this,"","vif",cfg.vif);
+    if(!cfg.has_randomized)
+        assert(cfg.randomize()) else `uvm_fatal("","randomize failed")
+    `uvm_info("",$sformatf("system config\n%s",cfg.sprint()),UVM_LOW)
+endfunction
+
+`endif

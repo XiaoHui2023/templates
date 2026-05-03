@@ -1,0 +1,154 @@
+﻿`ifndef {{ class_name | upper }}
+`define {{ class_name | upper }}
+
+class {{ class_name }} extends uvm_component;
+    `uvm_component_utils({{ class_name }})
+
+    uvm_analysis_port #(Data_packet) {{ gld_port_name }};
+    uvm_analysis_port #(Data_packet) {{ mon_port_name }};
+    `uvm_analysis_imp_decl(_golden) protected uvm_analysis_imp_golden #(Data_packet,{{ class_name }}) gld_imp;
+    `uvm_analysis_imp_decl(_monitor) protected uvm_analysis_imp_monitor #(Data_packet,{{ class_name }}) mon_imp;
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ gld_port_name }} = new("{{ gld_port_name }}",this);
+        {{ mon_port_name }} = new("{{ mon_port_name }}",this);
+        gld_imp = new("gld_imp",this);
+        mon_imp = new("mon_imp",this);
+    endfunction
+
+    reg[7:0] fifo_gld[$];
+    reg[7:0] fifo_mon[$];
+    bit has_compared; // 是否曾经对比过
+    protected int monitor_count; // 计数
+    protected int golden_count;
+    protected int compare_count;
+
+    extern function void connect();
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern function void pre_abort();
+
+    // 比较 Data_packet
+    extern virtual function bit compare(reg[7:0] gld, reg[7:0] mon);
+
+    // 运行，递归比较直到结束
+    extern function bit main();
+
+    // 匹配
+    extern function bit match(output reg[7:0] gld, output reg[7:0] mon);
+
+    // 检查 fifo
+    extern function void fifo_check();
+
+    // 写入 golden 数据
+    extern function void write_golden(Data_packet data_in);
+
+    // 写入 monitor 数据
+    extern function void write_monitor(Data_packet data_in);
+
+    // 将Data转入fifo
+    extern function void fifo_push(input Data_packet pkt, ref reg[7:0] fifo[$]);
+endclass
+
+function void {{ class_name }}::connect();
+    super.connect();
+
+    {{ gld_port_name }}.connect(gld_imp);
+    {{ mon_port_name }}.connect(mon_imp);
+endfunction
+
+task {{ class_name }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    fifo_gld.delete();
+    fifo_mon.delete();
+endtask
+
+task {{ class_name }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    fifo_check();
+endtask
+
+function void {{ class_name }}::pre_abort();
+    super.pre_abort();
+
+    fifo_check();
+endfunction
+
+function bit {{ class_name }}::compare(reg[7:0] gld, reg[7:0] mon);
+    if($isunknown(gld) || $isunknown(mon))
+        return 1;
+
+    return gld == mon;
+endfunction
+
+function bit {{ class_name }}::main();
+    reg[7:0] gld;
+    reg[7:0] mon;
+
+    if(!match(gld,mon))
+        return 0;
+
+    if(!compare(gld,mon)) begin
+        `uvm_error("",$psprintf("compare failed #%0d: 0x%x != 0x%x", compare_count, gld, mon))
+    end else
+        `uvm_info("",$psprintf("compare success #%0d 0x%x == 0x%x", compare_count, gld, mon),UVM_DEBUG)
+
+    has_compared = 1;
+    return 1;
+endfunction
+
+function bit {{ class_name }}::match(output reg[7:0] gld, output reg[7:0] mon);
+    if(!fifo_gld.size || !fifo_mon.size)
+        return 0;
+
+    gld = fifo_gld.pop_front();
+    mon = fifo_mon.pop_front();
+
+    return 1;
+endfunction
+
+function void {{ class_name }}::write_golden(Data_packet data_in);
+    $cast(data_in,data_in.clone());
+
+    `uvm_info("",$psprintf("input golden #%0d:\n%s", golden_count++, data_in.sprint()),UVM_HIGH)
+    fifo_push(data_in,fifo_gld);
+
+    while(main());
+endfunction
+
+function void {{ class_name }}::write_monitor(Data_packet data_in);
+    $cast(data_in,data_in.clone());
+
+    `uvm_info("",$psprintf("input monitor #%0d:\n%s", monitor_count++, data_in.sprint()),UVM_HIGH)
+    fifo_push(data_in,fifo_mon);
+
+    while(main());
+endfunction
+
+function void {{ class_name }}::fifo_check();
+    int num_gld;
+    int num_mon;
+
+    num_gld = fifo_gld.size();
+    num_mon = fifo_mon.size();
+
+    if(num_gld > 0)
+        `uvm_error("",$psprintf("remain : num_gld = %0d. first: 0x%x", num_gld, fifo_gld[0]))
+    else if(num_mon > 0)
+        `uvm_error("",$psprintf("remain : num_mon = %0d. first: 0x%x", num_mon, fifo_mon[0]))
+    else if(has_compared)
+        `uvm_info("","compare success",UVM_LOW)
+endfunction
+
+function void {{ class_name }}::fifo_push(input Data_packet pkt, ref reg[7:0] fifo[$]);
+    if(pkt.size) begin
+        for(int i=0; i<pkt.size; i++) begin
+            fifo.push_back(pkt.data.pop_front());
+        end
+    end
+endfunction
+`endif

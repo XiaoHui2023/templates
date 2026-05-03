@@ -1,0 +1,82 @@
+`ifndef {{ class_inout_test_seq | upper }}
+`define {{ class_inout_test_seq | upper }}
+
+/*
+    输入输出测试
+
+    输入/输出方向，每一位单独输入/输出，这一位与其他所有位互斥
+
+    可以单独将某一位，作为方向作全局扫描
+*/
+class {{ class_inout_test_seq }} extends {{ class_base_seq }};
+    `uvm_object_utils({{ class_inout_test_seq }})
+
+    function new(string name = "{{ class_inout_test_seq }}");
+        super.new(name);
+    endfunction
+
+    /*
+        单独输出一个位，让这一位与所有其他测试互斥
+
+        方向为输入这一位，其他位为输出
+    */
+    extern task body();
+
+    /*
+        设置方向，并测试
+
+        dir : 方向掩码，低位输入
+
+        方向为输出时，寄存器输出数据，端口回读
+        方向为输入时，端口输入数据，寄存器读出来
+
+        数据每位反一位
+    */
+    extern task test_inout(bit[31:0] dir,bit[31:0] data);
+endclass
+
+task {{ class_inout_test_seq }}::body();
+    bit[31:0] dir;
+    bit[31:0] data;
+
+    for(int i=0;i<cfg.num;i++)begin
+        // 方向为输出
+        dir = 1 << i;
+
+        // 输出为1
+        data = 1 << i;
+        test_inout(dir,data);
+
+        // 输出为0
+        data = ~data;
+        test_inout(dir,data);
+
+        // 方向为输入
+        dir = ~dir;
+
+        // 输入为1
+        data = 1 << i;
+        test_inout(dir,data);
+
+        // 输入为0
+        data = ~data;
+        test_inout(dir,data);
+    end
+endtask
+
+task {{ class_inout_test_seq }}::test_inout(bit[31:0] dir,bit[31:0] data);
+    bit[31:0] rdata;
+    bit[31:0] mask;
+
+    mask = cfg.pin_mask;
+
+    sdk.set_dir(dir);
+    sdk.set_value(data);
+    vif.set(data,~dir & mask);
+    sdk.get_value(rdata);
+
+    if((rdata & mask) != (data & mask))
+        `uvm_error("", $spsrintf("gpio data mismatch: expect=%h actual=%h", data & mask, rdata & mask))
+endtask
+
+`endif

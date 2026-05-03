@@ -1,0 +1,128 @@
+`ifndef {{ class_scoreboard | upper }}
+`define {{ class_scoreboard | upper }}
+
+class {{ class_scoreboard }}#(bit NO_ADDR=0,bit NO_DATA=0) extends uvm_component;
+    `uvm_component_param_utils({{ class_scoreboard }}#(NO_ADDR,NO_DATA))
+
+    uvm_analysis_port#(Data_packet) {{ monitor_port_name }};
+    uvm_analysis_port#(Data_packet) {{ golden_port_name }};
+
+    `uvm_analysis_imp_decl(_golden) protected uvm_analysis_imp_golden #(Data_packet,{{ class_scoreboard }}#(NO_ADDR,NO_DATA)) gld_imp;
+    `uvm_analysis_imp_decl(_monitor) protected uvm_analysis_imp_monitor #(Data_packet,{{ class_scoreboard }}#(NO_ADDR,NO_DATA)) mon_imp;
+
+    function new(string name="{{ class_scoreboard }}",uvm_component parent);
+        super.new(name,parent);
+
+        {{ golden_port_name }} = new("{{ golden_port_name }}",this);
+        {{ monitor_port_name }} = new("{{ monitor_port_name }}",this);
+        gld_imp = new("gld_imp",this);
+        mon_imp = new("mon_imp",this);
+    endfunction
+
+    protected int set_gld[bit[31:0]][bit[7:0]]; // [地址][值] - 次数 golden集合
+    protected int set_mon[bit[31:0]][bit[7:0]]; // [地址][值] - 次数 monitor集合
+    protected bit has_compared; // 已经进行过至少一次比较
+
+    extern function void connect();
+    extern function void start_of_simulation();
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern function void pre_abort();
+
+    // 检查集合
+    extern function void check_set();
+
+    // 把数据放进对应集合，抵消相同的内容
+    extern protected function void main(input Data_packet data_in,ref int lhs[bit[31:0]][bit[7:0]],ref int rhs[bit[31:0]][bit[7:0]]);
+
+    // 写入 golden 数据
+    extern function void write_golden(Data_packet data_in);
+
+    // 写入 monitor 数据
+    extern function void write_monitor(Data_packet data_in);
+endclass
+
+function void {{ class_scoreboard }}::connect();
+    super.connect();
+
+    {{ golden_port_name }}.connect(gld_imp);
+    {{ monitor_port_name }}.connect(mon_imp);
+endfunction
+
+function void {{ class_scoreboard }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(NO_ADDR && NO_DATA)
+        `uvm_fatal("","At least one of the following is required: address or data.")
+endfunction
+
+task {{ class_scoreboard }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    set_gld.delete();
+    set_mon.delete();
+endtask
+
+task {{ class_scoreboard }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    check_set();
+endtask
+
+function void {{ class_scoreboard }}::pre_abort();
+    super.pre_abort();
+
+    check_set();
+endfunction
+
+function void {{ class_scoreboard }}::check_set();
+    if(set_gld.size || set_mon.size)
+        `uvm_error("","compare failed")
+    else if(has_compared)
+        `uvm_info("","compare success",UVM_LOW)
+endfunction
+
+function void {{ class_scoreboard }}::main(input Data_packet data_in,ref int lhs[bit[31:0]][bit[7:0]],ref int rhs[bit[31:0]][bit[7:0]]);
+    for(int J=0;J<data_in.len;J++) begin
+        bit[31:0] addr;
+        bit[7:0] value;
+
+        if(!NO_ADDR)
+            addr = data_in.addr + J;
+        if(!NO_DATA)
+            value = data_in.data[J];
+
+        if(rhs[addr][value])
+            rhs[addr][value]--;
+        else
+            lhs[addr][value]++;
+
+        if(!rhs[addr][value])
+            rhs[addr].delete(value);
+        if(!rhs[addr].size)
+            rhs.delete(addr);
+    end
+
+    // 进行过比较了
+    has_compared = 1;
+endfunction
+
+function void {{ class_scoreboard }}::write_golden(Data_packet data_in);
+    `uvm_info("",$psprintf("input gld :\n%s",data_in.sprint()),UVM_HIGH)
+
+    if(data_in.dat_no_cmp)
+        `uvm_fatal("",$psprintf("dat_no_cmp is not supported:\n%s",data_in.sprint()))
+
+    main(data_in,set_gld,set_mon);
+endfunction
+
+function void {{ class_scoreboard }}::write_monitor(Data_packet data_in);
+    `uvm_info("",$psprintf("input mon :\n%s",data_in.sprint()),UVM_HIGH)
+
+    if(data_in.dat_no_cmp)
+        `uvm_fatal("",$psprintf("dat_no_cmp is not supported:\n%s",data_in.sprint()))
+
+    main(data_in,set_mon,set_gld);
+endfunction
+
+`endif

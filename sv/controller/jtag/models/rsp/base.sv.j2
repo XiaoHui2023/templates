@@ -1,0 +1,13 @@
+`ifndef {{ class_prefix | upper }}BASE_RSP
+`define {{ class_prefix | upper }}BASE_RSP
+
+// 基础的传输结果
+class {{ class_prefix }}base_rsp extends {{ class_prefix }}base_item;
+    `uvm_object_utils({{ class_prefix }}base_rsp)
+
+    function new(string name="{{ class_prefix }}base_rsp");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

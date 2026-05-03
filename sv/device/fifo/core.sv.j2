@@ -1,0 +1,115 @@
+`ifndef BP_FIFO2AXI_CORE
+`define BP_FIFO2AXI_CORE
+
+class BP_fifo2axi_core;
+    Data_packet fifo;
+    Data_packet axi;
+    BP_fifo2axi_config cfg;
+    int length_max;
+    int align;
+
+    function new(Data_packet fifo, Data_packet axi, BP_fifo2axi_config cfg);
+        $cast(this.fifo, fifo.clone());
+        $cast(this.axi, axi.clone());
+        this.cfg = cfg;
+        init();
+    endfunction
+
+    extern function void transfer(output Data_packet out, ref Data_packet residue[$]);
+    extern function bit is_faddr_align();
+    extern protected function void init();
+    extern protected function void length_limit(ref Data_packet c[$]);
+    extern protected function void aligning(ref Data_packet c[$]);
+    extern protected function void boundary(ref Data_packet c[$]);
+endclass
+
+function void BP_fifo2axi_core::init();
+    int size;
+    size = this.axi.burst_size;
+    this.length_max = (2 ** size) * 'h10;
+    this.align = 2 ** size;
+    if (size <= 0)
+        `uvm_fatal("", $sformatf("burst_size invalid %0d", size))
+    if (this.align <= 0)
+        `uvm_fatal("", $sformatf("align invalid %0d", this.align))
+    if (this.fifo.xact_type != this.axi.xact_type)
+        `uvm_fatal("", "fifo/axi xact_type mismatch")
+endfunction
+
+function void BP_fifo2axi_core::transfer(output Data_packet out, ref Data_packet residue[$]);
+    residue.delete();
+    boundary(residue);
+    length_limit(residue);
+    aligning(residue);
+    out = this.fifo;
+endfunction
+
+function void BP_fifo2axi_core::length_limit(ref Data_packet c[$]);
+    int len_max;
+    len_max = length_max;
+    if (fifo.xact_type == Data_packet::WRITE)
+        len_max -= int'(fifo.addr % align);
+    if (fifo.len <= len_max)
+        return;
+    begin
+        Data_packet t;
+        int dis;
+        dis = fifo.len - len_max;
+        $cast(t, fifo.clone());
+        t.len = dis;
+        t.addr = fifo.addr + len_max;
+        fifo.len = len_max;
+        repeat (dis) begin
+            t.data.push_front(fifo.data.pop_back());
+        end
+        c.push_back(t);
+    end
+endfunction
+
+function bit BP_fifo2axi_core::is_faddr_align();
+    bit [31:0] ia;
+    ia = fifo.addr;
+    if (ia % align != 0)
+        ia -= ia % align;
+    return ia == axi.addr;
+endfunction
+
+function void BP_fifo2axi_core::aligning(ref Data_packet c[$]);
+    if (fifo.xact_type == Data_packet::WRITE) begin
+        if (fifo.addr != axi.addr)
+            `uvm_fatal("", $sformatf("Failed to align write, fifo.addr = 0x%0h, axi.addr = 0x%0h", fifo.addr, axi.addr))
+        return;
+    end
+    if (fifo.addr != axi.addr)
+        `uvm_fatal("", $sformatf("Failed to align read, fifo.addr = 0x%0h, axi.addr = 0x%0h", fifo.addr, axi.addr))
+    length_limit(c);
+endfunction
+
+function void BP_fifo2axi_core::boundary(ref Data_packet c[$]);
+    int size;
+    bit [31:0] b;
+    bit [31:0] e;
+    bit [31:0] bd;
+    int dis;
+    Data_packet t;
+    b = fifo.addr;
+    e = fifo.addr + fifo.len - 1;
+    size = cfg.boundary;
+    if (size <= 0)
+        `uvm_fatal("", "cfg.boundary must be > 0")
+    if (b / size == e / size)
+        return;
+    bd = (b / size + 1) * size;
+    dis = int'(bd - b);
+    $cast(t, fifo.clone());
+    t.len = fifo.len - dis;
+    t.addr = fifo.addr + dis;
+    fifo.len = dis;
+    fifo.data.delete();
+    repeat (dis) begin
+        fifo.data.push_back(t.data.pop_front());
+    end
+    c.push_front(t);
+endfunction
+
+`endif

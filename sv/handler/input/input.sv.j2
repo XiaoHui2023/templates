@@ -1,0 +1,80 @@
+﻿`ifndef {{ class_input | upper }}
+`define {{ class_input | upper }}
+
+class {{ class_input }} extends uvm_component;
+    `uvm_component_utils({{ class_input }})
+
+    uvm_analysis_port #({{ class_config }}) {{ input_config_port_name }};
+    uvm_analysis_port #({{ class_data }}) {{ output_port_name }};
+    `uvm_analysis_imp_decl(_config)
+    protected uvm_analysis_imp_config #({{ class_config }},{{ class_input }}) config_imp;
+{% for data_type in data_types %}
+    uvm_analysis_port #(Data_packet) {{ data_type.in_port_name }}{% if data_type.array_declaration %}{{ data_type.array_declaration }}{% endif %};
+{% endfor %}
+
+    function new(string name="{{ class_input }}",uvm_component parent);
+        super.new(name,parent);
+
+        {{ input_config_port_name }} = new("{{ input_config_port_name }}",this);
+        {{ output_port_name }} = new("{{ output_port_name }}",this);
+        config_imp = new("config_imp",this);
+{% for data_type in data_types %}
+{% if data_type.depth %}
+        foreach({{ data_type.in_port_name }}[i]) begin
+            {{ data_type.in_port_name }}[i] = new($psprintf("{{ data_type.in_port_name }}[%0d]",i),this);
+        end
+{% else %}
+        {{ data_type.in_port_name }} = new("{{ data_type.in_port_name }}",this);
+{% endif %}
+{% endfor %}
+    endfunction
+
+    {{ class_assembler }} assembler;
+{% for data_type in data_types %}
+    {{ class_core }} {{ data_type.core_name }}{% if data_type.array_declaration %}{{ data_type.array_declaration }}{% endif %};
+{% endfor %}
+
+    extern function void connect();
+    extern function void write_config({{ class_config }} cfg);
+endclass
+
+function void {{ class_input }}::connect();
+    super.connect();
+
+    {{ input_config_port_name }}.connect(config_imp);
+{% for data_type in data_types %}
+{% if data_type.depth %}
+    foreach({{ data_type.core_name }}[i]) begin
+        {{ data_type.in_port_name }}[i].connect({{ data_type.core_name }}[i].i_ap);
+        {{ data_type.core_name }}[i].o_ap.connect(assembler.{{ data_type.imp_name }}[i]);
+    end
+{% else %}
+    {{ data_type.in_port_name }}.connect({{ data_type.core_name }}.i_ap);
+    {{ data_type.core_name }}.o_ap.connect(assembler.{{ data_type.imp_name }});
+{% endif %}
+{% endfor %}
+    assembler.o_ap.connect({{ output_port_name }});
+endfunction
+
+function void {{ class_input }}::write_config({{ class_config }} cfg);
+    $cast(cfg,cfg.clone());
+
+    `uvm_info("",$psprintf("input config:\n%s",cfg.sprint()),UVM_LOW)
+
+    if(!{{ config_valid_condition("cfg","valid") }})
+        `uvm_fatal("","invalid config")
+
+{% for data_type in data_types %}
+{% if data_type.depth %}
+    foreach({{ data_type.core_name }}[i]) begin
+        {{ data_type.core_name }}[i].config_imp.write(cfg.{{ data_type.name }}[i]);
+    end
+{% else %}
+    {{ data_type.core_name }}.config_imp.write(cfg.{{ data_type.name }});
+{% endif %}
+{% endfor %}
+
+    assembler.config_imp.write(cfg);
+endfunction
+
+`endif

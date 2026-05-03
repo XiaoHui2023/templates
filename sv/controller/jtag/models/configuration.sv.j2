@@ -1,0 +1,36 @@
+`ifndef {{ class_prefix | upper }}CONFIGURATION
+`define {{ class_prefix | upper }}CONFIGURATION
+
+class {{ class_prefix }}configuration extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}configuration)
+        `uvm_field_int(idcode,UVM_ALL_ON)
+        `uvm_field_int(public_id,UVM_ALL_ON)
+        `uvm_field_int(password,UVM_ALL_ON)
+        `uvm_field_int(has_randomized,UVM_ALL_ON)
+        `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    virtual {{ class_prefix }}interface vif; // 接口
+    rand bit[31:0] idcode;
+    rand bit[63:0] public_id;
+    rand bit[127:0] password;
+    rand bit has_randomized; // 是否随机过
+
+    function new(string name="{{ class_prefix }}configuration");
+        super.new(name);
+    endfunction
+
+    constraint cst_base {
+        soft idcode == 32'hf6204701;
+        has_randomized == 1;
+    }
+
+    function void post_randomize();
+        super.post_randomize();
+
+        if(!vif)
+            `uvm_fatal("","require vif")
+    endfunction
+endclass
+
+`endif

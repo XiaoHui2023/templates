@@ -1,0 +1,36 @@
+`ifndef {{ class_track | upper }}
+`define {{ class_track | upper }}
+
+class {{ class_track }};
+    int addr; // ????
+    int len; // ????
+    int burst; // ??
+    int stride; // ??
+
+    // ??
+    function int size;
+        return len * burst;
+    endfunction
+
+    // ????
+    function bit is_valid;
+        return len > 0;
+    endfunction
+
+    // ????
+    function bit is_sequential;
+        return stride == len;
+    endfunction
+
+    // ??????
+    function bit is_single;
+        return burst == 1;
+    endfunction
+
+    // ????
+    function bit is_multiple;
+        return burst > 1;
+    endfunction
+endclass
+
+`endif

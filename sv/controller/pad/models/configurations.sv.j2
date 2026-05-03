@@ -1,0 +1,27 @@
+`ifndef {{ class_configurations | upper }}
+`define {{ class_configurations | upper }}
+
+class {{ class_configurations }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_configurations }})
+{% for group in groups %}
+        `uvm_field_object(cfg_{{ group }},UVM_ALL_ON)
+{% endfor %}
+    `uvm_object_utils_end
+
+{% for group in groups %}
+    {{ class_configuration }} cfg_{{ group }};
+{% endfor %}
+
+    function new(string name="{{ class_configurations }}");
+        super.new(name);
+
+{% for group in groups %}
+        cfg_{{ group }} = {{ class_configuration }}::type_id::create({get_full_name(),".cfg_{{ group }}"});
+{% endfor %}
+{% for group in groups %}
+        cfg_{{ group }}.group_name = "{{ group }}";
+{% endfor %}
+    endfunction
+endclass
+
+`endif

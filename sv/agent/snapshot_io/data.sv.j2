@@ -1,0 +1,38 @@
+﻿`ifndef {{ class_data | upper }}
+`define {{ class_data | upper }}
+
+class {{ class_data }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_data }})
+        `uvm_field_int(net_count, UVM_ALL_ON|UVM_NOCOMPARE)
+        `uvm_field_int(reset_count, UVM_ALL_ON|UVM_NOCOMPARE)
+        `uvm_field_queue_object(data, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    int net_count; // 该复位的第几次 (从1开始计数)
+    int reset_count; // 第几次复位 (从1开始计数)
+    Data_packet data[$];
+
+    function new(string name="{{ class_data }}");
+        super.new(name);
+    endfunction
+
+    // 比较并检查
+    extern virtual function bit {{ func_compare_name }}({{ class_data }} rhs);
+endclass
+
+function bit {{ class_data }}::{{ func_compare_name }}({{ class_data }} rhs);
+    string msg;
+
+    msg = $psprintf("%0d-%0d compare %0d-%0d", reset_count, net_count, rhs.reset_count, rhs.net_count);
+    {{ func_compare_name }} = super.compare(rhs);
+    if (!{{ func_compare_name }}) begin
+        `uvm_error("", $psprintf(
+            "%s compare failed!\nlhs=%0d-%0d\n%s\nrhs=%0d-%0d\n%s",
+            msg, reset_count, net_count, this.sprint(),
+            rhs.reset_count, rhs.net_count, rhs.sprint()
+        ))
+    end
+    else
+        `uvm_info("", $psprintf("%s success:\n%s", msg, this.sprint()), UVM_LOW)
+endfunction
+`endif

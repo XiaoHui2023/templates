@@ -1,0 +1,101 @@
+`ifndef {{ class_comparator | upper }}
+`define {{ class_comparator | upper }}
+
+class {{ class_comparator }}#(bit NO_DATA=0);
+
+    /*
+        ???????
+        ????????????????????????????????????
+
+        ?? cache ?????
+    */
+    extern function {{ class_table }} match(ref Data_packet cache_mon[$],ref Data_packet cache_gld[int][$]);
+
+    // ? data_packet ?? transfer
+    extern protected function {{ class_transfer }} cast_data_to_transfer(Data_packet data_in);
+endclass
+
+function {{ class_table }} {{ class_comparator }}::match(ref Data_packet cache_mon[$],ref Data_packet cache_gld[int][$]);
+    {{ class_math }}#(NO_DATA) math;
+    {{ class_table }} tb;
+    {{ class_block }} blk;
+    {{ class_column }} column_mon;
+    {{ class_column }} columns_gld[$];
+    int path[$];
+
+    // new
+    math = new;
+    tb = new();
+
+    // ??????
+    path = math.main(cache_mon,cache_gld);
+
+    // ????
+    blk = new(.pass(1),.dat_no_cmp(1));
+    column_mon = new;
+    foreach(cache_gld[id])
+        columns_gld[id] = new(.id(id));
+    blk.column_list = {column_mon,columns_gld};
+
+    foreach(path[j]) begin
+        int index;
+        {{ class_transfer }} transfer_mon;
+        {{ class_transfer }} transfer_gld;
+
+        index = path[j];
+
+        transfer_mon = cast_data_to_transfer(cache_mon.pop_front());
+        transfer_gld = cast_data_to_transfer(cache_gld[index].pop_front());
+        if(!transfer_mon || !transfer_gld)
+            `uvm_fatal("","")
+
+        // load
+        column_mon.add(transfer_mon);
+        foreach(cache_gld[id]) begin
+            if(id == index)
+                columns_gld[id].add(transfer_gld);
+            else
+                columns_gld[id].add(null);
+        end
+    end
+    if(!blk.is_empty)
+        tb.add(blk);
+
+    // ????
+    blk = new(.pass(0));
+    column_mon = new;
+    foreach(cache_gld[id])
+        columns_gld[id] = new(.id(id));
+    blk.column_list = {column_mon,columns_gld};
+
+    // load
+    while(cache_mon.size)
+        column_mon.add(cast_data_to_transfer(cache_mon.pop_front()));
+    foreach(cache_gld[id])
+        while(cache_gld[id].size)
+            columns_gld[id].add(cast_data_to_transfer(cache_gld[id].pop_front()));
+
+    if(!blk.is_empty)
+        tb.add(blk);
+
+    return tb;
+endfunction
+
+function {{ class_transfer }} {{ class_comparator }}::cast_data_to_transfer(Data_packet data_in);
+    {{ class_transfer }} transfer;
+
+    if(!data_in)
+        return;
+
+    transfer = new;
+
+    transfer.addr = data_in.addr;
+    transfer.len = data_in.len;
+    if(!data_in.dat_no_cmp)
+        transfer.data = data_in.data;
+    transfer.dat_no_cmp = data_in.dat_no_cmp;
+
+    return transfer;
+endfunction
+
+`endif

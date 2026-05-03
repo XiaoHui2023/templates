@@ -1,0 +1,101 @@
+`ifndef {{ class_comparator | upper }}
+`define {{ class_comparator | upper }}
+
+class {{ class_comparator }};
+
+    /*
+        找到匹配链路
+        正确时，将行输出一列数据，其他数据为空（占位）；错误时，将剩余全部输出
+
+        消耗 cache 中所有数据
+    */
+    extern function {{ class_space }} match(ref {{ class_token }} cache_mon[$],ref {{ class_token }} cache_gld[string][$]);
+
+    // 将 data_packet 转为 track
+    extern protected function {{ class_track }} cast_data_to_track({{ class_token }} data_in);
+endclass
+
+function {{ class_space }} {{ class_comparator }}::match(ref {{ class_token }} cache_mon[$],ref {{ class_token }} cache_gld[string][$]);
+    {{ class_math }} math;
+    {{ class_space }} space;
+    {{ class_block }} blk;
+    {{ class_column }} column_mon;
+    {{ class_column }} columns_gld[string];
+    string path[$];
+
+    // new
+    math = new;
+    space = new();
+
+    // 匹配成功链路
+    path = math.main(cache_mon,cache_gld);
+
+    // 构建块
+    blk = new(.pass(1));
+    column_mon = new(.name("out"));
+    blk.column_list.push_back(column_mon);
+    foreach(cache_gld[name]) begin
+        columns_gld[name] = new(.name(name));
+        blk.column_list.push_back(columns_gld[name]);
+    end
+
+    foreach(path[J]) begin
+        string index;
+        {{ class_track }} track_mon;
+        {{ class_track }} track_gld;
+
+        index = path[J];
+
+        track_mon = cast_data_to_track(cache_mon.pop_front());
+        track_gld = cast_data_to_track(cache_gld[index].pop_front());
+        if(!track_mon || !track_gld)
+            `uvm_fatal("","")
+
+        // load
+        column_mon.add(track_mon);
+        foreach(cache_gld[name]) begin
+            if(name == index)
+                columns_gld[name].add(track_gld);
+            else
+                columns_gld[name].add(null);
+        end
+    end
+    if(!blk.is_empty)
+        space.add(blk);
+
+    // 处理剩余
+    blk = new(.pass(0));
+    column_mon = new(.name("out"));
+    blk.column_list.push_back(column_mon);
+    foreach(cache_gld[name]) begin
+        columns_gld[name] = new(.name(name));
+        blk.column_list.push_back(columns_gld[name]);
+    end
+
+    // load
+    while(cache_mon.size)
+        column_mon.add(cast_data_to_track(cache_mon.pop_front()));
+    foreach(cache_gld[name])
+        while(cache_gld[name].size)
+            columns_gld[name].add(cast_data_to_track(cache_gld[name].pop_front()));
+
+    if(!blk.is_empty)
+        space.add(blk);
+
+    return space;
+endfunction
+
+function {{ class_track }} {{ class_comparator }}::cast_data_to_track({{ class_token }} data_in);
+    {{ class_track }} track;
+
+    if(!data_in)
+        return;
+
+    track = new;
+    track.addr = data_in.addr;
+    track.len = 1;
+
+    return track;
+endfunction
+
+`endif

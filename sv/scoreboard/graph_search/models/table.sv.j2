@@ -1,0 +1,41 @@
+`ifndef {{ class_table | upper }}
+`define {{ class_table | upper }}
+
+class {{ class_table }};
+    function new({{ class_block }} block_list[$]='{});
+        this.block_list = block_list;
+    endfunction
+
+    {{ class_block }} block_list[$];
+
+    // ???
+    extern function void add({{ class_block }} blk);
+
+    // ????????
+    extern function int valid_size_sum;
+
+    // ????
+    extern function bit is_empty;
+
+    // ???
+    extern function {{ class_block }} first_block;
+endclass
+
+function void {{ class_table }}::add({{ class_block }} blk);
+    this.block_list.push_back(blk);
+endfunction
+
+function int {{ class_table }}::valid_size_sum;
+    foreach(this.block_list[j])
+        valid_size_sum += this.block_list[j].valid_size_sum;
+endfunction
+
+function bit {{ class_table }}::is_empty;
+    return this.valid_size_sum == 0;
+endfunction
+
+function {{ class_block }} {{ class_table }}::first_block;
+    return this.block_list[0];
+endfunction
+
+`endif

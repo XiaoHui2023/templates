@@ -1,0 +1,19 @@
+﻿`ifndef {{ class_package | upper }}
+`define {{ class_package | upper }}
+
+package {{ class_package }};
+    timeunit 1fs;
+    timeprecision 1fs;
+
+    // 获取时间
+    function automatic bit[{{ time_width }}-1:0] get_time();
+        return $time;
+    endfunction
+
+    // 延迟时间
+    task automatic wait_time(bit[{{ time_width }}-1:0] t);
+        #(t);
+    endtask
+
+endpackage
+`endif

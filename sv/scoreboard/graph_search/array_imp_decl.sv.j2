@@ -1,0 +1,21 @@
+`ifndef {{ define_array_imp_decl | upper }}
+`define {{ define_array_imp_decl | upper }}
+
+`define {{ define_array_imp_decl }}(SFX) \
+    class uvm_analysis_imp``SFX #(type T=int, type IMP=int) \
+        extends uvm_port_base #(uvm_tlm_if_base #(T,T)); \
+        local IMP m_imp; \
+        local int imp_id; \
+        function new(string name,uvm_component imp,int id,int min_size=1, int max_size=1); \
+            super.new(name,imp,UVM_IMPLEMENTATION,min_size,max_size); \
+            $cast(m_imp,imp); \
+            imp_id = id; \
+            m_if_mask = `UVM_TLM_ANALYSIS_MASK; \
+        endfunction \
+        `UVM_TLM_GET_TYPE_NAME("uvm_analysis_array_imp``SFX``") \
+        function void write(input T t); \
+            m_imp.write``SFX(t, imp_id); \
+        endfunction \
+    endclass
+
+`endif

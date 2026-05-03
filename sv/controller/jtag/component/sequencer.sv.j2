@@ -1,0 +1,23 @@
+`ifndef {{ class_prefix | upper }}SEQUENCER
+`define {{ class_prefix | upper }}SEQUENCER
+
+class {{ class_prefix }}sequencer extends uvm_sequencer#({{ class_prefix }}base_req,{{ class_prefix }}base_rsp);
+    `uvm_component_utils({{ class_prefix }}sequencer)
+
+    {{ class_prefix }}configuration cfg; // 配置
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+    endfunction
+
+    extern task reset_phase(uvm_phase phase);
+endclass
+
+task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    stop_sequences(); // 直接清空未完成的sequence,清空等待队列
+    start_phase_sequence(phase);
+endtask
+
+`endif

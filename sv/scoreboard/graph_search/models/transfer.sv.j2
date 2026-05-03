@@ -1,0 +1,38 @@
+`ifndef {{ class_transfer | upper }}
+`define {{ class_transfer | upper }}
+
+class {{ class_transfer }};
+    int addr; // ????
+    bit[7:0] data[$]; // ????
+    int len; // ????
+    int burst; // ??
+    int stride; // ??
+    bit dat_no_cmp;
+
+    // ??
+    function int size;
+        return len * burst;
+    endfunction
+
+    // ????
+    function bit is_valid;
+        return len > 0;
+    endfunction
+
+    // ????
+    function bit is_sequential;
+        return stride == len;
+    endfunction
+
+    // ??????
+    function bit is_single;
+        return burst == 1;
+    endfunction
+
+    // ????
+    function bit is_multiple;
+        return burst > 1;
+    endfunction
+endclass
+
+`endif

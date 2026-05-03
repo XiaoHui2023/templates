@@ -1,0 +1,46 @@
+`ifndef {{ class_prefix | upper }}REGISTER_REQ
+`define {{ class_prefix | upper }}REGISTER_REQ
+
+// 寄存器请求
+class {{ class_prefix }}register_req extends {{ class_prefix }}base_req;
+    typedef enum {
+        READ,
+        WRITE
+    } act_type_e;
+
+    `uvm_object_utils_begin({{ class_prefix }}register_req)
+        `uvm_field_string(name,UVM_ALL_ON)
+        `uvm_field_int(addr,UVM_ALL_ON)
+        `uvm_field_enum(act_type_e,act_type,UVM_ALL_ON)
+        `uvm_field_int(value,UVM_ALL_ON)
+        `uvm_field_int(len,UVM_ALL_ON)
+        `uvm_field_int(bits,UVM_ALL_ON|UVM_NOPRINT)
+        `uvm_field_int(bytes,UVM_ALL_ON|UVM_NOPRINT)
+        `uvm_field_int(is_read,UVM_ALL_ON|UVM_NOPRINT)
+        `uvm_field_int(is_write,UVM_ALL_ON|UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    string name;
+    rand bit[7:0] addr; // 地址
+    rand act_type_e act_type; // 动作类型
+    rand bit[255:0] value; // 写入时该字段填入的值
+    rand int len; // 位数
+    rand int bits; // 总bit个数
+    rand int bytes; // 字节个数
+    rand bit is_read; // 是否是读行为
+    rand bit is_write; // 是否是写行为
+
+    function new(string name="{{ class_prefix }}register_req");
+        super.new(name);
+    endfunction
+
+    constraint cst_register {
+        len == bits;
+        bits == bytes * 8;
+        bits inside {32,64,128,256};
+        is_read == (act_type == READ);
+        is_write == (act_type == WRITE);
+    }
+endclass
+
+`endif

@@ -1,0 +1,138 @@
+﻿`ifndef {{ class_assembler | upper }}
+`define {{ class_assembler | upper }}
+
+class {{ class_assembler }} extends uvm_component;
+    `uvm_component_utils({{ class_assembler }})
+
+    uvm_analysis_port #({{ class_data }}) o_ap;
+    `uvm_analysis_imp_decl(_config)
+    uvm_analysis_imp_config #({{ class_config }}, {{ class_assembler }}) config_imp;
+{% for data_type in data_types %}
+    uvm_analysis_port #({{ data_type.class_name }}) {{ data_type.imp_name }}{% if data_type.array_declaration %}[{{ data_type.depth }}]{% endif %};
+{% endfor %}
+
+    function new(string name="{{ class_assembler }}",uvm_component parent);
+        super.new(name,parent);
+
+        callback = new;
+        o_ap = new("o_ap",this);
+        config_imp = new("config_imp",this);
+{% for data_type in data_types %}
+{% if data_type.depth %}
+        foreach({{ data_type.imp_name }}[i]) begin
+            {{ data_type.imp_name }}[i] = new($psprintf("{{ data_type.imp_name }}[%0d]",i),this);
+        end
+{% else %}
+        {{ data_type.imp_name }} = new("{{ data_type.imp_name }}",this);
+{% endif %}
+{% endfor %}
+    endfunction
+
+    {{ class_callback }} callback;
+    {{ class_config }} fifo_config[$]; // 配置队列
+{% for data_type in data_types %}
+    {{ data_type.class_name }} fifo_{{ data_type.name }}{% if data_type.array_declaration %}[{{ data_type.depth }}]{% endif %}[$];
+{% endfor %}
+
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern function void pre_abort();
+
+    // 检查fifo
+    extern function void check_fifo();
+
+    // 配置数据触发流
+    extern function bit main();
+
+    // 写入配置
+    extern function void write_config({{ class_config }} cfg);
+
+{% for data_type in data_types %}
+    // 写入 {{ data_type.name }} 数据
+    extern function void write_{{ data_type.name }}{% if data_type.depth %}({{ class_item }} data_in, int id){% else %}({{ class_item }} data_in){% endif %};
+{% endfor %}
+endclass
+
+task {{ class_assembler }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+
+    fifo_config.delete();
+{% for data_type in data_types %}
+{% if data_type.depth %}
+    foreach(fifo_{{ data_type.name }}[i]) begin
+        fifo_{{ data_type.name }}[i].delete();
+    end
+{% else %}
+    fifo_{{ data_type.name }}.delete();
+{% endif %}
+{% endfor %}
+endtask
+
+task {{ class_assembler }}::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+
+    check_fifo();
+endtask
+
+function void {{ class_assembler }}::pre_abort();
+    super.pre_abort();
+
+    check_fifo();
+endfunction
+
+function void {{ class_assembler }}::check_fifo();
+    if(fifo_config.size)
+        `uvm_error("",$psprintf("fifo_config remains %0d",fifo_config.size))
+{% for data_type in data_types %}
+    {{ assembler_check_fifo(data_type) | indent(4) }}
+{% endfor %}
+endfunction
+
+function bit {{ class_assembler }}::main();
+    {{ class_config }} cfg;
+    {{ class_data }} data_out;
+
+    if(!fifo_config.size)
+        return 0;
+
+    cfg = fifo_config[0];
+    if(!cfg)
+        return 0;
+
+{% for data_type in data_types %}
+    if(!fifo_{{ data_type.name }}{% if data_type.depth %}[0]{% endif %}.size)
+        return 0;
+{% endfor %}
+
+    data_out = {{ class_data }}::type_id::create("out");
+    // pop
+    fifo_config.pop_front();
+{% for data_type in data_types %}
+    {{ 'foreach(cfg.' ~ data_type.name ~ '[i]) ' if data_type.depth }}if(cfg.{{ data_type.name }}{% if data_type.depth %}[i]{% endif %}.valid)
+        $cast(data_out.{{ data_type.name }}{% if data_type.depth %}[i]{% endif %}, fifo_{{ data_type.name }}{% if data_type.depth %}[i]{% endif %}.pop_front());
+{% endfor %}
+
+    `uvm_info("",$psprintf("output:\n%s",data_out.sprint()),UVM_LOW)
+    o_ap.write(data_out);
+
+    return 1;
+endfunction
+
+function void {{ class_assembler }}::write_config({{ class_config }} cfg);
+    fifo_config.push_back(cfg);
+
+    while(main());
+endfunction
+
+{% for data_type in data_types %}
+function void {{ class_assembler }}::write_{{ data_type.name }}{% if data_type.depth %}({{ class_item }} data_in, int id){% else %}({{ class_item }} data_in){% endif %};
+    {{ data_type.class_name }} data_out;
+
+    $cast(data_out, callback.{{ get_callback_name(data_type.class_name) }}(data_in));
+    fifo_{{ data_type.name }}{% if data_type.depth %}[id]{% endif %}.push_back(data_out);
+
+    while(main());
+endfunction
+{% endfor %}
+
+`endif

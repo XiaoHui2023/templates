@@ -1,0 +1,52 @@
+`ifndef {{ class_tokenizer | upper }}
+`define {{ class_tokenizer | upper }}
+
+class {{ class_tokenizer }} extends uvm_component;
+    `uvm_component_utils({{ class_tokenizer }})
+
+    typedef {{ class_token }} queue_token[$];
+
+    uvm_analysis_port #(Data_packet) i_ap;
+    `uvm_analysis_imp_decl() protected uvm_analysis_imp #(Data_packet,{{ class_tokenizer }}) imp;
+    uvm_analysis_port #(queue_token) o_ap;
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        i_ap = new("i_ap",this);
+        o_ap = new("o_ap",this);
+        imp = new("imp",this);
+    endfunction
+
+    extern function void connect();
+
+    // 写入数据
+    extern function void write(Data_packet pkt);
+endclass
+
+function void {{ class_tokenizer }}::connect();
+    super.connect();
+
+    i_ap.connect(imp);
+endfunction
+
+function void {{ class_tokenizer }}::write(Data_packet pkt);
+    {{ class_token }} out_queue[$];
+
+    `uvm_info("",$psprintf("input:\n%s",pkt.sprint()),UVM_HIGH)
+
+    if(pkt.len != pkt.data.size)
+        `uvm_fatal("","")
+
+    // 转化
+    foreach(pkt.data[J]) begin
+        {{ class_token }} data;
+
+        data = new(.addr(pkt.addr+J),.data(pkt.data[J]));
+        out_queue.push_back(data);
+    end
+
+    o_ap.write(out_queue);
+endfunction
+
+`endif

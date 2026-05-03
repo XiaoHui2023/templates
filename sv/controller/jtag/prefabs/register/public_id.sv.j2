@@ -1,0 +1,21 @@
+`ifndef {{ class_prefix | upper }}REGISTER_PUBLIC_ID_REQ
+`define {{ class_prefix | upper }}REGISTER_PUBLIC_ID_REQ
+
+class {{ class_prefix }}register_public_id_req extends {{ class_prefix }}register_req;
+    `uvm_object_utils({{ class_prefix }}register_public_id_req)
+
+    function new(string name = "{{ class_prefix }}register_public_id_req");
+        super.new(name);
+
+        this.name = "public_id";
+    endfunction
+
+    constraint cst_prefab {
+        addr == 8'b0000_0010;
+        bits == 64;
+        act_type == READ;
+        soft value == p_sequencer.cfg.public_id;
+    }
+endclass
+
+`endif

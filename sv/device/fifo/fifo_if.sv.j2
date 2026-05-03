@@ -1,0 +1,178 @@
+`ifndef BP_FIFO2AXI_FIFO_IF
+`define BP_FIFO2AXI_FIFO_IF
+
+interface BP_fifo2axi_fifo_if (
+    input wire clk,
+    input wire [3:0] ch,
+    input wire req,
+    input wire dvalid,
+    input wire [31:0] addr,
+    input wire ack,
+    input wire [31:0] len,
+    input wire last,
+    input wire [31:0] bits,
+    input wire [UVM_HDL_MAX_WIDTH-1:0] data
+);
+    wire [3:0] ch_r;
+    assign ch_r = $isunknown(ch) ? '0 : ch;
+
+    typedef struct {
+        bit [31:0] addr;
+        int len;
+        bit [7:0] data[$];
+        int ch;
+    } rx_s;
+
+    rx_s rx_fifo[$];
+    string hdl;
+    int data_width;
+    int reset_cnt;
+    bit is_working;
+
+    bit [3:0] f_ch[$];
+    bit [31:0] f_addr[$];
+    int f_len[$];
+    bit [7:0] f_data[$][$];
+
+    function void reset();
+        rx_fifo.delete();
+        f_ch.delete();
+        f_addr.delete();
+        f_len.delete();
+        f_data.delete();
+        is_working = 0;
+        reset_cnt++;
+    endfunction
+
+    function int get_bits(bit [UVM_HDL_MAX_WIDTH-1:0] d);
+        for (int j = 0; j < $bits(d); j++)
+            if (!$isunknown(d[j]))
+                return j;
+        return $bits(d);
+    endfunction
+
+    initial begin
+        hdl = $sformatf("%m");
+    end
+
+    initial begin
+        #0;
+        #1;
+        if (bits)
+            data_width = int'(bits);
+        else
+            data_width = get_bits(data);
+    end
+
+    function automatic void try_rx();
+        rx_s rx;
+        bit [31:0] a;
+        int l;
+        bit [7:0] dq[$];
+        int chv;
+        if (!f_addr.size() || !f_len.size() || !f_data.size())
+            return;
+        chv = int'(f_ch.pop_front());
+        a = f_addr.pop_front();
+        l = f_len.pop_front();
+        dq = f_data.pop_front();
+        rx.ch = chv;
+        rx.addr = a;
+        rx.len = l;
+        rx.data = dq;
+        if (!l)
+            return;
+        rx_fifo.push_back(rx);
+        if (!f_ch.size() && !f_addr.size() && !f_len.size() && !f_data.size())
+            is_working = 0;
+    endfunction
+
+    task automatic get(output int ch_o, output bit [31:0] addr_o, output bit [7:0] data_o[$], output int len_o);
+        rx_s rx;
+        wait (rx_fifo.size() > 0);
+        rx = rx_fifo.pop_front();
+        ch_o = rx.ch;
+        addr_o = rx.addr;
+        data_o = rx.data;
+        len_o = rx.len;
+    endtask
+
+    task automatic monitor_data();
+        bit [7:0] q[$];
+        int rst_cnt;
+        bit [UVM_HDL_MAX_WIDTH-1:0] tmp;
+        int tmp_len;
+        rst_cnt = reset_cnt;
+        forever begin
+            @(posedge clk);
+            if (rst_cnt != reset_cnt)
+                return;
+            if (!dvalid)
+                continue;
+            tmp_len = data_width / 8;
+            tmp = {>>{data}};
+            begin
+                bit [7:0] bytes[$];
+                for (int bi = 0; bi < tmp_len; bi++)
+                    bytes.push_back(tmp[bi*8+:8]);
+                bytes.reverse();
+                if (bytes.size() > tmp_len)
+                    bytes = bytes[0:tmp_len-1];
+                q = {q, bytes};
+            end
+            if (last)
+                break;
+        end
+        f_data.push_back(q);
+        is_working = 1;
+        `uvm_info("", $sformatf("%m : fifo data beat"), UVM_DEBUG)
+        try_rx();
+    endtask
+
+    task automatic monitor_addr();
+        int rst_cnt;
+        int l;
+        bit [31:0] a;
+        rst_cnt = reset_cnt;
+        @(posedge clk);
+        while (!req)
+            @(posedge clk);
+        forever begin
+            @(posedge clk);
+            if (rst_cnt != reset_cnt)
+                return;
+            if (!req)
+                continue;
+            a = addr;
+            l = int'(len);
+            if (!l) begin
+                `uvm_error("", $sformatf("%m : Invalid len"))
+                continue;
+            end
+            f_ch.push_back(ch_r);
+            f_addr.push_back(a);
+            f_len.push_back(l);
+            is_working = 1;
+            `uvm_info("", $sformatf("%m : addr=0x%0h len=%0d", a, l), UVM_DEBUG)
+            try_rx();
+            while (!req)
+                @(posedge clk);
+            while (req)
+                @(posedge clk);
+            while (!ack)
+                @(posedge clk);
+        end
+    endtask
+
+    initial begin
+        wait (!$isunknown(req));
+        fork
+            forever
+                monitor_addr();
+            forever
+                monitor_data();
+        join_none
+    end
+endinterface
+
+`endif

@@ -1,0 +1,76 @@
+`ifndef {{ class_monitor | upper }}
+`define {{ class_monitor | upper }}
+
+typedef class Data_packet;
+
+class {{ class_monitor }}#(int DW=UVM_HDL_MAX_WIDTH*16) extends uvm_component;
+    `uvm_component_param_utils({{ class_monitor }}#(DW))
+
+    uvm_analysis_port #(Data_packet) o_ap;
+
+    function new(string name="{{ class_monitor }}",uvm_component parent);
+        super.new(name,parent);
+
+        o_ap = new("o_ap",this);
+    endfunction
+
+    virtual {{ class_interface }} vif;
+
+    extern function void start_of_simulation();
+    extern task run_phase(uvm_phase phase);
+
+    // 采集并输出
+    extern protected task sample_and_output();
+endclass
+
+function void {{ class_monitor }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(!uvm_config_db#(virtual {{ class_interface }})::get(this,"","if",vif))
+        `uvm_fatal("","required if")
+endfunction
+
+task {{ class_monitor }}::run_phase(uvm_phase phase);
+    super.run_phase(phase);
+
+    sample_and_output();
+endtask
+
+task {{ class_monitor }}::sample_and_output();
+    forever begin
+        bit[DW-1:0] data;
+        int bits;
+        Data_packet out;
+        int len;
+
+        // 读取
+        @(vif.rx_count);
+        data = vif.rx_data.data;
+        bits = vif.rx_data.bits;
+
+        // 计算
+        len = (bits-1)/8+1;
+
+        // 新建
+        out = Data_packet::type_id::create({get_full_name(),".out"});
+
+        // 装包
+        {{ 'out.data = { >> {data}}; // 大端' }}
+        out.len = len;
+
+        // 转成小端
+        out.data.reverse();
+
+        // 异步
+        fork begin
+            // 延迟时间
+            out.accept_tr();
+
+            `uvm_info("",$psprintf("output:\n%s",out.sprint()),UVM_HIGH)
+
+            // 输出
+            o_ap.write(out);
+        end join_none
+    end
+endtask
+`endif

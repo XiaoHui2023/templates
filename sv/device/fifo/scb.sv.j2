@@ -1,0 +1,84 @@
+`ifndef BP_FIFO2AXI_SCB
+`define BP_FIFO2AXI_SCB
+
+class BP_fifo2axi_scb extends uvm_component;
+    `uvm_component_utils(BP_fifo2axi_scb)
+
+    `uvm_analysis_imp_decl(_gld)
+    `uvm_analysis_imp_decl(_mon)
+    uvm_analysis_imp_gld #(Data_packet, BP_fifo2axi_scb) gld_imp;
+    uvm_analysis_imp_mon #(Data_packet, BP_fifo2axi_scb) mon_imp;
+
+    Data_packet q_gld[$];
+    Data_packet q_mon[$];
+
+    function new(string name="BP_fifo2axi_scb", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern task reset_phase(uvm_phase phase);
+    extern task shutdown_phase(uvm_phase phase);
+    extern virtual function void compare();
+    extern virtual function bit fifo_check();
+    extern function void write_gld(input Data_packet data_in);
+    extern function void write_mon(input Data_packet data_in);
+endclass
+
+function void BP_fifo2axi_scb::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    gld_imp = new("gld_imp", this);
+    mon_imp = new("mon_imp", this);
+endfunction
+
+task BP_fifo2axi_scb::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+    fifo_check();
+    q_gld.delete();
+    q_mon.delete();
+endtask
+
+task BP_fifo2axi_scb::shutdown_phase(uvm_phase phase);
+    super.shutdown_phase(phase);
+    fifo_check();
+endtask
+
+function void BP_fifo2axi_scb::compare();
+    Data_packet g;
+    Data_packet m;
+    if (!q_gld.size() || !q_mon.size())
+        return;
+    g = q_gld.pop_front();
+    m = q_mon.pop_front();
+    if (!g.compare(m)) begin
+        `uvm_error("", $sformatf("compare failed\ngolden:\n%s\nmonitor:\n%s", g.sprint(), m.sprint()))
+    end
+endfunction
+
+function void BP_fifo2axi_scb::write_gld(input Data_packet data_in);
+    $cast(data_in, data_in.clone());
+    `uvm_info("", $sformatf("In gld:\n%s", data_in.sprint()), UVM_DEBUG)
+    q_gld = {q_gld, data_in};
+    compare();
+endfunction
+
+function void BP_fifo2axi_scb::write_mon(input Data_packet data_in);
+    $cast(data_in, data_in.clone());
+    `uvm_info("", $sformatf("In mon:\n%s", data_in.sprint()), UVM_DEBUG)
+    q_mon = {q_mon, data_in};
+    compare();
+endfunction
+
+function bit BP_fifo2axi_scb::fifo_check();
+    int num_gld;
+    int num_mon;
+    num_gld = q_gld.size();
+    num_mon = q_mon.size();
+    if (num_gld > 0 || num_mon > 0) begin
+        `uvm_error("", $sformatf("remain : num gld = %0d num mon = %0d", num_gld, num_mon))
+        return 0;
+    end
+    return 1;
+endfunction
+
+`endif

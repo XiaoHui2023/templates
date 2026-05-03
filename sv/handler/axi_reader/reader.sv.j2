@@ -1,0 +1,96 @@
+`ifndef {{ class_reader | upper }}
+`define {{ class_reader | upper }}
+
+class {{ class_reader }} extends uvm_component;
+    `uvm_component_utils({{ class_reader }})
+
+    uvm_analysis_port #({{ class_config }}) {{ config_port_name }};
+    uvm_analysis_port #(Data_packet) {{ axi_port_name }};
+    {%- for data_type in data_types %}
+    uvm_analysis_port #(Data_packet) {{ data_type.out_port_name }}{{ data_type.array_declaration }};
+    {%- endfor %}
+
+    function new(string name,uvm_component parent);
+        super.new(name,parent);
+
+        {{ config_port_name }} = new("{{ config_port_name }}",this);
+        {{ axi_port_name }} = new("{{ axi_port_name }}",this);
+
+        {%- for data_type in data_types %}
+        {%- if data_type.depth %}
+        foreach({{ data_type.out_port_name }}[J])
+            {{ data_type.out_port_name }}[J] = new($psprintf("{{ data_type.out_port_name }}[%0d]",J),this);
+        {%- else %}
+        {{ data_type.out_port_name }} = new("{{ data_type.out_port_name }}",this);
+        {%- endif %}
+        {%- endfor %}
+
+        generator = {{ class_generator }}::type_id::create("generator",this);
+        core = {{ class_core }}::type_id::create("core",this);
+        reporter = {{ class_reporter }}::type_id::create("reporter",this);
+        tokenizer = {{ class_tokenizer }}::type_id::create("tokenizer",this);
+    endfunction
+
+    {{ class_generator }} generator;
+    {{ class_core }} core;
+    {{ class_reporter }} reporter;
+    {{ class_tokenizer }} tokenizer;
+
+    extern function void build();
+    extern function void connect();
+endclass
+
+function void {{ class_reader }}::build();
+    string report;
+    string report_csv;
+    super.build();
+
+    if(uvm_config_db#(string)::get(this,"","report",report))
+        uvm_config_db#(string)::set(this,"reporter","report",report);
+    if(uvm_config_db#(string)::get(this,"","report_csv",report_csv))
+        uvm_config_db#(string)::set(this,"reporter","report_csv",report_csv);
+endfunction
+
+function void {{ class_reader }}::connect();
+    super.connect();
+
+    // config -> generator
+    {{ config_port_name }}.connect(generator.{{ config_port_name }});
+
+    // axi -> tokenizer -> core
+    {{ axi_port_name }}.connect(tokenizer.i_ap);
+    tokenizer.o_ap.connect(core.axi_imp);
+
+    // generator -> core
+    {%- for data_type in data_types %}
+    {%- if data_type.depth %}
+    foreach({{ data_type.out_port_name }}[J])
+        generator.{{ data_type.out_port_name }}[J].connect(core.{{ data_type.imp_name }}[J]);
+    {%- else %}
+    generator.{{ data_type.out_port_name }}.connect(core.{{ data_type.imp_name }});
+    {%- endif %}
+    {%- endfor %}
+
+    // core -> output
+    {%- for data_type in data_types %}
+    {%- if data_type.depth %}
+    foreach({{ data_type.out_port_name }}[J])
+        core.{{ data_type.out_port_name }}[J].connect({{ data_type.out_port_name }}[J]);
+    {%- else %}
+    core.{{ data_type.out_port_name }}.connect({{ data_type.out_port_name }});
+    {%- endif %}
+    {%- endfor %}
+
+    // tokenizer/generator -> reporter
+    tokenizer.o_ap.connect(reporter.{{ axi_port_name }});
+    {%- for data_type in data_types %}
+    {%- if data_type.depth %}
+    foreach({{ data_type.out_port_name }}[J])
+        generator.{{ data_type.out_port_name }}[J].connect(reporter.{{ data_type.in_port_name }}[J]);
+    {%- else %}
+    generator.{{ data_type.out_port_name }}.connect(reporter.{{ data_type.in_port_name }});
+    {%- endif %}
+    {%- endfor %}
+endfunction
+
+`endif

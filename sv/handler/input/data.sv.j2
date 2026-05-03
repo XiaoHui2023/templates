@@ -1,0 +1,24 @@
+﻿`ifndef {{ class_data | upper }}
+`define {{ class_data | upper }}
+
+class {{ class_data }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_data }})
+{% for data_type in data_types %}
+{% if data_type.depth %}
+        `uvm_field_sarray_object({{ data_type.name }}, UVM_ALL_ON)
+{% else %}
+        `uvm_field_object({{ data_type.name }}, UVM_ALL_ON)
+{% endif %}
+{% endfor %}
+    `uvm_object_utils_end
+
+{% for data_type in data_types %}
+    {{ data_type.class_name }} {{ data_type.name }}{{ data_type.array_declaration }};
+{% endfor %}
+
+    function new(string name="{{ class_data }}");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

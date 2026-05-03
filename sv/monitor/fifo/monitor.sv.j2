@@ -1,0 +1,170 @@
+﻿`ifndef {{ class_monitor | upper }}
+`define {{ class_monitor | upper }}
+
+class {{ class_monitor }} extends uvm_component;
+    `uvm_component_utils({{ class_monitor }})
+
+    uvm_analysis_port #(Data_packet) {{ out_port_name }};
+
+    function new(string name="{{ class_monitor }}", uvm_component parent);
+        super.new(name,parent);
+
+        {{ out_port_name }} = new("{{ out_port_name }}",this);
+    endfunction
+
+    virtual {{ class_interface }} vif;
+    protected int reset_count; // 复位计数
+    protected bit[31:0] fifo_addr[$];
+    protected int fifo_len[$];
+    protected bit[7:0] fifo_data[$][$];
+
+    extern function void start_of_simulation();
+    extern task post_reset_phase(uvm_phase phase);
+    extern task run();
+
+    // 采集地址
+    extern task monitor_addr();
+
+    // 采集数据
+    extern task monitor_data();
+
+    // 采集数据、生成结果
+    extern function void assembler();
+endclass
+
+function void {{ class_monitor }}::start_of_simulation();
+    super.start_of_simulation();
+
+    if(!uvm_config_db#(virtual {{ class_interface }})::get(this,"","vif",vif))
+        `uvm_fatal("","require vif")
+endfunction
+
+task {{ class_monitor }}::post_reset_phase(uvm_phase phase);
+    super.post_reset_phase(phase);
+
+    fifo_addr.delete();
+    fifo_len.delete();
+    fifo_data.delete();
+
+    reset_count++;
+endtask
+
+task {{ class_monitor }}::run();
+    super.run();
+
+    wait(!$isunknown(vif.req));
+
+    fork
+        forever monitor_addr();
+        forever monitor_data();
+    join
+endtask
+
+function void {{ class_monitor }}::assembler();
+    Data_packet pkt;
+    bit[31:0] addr;
+    int len;
+    bit[7:0] data[$];
+
+    if(!fifo_addr.size || !fifo_len.size || !fifo_data.size)
+        return;
+
+    addr = fifo_addr.pop_front();
+    len = fifo_len.pop_front();
+    data = fifo_data.pop_front();
+
+    if(!len)
+        return;
+
+    // 数据长度可能不对，此时取有效的数据组成结果，便于报告
+    while(data.size > len)
+        data.pop_back();
+
+    pkt = Data_packet::type_id::create({get_full_name(),".pkt"});
+    pkt.accept_tr = 1;
+    pkt.addr = addr;
+    pkt.data = data;
+    pkt.len = len;
+
+    `uvm_info("",$psprintf("output:\n%s",pkt.sprint()),UVM_HIGH)
+    {{ out_port_name }}.write(pkt);
+endfunction
+
+task {{ class_monitor }}::monitor_data();
+    bit[7:0] data[$];
+    int rst_cnt;
+    int len;
+    bit[7:0] tmp[$];
+
+    rst_cnt = this.reset_count;
+
+    forever begin
+        int i;
+        bit[7:0] tmp[$];
+
+        @(posedge vif.clk);
+
+        // 复位检查
+        if(rst_cnt != this.reset_count)
+            return;
+
+        // 有效
+        if(!vif.valid)
+            continue;
+
+        // 计算
+        len = vif.data_width/8;
+
+        // 数据
+        tmp = {>>8{vif.data}};
+        tmp.reverse();
+        tmp = tmp[0:len-1];
+
+        // 入队
+        while(tmp.size)
+            data.push_back(tmp.pop_front());
+
+        // 最后一包
+        if(vif.last)
+            break;
+    end
+
+    fifo_data.push_back(data);
+    assembler();
+endtask
+
+task {{ class_monitor }}::monitor_addr();
+    int rst_cnt;
+
+    rst_cnt = this.reset_count;
+
+    forever begin
+        @(posedge vif.clk);
+
+        // req
+        while(!vif.req) begin
+            @(posedge vif.clk);
+
+            // 复位检查
+            if(rst_cnt != this.reset_count)
+                return;
+        end
+
+        // ack
+        if(!vif.ack) begin
+            @(posedge vif.clk);
+
+            // 复位检查
+            if(rst_cnt != this.reset_count)
+                return;
+        end
+
+        if(vif.len)
+            `uvm_error("",$psprintf("%m : invalid len"))
+
+        fifo_addr.push_back(vif.addr);
+        fifo_len.push_back(vif.len);
+        assembler();
+    end
+endtask
+`endif

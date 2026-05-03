@@ -1,0 +1,137 @@
+`ifndef {{ class_tree | upper }}
+`define {{ class_tree | upper }}
+
+class {{ class_tree }} extends uvm_sequence;
+    `uvm_object_utils_begin({{ class_tree }})
+{% for cell in cells %}
+        `uvm_field{{ "_array" if cell.is_array }}_object({{ cell.name }},UVM_ALL_ON)
+{% endfor %}
+    `uvm_object_utils_end
+
+    {{ class_regmodel }} {{ name_regmodel }}; // 输入寄存器模型
+
+{% for cell in cells %}
+    rand {{ cell_to_class_name(cell) }} {{ cell.name }}{{ "[" ~ cell.array_size ~ "]" if cell.is_array }};
+{% endfor %}
+
+    extern function new(string name="{{ class_tree }}");
+    extern function void pre_randomize();
+    extern task body();
+
+    // 配置所有单元
+    extern task config_cells();
+
+    // 配置一个单元
+    extern task config_cell({{ class_base_cell }} cell);
+
+    // 设置寄存器
+    extern task set_reg({{ class_reg }} data,bit[31:0] value);
+
+    // 应用寄存器
+    extern task apply_reg();
+
+    // 主流程，需要额外实现
+    extern task {{ name_on_main }}();
+
+    uvm_reg regs_dirty[$]; // 需要执行写的寄存器
+    uvm_status_e status;
+
+    constraint {{ name_constraint_default }};
+    constraint {{ name_constraint_user }};
+endclass
+
+function {{ class_tree }}::new(string name);
+    super.new(name);
+{% for cell in cells %}
+    {{ 'foreach('~cell.name~'[j])' if cell.is_array }} {{ cell.name }}{{ '[j]' if cell.is_array }} = new();
+{% endfor %}
+endfunction
+
+function void {{ class_tree }}::pre_randomize();
+    super.pre_randomize();
+
+    if(!{{ class_regmodel }})
+        `uvm_fatal("", "require {{ class_regmodel }}")
+
+{% for cell in cells %}
+{% for reg_name in cell.regs_name %}
+    {{ 'foreach('~cell.name~'[j])' if cell.is_array }} {{ cell.name }}{{ '[j]' if cell.is_array }}.{{ reg_name }} = new({{ name_regmodel }}.{{ cell[reg_name].path }},{{ cell[reg_name].lsb }},{{ cell[reg_name].width }});
+{% endfor %}
+{% endfor %}
+endfunction
+
+task {{ class_tree }}::body();
+    // 主流程
+    {{ name_on_main }}();
+
+    // 配置单元
+    config_cells();
+endtask
+
+task {{ class_tree }}::config_cells();
+{% for cell in cells %}
+    {{ 'foreach('~cell.name~'[j])' if cell.is_array }}config_cell({{ cell.name }}{{ '[j]' if cell.is_array }});
+{% endfor %}
+
+    // 引用
+    apply_reg();
+endtask
+
+task {{ class_tree }}::config_cell({{ class_base_cell }} cell);
+    {{ class_div }} div;
+    {{ class_gate }} gate;
+    {{ class_inv }} inv;
+    {{ class_sel }} sel;
+
+    if($cast(cell,div)) begin
+        set_reg(div.reg_rstn,div.rstn);
+        set_reg(div.reg_load_en,div.load_en);
+        if(div.reg_bypass)
+            set_reg(div.reg_bypass,div.bypass);
+        set_reg(div.reg_step,div.step);
+    end
+    else if($cast(cell,gate)) begin
+        set_reg(gate.reg_gate,gate.gate);
+    end
+    else if($cast(cell,inv)) begin
+        set_reg(inv.reg_inv,inv.inv);
+    end
+    else if($cast(cell,sel)) begin
+        set_reg(sel.reg_sel,sel.sel);
+    end
+endtask
+
+task {{ class_tree }}::set_reg({{ class_reg }} data,bit[31:0] value);
+    uvm_reg r;
+    bit[31:0] mask;
+    bit[31:0] wdata;
+    bit[31:0] set_value;
+
+    r = data.r;
+    mask = 2**data.width-1 << data.lsb;
+    wdata = (value << data.lsb);
+    set_value = (r.get() & ~mask) | (wdata & mask);
+
+    // 首次需要读取原始数据，避免覆盖
+    if(!(r inside regs_dirty)) begin
+        bit[31:0] rdata;
+
+        r.read(status,rdata);
+        regs_dirty.push_back(r);
+    end
+
+    r.set(set_value);
+endtask
+
+task {{ class_tree }}::apply_reg();
+    foreach(regs_dirty[i]) begin
+        uvm_reg r;
+
+        r = regs_dirty[i];
+        r.write(status,r.get());
+    end
+
+    regs_dirty.delete;
+endtask
+
+`endif
