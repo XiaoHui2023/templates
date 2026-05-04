@@ -4,7 +4,7 @@
 interface {{ class_prefix }}interface(
     input wire {{ if_clk }},
     input wire {{ if_valid }},
-    input wire[31:0] {{ if_bits }}, // 通常为 $bits(PATH_TO_DATA)，不到则自动识别
+    input wire[31:0] {{ if_width }}, // 通常为 $bits(PATH_TO_DATA)，不填则自动识别
     input wire[{{ data_width_expr }}-1:0] {{ if_data }}
 );
 
@@ -28,7 +28,7 @@ int auto_width;
 wire[31:0] data_width;
 
 // assign
-assign data_width = !$isunknown({{ if_bits }}) ? {{ if_bits }} : auto_width;
+assign data_width = !$isunknown({{ if_width }}) ? {{ if_width }} : auto_width;
 
 /*
     得到数据位宽

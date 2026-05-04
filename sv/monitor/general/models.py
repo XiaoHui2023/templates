@@ -52,10 +52,10 @@ class Models(BaseModel):
         pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
         description="接口 valid 端口名。",
     )
-    if_bits: str = Field(
-        "bits",
+    if_width: str = Field(
+        "width",
         pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
-        description="接口随路宽度/有效位数端口名（原 `bits`/`width` 语义，默认 `bits`）。",
+        description="接口随路宽度/有效位数端口名（原 `bits`/`width` 语义，默认 `width`）。",
     )
     if_data: str = Field(
         "data",
