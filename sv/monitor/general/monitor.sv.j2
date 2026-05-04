@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ 'general_monitor') | upper }}
-`define {{ (class_prefix ~ 'general_monitor') | upper }}
+`ifndef {{ (class_prefix ~ 'monitor') | upper }}
+`define {{ (class_prefix ~ 'monitor') | upper }}
 
-class {{ class_prefix }}general_monitor#(int DW=UVM_HDL_MAX_WIDTH*16) extends uvm_component;
-    `uvm_component_param_utils({{ class_prefix }}general_monitor#(DW))
+class {{ class_prefix }}monitor#(int DW={{ data_width_expr }}) extends uvm_component;
+    `uvm_component_param_utils({{ class_prefix }}monitor#(DW))
 
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_ap_name }};
 
@@ -10,13 +10,13 @@ class {{ class_prefix }}general_monitor#(int DW=UVM_HDL_MAX_WIDTH*16) extends uv
     bit [63:0] m_stream_byte_addr;
 {% endif %}
 
-    function new(string name="{{ class_prefix }}general_monitor",uvm_component parent);
+    function new(string name="{{ class_prefix }}monitor",uvm_component parent);
         super.new(name,parent);
 
         {{ output_ap_name }} = new("{{ output_ap_name }}",this);
     endfunction
 
-    virtual {{ class_prefix }}general_interface vif;
+    virtual {{ class_prefix }}interface vif;
 
     extern function void start_of_simulation();
     extern task run_phase(uvm_phase phase);
@@ -25,23 +25,23 @@ class {{ class_prefix }}general_monitor#(int DW=UVM_HDL_MAX_WIDTH*16) extends uv
     extern protected task sample_and_output();
 endclass
 
-function void {{ class_prefix }}general_monitor::start_of_simulation();
+function void {{ class_prefix }}monitor::start_of_simulation();
     super.start_of_simulation();
 
-    if(!uvm_config_db#(virtual {{ class_prefix }}general_interface)::get(this,"","if",vif))
+    if(!uvm_config_db#(virtual {{ class_prefix }}interface)::get(this,"","if",vif))
         `uvm_fatal("","required if")
 endfunction
 
-task {{ class_prefix }}general_monitor::run_phase(uvm_phase phase);
+task {{ class_prefix }}monitor::run_phase(uvm_phase phase);
     super.run_phase(phase);
 
     sample_and_output();
 endtask
 
-task {{ class_prefix }}general_monitor::sample_and_output();
+task {{ class_prefix }}monitor::sample_and_output();
     forever begin
-        bit[DW-1:0] data;
-        int bits;
+        bit[DW-1:0] pdata;
+        int width;
         uvm_tlm_generic_payload out;
         int len;
         bit [7:0] tmp_dyn[];
@@ -50,14 +50,14 @@ task {{ class_prefix }}general_monitor::sample_and_output();
         byte unsigned data_dyn[];
 
         @(vif.rx_count);
-        data = vif.rx_data.data;
-        bits = vif.rx_data.bits;
+        pdata = vif.rx_data.data;
+        width = vif.rx_data.width;
 
-        len = (bits-1)/8+1;
+        len = (width-1)/8+1;
 
         out = uvm_tlm_generic_payload::type_id::create({get_full_name(),".gp"});
 
-        tmp_dyn = { >> {data}};
+        tmp_dyn = { >> {pdata}};
         full_q.delete();
         foreach (tmp_dyn[i])
             full_q.push_back(tmp_dyn[i]);

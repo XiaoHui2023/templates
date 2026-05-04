@@ -17,21 +17,22 @@ class Models(BaseModel):
     # ports
 
     | Port | Direction | Type | Usage |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | 由 `output_ap_name` 决定（默认 `o_ap`） | output | `uvm_analysis_port #(uvm_tlm_generic_payload)` | 输出采样得到的通用载荷 |
 
     # config_db
 
     | Key | Type | Usage |
     | --- | --- | --- |
-    | `if` | `uvm_config_db #(virtual <prefix>general_interface)` | 传入与本 monitor 匹配的虚拟接口，用于 `rx_data` / `rx_count` 采样 |
+    | `if` | `uvm_config_db #(virtual <prefix>interface)` | 传入与本 monitor 匹配的虚拟接口，用于 `rx_data` / `rx_count` 采样 |
 
-    生成代码中的类名为：`class_prefix` + `general_monitor`（monitor）、`class_prefix` + `general_interface`（interface）。
+    生成符号名为：`class_prefix` 后接后缀 `monitor`（监视器）、`interface`（接口）。`class_prefix` 须非空，否则后缀 `interface` 会与关键字冲突。
     """
 
     class_prefix: str = Field(
-        "",
-        description="类名前缀；完整类名为前缀后接后缀：`general_monitor`、`general_interface`。",
+        "general_",
+        min_length=1,
+        description="类名前缀（须非空）；完整类名为前缀接后缀：`monitor`、`interface`。默认 `general_` 以保持与先前默认输出名一致（`general_monitor`、`general_interface`）。",
     )
     output_ap_name: str = Field(
         "o_ap",
@@ -40,4 +41,30 @@ class Models(BaseModel):
     address_increment: bool = Field(
         False,
         description="为真时按已发字节数累加作为下一包的地址；为假时每包地址为 0。",
+    )
+    if_clk: str = Field(
+        "clk",
+        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
+        description="接口时钟端口名（合法 SV 标识符）。",
+    )
+    if_valid: str = Field(
+        "valid",
+        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
+        description="接口 valid 端口名。",
+    )
+    if_bits: str = Field(
+        "bits",
+        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
+        description="接口随路宽度/有效位数端口名（原 `bits`/`width` 语义，默认 `bits`）。",
+    )
+    if_data: str = Field(
+        "data",
+        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
+        description="接口数据向量端口名。",
+    )
+    data_width_expr: str = Field(
+        "UVM_HDL_MAX_WIDTH*16",
+        min_length=1,
+        strip_whitespace=True,
+        description="数据端口位宽常量表达式：`if_data` 为 `[ expr - 1 : 0 ]`，监视器默认参数 DW 与同式对齐。",
     )
