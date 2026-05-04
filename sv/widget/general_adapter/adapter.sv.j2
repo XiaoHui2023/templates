@@ -9,6 +9,13 @@ class {{ class_adapter }} extends uvm_component;
     {%- for data_type in data_types %}
     uvm_analysis_port #({{ data_type.class_name }}) {{ data_type.out_port_name }};
     {%- endfor %}
+    {%- for p in custom_attributes %}
+    {%- if p.dimensions|length == 0 %}
+    {{ p.type }} {{ p.name }}{% if p.default is not none %} = {{ p.default }}{% endif %};
+    {%- else %}
+    {{ p.type }} {{ p.name }}{% for d in p.dimensions %}[{{ d }}]{% endfor %};
+    {%- endif %}
+    {%- endfor %}
 
     function new(string name,uvm_component parent);
         super.new(name,parent);
@@ -21,6 +28,7 @@ class {{ class_adapter }} extends uvm_component;
     endfunction
 
     extern function void connect();
+    extern virtual task reset_phase(uvm_phase phase);
 
     extern function void write({{ class_data }} data);
     {%- for data_type in data_types %}
@@ -35,6 +43,23 @@ function void {{ class_adapter }}::connect();
 
     {{ in_port_name }}.connect(imp);
 endfunction
+
+task {{ class_adapter }}::reset_phase(uvm_phase phase);
+    super.reset_phase(phase);
+{%- for p in custom_attributes %}
+{%- if p.reset and p.default is not none %}
+{%- if p.dimensions|length == 0 %}
+    {{ p.name }} = {{ p.default }};
+{%- else %}
+{%- set _idx = ['i','j','k','l','m','n','o'] %}
+    foreach ({{ p.name }}[{% for d in p.dimensions %}{{ _idx[loop.index0] }}{% if not loop.last %},{% endif %}{% endfor %}]) begin
+        {{ p.name }}{% for d in p.dimensions %}[{{ _idx[loop.index0] }}]{% endfor %} = {{ p.default }};
+    end
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+endtask
+
 
 function void {{ class_adapter }}::write({{ class_data }} data);
     {%- for data_type in data_types %}

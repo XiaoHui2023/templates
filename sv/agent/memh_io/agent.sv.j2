@@ -1,0 +1,38 @@
+`ifndef {{ (class_prefix ~ "agent") | upper }}
+`define {{ (class_prefix ~ "agent") | upper }}
+
+class {{ class_prefix }}agent extends uvm_agent;
+    `uvm_component_utils({{ class_prefix }}agent)
+
+    {{ class_prefix }}sequencer sqr; // 外部可获取该 sequencer 作为 memh_io 的函数入口
+    uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }}; // 外部 payload 输入口
+    uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }}; // 文件加载 payload 输出口
+    protected string init_file; // agent 级 init_file 会转发给 sqr
+
+    function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
+endclass
+
+function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
+    {{ input_port_name }} = new("{{ input_port_name }}", this);
+    {{ output_port_name }} = new("{{ output_port_name }}", this);
+
+    if (uvm_config_db #(string)::get(this, "", "init_file", init_file))
+        uvm_config_db #(string)::set(this, "sqr", "init_file", init_file);
+endfunction
+
+function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+
+    {{ input_port_name }}.connect(sqr.imp);
+    sqr.o_load_ap.connect({{ output_port_name }});
+endfunction
+
+`endif
