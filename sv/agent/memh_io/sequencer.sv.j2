@@ -10,6 +10,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     uvm_analysis_port #(uvm_tlm_generic_payload) o_load_ap; // 文件加载 payload 输出口
 
     protected string init_file; // uvm_config_db 自动初始化文件名
+    protected string dump_file; // uvm_config_db 仿真结束自动落盘 memh 路径
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
@@ -17,6 +18,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     extern function void build_phase(uvm_phase phase);
     extern function void start_of_simulation_phase(uvm_phase phase);
+    extern function void final_phase(uvm_phase phase);
 
     // analysis imp 回调；WRITE payload 会写入 memory
     extern function void write(uvm_tlm_generic_payload payload);
@@ -53,6 +55,8 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     imp = new("imp", this);
     o_ap = new("o_ap", this);
     o_load_ap = new("o_load_ap", this);
+
+    void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
 endfunction
 
 function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase phase);
@@ -61,6 +65,16 @@ function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase p
     if (uvm_config_db #(string)::get(this, "", "init_file", init_file) && init_file.len()) begin
         `uvm_info("", $sformatf("load memh init file: %s", init_file), UVM_LOW)
         void'(load_file(init_file, 1));
+    end
+endfunction
+
+function void {{ class_prefix }}sequencer::final_phase(uvm_phase phase);
+    super.final_phase(phase);
+
+    if (dump_file.len()) begin
+        `uvm_info("MEMH_DUMP", $sformatf("开始写出 memh（final_phase）：%s；稀疏 memory 共 %0d 个字节项，数据量大时磁盘写入可能较久，并非仿真卡死", dump_file, memory.num()), UVM_LOW)
+        void'(save_file(dump_file));
+        `uvm_info("MEMH_DUMP", $sformatf("memh 写出完成：%s", dump_file), UVM_LOW)
     end
 endfunction
 

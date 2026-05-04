@@ -8,6 +8,7 @@ class {{ class_prefix }}agent extends uvm_agent;
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }}; // 外部 payload 输入口
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }}; // 文件加载 payload 输出口
     protected string init_file; // agent 级 init_file 会转发给 sqr
+    protected string dump_file; // agent 级 dump_file 会转发给 sqr
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
@@ -26,6 +27,9 @@ function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
 
     if (uvm_config_db #(string)::get(this, "", "init_file", init_file))
         uvm_config_db #(string)::set(this, "sqr", "init_file", init_file);
+
+    if (uvm_config_db #(string)::get(this, "", "dump_file", dump_file))
+        uvm_config_db #(string)::set(this, "sqr", "dump_file", dump_file);
 endfunction
 
 function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);

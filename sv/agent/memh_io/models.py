@@ -25,7 +25,8 @@ class Models(BaseModel):
 
     | key | 类型 | 说明 |
     | --- | --- | --- |
-    | `init_file` | `uvm_config_db #(string)` | 仿真开始时自动加载的 memh 文件路径 |
+    | `init_file` | `uvm_config_db #(string)` | 非空时：在 `start_of_simulation_phase` 自动 `load_file` 初始化 memory |
+    | `dump_file` | `uvm_config_db #(string)` | 非空时：在 `final_phase` 自动调用 `save_file`，将当前 memory 写入该路径 |
 
     # 常用函数
 
