@@ -46,7 +46,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     // 比较当前 memory 与文件或另一个 memory；失败时报 uvm_error
     extern function bit compare_file(string filename);
-    extern function bit compare_memory(ref {{ class_prefix }}memory_t expected, string expected_name="expected");
+    extern function bit compare_memory(ref {{ class_prefix }}memory_t expected, input string expected_name="expected");
 endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
@@ -231,7 +231,7 @@ function bit {{ class_prefix }}sequencer::compare_file(string filename);
     return {{ class_prefix }}compare_memh_file(memory, filename);
 endfunction
 
-function bit {{ class_prefix }}sequencer::compare_memory(ref {{ class_prefix }}memory_t expected, string expected_name="expected");
+function bit {{ class_prefix }}sequencer::compare_memory(ref {{ class_prefix }}memory_t expected, input string expected_name="expected");
     return {{ class_prefix }}compare_memory(memory, expected, expected_name);
 endfunction
 

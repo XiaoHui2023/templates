@@ -5,7 +5,7 @@ typedef bit [7:0] {{ class_prefix }}byte_t;
 typedef {{ class_prefix }}byte_t {{ class_prefix }}byte_array_t[$];
 typedef {{ class_prefix }}byte_t {{ class_prefix }}memory_t[bit [63:0]];
 
-function automatic bit {{ class_prefix }}read_memh_file(string filename, ref {{ class_prefix }}memory_t dst, bit clear_first=1);
+function automatic bit {{ class_prefix }}read_memh_file(string filename, ref {{ class_prefix }}memory_t dst, input bit clear_first=1);
     int file;
     int code;
     int value;
@@ -81,7 +81,7 @@ endfunction
 function automatic bit {{ class_prefix }}compare_memory(
     ref {{ class_prefix }}memory_t actual,
     ref {{ class_prefix }}memory_t expected,
-    string expected_name="expected"
+    input string expected_name="expected"
 );
     bit pass;
 
@@ -110,7 +110,7 @@ endfunction
 
 function automatic bit {{ class_prefix }}compare_memh_file(
     ref {{ class_prefix }}memory_t actual,
-    string filename
+    input string filename
 );
     {{ class_prefix }}memory_t expected;
 
