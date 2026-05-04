@@ -32,11 +32,12 @@ class Models(BaseModel):
     class_prefix: str = Field(
         "general_observe_",
         min_length=1,
-        description="类名前缀（须非空）；完整类名为前缀接后缀：`monitor`、`interface`。",
+        description="模板产出类型的命名前缀。",
     )
     output_ap_name: str = Field(
         "o_ap",
-        description="TLM 分析端口的实例名与 `new` 时字符串名，须为合法 SystemVerilog 标识符。",
+        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
+        description="TLM 分析端口的实例名与 `new` 时字符串名。",
     )
     address_increment: bool = Field(
         False,
@@ -45,7 +46,7 @@ class Models(BaseModel):
     if_clk: str = Field(
         "clk",
         pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
-        description="接口时钟端口名（合法 SV 标识符）。",
+        description="接口时钟端口名。",
     )
     if_valid: str = Field(
         "valid",
@@ -55,7 +56,7 @@ class Models(BaseModel):
     if_width: str = Field(
         "width",
         pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
-        description="接口随路宽度/有效位数端口名（原 `bits`/`width` 语义）。",
+        description="接口随路宽度/有效位数端口名。",
     )
     if_data: str = Field(
         "data",
