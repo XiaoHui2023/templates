@@ -1,14 +1,14 @@
 `ifndef {{ (class_prefix ~ "functions") | upper }}
 `define {{ (class_prefix ~ "functions") | upper }}
 
-typedef byte unsigned {{ class_prefix }}byte_t;
-typedef {{ class_prefix }}byte_t {{ class_prefix }}byte_array_t[];
+typedef bit [7:0] {{ class_prefix }}byte_t;
+typedef {{ class_prefix }}byte_t {{ class_prefix }}byte_array_t[$];
 typedef {{ class_prefix }}byte_t {{ class_prefix }}memory_t[bit [63:0]];
 
 function automatic bit {{ class_prefix }}read_memh_file(string filename, ref {{ class_prefix }}memory_t dst, bit clear_first=1);
     int file;
     int code;
-    int unsigned value;
+    int value;
     bit [63:0] addr;
     string token;
     string rest_of_line;

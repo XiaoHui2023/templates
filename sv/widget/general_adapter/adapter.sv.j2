@@ -1,6 +1,13 @@
 `ifndef {{ class_adapter | upper }}
 `define {{ class_adapter | upper }}
 
+{%- set _adapter_reset = namespace(need=false) %}
+{%- for p in custom_attributes %}
+{%- if p.reset and p.default is not none %}
+{%- set _adapter_reset.need = true %}
+{%- endif %}
+{%- endfor %}
+
 class {{ class_adapter }} extends uvm_component;
     `uvm_component_utils({{ class_adapter }})
 
@@ -28,7 +35,9 @@ class {{ class_adapter }} extends uvm_component;
     endfunction
 
     extern function void connect();
+    {%- if _adapter_reset.need %}
     extern virtual task reset_phase(uvm_phase phase);
+    {%- endif %}
 
     extern function void write({{ class_data }} data);
     {%- for data_type in data_types %}
@@ -44,6 +53,7 @@ function void {{ class_adapter }}::connect();
     {{ in_port_name }}.connect(imp);
 endfunction
 
+{%- if _adapter_reset.need %}
 task {{ class_adapter }}::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
 {%- for p in custom_attributes %}
@@ -60,6 +70,7 @@ task {{ class_adapter }}::reset_phase(uvm_phase phase);
 {%- endfor %}
 endtask
 
+{%- endif %}
 
 function void {{ class_adapter }}::write({{ class_data }} data);
     {%- for data_type in data_types %}

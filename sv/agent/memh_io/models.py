@@ -38,6 +38,8 @@ class Models(BaseModel):
     | `filename` | input | `string` |  | memh 文件路径 |
     | `clear_first` | input | `bit` | `0` | 加载前是否清空当前 memory |
 
+    **返回值：** `bit` — 成功为 1，失败为 0。
+
     ## `save_file`
 
     保存当前 memory 到 memh 文件。
@@ -45,6 +47,8 @@ class Models(BaseModel):
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `filename` | input | `string` |  | 输出文件路径 |
+
+    **返回值：** `bit` — 成功为 1，失败为 0。
 
     ## `write_payload`
 
@@ -61,27 +65,31 @@ class Models(BaseModel):
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `addr` | input | `bit [63:0]` |  | 读取起始地址 |
-    | `len` | input | `int unsigned` |  | 读取字节数 |
+    | `len` | input | `int` |  | 读取字节数 |
     | `name` | input | `string` | `"memh_payload"` | payload 对象名 |
+
+    **返回值：** `uvm_tlm_generic_payload` — READ command、数据与地址已填入。
 
     ## `write_data`
 
-    写入字节数组。
+    写入字节队列（与生成代码中的 `byte_array_t` 一致，元素为 `bit [7:0]`）。
 
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `addr` | input | `bit [63:0]` |  | 起始地址 |
-    | `data` | input | `byte array` |  | 要写入的字节数组 |
+    | `data` | input | `bit [7:0] $` |  | 要写入的字节队列 |
 
     ## `read_data`
 
-    读取字节数组。
+    读取字节队列。
 
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `addr` | input | `bit [63:0]` |  | 读取起始地址 |
-    | `len` | input | `int unsigned` |  | 读取字节数 |
-    | `default_value` | input | `byte unsigned` | `'0` | 未命中地址的返回值 |
+    | `len` | input | `int` |  | 读取字节数 |
+    | `default_value` | input | `bit [7:0]` | `'0` | 未命中地址的填充值 |
+
+    **返回值：** `bit [7:0] $` — 长度 `len` 的字节队列。
 
     ## `write_byte`
 
@@ -90,7 +98,7 @@ class Models(BaseModel):
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `addr` | input | `bit [63:0]` |  | 字节地址 |
-    | `data` | input | `byte unsigned` |  | 要写入的字节 |
+    | `data` | input | `bit [7:0]` |  | 要写入的字节 |
 
     ## `read_byte`
 
@@ -99,7 +107,9 @@ class Models(BaseModel):
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `addr` | input | `bit [63:0]` |  | 字节地址 |
-    | `default_value` | input | `byte unsigned` | `'0` | 未命中地址的返回值 |
+    | `default_value` | input | `bit [7:0]` | `'0` | 未命中地址的返回值 |
+
+    **返回值：** `bit [7:0]` — 读取到的字节或 `default_value`。
 
     ## `compare_file`
 
@@ -109,6 +119,8 @@ class Models(BaseModel):
     | --- | --- | --- | --- | --- |
     | `filename` | input | `string` |  | 期望 memh 文件路径 |
 
+    **返回值：** `bit` — 完全一致为 1，否则为 0。
+
     ## `compare_memory`
 
     与期望 memory 比较，失败时上报 `uvm_error`。
@@ -117,6 +129,8 @@ class Models(BaseModel):
     | --- | --- | --- | --- | --- |
     | `expected` | ref | `memory` |  | 期望 memory |
     | `expected_name` | input | `string` | `"expected"` | 期望 memory 名称 |
+
+    **返回值：** `bit` — 完全一致为 1，否则为 0。
 
     ## `clear`
 

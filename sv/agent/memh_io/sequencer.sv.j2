@@ -30,11 +30,11 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     // 直接写入/读取字节数组
     extern function void write_data(bit [63:0] addr, const ref {{ class_prefix }}byte_array_t data);
-    extern function {{ class_prefix }}byte_array_t read_data(bit [63:0] addr, int unsigned len, {{ class_prefix }}byte_t default_value='0);
+    extern function {{ class_prefix }}byte_array_t read_data(bit [63:0] addr, int len, {{ class_prefix }}byte_t default_value='0);
 
     // 使用 uvm_tlm_generic_payload 写入/读取 memory
     extern function void write_payload(uvm_tlm_generic_payload payload);
-    extern function uvm_tlm_generic_payload read_payload(bit [63:0] addr, int unsigned len, string name="memh_payload");
+    extern function uvm_tlm_generic_payload read_payload(bit [63:0] addr, int len, string name="memh_payload");
 
     // memh 文件读写；文件格式支持 @addr 与十六进制 byte token
     extern function bit load_file(string filename, bit clear_first=0);
@@ -87,16 +87,16 @@ function void {{ class_prefix }}sequencer::write_data(bit [63:0] addr, const ref
         write_byte(addr + i, data[i]);
 endfunction
 
-function {{ class_prefix }}byte_array_t {{ class_prefix }}sequencer::read_data(bit [63:0] addr, int unsigned len, {{ class_prefix }}byte_t default_value='0);
-    read_data = new[len];
-    foreach (read_data[i])
-        read_data[i] = read_byte(addr + i, default_value);
+function {{ class_prefix }}byte_array_t {{ class_prefix }}sequencer::read_data(bit [63:0] addr, int len, {{ class_prefix }}byte_t default_value='0);
+    read_data.delete();
+    for (int i = 0; i < len; i++)
+        read_data.push_back(read_byte(addr + i, default_value));
 endfunction
 
 function void {{ class_prefix }}sequencer::write_payload(uvm_tlm_generic_payload payload);
-    {{ class_prefix }}byte_array_t data;
+    byte unsigned data_dyn[];
     bit [63:0] addr;
-    int unsigned len;
+    int len;
 
     if (payload == null) begin
         `uvm_error("", "write_payload got null payload")
@@ -111,28 +111,32 @@ function void {{ class_prefix }}sequencer::write_payload(uvm_tlm_generic_payload
     end
 
     addr = payload.get_address();
-    payload.get_data(data);
+    payload.get_data(data_dyn);
     len = payload.get_data_length();
-    if (len == 0 || len > data.size())
-        len = data.size();
+    if (len == 0 || len > data_dyn.size())
+        len = data_dyn.size();
 
-    for (int unsigned i = 0; i < len; i++)
-        write_byte(addr + i, data[i]);
+    for (int i = 0; i < len; i++)
+        write_byte(addr + i, data_dyn[i]);
 
     `uvm_info("", $sformatf("write payload output:\n%s", payload.sprint()), UVM_DEBUG)
     o_ap.write(payload);
 endfunction
 
-function uvm_tlm_generic_payload {{ class_prefix }}sequencer::read_payload(bit [63:0] addr, int unsigned len, string name="memh_payload");
+function uvm_tlm_generic_payload {{ class_prefix }}sequencer::read_payload(bit [63:0] addr, int len, string name="memh_payload");
     uvm_tlm_generic_payload payload;
-    {{ class_prefix }}byte_array_t data;
+    {{ class_prefix }}byte_array_t data_q;
+    byte unsigned data_dyn[];
 
     payload = uvm_tlm_generic_payload::type_id::create(name);
-    data = read_data(addr, len);
+    data_q = read_data(addr, len);
+    data_dyn = new[data_q.size()];
+    foreach (data_q[i])
+        data_dyn[i] = data_q[i];
 
     payload.set_command(UVM_TLM_READ_COMMAND);
     payload.set_address(addr);
-    payload.set_data(data);
+    payload.set_data(data_dyn);
     payload.set_data_length(len);
     payload.set_streaming_width(len);
     payload.set_response_status(UVM_TLM_OK_RESPONSE);
@@ -188,18 +192,18 @@ endfunction
 
 function void {{ class_prefix }}sequencer::emit_load_payload(bit [63:0] addr, ref {{ class_prefix }}byte_t data_q[$]);
     uvm_tlm_generic_payload payload;
-    {{ class_prefix }}byte_array_t data;
+    byte unsigned data_dyn[];
 
-    data = new[data_q.size()];
+    data_dyn = new[data_q.size()];
     foreach (data_q[i])
-        data[i] = data_q[i];
+        data_dyn[i] = data_q[i];
 
     payload = uvm_tlm_generic_payload::type_id::create($sformatf("%s.load_payload_%0h", get_full_name(), addr));
     payload.set_command(UVM_TLM_WRITE_COMMAND);
     payload.set_address(addr);
-    payload.set_data(data);
-    payload.set_data_length(data.size());
-    payload.set_streaming_width(data.size());
+    payload.set_data(data_dyn);
+    payload.set_data_length(data_dyn.size());
+    payload.set_streaming_width(data_dyn.size());
     payload.set_response_status(UVM_TLM_OK_RESPONSE);
     `uvm_info("", $sformatf("load payload output:\n%s", payload.sprint()), UVM_DEBUG)
     o_load_ap.write(payload);
