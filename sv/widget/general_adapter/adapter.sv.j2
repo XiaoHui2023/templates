@@ -14,7 +14,7 @@ class {{ class_adapter }} extends uvm_component;
     uvm_analysis_port #({{ class_data }}) {{ in_port_name }};
     `uvm_analysis_imp_decl() protected uvm_analysis_imp#({{ class_data }},{{ class_adapter }}) imp;
     {%- for data_type in data_types %}
-    uvm_analysis_port #({{ data_type.class_name }}) {{ data_type.out_port_name }};
+    uvm_analysis_port #({{ data_type.type }}) {{ data_type.port_name }};
     {%- endfor %}
     {%- for p in custom_attributes %}
     {%- if p.dimensions|length == 0 %}
@@ -30,7 +30,7 @@ class {{ class_adapter }} extends uvm_component;
         {{ in_port_name }} = new("{{ in_port_name }}",this);
         imp = new("imp",this);
         {%- for data_type in data_types %}
-        {{ data_type.out_port_name }} = new("{{ data_type.out_port_name }}",this);
+        {{ data_type.port_name }} = new("{{ data_type.port_name }}",this);
         {%- endfor %}
     endfunction
 
@@ -42,8 +42,8 @@ class {{ class_adapter }} extends uvm_component;
     extern function void write({{ class_data }} data);
     {%- for data_type in data_types %}
 
-    // 转换为 {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}，需要额外实现
-    extern function void {{ data_type.hook_name }}(input {{ class_data }} {{ name_input_data }},output {{ data_type.class_name }} {{ name_output_data }}{{ '[$]' if data_type.is_queue }});
+    // 转换为 {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}，需要额外实现
+    extern function void {{ data_type.hook_name }}(input {{ class_data }} {{ name_input_data }},output {{ data_type.type }} {{ name_output_data }}{{ '[$]' if data_type.is_queue }});
     {%- endfor %}
 endclass
 
@@ -79,7 +79,7 @@ function void {{ class_adapter }}::write({{ class_data }} data);
     {%- endfor %}
     {%- for data_type in data_types %}
     {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
-    {{ data_type.class_name }} out_{{ vtag }}{{ '[$]' if data_type.is_queue }};
+    {{ data_type.type }} out_{{ vtag }}{{ '[$]' if data_type.is_queue }};
     {%- endfor %}
 
     `uvm_info("",$psprintf("input:\n%s",data.sprint()),UVM_LOW)
@@ -93,17 +93,17 @@ function void {{ class_adapter }}::write({{ class_data }} data);
     {%- for data_type in data_types %}
     {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
 
-    // {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}
+    // {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}
     {{ data_type.hook_name }}(in_{{ vtag }},out_{{ vtag }});
     {%- if data_type.is_queue %}
     foreach(out_{{ vtag }}[J]) begin
-        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}[%0d]:\n%s",J,out_{{ vtag }}[J].sprint()),UVM_LOW)
-        {{ data_type.out_port_name }}.write(out_{{ vtag }}[J]);
+        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}[%0d]:\n%s",J,out_{{ vtag }}[J].sprint()),UVM_LOW)
+        {{ data_type.port_name }}.write(out_{{ vtag }}[J]);
     end
     {%- else %}
     if(out_{{ vtag }}) begin
-        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}:\n%s",out_{{ vtag }}.sprint()),UVM_LOW)
-        {{ data_type.out_port_name }}.write(out_{{ vtag }});
+        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}:\n%s",out_{{ vtag }}.sprint()),UVM_LOW)
+        {{ data_type.port_name }}.write(out_{{ vtag }});
     end
     {%- endif %}
     {%- endfor %}
