@@ -1,7 +1,7 @@
-`ifndef {{ class_interface | upper }}
-`define {{ class_interface | upper }}
+`ifndef {{ (class_prefix ~ 'general_interface') | upper }}
+`define {{ (class_prefix ~ 'general_interface') | upper }}
 
-interface {{ class_interface }}(
+interface {{ class_prefix }}general_interface(
     input wire clk,
     input wire valid,
     input wire[31:0] bits, // 通常为 $bits(PATH_TO_DATA)，不到则自动识别
