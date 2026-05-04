@@ -18,7 +18,7 @@ class Models(BaseModel):
 
     | port | 方向 | 类型 | 说明 |
     | --- | --- | --- | --- |
-    | `i_ap` | input | `uvm_analysis_port #(uvm_tlm_generic_payload)` | 输入 payload，WRITE command 会写入 memory |
+    | `i_ap` | input | `uvm_analysis_port #(uvm_tlm_generic_payload)` | 输入 payload 按地址与数据写入 memory（不区分 command） |
     | `o_load_ap` | output | `uvm_analysis_port #(uvm_tlm_generic_payload)` | 输出 memh 文件加载产生的 payload |
 
     # config_db
@@ -43,7 +43,7 @@ class Models(BaseModel):
 
     ## `save_file`
 
-    保存当前 memory 到 memh 文件。
+    将当前 memory 保存为 memh 文件。
 
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
@@ -141,3 +141,8 @@ class Models(BaseModel):
     class_prefix: str = Field("memh_", description="默认类名的前缀")
     input_port_name: str = Field("i_ap", description="输入 payload 的 analysis port 名字")
     output_port_name: str = Field("o_load_ap", description="输出文件加载 payload 的 analysis port 名字")
+    memh_max_bytes_per_line: int = Field(
+        16,
+        ge=1,
+        description="写出 memh 时每行最多包含的连续字节数",
+    )

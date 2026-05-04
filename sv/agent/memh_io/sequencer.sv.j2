@@ -20,7 +20,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function void start_of_simulation_phase(uvm_phase phase);
     extern function void final_phase(uvm_phase phase);
 
-    // analysis imp 回调；WRITE payload 会写入 memory
+    // analysis imp 回调；输入 payload 按地址与数据写入 memory
     extern function void write(uvm_tlm_generic_payload payload);
 
     // 清空当前 memory
@@ -72,9 +72,8 @@ function void {{ class_prefix }}sequencer::final_phase(uvm_phase phase);
     super.final_phase(phase);
 
     if (dump_file.len()) begin
-        `uvm_info("MEMH_DUMP", $sformatf("开始写出 memh（final_phase）：%s；稀疏 memory 共 %0d 个字节项，数据量大时磁盘写入可能较久，并非仿真卡死", dump_file, memory.num()), UVM_LOW)
+        `uvm_info("MEMH_DUMP", $sformatf("Writing memh to %s", dump_file), UVM_LOW)
         void'(save_file(dump_file));
-        `uvm_info("MEMH_DUMP", $sformatf("memh 写出完成：%s", dump_file), UVM_LOW)
     end
 endfunction
 
@@ -118,11 +117,6 @@ function void {{ class_prefix }}sequencer::write_payload(uvm_tlm_generic_payload
     end
 
     `uvm_info("", $sformatf("write payload input:\n%s", payload.sprint()), UVM_DEBUG)
-
-    if (payload.get_command() != UVM_TLM_WRITE_COMMAND) begin
-        `uvm_info("", $sformatf("ignore non-write payload @0x%0h", payload.get_address()), UVM_DEBUG)
-        return;
-    end
 
     addr = payload.get_address();
     payload.get_data(data_dyn);

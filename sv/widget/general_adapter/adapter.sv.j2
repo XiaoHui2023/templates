@@ -42,7 +42,7 @@ class {{ class_adapter }} extends uvm_component;
     extern function void write({{ class_data }} data);
     {%- for data_type in data_types %}
 
-    // 转换为 {{ data_type.name }}，需要额外实现
+    // 转换为 {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}，需要额外实现
     extern function void {{ data_type.hook_name }}(input {{ class_data }} {{ name_input_data }},output {{ data_type.class_name }} {{ name_output_data }}{{ '[$]' if data_type.is_queue }});
     {%- endfor %}
 endclass
@@ -74,32 +74,36 @@ endtask
 
 function void {{ class_adapter }}::write({{ class_data }} data);
     {%- for data_type in data_types %}
-    {{ class_data }} in_{{ data_type.name }};
+    {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
+    {{ class_data }} in_{{ vtag }};
     {%- endfor %}
     {%- for data_type in data_types %}
-    {{ data_type.class_name }} out_{{ data_type.name }}{{ '[$]' if data_type.is_queue }};
+    {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
+    {{ data_type.class_name }} out_{{ vtag }}{{ '[$]' if data_type.is_queue }};
     {%- endfor %}
 
     `uvm_info("",$psprintf("input:\n%s",data.sprint()),UVM_LOW)
 
     // clone
     {%- for data_type in data_types %}
-    $cast(in_{{ data_type.name }},data.clone());
+    {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
+    $cast(in_{{ vtag }},data.clone());
     {%- endfor %}
 
     {%- for data_type in data_types %}
+    {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
 
-    // {{ data_type.name }}
-    {{ data_type.hook_name }}(in_{{ data_type.name }},out_{{ data_type.name }});
+    // {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}
+    {{ data_type.hook_name }}(in_{{ vtag }},out_{{ vtag }});
     {%- if data_type.is_queue %}
-    foreach(out_{{ data_type.name }}[J]) begin
-        `uvm_info("",$psprintf("output {{ data_type.name }}[%0d]:\n%s",J,out_{{ data_type.name }}[J].sprint()),UVM_LOW)
-        {{ data_type.out_port_name }}.write(out_{{ data_type.name }}[J]);
+    foreach(out_{{ vtag }}[J]) begin
+        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}[%0d]:\n%s",J,out_{{ vtag }}[J].sprint()),UVM_LOW)
+        {{ data_type.out_port_name }}.write(out_{{ vtag }}[J]);
     end
     {%- else %}
-    if(out_{{ data_type.name }}) begin
-        `uvm_info("",$psprintf("output {{ data_type.name }}:\n%s",out_{{ data_type.name }}.sprint()),UVM_LOW)
-        {{ data_type.out_port_name }}.write(out_{{ data_type.name }});
+    if(out_{{ vtag }}) begin
+        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.class_name }}{% endif %}:\n%s",out_{{ vtag }}.sprint()),UVM_LOW)
+        {{ data_type.out_port_name }}.write(out_{{ vtag }});
     end
     {%- endif %}
     {%- endfor %}
