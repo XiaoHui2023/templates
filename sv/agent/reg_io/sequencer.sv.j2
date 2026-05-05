@@ -1,0 +1,175 @@
+`ifndef {{ (class_prefix ~ "sequencer") | upper }}
+`define {{ (class_prefix ~ "sequencer") | upper }}
+
+class {{ class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ class_prefix }}sequencer)
+
+    uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp;
+    uvm_analysis_port #(uvm_tlm_generic_payload) o_ap;
+
+    protected uvm_reg_block m_root;
+    protected uvm_reg_map m_map;
+    protected string reg_map_name;
+    protected string init_file;
+    protected string dump_file;
+    protected {{ class_prefix }}addr_hit_t m_addr_lut[string];
+    protected bit m_lut_ready;
+    protected {{ class_prefix }}csv_row_t m_dump_rows[$];
+
+    function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern function void start_of_simulation_phase(uvm_phase phase);
+    extern function void final_phase(uvm_phase phase);
+    extern function void write(uvm_tlm_generic_payload payload);
+
+    extern function void ensure_lut();
+    extern function void append_dump_from_payload(uvm_tlm_generic_payload p);
+
+    extern function bit load_csv(string filename, bit clear_dump_first=0);
+    extern function void clear_dump_rows();
+    extern function void append_dump_row(string path, string value_text);
+    extern function bit row_to_payload({{ class_prefix }}csv_row_t row, output uvm_tlm_generic_payload payload);
+endclass
+
+function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    imp = new("imp", this);
+    o_ap = new("o_ap", this);
+
+    if (!uvm_config_db #(uvm_reg_block)::get(this, "", "reg_block", m_root) || m_root == null)
+        `uvm_fatal("REG_IO", "uvm_config_db #(uvm_reg_block) reg_block is required for reg_io sequencer")
+
+    void'(uvm_config_db #(string)::get(this, "", "reg_map", reg_map_name));
+    if (reg_map_name.len()) begin
+        m_map = m_root.get_map(reg_map_name);
+        if (m_map == null)
+            `uvm_fatal("REG_IO", $sformatf("unknown reg_map name '%s'", reg_map_name))
+    end else begin
+        m_map = m_root.get_default_map();
+        if (m_map == null)
+            `uvm_fatal("REG_IO", "no default uvm_reg_map on reg_block; set reg_map or add a default map")
+    end
+
+    void'(uvm_config_db #(string)::get(this, "", "init_file", init_file));
+    void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
+endfunction
+
+function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase phase);
+    super.start_of_simulation_phase(phase);
+
+    if (init_file.len()) begin
+        `uvm_info("REG_IO", $sformatf("load reg csv init file: %s", init_file), UVM_LOW)
+        void'(load_csv(init_file, 0));
+    end
+endfunction
+
+function void {{ class_prefix }}sequencer::final_phase(uvm_phase phase);
+    super.final_phase(phase);
+
+    if (dump_file.len()) begin
+        `uvm_info("REG_IO_DUMP", $sformatf("writing reg csv dump to %s", dump_file), UVM_LOW)
+        void'({{ class_prefix }}write_reg_csv_file(dump_file, m_dump_rows));
+    end
+endfunction
+
+function void {{ class_prefix }}sequencer::ensure_lut();
+    if (!m_lut_ready) begin
+        void'({{ class_prefix }}build_reg_addr_lut(m_root, m_map, m_addr_lut));
+        m_lut_ready = 1;
+    end
+endfunction
+
+function void {{ class_prefix }}sequencer::append_dump_from_payload(uvm_tlm_generic_payload p);
+    bit [7:0] le[$];
+    uvm_reg_addr_t ra;
+    int len;
+    string key;
+    {{ class_prefix }}csv_row_t dr;
+    uvm_reg rg;
+    string pth;
+    string vt;
+
+    if (!dump_file.len())
+        return;
+    if (p == null)
+        return;
+    if (!{{ class_prefix }}payload_to_le_bytes(p, le))
+        return;
+
+    ensure_lut();
+    ra = p.get_address();
+    len = p.get_data_length();
+    key = $sformatf("%016h_%0d", ra, len);
+
+    if (m_addr_lut.exists(key)) begin
+        pth = m_addr_lut[key].path;
+        rg = {{ class_prefix }}resolve_reg_by_path(m_root, pth);
+        if (rg != null)
+            vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, rg.get_n_bits());
+        else
+            vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, 8 * len);
+    end else begin
+        pth = $sformatf("?@0x%016h", ra);
+        vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, 8 * len);
+    end
+
+    dr.path = pth;
+    dr.value_text = vt;
+    m_dump_rows.push_back(dr);
+endfunction
+
+function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload);
+    if (payload.get_command() != UVM_TLM_WRITE_COMMAND) begin
+        `uvm_warning("REG_IO", "i_ap only handles UVM_TLM_WRITE_COMMAND payloads")
+        return;
+    end
+    ensure_lut();
+    void'({{ class_prefix }}apply_payload_to_reg(m_root, m_map, m_addr_lut, payload));
+    append_dump_from_payload(payload);
+endfunction
+
+function bit {{ class_prefix }}sequencer::load_csv(string filename, bit clear_dump_first=0);
+    {{ class_prefix }}csv_row_t rows[$];
+    uvm_tlm_generic_payload p;
+
+    if (clear_dump_first)
+        m_dump_rows.delete();
+
+    if (!{{ class_prefix }}read_reg_csv_file(filename, rows))
+        return 0;
+
+    foreach (rows[i]) begin
+        if (!{{ class_prefix }}commit_csv_row_to_reg(m_root, m_map, rows[i]))
+            return 0;
+        if (dump_file.len())
+            m_dump_rows.push_back(rows[i]);
+        if (!{{ class_prefix }}reg_row_to_payload(m_root, m_map, rows[i], p))
+            return 0;
+        o_ap.write(p);
+    end
+    return 1;
+endfunction
+
+function void {{ class_prefix }}sequencer::clear_dump_rows();
+    m_dump_rows.delete();
+endfunction
+
+function void {{ class_prefix }}sequencer::append_dump_row(string path, string value_text);
+    {{ class_prefix }}csv_row_t dr;
+    dr.path = path;
+    dr.value_text = value_text;
+    if (dump_file.len())
+        m_dump_rows.push_back(dr);
+endfunction
+
+function bit {{ class_prefix }}sequencer::row_to_payload({{ class_prefix }}csv_row_t row, output uvm_tlm_generic_payload payload);
+    if (m_root == null || m_map == null)
+        return 0;
+    return {{ class_prefix }}reg_row_to_payload(m_root, m_map, row, payload);
+endfunction
+
+`endif

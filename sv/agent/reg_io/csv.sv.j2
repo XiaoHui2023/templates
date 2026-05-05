@@ -1,0 +1,113 @@
+`ifndef {{ (class_prefix ~ "csv") | upper }}
+`define {{ (class_prefix ~ "csv") | upper }}
+
+typedef struct {
+    string path;
+    string value_text;
+} {{ class_prefix }}csv_row_t;
+
+function automatic void {{ class_prefix }}csv_trim_both(ref string s);
+    int a;
+    int b;
+    int i;
+    if (!s.len())
+        return;
+    a = 0;
+    b = s.len() - 1;
+    for (i = 0; i < s.len(); i++) begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+            a = i;
+            break;
+        end
+    end
+    for (i = s.len() - 1; i >= 0; i--) begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+            b = i;
+            break;
+        end
+    end
+    if (b >= a)
+        s = s.substr(a, b);
+    else
+        s = "";
+endfunction
+
+function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref {{ class_prefix }}csv_row_t rows[$]);
+    int fd;
+    string line;
+    int pos;
+    string left;
+    string right;
+    {{ class_prefix }}csv_row_t row;
+
+    rows.delete();
+    fd = $fopen(filename, "r");
+    if (!fd) begin
+        `uvm_error("REG_IO_CSV", $sformatf("failed to open csv: %s", filename))
+        return 0;
+    end
+
+    while (!$feof(fd)) begin
+        void'($fgets(line, fd));
+        if (!line.len())
+            continue;
+        {{ class_prefix }}csv_trim_both(line);
+        if (!line.len())
+            continue;
+        if (line.len() >= 2 && line.substr(0, 1) == "//")
+            continue;
+        pos = -1;
+        for (int i = 0; i < line.len(); i++) begin
+            if (line.getc(i) == ",") begin
+                pos = i;
+                break;
+            end
+        end
+        if (pos < 0) begin
+            `uvm_warning("REG_IO_CSV", $sformatf("line missing comma, skip: %s", line))
+            continue;
+        end
+        if (pos == 0) begin
+            `uvm_warning("REG_IO_CSV", $sformatf("empty path, skip: %s", line))
+            continue;
+        end
+        left = line.substr(0, pos - 1);
+        right = (pos + 1 < line.len()) ? line.substr(pos + 1, line.len() - 1) : "";
+        {{ class_prefix }}csv_trim_both(left);
+        {{ class_prefix }}csv_trim_both(right);
+        if (!left.len()) begin
+            `uvm_warning("REG_IO_CSV", $sformatf("empty path after trim, skip: %s", line))
+            continue;
+        end
+        if (!right.len()) begin
+            `uvm_warning("REG_IO_CSV", $sformatf("empty value, skip: %s", line))
+            continue;
+        end
+        row.path = left;
+        row.value_text = right;
+        rows.push_back(row);
+    end
+
+    $fclose(fd);
+    `uvm_info("REG_IO_CSV", $sformatf("read %0d rows from %s", rows.size(), filename), UVM_LOW)
+    return 1;
+endfunction
+
+function automatic bit {{ class_prefix }}write_reg_csv_file(string filename, ref {{ class_prefix }}csv_row_t rows[$]);
+    int fd;
+
+    fd = $fopen(filename, "w");
+    if (!fd) begin
+        `uvm_error("REG_IO_CSV", $sformatf("failed to open csv for write: %s", filename))
+        return 0;
+    end
+
+    foreach (rows[i])
+        $fwrite(fd, "%s,%s\n", rows[i].path, rows[i].value_text);
+
+    $fclose(fd);
+    `uvm_info("REG_IO_CSV", $sformatf("wrote %0d rows to %s", rows.size(), filename), UVM_LOW)
+    return 1;
+endfunction
+
+`endif

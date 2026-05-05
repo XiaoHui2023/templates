@@ -1,0 +1,215 @@
+`ifndef {{ (class_prefix ~ "reg_writer_ral") | upper }}
+`define {{ (class_prefix ~ "reg_writer_ral") | upper }}
+
+typedef struct {
+    string path;
+    int n_bytes;
+} {{ class_prefix }}addr_hit_t;
+
+function automatic void {{ class_prefix }}str_trim_both(ref string s);
+    int a;
+    int b;
+    int i;
+    if (!s.len())
+        return;
+    a = 0;
+    b = s.len() - 1;
+    for (i = 0; i < s.len(); i++) begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+            a = i;
+            break;
+        end
+    end
+    for (i = s.len() - 1; i >= 0; i--) begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+            b = i;
+            break;
+        end
+    end
+    if (b >= a)
+        s = s.substr(a, b);
+    else
+        s = "";
+endfunction
+
+function automatic void {{ class_prefix }}split_dotted_path(input string s, ref string parts[$]);
+    int start;
+    int i;
+    string seg;
+    parts.delete();
+    start = 0;
+    for (i = 0; i < s.len(); i++) begin
+        if (s.getc(i) == ".") begin
+            if (i > start) begin
+                seg = s.substr(start, i - 1);
+                {{ class_prefix }}str_trim_both(seg);
+                if (seg.len())
+                    parts.push_back(seg);
+            end
+            start = i + 1;
+        end
+    end
+    if (start < s.len()) begin
+        seg = s.substr(start, s.len() - 1);
+        {{ class_prefix }}str_trim_both(seg);
+        if (seg.len())
+            parts.push_back(seg);
+    end
+endfunction
+
+function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block root, string dotted_path);
+    uvm_reg_block cur;
+    uvm_reg rg;
+    string parts[$];
+    int i;
+
+    if (root == null || !dotted_path.len())
+        return null;
+
+    {{ class_prefix }}split_dotted_path(dotted_path, parts);
+    if (!parts.size())
+        return null;
+
+    cur = root;
+    for (i = 0; i < parts.size() - 1; i++) begin
+        uvm_reg_block nxt;
+        if (!$cast(nxt, cur.get_block(parts[i])))
+            return null;
+        cur = nxt;
+    end
+
+    if (!$cast(rg, cur.get_reg(parts[parts.size() - 1])))
+        return null;
+    return rg;
+endfunction
+
+function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
+    ref bit [7:0] le[$],
+    input int n_bits,
+    output uvm_reg_data_t val
+);
+    int n_bytes;
+    int i;
+    val = 0;
+    n_bytes = (n_bits + 7) / 8;
+    if (n_bits > $bits(val)) begin
+        `uvm_error("REG_WRITER", $sformatf("register width %0d exceeds uvm_reg_data_t", n_bits))
+        return 0;
+    end
+    for (i = 0; i < le.size() && i < n_bytes; i++)
+        val |= uvm_reg_data_t'(le[i]) << (8 * i);
+    return 1;
+endfunction
+
+function automatic bit {{ class_prefix }}payload_to_le_bytes(
+    uvm_tlm_generic_payload p,
+    ref bit [7:0] le[$]
+);
+    byte unsigned dyn[];
+    int len;
+    int i;
+
+    le.delete();
+    if (p == null)
+        return 0;
+    p.get_data(dyn);
+    len = p.get_data_length();
+    if (len <= 0 || len > dyn.size())
+        len = dyn.size();
+    for (i = 0; i < len; i++)
+        le.push_back(dyn[i]);
+    return 1;
+endfunction
+
+function automatic string {{ class_prefix }}format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
+    int n_bytes;
+    bit [4095:0] acc;
+    int i;
+    string s;
+    string ch;
+    int nib;
+    int n_nib;
+    int ms_nz;
+
+    n_bytes = (n_bits + 7) / 8;
+    acc = 0;
+    for (i = 0; i < le_bytes.size() && i < n_bytes; i++)
+        acc |= (bit [4095:0]'(le_bytes[i])) << (8 * i);
+
+    n_nib = (n_bits + 3) / 4;
+    if (n_nib < 1)
+        n_nib = 1;
+    ms_nz = -1;
+    for (nib = n_nib - 1; nib >= 0; nib--) begin
+        if (((acc >> (4 * nib)) & 4'hF) != 0) begin
+            ms_nz = nib;
+            break;
+        end
+    end
+    if (ms_nz < 0)
+        ms_nz = 0;
+
+    s = "0x";
+    for (nib = ms_nz; nib >= 0; nib--) begin
+        $sformat(ch, "%0h", (acc >> (4 * nib)) & 4'hF);
+        s = {s, ch};
+    end
+    return s;
+endfunction
+
+function automatic void {{ class_prefix }}walk_register_map(
+    uvm_reg_block blk,
+    uvm_reg_map map,
+    string rel_prefix,
+    ref {{ class_prefix }}addr_hit_t lut[string]
+);
+    uvm_reg regs[$];
+    uvm_reg_block subs[$];
+    uvm_reg rg;
+    uvm_reg_addr_t ra;
+    int nb;
+    string key;
+    string pth;
+    {{ class_prefix }}addr_hit_t hit;
+
+    blk.get_registers(regs, UVM_NO_HIER);
+    foreach (regs[i]) begin
+        rg = regs[i];
+        ra = rg.get_address(map);
+        nb = (rg.get_n_bits() + 7) / 8;
+        key = $sformatf("%016h_%0d", ra, nb);
+        if (rel_prefix.len())
+            pth = {rel_prefix, ".", rg.get_name()};
+        else
+            pth = rg.get_name();
+        hit.path = pth;
+        hit.n_bytes = nb;
+        if (lut.exists(key) && lut[key].path != hit.path)
+            `uvm_warning("REG_WRITER", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
+        lut[key] = hit;
+    end
+
+    blk.get_blocks(subs, UVM_NO_HIER);
+    foreach (subs[j]) begin
+        string np;
+        if (rel_prefix.len())
+            np = {rel_prefix, ".", subs[j].get_name()};
+        else
+            np = subs[j].get_name();
+        {{ class_prefix }}walk_register_map(subs[j], map, np, lut);
+    end
+endfunction
+
+function automatic bit {{ class_prefix }}build_reg_addr_lut(
+    uvm_reg_block root,
+    uvm_reg_map map,
+    ref {{ class_prefix }}addr_hit_t lut[string]
+);
+    lut.delete();
+    if (root == null || map == null)
+        return 0;
+    {{ class_prefix }}walk_register_map(root, map, "", lut);
+    return 1;
+endfunction
+
+`endif
