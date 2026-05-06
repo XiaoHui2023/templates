@@ -11,9 +11,9 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     protected uvm_reg_map m_map;
     protected string init_file;
     protected string dump_file;
-    protected {{ class_prefix }}addr_hit_t m_addr_lut[string];
+    protected {{ class_prefix }}addr_hit m_addr_lut[string];
     protected bit m_lut_ready;
-    protected {{ class_prefix }}csv_row_t m_dump_rows[$];
+    protected {{ class_prefix }}csv_row m_dump_rows[$];
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
@@ -30,7 +30,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function bit load_csv(string filename, bit clear_dump_first=0);
     extern function void clear_dump_rows();
     extern function void append_dump_row(string path, string value_text);
-    extern function bit row_to_payload({{ class_prefix }}csv_row_t row, output uvm_tlm_generic_payload payload);
+    extern function bit row_to_payload({{ class_prefix }}csv_row row, output uvm_tlm_generic_payload payload);
 endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
@@ -55,7 +55,8 @@ function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase p
 
     if (init_file.len()) begin
         `uvm_info("REG_IO", $sformatf("load reg csv init file: %s", init_file), UVM_LOW)
-        void'(load_csv(init_file, 0));
+        if (!load_csv(init_file, 0))
+            `uvm_error("REG_IO", $sformatf("load_csv failed for init_file=%s", init_file))
     end
 endfunction
 
@@ -64,7 +65,8 @@ function void {{ class_prefix }}sequencer::final_phase(uvm_phase phase);
 
     if (dump_file.len()) begin
         `uvm_info("REG_IO_DUMP", $sformatf("writing reg csv dump to %s", dump_file), UVM_LOW)
-        void'({{ class_prefix }}write_reg_csv_file(dump_file, m_dump_rows));
+        if (!{{ class_prefix }}write_reg_csv_file(dump_file, m_dump_rows))
+            `uvm_error("REG_IO_DUMP", $sformatf("write_reg_csv_file failed path=%s", dump_file))
     end
 endfunction
 
@@ -80,7 +82,7 @@ function void {{ class_prefix }}sequencer::append_dump_from_payload(uvm_tlm_gene
     uvm_reg_addr_t ra;
     int len;
     string key;
-    {{ class_prefix }}csv_row_t dr;
+    {{ class_prefix }}csv_row dr;
     uvm_reg rg;
     string pth;
     string vt;
@@ -109,6 +111,7 @@ function void {{ class_prefix }}sequencer::append_dump_from_payload(uvm_tlm_gene
         vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, 8 * len);
     end
 
+    dr = new;
     dr.path = pth;
     dr.value_text = vt;
     m_dump_rows.push_back(dr);
@@ -125,7 +128,7 @@ function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload
 endfunction
 
 function bit {{ class_prefix }}sequencer::load_csv(string filename, bit clear_dump_first=0);
-    {{ class_prefix }}csv_row_t rows[$];
+    {{ class_prefix }}csv_row rows[$];
     uvm_tlm_generic_payload p;
 
     if (clear_dump_first)
@@ -151,14 +154,15 @@ function void {{ class_prefix }}sequencer::clear_dump_rows();
 endfunction
 
 function void {{ class_prefix }}sequencer::append_dump_row(string path, string value_text);
-    {{ class_prefix }}csv_row_t dr;
+    {{ class_prefix }}csv_row dr;
+    dr = new;
     dr.path = path;
     dr.value_text = value_text;
     if (dump_file.len())
         m_dump_rows.push_back(dr);
 endfunction
 
-function bit {{ class_prefix }}sequencer::row_to_payload({{ class_prefix }}csv_row_t row, output uvm_tlm_generic_payload payload);
+function bit {{ class_prefix }}sequencer::row_to_payload({{ class_prefix }}csv_row row, output uvm_tlm_generic_payload payload);
     if (m_root == null || m_map == null)
         return 0;
     return {{ class_prefix }}reg_row_to_payload(m_root, m_map, row, payload);

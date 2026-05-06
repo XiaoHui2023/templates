@@ -1,0 +1,9 @@
+`ifndef {{ (class_prefix ~ "addr_hit") | upper }}
+`define {{ (class_prefix ~ "addr_hit") | upper }}
+
+class {{ class_prefix }}addr_hit;
+    string path;
+    int n_bytes;
+endclass
+
+`endif

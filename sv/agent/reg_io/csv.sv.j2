@@ -1,11 +1,6 @@
 `ifndef {{ (class_prefix ~ "csv") | upper }}
 `define {{ (class_prefix ~ "csv") | upper }}
 
-typedef struct {
-    string path;
-    string value_text;
-} {{ class_prefix }}csv_row_t;
-
 function automatic void {{ class_prefix }}csv_trim_both(ref string s);
     int a;
     int b;
@@ -32,13 +27,13 @@ function automatic void {{ class_prefix }}csv_trim_both(ref string s);
         s = "";
 endfunction
 
-function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref {{ class_prefix }}csv_row_t rows[$]);
+function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref {{ class_prefix }}csv_row rows[$]);
     int fd;
     string line;
     int pos;
     string left;
     string right;
-    {{ class_prefix }}csv_row_t row;
+    {{ class_prefix }}csv_row row;
 
     rows.delete();
     fd = $fopen(filename, "r");
@@ -83,6 +78,7 @@ function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref 
             `uvm_warning("REG_IO_CSV", $sformatf("empty value, skip: %s", line))
             continue;
         end
+        row = new;
         row.path = left;
         row.value_text = right;
         rows.push_back(row);
@@ -93,7 +89,7 @@ function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref 
     return 1;
 endfunction
 
-function automatic bit {{ class_prefix }}write_reg_csv_file(string filename, ref {{ class_prefix }}csv_row_t rows[$]);
+function automatic bit {{ class_prefix }}write_reg_csv_file(string filename, ref {{ class_prefix }}csv_row rows[$]);
     int fd;
 
     fd = $fopen(filename, "w");

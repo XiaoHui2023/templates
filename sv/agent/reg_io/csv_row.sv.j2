@@ -1,0 +1,9 @@
+`ifndef {{ (class_prefix ~ "csv_row") | upper }}
+`define {{ (class_prefix ~ "csv_row") | upper }}
+
+class {{ class_prefix }}csv_row;
+    string path;
+    string value_text;
+endclass
+
+`endif

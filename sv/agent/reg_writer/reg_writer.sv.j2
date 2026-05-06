@@ -10,7 +10,7 @@ class {{ class_prefix }}reg_writer extends uvm_component;
     protected uvm_reg_block m_root;
     protected uvm_reg_map m_map;
     protected string reg_map_name;
-    protected {{ class_prefix }}addr_hit_t m_addr_lut[string];
+    protected {{ class_prefix }}addr_hit m_addr_lut[string];
 
     function new(string name="{{ class_prefix }}reg_writer", uvm_component parent=null);
         super.new(name, parent);
@@ -54,7 +54,7 @@ function void {{ class_prefix }}reg_writer::write(uvm_tlm_generic_payload payloa
     uvm_reg_addr_t ra;
     int len;
     string key;
-    {{ class_prefix }}addr_hit_t hit;
+    {{ class_prefix }}addr_hit hit;
     uvm_reg rg;
     bit [7:0] le[$];
     uvm_reg_data_t v;

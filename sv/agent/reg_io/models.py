@@ -65,7 +65,7 @@ class Models(BaseModel):
 
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
-    | `row` | input | `csv_row_t` |  | 路径与数值文本 |
+    | `row` | input | `csv_row`（带 `class_prefix` 的类句柄） |  | 路径与数值文本 |
     | `payload` | output | `uvm_tlm_generic_payload` |  | 输出 payload 句柄 |
 
     **返回值：** `bit` — 成功为 1，失败为 0。
