@@ -1,16 +1,22 @@
 `ifndef {{ (class_prefix ~ "ral_bridge") | upper }}
 `define {{ (class_prefix ~ "ral_bridge") | upper }}
 
-function automatic void {{ class_prefix }}split_dotted_path(input string s, ref string parts[$]);
+function automatic void {{ class_prefix }}split_dotted_path(input string s_in, ref string parts[$]);
     int start;
     int i;
+    int k;
     string seg;
+    string s;
     parts.delete();
+    s = s_in;
+    {{ class_prefix }}csv_trim_both(s);
     start = 0;
     for (i = 0; i < s.len(); i++) begin
         if (s.getc(i) == ".") begin
             if (i > start) begin
-                seg = s.substr(start, i - 1);
+                seg = "";
+                for (k = start; k < i; k++)
+                    seg.putc(seg.len(), s.getc(k));
                 {{ class_prefix }}csv_trim_both(seg);
                 if (seg.len())
                     parts.push_back(seg);
@@ -19,7 +25,9 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s, ref 
         end
     end
     if (start < s.len()) begin
-        seg = s.substr(start, s.len() - 1);
+        seg = "";
+        for (k = start; k < s.len(); k++)
+            seg.putc(seg.len(), s.getc(k));
         {{ class_prefix }}csv_trim_both(seg);
         if (seg.len())
             parts.push_back(seg);
