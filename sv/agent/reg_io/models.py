@@ -29,22 +29,21 @@ class Models(BaseModel):
     | key | 类型 | 说明 |
     | --- | --- | --- |
     | `reg_block` | `uvm_reg_block` | 点分路径解析与地址编码的**起始寄存器块**（必填）；使用其 **默认** `uvm_reg_map` |
-    | `init_file` | `string` | 非空时：在 `start_of_simulation_phase` 自动 `load_csv` |
+    | `init_file` | `string` | 非空时：在 `run_phase` 起始（持 objection）自动 `load_csv` |
     | `dump_file` | `string` | 非空时：在 `final_phase` 将累积的寄存器写记录写出为 CSV |
 
     # 常用函数
 
     ## `load_csv`
 
-    读取 CSV 并逐行解析为寄存器写：写 RAL、推入落盘队列、从 `o_ap` 发出对应
-    payload。
+    **task**：读取 CSV 并逐行解析为寄存器写（调用 `uvm_reg::write`，可消耗仿真时间）；
+    写 RAL、推入落盘队列、从 `o_ap` 发出对应 payload。
 
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `filename` | input | `string` |  | CSV 路径 |
     | `clear_dump_first` | input | `bit` | `0` | 为 1 时先清空落盘累积队列再加载 |
-
-    **返回值：** `bit` — 成功为 1，失败为 0。
+    | `ok` | output | `bit` |  | 成功为 1，失败为 0 |
 
     ## `clear_dump_rows`
 

@@ -315,37 +315,39 @@ function automatic bit {{ class_prefix }}reg_row_to_payload(
     return 1;
 endfunction
 
-function automatic bit {{ class_prefix }}commit_csv_row_to_reg(
+task automatic {{ class_prefix }}commit_csv_row_to_reg(
     uvm_reg_block root,
     uvm_reg_map map,
-    {{ class_prefix }}csv_row row
+    {{ class_prefix }}csv_row row,
+    output bit ok
 );
     uvm_reg rg;
     bit [7:0] le[$];
     uvm_reg_data_t v;
     uvm_status_e st;
 
+    ok = 0;
     if (root == null || map == null)
-        return 0;
+        return;
 
     rg = {{ class_prefix }}resolve_reg_by_path(root, row.path);
     if (rg == null) begin
         `uvm_error("REG_IO_RAL", $sformatf("commit resolve failed: %s", row.path))
-        return 0;
+        return;
     end
 
     if (!{{ class_prefix }}parse_reg_value_text(row.value_text, rg.get_n_bits(), le))
-        return 0;
+        return;
     if (!{{ class_prefix }}le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
-        return 0;
+        return;
 
     rg.write(st, v, UVM_BACKDOOR, map, null);
     if (st != UVM_IS_OK) begin
         `uvm_error("REG_IO_RAL", $sformatf("commit reg write failed path=%s", row.path))
-        return 0;
+        return;
     end
-    return 1;
-endfunction
+    ok = 1;
+endtask
 
 function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
     ref bit [7:0] le[$],
@@ -385,11 +387,12 @@ function automatic bit {{ class_prefix }}payload_to_le_bytes(
     return 1;
 endfunction
 
-function automatic bit {{ class_prefix }}apply_payload_to_reg(
+task automatic {{ class_prefix }}apply_payload_to_reg(
     uvm_reg_block root,
     uvm_reg_map map,
     ref {{ class_prefix }}addr_hit lut[string],
-    input uvm_tlm_generic_payload p
+    input uvm_tlm_generic_payload p,
+    output bit ok
 );
     uvm_reg_addr_t ra;
     int len;
@@ -400,8 +403,9 @@ function automatic bit {{ class_prefix }}apply_payload_to_reg(
     uvm_reg_data_t v;
     uvm_status_e st;
 
+    ok = 0;
     if (root == null || map == null || p == null)
-        return 0;
+        return;
 
     ra = p.get_address();
     len = p.get_data_length();
@@ -409,25 +413,25 @@ function automatic bit {{ class_prefix }}apply_payload_to_reg(
 
     if (!lut.exists(key)) begin
         `uvm_warning("REG_IO_RAL", $sformatf("no reg for payload addr=0x%0h len=%0d", ra, len))
-        return 0;
+        return;
     end
 
     hit = lut[key];
     rg = {{ class_prefix }}resolve_reg_by_path(root, hit.path);
     if (rg == null) begin
         `uvm_error("REG_IO_RAL", $sformatf("lut path resolve failed: %s", hit.path))
-        return 0;
+        return;
     end
 
     if (!{{ class_prefix }}payload_to_le_bytes(p, le))
-        return 0;
+        return;
     if (!{{ class_prefix }}le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
-        return 0;
+        return;
 
     rg.write(st, v, UVM_BACKDOOR, map, null);
     if (st != UVM_IS_OK)
         `uvm_error("REG_IO_RAL", $sformatf("reg write failed path=%s", hit.path))
-    return st == UVM_IS_OK;
-endfunction
+    ok = (st == UVM_IS_OK);
+endtask
 
 `endif

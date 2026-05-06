@@ -218,4 +218,13 @@ function automatic bit {{ class_prefix }}build_reg_addr_lut(
     return 1;
 endfunction
 
+task automatic {{ class_prefix }}reg_writer_frontdoor_write(
+    uvm_reg rg,
+    uvm_reg_map map,
+    input uvm_reg_data_t v,
+    output uvm_status_e st
+);
+    rg.write(st, v, UVM_FRONTDOOR, map, null);
+endtask
+
 `endif

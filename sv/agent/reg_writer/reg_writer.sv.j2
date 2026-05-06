@@ -101,7 +101,7 @@ function void {{ class_prefix }}reg_writer::write(uvm_tlm_generic_payload payloa
             automatic int nbits_x = rg.get_n_bits();
             uvm_status_e st_x;
             string val_x;
-            rg_x.write(st_x, v_x, UVM_FRONTDOOR, m_map, null);
+            {{ class_prefix }}reg_writer_frontdoor_write(rg_x, m_map, v_x, st_x);
             if (st_x != UVM_IS_OK) begin
                 `uvm_error("REG_WRITER", $sformatf("reg frontdoor write failed path=%s", path_x))
             end else begin
