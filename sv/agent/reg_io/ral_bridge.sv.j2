@@ -42,12 +42,14 @@ function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block r
     cur = root;
     for (i = 0; i < parts.size() - 1; i++) begin
         uvm_reg_block nxt;
-        if (!$cast(nxt, cur.get_block(parts[i])))
+        nxt = cur.get_block_by_name(parts[i]);
+        if (nxt == null)
             return null;
         cur = nxt;
     end
 
-    if (!$cast(rg, cur.get_reg(parts[parts.size() - 1])))
+    rg = cur.get_reg_by_name(parts[parts.size() - 1]);
+    if (rg == null)
         return null;
     return rg;
 endfunction

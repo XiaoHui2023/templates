@@ -68,12 +68,14 @@ function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block r
     cur = root;
     for (i = 0; i < parts.size() - 1; i++) begin
         uvm_reg_block nxt;
-        if (!$cast(nxt, cur.get_block(parts[i])))
+        nxt = cur.get_block_by_name(parts[i]);
+        if (nxt == null)
             return null;
         cur = nxt;
     end
 
-    if (!$cast(rg, cur.get_reg(parts[parts.size() - 1])))
+    rg = cur.get_reg_by_name(parts[parts.size() - 1]);
+    if (rg == null)
         return null;
     return rg;
 endfunction
@@ -85,14 +87,18 @@ function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
 );
     int n_bytes;
     int i;
+    uvm_reg_data_t ext;
     val = 0;
     n_bytes = (n_bits + 7) / 8;
     if (n_bits > $bits(val)) begin
         `uvm_error("REG_WRITER", $sformatf("register width %0d exceeds uvm_reg_data_t", n_bits))
         return 0;
     end
-    for (i = 0; i < le.size() && i < n_bytes; i++)
-        val |= uvm_reg_data_t'(le[i]) << (8 * i);
+    for (i = 0; i < le.size() && i < n_bytes; i++) begin
+        ext = 0;
+        ext[7:0] = le[i];
+        val |= ext << (8 * i);
+    end
     return 1;
 endfunction
 

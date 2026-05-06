@@ -32,7 +32,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     // 直接写入/读取字节数组
     extern function void write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
-    extern function bit [7:0] [$] read_data(bit [63:0] addr, int len, bit [7:0] default_value='0);
+    extern function void read_data(input bit [63:0] addr, input int len, output bit [7:0] data_q[$], input bit [7:0] default_value='0);
 
     // 使用 uvm_tlm_generic_payload 写入/读取 memory
     extern function void write_payload(uvm_tlm_generic_payload payload);
@@ -100,10 +100,10 @@ function void {{ class_prefix }}sequencer::write_data(bit [63:0] addr, const ref
         write_byte(addr + i, data[i]);
 endfunction
 
-function bit [7:0] [$] {{ class_prefix }}sequencer::read_data(bit [63:0] addr, int len, bit [7:0] default_value='0);
-    read_data.delete();
+function void {{ class_prefix }}sequencer::read_data(input bit [63:0] addr, input int len, output bit [7:0] data_q[$], input bit [7:0] default_value='0);
+    data_q.delete();
     for (int i = 0; i < len; i++)
-        read_data.push_back(read_byte(addr + i, default_value));
+        data_q.push_back(read_byte(addr + i, default_value));
 endfunction
 
 function void {{ class_prefix }}sequencer::write_payload(uvm_tlm_generic_payload payload);
@@ -137,7 +137,7 @@ function uvm_tlm_generic_payload {{ class_prefix }}sequencer::read_payload(bit [
     byte unsigned data_dyn[];
 
     payload = uvm_tlm_generic_payload::type_id::create(name);
-    data_q = read_data(addr, len);
+    read_data(addr, len, data_q);
     data_dyn = new[data_q.size()];
     foreach (data_q[i])
         data_dyn[i] = data_q[i];
