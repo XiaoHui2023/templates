@@ -83,7 +83,7 @@ function void {{ class_adapter }}::write({{ class_data }} data);
     {{ data_type.type }} out_{{ vtag }}{{ '[$]' if data_type.is_queue }};
     {%- endfor %}
 
-    `uvm_info("",$psprintf("input:\n%s",data.sprint()),UVM_LOW)
+    `uvm_info("",$psprintf("input:\n%s",data.sprint()),UVM_HIGH)
 
     // 各输出分支独立 clone，避免 hook 侧改写共享对象
     {%- for data_type in data_types %}
@@ -97,12 +97,12 @@ function void {{ class_adapter }}::write({{ class_data }} data);
     {{ data_type.hook_name }}(in_{{ vtag }},out_{{ vtag }});
     {%- if data_type.is_queue %}
     foreach(out_{{ vtag }}[J]) begin
-        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}[%0d]:\n%s",J,out_{{ vtag }}[J].sprint()),UVM_LOW)
+        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}[%0d]:\n%s",J,out_{{ vtag }}[J].sprint()),UVM_HIGH)
         {{ data_type.port_name }}.write(out_{{ vtag }}[J]);
     end
     {%- else %}
     if(out_{{ vtag }}) begin
-        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}:\n%s",out_{{ vtag }}.sprint()),UVM_LOW)
+        `uvm_info("",$psprintf("output {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}:\n%s",out_{{ vtag }}.sprint()),UVM_HIGH)
         {{ data_type.port_name }}.write(out_{{ vtag }});
     end
     {%- endif %}
