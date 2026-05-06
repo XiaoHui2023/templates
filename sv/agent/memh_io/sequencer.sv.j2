@@ -6,12 +6,13 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
     bit [7:0] memory[bit [63:0]]; // 索引为字节地址，元素为 8 位数据
-    uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp; // TLM 写入口（analysis imp）
+    uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp; // TLM 写入口
     uvm_analysis_port #(uvm_tlm_generic_payload) o_ap; // write_payload 完成后广播同一 GP
     uvm_analysis_port #(uvm_tlm_generic_payload) o_load_ap; // load_file 按连续地址段发出的写 GP
 
     protected string init_file; // SOS 阶段可选 memh 初值（config_db）
-    protected string dump_file; // final 阶段可选 memh 落盘路径（config_db）
+    protected string dump_file; // final_phase 可选：将 memory 写成 memh 的输出路径（config_db）
+    protected string compare_path; // config_db 键 compare_file：check_phase 比对用 memh 路径
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
@@ -19,9 +20,10 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     extern function void build_phase(uvm_phase phase);
     extern function void start_of_simulation_phase(uvm_phase phase);
+    extern function void check_phase(uvm_phase phase);
     extern function void final_phase(uvm_phase phase);
 
-    // write — analysis imp；按 GP 地址与数据写入 memory，并经 o_ap 再广播
+    // write — 按 GP 地址与数据写入 memory，并经 o_ap 再广播
     extern function void write(uvm_tlm_generic_payload payload);
 
     extern function void clear();
@@ -55,6 +57,7 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     o_load_ap = new("o_load_ap", this);
 
     void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
+    void'(uvm_config_db #(string)::get(this, "", "compare_file", compare_path));
 endfunction
 
 function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase phase);
@@ -63,6 +66,15 @@ function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase p
     if (uvm_config_db #(string)::get(this, "", "init_file", init_file) && init_file.len()) begin
         `uvm_info("", $sformatf("load memh init file: %s", init_file), UVM_LOW)
         void'(load_file(init_file, 1));
+    end
+endfunction
+
+function void {{ class_prefix }}sequencer::check_phase(uvm_phase phase);
+    super.check_phase(phase);
+
+    if (compare_path.len()) begin
+        `uvm_info("", $sformatf("compare memory to memh: %s", compare_path), UVM_LOW)
+        void'(compare_file(compare_path));
     end
 endfunction
 

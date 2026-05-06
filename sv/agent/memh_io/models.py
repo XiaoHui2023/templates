@@ -27,6 +27,7 @@ class Models(BaseModel):
     | --- | --- | --- |
     | `init_file` | `uvm_config_db #(string)` | 非空时：在 `start_of_simulation_phase` 自动 `load_file` 初始化 memory |
     | `dump_file` | `uvm_config_db #(string)` | 非空时：在 `final_phase` 自动调用 `save_file`，将当前 memory 写入该路径 |
+    | `compare_file` | `uvm_config_db #(string)` | 非空时：在 `check_phase` 读取该 memh 并与 memory 比对（与同名成员函数行为一致） |
 
     # 常用函数
 

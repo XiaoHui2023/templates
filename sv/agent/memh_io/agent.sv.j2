@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "agent") | upper }}
 `define {{ (class_prefix ~ "agent") | upper }}
 
-// memh_io agent：持有 sequencer；在 build 中将 init/dump 路径下发至 sqr，并连接 TLM analysis 端口。
+// memh_io agent：持有 sequencer；在 build 中将 init、dump、compare_file 路径下发至 sqr，并连接 TLM analysis 端口。
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
@@ -10,6 +10,7 @@ class {{ class_prefix }}agent extends uvm_agent;
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }}; // memh load 合并后的连续写事务
     protected string init_file; // agent 层 init_file（build 时转交 sqr）
     protected string dump_file; // agent 层 dump_file（build 时转交 sqr）
+    protected string compare_file; // agent 层 compare_file（build 时转交 sqr）
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
@@ -31,6 +32,9 @@ function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
 
     if (uvm_config_db #(string)::get(this, "", "dump_file", dump_file))
         uvm_config_db #(string)::set(this, "sqr", "dump_file", dump_file);
+
+    if (uvm_config_db #(string)::get(this, "", "compare_file", compare_file))
+        uvm_config_db #(string)::set(this, "sqr", "compare_file", compare_file);
 endfunction
 
 function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
