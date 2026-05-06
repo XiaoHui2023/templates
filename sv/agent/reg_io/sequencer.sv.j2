@@ -153,19 +153,25 @@ function void {{ class_prefix }}sequencer::append_dump_from_payload(uvm_tlm_gene
 endfunction
 
 function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload);
+    uvm_tlm_generic_payload p;
+
     if (payload.get_command() != UVM_TLM_WRITE_COMMAND) begin
         `uvm_warning("REG_IO", "i_ap only handles UVM_TLM_WRITE_COMMAND payloads")
+        return;
+    end
+    if (!$cast(p, payload.clone())) begin
+        `uvm_error("REG_IO", "clone uvm_tlm_generic_payload failed")
         return;
     end
     ensure_lut();
     fork
         begin
-            automatic uvm_tlm_generic_payload p_x = payload;
+            automatic uvm_tlm_generic_payload p_x = p;
             bit ok_x;
             {{ class_prefix }}apply_payload_to_reg(m_root, m_map, m_addr_lut, p_x, ok_x);
         end
     join_none
-    append_dump_from_payload(payload);
+    append_dump_from_payload(p);
 endfunction
 
 task {{ class_prefix }}sequencer::load_csv(input string filename, input bit clear_dump_first=0, output bit ok);

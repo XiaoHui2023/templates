@@ -64,6 +64,7 @@ function void {{ class_prefix }}reg_writer::connect_phase(uvm_phase phase);
 endfunction
 
 function void {{ class_prefix }}reg_writer::write(uvm_tlm_generic_payload payload);
+    uvm_tlm_generic_payload p;
     uvm_reg_addr_t ra;
     int len;
     string key;
@@ -82,8 +83,13 @@ function void {{ class_prefix }}reg_writer::write(uvm_tlm_generic_payload payloa
         return;
     end
 
-    ra = payload.get_address();
-    len = payload.get_data_length();
+    if (!$cast(p, payload.clone())) begin
+        `uvm_error("REG_WRITER", "clone uvm_tlm_generic_payload failed")
+        return;
+    end
+
+    ra = p.get_address();
+    len = p.get_data_length();
     key = $sformatf("%016h_%0d", ra, len);
 
     if (!m_addr_lut.exists(key)) begin
@@ -98,7 +104,7 @@ function void {{ class_prefix }}reg_writer::write(uvm_tlm_generic_payload payloa
         return;
     end
 
-    if (!{{ class_prefix }}payload_to_le_bytes(payload, le))
+    if (!{{ class_prefix }}payload_to_le_bytes(p, le))
         return;
     if (!{{ class_prefix }}le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
         return;

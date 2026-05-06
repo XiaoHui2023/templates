@@ -76,7 +76,17 @@ function void {{ class_prefix }}sequencer::final_phase(uvm_phase phase);
 endfunction
 
 function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload);
-    write_payload(payload);
+    uvm_tlm_generic_payload p;
+
+    if (payload == null) begin
+        `uvm_error("", "write got null payload")
+        return;
+    end
+    if (!$cast(p, payload.clone())) begin
+        `uvm_error("", "clone uvm_tlm_generic_payload failed")
+        return;
+    end
+    write_payload(p);
 endfunction
 
 function void {{ class_prefix }}sequencer::clear();
