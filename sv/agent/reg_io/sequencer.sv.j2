@@ -9,7 +9,6 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     protected uvm_reg_block m_root;
     protected uvm_reg_map m_map;
-    protected string reg_map_name;
     protected string init_file;
     protected string dump_file;
     protected {{ class_prefix }}addr_hit_t m_addr_lut[string];
@@ -43,16 +42,9 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     if (!uvm_config_db #(uvm_reg_block)::get(this, "", "reg_block", m_root) || m_root == null)
         `uvm_fatal("REG_IO", "uvm_config_db #(uvm_reg_block) reg_block is required for reg_io sequencer")
 
-    void'(uvm_config_db #(string)::get(this, "", "reg_map", reg_map_name));
-    if (reg_map_name.len()) begin
-        m_map = m_root.get_map(reg_map_name);
-        if (m_map == null)
-            `uvm_fatal("REG_IO", $sformatf("unknown reg_map name '%s'", reg_map_name))
-    end else begin
-        m_map = m_root.get_default_map();
-        if (m_map == null)
-            `uvm_fatal("REG_IO", "no default uvm_reg_map on reg_block; set reg_map or add a default map")
-    end
+    m_map = m_root.get_default_map();
+    if (m_map == null)
+        `uvm_fatal("REG_IO", "no default uvm_reg_map on reg_block; add a default map")
 
     void'(uvm_config_db #(string)::get(this, "", "init_file", init_file));
     void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));

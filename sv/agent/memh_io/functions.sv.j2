@@ -1,12 +1,6 @@
 `ifndef {{ (class_prefix ~ "functions") | upper }}
 `define {{ (class_prefix ~ "functions") | upper }}
 
-typedef bit [7:0] {{ class_prefix }}byte_t;
-typedef {{ class_prefix }}byte_t {{ class_prefix }}byte_array_t[$];
-typedef {{ class_prefix }}byte_t {{ class_prefix }}memory_t[bit [63:0]];
-
-localparam int {{ class_prefix }}MEMH_MAX_BYTES_PER_LINE = {{ memh_max_bytes_per_line }};
-
 function automatic int {{ class_prefix }}memh_addr_hex_digits(input bit [63:0] max_addr);
     bit [63:0] a;
     int d;
@@ -37,7 +31,7 @@ endfunction
 
 function automatic void {{ class_prefix }}emit_memh_run(
     input int file,
-    ref {{ class_prefix }}memory_t src,
+    ref bit [7:0] src[bit [63:0]],
     input bit [63:0] base,
     input int len,
     input int addr_hex_digits,
@@ -48,7 +42,7 @@ function automatic void {{ class_prefix }}emit_memh_run(
     int k;
     bit [63:0] cur_addr;
     string addr_str;
-    {{ class_prefix }}byte_t b;
+    bit [7:0] b;
 
     for (pos = 0; pos < len; pos += max_bytes_per_line) begin
         n = len - pos;
@@ -65,7 +59,7 @@ function automatic void {{ class_prefix }}emit_memh_run(
     end
 endfunction
 
-function automatic bit {{ class_prefix }}read_memh_file(string filename, ref {{ class_prefix }}memory_t dst, input bit clear_first=1);
+function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
     int file;
     int code;
     int value;
@@ -122,10 +116,11 @@ endfunction
 
 function automatic bit {{ class_prefix }}write_memh_file(
     string filename,
-    ref {{ class_prefix }}memory_t src
+    ref bit [7:0] src[bit [63:0]],
+    input int max_bytes_per_line={{ memh_max_bytes_per_line }}
 );
     int file;
-    int max_bytes_per_line;
+    int bytes_per_line;
     bit [63:0] max_addr;
     int addr_hex_digits;
     bit [63:0] addrs[$];
@@ -133,9 +128,9 @@ function automatic bit {{ class_prefix }}write_memh_file(
     int run_len;
     int i;
 
-    max_bytes_per_line = {{ class_prefix }}MEMH_MAX_BYTES_PER_LINE;
-    if (max_bytes_per_line < 1)
-        max_bytes_per_line = 1;
+    bytes_per_line = max_bytes_per_line;
+    if (bytes_per_line < 1)
+        bytes_per_line = 1;
 
     file = $fopen(filename, "w");
     if (!file) begin
@@ -165,20 +160,20 @@ function automatic bit {{ class_prefix }}write_memh_file(
         if (addrs[i] == addrs[i - 1] + 1)
             run_len++;
         else begin
-            {{ class_prefix }}emit_memh_run(file, src, run_base, run_len, addr_hex_digits, max_bytes_per_line);
+            {{ class_prefix }}emit_memh_run(file, src, run_base, run_len, addr_hex_digits, bytes_per_line);
             run_base = addrs[i];
             run_len = 1;
         end
     end
-    {{ class_prefix }}emit_memh_run(file, src, run_base, run_len, addr_hex_digits, max_bytes_per_line);
+    {{ class_prefix }}emit_memh_run(file, src, run_base, run_len, addr_hex_digits, bytes_per_line);
 
     $fclose(file);
     return 1;
 endfunction
 
 function automatic bit {{ class_prefix }}compare_memory(
-    ref {{ class_prefix }}memory_t actual,
-    ref {{ class_prefix }}memory_t expected,
+    ref bit [7:0] actual[bit [63:0]],
+    ref bit [7:0] expected[bit [63:0]],
     input string expected_name="expected"
 );
     bit pass;
@@ -207,10 +202,10 @@ function automatic bit {{ class_prefix }}compare_memory(
 endfunction
 
 function automatic bit {{ class_prefix }}compare_memh_file(
-    ref {{ class_prefix }}memory_t actual,
+    ref bit [7:0] actual[bit [63:0]],
     input string filename
 );
-    {{ class_prefix }}memory_t expected;
+    bit [7:0] expected[bit [63:0]];
 
     if (!{{ class_prefix }}read_memh_file(filename, expected, 1))
         return 0;

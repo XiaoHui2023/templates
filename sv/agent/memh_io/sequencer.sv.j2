@@ -4,7 +4,7 @@
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
-    {{ class_prefix }}memory_t memory; // 64 位地址、8 位数据宽度的稀疏内存
+    bit [7:0] memory[bit [63:0]]; // 64 位地址、8 位数据宽度的稀疏内存
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp; // payload 输入
     uvm_analysis_port #(uvm_tlm_generic_payload) o_ap; // 写入后转发 payload，便于旁路观察
     uvm_analysis_port #(uvm_tlm_generic_payload) o_load_ap; // 文件加载 payload 输出口
@@ -27,12 +27,12 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function void clear();
 
     // 直接写入/读取单字节
-    extern function void write_byte(bit [63:0] addr, {{ class_prefix }}byte_t data);
-    extern function {{ class_prefix }}byte_t read_byte(bit [63:0] addr, {{ class_prefix }}byte_t default_value='0);
+    extern function void write_byte(bit [63:0] addr, bit [7:0] data);
+    extern function bit [7:0] read_byte(bit [63:0] addr, bit [7:0] default_value='0);
 
     // 直接写入/读取字节数组
-    extern function void write_data(bit [63:0] addr, const ref {{ class_prefix }}byte_array_t data);
-    extern function {{ class_prefix }}byte_array_t read_data(bit [63:0] addr, int len, {{ class_prefix }}byte_t default_value='0);
+    extern function void write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
+    extern function bit [7:0] [$] read_data(bit [63:0] addr, int len, bit [7:0] default_value='0);
 
     // 使用 uvm_tlm_generic_payload 写入/读取 memory
     extern function void write_payload(uvm_tlm_generic_payload payload);
@@ -41,12 +41,12 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     // memh 文件读写；文件格式支持 @addr 与十六进制 byte token
     extern function bit load_file(string filename, bit clear_first=0);
     extern function bit save_file(string filename);
-    extern protected function void emit_load_payloads(ref {{ class_prefix }}memory_t load_memory);
-    extern protected function void emit_load_payload(bit [63:0] addr, ref {{ class_prefix }}byte_t data_q[$]);
+    extern protected function void emit_load_payloads(ref bit [7:0] load_memory[bit [63:0]]);
+    extern protected function void emit_load_payload(bit [63:0] addr, ref bit [7:0] data_q[$]);
 
     // 比较当前 memory 与文件或另一个 memory；失败时报 uvm_error
     extern function bit compare_file(string filename);
-    extern function bit compare_memory(ref {{ class_prefix }}memory_t expected, input string expected_name="expected");
+    extern function bit compare_memory(ref bit [7:0] expected[bit [63:0]], input string expected_name="expected");
 endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
@@ -85,22 +85,22 @@ function void {{ class_prefix }}sequencer::clear();
     memory.delete();
 endfunction
 
-function void {{ class_prefix }}sequencer::write_byte(bit [63:0] addr, {{ class_prefix }}byte_t data);
+function void {{ class_prefix }}sequencer::write_byte(bit [63:0] addr, bit [7:0] data);
     memory[addr] = data;
 endfunction
 
-function {{ class_prefix }}byte_t {{ class_prefix }}sequencer::read_byte(bit [63:0] addr, {{ class_prefix }}byte_t default_value='0);
+function bit [7:0] {{ class_prefix }}sequencer::read_byte(bit [63:0] addr, bit [7:0] default_value='0);
     if (memory.exists(addr))
         return memory[addr];
     return default_value;
 endfunction
 
-function void {{ class_prefix }}sequencer::write_data(bit [63:0] addr, const ref {{ class_prefix }}byte_array_t data);
+function void {{ class_prefix }}sequencer::write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
     foreach (data[i])
         write_byte(addr + i, data[i]);
 endfunction
 
-function {{ class_prefix }}byte_array_t {{ class_prefix }}sequencer::read_data(bit [63:0] addr, int len, {{ class_prefix }}byte_t default_value='0);
+function bit [7:0] [$] {{ class_prefix }}sequencer::read_data(bit [63:0] addr, int len, bit [7:0] default_value='0);
     read_data.delete();
     for (int i = 0; i < len; i++)
         read_data.push_back(read_byte(addr + i, default_value));
@@ -133,7 +133,7 @@ endfunction
 
 function uvm_tlm_generic_payload {{ class_prefix }}sequencer::read_payload(bit [63:0] addr, int len, string name="memh_payload");
     uvm_tlm_generic_payload payload;
-    {{ class_prefix }}byte_array_t data_q;
+    bit [7:0] data_q[$];
     byte unsigned data_dyn[];
 
     payload = uvm_tlm_generic_payload::type_id::create(name);
@@ -153,7 +153,7 @@ function uvm_tlm_generic_payload {{ class_prefix }}sequencer::read_payload(bit [
 endfunction
 
 function bit {{ class_prefix }}sequencer::load_file(string filename, bit clear_first=0);
-    {{ class_prefix }}memory_t load_memory;
+    bit [7:0] load_memory[bit [63:0]];
 
     if (!{{ class_prefix }}read_memh_file(filename, load_memory, 1))
         return 0;
@@ -169,11 +169,11 @@ function bit {{ class_prefix }}sequencer::load_file(string filename, bit clear_f
     return 1;
 endfunction
 
-function void {{ class_prefix }}sequencer::emit_load_payloads(ref {{ class_prefix }}memory_t load_memory);
+function void {{ class_prefix }}sequencer::emit_load_payloads(ref bit [7:0] load_memory[bit [63:0]]);
     bit has_run;
     bit [63:0] run_addr;
     bit [63:0] last_addr;
-    {{ class_prefix }}byte_t data_q[$];
+    bit [7:0] data_q[$];
 
     foreach (load_memory[addr]) begin
         if (!has_run) begin
@@ -198,7 +198,7 @@ function void {{ class_prefix }}sequencer::emit_load_payloads(ref {{ class_prefi
         emit_load_payload(run_addr, data_q);
 endfunction
 
-function void {{ class_prefix }}sequencer::emit_load_payload(bit [63:0] addr, ref {{ class_prefix }}byte_t data_q[$]);
+function void {{ class_prefix }}sequencer::emit_load_payload(bit [63:0] addr, ref bit [7:0] data_q[$]);
     uvm_tlm_generic_payload payload;
     byte unsigned data_dyn[];
 
@@ -225,7 +225,7 @@ function bit {{ class_prefix }}sequencer::compare_file(string filename);
     return {{ class_prefix }}compare_memh_file(memory, filename);
 endfunction
 
-function bit {{ class_prefix }}sequencer::compare_memory(ref {{ class_prefix }}memory_t expected, input string expected_name="expected");
+function bit {{ class_prefix }}sequencer::compare_memory(ref bit [7:0] expected[bit [63:0]], input string expected_name="expected");
     return {{ class_prefix }}compare_memory(memory, expected, expected_name);
 endfunction
 

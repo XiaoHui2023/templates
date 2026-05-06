@@ -28,8 +28,7 @@ class Models(BaseModel):
 
     | key | 类型 | 说明 |
     | --- | --- | --- |
-    | `reg_block` | `uvm_reg_block` | 点分路径解析与地址编码的**起始寄存器块**（必填） |
-    | `reg_map` | `string` | 可选；非空时使用该名字的 `uvm_reg_map`，否则使用基块的默认 map |
+    | `reg_block` | `uvm_reg_block` | 点分路径解析与地址编码的**起始寄存器块**（必填）；使用其 **默认** `uvm_reg_map` |
     | `init_file` | `string` | 非空时：在 `start_of_simulation_phase` 自动 `load_csv` |
     | `dump_file` | `string` | 非空时：在 `final_phase` 将累积的寄存器写记录写出为 CSV |
 

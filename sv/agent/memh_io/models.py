@@ -49,6 +49,8 @@ class Models(BaseModel):
     | --- | --- | --- | --- | --- |
     | `filename` | input | `string` |  | 输出文件路径 |
 
+    生成代码中每行字节数由模型字段 `memh_max_bytes_per_line` 写入 `write_memh_file` 的**形参默认值**；若直接调用该函数，可传入第三实参覆盖。
+
     **返回值：** `bit` — 成功为 1，失败为 0。
 
     ## `write_payload`
@@ -73,12 +75,12 @@ class Models(BaseModel):
 
     ## `write_data`
 
-    写入字节队列（与生成代码中的 `byte_array_t` 一致，元素为 `bit [7:0]`）。
+    写入字节队列（元素为 `bit [7:0]` 的动态队列，声明形如 `bit [7:0] q[$]`）。
 
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
     | `addr` | input | `bit [63:0]` |  | 起始地址 |
-    | `data` | input | `bit [7:0] $` |  | 要写入的字节队列 |
+    | `data` | input | `const ref bit [7:0] data[$]` |  | 要写入的字节队列 |
 
     ## `read_data`
 
@@ -90,7 +92,7 @@ class Models(BaseModel):
     | `len` | input | `int` |  | 读取字节数 |
     | `default_value` | input | `bit [7:0]` | `'0` | 未命中地址的填充值 |
 
-    **返回值：** `bit [7:0] $` — 长度 `len` 的字节队列。
+    **返回值：** `bit [7:0][$]` — 长度 `len` 的字节队列。
 
     ## `write_byte`
 
@@ -128,7 +130,7 @@ class Models(BaseModel):
 
     | 参数 | 方向 | 类型 | 默认值 | 说明 |
     | --- | --- | --- | --- | --- |
-    | `expected` | ref | `memory` |  | 期望 memory |
+    | `expected` | ref | `bit [7:0] expected[bit [63:0]]` |  | 期望稀疏 memory |
     | `expected_name` | input | `string` | `"expected"` | 期望 memory 名称 |
 
     **返回值：** `bit` — 完全一致为 1，否则为 0。
@@ -144,5 +146,8 @@ class Models(BaseModel):
     memh_max_bytes_per_line: int = Field(
         16,
         ge=1,
-        description="写出 memh 时每行最多包含的连续字节数",
+        description=(
+            "写出 memh 时每行最多包含的连续字节数；生成到 "
+            "`write_memh_file` 的形参默认值，非 package 级常量。"
+        ),
     )

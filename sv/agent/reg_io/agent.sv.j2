@@ -8,7 +8,6 @@ class {{ class_prefix }}agent extends uvm_agent;
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }};
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }};
     protected uvm_reg_block reg_block;
-    protected string reg_map_name;
     protected string init_file;
     protected string dump_file;
 
@@ -29,9 +28,6 @@ function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
 
     if (uvm_config_db #(uvm_reg_block)::get(this, "", "reg_block", reg_block))
         uvm_config_db #(uvm_reg_block)::set(this, "sqr", "reg_block", reg_block);
-
-    if (uvm_config_db #(string)::get(this, "", "reg_map", reg_map_name))
-        uvm_config_db #(string)::set(this, "sqr", "reg_map", reg_map_name);
 
     if (uvm_config_db #(string)::get(this, "", "init_file", init_file))
         uvm_config_db #(string)::set(this, "sqr", "init_file", init_file);
