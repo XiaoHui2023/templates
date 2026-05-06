@@ -1,14 +1,15 @@
 `ifndef {{ (class_prefix ~ "agent") | upper }}
 `define {{ (class_prefix ~ "agent") | upper }}
 
+// memh_io agent：持有 sequencer；在 build 中将 init/dump 路径下发至 sqr，并连接 TLM analysis 端口。
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
-    {{ class_prefix }}sequencer sqr; // 外部可获取该 sequencer 作为 memh_io 的函数入口
-    uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }}; // 外部 payload 输入口
-    uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }}; // 文件加载 payload 输出口
-    protected string init_file; // agent 级 init_file 会转发给 sqr
-    protected string dump_file; // agent 级 dump_file 会转发给 sqr
+    {{ class_prefix }}sequencer sqr; // 本 agent 内 memh_io sequencer
+    uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }}; // TLM generic_payload 写入口
+    uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }}; // memh load 合并后的连续写事务
+    protected string init_file; // agent 层 init_file（build 时转交 sqr）
+    protected string dump_file; // agent 层 dump_file（build 时转交 sqr）
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);

@@ -1,6 +1,8 @@
 `ifndef {{ (class_prefix ~ "reg_writer_ral") | upper }}
 `define {{ (class_prefix ~ "reg_writer_ral") | upper }}
 
+// 去掉字符串两头空白（空格、制表、换行）。
+// s — 就地 trim 的字符串
 function automatic void {{ class_prefix }}str_trim_both(ref string s);
     int a;
     int b;
@@ -10,13 +12,13 @@ function automatic void {{ class_prefix }}str_trim_both(ref string s);
     a = 0;
     b = s.len() - 1;
     for (i = 0; i < s.len(); i++) begin
-        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n") begin
             a = i;
             break;
         end
     end
     for (i = s.len() - 1; i >= 0; i--) begin
-        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n") begin
             b = i;
             break;
         end
@@ -27,6 +29,9 @@ function automatic void {{ class_prefix }}str_trim_both(ref string s);
         s = "";
 endfunction
 
+// 把点分路径按 '.' 拆成多段名字。
+// s_in — 原始路径
+// parts — 各段输出
 function automatic void {{ class_prefix }}split_dotted_path(input string s_in, ref string parts[$]);
     int start;
     int i;
@@ -42,7 +47,7 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s_in, r
             if (i > start) begin
                 seg = "";
                 for (k = start; k < i; k++)
-                    seg.putc(seg.len(), s.getc(k));
+                    seg = {seg, s.getc(k)};
                 {{ class_prefix }}str_trim_both(seg);
                 if (seg.len())
                     parts.push_back(seg);
@@ -53,13 +58,16 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s_in, r
     if (start < s.len()) begin
         seg = "";
         for (k = start; k < s.len(); k++)
-            seg.putc(seg.len(), s.getc(k));
+            seg = {seg, s.getc(k)};
         {{ class_prefix }}str_trim_both(seg);
         if (seg.len())
             parts.push_back(seg);
     end
 endfunction
 
+// 按点分路径在模型里找到 uvm_reg。
+// root — 顶层 block
+// dotted_path — 点分路径
 function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block root, string dotted_path);
     uvm_reg_block cur;
     uvm_reg rg;
@@ -88,6 +96,10 @@ function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block r
     return rg;
 endfunction
 
+// 字节队列 → uvm_reg_data_t（与 reg_io 同一套字节序约定）。
+// le — 小端字节
+// n_bits — 寄存器位宽
+// val — 拼好的寄存器值
 function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
     ref bit [7:0] le[$],
     input int n_bits,
@@ -110,6 +122,9 @@ function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
     return 1;
 endfunction
 
+// 从 TLM 事务取出数据字节。
+// p — TLM payload
+// le — 输出字节队列
 function automatic bit {{ class_prefix }}payload_to_le_bytes(
     uvm_tlm_generic_payload p,
     ref bit [7:0] le[$]
@@ -130,6 +145,9 @@ function automatic bit {{ class_prefix }}payload_to_le_bytes(
     return 1;
 endfunction
 
+// 把小端字节按位宽拼成寄存器值，再格式化为十六进制字符串（前缀 0x）。
+// le_bytes — 小端字节
+// n_bits — 寄存器位宽
 function automatic string {{ class_prefix }}format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
     int n_bytes;
     bit [4095:0] acc;
@@ -170,6 +188,11 @@ function automatic string {{ class_prefix }}format_le_bytes_as_hex(ref bit [7:0]
     return s;
 endfunction
 
+// 遍历寄存器树，填「地址+宽度 → 寄存器路径」表（与 reg_io 同构）。
+// blk — 当前 block
+// map — 地址 map
+// rel_prefix — 路径前缀
+// lut — 地址→路径查表
 function automatic void {{ class_prefix }}walk_register_map(
     uvm_reg_block blk,
     uvm_reg_map map,
@@ -214,6 +237,10 @@ function automatic void {{ class_prefix }}walk_register_map(
     end
 endfunction
 
+// 建整张地址 → 寄存器路径查表。
+// root — 顶层 block
+// map — 地址 map
+// lut — 输出查表
 function automatic bit {{ class_prefix }}build_reg_addr_lut(
     uvm_reg_block root,
     uvm_reg_map map,
@@ -226,6 +253,11 @@ function automatic bit {{ class_prefix }}build_reg_addr_lut(
     return 1;
 endfunction
 
+// 前门写寄存器。
+// rg — 目标寄存器
+// map — RAL map
+// v — 写入值
+// st — UVM 状态
 task automatic {{ class_prefix }}reg_writer_frontdoor_write(
     uvm_reg rg,
     uvm_reg_map map,

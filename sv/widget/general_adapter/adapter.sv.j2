@@ -8,6 +8,7 @@
 {%- endif %}
 {%- endfor %}
 
+// general_adapter：analysis imp 接收 {{ class_data }}；各 hook 映射为多路输出 analysis port。
 class {{ class_adapter }} extends uvm_component;
     `uvm_component_utils({{ class_adapter }})
 
@@ -42,7 +43,7 @@ class {{ class_adapter }} extends uvm_component;
     extern function void write({{ class_data }} data);
     {%- for data_type in data_types %}
 
-    // 转换为 {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}，需要额外实现
+    // {{ data_type.hook_name }} — {{ class_data }} → {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}
     extern function void {{ data_type.hook_name }}(input {{ class_data }} {{ name_input_data }},output {{ data_type.type }} {{ name_output_data }}{{ '[$]' if data_type.is_queue }});
     {%- endfor %}
 endclass
@@ -84,7 +85,7 @@ function void {{ class_adapter }}::write({{ class_data }} data);
 
     `uvm_info("",$psprintf("input:\n%s",data.sprint()),UVM_LOW)
 
-    // clone
+    // 各输出分支独立 clone，避免 hook 侧改写共享对象
     {%- for data_type in data_types %}
     {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
     $cast(in_{{ vtag }},data.clone());
@@ -93,7 +94,6 @@ function void {{ class_adapter }}::write({{ class_data }} data);
     {%- for data_type in data_types %}
     {%- set vtag = data_type.name if data_type.name else 'idx' ~ loop.index0 %}
 
-    // {% if data_type.name %}{{ data_type.name }}{% else %}{{ data_type.type }}{% endif %}
     {{ data_type.hook_name }}(in_{{ vtag }},out_{{ vtag }});
     {%- if data_type.is_queue %}
     foreach(out_{{ vtag }}[J]) begin

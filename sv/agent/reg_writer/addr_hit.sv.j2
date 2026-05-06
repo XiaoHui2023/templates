@@ -2,7 +2,9 @@
 `define {{ (class_prefix ~ "addr_hit") | upper }}
 
 class {{ class_prefix }}addr_hit;
+    // 寄存器点分路径。
     string path;
+    // 地址键里带几个字节（和寄存器宽度对齐）。
     int n_bytes;
 endclass
 

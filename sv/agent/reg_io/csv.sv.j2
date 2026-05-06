@@ -1,6 +1,8 @@
 `ifndef {{ (class_prefix ~ "csv") | upper }}
 `define {{ (class_prefix ~ "csv") | upper }}
 
+// 去掉字符串两头空白（空格、制表、换行）。
+// s — 就地 trim 的字符串
 function automatic void {{ class_prefix }}csv_trim_both(ref string s);
     int a;
     int b;
@@ -10,13 +12,13 @@ function automatic void {{ class_prefix }}csv_trim_both(ref string s);
     a = 0;
     b = s.len() - 1;
     for (i = 0; i < s.len(); i++) begin
-        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n") begin
             a = i;
             break;
         end
     end
     for (i = s.len() - 1; i >= 0; i--) begin
-        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n" && s.getc(i) != "\r") begin
+        if (s.getc(i) != " " && s.getc(i) != "\t" && s.getc(i) != "\n") begin
             b = i;
             break;
         end
@@ -27,6 +29,9 @@ function automatic void {{ class_prefix }}csv_trim_both(ref string s);
         s = "";
 endfunction
 
+// 读寄存器 CSV：每行「路径,值」，读到 rows。
+// filename — CSV 路径
+// rows — 读出的行
 function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref {{ class_prefix }}csv_row rows[$]);
     int fd;
     string line;
@@ -89,6 +94,9 @@ function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref 
     return 1;
 endfunction
 
+// 把 rows 写成寄存器 CSV。
+// filename — 写出路径
+// rows — 待写行
 function automatic bit {{ class_prefix }}write_reg_csv_file(string filename, ref {{ class_prefix }}csv_row rows[$]);
     int fd;
 

@@ -1,10 +1,11 @@
 `ifndef {{ (class_prefix ~ 'monitor') | upper }}
 `define {{ (class_prefix ~ 'monitor') | upper }}
 
+// general_observe monitor：在接口 valid/时钟域采样数据，打包为 UVM_TLM_WRITE GP 并写出分析端口。
 class {{ class_prefix }}monitor#(int DW={{ data_width_expr }}) extends uvm_component;
     `uvm_component_param_utils({{ class_prefix }}monitor#(DW))
 
-    uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_ap_name }};
+    uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_ap_name }}; // 观测到的写事务
 
 {% if address_increment %}
     bit [63:0] m_stream_byte_addr;
@@ -21,7 +22,7 @@ class {{ class_prefix }}monitor#(int DW={{ data_width_expr }}) extends uvm_compo
     extern function void start_of_simulation();
     extern task run_phase(uvm_phase phase);
 
-    // 采集并输出
+    // sample_and_output — 等待 rx_count 递增，装配 GP 并 write 至 {{ output_ap_name }}
     extern protected task sample_and_output();
 endclass
 

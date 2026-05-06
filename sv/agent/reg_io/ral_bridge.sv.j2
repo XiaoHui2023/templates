@@ -1,6 +1,9 @@
 `ifndef {{ (class_prefix ~ "ral_bridge") | upper }}
 `define {{ (class_prefix ~ "ral_bridge") | upper }}
 
+// 把点分路径字符串（如 blk.sub.reg）按 '.' 拆成一段一段的名字。
+// s_in — 原始路径
+// parts — 从左到右各段
 function automatic void {{ class_prefix }}split_dotted_path(input string s_in, ref string parts[$]);
     int start;
     int i;
@@ -16,7 +19,7 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s_in, r
             if (i > start) begin
                 seg = "";
                 for (k = start; k < i; k++)
-                    seg.putc(seg.len(), s.getc(k));
+                    seg = {seg, s.getc(k)};
                 {{ class_prefix }}csv_trim_both(seg);
                 if (seg.len())
                     parts.push_back(seg);
@@ -27,13 +30,16 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s_in, r
     if (start < s.len()) begin
         seg = "";
         for (k = start; k < s.len(); k++)
-            seg.putc(seg.len(), s.getc(k));
+            seg = {seg, s.getc(k)};
         {{ class_prefix }}csv_trim_both(seg);
         if (seg.len())
             parts.push_back(seg);
     end
 endfunction
 
+// 根据点分路径，在寄存器模型里找到对应的 uvm_reg。
+// root — 顶层 block
+// dotted_path — 点分路径，与 RAL 内名字一致
 function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block root, string dotted_path);
     uvm_reg_block cur;
     uvm_reg rg;
@@ -62,6 +68,9 @@ function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block r
     return rg;
 endfunction
 
+// 单个十六进制字符 → 数值；不是十六进制则失败。
+// ch — 一个 ASCII 字符
+// nib — 解析值 0～15
 function automatic bit {{ class_prefix }}hex_nibble(input byte ch, output bit [3:0] nib);
     if (ch >= "0" && ch <= "9") begin
         nib = ch - "0";
@@ -78,6 +87,10 @@ function automatic bit {{ class_prefix }}hex_nibble(input byte ch, output bit [3
     return 0;
 endfunction
 
+// 把 CSV「值」列里的字符串，按寄存器位宽解析成字节队列。
+// value_text — 值列原文
+// n_bits — 目标寄存器位宽
+// le_bytes — 输出数据字节
 function automatic bit {{ class_prefix }}parse_reg_value_text(
     string value_text,
     int n_bits,
@@ -184,6 +197,9 @@ function automatic bit {{ class_prefix }}parse_reg_value_text(
     return 1;
 endfunction
 
+// 把寄存器数据字节格式化成 CSV 里「值」那一列的字符串。
+// le_bytes — 数据字节
+// n_bits — 寄存器位宽
 function automatic string {{ class_prefix }}format_le_bytes_as_csv_value(ref bit [7:0] le_bytes[$], input int n_bits);
     int n_bytes;
     bit [4095:0] acc;
@@ -224,6 +240,11 @@ function automatic string {{ class_prefix }}format_le_bytes_as_csv_value(ref bit
     return s;
 endfunction
 
+// 遍历寄存器树：在每个 map 下登记「地址+字节数 → 寄存器点分路径」。
+// blk — 当前 block
+// map — 算物理地址用的 map
+// rel_prefix — block 层次路径前缀
+// lut — 键为地址与宽度，值为寄存器路径
 function automatic void {{ class_prefix }}walk_register_map(
     uvm_reg_block blk,
     uvm_reg_map map,
@@ -268,6 +289,10 @@ function automatic void {{ class_prefix }}walk_register_map(
     end
 endfunction
 
+// 建整张地址查表：从地址（和宽度）能查到寄存器路径。
+// root — 顶层 block
+// map — 地址 map
+// lut — 输出查表
 function automatic bit {{ class_prefix }}build_reg_addr_lut(
     uvm_reg_block root,
     uvm_reg_map map,
@@ -280,6 +305,11 @@ function automatic bit {{ class_prefix }}build_reg_addr_lut(
     return 1;
 endfunction
 
+// 把 CSV 一行转成一笔 TLM 写事务。
+// root — 顶层 block
+// map — 地址 map
+// row — 路径与值文本
+// payload_o — 生成的 TLM 写
 function automatic bit {{ class_prefix }}reg_row_to_payload(
     uvm_reg_block root,
     uvm_reg_map map,
@@ -323,6 +353,11 @@ function automatic bit {{ class_prefix }}reg_row_to_payload(
     return 1;
 endfunction
 
+// 按 CSV 一行，通过 map 前门把值写入 RAL。
+// root — 顶层 block
+// map — 地址 map
+// row — 路径与值
+// ok — 是否写入成功
 task automatic {{ class_prefix }}commit_csv_row_to_reg(
     uvm_reg_block root,
     uvm_reg_map map,
@@ -349,7 +384,7 @@ task automatic {{ class_prefix }}commit_csv_row_to_reg(
     if (!{{ class_prefix }}le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
         return;
 
-    rg.write(st, v, UVM_BACKDOOR, map, null);
+    rg.write(st, v, UVM_FRONTDOOR, map, null);
     if (st != UVM_IS_OK) begin
         `uvm_error("REG_IO_RAL", $sformatf("commit reg write failed path=%s", row.path))
         return;
@@ -357,6 +392,10 @@ task automatic {{ class_prefix }}commit_csv_row_to_reg(
     ok = 1;
 endtask
 
+// 字节队列 → uvm_reg_data_t（字节序与本组件其它接口一致）。
+// le — 数据字节
+// n_bits — 寄存器位宽
+// val — 拼好的寄存器值
 function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
     ref bit [7:0] le[$],
     input int n_bits,
@@ -375,6 +414,9 @@ function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
     return 1;
 endfunction
 
+// 从 TLM 事务取出数据字节。
+// p — TLM generic payload
+// le — 输出字节队列
 function automatic bit {{ class_prefix }}payload_to_le_bytes(
     uvm_tlm_generic_payload p,
     ref bit [7:0] le[$]
@@ -395,6 +437,12 @@ function automatic bit {{ class_prefix }}payload_to_le_bytes(
     return 1;
 endfunction
 
+// TLM 写事务：按地址查 lut 得寄存器，经 map 前门写回 RAL。
+// root — 顶层 block
+// map — 地址 map
+// lut — build_reg_addr_lut 建的地址查表
+// p — TLM 写事务
+// ok — 是否写成功
 task automatic {{ class_prefix }}apply_payload_to_reg(
     uvm_reg_block root,
     uvm_reg_map map,
@@ -436,7 +484,7 @@ task automatic {{ class_prefix }}apply_payload_to_reg(
     if (!{{ class_prefix }}le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
         return;
 
-    rg.write(st, v, UVM_BACKDOOR, map, null);
+    rg.write(st, v, UVM_FRONTDOOR, map, null);
     if (st != UVM_IS_OK)
         `uvm_error("REG_IO_RAL", $sformatf("reg write failed path=%s", hit.path))
     ok = (st == UVM_IS_OK);

@@ -1,6 +1,8 @@
 `ifndef {{ (class_prefix ~ "functions") | upper }}
 `define {{ (class_prefix ~ "functions") | upper }}
 
+// memh 文件与稀疏 memory：@ 地址行、十六进制字节 token、连续地址 run 写出。
+// memh_addr_hex_digits — 覆盖 max_addr 所需的十六进制数位个数（用于 @ 域宽）
 function automatic int {{ class_prefix }}memh_addr_hex_digits(input bit [63:0] max_addr);
     bit [63:0] a;
     int d;
@@ -15,6 +17,7 @@ function automatic int {{ class_prefix }}memh_addr_hex_digits(input bit [63:0] m
     return d;
 endfunction
 
+// memh_padded_hex_addr — 将 addr 格式化为固定 hex_digits 宽的无前缀十六进制字符串
 function automatic string {{ class_prefix }}memh_padded_hex_addr(input bit [63:0] addr, input int hex_digits);
     string s;
     string ch;
@@ -29,6 +32,7 @@ function automatic string {{ class_prefix }}memh_padded_hex_addr(input bit [63:0
     return s;
 endfunction
 
+// emit_memh_run — 将 [base, base+len) 的连续字节写成一行或多行 "@..."（每行不超过 max_bytes_per_line）
 function automatic void {{ class_prefix }}emit_memh_run(
     input int file,
     ref bit [7:0] src[bit [63:0]],
@@ -59,6 +63,7 @@ function automatic void {{ class_prefix }}emit_memh_run(
     end
 endfunction
 
+// read_memh_file — 解析 memh；clear_first 时先清空 dst
 function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
     int file;
     int code;
@@ -114,6 +119,7 @@ function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit
     return 1;
 endfunction
 
+// write_memh_file — 将稀疏 src 按地址排序后合并为连续 run 写出；max_bytes_per_line — 每行最大字节数
 function automatic bit {{ class_prefix }}write_memh_file(
     string filename,
     ref bit [7:0] src[bit [63:0]],
@@ -171,6 +177,7 @@ function automatic bit {{ class_prefix }}write_memh_file(
     return 1;
 endfunction
 
+// 逐字节双向核对两个稀疏 memory（地址集合需完全一致且数据相等）。
 function automatic bit {{ class_prefix }}compare_memory(
     ref bit [7:0] actual[bit [63:0]],
     ref bit [7:0] expected[bit [63:0]],

@@ -1,21 +1,32 @@
 `ifndef {{ (class_prefix ~ "agent") | upper }}
 `define {{ (class_prefix ~ "agent") | upper }}
 
+// 包住 sequencer：接上 TLM 口，并从 config 收到寄存器模型和 CSV 路径。
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
+    // 里面的 sequencer。
     {{ class_prefix }}sequencer sqr;
+    // 外面可以把 TLM 写接到这里。
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }};
+    // 出来的 TLM 写（例如 CSV 初始化产生的）。
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }};
+    // config「reg_block」里拿的 RAL 根。
     protected uvm_reg_block reg_block;
+    // 可选：仿真开始前读的寄存器 CSV。
     protected string init_file;
+    // 可选：仿真结束写的寄存器 CSV。
     protected string dump_file;
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
+    // 建 child、从 config 取寄存器模型和 CSV 路径。
+    // phase — UVM phase
     extern function void build_phase(uvm_phase phase);
+    // 把端口接到 sequencer。
+    // phase — UVM phase
     extern function void connect_phase(uvm_phase phase);
 endclass
 

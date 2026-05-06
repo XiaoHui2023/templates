@@ -1,16 +1,17 @@
 `ifndef {{ (class_prefix ~ "sequencer") | upper }}
 `define {{ (class_prefix ~ "sequencer") | upper }}
 
+// memh_io sequencer：字节寻址稀疏 memory；memh 读写、与文件或其它 memory 比对；TLM 写与 load 均走 GP。
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
-    bit [7:0] memory[bit [63:0]]; // 64 位地址、8 位数据宽度的稀疏内存
-    uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp; // payload 输入
-    uvm_analysis_port #(uvm_tlm_generic_payload) o_ap; // 写入后转发 payload，便于旁路观察
-    uvm_analysis_port #(uvm_tlm_generic_payload) o_load_ap; // 文件加载 payload 输出口
+    bit [7:0] memory[bit [63:0]]; // 索引为字节地址，元素为 8 位数据
+    uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp; // TLM 写入口（analysis imp）
+    uvm_analysis_port #(uvm_tlm_generic_payload) o_ap; // write_payload 完成后广播同一 GP
+    uvm_analysis_port #(uvm_tlm_generic_payload) o_load_ap; // load_file 按连续地址段发出的写 GP
 
-    protected string init_file; // uvm_config_db 自动初始化文件名
-    protected string dump_file; // uvm_config_db 仿真结束自动落盘 memh 路径
+    protected string init_file; // SOS 阶段可选 memh 初值（config_db）
+    protected string dump_file; // final 阶段可选 memh 落盘路径（config_db）
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
@@ -20,32 +21,29 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function void start_of_simulation_phase(uvm_phase phase);
     extern function void final_phase(uvm_phase phase);
 
-    // analysis imp 回调；输入 payload 按地址与数据写入 memory
+    // write — analysis imp；按 GP 地址与数据写入 memory，并经 o_ap 再广播
     extern function void write(uvm_tlm_generic_payload payload);
 
-    // 清空当前 memory
     extern function void clear();
 
-    // 直接写入/读取单字节
     extern function void write_byte(bit [63:0] addr, bit [7:0] data);
     extern function bit [7:0] read_byte(bit [63:0] addr, bit [7:0] default_value='0);
 
-    // 直接写入/读取字节数组
     extern function void write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
+    // read_data — 自 addr 起顺序读取 len 字节；缺址取 default_value
     extern function void read_data(input bit [63:0] addr, input int len, output bit [7:0] data_q[$], input bit [7:0] default_value='0);
 
-    // 使用 uvm_tlm_generic_payload 写入/读取 memory
     extern function void write_payload(uvm_tlm_generic_payload payload);
     extern function uvm_tlm_generic_payload read_payload(bit [63:0] addr, int len, string name="memh_payload");
 
-    // memh 文件读写；文件格式支持 @addr 与十六进制 byte token
+    // load_file — memh：@ 地址行与十六进制字节 token；clear_first 时先清空 memory
     extern function bit load_file(string filename, bit clear_first=0);
     extern function bit save_file(string filename);
     extern protected function void emit_load_payloads(ref bit [7:0] load_memory[bit [63:0]]);
     extern protected function void emit_load_payload(bit [63:0] addr, ref bit [7:0] data_q[$]);
 
-    // 比较当前 memory 与文件或另一个 memory；失败时报 uvm_error
     extern function bit compare_file(string filename);
+    // compare_memory — 与 expected 地址集合须一致、同址字节须相等
     extern function bit compare_memory(ref bit [7:0] expected[bit [63:0]], input string expected_name="expected");
 endclass
 

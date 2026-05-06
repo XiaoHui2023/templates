@@ -1,35 +1,67 @@
 `ifndef {{ (class_prefix ~ "sequencer") | upper }}
 `define {{ (class_prefix ~ "sequencer") | upper }}
 
+// 用 CSV 或 TLM 写更新 RAL，也可把当前寄存器状态导出成 CSV。
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
+    // 上游来的 TLM 写接到这里。
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp;
+    // 写完后可以再转发一笔 TLM（给别人观察）。
     uvm_analysis_port #(uvm_tlm_generic_payload) o_ap;
 
+    // RAL 根。
     protected uvm_reg_block m_root;
+    // 默认 map。
     protected uvm_reg_map m_map;
+    // config：仿真前要加载的寄存器 CSV 路径。
     protected string init_file;
+    // config：仿真结束要写的寄存器 CSV 路径。
     protected string dump_file;
+    // 地址 → 寄存器路径。
     protected {{ class_prefix }}addr_hit m_addr_lut[string];
+    // 上面这张表是否已经建好。
     protected bit m_lut_ready;
+    // 若要导出 CSV，先攒在这里的行。
     protected {{ class_prefix }}csv_row m_dump_rows[$];
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
+    // 拿寄存器模型、建端口。
+    // phase — UVM phase
     extern function void build_phase(uvm_phase phase);
+    // 若配置了 init_file，在这里读 CSV 灌初值。
+    // phase — UVM phase
     extern task run_phase(uvm_phase phase);
+    // 若配置了 dump_file，在这里写 CSV。
+    // phase — UVM phase
     extern function void final_phase(uvm_phase phase);
+    // analysis 回调：收到一笔 TLM 写就更新 RAL。
+    // payload — TLM 写事务
     extern function void write(uvm_tlm_generic_payload payload);
 
+    // 需要时建好地址查表。
     extern function void ensure_lut();
+    // 若开了导出：根据这笔事务追加一行 dump。
+    // p — 对应 TLM 事务
     extern function void append_dump_from_payload(uvm_tlm_generic_payload p);
 
+    // 读寄存器 CSV：灌 RAL，并转发 TLM 写。
+    // filename — CSV 路径
+    // clear_dump_first — 是否先清空待导出缓冲
+    // ok — 是否成功
     extern task load_csv(input string filename, input bit clear_dump_first=0, output bit ok);
+    // 清空待导出缓冲。
     extern function void clear_dump_rows();
+    // 手动追加一行待导出（路径 + 值文本）。
+    // path — 寄存器点分路径
+    // value_text — 值列字符串
     extern function void append_dump_row(string path, string value_text);
+    // 把一行 CSV 转成 TLM 写事务。
+    // row — 一行 CSV
+    // payload — 输出的 TLM 写
     extern function bit row_to_payload({{ class_prefix }}csv_row row, output uvm_tlm_generic_payload payload);
 endclass
 

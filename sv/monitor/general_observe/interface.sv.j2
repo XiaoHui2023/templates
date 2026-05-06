@@ -4,38 +4,29 @@
 interface {{ class_prefix }}interface(
     input wire {{ if_clk }},
     input wire {{ if_valid }},
-    input wire[31:0] {{ if_width }}, // 通常为 $bits(PATH_TO_DATA)，不填则自动识别
+    input wire[31:0] {{ if_width }}, // 静态位宽；未驱动时用 auto_width
     input wire[{{ data_width_expr }}-1:0] {{ if_data }}
 );
 
-parameter int DELAY=0; // 数据滞后几拍
+parameter int DELAY=0; // valid 对齐后额外等待的时钟周期数
 
 typedef struct {
     bit[{{ data_width_expr }}-1:0] data;
     bit[31:0] width;
 } rx_s;
 
-// output
-rx_s rx_data; // 当前接收数据
-int rx_count; // 当前接收计数
+rx_s rx_data; // 当前周期锁存的 data 与 width
+int rx_count; // 每次锁存完成后递增
 
-// property
 int delay;
 bit s_cs[16];
 int auto_width;
 
-// alias
 wire[31:0] data_width;
 
-// assign
 assign data_width = !$isunknown({{ if_width }}) ? {{ if_width }} : auto_width;
 
-/*
-    得到数据位宽
-
-    需要在initial块使用，并在#0之后
-    不能使用 init_reg 期待参数，会导致失效
-*/
+// get_width — 返回 d 中从低位起首个非 X 位的索引（应在 #0 后调用；勿依赖参数端口寄存器初值）
 function int get_width(reg[{{ data_width_expr }}-1:0] d);
     for(int J=0;J<$bits(d);J++)
         if(!$isunknown(d[J])) begin
@@ -43,29 +34,23 @@ function int get_width(reg[{{ data_width_expr }}-1:0] d);
         end
 endfunction
 
-// 读取参数
 initial begin
     delay = DELAY;
 end
 
-// 自动识别数据位宽
 initial begin
     #0;
     auto_width = get_width({{ if_data }});
 end
 
-// 数据采样
 initial forever begin
     @(posedge {{ if_clk }});
 
-    // 延迟一拍
     for(int i=$bits(s_cs)-1;i>0;i=i-1)
         s_cs[i] = s_cs[i-1];
 
-    // valid
     s_cs[0] = {{ if_valid }};
 
-    // 比较（阻塞）
     if(!s_cs[delay])
         continue;
 

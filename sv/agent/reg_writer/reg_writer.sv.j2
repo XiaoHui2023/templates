@@ -1,23 +1,36 @@
 `ifndef {{ (class_prefix ~ "reg_writer") | upper }}
 `define {{ (class_prefix ~ "reg_writer") | upper }}
 
+// 收到 TLM 写后，按地址找到寄存器，经 RAL map 前门写入。
 class {{ class_prefix }}reg_writer extends uvm_component;
     `uvm_component_utils({{ class_prefix }}reg_writer)
 
+    // 外面把写事务先接到这个 port，再连到 imp。
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }};
+    // 真正干活的地方：收到写就调 write()。
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}reg_writer) imp;
 
+    // RAL 根。
     protected uvm_reg_block m_root;
+    // 用的哪个 map（默认或 config 里指定的名字）。
     protected uvm_reg_map m_map;
+    // config「reg_map」：空则用默认 map。
     protected string reg_map_name;
+    // 地址+宽度 → 寄存器路径。
     protected {{ class_prefix }}addr_hit m_addr_lut[string];
 
     function new(string name="{{ class_prefix }}reg_writer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
+    // 取寄存器模型、建查表、建端口。
+    // phase — UVM phase
     extern function void build_phase(uvm_phase phase);
+    // 把 input_port 接到 imp。
+    // phase — UVM phase
     extern function void connect_phase(uvm_phase phase);
+    // analysis 收到一笔 TLM 写时的入口。
+    // payload — TLM 写事务
     extern function void write(uvm_tlm_generic_payload payload);
 endclass
 

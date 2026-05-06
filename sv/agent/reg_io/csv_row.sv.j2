@@ -2,7 +2,9 @@
 `define {{ (class_prefix ~ "csv_row") | upper }}
 
 class {{ class_prefix }}csv_row;
+    // 寄存器点分路径，和 RAL 里名字对得上。
     string path;
+    // CSV「值」列原文，后面再解析成二进制。
     string value_text;
 endclass
 
