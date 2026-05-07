@@ -53,7 +53,7 @@ endclass
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
 
-    memh_eng = new({{ memh_max_bytes_per_line }});
+    memh_eng = new();
 
     imp = new("imp", this);
     o_ap = new("o_ap", this);

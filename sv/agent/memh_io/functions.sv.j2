@@ -6,7 +6,7 @@
 // 读 memh 文件，把结果放进 dst；clear_first 为真则先清空 dst
 function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
     {{ class_prefix }}memh_engine eng;
-    eng = new({{ memh_max_bytes_per_line }});
+    eng = new();
     return eng.read_into_map(filename, dst, clear_first);
 endfunction
 
@@ -18,18 +18,17 @@ function automatic bit {{ class_prefix }}read_memh_file_to_byte_q(
     input int len=-1
 );
     {{ class_prefix }}memh_engine eng;
-    eng = new({{ memh_max_bytes_per_line }});
+    eng = new();
     return eng.read_file_to_byte_q(filename, q, start_addr, len);
 endfunction
 
-// 把「地址到字节」的存储写成 memh；第三个参数是每行最多写几个数据字节
+// 把「地址到字节」的存储写成 memh；每行数据字节数由引擎在生成时确定
 function automatic bit {{ class_prefix }}write_memh_file(
     string filename,
-    ref bit [7:0] src[bit [63:0]],
-    input int max_bytes_per_line={{ memh_max_bytes_per_line }}
+    ref bit [7:0] src[bit [63:0]]
 );
     {{ class_prefix }}memh_engine eng;
-    eng = new(max_bytes_per_line);
+    eng = new();
     return eng.write_from_map(filename, src);
 endfunction
 
@@ -40,7 +39,7 @@ function automatic bit {{ class_prefix }}compare_memory(
     input string expected_name="expected"
 );
     {{ class_prefix }}memh_engine eng;
-    eng = new({{ memh_max_bytes_per_line }});
+    eng = new();
     return eng.compare_maps(actual, expected, expected_name);
 endfunction
 
@@ -50,7 +49,7 @@ function automatic bit {{ class_prefix }}compare_memh_file(
     input string filename
 );
     {{ class_prefix }}memh_engine eng;
-    eng = new({{ memh_max_bytes_per_line }});
+    eng = new();
     return eng.compare_map_to_memh(actual, filename);
 endfunction
 

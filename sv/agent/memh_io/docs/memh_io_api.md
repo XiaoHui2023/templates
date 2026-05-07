@@ -32,7 +32,7 @@
 | --- | --- | --- | --- | --- |
 | `filename` | input | `string` |  | 输出文件路径 |
 
-写出时每行最多几个数据字节，与同族**全局写出函数**的默认行为一致；行宽说明见 **[全局 function](memh_global_functions.md)** 中 `write_memh_file` 一节。
+写出时每行最多几个数据字节与同包 `write_memh_file` 一致，均在**重新生成**源码前由配置决定；说明见 **[全局 function](memh_global_functions.md)** 的 `write_memh_file` 一节。
 
 **返回值：** `bit` — 成功为 1，失败为 0。
 
