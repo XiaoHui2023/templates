@@ -1,222 +1,57 @@
 `ifndef {{ (class_prefix ~ "functions") | upper }}
 `define {{ (class_prefix ~ "functions") | upper }}
 
-// memh 文件与稀疏 memory：@ 地址行、十六进制字节 token、连续地址 run 写出。
-// memh_addr_hex_digits — 覆盖 max_addr 所需的十六进制数位个数（用于 @ 域宽）
-function automatic int {{ class_prefix }}memh_addr_hex_digits(input bit [63:0] max_addr);
-    bit [63:0] a;
-    int d;
-    if (max_addr == 0)
-        return 1;
-    d = 0;
-    a = max_addr;
-    do begin
-        d++;
-        a = a >> 4;
-    end while (a != 0);
-    return d;
-endfunction
+// 本文件只有几行封装：真正读写在 {{ class_prefix }}memh_engine 类里。
 
-// memh_padded_hex_addr — 将 addr 格式化为固定 hex_digits 宽的无前缀十六进制字符串
-function automatic string {{ class_prefix }}memh_padded_hex_addr(input bit [63:0] addr, input int hex_digits);
-    string s;
-    string ch;
-    int i;
-    bit [3:0] nib;
-    s = "";
-    for (i = hex_digits - 1; i >= 0; i--) begin
-        nib = (addr >> (4 * i)) & 4'hF;
-        $sformat(ch, "%0h", nib);
-        s = {s, ch};
-    end
-    return s;
-endfunction
-
-// emit_memh_run — 将 [base, base+len) 的连续字节写成一行或多行 "@..."（每行不超过 max_bytes_per_line）
-function automatic void {{ class_prefix }}emit_memh_run(
-    input int file,
-    ref bit [7:0] src[bit [63:0]],
-    input bit [63:0] base,
-    input int len,
-    input int addr_hex_digits,
-    input int max_bytes_per_line
-);
-    int pos;
-    int n;
-    int k;
-    bit [63:0] cur_addr;
-    string addr_str;
-    bit [7:0] b;
-
-    for (pos = 0; pos < len; pos += max_bytes_per_line) begin
-        n = len - pos;
-        if (n > max_bytes_per_line)
-            n = max_bytes_per_line;
-        cur_addr = base + pos;
-        addr_str = {{ class_prefix }}memh_padded_hex_addr(cur_addr, addr_hex_digits);
-        $fwrite(file, "@%s", addr_str);
-        for (k = 0; k < n; k++) begin
-            b = src[cur_addr + k];
-            $fwrite(file, " %02h", b);
-        end
-        $fwrite(file, "\n");
-    end
-endfunction
-
-// read_memh_file — 解析 memh；clear_first 时先清空 dst
+// 读 memh 文件，把结果放进 dst；clear_first 为真则先清空 dst
 function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
-    int file;
-    int code;
-    int value;
-    bit [63:0] addr;
-    string token;
-    string rest_of_line;
-
-    if (clear_first)
-        dst.delete();
-
-    file = $fopen(filename, "r");
-    if (!file) begin
-        `uvm_error("", $sformatf("failed to open memh file: %s", filename))
-        return 0;
-    end
-
-    addr = '0;
-    while (!$feof(file)) begin
-        code = $fscanf(file, "%s", token);
-        if (code != 1) begin
-            void'($fgets(rest_of_line, file));
-            continue;
-        end
-
-        if (!token.len())
-            continue;
-
-        if (token.len() >= 2 && token.substr(0, 1) == "//") begin
-            void'($fgets(rest_of_line, file));
-            continue;
-        end
-
-        if (token.substr(0, 0) == "@") begin
-            if (token.len() <= 1 || $sscanf(token.substr(1, token.len() - 1), "%h", addr) != 1) begin
-                `uvm_error("", $sformatf("invalid memh address token '%s' in %s", token, filename))
-                $fclose(file);
-                return 0;
-            end
-        end else begin
-            if ($sscanf(token, "%h", value) != 1) begin
-                `uvm_error("", $sformatf("invalid memh data token '%s' in %s", token, filename))
-                $fclose(file);
-                return 0;
-            end
-            dst[addr] = value[7:0];
-            addr++;
-        end
-    end
-
-    $fclose(file);
-    `uvm_info("", $sformatf("loaded %0d bytes from %s", dst.num(), filename), UVM_LOW)
-    return 1;
+    {{ class_prefix }}memh_engine eng;
+    eng = new({{ memh_max_bytes_per_line }});
+    return eng.read_into_map(filename, dst, clear_first);
 endfunction
 
-// write_memh_file — 将稀疏 src 按地址排序后合并为连续 run 写出；max_bytes_per_line — 每行最大字节数
+// 读完文件后从 start_addr 起按地址连续取字节放进 q；len 为负时遇到第一个没有数据的地址就停；len 非负时必须能连续取出 len 个字节
+function automatic bit {{ class_prefix }}read_memh_file_to_byte_q(
+    input string filename,
+    output bit [7:0] q[$],
+    input bit [63:0] start_addr='0,
+    input int len=-1
+);
+    {{ class_prefix }}memh_engine eng;
+    eng = new({{ memh_max_bytes_per_line }});
+    return eng.read_file_to_byte_q(filename, q, start_addr, len);
+endfunction
+
+// 把「地址到字节」的存储写成 memh；第三个参数是每行最多写几个数据字节
 function automatic bit {{ class_prefix }}write_memh_file(
     string filename,
     ref bit [7:0] src[bit [63:0]],
     input int max_bytes_per_line={{ memh_max_bytes_per_line }}
 );
-    int file;
-    int bytes_per_line;
-    bit [63:0] max_addr;
-    int addr_hex_digits;
-    bit [63:0] addrs[$];
-    bit [63:0] run_base;
-    int run_len;
-    int i;
-
-    bytes_per_line = max_bytes_per_line;
-    if (bytes_per_line < 1)
-        bytes_per_line = 1;
-
-    file = $fopen(filename, "w");
-    if (!file) begin
-        `uvm_error("", $sformatf("failed to open memh output file: %s", filename))
-        return 0;
-    end
-
-    if (src.num() == 0) begin
-        $fclose(file);
-        return 1;
-    end
-
-    max_addr = 0;
-    foreach (src[a])
-        if (a > max_addr)
-            max_addr = a;
-    addr_hex_digits = {{ class_prefix }}memh_addr_hex_digits(max_addr);
-
-    addrs.delete();
-    foreach (src[a])
-        addrs.push_back(a);
-    addrs.sort();
-
-    run_base = addrs[0];
-    run_len = 1;
-    for (i = 1; i < addrs.size(); i++) begin
-        if (addrs[i] == addrs[i - 1] + 1)
-            run_len++;
-        else begin
-            {{ class_prefix }}emit_memh_run(file, src, run_base, run_len, addr_hex_digits, bytes_per_line);
-            run_base = addrs[i];
-            run_len = 1;
-        end
-    end
-    {{ class_prefix }}emit_memh_run(file, src, run_base, run_len, addr_hex_digits, bytes_per_line);
-
-    $fclose(file);
-    return 1;
+    {{ class_prefix }}memh_engine eng;
+    eng = new(max_bytes_per_line);
+    return eng.write_from_map(filename, src);
 endfunction
 
-// 逐字节双向核对两个稀疏 memory（地址集合需完全一致且数据相等）。
+// 两个存储里出现的地址必须相同，同一地址上的字节也必须相同
 function automatic bit {{ class_prefix }}compare_memory(
     ref bit [7:0] actual[bit [63:0]],
     ref bit [7:0] expected[bit [63:0]],
     input string expected_name="expected"
 );
-    bit pass;
-
-    pass = 1;
-    foreach (actual[addr]) begin
-        if (!expected.exists(addr)) begin
-            `uvm_error("", $sformatf("memory compare failed: unexpected byte @0x%016h actual=0x%02h expected=<missing> (%s)", addr, actual[addr], expected_name))
-            pass = 0;
-        end else if (actual[addr] != expected[addr]) begin
-            `uvm_error("", $sformatf("memory compare failed: mismatch @0x%016h actual=0x%02h expected=0x%02h (%s)", addr, actual[addr], expected[addr], expected_name))
-            pass = 0;
-        end
-    end
-
-    foreach (expected[addr]) begin
-        if (!actual.exists(addr)) begin
-            `uvm_error("", $sformatf("memory compare failed: missing byte @0x%016h actual=<missing> expected=0x%02h (%s)", addr, expected[addr], expected_name))
-            pass = 0;
-        end
-    end
-
-    if (pass)
-        `uvm_info("", $sformatf("memory compare passed with %0d bytes (%s)", actual.num(), expected_name), UVM_LOW)
-    return pass;
+    {{ class_prefix }}memh_engine eng;
+    eng = new({{ memh_max_bytes_per_line }});
+    return eng.compare_maps(actual, expected, expected_name);
 endfunction
 
+// 从 memh 文件读出期望数据，再和 actual 比较
 function automatic bit {{ class_prefix }}compare_memh_file(
     ref bit [7:0] actual[bit [63:0]],
     input string filename
 );
-    bit [7:0] expected[bit [63:0]];
-
-    if (!{{ class_prefix }}read_memh_file(filename, expected, 1))
-        return 0;
-    return {{ class_prefix }}compare_memory(actual, expected, filename);
+    {{ class_prefix }}memh_engine eng;
+    eng = new({{ memh_max_bytes_per_line }});
+    return eng.compare_map_to_memh(actual, filename);
 endfunction
 
 `endif

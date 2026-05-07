@@ -1,0 +1,302 @@
+`ifndef {{ (class_prefix ~ "memh_engine") | upper }}
+`define {{ (class_prefix ~ "memh_engine") | upper }}
+
+// 读 memh 文件、写 memh 文件，以及从「字节地址对应一个字节」的存储里按起始地址连续读出字节队列；本包文件顶部的几个函数和 sequencer 共用这里的实现。
+class {{ class_prefix }}memh_engine;
+    int max_bytes_per_line; // 写文件时每行最多写几个连续数据字节；构造时若传入小于 1 则当作 1
+
+    extern function new(input int max_bytes_per_line_m);
+
+    // 根据最大地址算出 @ 后面要用几位十六进制（至少 1 位）
+    extern local function int memh_addr_hex_digits(input bit [63:0] max_addr);
+    // 把地址变成固定长度的十六进制字符串，不要 0x 前缀，用在 @ 开头的行里
+    extern local function string memh_padded_hex_addr(input bit [63:0] addr, input int hex_digits);
+    // 从地址 base 起连续 len 个字节写到文件里，一行写不下就拆多行，每行最多 bytes_per_line 个数据字节
+    extern local function void emit_memh_run(
+        input int file,
+        ref bit [7:0] src[bit [63:0]],
+        input bit [63:0] base,
+        input int len,
+        input int addr_hex_digits,
+        input int bytes_per_line
+    );
+
+    // 读 memh 文件，把内容放进 dst；clear_first 为真则先把 dst 清空
+    extern function bit read_into_map(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
+    // 从存储 src 里按地址从 start_addr 起连续取字节放进 q：len 为负时遇到第一个没有数据的地址就停；len 非负时这一段必须每个地址都有数据，否则失败并清空 q
+    extern function bit slice_bytes_from_map(
+        ref bit [7:0] src[bit [63:0]],
+        input bit [63:0] start_addr,
+        input int len,
+        output bit [7:0] q[$]
+    );
+    // 先读整个 memh 文件，再按起始地址和长度规则把字节放进 q
+    extern function bit read_file_to_byte_q(
+        input string filename,
+        output bit [7:0] q[$],
+        input bit [63:0] start_addr,
+        input int len
+    );
+    // 按地址从小到大写文件：地址紧挨着的字节会写在同一行或相邻行里（memh 的 @ 行格式）
+    extern function bit write_from_map(string filename, ref bit [7:0] src[bit [63:0]]);
+    // 比较两个「地址到字节」的存储：出现的地址必须完全一样，同一地址上的字节也必须一样
+    extern function bit compare_maps(
+        ref bit [7:0] actual[bit [63:0]],
+        ref bit [7:0] expected[bit [63:0]],
+        input string expected_name
+    );
+    // 先把 filename 里的 memh 读成期望数据，再和 actual 比较；打印错误时用 filename 当作期望一侧的名字
+    extern function bit compare_map_to_memh(ref bit [7:0] actual[bit [63:0]], input string filename);
+endclass
+
+// 保存每行字节数上限；若传入小于 1 则按 1 使用
+function {{ class_prefix }}memh_engine::new(input int max_bytes_per_line_m);
+    max_bytes_per_line = max_bytes_per_line_m;
+    if (max_bytes_per_line < 1)
+        max_bytes_per_line = 1;
+endfunction
+
+function int {{ class_prefix }}memh_engine::memh_addr_hex_digits(input bit [63:0] max_addr);
+    bit [63:0] a;
+    int d;
+    if (max_addr == 0)
+        return 1;
+    d = 0;
+    a = max_addr;
+    do begin
+        d++;
+        a = a >> 4;
+    end while (a != 0);
+    return d;
+endfunction
+
+function string {{ class_prefix }}memh_engine::memh_padded_hex_addr(input bit [63:0] addr, input int hex_digits);
+    string s;
+    string ch;
+    int i;
+    bit [3:0] nib;
+    s = "";
+    for (i = hex_digits - 1; i >= 0; i--) begin
+        nib = (addr >> (4 * i)) & 4'hF;
+        $sformat(ch, "%0h", nib);
+        s = {s, ch};
+    end
+    return s;
+endfunction
+
+function void {{ class_prefix }}memh_engine::emit_memh_run(
+    input int file,
+    ref bit [7:0] src[bit [63:0]],
+    input bit [63:0] base,
+    input int len,
+    input int addr_hex_digits,
+    input int bytes_per_line
+);
+    int pos;
+    int n;
+    int k;
+    bit [63:0] cur_addr;
+    string addr_str;
+    bit [7:0] b;
+
+    for (pos = 0; pos < len; pos += bytes_per_line) begin
+        n = len - pos;
+        if (n > bytes_per_line)
+            n = bytes_per_line;
+        cur_addr = base + pos;
+        addr_str = memh_padded_hex_addr(cur_addr, addr_hex_digits);
+        $fwrite(file, "@%s", addr_str);
+        for (k = 0; k < n; k++) begin
+            b = src[cur_addr + k];
+            $fwrite(file, " %02h", b);
+        end
+        $fwrite(file, "\n");
+    end
+endfunction
+
+function bit {{ class_prefix }}memh_engine::read_into_map(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
+    int file;
+    int code;
+    int value;
+    bit [63:0] addr;
+    string token;
+    string rest_of_line;
+
+    if (clear_first)
+        dst.delete();
+
+    file = $fopen(filename, "r");
+    if (!file) begin
+        `uvm_error("", $sformatf("failed to open memh file: %s", filename))
+        return 0;
+    end
+
+    addr = '0;
+    while (!$feof(file)) begin
+        code = $fscanf(file, "%s", token);
+        if (code != 1) begin
+            void'($fgets(rest_of_line, file));
+            continue;
+        end
+
+        if (!token.len())
+            continue;
+
+        if (token.len() >= 2 && token.substr(0, 1) == "//") begin
+            void'($fgets(rest_of_line, file));
+            continue;
+        end
+
+        if (token.substr(0, 0) == "@") begin
+            if (token.len() <= 1 || $sscanf(token.substr(1, token.len() - 1), "%h", addr) != 1) begin
+                `uvm_error("", $sformatf("invalid memh address token '%s' in %s", token, filename))
+                $fclose(file);
+                return 0;
+            end
+        end else begin
+            if ($sscanf(token, "%h", value) != 1) begin
+                `uvm_error("", $sformatf("invalid memh data token '%s' in %s", token, filename))
+                $fclose(file);
+                return 0;
+            end
+            dst[addr] = value[7:0];
+            addr++;
+        end
+    end
+
+    $fclose(file);
+    `uvm_info("", $sformatf("loaded %0d bytes from %s", dst.num(), filename), UVM_LOW)
+    return 1;
+endfunction
+
+function bit {{ class_prefix }}memh_engine::slice_bytes_from_map(
+    ref bit [7:0] src[bit [63:0]],
+    input bit [63:0] start_addr,
+    input int len,
+    output bit [7:0] q[$]
+);
+    bit [63:0] a;
+    q.delete();
+    if (len < 0) begin
+        for (int i = 0; ; i++) begin
+            a = start_addr + i;
+            if (!src.exists(a))
+                return 1;
+            q.push_back(src[a]);
+        end
+    end else begin
+        for (int i = 0; i < len; i++) begin
+            a = start_addr + i;
+            if (!src.exists(a)) begin
+                q.delete();
+                return 0;
+            end
+            q.push_back(src[a]);
+        end
+        return 1;
+    end
+endfunction
+
+function bit {{ class_prefix }}memh_engine::read_file_to_byte_q(
+    input string filename,
+    output bit [7:0] q[$],
+    input bit [63:0] start_addr,
+    input int len
+);
+    bit [7:0] m[bit [63:0]];
+    q.delete();
+    if (!read_into_map(filename, m, 1))
+        return 0;
+    return slice_bytes_from_map(m, start_addr, len, q);
+endfunction
+
+function bit {{ class_prefix }}memh_engine::write_from_map(string filename, ref bit [7:0] src[bit [63:0]]);
+    int file;
+    int bytes_per_line;
+    bit [63:0] max_addr;
+    int addr_hex_digits;
+    bit [63:0] addrs[$];
+    bit [63:0] run_base;
+    int run_len;
+    int i;
+
+    bytes_per_line = max_bytes_per_line;
+
+    file = $fopen(filename, "w");
+    if (!file) begin
+        `uvm_error("", $sformatf("failed to open memh output file: %s", filename))
+        return 0;
+    end
+
+    if (src.num() == 0) begin
+        $fclose(file);
+        return 1;
+    end
+
+    max_addr = 0;
+    foreach (src[a])
+        if (a > max_addr)
+            max_addr = a;
+    addr_hex_digits = memh_addr_hex_digits(max_addr);
+
+    addrs.delete();
+    foreach (src[a])
+        addrs.push_back(a);
+    addrs.sort();
+
+    run_base = addrs[0];
+    run_len = 1;
+    for (i = 1; i < addrs.size(); i++) begin
+        if (addrs[i] == addrs[i - 1] + 1)
+            run_len++;
+        else begin
+            emit_memh_run(file, src, run_base, run_len, addr_hex_digits, bytes_per_line);
+            run_base = addrs[i];
+            run_len = 1;
+        end
+    end
+    emit_memh_run(file, src, run_base, run_len, addr_hex_digits, bytes_per_line);
+
+    $fclose(file);
+    return 1;
+endfunction
+
+function bit {{ class_prefix }}memh_engine::compare_maps(
+    ref bit [7:0] actual[bit [63:0]],
+    ref bit [7:0] expected[bit [63:0]],
+    input string expected_name
+);
+    bit pass;
+
+    pass = 1;
+    foreach (actual[addr]) begin
+        if (!expected.exists(addr)) begin
+            `uvm_error("", $sformatf("memory compare failed: unexpected byte @0x%016h actual=0x%02h expected=<missing> (%s)", addr, actual[addr], expected_name))
+            pass = 0;
+        end else if (actual[addr] != expected[addr]) begin
+            `uvm_error("", $sformatf("memory compare failed: mismatch @0x%016h actual=0x%02h expected=0x%02h (%s)", addr, actual[addr], expected[addr], expected_name))
+            pass = 0;
+        end
+    end
+
+    foreach (expected[addr]) begin
+        if (!actual.exists(addr)) begin
+            `uvm_error("", $sformatf("memory compare failed: missing byte @0x%016h actual=<missing> expected=0x%02h (%s)", addr, expected[addr], expected_name))
+            pass = 0;
+        end
+    end
+
+    if (pass)
+        `uvm_info("", $sformatf("memory compare passed with %0d bytes (%s)", actual.num(), expected_name), UVM_LOW)
+    return pass;
+endfunction
+
+function bit {{ class_prefix }}memh_engine::compare_map_to_memh(ref bit [7:0] actual[bit [63:0]], input string filename);
+    bit [7:0] expected[bit [63:0]];
+
+    if (!read_into_map(filename, expected, 1))
+        return 0;
+    return compare_maps(actual, expected, filename);
+endfunction
+
+`endif
