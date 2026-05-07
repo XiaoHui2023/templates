@@ -1,0 +1,59 @@
+`ifndef {{ class_name | upper }}
+`define {{ class_name | upper }}
+
+{%- set _hw = hw_reset | default(false) %}
+{%- set _mh = mem_hdl_paths | default(false) %}
+{%- set _bb = bit_bash | default(false) %}
+{%- set _any = _hw or _mh or _bb %}
+// 使用 UVM RAL 内建寄存器序列；`regmodel` 须在启动前赋值；`p_sequencer` 须与 RAL map 上绑定的 sequencer 一致。
+class {{ class_name }} extends uvm_sequence;
+    `uvm_object_utils({{ class_name }})
+    `uvm_declare_p_sequencer(uvm_sequencer #(uvm_reg_item))
+
+    // regmodel — 被测 RAL 根块
+    uvm_reg_block regmodel;
+
+    function new(string name = "{{ class_name }}");
+        super.new(name);
+    endfunction
+
+    task body();
+{%- if _hw %}
+        uvm_reg_hw_reset_seq hw_reset_seq;
+{%- endif %}
+{%- if _mh %}
+        uvm_reg_mem_hdl_paths_seq mem_hdl_paths_seq;
+{%- endif %}
+{%- if _bb %}
+        uvm_reg_bit_bash_seq bit_bash_seq;
+{%- endif %}
+
+        if (regmodel == null)
+            `uvm_fatal("REGTEST/MODEL", "regmodel is null; assign before start")
+{%- if not _any %}
+
+        `uvm_fatal("REGTEST/ENABLE", "no built-in register tests enabled; adjust configuration switches")
+{%- else %}
+{%- if _hw %}
+
+        hw_reset_seq = uvm_reg_hw_reset_seq::type_id::create({get_name(), ".hw_reset"});
+        hw_reset_seq.model = regmodel;
+        hw_reset_seq.start(p_sequencer);
+{%- endif %}
+{%- if _mh %}
+
+        mem_hdl_paths_seq = uvm_reg_mem_hdl_paths_seq::type_id::create({get_name(), ".mem_hdl_paths"});
+        mem_hdl_paths_seq.model = regmodel;
+        mem_hdl_paths_seq.start(p_sequencer);
+{%- endif %}
+{%- if _bb %}
+
+        bit_bash_seq = uvm_reg_bit_bash_seq::type_id::create({get_name(), ".bit_bash"});
+        bit_bash_seq.model = regmodel;
+        bit_bash_seq.start(p_sequencer);
+{%- endif %}
+{%- endif %}
+    endtask
+endclass
+
+`endif
