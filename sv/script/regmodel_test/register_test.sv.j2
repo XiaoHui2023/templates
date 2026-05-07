@@ -2,7 +2,7 @@
 `define {{ class_name | upper }}
 
 {%- set _hw = hw_reset | default(false) %}
-{%- set _acc = reg_access | default(false) %}
+{%- set _acc = access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
 // 按配置串联 UVM RAL 内建寄存器测试 sequence；`regmodel` 指向根块句柄。
@@ -12,6 +12,8 @@ class {{ class_name }} extends uvm_sequence;
 
     // regmodel — 被测 RAL 根块
     uvm_reg_block regmodel;
+    // no_test_regs — 不参与内建寄存器测试的寄存器句柄（空队列表示不排除）
+    uvm_reg no_test_regs[$];
 
     function new(string name = "{{ class_name }}");
         super.new(name);
@@ -33,6 +35,12 @@ class {{ class_name }} extends uvm_sequence;
 
         if (regmodel == null)
             `uvm_fatal("REGTEST/MODEL", "regmodel is null; assign before start")
+
+        foreach (no_test_regs[i]) begin
+            if (no_test_regs[i] != null)
+                uvm_resource_db#(bit)::set({"REG::", no_test_regs[i].get_full_name()},
+                    "NO_REG_TESTS", 1);
+        end
 {%- if _hw %}
 
         hw_reset_seq = uvm_reg_hw_reset_seq::type_id::create({get_name(), ".hw_reset"});
