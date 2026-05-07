@@ -2,10 +2,10 @@
 `define {{ class_name | upper }}
 
 {%- set _hw = hw_reset | default(false) %}
+{%- set _acc = reg_access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
-{%- set _any = _hw or _mh or _bb %}
-// 使用 UVM RAL 内建寄存器序列；`regmodel` 须在启动前赋值；`p_sequencer` 须与 RAL map 上绑定的 sequencer 一致。
+// 按配置串联 UVM RAL 内建寄存器测试 sequence；`regmodel` 指向根块句柄。
 class {{ class_name }} extends uvm_sequence;
     `uvm_object_utils({{ class_name }})
     `uvm_declare_p_sequencer(uvm_sequencer #(uvm_reg_item))
@@ -21,6 +21,9 @@ class {{ class_name }} extends uvm_sequence;
 {%- if _hw %}
         uvm_reg_hw_reset_seq hw_reset_seq;
 {%- endif %}
+{%- if _acc %}
+        uvm_reg_access_seq reg_access_seq;
+{%- endif %}
 {%- if _mh %}
         uvm_reg_mem_hdl_paths_seq mem_hdl_paths_seq;
 {%- endif %}
@@ -30,15 +33,17 @@ class {{ class_name }} extends uvm_sequence;
 
         if (regmodel == null)
             `uvm_fatal("REGTEST/MODEL", "regmodel is null; assign before start")
-{%- if not _any %}
-
-        `uvm_fatal("REGTEST/ENABLE", "no built-in register tests enabled; adjust configuration switches")
-{%- else %}
 {%- if _hw %}
 
         hw_reset_seq = uvm_reg_hw_reset_seq::type_id::create({get_name(), ".hw_reset"});
         hw_reset_seq.model = regmodel;
         hw_reset_seq.start(p_sequencer);
+{%- endif %}
+{%- if _acc %}
+
+        reg_access_seq = uvm_reg_access_seq::type_id::create({get_name(), ".reg_access"});
+        reg_access_seq.model = regmodel;
+        reg_access_seq.start(p_sequencer);
 {%- endif %}
 {%- if _mh %}
 
@@ -51,7 +56,6 @@ class {{ class_name }} extends uvm_sequence;
         bit_bash_seq = uvm_reg_bit_bash_seq::type_id::create({get_name(), ".bit_bash"});
         bit_bash_seq.model = regmodel;
         bit_bash_seq.start(p_sequencer);
-{%- endif %}
 {%- endif %}
     endtask
 endclass
