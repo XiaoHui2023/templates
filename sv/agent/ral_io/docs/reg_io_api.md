@@ -31,7 +31,7 @@
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `row` | input | 带前缀的 `csv_row` 句柄 |  | 路径与数值文本 |
+| `row` | input | `csv_row` |  | 路径与数值文本 |
 | `payload` | output | `uvm_tlm_generic_payload` |  | 输出写事务 |
 
 **返回值：** `bit` — 成功为 1，失败为 0。

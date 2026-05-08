@@ -14,9 +14,9 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     protected uvm_reg_block m_root;
     // 默认 map。
     protected uvm_reg_map m_map;
-    // 仿真开始前读取的寄存器 CSV 路径（config_db：init_file）。
+    // 仿真开始前读取的寄存器 CSV 路径。
     protected string init_file;
-    // 仿真结束时写出寄存器写记录的 CSV 路径（config_db：dump_file）。
+    // 仿真结束时写出寄存器写记录的 CSV 路径。
     protected string dump_file;
     // 地址 → 寄存器路径。
     protected {{ class_prefix }}addr_hit m_addr_lut[string];
@@ -29,17 +29,13 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
         super.new(name, parent);
     endfunction
 
-    // 取得寄存器模型并建立分析端口。
-    // phase — UVM phase 句柄
+    // 建立 analysis imp、o_ap，取得寄存器根块、默认 map 与可选 CSV 路径。
     extern function void build_phase(uvm_phase phase);
-    // dump_file 非空：清空待写出行队列；与 init_file 不同路径时截断该输出文件。
-    // phase — UVM phase 句柄
+    // dump_file 非空时清空待写出行队列；与 init_file 不同路径时截断输出文件。
     extern function void start_of_simulation_phase(uvm_phase phase);
-    // init_file 非空：读取 CSV 并通过前门写入 RAL。
-    // phase — UVM phase 句柄
+    // init_file 非空时读 CSV 并前门写入 RAL。
     extern task run_phase(uvm_phase phase);
-    // dump_file 非空：将队列中的行写入该路径。
-    // phase — UVM phase 句柄
+    // dump_file 非空时将待写出行保存为该路径下的 CSV。
     extern function void final_phase(uvm_phase phase);
     // analysis imp 回调：将 TLM 写落实到 RAL。
     // payload — imp 收到的写事务
@@ -180,7 +176,7 @@ function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload
     uvm_tlm_generic_payload p;
 
     if (payload.get_command() != UVM_TLM_WRITE_COMMAND) begin
-        `uvm_warning("REG_IO", "i_ap only handles UVM_TLM_WRITE_COMMAND payloads")
+        `uvm_warning("REG_IO", "analysis imp only handles UVM_TLM_WRITE_COMMAND payloads")
         return;
     end
     if (!$cast(p, payload.clone())) begin
