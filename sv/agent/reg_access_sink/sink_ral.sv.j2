@@ -1,9 +1,27 @@
-`ifndef {{ (class_prefix ~ "reg_writer_ral") | upper }}
-`define {{ (class_prefix ~ "reg_writer_ral") | upper }}
+`ifndef {{ (class_prefix ~ "sink_ral") | upper }}
+`define {{ (class_prefix ~ "sink_ral") | upper }}
 
-// 去掉字符串两头空白（空格、制表、换行）。
-// s — 就地 trim 的字符串
-function automatic void {{ class_prefix }}str_trim_both(ref string s);
+// 在指定 map 上建立地址查表，解析点分寄存器路径，并把 TLM 字节序数据转为前门写。
+class {{ class_prefix }}sink_ral;
+
+    extern local function void str_trim_both(ref string s);
+    extern local function void split_dotted_path(input string s_in, ref string parts[$]);
+    extern local function void walk_register_map(
+        uvm_reg_block blk,
+        uvm_reg_map map,
+        string rel_prefix,
+        ref {{ class_prefix }}addr_hit lut[string]
+    );
+
+    extern function uvm_reg resolve_reg_by_path(uvm_reg_block root, string dotted_path);
+    extern function bit le_bytes_to_uvm_reg_data(ref bit [7:0] le[$], input int n_bits, output uvm_reg_data_t val);
+    extern function bit payload_to_le_bytes(input uvm_tlm_generic_payload p, ref bit [7:0] le[$]);
+    extern function string format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
+    extern function bit build_reg_addr_lut(uvm_reg_block root, uvm_reg_map map, ref {{ class_prefix }}addr_hit lut[string]);
+    extern task sink_frontdoor_write(uvm_reg rg, uvm_reg_map map, input uvm_reg_data_t v, output uvm_status_e st);
+endclass
+
+function void {{ class_prefix }}sink_ral::str_trim_both(ref string s);
     int a;
     int b;
     int i;
@@ -29,10 +47,7 @@ function automatic void {{ class_prefix }}str_trim_both(ref string s);
         s = "";
 endfunction
 
-// 把点分路径按 '.' 拆成多段名字。
-// s_in — 原始路径
-// parts — 各段输出
-function automatic void {{ class_prefix }}split_dotted_path(input string s_in, ref string parts[$]);
+function void {{ class_prefix }}sink_ral::split_dotted_path(input string s_in, ref string parts[$]);
     int start;
     int i;
     int k;
@@ -40,7 +55,7 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s_in, r
     string s;
     parts.delete();
     s = s_in;
-    {{ class_prefix }}str_trim_both(s);
+    str_trim_both(s);
     start = 0;
     for (i = 0; i < s.len(); i++) begin
         if (s.getc(i) == ".") begin
@@ -48,7 +63,7 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s_in, r
                 seg = "";
                 for (k = start; k < i; k++)
                     seg = {seg, s.getc(k)};
-                {{ class_prefix }}str_trim_both(seg);
+                str_trim_both(seg);
                 if (seg.len())
                     parts.push_back(seg);
             end
@@ -59,16 +74,13 @@ function automatic void {{ class_prefix }}split_dotted_path(input string s_in, r
         seg = "";
         for (k = start; k < s.len(); k++)
             seg = {seg, s.getc(k)};
-        {{ class_prefix }}str_trim_both(seg);
+        str_trim_both(seg);
         if (seg.len())
             parts.push_back(seg);
     end
 endfunction
 
-// 按点分路径在模型里找到 uvm_reg。
-// root — 顶层 block
-// dotted_path — 点分路径
-function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block root, string dotted_path);
+function uvm_reg {{ class_prefix }}sink_ral::resolve_reg_by_path(uvm_reg_block root, string dotted_path);
     uvm_reg_block cur;
     uvm_reg rg;
     string parts[$];
@@ -77,7 +89,7 @@ function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block r
     if (root == null || !dotted_path.len())
         return null;
 
-    {{ class_prefix }}split_dotted_path(dotted_path, parts);
+    split_dotted_path(dotted_path, parts);
     if (!parts.size())
         return null;
 
@@ -96,22 +108,14 @@ function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block r
     return rg;
 endfunction
 
-// 字节队列 → uvm_reg_data_t（与 reg_io 同一套字节序约定）。
-// le — 小端字节
-// n_bits — 寄存器位宽
-// val — 拼好的寄存器值
-function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
-    ref bit [7:0] le[$],
-    input int n_bits,
-    output uvm_reg_data_t val
-);
+function bit {{ class_prefix }}sink_ral::le_bytes_to_uvm_reg_data(ref bit [7:0] le[$], input int n_bits, output uvm_reg_data_t val);
     int n_bytes;
     int i;
     uvm_reg_data_t ext;
     val = 0;
     n_bytes = (n_bits + 7) / 8;
     if (n_bits > $bits(val)) begin
-        `uvm_error("REG_WRITER", $sformatf("register width %0d exceeds uvm_reg_data_t", n_bits))
+        `uvm_error("REG_ACC_SINK", $sformatf("register width %0d exceeds uvm_reg_data_t", n_bits))
         return 0;
     end
     for (i = 0; i < le.size() && i < n_bytes; i++) begin
@@ -122,13 +126,7 @@ function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
     return 1;
 endfunction
 
-// 从 TLM 事务取出数据字节。
-// p — TLM payload
-// le — 输出字节队列
-function automatic bit {{ class_prefix }}payload_to_le_bytes(
-    uvm_tlm_generic_payload p,
-    ref bit [7:0] le[$]
-);
+function bit {{ class_prefix }}sink_ral::payload_to_le_bytes(input uvm_tlm_generic_payload p, ref bit [7:0] le[$]);
     byte unsigned dyn[];
     int len;
     int i;
@@ -145,10 +143,7 @@ function automatic bit {{ class_prefix }}payload_to_le_bytes(
     return 1;
 endfunction
 
-// 把小端字节按位宽拼成寄存器值，再格式化为十六进制字符串（前缀 0x）。
-// le_bytes — 小端字节
-// n_bits — 寄存器位宽
-function automatic string {{ class_prefix }}format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
+function string {{ class_prefix }}sink_ral::format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
     int n_bytes;
     bit [4095:0] acc;
     bit [4095:0] ext;
@@ -188,12 +183,7 @@ function automatic string {{ class_prefix }}format_le_bytes_as_hex(ref bit [7:0]
     return s;
 endfunction
 
-// 遍历寄存器树，填「地址+宽度 → 寄存器路径」表（与 reg_io 同构）。
-// blk — 当前 block
-// map — 地址 map
-// rel_prefix — 路径前缀
-// lut — 地址→路径查表
-function automatic void {{ class_prefix }}walk_register_map(
+function void {{ class_prefix }}sink_ral::walk_register_map(
     uvm_reg_block blk,
     uvm_reg_map map,
     string rel_prefix,
@@ -222,7 +212,7 @@ function automatic void {{ class_prefix }}walk_register_map(
         hit.path = pth;
         hit.n_bytes = nb;
         if (lut.exists(key) && lut[key].path != hit.path)
-            `uvm_warning("REG_WRITER", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
+            `uvm_warning("REG_ACC_SINK", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
         lut[key] = hit;
     end
 
@@ -233,37 +223,19 @@ function automatic void {{ class_prefix }}walk_register_map(
             np = {rel_prefix, ".", subs[j].get_name()};
         else
             np = subs[j].get_name();
-        {{ class_prefix }}walk_register_map(subs[j], map, np, lut);
+        walk_register_map(subs[j], map, np, lut);
     end
 endfunction
 
-// 建整张地址 → 寄存器路径查表。
-// root — 顶层 block
-// map — 地址 map
-// lut — 输出查表
-function automatic bit {{ class_prefix }}build_reg_addr_lut(
-    uvm_reg_block root,
-    uvm_reg_map map,
-    ref {{ class_prefix }}addr_hit lut[string]
-);
+function bit {{ class_prefix }}sink_ral::build_reg_addr_lut(uvm_reg_block root, uvm_reg_map map, ref {{ class_prefix }}addr_hit lut[string]);
     lut.delete();
     if (root == null || map == null)
         return 0;
-    {{ class_prefix }}walk_register_map(root, map, "", lut);
+    walk_register_map(root, map, "", lut);
     return 1;
 endfunction
 
-// 前门写寄存器。
-// rg — 目标寄存器
-// map — RAL map
-// v — 写入值
-// st — UVM 状态
-task automatic {{ class_prefix }}reg_writer_frontdoor_write(
-    uvm_reg rg,
-    uvm_reg_map map,
-    input uvm_reg_data_t v,
-    output uvm_status_e st
-);
+task {{ class_prefix }}sink_ral::sink_frontdoor_write(uvm_reg rg, uvm_reg_map map, input uvm_reg_data_t v, output uvm_status_e st);
     rg.write(st, v, UVM_FRONTDOOR, map, null);
 endtask
 

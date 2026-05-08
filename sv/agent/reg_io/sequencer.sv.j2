@@ -1,67 +1,70 @@
 `ifndef {{ (class_prefix ~ "sequencer") | upper }}
 `define {{ (class_prefix ~ "sequencer") | upper }}
 
-// 用 CSV 或 TLM 写更新 RAL，也可把当前寄存器状态导出成 CSV。
+// 用 CSV 或 TLM 写更新 RAL，必要时将寄存器写记录保存为 CSV。
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
     // 上游来的 TLM 写接到这里。
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp;
-    // 写完后可以再转发一笔 TLM（给别人观察）。
+    // CSV 载入路径产生的 TLM 写由此送出。
     uvm_analysis_port #(uvm_tlm_generic_payload) o_ap;
 
     // RAL 根。
     protected uvm_reg_block m_root;
     // 默认 map。
     protected uvm_reg_map m_map;
-    // config：仿真前要加载的寄存器 CSV 路径。
+    // 仿真开始前读取的寄存器 CSV 路径（config_db：init_file）。
     protected string init_file;
-    // config：仿真结束要写的寄存器 CSV 路径。
+    // 仿真结束时写出寄存器写记录的 CSV 路径（config_db：dump_file）。
     protected string dump_file;
     // 地址 → 寄存器路径。
     protected {{ class_prefix }}addr_hit m_addr_lut[string];
     // 上面这张表是否已经建好。
     protected bit m_lut_ready;
-    // 若要导出 CSV，先攒在这里的行。
+    // dump_file 非空时：累积待写入该路径的 CSV 行。
     protected {{ class_prefix }}csv_row m_dump_rows[$];
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
-    // 拿寄存器模型、建端口。
-    // phase — UVM phase
+    // 取得寄存器模型并建立分析端口。
+    // phase — UVM phase 句柄
     extern function void build_phase(uvm_phase phase);
-    // 若配置了 init_file，在这里读 CSV 灌初值。
-    // phase — UVM phase
+    // dump_file 非空：清空待写出行队列；与 init_file 不同路径时截断该输出文件。
+    // phase — UVM phase 句柄
+    extern function void start_of_simulation_phase(uvm_phase phase);
+    // init_file 非空：读取 CSV 并通过前门写入 RAL。
+    // phase — UVM phase 句柄
     extern task run_phase(uvm_phase phase);
-    // 若配置了 dump_file，在这里写 CSV。
-    // phase — UVM phase
+    // dump_file 非空：将队列中的行写入该路径。
+    // phase — UVM phase 句柄
     extern function void final_phase(uvm_phase phase);
-    // analysis 回调：收到一笔 TLM 写就更新 RAL。
-    // payload — TLM 写事务
+    // analysis imp 回调：将 TLM 写落实到 RAL。
+    // payload — imp 收到的写事务
     extern function void write(uvm_tlm_generic_payload payload);
 
-    // 需要时建好地址查表。
+    // 按需建立地址到寄存器路径的查找表。
     extern function void ensure_lut();
-    // 若开了导出：根据这笔事务追加一行 dump。
-    // p — 对应 TLM 事务
+    // dump_file 非空：由该写事务追加一行待写出的 CSV 记录。
+    // p — 写事务
     extern function void append_dump_from_payload(uvm_tlm_generic_payload p);
 
-    // 读寄存器 CSV：灌 RAL，并转发 TLM 写。
+    // 读取寄存器 CSV：前门写 RAL，并向 o_ap 发出对应 payload。
     // filename — CSV 路径
-    // clear_dump_first — 是否先清空待导出缓冲
-    // ok — 是否成功
+    // clear_dump_first — 为 1 则先清空待写出行队列
+    // ok — 成功为 1
     extern task load_csv(input string filename, input bit clear_dump_first=0, output bit ok);
-    // 清空待导出缓冲。
+    // 清空待写出的 CSV 行队列。
     extern function void clear_dump_rows();
-    // 手动追加一行待导出（路径 + 值文本）。
+    // 向待写出队列追加一行。
     // path — 寄存器点分路径
-    // value_text — 值列字符串
+    // value_text — CSV 值列字符串
     extern function void append_dump_row(string path, string value_text);
-    // 把一行 CSV 转成 TLM 写事务。
-    // row — 一行 CSV
-    // payload — 输出的 TLM 写
+    // 将一行 CSV 转为 TLM 写 payload（不写 RAL、不记入待写出队列）。
+    // row — 输入行
+    // payload — 输出写事务
     extern function bit row_to_payload({{ class_prefix }}csv_row row, output uvm_tlm_generic_payload payload);
 endclass
 
@@ -80,6 +83,27 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
 
     void'(uvm_config_db #(string)::get(this, "", "init_file", init_file));
     void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
+endfunction
+
+function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase phase);
+    int fd;
+
+    super.start_of_simulation_phase(phase);
+
+    if (!dump_file.len())
+        return;
+
+    m_dump_rows.delete();
+
+    // init_file 与 dump_file 同路径：仅清空队列，不截断文件。
+    if (init_file.len() && init_file == dump_file)
+        return;
+
+    fd = $fopen(dump_file, "w");
+    if (!fd)
+        `uvm_warning("REG_IO_DUMP", $sformatf("could not truncate dump_file at sim start: %s", dump_file))
+    else
+        $fclose(fd);
 endfunction
 
 task {{ class_prefix }}sequencer::run_phase(uvm_phase phase);

@@ -1,0 +1,12 @@
+`ifndef {{ (class_prefix ~ "addr_hit") | upper }}
+`define {{ (class_prefix ~ "addr_hit") | upper }}
+
+// 地址查表命中项：寄存器路径与按字节计的寄存器宽度。
+class {{ class_prefix }}addr_hit;
+    // 相对根块的点分路径。
+    string path;
+    // 与地址键一致的字节个数（与寄存器位宽对齐）。
+    int n_bytes;
+endclass
+
+`endif
