@@ -1,7 +1,7 @@
 # memh_io
 
 生成一个可读写 memh 文件的 UVM agent：用 64 位字节地址保存 8 位数据，没写过的地址不算有数据。
-通常只需要配置 `class_prefix`（具体字段含义见 `models.py` 中 `Field(..., description=...)`）。
+多数场景只需配置 `class_prefix`（生成类型名前缀）；写出 memh 行宽等其它项按需设置。
 
 # 使用方式
 

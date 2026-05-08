@@ -438,7 +438,7 @@ function automatic bit {{ class_prefix }}payload_to_le_bytes(
     return 1;
 endfunction
 
-// 寄存器相对 root reg_block 的点分路径；若 rg 不在该子树下返回空串。
+// 寄存器相对根寄存器块的点分路径；若 rg 不在该子树下返回空串。
 // root — 路径展开的参考根块
 // rg — 目标寄存器
 function automatic string {{ class_prefix }}reg_path_under_root(uvm_reg_block root, uvm_reg rg);

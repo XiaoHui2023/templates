@@ -1,8 +1,8 @@
 # Sequencer API
 
-生成后的类型名为 **`<class_prefix>sequencer`**：`<class_prefix>` 来自模板配置（见 `models.py` 的 `class_prefix` 字段）。下文**只写方法名**；在仿真里调用时请使用你生成配置下的完整类型名（例如配置为默认前缀时，类型为 `memh_sequencer`）。
+生成后的类型名为 **`<class_prefix>sequencer`**：`<class_prefix>` 为生成配置里的类名前缀，出现在 agent、sequencer 等类型名中。下文**只写方法名**；仿真里请使用带该前缀的完整类型名（默认前缀下例如 `memh_sequencer`）。
 
-与 agent 的端口、`config_db` 键的接线说明见仓库根目录 **[README](../README.md)**。
+端口与 **`config_db`**：**[README](../README.md)**。
 
 ## 分析口与 `memory`
 

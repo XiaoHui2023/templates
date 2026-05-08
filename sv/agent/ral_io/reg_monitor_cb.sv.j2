@@ -89,7 +89,7 @@ function void {{ class_prefix }}reg_monitor_cb::push_dump_row(string path, strin
     m_dump_rows.push_back(dr);
 endfunction
 
-// 深度优先遍历 reg_block 子树：对每个本层 uvm_reg 注册同一回调实例。
+// 深度优先遍历寄存器块子树：对每个本层 uvm_reg 注册同一回调实例。
 function automatic void {{ class_prefix }}attach_reg_monitor_callbacks(uvm_reg_block blk, uvm_reg_cbs cb);
     uvm_reg regs[$];
     uvm_reg_block subs[$];
