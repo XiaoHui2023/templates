@@ -1,74 +1,45 @@
 `ifndef {{ (class_prefix ~ "sequencer") | upper }}
 `define {{ (class_prefix ~ "sequencer") | upper }}
 
-// 用 CSV 或 TLM 写更新 RAL，必要时将寄存器写记录保存为 CSV。
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
-    // 上游来的 TLM 写接到这里。
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp;
-    // CSV 载入路径产生的 TLM 写由此送出。
-    uvm_analysis_port #(uvm_tlm_generic_payload) o_ap;
+    uvm_analysis_port #(uvm_tlm_generic_payload) replay_ap;
 
-    // RAL 根。
     protected uvm_reg_block m_root;
-    // 默认 map。
     protected uvm_reg_map m_map;
-    // 仿真开始前读取的寄存器 CSV 路径。
     protected string init_file;
-    // 仿真结束时写出寄存器写记录的 CSV 路径。
-    protected string dump_file;
-    // 地址 → 寄存器路径。
     protected {{ class_prefix }}addr_hit m_addr_lut[string];
-    // 上面这张表是否已经建好。
     protected bit m_lut_ready;
-    // dump_file 非空时：累积待写入该路径的 CSV 行。
-    protected {{ class_prefix }}csv_row m_dump_rows[$];
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
-    // 建立 analysis imp、o_ap，取得寄存器根块、默认 map 与可选 CSV 路径。
     extern function void build_phase(uvm_phase phase);
-    // dump_file 非空时清空待写出行队列；与 init_file 不同路径时截断输出文件。
-    extern function void start_of_simulation_phase(uvm_phase phase);
-    // init_file 非空时读 CSV 并前门写入 RAL。
-    extern task run_phase(uvm_phase phase);
-    // dump_file 非空时将待写出行保存为该路径下的 CSV。
-    extern function void final_phase(uvm_phase phase);
-    // analysis imp 回调：将 TLM 写落实到 RAL。
-    // payload — imp 收到的写事务
+    extern task main_phase(uvm_phase phase);
     extern function void write(uvm_tlm_generic_payload payload);
 
-    // 按需建立地址到寄存器路径的查找表。
     extern function void ensure_lut();
-    // dump_file 非空：由该写事务追加一行待写出的 CSV 记录。
-    // p — 写事务
-    extern function void append_dump_from_payload(uvm_tlm_generic_payload p);
-
-    // 读取寄存器 CSV：前门写 RAL，并向 o_ap 发出对应 payload。
+    // load_csv — 读寄存器 CSV 并前门写入模型。
     // filename — CSV 路径
-    // clear_dump_first — 为 1 则先清空待写出行队列
-    // ok — 成功为 1
-    extern task load_csv(input string filename, input bit clear_dump_first=0, output bit ok);
-    // 清空待写出的 CSV 行队列。
-    extern function void clear_dump_rows();
-    // 向待写出队列追加一行。
-    // path — 寄存器点分路径
-    // value_text — CSV 值列字符串
-    extern function void append_dump_row(string path, string value_text);
-    // 将一行 CSV 转为 TLM 写 payload（不写 RAL、不记入待写出队列）。
-    // row — 输入行
-    // payload — 输出写事务
-    extern function bit row_to_payload({{ class_prefix }}csv_row row, output uvm_tlm_generic_payload payload);
+    // clear_dump_first — 为 1 时先清空监控回调里待写出的写记录队列
+    // emit_replay — 为 1 时每行成功后向 replay 分析口再发一笔对应 TLM 写
+    // ok — 全程是否成功
+    extern task load_csv(
+        input string filename,
+        input bit clear_dump_first,
+        input bit emit_replay,
+        output bit ok
+    );
 endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
 
     imp = new("imp", this);
-    o_ap = new("o_ap", this);
+    replay_ap = new("replay_ap", this);
 
     if (!uvm_config_db #(uvm_reg_block)::get(this, "", "reg_block", m_root) || m_root == null)
         `uvm_fatal("REG_IO", "uvm_config_db #(uvm_reg_block) reg_block is required for reg_io sequencer")
@@ -78,98 +49,27 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
         `uvm_fatal("REG_IO", "no default uvm_reg_map on reg_block; add a default map")
 
     void'(uvm_config_db #(string)::get(this, "", "init_file", init_file));
-    void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
 endfunction
 
-function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase phase);
-    int fd;
-
-    super.start_of_simulation_phase(phase);
-
-    if (!dump_file.len())
-        return;
-
-    m_dump_rows.delete();
-
-    // init_file 与 dump_file 同路径：仅清空队列，不截断文件。
-    if (init_file.len() && init_file == dump_file)
-        return;
-
-    fd = $fopen(dump_file, "w");
-    if (!fd)
-        `uvm_warning("REG_IO_DUMP", $sformatf("could not truncate dump_file at sim start: %s", dump_file))
-    else
-        $fclose(fd);
-endfunction
-
-task {{ class_prefix }}sequencer::run_phase(uvm_phase phase);
+task {{ class_prefix }}sequencer::main_phase(uvm_phase phase);
     if (init_file.len()) begin
         bit ok;
+
         phase.raise_objection(this);
-        `uvm_info("REG_IO", $sformatf("load reg csv init file: %s", init_file), UVM_LOW)
-        load_csv(init_file, 0, ok);
+        `uvm_info("REG_IO", $sformatf("init reg csv (main_phase): %s", init_file), UVM_LOW)
+        load_csv(init_file, 0, 0, ok);
         if (!ok)
             `uvm_error("REG_IO", $sformatf("load_csv failed for init_file=%s", init_file))
         phase.drop_objection(this);
     end
-    super.run_phase(phase);
+    super.main_phase(phase);
 endtask
-
-function void {{ class_prefix }}sequencer::final_phase(uvm_phase phase);
-    super.final_phase(phase);
-
-    if (dump_file.len()) begin
-        `uvm_info("REG_IO_DUMP", $sformatf("writing reg csv dump to %s", dump_file), UVM_LOW)
-        if (!{{ class_prefix }}write_reg_csv_file(dump_file, m_dump_rows))
-            `uvm_error("REG_IO_DUMP", $sformatf("write_reg_csv_file failed path=%s", dump_file))
-    end
-endfunction
 
 function void {{ class_prefix }}sequencer::ensure_lut();
     if (!m_lut_ready) begin
         void'({{ class_prefix }}build_reg_addr_lut(m_root, m_map, m_addr_lut));
         m_lut_ready = 1;
     end
-endfunction
-
-function void {{ class_prefix }}sequencer::append_dump_from_payload(uvm_tlm_generic_payload p);
-    bit [7:0] le[$];
-    uvm_reg_addr_t ra;
-    int len;
-    string key;
-    {{ class_prefix }}csv_row dr;
-    uvm_reg rg;
-    string pth;
-    string vt;
-
-    if (!dump_file.len())
-        return;
-    if (p == null)
-        return;
-    if (!{{ class_prefix }}payload_to_le_bytes(p, le))
-        return;
-
-    ensure_lut();
-    ra = p.get_address();
-    len = p.get_data_length();
-    key = $sformatf("%016h_%0d", ra, len);
-
-    if (m_addr_lut.exists(key)) begin
-        pth = m_addr_lut[key].path;
-        rg = {{ class_prefix }}resolve_reg_by_path(m_root, pth);
-        if (rg != null)
-            vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, rg.get_n_bits());
-        else
-            vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, 8 * len);
-    end else begin
-        pth = $sformatf("?@0x%016h", ra);
-        vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, 8 * len);
-    end
-
-    dr = new;
-    dr.path = pth;
-    dr.value_text = vt;
-    m_dump_rows.push_back(dr);
 endfunction
 
 function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload);
@@ -191,16 +91,24 @@ function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload
             {{ class_prefix }}apply_payload_to_reg(m_root, m_map, m_addr_lut, p_x, ok_x);
         end
     join_none
-    append_dump_from_payload(p);
 endfunction
 
-task {{ class_prefix }}sequencer::load_csv(input string filename, input bit clear_dump_first=0, output bit ok);
+task {{ class_prefix }}sequencer::load_csv(
+    input string filename,
+    input bit clear_dump_first,
+    input bit emit_replay,
+    output bit ok
+);
     {{ class_prefix }}csv_row rows[$];
     uvm_tlm_generic_payload p;
 
     ok = 0;
-    if (clear_dump_first)
-        m_dump_rows.delete();
+    if (clear_dump_first) begin
+        {{ class_prefix }}reg_monitor_cb mon_cb;
+        if (uvm_config_db #({{ class_prefix }}reg_monitor_cb)::get(this, "", "reg_mon_cb", mon_cb))
+            if (mon_cb != null)
+                mon_cb.clear_dump_rows();
+    end
 
     if (!{{ class_prefix }}read_reg_csv_file(filename, rows))
         return;
@@ -210,32 +118,13 @@ task {{ class_prefix }}sequencer::load_csv(input string filename, input bit clea
         {{ class_prefix }}commit_csv_row_to_reg(m_root, m_map, rows[i], row_ok);
         if (!row_ok)
             return;
-        if (dump_file.len())
-            m_dump_rows.push_back(rows[i]);
-        if (!{{ class_prefix }}reg_row_to_payload(m_root, m_map, rows[i], p))
-            return;
-        o_ap.write(p);
+        if (emit_replay) begin
+            if (!{{ class_prefix }}reg_row_to_payload(m_root, m_map, rows[i], p))
+                return;
+            replay_ap.write(p);
+        end
     end
     ok = 1;
 endtask
-
-function void {{ class_prefix }}sequencer::clear_dump_rows();
-    m_dump_rows.delete();
-endfunction
-
-function void {{ class_prefix }}sequencer::append_dump_row(string path, string value_text);
-    {{ class_prefix }}csv_row dr;
-    dr = new;
-    dr.path = path;
-    dr.value_text = value_text;
-    if (dump_file.len())
-        m_dump_rows.push_back(dr);
-endfunction
-
-function bit {{ class_prefix }}sequencer::row_to_payload({{ class_prefix }}csv_row row, output uvm_tlm_generic_payload payload);
-    if (m_root == null || m_map == null)
-        return 0;
-    return {{ class_prefix }}reg_row_to_payload(m_root, m_map, row, payload);
-endfunction
 
 `endif

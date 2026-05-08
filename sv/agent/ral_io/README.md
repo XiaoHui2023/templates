@@ -1,27 +1,32 @@
 # ral_io
 
-生成通过 CSV 描述寄存器写事务的 UVM agent：两列为点分路径（相对基寄存器块）与数值（常见十六进制或十进制写法）。推荐把 **sequencer** 当作对外操作句柄。
+生成基于 UVM RAL 的 agent：对配置的寄存器块注册读写回调，经监控口输出 `uvm_tlm_generic_payload`；可选将回调捕获的写操作在仿真结束时写成 CSV。TLM 写入口仍可将事务写回寄存器模型。CSV 列为点分路径与数值。
 
-`class_prefix`、`input_port_name`、`output_port_name` 的含义以同目录 `models.py` 中各 `Field(..., description=...)` 为准。
+`class_prefix`、`input_port_name`、`monitor_port_name`、`output_port_name` 以同目录 `models.py` 中各字段说明为准。
 
 # 使用方式
 
-在环境中通过 `uvm_config_db` 设置基寄存器块与可选的初始化 CSV、写出 CSV 路径；将外部写事务接到 `i_ap`，需要观察 CSV 载入产生的写事务时连接 `o_ap`。初始化与运行过程中可调用 sequencer 的 `load_csv` 将行转为写事务；同时按配置更新寄存器模型并累积待写出的 CSV 行。`dump_file` 非空时：仿真开始时清空待写出行队列，若与 `init_file` 不是同一路径则截断该输出文件；仿真结束时将累积行保存为该路径下的 CSV。同一仿真内多次测试若复用同一 sequencer，下一轮测试前须调用 `clear_dump_rows()`。
+环境中通过 `uvm_config_db` 设置基寄存器块；可选 `init_file`、`dump_file`。将外部写事务接到 input port；需要观察经 `load_csv` 重放的写事务时连接 `output_port_name`；需要观察所有经 RAL 回调可见的读写时连接 `monitor_port_name`。
+
+`init_file` 非空时，在仿真主阶段按顺序加载 CSV 并写寄存器（会占用仿真时间直至写序列结束），**不**向重放口发 payload；每次成功写入会打印一行寄存器路径与数值。`dump_file` 非空时：仿真开始时清空待写出的写记录队列，若与 `init_file` 不同路径则截断该文件；仿真结束时将累积的写记录写入该 CSV。
+
+任意时刻在 **sequencer** 上调用 `load_csv` 完成寄存器 CSV 写入（仅此入口对外）；若 `emit_replay` 为 1，同时向重放口发出对应写事务（与 `init_file` 行为不同）。
 
 # ports
 
 | port | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| `i_ap` | input | `uvm_analysis_port #(uvm_tlm_generic_payload)` | 外部写事务输入；声明名与 `input_port_name` 一致；解析并写回寄存器模型，`dump_file` 非空时记入待写出队列 |
-| `o_ap` | output | `uvm_analysis_port #(uvm_tlm_generic_payload)` | CSV 初始化或 `load_csv` 产生的写事务输出；声明名与 `output_port_name` 一致 |
+| `input_port_name` | input | `uvm_analysis_port #(uvm_tlm_generic_payload)` | 外部写事务；解析并写回寄存器模型 |
+| `monitor_port_name` | output | 同上 | RAL 回调监控：块及其子树寄存器的读写 |
+| `output_port_name` | output | 同上 | 仅 `load_csv(..., emit_replay=1)` 时发出写事务 |
 
 # config_db
 
 | key | 类型 | 说明 |
 | --- | --- | --- |
-| `reg_block` | `uvm_reg_block` | 点分路径解析与地址编码的起始寄存器块（必填）；使用其默认 `uvm_reg_map` |
-| `init_file` | `string` | 非空时自动 `load_csv` 读取该路径并初始化寄存器模型 |
-| `dump_file` | `string` | 非空时仿真开始时清空待写出队列，若与 `init_file` 不同路径则截断该文件；仿真结束时写出 CSV |
+| `reg_block` | `uvm_reg_block` | 基寄存器块（必填）；默认 `uvm_reg_map` 用于地址与回调 |
+| `init_file` | `string` | 非空时在 main_phase 按序加载并写寄存器；不经重放口 |
+| `dump_file` | `string` | 非空时将回调捕获的写操作在仿真结束时写成 CSV |
 
 # 常用 API
 

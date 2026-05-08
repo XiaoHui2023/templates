@@ -2,9 +2,9 @@
 `define {{ (class_prefix ~ "addr_hit") | upper }}
 
 class {{ class_prefix }}addr_hit;
-    // 寄存器点分路径。
+    // 相对根寄存器块的点分路径
     string path;
-    // 这套地址索引里按几个字节算（和寄存器宽度一致）。
+    // 与 LUT 地址键一起使用的字节个数（寄存器字节宽度）
     int n_bytes;
 endclass
 

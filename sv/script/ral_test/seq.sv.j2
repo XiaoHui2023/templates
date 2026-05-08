@@ -5,14 +5,14 @@
 {%- set _acc = access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
-// 按配置串联 UVM RAL 内建寄存器测试 sequence；`regmodel` 指向根块句柄。
+// 按布尔开关串联 UVM RAL 内建寄存器测试 sequence。
 class {{ class_name }} extends uvm_sequence;
     `uvm_object_utils({{ class_name }})
     `uvm_declare_p_sequencer(uvm_sequencer #(uvm_reg_item))
 
-    // regmodel — 被测 RAL 根块
+    // regmodel — RAL 根块句柄
     uvm_reg_block regmodel;
-    // no_test_regs — 不参与内建寄存器测试的寄存器句柄（空队列表示不排除）
+    // no_test_regs — 跳过内建测试的寄存器；空队列表示不排除
     uvm_reg no_test_regs[$];
 
     function new(string name = "{{ class_name }}");
@@ -34,7 +34,7 @@ class {{ class_name }} extends uvm_sequence;
 {%- endif %}
 
         if (regmodel == null)
-            `uvm_fatal("REGTEST/MODEL", "regmodel is null; assign before start")
+            `uvm_fatal("RAL_TEST/MODEL", "regmodel is null; assign before start")
 
         foreach (no_test_regs[i]) begin
             if (no_test_regs[i] != null)

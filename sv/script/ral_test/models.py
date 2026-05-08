@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 
 class Models(BaseModel):
     class_name: str = Field(
-        "reg_test_register_test_seq",
+        "ral_test_builtin_seq",
         min_length=1,
         description="该 sequence 的类名。",
     )

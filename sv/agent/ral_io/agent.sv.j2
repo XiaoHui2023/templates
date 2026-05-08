@@ -1,25 +1,28 @@
 `ifndef {{ (class_prefix ~ "agent") | upper }}
 `define {{ (class_prefix ~ "agent") | upper }}
 
-// 持有 sequencer，对外暴露 TLM analysis port，并从 config 取得寄存器块与 CSV 路径。
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
     {{ class_prefix }}sequencer sqr;
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }};
+    uvm_analysis_port #(uvm_tlm_generic_payload) {{ monitor_port_name }};
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }};
+
     protected uvm_reg_block reg_block;
+    protected uvm_reg_map m_map;
     protected string init_file;
     protected string dump_file;
+    protected {{ class_prefix }}reg_monitor_cb m_reg_cb;
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
-    // 创建 sequencer 与对外 analysis port，并把 reg_block、CSV 路径下发给 sequencer。
     extern function void build_phase(uvm_phase phase);
-    // 对外 input port 接 sequencer imp；sequencer 的 o_ap 接对外 output port。
     extern function void connect_phase(uvm_phase phase);
+    extern function void start_of_simulation_phase(uvm_phase phase);
+    extern function void final_phase(uvm_phase phase);
 endclass
 
 function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
@@ -27,23 +30,64 @@ function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
 
     sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
     {{ input_port_name }} = new("{{ input_port_name }}", this);
+    {{ monitor_port_name }} = new("{{ monitor_port_name }}", this);
     {{ output_port_name }} = new("{{ output_port_name }}", this);
 
-    if (uvm_config_db #(uvm_reg_block)::get(this, "", "reg_block", reg_block))
-        uvm_config_db #(uvm_reg_block)::set(this, "sqr", "reg_block", reg_block);
+    if (!uvm_config_db #(uvm_reg_block)::get(this, "", "reg_block", reg_block) || reg_block == null)
+        `uvm_fatal("REG_IO", "uvm_config_db #(uvm_reg_block) reg_block is required")
 
-    if (uvm_config_db #(string)::get(this, "", "init_file", init_file))
-        uvm_config_db #(string)::set(this, "sqr", "init_file", init_file);
+    m_map = reg_block.get_default_map();
+    if (m_map == null)
+        `uvm_fatal("REG_IO", "no default uvm_reg_map on reg_block; add a default map")
 
-    if (uvm_config_db #(string)::get(this, "", "dump_file", dump_file))
-        uvm_config_db #(string)::set(this, "sqr", "dump_file", dump_file);
+    void'(uvm_config_db #(string)::get(this, "", "init_file", init_file));
+    void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
+
+    uvm_config_db #(uvm_reg_block)::set(this, "sqr", "reg_block", reg_block);
+    uvm_config_db #(string)::set(this, "sqr", "init_file", init_file);
+
+    m_reg_cb = {{ class_prefix }}reg_monitor_cb::type_id::create("ral_mon_cb", null);
+    m_reg_cb.configure({{ monitor_port_name }}, dump_file, m_map, reg_block);
+    {{ class_prefix }}attach_reg_monitor_callbacks(reg_block, m_reg_cb);
+    uvm_config_db #({{ class_prefix }}reg_monitor_cb)::set(this, "sqr", "reg_mon_cb", m_reg_cb);
 endfunction
 
 function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
     super.connect_phase(phase);
 
     {{ input_port_name }}.connect(sqr.imp);
-    sqr.o_ap.connect({{ output_port_name }});
+    sqr.replay_ap.connect({{ output_port_name }});
+endfunction
+
+function void {{ class_prefix }}agent::start_of_simulation_phase(uvm_phase phase);
+    int fd;
+
+    super.start_of_simulation_phase(phase);
+
+    if (!dump_file.len())
+        return;
+
+    if (m_reg_cb != null)
+        m_reg_cb.clear_dump_rows();
+
+    if (init_file.len() && init_file == dump_file)
+        return;
+
+    fd = $fopen(dump_file, "w");
+    if (!fd)
+        `uvm_warning("REG_IO_DUMP", $sformatf("could not truncate dump_file at sim start: %s", dump_file))
+    else
+        $fclose(fd);
+endfunction
+
+function void {{ class_prefix }}agent::final_phase(uvm_phase phase);
+    super.final_phase(phase);
+
+    if (dump_file.len() && m_reg_cb != null) begin
+        `uvm_info("REG_IO_DUMP", $sformatf("writing reg csv dump to %s", dump_file), UVM_LOW)
+        if (!m_reg_cb.flush_dump_csv(dump_file))
+            `uvm_error("REG_IO_DUMP", $sformatf("flush_dump_csv failed path=%s", dump_file))
+    end
 endfunction
 
 `endif

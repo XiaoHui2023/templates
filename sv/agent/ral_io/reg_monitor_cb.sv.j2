@@ -1,0 +1,111 @@
+`ifndef {{ (class_prefix ~ "reg_monitor_cb") | upper }}
+`define {{ (class_prefix ~ "reg_monitor_cb") | upper }}
+
+class {{ class_prefix }}reg_monitor_cb extends uvm_reg_cbs;
+    `uvm_object_utils({{ class_prefix }}reg_monitor_cb)
+
+    uvm_analysis_port #(uvm_tlm_generic_payload) mon_ap;
+    string dump_path;
+    uvm_reg_map m_map;
+    uvm_reg_block m_root;
+    protected {{ class_prefix }}csv_row m_dump_rows[$];
+
+    function new(string name="{{ class_prefix }}reg_monitor_cb");
+        super.new(name);
+    endfunction
+
+    // 绑定监控口、可选写出路径、默认 map、寄存器根块。
+    function void configure(
+        uvm_analysis_port #(uvm_tlm_generic_payload) ap,
+        input string dump_p,
+        input uvm_reg_map map,
+        input uvm_reg_block root
+    );
+        mon_ap = ap;
+        dump_path = dump_p;
+        m_map = map;
+        m_root = root;
+    endfunction
+
+    function void clear_dump_rows();
+        m_dump_rows.delete();
+    endfunction
+
+    function bit flush_dump_csv(string path);
+        if (!path.len())
+            return 1;
+        return {{ class_prefix }}write_reg_csv_file(path, m_dump_rows);
+    endfunction
+
+    virtual task post_write(uvm_reg_item rw);
+        uvm_tlm_generic_payload p;
+        uvm_reg rg;
+        uvm_reg_data_t val;
+        bit [7:0] le[$];
+        string pth;
+        string vt;
+
+        if (mon_ap == null || m_root == null || m_map == null)
+            return;
+        if (!{{ class_prefix }}reg_item_to_tlm(m_root, m_map, rw, 1, p))
+            return;
+        mon_ap.write(p);
+
+        if (!dump_path.len())
+            return;
+        if (!$cast(rg, rw.element))
+            return;
+        if (!{{ class_prefix }}reg_item_pack_value(rg, rw, val))
+            return;
+        {{ class_prefix }}uvm_reg_data_to_le(val, rg.get_n_bits(), le);
+        pth = {{ class_prefix }}reg_path_under_root(m_root, rg);
+        if (!pth.len())
+            pth = rg.get_name();
+        vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, rg.get_n_bits());
+        push_dump_row(pth, vt);
+    endtask
+
+    virtual task post_read(uvm_reg_item rw);
+        uvm_tlm_generic_payload p;
+
+        if (mon_ap == null || m_root == null || m_map == null)
+            return;
+        if (!{{ class_prefix }}reg_item_to_tlm(m_root, m_map, rw, 0, p))
+            return;
+        mon_ap.write(p);
+    endtask
+
+    extern function void push_dump_row(string path, string value_text);
+endclass
+
+function void {{ class_prefix }}reg_monitor_cb::push_dump_row(string path, string value_text);
+    {{ class_prefix }}csv_row dr;
+
+    if (!dump_path.len())
+        return;
+    dr = new;
+    dr.path = path;
+    dr.value_text = value_text;
+    m_dump_rows.push_back(dr);
+endfunction
+
+// 深度优先遍历 reg_block 子树：对每个本层 uvm_reg 注册同一回调实例。
+function automatic void {{ class_prefix }}attach_reg_monitor_callbacks(uvm_reg_block blk, uvm_reg_cbs cb);
+    uvm_reg regs[$];
+    uvm_reg_block subs[$];
+    int i;
+    int j;
+
+    if (blk == null || cb == null)
+        return;
+
+    blk.get_registers(regs, UVM_NO_HIER);
+    for (i = 0; i < regs.size(); i++)
+        uvm_reg_cb::add(regs[i], cb);
+
+    blk.get_blocks(subs, UVM_NO_HIER);
+    for (j = 0; j < subs.size(); j++)
+        {{ class_prefix }}attach_reg_monitor_callbacks(subs[j], cb);
+endfunction
+
+`endif
