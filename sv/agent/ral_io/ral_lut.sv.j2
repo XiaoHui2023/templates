@@ -1,0 +1,80 @@
+`ifndef {{ (class_prefix ~ "ral_lut") | upper }}
+`define {{ (class_prefix ~ "ral_lut") | upper }}
+
+// 寄存器块树遍历与「地址+字节宽 → 相对路径」表构建。
+class {{ class_prefix }}ral_lut;
+    static function automatic void walk_register_map(
+        uvm_reg_block blk,
+        uvm_reg_map map,
+        string rel_prefix,
+        ref {{ class_prefix }}addr_hit lut[string]
+    );
+        uvm_reg regs[$];
+        uvm_reg_block subs[$];
+        uvm_reg rg;
+        uvm_reg_addr_t ra;
+        int nb;
+        string key;
+        string pth;
+        {{ class_prefix }}addr_hit hit;
+
+        blk.get_registers(regs, UVM_NO_HIER);
+        foreach (regs[i]) begin
+            rg = regs[i];
+            ra = rg.get_address(map);
+            nb = (rg.get_n_bits() + 7) / 8;
+            key = $sformatf("%016h_%0d", ra, nb);
+            if (rel_prefix.len())
+                pth = {rel_prefix, ".", rg.get_name()};
+            else
+                pth = rg.get_name();
+            hit = new;
+            hit.path = pth;
+            hit.n_bytes = nb;
+            if (lut.exists(key) && lut[key].path != hit.path)
+                `uvm_warning("REG_IO_RAL", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
+            lut[key] = hit;
+        end
+
+        blk.get_blocks(subs, UVM_NO_HIER);
+        foreach (subs[j]) begin
+            string np;
+            if (rel_prefix.len())
+                np = {rel_prefix, ".", subs[j].get_name()};
+            else
+                np = subs[j].get_name();
+            walk_register_map(subs[j], map, np, lut);
+        end
+    endfunction
+
+    static function automatic bit build_reg_addr_lut(
+        uvm_reg_block root,
+        uvm_reg_map map,
+        ref {{ class_prefix }}addr_hit lut[string]
+    );
+        lut.delete();
+        if (root == null || map == null)
+            return 0;
+        walk_register_map(root, map, "", lut);
+        return 1;
+    endfunction
+endclass
+
+function automatic void {{ class_prefix }}walk_register_map(
+    uvm_reg_block blk,
+    uvm_reg_map map,
+    string rel_prefix,
+    ref {{ class_prefix }}addr_hit lut[string]
+);
+    {{ class_prefix }}ral_lut::walk_register_map(blk, map, rel_prefix, lut);
+endfunction
+
+function automatic bit {{ class_prefix }}build_reg_addr_lut(
+    uvm_reg_block root,
+    uvm_reg_map map,
+    ref {{ class_prefix }}addr_hit lut[string]
+);
+    return {{ class_prefix }}ral_lut::build_reg_addr_lut(root, map, lut);
+endfunction
+
+`endif

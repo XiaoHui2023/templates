@@ -1,0 +1,244 @@
+`ifndef {{ (class_prefix ~ "ral_xact") | upper }}
+`define {{ (class_prefix ~ "ral_xact") | upper }}
+
+// TLM generic payload 与 CSV 行、RAL 前门访问之间的桥接。
+class {{ class_prefix }}ral_xact;
+    static function automatic bit payload_to_le_bytes(
+        uvm_tlm_generic_payload p,
+        ref bit [7:0] le[$]
+    );
+        byte unsigned dyn[];
+        int len;
+        int i;
+
+        le.delete();
+        if (p == null)
+            return 0;
+        p.get_data(dyn);
+        len = p.get_data_length();
+        if (len <= 0 || len > dyn.size())
+            len = dyn.size();
+        for (i = 0; i < len; i++)
+            le.push_back(dyn[i]);
+        return 1;
+    endfunction
+
+    static function automatic bit reg_row_to_payload(
+        uvm_reg_block root,
+        uvm_reg_map map,
+        {{ class_prefix }}csv_row row,
+        output uvm_tlm_generic_payload payload_o
+    );
+        uvm_reg rg;
+        int nb;
+        uvm_reg_addr_t ra;
+        bit [7:0] le[$];
+        byte unsigned dyn[];
+        uvm_tlm_generic_payload p;
+
+        payload_o = null;
+        if (root == null || map == null)
+            return 0;
+
+        rg = {{ class_prefix }}ral_path::resolve_reg_by_path(root, row.path);
+        if (rg == null) begin
+            `uvm_error("REG_IO_RAL", $sformatf("resolve failed: %s", row.path))
+            return 0;
+        end
+
+        if (!{{ class_prefix }}ral_conv::parse_reg_value_text(row.value_text, rg.get_n_bits(), le))
+            return 0;
+
+        nb = le.size();
+        ra = rg.get_address(map);
+        dyn = new[nb];
+        foreach (le[i])
+            dyn[i] = le[i];
+
+        p = uvm_tlm_generic_payload::type_id::create($sformatf("reg_io_row_%0t_%0d", $time, $urandom()));
+        p.set_command(UVM_TLM_WRITE_COMMAND);
+        p.set_address(ra);
+        p.set_data(dyn);
+        p.set_data_length(nb);
+        p.set_streaming_width(nb);
+        p.set_response_status(UVM_TLM_OK_RESPONSE);
+        payload_o = p;
+        return 1;
+    endfunction
+
+    static task commit_csv_row_to_reg(
+        uvm_reg_block root,
+        uvm_reg_map map,
+        {{ class_prefix }}csv_row row,
+        output bit ok
+    );
+        uvm_reg rg;
+        bit [7:0] le[$];
+        uvm_reg_data_t v;
+        uvm_status_e st;
+
+        ok = 0;
+        if (root == null || map == null)
+            return;
+
+        rg = {{ class_prefix }}ral_path::resolve_reg_by_path(root, row.path);
+        if (rg == null) begin
+            `uvm_error("REG_IO_RAL", $sformatf("commit resolve failed: %s", row.path))
+            return;
+        end
+
+        if (!{{ class_prefix }}ral_conv::parse_reg_value_text(row.value_text, rg.get_n_bits(), le))
+            return;
+        if (!{{ class_prefix }}ral_conv::le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
+            return;
+
+        rg.write(st, v, UVM_FRONTDOOR, map, null);
+        if (st != UVM_IS_OK) begin
+            `uvm_error("REG_IO_RAL", $sformatf("commit reg write failed path=%s", row.path))
+            return;
+        end
+        `uvm_info("REG_IO", $sformatf("csv commit path=%s value=%s", row.path, row.value_text), UVM_LOW)
+        ok = 1;
+    endtask
+
+    static function automatic bit reg_item_to_tlm(
+        uvm_reg_block root,
+        uvm_reg_map map,
+        uvm_reg_item rw,
+        input bit is_write,
+        output uvm_tlm_generic_payload p
+    );
+        uvm_reg rg;
+        uvm_reg_map use_map;
+        uvm_reg_addr_t ra;
+        uvm_reg_data_t val;
+        int nb;
+        bit [7:0] le[$];
+        byte unsigned dyn[];
+
+        p = null;
+        if (root == null || map == null || rw == null)
+            return 0;
+        if (!$cast(rg, rw.element))
+            return 0;
+
+        use_map = rw.map;
+        if (use_map == null)
+            use_map = map;
+
+        if (!{{ class_prefix }}ral_conv::reg_item_pack_value(rg, rw, val))
+            return 0;
+
+        {{ class_prefix }}ral_conv::uvm_reg_data_to_le(val, rg.get_n_bits(), le);
+        nb = le.size();
+        ra = rg.get_address(use_map);
+        dyn = new[nb];
+        foreach (le[i])
+            dyn[i] = le[i];
+
+        p = uvm_tlm_generic_payload::type_id::create(
+            $sformatf("ral_io_evt_%0t_%0d", $time, $urandom())
+        );
+        p.set_command(is_write ? UVM_TLM_WRITE_COMMAND : UVM_TLM_READ_COMMAND);
+        p.set_address(ra);
+        p.set_data(dyn);
+        p.set_data_length(nb);
+        p.set_streaming_width(nb);
+        p.set_response_status(UVM_TLM_OK_RESPONSE);
+        return 1;
+    endfunction
+
+    static task apply_payload_to_reg(
+        uvm_reg_block root,
+        uvm_reg_map map,
+        ref {{ class_prefix }}addr_hit lut[string],
+        input uvm_tlm_generic_payload p,
+        output bit ok
+    );
+        uvm_reg_addr_t ra;
+        int len;
+        string key;
+        {{ class_prefix }}addr_hit hit;
+        uvm_reg rg;
+        bit [7:0] le[$];
+        uvm_reg_data_t v;
+        uvm_status_e st;
+
+        ok = 0;
+        if (root == null || map == null || p == null)
+            return;
+
+        ra = p.get_address();
+        len = p.get_data_length();
+        key = $sformatf("%016h_%0d", ra, len);
+
+        if (!lut.exists(key)) begin
+            `uvm_warning("REG_IO_RAL", $sformatf("no reg for payload addr=0x%0h len=%0d", ra, len))
+            return;
+        end
+
+        hit = lut[key];
+        rg = {{ class_prefix }}ral_path::resolve_reg_by_path(root, hit.path);
+        if (rg == null) begin
+            `uvm_error("REG_IO_RAL", $sformatf("lut path resolve failed: %s", hit.path))
+            return;
+        end
+
+        if (!payload_to_le_bytes(p, le))
+            return;
+        if (!{{ class_prefix }}ral_conv::le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
+            return;
+
+        rg.write(st, v, UVM_FRONTDOOR, map, null);
+        if (st != UVM_IS_OK)
+            `uvm_error("REG_IO_RAL", $sformatf("reg write failed path=%s", hit.path))
+        ok = (st == UVM_IS_OK);
+    endtask
+endclass
+
+function automatic bit {{ class_prefix }}payload_to_le_bytes(
+    uvm_tlm_generic_payload p,
+    ref bit [7:0] le[$]
+);
+    return {{ class_prefix }}ral_xact::payload_to_le_bytes(p, le);
+endfunction
+
+function automatic bit {{ class_prefix }}reg_row_to_payload(
+    uvm_reg_block root,
+    uvm_reg_map map,
+    {{ class_prefix }}csv_row row,
+    output uvm_tlm_generic_payload payload_o
+);
+    return {{ class_prefix }}ral_xact::reg_row_to_payload(root, map, row, payload_o);
+endfunction
+
+task automatic {{ class_prefix }}commit_csv_row_to_reg(
+    uvm_reg_block root,
+    uvm_reg_map map,
+    {{ class_prefix }}csv_row row,
+    output bit ok
+);
+    {{ class_prefix }}ral_xact::commit_csv_row_to_reg(root, map, row, ok);
+endtask
+
+function automatic bit {{ class_prefix }}reg_item_to_tlm(
+    uvm_reg_block root,
+    uvm_reg_map map,
+    uvm_reg_item rw,
+    input bit is_write,
+    output uvm_tlm_generic_payload p
+);
+    return {{ class_prefix }}ral_xact::reg_item_to_tlm(root, map, rw, is_write, p);
+endfunction
+
+task automatic {{ class_prefix }}apply_payload_to_reg(
+    uvm_reg_block root,
+    uvm_reg_map map,
+    ref {{ class_prefix }}addr_hit lut[string],
+    input uvm_tlm_generic_payload p,
+    output bit ok
+);
+    {{ class_prefix }}ral_xact::apply_payload_to_reg(root, map, lut, p, ok);
+endtask
+
+`endif

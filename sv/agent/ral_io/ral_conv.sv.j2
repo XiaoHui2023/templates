@@ -1,0 +1,268 @@
+`ifndef {{ (class_prefix ~ "ral_conv") | upper }}
+`define {{ (class_prefix ~ "ral_conv") | upper }}
+
+// 数值解析、小端与 uvm_reg_item 打包；与包级同名函数共用实现。
+class {{ class_prefix }}ral_conv;
+    static function automatic bit hex_nibble(input byte ch, output bit [3:0] nib);
+        if (ch >= "0" && ch <= "9") begin
+            nib = ch - "0";
+            return 1;
+        end
+        if (ch >= "a" && ch <= "f") begin
+            nib = 10 + (ch - "a");
+            return 1;
+        end
+        if (ch >= "A" && ch <= "F") begin
+            nib = 10 + (ch - "A");
+            return 1;
+        end
+        return 0;
+    endfunction
+
+    static function automatic bit parse_reg_value_text(
+        string value_text,
+        int n_bits,
+        ref bit [7:0] le_bytes[$]
+    );
+        string t;
+        int i;
+        int apos;
+        bit [3:0] nib;
+        bit [4095:0] acc;
+        bit [4095:0] dec_acc;
+        bit [4095:0] one;
+        int w;
+        string radix;
+        string body;
+        int n_bytes;
+
+        le_bytes.delete();
+        if (n_bits < 1) begin
+            `uvm_error("REG_IO_RAL", "parse_reg_value_text: n_bits < 1")
+            return 0;
+        end
+
+        n_bytes = (n_bits + 7) / 8;
+        t = value_text;
+        {{ class_prefix }}csv_trim_both(t);
+        if (!t.len()) begin
+            `uvm_error("REG_IO_RAL", "parse_reg_value_text: empty value")
+            return 0;
+        end
+
+        apos = -1;
+        for (i = 0; i < t.len(); i++)
+            if (t.getc(i) == "'") begin
+                apos = i;
+                break;
+            end
+
+        if (apos >= 0 && apos + 2 < t.len()) begin
+            if (apos > 0) begin
+                if ($sscanf(t.substr(0, apos - 1), "%d", w) != 1) begin
+                    `uvm_error("REG_IO_RAL", $sformatf("bad verilog width in '%s'", value_text))
+                    return 0;
+                end
+            end else
+                w = n_bits;
+            radix = t.substr(apos + 1, apos + 1);
+            body = t.substr(apos + 2, t.len() - 1);
+            {{ class_prefix }}csv_trim_both(body);
+            if (radix == "h" || radix == "H") begin
+                acc = 0;
+                foreach (body[j]) begin
+                    if (body.getc(j) == "_")
+                        continue;
+                    if (!hex_nibble(body.getc(j), nib)) begin
+                        `uvm_error("REG_IO_RAL", $sformatf("bad hex char in '%s'", value_text))
+                        return 0;
+                    end
+                    acc = (acc << 4) | nib;
+                end
+            end else if (radix == "d" || radix == "D") begin
+                dec_acc = 0;
+                foreach (body[j]) begin
+                    if (body.getc(j) == "_")
+                        continue;
+                    if (body.getc(j) < "0" || body.getc(j) > "9") begin
+                        `uvm_error("REG_IO_RAL", $sformatf("bad dec char in '%s'", value_text))
+                        return 0;
+                    end
+                    dec_acc = dec_acc * 10 + (body.getc(j) - "0");
+                end
+                acc = dec_acc;
+            end else begin
+                `uvm_error("REG_IO_RAL", $sformatf("unsupported radix in '%s' (use h or d)", value_text))
+                return 0;
+            end
+        end else if (t.len() >= 2 && (t.substr(0, 1) == "0x" || t.substr(0, 1) == "0X")) begin
+            body = t.substr(2, t.len() - 1);
+            acc = 0;
+            foreach (body[j]) begin
+                if (body.getc(j) == "_")
+                    continue;
+                if (!hex_nibble(body.getc(j), nib)) begin
+                    `uvm_error("REG_IO_RAL", $sformatf("bad 0x hex in '%s'", value_text))
+                    return 0;
+                end
+                acc = (acc << 4) | nib;
+            end
+        end else begin
+            longint dec64;
+            if ($sscanf(t, "%d", dec64) != 1) begin
+                `uvm_error("REG_IO_RAL", $sformatf("bad decimal value '%s'", value_text))
+                return 0;
+            end
+            acc = dec64;
+        end
+
+        if (n_bits < 4096) begin
+            one = 1;
+            acc = acc & ((one << n_bits) - 1);
+        end
+        for (i = 0; i < n_bytes; i++)
+            le_bytes.push_back(acc[8 * i +: 8]);
+        return 1;
+    endfunction
+
+    static function automatic string format_le_bytes_as_csv_value(ref bit [7:0] le_bytes[$], input int n_bits);
+        int n_bytes;
+        bit [4095:0] acc;
+        bit [4095:0] ext;
+        int i;
+        string s;
+        string ch;
+        int nib;
+        int n_nib;
+        int ms_nz;
+
+        n_bytes = (n_bits + 7) / 8;
+        acc = 0;
+        for (i = 0; i < le_bytes.size() && i < n_bytes; i++) begin
+            ext = 0;
+            ext[7:0] = le_bytes[i];
+            acc |= ext << (8 * i);
+        end
+
+        n_nib = (n_bits + 3) / 4;
+        if (n_nib < 1)
+            n_nib = 1;
+        ms_nz = -1;
+        for (nib = n_nib - 1; nib >= 0; nib--) begin
+            if (((acc >> (4 * nib)) & 4'hF) != 0) begin
+                ms_nz = nib;
+                break;
+            end
+        end
+        if (ms_nz < 0)
+            ms_nz = 0;
+
+        s = "0x";
+        for (nib = ms_nz; nib >= 0; nib--) begin
+            $sformat(ch, "%0h", (acc >> (4 * nib)) & 4'hF);
+            s = {s, ch};
+        end
+        return s;
+    endfunction
+
+    static function automatic bit le_bytes_to_uvm_reg_data(
+        ref bit [7:0] le[$],
+        input int n_bits,
+        output uvm_reg_data_t val
+    );
+        int n_bytes;
+        int i;
+        val = 0;
+        n_bytes = (n_bits + 7) / 8;
+        if (n_bits > $bits(val)) begin
+            `uvm_error("REG_IO_RAL", $sformatf("register width %0d exceeds uvm_reg_data_t", n_bits))
+            return 0;
+        end
+        for (i = 0; i < le.size() && i < n_bytes; i++)
+            val |= uvm_reg_data_t'(le[i]) << (8 * i);
+        return 1;
+    endfunction
+
+    static function automatic void uvm_reg_data_to_le(
+        input uvm_reg_data_t v,
+        input int n_bits,
+        ref bit [7:0] le[$]
+    );
+        int n_bytes;
+        int i;
+
+        le.delete();
+        n_bytes = (n_bits + 7) / 8;
+        for (i = 0; i < n_bytes; i++)
+            le.push_back(v[8 * i +: 8]);
+    endfunction
+
+    static function automatic bit reg_item_pack_value(
+        uvm_reg rg,
+        uvm_reg_item rw,
+        output uvm_reg_data_t v
+    );
+        uvm_reg_field fds[$];
+        int i;
+        int n;
+
+        v = 0;
+        if (rg == null || rw == null)
+            return 0;
+
+        rg.get_fields(fds);
+        n = fds.size();
+        if (n == 0) begin
+            if (rw.value.size() >= 1)
+                v = rw.value[0];
+            return 1;
+        end
+        if (rw.value.size() < n)
+            n = rw.value.size();
+        for (i = 0; i < n; i++)
+            v |= rw.value[i] << fds[i].get_lsb_pos();
+        return 1;
+    endfunction
+endclass
+
+function automatic bit {{ class_prefix }}hex_nibble(input byte ch, output bit [3:0] nib);
+    return {{ class_prefix }}ral_conv::hex_nibble(ch, nib);
+endfunction
+
+function automatic bit {{ class_prefix }}parse_reg_value_text(
+    string value_text,
+    int n_bits,
+    ref bit [7:0] le_bytes[$]
+);
+    return {{ class_prefix }}ral_conv::parse_reg_value_text(value_text, n_bits, le_bytes);
+endfunction
+
+function automatic string {{ class_prefix }}format_le_bytes_as_csv_value(ref bit [7:0] le_bytes[$], input int n_bits);
+    return {{ class_prefix }}ral_conv::format_le_bytes_as_csv_value(le_bytes, n_bits);
+endfunction
+
+function automatic bit {{ class_prefix }}le_bytes_to_uvm_reg_data(
+    ref bit [7:0] le[$],
+    input int n_bits,
+    output uvm_reg_data_t val
+);
+    return {{ class_prefix }}ral_conv::le_bytes_to_uvm_reg_data(le, n_bits, val);
+endfunction
+
+function automatic void {{ class_prefix }}uvm_reg_data_to_le(
+    input uvm_reg_data_t v,
+    input int n_bits,
+    ref bit [7:0] le[$]
+);
+    {{ class_prefix }}ral_conv::uvm_reg_data_to_le(v, n_bits, le);
+endfunction
+
+function automatic bit {{ class_prefix }}reg_item_pack_value(
+    uvm_reg rg,
+    uvm_reg_item rw,
+    output uvm_reg_data_t v
+);
+    return {{ class_prefix }}ral_conv::reg_item_pack_value(rg, rw, v);
+endfunction
+
+`endif
