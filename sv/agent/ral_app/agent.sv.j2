@@ -5,27 +5,25 @@
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
-    // 上游 TLM 写事务入口（analysis port）。
+    // 上游 TLM 写事务入口。
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }};
-    // 与入口对接的 analysis imp，由本类 write() 处理载荷。
+    // 与入口对接，由本类 write() 处理载荷。
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}agent) imp;
 
     // 寄存器模型根块。
     protected uvm_reg_block m_root;
-    // 目标地址映射；非空名时按名选取，否则用默认 map。
+    // 根块默认 map 上的地址编码与前门写。
     protected uvm_reg_map m_map;
-    // 选取 m_map 时使用的 map 名；空串表示默认 map。
-    protected string reg_map_name;
     // 地址与字节宽度到寄存器路径条目的查表。
     protected {{ class_prefix }}addr_hit m_addr_lut[string];
     // 路径解析、字节拼装与前门写封装。
-    protected {{ class_prefix }}sink_ral m_ral;
+    protected {{ class_prefix }}ral_apply m_apply;
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
-    // 拉取寄存器块与 map，建立地址查表并创建 TLM 端口与 imp。
+    // 拉取寄存器块及其默认 map，建立地址查表并创建 TLM 端口与 imp。
     extern function void build_phase(uvm_phase phase);
     // 将对外 analysis port 连到本组件 imp。
     extern function void connect_phase(uvm_phase phase);
@@ -38,24 +36,17 @@ function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
 
     {{ input_port_name }} = new("{{ input_port_name }}", this);
     imp = new("imp", this);
-    m_ral = new();
+    m_apply = new();
 
     if (!uvm_config_db #(uvm_reg_block)::get(this, "", "reg_block", m_root) || m_root == null)
-        `uvm_fatal("REG_ACC_SINK", "uvm_config_db #(uvm_reg_block) reg_block is required")
+        `uvm_fatal("RAL_APP", "uvm_config_db #(uvm_reg_block) reg_block is required")
 
-    void'(uvm_config_db #(string)::get(this, "", "reg_map", reg_map_name));
-    if (reg_map_name.len()) begin
-        m_map = m_root.get_map(reg_map_name);
-        if (m_map == null)
-            `uvm_fatal("REG_ACC_SINK", $sformatf("unknown reg_map name '%s'", reg_map_name))
-    end else begin
-        m_map = m_root.get_default_map();
-        if (m_map == null)
-            `uvm_fatal("REG_ACC_SINK", "no default uvm_reg_map on reg_block; set reg_map or add a default map")
-    end
+    m_map = m_root.get_default_map();
+    if (m_map == null)
+        `uvm_fatal("RAL_APP", "no default uvm_reg_map on reg_block; add a default map")
 
-    if (!m_ral.build_reg_addr_lut(m_root, m_map, m_addr_lut))
-        `uvm_fatal("REG_ACC_SINK", "failed to build register address lookup table")
+    if (!m_apply.build_reg_addr_lut(m_root, m_map, m_addr_lut))
+        `uvm_fatal("RAL_APP", "failed to build register address lookup table")
 endfunction
 
 function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
@@ -74,17 +65,17 @@ function void {{ class_prefix }}agent::write(uvm_tlm_generic_payload payload);
     uvm_reg_data_t v;
 
     if (payload == null) begin
-        `uvm_error("REG_ACC_SINK", "write: null uvm_tlm_generic_payload")
+        `uvm_error("RAL_APP", "write: null uvm_tlm_generic_payload")
         return;
     end
 
     if (payload.get_command() != UVM_TLM_WRITE_COMMAND) begin
-        `uvm_warning("REG_ACC_SINK", "only UVM_TLM_WRITE_COMMAND is configured; other commands ignored")
+        `uvm_warning("RAL_APP", "only UVM_TLM_WRITE_COMMAND is handled; other commands ignored")
         return;
     end
 
     if (!$cast(p, payload.clone())) begin
-        `uvm_error("REG_ACC_SINK", "clone uvm_tlm_generic_payload failed")
+        `uvm_error("RAL_APP", "clone uvm_tlm_generic_payload failed")
         return;
     end
 
@@ -93,23 +84,22 @@ function void {{ class_prefix }}agent::write(uvm_tlm_generic_payload payload);
     key = $sformatf("%016h_%0d", ra, len);
 
     if (!m_addr_lut.exists(key)) begin
-        `uvm_error("REG_ACC_SINK", $sformatf("no register for addr=0x%0h data_length=%0d (check map and payload width)", ra, len))
+        `uvm_error("RAL_APP", $sformatf("no register for addr=0x%0h data_length=%0d (check map and payload width)", ra, len))
         return;
     end
 
     hit = m_addr_lut[key];
-    rg = m_ral.resolve_reg_by_path(m_root, hit.path);
+    rg = m_apply.resolve_reg_by_path(m_root, hit.path);
     if (rg == null) begin
-        `uvm_error("REG_ACC_SINK", $sformatf("resolve failed for lut path: %s", hit.path))
+        `uvm_error("RAL_APP", $sformatf("resolve failed for lut path: %s", hit.path))
         return;
     end
 
-    if (!m_ral.payload_to_le_bytes(p, le))
+    if (!m_apply.payload_to_le_bytes(p, le))
         return;
-    if (!m_ral.le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
+    if (!m_apply.le_bytes_to_uvm_reg_data(le, rg.get_n_bits(), v))
         return;
 
-    // 前门写为耗时 task，在独立进程中启动。
     fork
         begin
             automatic uvm_reg rg_x = rg;
@@ -118,16 +108,16 @@ function void {{ class_prefix }}agent::write(uvm_tlm_generic_payload payload);
             automatic uvm_reg_addr_t ra_x = ra;
             automatic bit [7:0] le_x[$] = le;
             automatic int nbits_x = rg.get_n_bits();
-            automatic {{ class_prefix }}sink_ral ral_x = m_ral;
+            automatic {{ class_prefix }}ral_apply apply_x = m_apply;
             automatic uvm_reg_map map_x = m_map;
             uvm_status_e st_x;
             string val_x;
-            ral_x.sink_frontdoor_write(rg_x, map_x, v_x, st_x);
+            apply_x.do_frontdoor_write(rg_x, map_x, v_x, st_x);
             if (st_x != UVM_IS_OK) begin
-                `uvm_error("REG_ACC_SINK", $sformatf("reg frontdoor write failed path=%s", path_x))
+                `uvm_error("RAL_APP", $sformatf("reg frontdoor write failed path=%s", path_x))
             end else begin
-                val_x = ral_x.format_le_bytes_as_hex(le_x, nbits_x);
-                `uvm_info("REG_ACC_SINK", $sformatf("configure reg=%s addr=0x%0h value=%s width=%0d", path_x, ra_x, val_x, nbits_x), UVM_LOW)
+                val_x = apply_x.format_le_bytes_as_hex(le_x, nbits_x);
+                `uvm_info("RAL_APP", $sformatf("configure reg=%s addr=0x%0h value=%s width=%0d", path_x, ra_x, val_x, nbits_x), UVM_LOW)
             end
         end
     join_none

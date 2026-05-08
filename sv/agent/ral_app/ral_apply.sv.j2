@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "sink_ral") | upper }}
-`define {{ (class_prefix ~ "sink_ral") | upper }}
+`ifndef {{ (class_prefix ~ "ral_apply") | upper }}
+`define {{ (class_prefix ~ "ral_apply") | upper }}
 
 // 在指定 map 上建立地址查表，解析点分寄存器路径，并把 TLM 字节序数据转为前门写。
-class {{ class_prefix }}sink_ral;
+class {{ class_prefix }}ral_apply;
 
     extern local function void str_trim_both(ref string s);
     extern local function void split_dotted_path(input string s_in, ref string parts[$]);
@@ -18,10 +18,10 @@ class {{ class_prefix }}sink_ral;
     extern function bit payload_to_le_bytes(input uvm_tlm_generic_payload p, ref bit [7:0] le[$]);
     extern function string format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
     extern function bit build_reg_addr_lut(uvm_reg_block root, uvm_reg_map map, ref {{ class_prefix }}addr_hit lut[string]);
-    extern task sink_frontdoor_write(uvm_reg rg, uvm_reg_map map, input uvm_reg_data_t v, output uvm_status_e st);
+    extern task do_frontdoor_write(uvm_reg rg, uvm_reg_map map, input uvm_reg_data_t v, output uvm_status_e st);
 endclass
 
-function void {{ class_prefix }}sink_ral::str_trim_both(ref string s);
+function void {{ class_prefix }}ral_apply::str_trim_both(ref string s);
     int a;
     int b;
     int i;
@@ -47,7 +47,7 @@ function void {{ class_prefix }}sink_ral::str_trim_both(ref string s);
         s = "";
 endfunction
 
-function void {{ class_prefix }}sink_ral::split_dotted_path(input string s_in, ref string parts[$]);
+function void {{ class_prefix }}ral_apply::split_dotted_path(input string s_in, ref string parts[$]);
     int start;
     int i;
     int k;
@@ -80,7 +80,7 @@ function void {{ class_prefix }}sink_ral::split_dotted_path(input string s_in, r
     end
 endfunction
 
-function uvm_reg {{ class_prefix }}sink_ral::resolve_reg_by_path(uvm_reg_block root, string dotted_path);
+function uvm_reg {{ class_prefix }}ral_apply::resolve_reg_by_path(uvm_reg_block root, string dotted_path);
     uvm_reg_block cur;
     uvm_reg rg;
     string parts[$];
@@ -108,14 +108,14 @@ function uvm_reg {{ class_prefix }}sink_ral::resolve_reg_by_path(uvm_reg_block r
     return rg;
 endfunction
 
-function bit {{ class_prefix }}sink_ral::le_bytes_to_uvm_reg_data(ref bit [7:0] le[$], input int n_bits, output uvm_reg_data_t val);
+function bit {{ class_prefix }}ral_apply::le_bytes_to_uvm_reg_data(ref bit [7:0] le[$], input int n_bits, output uvm_reg_data_t val);
     int n_bytes;
     int i;
     uvm_reg_data_t ext;
     val = 0;
     n_bytes = (n_bits + 7) / 8;
     if (n_bits > $bits(val)) begin
-        `uvm_error("REG_ACC_SINK", $sformatf("register width %0d exceeds uvm_reg_data_t", n_bits))
+        `uvm_error("RAL_APP", $sformatf("register width %0d exceeds uvm_reg_data_t", n_bits))
         return 0;
     end
     for (i = 0; i < le.size() && i < n_bytes; i++) begin
@@ -126,7 +126,7 @@ function bit {{ class_prefix }}sink_ral::le_bytes_to_uvm_reg_data(ref bit [7:0] 
     return 1;
 endfunction
 
-function bit {{ class_prefix }}sink_ral::payload_to_le_bytes(input uvm_tlm_generic_payload p, ref bit [7:0] le[$]);
+function bit {{ class_prefix }}ral_apply::payload_to_le_bytes(input uvm_tlm_generic_payload p, ref bit [7:0] le[$]);
     byte unsigned dyn[];
     int len;
     int i;
@@ -143,7 +143,7 @@ function bit {{ class_prefix }}sink_ral::payload_to_le_bytes(input uvm_tlm_gener
     return 1;
 endfunction
 
-function string {{ class_prefix }}sink_ral::format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
+function string {{ class_prefix }}ral_apply::format_le_bytes_as_hex(ref bit [7:0] le_bytes[$], input int n_bits);
     int n_bytes;
     bit [4095:0] acc;
     bit [4095:0] ext;
@@ -183,7 +183,7 @@ function string {{ class_prefix }}sink_ral::format_le_bytes_as_hex(ref bit [7:0]
     return s;
 endfunction
 
-function void {{ class_prefix }}sink_ral::walk_register_map(
+function void {{ class_prefix }}ral_apply::walk_register_map(
     uvm_reg_block blk,
     uvm_reg_map map,
     string rel_prefix,
@@ -212,7 +212,7 @@ function void {{ class_prefix }}sink_ral::walk_register_map(
         hit.path = pth;
         hit.n_bytes = nb;
         if (lut.exists(key) && lut[key].path != hit.path)
-            `uvm_warning("REG_ACC_SINK", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
+            `uvm_warning("RAL_APP", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
         lut[key] = hit;
     end
 
@@ -227,7 +227,7 @@ function void {{ class_prefix }}sink_ral::walk_register_map(
     end
 endfunction
 
-function bit {{ class_prefix }}sink_ral::build_reg_addr_lut(uvm_reg_block root, uvm_reg_map map, ref {{ class_prefix }}addr_hit lut[string]);
+function bit {{ class_prefix }}ral_apply::build_reg_addr_lut(uvm_reg_block root, uvm_reg_map map, ref {{ class_prefix }}addr_hit lut[string]);
     lut.delete();
     if (root == null || map == null)
         return 0;
@@ -235,7 +235,7 @@ function bit {{ class_prefix }}sink_ral::build_reg_addr_lut(uvm_reg_block root, 
     return 1;
 endfunction
 
-task {{ class_prefix }}sink_ral::sink_frontdoor_write(uvm_reg rg, uvm_reg_map map, input uvm_reg_data_t v, output uvm_status_e st);
+task {{ class_prefix }}ral_apply::do_frontdoor_write(uvm_reg rg, uvm_reg_map map, input uvm_reg_data_t v, output uvm_status_e st);
     rg.write(st, v, UVM_FRONTDOOR, map, null);
 endtask
 
