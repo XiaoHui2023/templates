@@ -1,117 +1,118 @@
 `ifndef {{ (class_prefix ~ "ral_path") | upper }}
 `define {{ (class_prefix ~ "ral_path") | upper }}
 
-// 点分路径解析与寄存器解析；与包级同名函数共用实现。
+// 点分路径解析与寄存器解析；由 ral_tools.path 等持有实例后调用。
 class {{ class_prefix }}ral_path;
-    static function automatic void split_dotted_path(input string s_in, ref string parts[$]);
-        int start;
-        int i;
-        int k;
-        string seg;
-        string s;
-        parts.delete();
-        s = s_in;
-        {{ class_prefix }}csv_trim_both(s);
-        start = 0;
-        for (i = 0; i < s.len(); i++) begin
-            if (s.getc(i) == ".") begin
-                if (i > start) begin
-                    seg = "";
-                    for (k = start; k < i; k++)
-                        seg = {seg, s.getc(k)};
-                    {{ class_prefix }}csv_trim_both(seg);
-                    if (seg.len())
-                        parts.push_back(seg);
-                end
-                start = i + 1;
-            end
-        end
-        if (start < s.len()) begin
-            seg = "";
-            for (k = start; k < s.len(); k++)
-                seg = {seg, s.getc(k)};
-            {{ class_prefix }}csv_trim_both(seg);
-            if (seg.len())
-                parts.push_back(seg);
-        end
-    endfunction
-
-    static function automatic uvm_reg resolve_reg_by_path(uvm_reg_block root, string dotted_path);
-        uvm_reg_block cur;
-        uvm_reg rg;
-        string parts[$];
-        int i;
-
-        if (root == null || !dotted_path.len())
-            return null;
-
-        split_dotted_path(dotted_path, parts);
-        if (!parts.size())
-            return null;
-
-        cur = root;
-        for (i = 0; i < parts.size() - 1; i++) begin
-            uvm_reg_block nxt;
-            nxt = cur.get_block_by_name(parts[i]);
-            if (nxt == null)
-                return null;
-            cur = nxt;
-        end
-
-        rg = cur.get_reg_by_name(parts[parts.size() - 1]);
-        if (rg == null)
-            return null;
-        return rg;
-    endfunction
-
-    static function automatic string reg_path_under_root(uvm_reg_block root, uvm_reg rg);
-        uvm_reg_block blk;
-        string segs[$];
-        int guard;
-        bit found;
-
-        if (root == null || rg == null)
-            return "";
-        found = 0;
-        blk = rg.get_parent();
-        segs.push_back(rg.get_name());
-        guard = 0;
-        while (blk != null && guard < 512) begin
-            if (blk == root) begin
-                found = 1;
-                break;
-            end
-            segs.push_front(blk.get_name());
-            blk = blk.get_parent();
-            guard++;
-        end
-        if (!found)
-            return "";
-        begin
-            string s;
-            int i;
-            s = "";
-            for (i = 0; i < segs.size(); i++) begin
-                if (i > 0)
-                    s = {s, ".", segs[i]};
-                else
-                    s = segs[i];
-            end
-            return s;
-        end
-    endfunction
+    // 按 '.' 切分路径；段内经 csv_trim_both 去首尾空白。
+    // s_in — 输入点分路径串
+    // parts — 输出各段分量队列
+    extern function void split_dotted_path(input string s_in, ref string parts[$]);
+    // 从 root 沿点分路径解析到本层 uvm_reg；失败返回 null。
+    // root — RAL 遍历起点块
+    // dotted_path — 点分寄存器路径
+    extern function uvm_reg resolve_reg_by_path(uvm_reg_block root, input string dotted_path);
+    // 返回 rg 相对 root 的点分路径；不在子树则返回空串。
+    // root — 锚定根块
+    // rg — 目标寄存器
+    extern function string reg_path_under_root(uvm_reg_block root, uvm_reg rg);
 endclass
 
-function automatic void {{ class_prefix }}split_dotted_path(input string s_in, ref string parts[$]);
-    {{ class_prefix }}ral_path::split_dotted_path(s_in, parts);
+function void {{ class_prefix }}ral_path::split_dotted_path(input string s_in, ref string parts[$]);
+    int start;
+    int i;
+    int k;
+    string seg;
+    string s;
+    parts.delete();
+    s = s_in;
+    {{ class_prefix }}csv_trim_both(s);
+    start = 0;
+    for (i = 0; i < s.len(); i++) begin
+        if (s.getc(i) == ".") begin
+            if (i > start) begin
+                seg = "";
+                for (k = start; k < i; k++)
+                    seg = {seg, s.getc(k)};
+                {{ class_prefix }}csv_trim_both(seg);
+                if (seg.len())
+                    parts.push_back(seg);
+            end
+            start = i + 1;
+        end
+    end
+    if (start < s.len()) begin
+        seg = "";
+        for (k = start; k < s.len(); k++)
+            seg = {seg, s.getc(k)};
+        {{ class_prefix }}csv_trim_both(seg);
+        if (seg.len())
+            parts.push_back(seg);
+    end
 endfunction
 
-function automatic uvm_reg {{ class_prefix }}resolve_reg_by_path(uvm_reg_block root, string dotted_path);
-    return {{ class_prefix }}ral_path::resolve_reg_by_path(root, dotted_path);
+function uvm_reg {{ class_prefix }}ral_path::resolve_reg_by_path(uvm_reg_block root, input string dotted_path);
+    uvm_reg_block cur;
+    uvm_reg rg;
+    string parts[$];
+    int i;
+
+    if (root == null || !dotted_path.len())
+        return null;
+
+    split_dotted_path(dotted_path, parts);
+    if (!parts.size())
+        return null;
+
+    cur = root;
+    for (i = 0; i < parts.size() - 1; i++) begin
+        uvm_reg_block nxt;
+        nxt = cur.get_block_by_name(parts[i]);
+        if (nxt == null)
+            return null;
+        cur = nxt;
+    end
+
+    rg = cur.get_reg_by_name(parts[parts.size() - 1]);
+    if (rg == null)
+        return null;
+    return rg;
 endfunction
 
-function automatic string {{ class_prefix }}reg_path_under_root(uvm_reg_block root, uvm_reg rg);
-    return {{ class_prefix }}ral_path::reg_path_under_root(root, rg);
+function string {{ class_prefix }}ral_path::reg_path_under_root(uvm_reg_block root, uvm_reg rg);
+    uvm_reg_block blk;
+    string segs[$];
+    int guard;
+    bit found;
+
+    if (root == null || rg == null)
+        return "";
+    found = 0;
+    blk = rg.get_parent();
+    segs.push_back(rg.get_name());
+    guard = 0;
+    while (blk != null && guard < 512) begin
+        if (blk == root) begin
+            found = 1;
+            break;
+        end
+        segs.push_front(blk.get_name());
+        blk = blk.get_parent();
+        guard++;
+    end
+    if (!found)
+        return "";
+    begin
+        string s;
+        int i;
+        s = "";
+        for (i = 0; i < segs.size(); i++) begin
+            if (i > 0)
+                s = {s, ".", segs[i]};
+            else
+                s = segs[i];
+        end
+        return s;
+    end
 endfunction
 
 `endif

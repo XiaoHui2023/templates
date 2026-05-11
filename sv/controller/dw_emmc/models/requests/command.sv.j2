@@ -3,10 +3,10 @@
 
 class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
     typedef enum {
-        NR, // 不检查
+        NR, // 不应答
         R1,
-        R1b,
-        R2, // 检查启动位
+        R1b, // 应答后包含忙碌
+        R2,
         R3,
         R4,
         R5,
@@ -14,41 +14,41 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         R7
     } resp_e;
 
-    uvm_object_utils_begin({{ class_prefix }}command_request)
-        `uvm_field_int(cmd_index,UVM_ALL_ON)
-        `uvm_field_int(argument,UVM_ALL_ON)
-        `uvm_field_enum(resp_e,resp,UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_int(cmd_crc_chk_enable,UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_int(cmd_idx_chk_enable,UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_int(data_present_sel,UVM_ALL_ON)
+    `uvm_object_utils_begin({{ class_prefix }}command_request)
+        `uvm_field_int(cmd_index, UVM_ALL_ON)
+        `uvm_field_int(argument, UVM_ALL_ON)
+        `uvm_field_enum(resp_e, resp, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(data_present_sel, UVM_ALL_ON)
         if(data_present_sel) begin
-            `uvm_field_int(data,UVM_ALL_ON)
-            `uvm_field_enum(autocmd_enable_e,auto_cmd_enable,UVM_ALL_ON)
-            `uvm_field_enum(data_xfer_dir_e,data_xfer_dir,UVM_ALL_ON)
-            `uvm_field_enum(multi_blk_sel_e,multi_blk_sel,UVM_ALL_ON)
-            `uvm_field_int(block_count,UVM_ALL_ON)
-            `uvm_field_int(block_size,UVM_ALL_ON)
-            `uvm_field_int(len,UVM_ALL_ON)
-            `uvm_field_int(dma_enable,UVM_ALL_ON)
+            `uvm_field_int(addr, UVM_ALL_ON)
+            `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
+            `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
+            `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
+            `uvm_field_int(block_count, UVM_ALL_ON)
+            `uvm_field_int(block_size, UVM_ALL_ON)
+            `uvm_field_int(len, UVM_ALL_ON)
+            `uvm_field_int(dma_enable, UVM_ALL_ON)
             if(dma_enable) begin
-                `uvm_field_enum(dma_sel_e,dma_sel,UVM_ALL_ON)
+                `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
             end
             else begin
-                `uvm_field_queue_int(wdata,UVM_ALL_ON)
-                `uvm_field_int(rd_blocking,UVM_ALL_ON)
+                `uvm_field_queue_int(wdata, UVM_ALL_ON)
+                `uvm_field_int(rd_blocking, UVM_ALL_ON)
             end
         end
-        `uvm_field_object(access_req,UVM_ALL_ON|UVM_NOPRINT)
-        `uvm_field_object(chk_err_req,UVM_ALL_ON|UVM_NOPRINT)
-        `uvm_field_object(rst_req,UVM_ALL_ON|UVM_NOPRINT)
-    uvm_object_utils_end
+        `uvm_field_object(access_req, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_object(chk_err_req, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_object(rst_req, UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
 
     rand bit[5:0] cmd_index; // 传输命令索引
     rand int argument; // 传输参数
-    rand resp_e resp; // 响应
+    rand resp_e resp; // 应答
     rand auto_cmd_enable_e auto_cmd_enable; // 自动命令
     rand data_xfer_dir_e data_xfer_dir; // 传输方向
-    rand bit data_present_sel; // 是否有数据传输
+    rand bit data_present_sel; // 是否发送数据
     rand multi_blk_sel_e multi_blk_sel; // 是否传输多块
     rand int block_size; // 传输数据块大小
     rand int block_count; // 传输数据块数
@@ -67,12 +67,12 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
     constraint cst_command_request {
         // default
         soft rd_blocking == 0;
-        soft multi_blk_sel == 0;
+        soft wdata.size == 0;
         soft addr == 0;
 
         len == block_size * block_count;
 
-        // wr
+        // rw
         if(data_xfer_dir == XFER_WRITE) {
             rd_blocking == 0;
             wdata.size == block_size * block_count;
@@ -82,7 +82,7 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
 
         // crc chk
         (resp == R3) -> cmd_crc_chk_enable == 0;
-        (resp inside {NR,R1,R1b,R2,R4,R5}) -> cmd_crc_chk_enable == 1;
+        (resp inside {NR, R1, R1b, R2, R4, R5}) -> cmd_crc_chk_enable == 1;
 
         // idx chk
         (resp == R2) -> cmd_idx_chk_enable == 0;
@@ -101,7 +101,7 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         access_req.data_present_sel == data_present_sel;
         access_req.multi_blk_sel == multi_blk_sel;
         access_req.xfer_block_size == block_size;
-        access_req.sdma_block_count == block_count;
+        access_req.sdmasa == block_count;
         access_req.cmd_crc_chk_enable == cmd_crc_chk_enable;
         access_req.cmd_idx_chk_enable == cmd_idx_chk_enable;
         access_req.dma_enable == dma_enable;
@@ -122,26 +122,25 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
             R7
         }) -> access_req.resp_type_select == access_req.RESP_LEN_48;
 
-        // response类型与命令号，非完整表，仅用于约束检查
+        // resp写在具体命令中, 这里是未实现的命令
         // (cmd_index == 14) -> resp == R1;
         // (cmd_index == 19) -> resp == R1;
-        // (cmd_index == 16) -> resp == R1;
-        // (cmd_index == 24) -> resp == R1;
-        // (cmd_index == 25) -> resp == R1;
-        // (cmd_index == 28) -> resp == R1;
-        // (cmd_index == 29) -> resp == R1;
+        // (cmd_index == 26) -> resp == R1;
+        // (cmd_index == 27) -> resp == R1;
+        // (cmd_index == 28) -> resp == R1b;
+        // (cmd_index == 29) -> resp == R1b;
         // (cmd_index == 30) -> resp == R1;
         // (cmd_index == 31) -> resp == R1;
         // (cmd_index == 35) -> resp == R1;
         // (cmd_index == 36) -> resp == R1;
         // (cmd_index == 38) -> resp == R1b;
         // (cmd_index == 39) -> resp == R4;
-        // (cmd_index == 40) -> resp == R5;
         // (cmd_index == 42) -> resp == R1;
+        // (cmd_index == 44) -> resp == R1;
         // (cmd_index == 45) -> resp == R1;
         // (cmd_index == 46) -> resp == R1;
         // (cmd_index == 47) -> resp == R1;
-        // (cmd_index == 48) -> resp == R1;
+        // (cmd_index == 48) -> resp == R1b;
         // (cmd_index == 49) -> resp == R1;
         // (cmd_index == 53) -> resp == R1;
         // (cmd_index == 54) -> resp == R1;

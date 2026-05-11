@@ -2,63 +2,63 @@
 `define {{ class_prefix | upper }}COMPARE_CARD_MEMORY_TEST_SEQ
 
 class {{ class_prefix }}compare_card_memory_test_seq extends {{ class_prefix }}default_seq;
-    `uvm_object_utils_begin({{ class_prefix }}compare_card_memory_test_seq)
-        uvm_field_int(addr, UVM_ALL_ON)
-        uvm_field_int(len, UVM_ALL_ON)
-        uvm_field_queue_int(data, UVM_ALL_ON)
-    `uvm_object_utils_end
+  `uvm_object_utils_begin({{ class_prefix }}compare_card_memory_test_seq)
+    `uvm_field_int(addr, UVM_ALL_ON)
+    `uvm_field_int(len, UVM_ALL_ON)
+    `uvm_field_queue_int(data, UVM_ALL_ON)
+  `uvm_object_utils_end
 
-    function new(string name="{{ class_prefix }}compare_card_memory_test_seq");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}compare_card_memory_test_seq");
+    super.new(name);
+  endfunction
 
-    rand bit[63:0] addr; // 起始地址
-    rand int len; // 长度
-    rand bit[7:0] data[$]; // 数据
+  rand bit[63:0] addr; // 起始地址
+  rand int len; // 长度
+  rand bit[7:0] data[$]; // 数据
 
-    constraint cst_test {
-        soft addr == 0;
+  constraint cst_test {
+    soft addr == 0;
 
-        len == data.size;
-        len > 0;
-    }
+    len == data.size;
+    len > 0;
+  }
 
-    extern task body();
+  extern task body();
 
-    // 执行比较
-    extern task execute_compare();
+  // 执行比较
+  extern task execute_compare();
 endclass
 
 task {{ class_prefix }}compare_card_memory_test_seq::body();
-    uvm_info("", $soprintf("compare:\n%s", sprint()), UVM_LOW)
+  `uvm_info("", $sformatf("compare: %s", sprint()), UVM_LOW)
 
-    execute_compare();
+  execute_compare();
 endtask
 
 task {{ class_prefix }}compare_card_memory_test_seq::execute_compare();
-    {{ class_prefix }}card_memory_get_dependency_seq card_mem_get_seq;
-    bit[7:0] mem_data[$];
+  {{ class_prefix }}card_memory_get_dependency_seq card_mem_get_seq;
+  bit[7:0] mem_data[$];
 
-    `uvm_do_with(card_mem_get_seq, {
-        addr == local::addr;
-        len == local::len;
-    })
+  `uvm_do_with(card_mem_get_seq, {
+    addr == local::addr;
+    len == local::len;
+  })
 
-    mem_data = card_mem_get_seq.rdata;
+  mem_data = card_mem_get_seq.rdata;
 
-    if(data.size != mem_data.size)
-        uvm_error("", $soprintf("result has %0d bytes, but memory has %0d bytes", data.size, mem_data.size))
+  if(data.size != mem_data.size)
+    `uvm_error("", $sformatf("result has %0d bytes, but memory has %0d bytes", data.size, mem_data.size))
 
-    if(data == mem_data)
-        uvm_info("", "compare successful", UVM_LOW)
-    else
-        for(int i=0; i<len; i++) begin
-            if(data[i] != mem_data[i])
-                continue;
+  if(data == mem_data)
+    `uvm_info("", "compare successful", UVM_LOW)
+  else
+    for(int j=0; j<len; j++) begin
+      if(data[j] == mem_data[j])
+        continue;
 
-            uvm_error("", $soprintf("data[%0d] result = %0h, but memory = %0h", i, data[i], mem_data[i]))
-            break;
-        end
+      `uvm_error("", $sformatf("[%0d] result = 0x%0h, but memory = 0x%0h", j, data[j], mem_data[j]))
+      break;
+    end
 endtask
 
 `endif

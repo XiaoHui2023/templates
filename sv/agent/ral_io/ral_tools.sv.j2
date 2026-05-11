@@ -1,0 +1,19 @@
+`ifndef {{ (class_prefix ~ "ral_tools") | upper }}
+`define {{ (class_prefix ~ "ral_tools") | upper }}
+
+// 门面：主流程持有一份工具簇，共享同一对 conv/path 供 xact 使用。
+class {{ class_prefix }}ral_tools;
+    {{ class_prefix }}ral_conv conv;
+    {{ class_prefix }}ral_path path;
+    {{ class_prefix }}ral_lut lut;
+    {{ class_prefix }}ral_xact xact;
+
+    function new();
+        conv = new;
+        path = new;
+        lut = new;
+        xact = new(conv, path);
+    endfunction
+endclass
+
+`endif

@@ -2,12 +2,12 @@
 `define {{ class_prefix | upper }}BASE_ACMD_REQUEST
 
 class {{ class_prefix }}base_acmd_request extends {{ class_prefix }}command_request;
-    uvm_object_utils({{ class_prefix }}base_acmd_request)
+  `uvm_object_utils({{ class_prefix }}base_acmd_request)
 
-    function new(string name="{{ class_prefix }}base_acmd_request");
-        super.new(name);
-    endfunction
-
+  function new(string name="{{ class_prefix }}base_acmd_request");
+    super.new(name);
+  endfunction
 endclass
+
 
 `endif

@@ -1,0 +1,128 @@
+{%- macro typedef(postfix_name, postfix_request) %}
+class {{ class_prefix }}{{ postfix_name }} extends {{ class_prefix }}command_request_seq#({{ class_prefix }}{{ postfix_request }});
+  `uvm_object_utils({{ class_prefix }}{{ postfix_name }})
+  function new(string name="{{ class_prefix }}{{ postfix_name }}");
+    super.new(name);
+  endfunction
+endclass
+{%- endmacro -%}
+`ifndef {{ class_prefix | upper }}COMMAND_SEQS
+`define {{ class_prefix | upper }}COMMAND_SEQS
+
+                                                                        {%- if is_sd %}
+{{ typedef('app_cmd_command_seq','app_cmd_command_request') }}
+{{ typedef('send_if_cond_command_seq','send_if_cond_command_request') }}
+{{ typedef('send_relative_addr_command_seq','send_relative_addr_command_request') }}
+{{ typedef('voltage_switch_command_seq','voltage_switch_command_request') }}
+                                                                        {%- endif %}
+                                                                        {%- if is_emmc %}
+{{ typedef('boot_initiation_command_seq','boot_initiation_command_request') }}
+{{ typedef('go_pre_idle_state_command_seq','go_pre_idle_state_command_request') }}
+{{ typedef('send_ext_csd_command_seq','send_ext_csd_command_request') }}
+{{ typedef('set_relative_addr_command_seq','set_relative_addr_command_request') }}
+{{ typedef('switch_partition_config_command_seq','switch_partition_config_command_request') }}
+                                                                        {%- endif %}
+                                                                        {%- if is_sdio %}
+{{ typedef('io_rw_extended_command_seq','io_rw_extended_command_request') }}
+{{ typedef('io_send_op_cond_command_seq','io_send_op_cond_command_request') }}
+                                                                        {%- endif %}
+{{ typedef('all_send_cid_command_seq','all_send_cid_command_request') }}
+{{ typedef('go_idle_state_command_seq','go_idle_state_command_request') }}
+{{ typedef('go_inactive_state_command_seq','go_inactive_state_command_request') }}
+{{ typedef('go_irq_state_command_seq','go_irq_state_command_request') }}
+{{ typedef('read_multiple_block_command_seq','read_multiple_block_command_request') }}
+{{ typedef('read_single_block_command_seq','read_single_block_command_request') }}
+{{ typedef('select_card_command_seq','select_card_command_request') }}
+{{ typedef('send_cid_command_seq','send_cid_command_request') }}
+{{ typedef('send_csd_command_seq','send_csd_command_request') }}
+{{ typedef('send_op_cond_command_seq','send_op_cond_command_request') }}
+{{ typedef('send_status_command_seq','send_status_command_request') }}
+{{ typedef('send_tuning_block_command_seq','send_tuning_block_command_request') }}
+{{ typedef('set_block_count_command_seq','set_block_count_command_request') }}
+{{ typedef('set_blocklen_command_seq','set_blocklen_command_request') }}
+{{ typedef('set_dsr_command_seq','set_dsr_command_request') }}
+{{ typedef('sleep_awake_command_seq','sleep_awake_command_request') }}
+{{ typedef('stop_transmission_command_seq','stop_transmission_command_request') }}
+{{ typedef('write_block_command_seq','write_block_command_request') }}
+{{ typedef('write_multiple_block_command_seq','write_multiple_block_command_request') }}
+
+                                                                        {%- if is_emmc %}
+class {{ class_prefix }}switch_bus_width_command_seq extends {{ class_prefix }}command_request_seq#({{ class_prefix }}switch_bus_width_command_request);
+  `uvm_object_utils({{ class_prefix }}switch_bus_width_command_seq)
+
+  function new(string name="{{ class_prefix }}switch_bus_width_command_seq");
+    super.new(name);
+  endfunction
+
+  task post_start();
+    super.post_start();
+
+    ctx.data_width_cur = cmd_req.data_width;
+  endtask
+endclass
+
+class {{ class_prefix }}switch_hs_timing_command_seq extends {{ class_prefix }}command_request_seq#({{ class_prefix }}switch_hs_timing_command_request);
+  `uvm_object_utils({{ class_prefix }}switch_hs_timing_command_seq)
+
+  function new(string name="{{ class_prefix }}switch_hs_timing_command_seq");
+    super.new(name);
+  endfunction
+
+  task post_start();
+    super.post_start();
+
+    ctx.bus_speed_mode_cur = cmd_req.bus_speed_mode;
+  endtask
+endclass
+                                                                        {%- endif %}
+                                                                        {%- if is_sdio %}
+{{ typedef('io_rw_direct_fn0_block_size_command_seq','io_rw_direct_fn0_block_size_command_request') }}
+{{ typedef('io_rw_direct_io_abort_command_seq','io_rw_direct_io_abort_command_request') }}
+{{ typedef('io_rw_direct_io_enable_command_seq','io_rw_direct_io_enable_command_request') }}
+
+class {{ class_prefix }}io_rw_direct_bus_interface_control_command_seq extends {{ class_prefix }}command_request_seq#({{ class_prefix }}io_rw_direct_bus_interface_control_command_request);
+  `uvm_object_utils({{ class_prefix }}io_rw_direct_bus_interface_control_command_seq)
+
+  function new(string name="{{ class_prefix }}io_rw_direct_bus_interface_control_command_seq");
+    super.new(name);
+  endfunction
+
+  task post_start();
+    super.post_start();
+
+    ctx.data_width_cur = cmd_req.data_width;
+  endtask
+endclass
+
+class {{ class_prefix }}io_rw_direct_bus_speed_select_command_seq extends {{ class_prefix }}command_request_seq#({{ class_prefix }}io_rw_direct_bus_speed_select_command_request);
+  `uvm_object_utils({{ class_prefix }}io_rw_direct_bus_speed_select_command_seq)
+
+  function new(string name="{{ class_prefix }}io_rw_direct_bus_speed_select_command_seq");
+    super.new(name);
+  endfunction
+
+  task post_start();
+    super.post_start();
+
+    ctx.bus_speed_mode_cur = cmd_req.bus_speed_mode;
+  endtask
+endclass
+                                                                        {%- endif %}
+                                                                        {%- if is_sdcard %}
+
+class {{ class_prefix }}switch_func_command_seq extends {{ class_prefix }}command_request_seq#({{ class_prefix }}switch_func_command_request);
+  `uvm_object_utils({{ class_prefix }}switch_func_command_seq)
+
+  function new(string name="{{ class_prefix }}switch_func_command_seq");
+    super.new(name);
+  endfunction
+
+  task post_start();
+    super.post_start();
+
+    ctx.bus_speed_mode_cur = cmd_req.bus_speed_mode;
+  endtask
+endclass
+
+                                                                        {%- endif %}
+`endif

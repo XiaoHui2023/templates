@@ -1,23 +1,23 @@
-#ifndef {{ class_prefix | upper }}SET_DSR_COMMAND_REQUEST
-#define {{ class_prefix | upper }}SET_DSR_COMMAND_REQUEST
+`ifndef {{ class_prefix | upper }}SET_DSR_COMMAND_REQUEST
+`define {{ class_prefix | upper }}SET_DSR_COMMAND_REQUEST
 
-// 发送CMD4，设置DSR
+// 发送CMD4, 设置DSR
 class {{ class_prefix }}set_dsr_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}set_dsr_command_request)
-        `uvm_field_int(dsr,UVM_ALL_ON)
-    `uvm_object_utils_end
+  `uvm_object_utils_begin({{ class_prefix }}set_dsr_command_request)
+    `uvm_field_int(dsr, UVM_ALL_ON)
+  `uvm_object_utils_end
 
-    rand bit[15:0] dsr;
+  rand bit[15:0] dsr;
 
-    function new(string name="{{ class_prefix }}set_dsr_command_request");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}set_dsr_command_request");
+    super.new(name);
+  endfunction
 
-    constraint cst_prefab {
-        cmd_index == 4;
-        argument[31:16] == dsr;
-        resp == NR;
-    }
+  constraint cst_prefab {
+    cmd_index == 4;
+    argument[31:16] == dsr;
+    resp == NR;
+  }
 endclass
 
 `endif

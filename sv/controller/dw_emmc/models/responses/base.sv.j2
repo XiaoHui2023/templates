@@ -2,19 +2,19 @@
 `define {{ class_prefix | upper }}BASE_RESPONSE
 
 class {{ class_prefix }}base_response extends {{ class_prefix }}base_item;
-    uvm_object_utils_begin({{ class_prefix }}base_response)
-        `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
-    uvm_object_utils_end
+  `uvm_object_utils_begin({{ class_prefix }}base_response)
+    `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
+  `uvm_object_utils_end
 
-    rand bit has_randomized;
+  rand bit has_randomized;
 
-    constraint cst_base_response {
-        has_randomized == 1;
-    }
+  constraint cst_base_response {
+    has_randomized == 1;
+  }
 
-    function new(string name="{{ class_prefix }}base_response");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}base_response");
+    super.new(name);
+  endfunction
 endclass
 
 `endif

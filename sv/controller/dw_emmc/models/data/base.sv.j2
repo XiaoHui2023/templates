@@ -2,16 +2,15 @@
 `define {{ class_prefix | upper }}BASE_DATA
 
 class {{ class_prefix }}base_data extends {{ class_prefix }}base_item;
-    uvm_object_utils_begin({{ class_prefix }}base_data)
-        `uvm_field_int(size,UVM_ALL_ON | UVM_NOPACK | UVM_NOPRINT)
-        `uvm_field_sarray_int(d,UVM_ALL_ON)
-    uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}base_data)
+        `uvm_field_int(sizeof, UVM_ALL_ON | UVM_NOPACK | UVM_NOPRINT)
+    `uvm_object_utils_end
 
-    function new(string name="{{ class_prefix }}base_data");
+    function new(string name = "{{ class_prefix }}base_data");
         super.new(name);
     endfunction
 
-    int size();
+    int sizeof; // 字节数
 
     // 打包数据
     extern function {{ class_prefix }}bytes unpack();
@@ -25,16 +24,17 @@ function {{ class_prefix }}bytes {{ class_prefix }}base_data::unpack();
     pk = new();
     pk.big_endian = 0;
 
-    this.pack_bytes(d,pk);
-    foreach(d[i])
-        unpack[i] = d[i];
+    this.pack_bytes(d, pk);
+    foreach(d[j])
+        unpack[j] = d[j];
 endfunction
 
 function void {{ class_prefix }}base_data::pre_randomize();
-    bit[7:0] dis;
+    bit[7:0] d[$];
     super.pre_randomize();
 
     d = unpack();
-    size = d.size();
+    sizeof = d.size();
 endfunction
+
 `endif

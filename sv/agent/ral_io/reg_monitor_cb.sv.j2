@@ -9,74 +9,105 @@ class {{ class_prefix }}reg_monitor_cb extends uvm_reg_cbs;
     uvm_reg_map m_map;
     uvm_reg_block m_root;
     protected {{ class_prefix }}csv_row m_dump_rows[$];
+    protected {{ class_prefix }}ral_tools m_tools;
 
     function new(string name="{{ class_prefix }}reg_monitor_cb");
         super.new(name);
+        m_tools = new;
     endfunction
 
-    // 绑定监控口、可选写出路径、默认 map、寄存器根块。
-    function void configure(
+    // 绑定 analysis port、写出路径、默认 map 与 RAL 根块。
+    // ap — 输出回调产生的 TLM 事务
+    // dump_p — 非空则在仿真末写出累积写访问 CSV
+    // map — 默认寄存器 map
+    // root — RAL 根块
+    extern function void configure(
         uvm_analysis_port #(uvm_tlm_generic_payload) ap,
         input string dump_p,
         input uvm_reg_map map,
         input uvm_reg_block root
     );
-        mon_ap = ap;
-        dump_path = dump_p;
-        m_map = map;
-        m_root = root;
-    endfunction
 
-    function void clear_dump_rows();
-        m_dump_rows.delete();
-    endfunction
+    // 清空待写出的写访问记录队列。
+    extern function void clear_dump_rows();
 
-    function bit flush_dump_csv(string path);
-        if (!path.len())
-            return 1;
-        return {{ class_prefix }}write_reg_csv_file(path, m_dump_rows);
-    endfunction
+    // 将队列内容写到 path；path 为空视为成功且不写文件。
+    // path — 输出 CSV 路径
+    extern function bit flush_dump_csv(string path);
 
-    virtual task post_write(uvm_reg_item rw);
-        uvm_tlm_generic_payload p;
-        uvm_reg rg;
-        uvm_reg_data_t val;
-        bit [7:0] le[$];
-        string pth;
-        string vt;
+    // 写访问回调：广播 TLM；若配置了 dump_path 则缓存一行 CSV。
+    // rw — RAL 传入的写事务项
+    extern virtual task post_write(uvm_reg_item rw);
 
-        if (mon_ap == null || m_root == null || m_map == null)
-            return;
-        if (!{{ class_prefix }}reg_item_to_tlm(m_root, m_map, rw, 1, p))
-            return;
-        mon_ap.write(p);
+    // 读访问回调：广播 TLM。
+    // rw — RAL 传入的读事务项
+    extern virtual task post_read(uvm_reg_item rw);
 
-        if (!dump_path.len())
-            return;
-        if (!$cast(rg, rw.element))
-            return;
-        if (!{{ class_prefix }}reg_item_pack_value(rg, rw, val))
-            return;
-        {{ class_prefix }}uvm_reg_data_to_le(val, rg.get_n_bits(), le);
-        pth = {{ class_prefix }}reg_path_under_root(m_root, rg);
-        if (!pth.len())
-            pth = rg.get_name();
-        vt = {{ class_prefix }}format_le_bytes_as_csv_value(le, rg.get_n_bits());
-        push_dump_row(pth, vt);
-    endtask
-
-    virtual task post_read(uvm_reg_item rw);
-        uvm_tlm_generic_payload p;
-
-        if (mon_ap == null || m_root == null || m_map == null)
-            return;
-        if (!{{ class_prefix }}reg_item_to_tlm(m_root, m_map, rw, 0, p))
-            return;
-        mon_ap.write(p);
-    endtask
-
+    // 向内部队列追加一行「路径,值」文本。
+    // path — 寄存器点分路径
+    // value_text — 值列格式化字符串
     extern function void push_dump_row(string path, string value_text);
 endclass
+
+function void {{ class_prefix }}reg_monitor_cb::configure(
+    uvm_analysis_port #(uvm_tlm_generic_payload) ap,
+    input string dump_p,
+    input uvm_reg_map map,
+    input uvm_reg_block root
+);
+    mon_ap = ap;
+    dump_path = dump_p;
+    m_map = map;
+    m_root = root;
+endfunction
+
+function void {{ class_prefix }}reg_monitor_cb::clear_dump_rows();
+    m_dump_rows.delete();
+endfunction
+
+function bit {{ class_prefix }}reg_monitor_cb::flush_dump_csv(string path);
+    if (!path.len())
+        return 1;
+    return {{ class_prefix }}write_reg_csv_file(path, m_dump_rows);
+endfunction
+
+task {{ class_prefix }}reg_monitor_cb::post_write(uvm_reg_item rw);
+    uvm_tlm_generic_payload p;
+    uvm_reg rg;
+    uvm_reg_data_t val;
+    bit [7:0] le[$];
+    string pth;
+    string vt;
+
+    if (mon_ap == null || m_root == null || m_map == null)
+        return;
+    if (!m_tools.xact.reg_item_to_tlm(m_root, m_map, rw, 1, p))
+        return;
+    mon_ap.write(p);
+
+    if (!dump_path.len())
+        return;
+    if (!$cast(rg, rw.element))
+        return;
+    if (!m_tools.conv.reg_item_pack_value(rg, rw, val))
+        return;
+    m_tools.conv.uvm_reg_data_to_le(val, rg.get_n_bits(), le);
+    pth = m_tools.path.reg_path_under_root(m_root, rg);
+    if (!pth.len())
+        pth = rg.get_name();
+    vt = m_tools.conv.format_le_bytes_as_csv_value(le, rg.get_n_bits());
+    push_dump_row(pth, vt);
+endtask
+
+task {{ class_prefix }}reg_monitor_cb::post_read(uvm_reg_item rw);
+    uvm_tlm_generic_payload p;
+
+    if (mon_ap == null || m_root == null || m_map == null)
+        return;
+    if (!m_tools.xact.reg_item_to_tlm(m_root, m_map, rw, 0, p))
+        return;
+    mon_ap.write(p);
+endtask
 
 function void {{ class_prefix }}reg_monitor_cb::push_dump_row(string path, string value_text);
     {{ class_prefix }}csv_row dr;
@@ -87,25 +118,6 @@ function void {{ class_prefix }}reg_monitor_cb::push_dump_row(string path, strin
     dr.path = path;
     dr.value_text = value_text;
     m_dump_rows.push_back(dr);
-endfunction
-
-// 深度优先遍历寄存器块子树：对每个本层 uvm_reg 注册同一回调实例。
-function automatic void {{ class_prefix }}attach_reg_monitor_callbacks(uvm_reg_block blk, uvm_reg_cbs cb);
-    uvm_reg regs[$];
-    uvm_reg_block subs[$];
-    int i;
-    int j;
-
-    if (blk == null || cb == null)
-        return;
-
-    blk.get_registers(regs, UVM_NO_HIER);
-    for (i = 0; i < regs.size(); i++)
-        uvm_reg_cb::add(regs[i], cb);
-
-    blk.get_blocks(subs, UVM_NO_HIER);
-    for (j = 0; j < subs.size(); j++)
-        {{ class_prefix }}attach_reg_monitor_callbacks(subs[j], cb);
 endfunction
 
 `endif

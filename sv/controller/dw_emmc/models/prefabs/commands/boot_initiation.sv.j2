@@ -1,19 +1,20 @@
-#ifndef {{ class_prefix | upper }}BOOT_INITIATION_COMMAND_REQUEST
-#define {{ class_prefix | upper }}BOOT_INITIATION_COMMAND_REQUEST
+`ifndef {{ class_prefix | upper }}BOOT_INITIATION_COMMAND_REQUEST
+`define {{ class_prefix | upper }}BOOT_INITIATION_COMMAND_REQUEST
 
-// 发送CMD0，初始化启动选项
+
+// 发送CMD0启动初始化附加选项
 class {{ class_prefix }}boot_initiation_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils({{ class_prefix }}boot_initiation_command_request)
+  `uvm_object_utils({{ class_prefix }}boot_initiation_command_request)
 
-    function new(string name="{{ class_prefix }}boot_initiation_command_request");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}boot_initiation_command_request");
+    super.new(name);
+  endfunction
 
-    constraint cst_prefab {
-        cmd_index == 0;
-        argument == 'hffff_fffa;
-        resp == NR;
-    }
+  constraint cst_prefab {
+    cmd_index == 0;
+    argument == 'hffff_fffa;
+    resp == NR;
+  }
 endclass
 
 `endif

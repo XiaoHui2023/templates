@@ -1,25 +1,25 @@
 `ifndef {{ class_prefix | upper }}TUNE_SEQ
 `define {{ class_prefix | upper }}TUNE_SEQ
 
-// 调谐(CMD21)，需要先设置总线位宽，选中卡并切换时钟频率
+// 调试 [CMD21], 需要先设置采样位置、速率，并切换到时钟频率
 class {{ class_prefix }}tune_seq extends {{ class_prefix }}base_seq;
-    `uvm_object_utils({{ class_prefix }}tune_seq)
-    uvm_field_int(phase, UVM_ALL_ON)
+  `uvm_object_utils_begin({{ class_prefix }}tune_seq)
+    `uvm_field_int(phase, UVM_ALL_ON)
+  `uvm_object_utils_end
 
-    rand bit[7:0] phase; // 相位
+  rand bit[7:0] phase; // 相位
 
-    function new(string name="{{ class_prefix }}tune_seq");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}tune_seq");
+    super.new(name);
+  endfunction
 
-    {{ class_prefix }}send_tuning_block_command_seq send_tuning_block_seq; // CMD8
+  {{ class_prefix }}send_tuning_block_command_seq send_tuning_block_seq; // CMD8
 
-    task body();
-        uvm_do_with(send_tuning_block_seq, {
-            cmd_req.phase == local::phase;
-            cmd_req.block_count == 1;
-        })
-    endtask
+  task body();
+    `uvm_do_with(send_tuning_block_seq, {
+      cmd_req.phase == local::phase;
+      cmd_req.block_count == 1;
+    })
+  endtask
 endclass
-
 `endif

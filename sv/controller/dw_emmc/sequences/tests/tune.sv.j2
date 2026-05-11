@@ -1,46 +1,46 @@
-`ifndef {{ class_prefix | upper }}TUNE_TEST_SEQ
-`define {{ class_prefix | upper }}TUNE_TEST_SEQ
+`ifndef {{ class_prefix }}TUNE_TEST_SEQ
+`define {{ class_prefix }}TUNE_TEST_SEQ
 
-// 调谐
+// 调试
 class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}default_seq;
-    `uvm_object_utils_begin({{ class_prefix }}tune_test_seq)
-        uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-        uvm_field_int(data_width, UVM_ALL_ON)
-    `uvm_object_utils_end
+  `uvm_object_utils_begin({{ class_prefix }}tune_test_seq)
+    `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+    `uvm_field_int(data_width, UVM_ALL_ON)
+  `uvm_object_utils_end
 
-    rand int data_width; // 数据位宽
-    rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
+  rand int data_width; // 数据带宽
+  rand bus_speed_mode_e bus_speed_mode; // 总线速率模式
 
-    function new(string name = "{{ class_prefix }}tune_test_seq");
-        super.new(name);
-    endfunction
+  function new(string name = "{{ class_prefix }}tune_test_seq");
+    super.new(name);
+  endfunction
 
-    {{ class_prefix }}initial_seq initial_seq; // 初始化
-    {{ class_prefix }}switch_bus_seq switch_bus_seq; // 切换总线位宽和速度
-    {{ class_prefix }}tune_seq tune_seq; // 调谐
+  {{ class_prefix }}initial_seq initial_seq; // 初始化
+  {{ class_prefix }}switch_bus_seq switch_bus_seq; // 切换总线带宽和速度
+  {{ class_prefix }}tune_seq tune_seq; // 调试
 
-    constraint cst_test {
-        soft bus_speed_mode == sys_cfg.boot_cfg.default_bus_speed_mode;
-        soft data_width == sys_cfg.boot_cfg.default_data_width;
+  constraint cst_test {
+    soft bus_speed_mode == sys_cfg.boot_cfg.default_bus_speed_mode;
+    soft data_width == sys_cfg.boot_cfg.default_data_width;
 
-        sys_cfg.boot_cfg.voltage == V1_8;
-    }
+    sys_cfg.boot_cfg.voltage == V1_8;
+  }
 
-    task body();
-        if(!ctx.has_initialized)
-            `uvm_do(initial_seq)
+  task body();
+    if(!ctx.has_initialized)
+      `uvm_do(initial_seq)
 
-        // 切换总线模式
-        `uvm_do_with(switch_bus_seq, {
-            bus_speed_mode == local::bus_speed_mode;
-            data_width == local::data_width;
-        })
+    // 切换总线模式
+    `uvm_do_with(switch_bus_seq, {
+      bus_speed_mode == local::bus_speed_mode;
+      data_width == local::data_width;
+    })
 
-        for(int phase=0; phase<16; phase++)
-            `uvm_do_with(tune_seq, {
-                phase == local::phase;
-            })
-    endtask
+    for(int phase=0; phase<16; phase++)
+      `uvm_do_with(tune_seq, {
+        phase == local::phase;
+      })
+  endtask
 endclass
 
 `endif

@@ -1,10 +1,10 @@
-#ifndef {{ class_prefix | upper }}SEND_CID_COMMAND_REQUEST
-#define {{ class_prefix | upper }}SEND_CID_COMMAND_REQUEST
+`ifndef {{ class_prefix | upper }}SEND_CID_COMMAND_REQUEST
+`define {{ class_prefix | upper }}SEND_CID_COMMAND_REQUEST
 
 // 发送CMD10，要求相对地址的设备发送它的 CID
 class {{ class_prefix }}send_cid_command_request extends {{ class_prefix }}command_request;
     `uvm_object_utils_begin({{ class_prefix }}send_cid_command_request)
-        `uvm_field_int(rca,UVM_ALL_ON)
+        `uvm_field_int(rca, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand bit[15:0] rca; // 相对地址

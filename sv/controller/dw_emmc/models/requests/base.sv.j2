@@ -1,33 +1,33 @@
-`ifndef {{ class_prefix | upper }}BASE_REQUEST
-`define {{ class_prefix | upper }}BASE_REQUEST
+`ifndef {{ (class_prefix | upper) }}BASE_REQUEST
+`define {{ (class_prefix | upper) }}BASE_REQUEST
 
 class {{ class_prefix }}base_request extends {{ class_prefix }}base_item;
-    uvm_object_utils_begin({{ class_prefix }}base_request)
-        `uvm_field_int(randomize_lock,UVM_ALL_ON|UVM_NOPRINT)
-    uvm_object_utils_end
-    uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+  `uvm_object_utils_begin({{ class_prefix }}base_request)
+    `uvm_field_int(randomize_lock, UVM_ALL_ON|UVM_NOPRINT)
+  `uvm_object_utils_end
+  `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    {{ class_prefix }}system_configuration sys_cfg;
-    {{ class_prefix }}context ctx;
-    local rand bit randomize_lock; // 随机锁，保证只随机一次
+  {{ class_prefix }}system_configuration sys_cfg;
+  {{ class_prefix }}context ctx;
+  local rand bit randomize_lock; // 随机锁，保证只随机一次
 
-    constraint cst_base_request {
-        randomize_lock == 1;
-    }
+  constraint cst_base_request {
+    randomize_lock == 1;
+  }
 
-    function new(string name="{{ class_prefix }}base_request");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}base_request");
+    super.new(name);
+  endfunction
 
-    extern function void pre_randomize();
+  extern function void pre_randomize();
 endclass
 
 function void {{ class_prefix }}base_request::pre_randomize();
-    super.pre_randomize();
+  super.pre_randomize();
 
-    $cast(sys_cfg,p_sequencer.sys_cfg);
-    $cast(ctx,p_sequencer.ctx);
-    rand_mode(!randomize_lock);
+  $cast(sys_cfg, p_sequencer.sys_cfg);
+  $cast(ctx, p_sequencer.ctx);
+  rand_mode(!randomize_lock);
 endfunction
 
 `endif

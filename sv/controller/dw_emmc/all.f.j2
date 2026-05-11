@@ -34,36 +34,42 @@ models/responses/base.sv
 models/responses/command.sv
 models/responses/check_error.sv
 models/prefabs/commands/all_send_cid.sv
-
-models/prefabs/commands/app_cmd.sv                                    {%- if is_sd %}
-models/prefabs/commands/send_if_cond.sv                               {%- endif %}
-models/prefabs/commands/send_relative_addr.sv                         {%- if is_emmc %}
-models/prefabs/commands/voltage_switch.sv                             {%- endif %}
+                                        {%- if is_sd %}
+models/prefabs/commands/app_cmd.sv
+models/prefabs/commands/send_if_cond.sv
+models/prefabs/commands/send_relative_addr.sv
+models/prefabs/commands/voltage_switch.sv
 models/prefabs/acmds/base.sv
-models/prefabs/acmds/send_op_cond.sv                                  {%- endif %}
+models/prefabs/acmds/sd_send_op_cond.sv
 models/prefabs/acmds/send_scr.sv
 models/prefabs/acmds/set_bus_width.sv
-
-models/prefabs/commands/boot_initiation.sv                            {%- if is_emmc %}
+                                        {%- endif %}
+                                        {%- if is_emmc %}
+models/prefabs/commands/boot_initiation.sv
 models/prefabs/commands/go_pre_idle_state.sv
 models/prefabs/commands/send_ext_csd.sv
 models/prefabs/commands/set_relative_addr.sv
-models/prefabs/commands/switch/base.sv                                {%- endif %}
+models/prefabs/commands/switch/base.sv
 models/prefabs/commands/switch/bus_width.sv
 models/prefabs/commands/switch/hs_timing.sv
-models/prefabs/commands/switch/partition_config.sv                    {%- endif %}
-
-models/prefabs/commands/io_rw_extended.sv                             {%- if is_sdio %}
+models/prefabs/commands/switch/partition_config.sv
+                                        {%- endif %}
+                                        {%- if is_sdio %}
+models/prefabs/commands/io_rw_extended.sv
 models/prefabs/commands/io_send_op_cond.sv
 models/prefabs/commands/io_rw_direct/base.sv
 models/prefabs/commands/io_rw_direct/bus_interface_control.sv
 models/prefabs/commands/io_rw_direct/bus_speed_select.sv
-models/prefabs/commands/io_rw_direct/func_block_size.sv
+models/prefabs/commands/io_rw_direct/fn0_block_size.sv
 models/prefabs/commands/io_rw_direct/io_abort.sv
-models/prefabs/commands/io_rw_direct/io_enable.sv                     {%- endif %}
-models/prefabs/commands/switch_func.sv                                {%- if is_sdcard %}
-models/prefabs/commands/go_idle_state.sv                              {%- endif %}
+models/prefabs/commands/io_rw_direct/io_enable.sv
+                                        {%- endif %}
+                                        {%- if is_sdcard %}
+models/prefabs/commands/switch_func.sv
+                                        {%- endif %}
+models/prefabs/commands/go_idle_state.sv
 models/prefabs/commands/go_inactive_state.sv
+models/prefabs/commands/go_irq_state.sv
 models/prefabs/commands/read_multiple_block.sv
 models/prefabs/commands/select_card.sv
 models/prefabs/commands/read_single_block.sv
@@ -75,7 +81,8 @@ models/prefabs/commands/send_tuning_block.sv
 models/prefabs/commands/set_block_count.sv
 models/prefabs/commands/set_blocklen.sv
 models/prefabs/commands/set_dsr.sv
-models/prefabs/commands/stop_trans.sv
+models/prefabs/commands/sleep_awake.sv
+models/prefabs/commands/stop_transmission.sv
 models/prefabs/commands/write_block.sv
 models/prefabs/commands/write_multiple_block.sv
 
@@ -88,7 +95,7 @@ sequences/tests/assert_connection.sv
 sequences/dependencies/base.sv
 sequences/dependencies/frequence_set.sv
 sequences/dependencies/cpu_config.sv
-sequences/dependencies/card_memory_set.sv
+sequences/dependencies/card_memory_get.sv
 sequences/requests/base.sv
 sequences/requests/check_error.sv
 sequences/requests/wait_interrupt.sv
@@ -97,28 +104,36 @@ sequences/requests/reset.sv
 sequences/requests/access.sv
 sequences/requests/command.sv
 sequences/requests/power_up.sv
-sequences/prefabs/commands.sv                                         {%- if is_sd %}
-sequences/prefabs/acmds.sv                                            {%- endif %}
-
-sequences/prefabs/io_rw_direct/fnb_block_size.sv                      {%- if is_sdio %}
-sequences/prefabs/xfer/base.sv                                        {%- endif %}
+sequences/prefabs/commands.sv
+                                        {%- if is_sd %}
+sequences/prefabs/acmds.sv
+                                        {%- endif %}
+                                        {%- if is_sdio %}
+sequences/prefabs/io_rw_direct/fn0_block_size.sv
+                                        {%- endif %}
+sequences/prefabs/xfer/base.sv
 sequences/prefabs/xfer/read.sv
 sequences/prefabs/xfer/write.sv
-sequences/prefabs/voltage_switch.sv                                   {%- if is_sd %}
-sequences/prefabs/send_ext_csd.sv                                     {%- endif %}
+                                        {%- if is_sd %}
+sequences/prefabs/voltage_switch.sv
+                                        {%- endif %}
+                                        {%- if is_sd %}
 sequences/prefabs/switch_bus.sv
-sequences/prefabs/send_ext_csd.sv                                     {%- if is_emmc %}
-sequences/prefabs/initial.sv                                          {%- endif %}
+                                        {%- if is_emmc %}
+sequences/prefabs/send_ext_csd.sv
+                                        {%- endif %}
+                                        {%- endif %}
+sequences/prefabs/initial.sv
 sequences/prefabs/tune.sv
 
 sequences/tests/compare_card_memory.sv
 sequences/tests/rw.sv
-sequences/tests/sdmmc.sv
+sequences/tests/dma.sv
 sequences/tests/tune.sv
 sequences/tests/speed_mode.sv
 sequences/tests/sram.sv
-sequences/tests/power_up.sv                                          {%- if is_emmc or is_sdcard %}
+sequences/tests/power_up.sv
+                                        {%- if is_emmc or is_sdcard %}
 sequences/tests/reg.sv
-                                                                    {%- endif %}
-
+                                        {%- endif %}
 components/agent.sv

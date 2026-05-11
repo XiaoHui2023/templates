@@ -1,0 +1,237 @@
+`ifndef {{ class_prefix | upper }}XFER_BASE_SEQ
+`define {{ class_prefix | upper }}XFER_BASE_SEQ
+
+class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
+  `uvm_object_utils_begin({{ class_prefix }}xfer_base_seq)
+    `uvm_field_int(addr,UVM_ALL_ON)
+    `uvm_field_int(count,UVM_ALL_ON)
+    `uvm_field_int(size,UVM_ALL_ON)
+    `uvm_field_int(len,UVM_ALL_ON)
+    `uvm_field_int(dma_enable,UVM_ALL_ON)
+    if(dma_enable) begin
+      `uvm_field_enum(dma_sel_e,dma_sel,UVM_ALL_ON)
+      `uvm_field_object(adma_des,UVM_ALL_ON)
+    end
+        {%- if is_sdio %}
+    `uvm_field_int(function_number,UVM_ALL_ON)
+        {%- elif is_emmc or is_sdcard %}
+    `uvm_field_int(is_ddr,UVM_ALL_ON)
+        {%- endif %}
+    `uvm_field_int(abort,UVM_ALL_ON)
+    `uvm_field_enum(data_xfer_dir_e,data_xfer_dir,UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  rand bit[31:0] addr; // 地址
+  rand int count; // 读/写块
+  rand int size; // 每块读/写多少字节
+  rand int len; // 总共多少字节
+  rand bit dma_enable; // DMA使能
+  rand dma_sel_e dma_sel; // DMA种类选择
+  rand {{ class_prefix }}adma_des_data adma_des; // adma描述
+
+    {%- if is_sdio %}
+  rand int function_number; // 选择功能IO
+    {%- elif is_emmc or is_sdcard %}
+  rand bit is_ddr; // 是否双边工作模式
+    {%- endif %}
+
+  rand bit abort; // 是否ABORT模式
+  rand data_xfer_dir_e data_xfer_dir; // 读写类型
+
+  function new(string name="{{ class_prefix }}xfer_base_seq");
+    super.new(name);
+  endfunction
+
+  {{ class_prefix }}cpu_config_dependency_seq cpu_cfg_seq;
+
+    {%- if is_sdio %}
+  {{ class_prefix }}io_rw_extended_command_seq io_rw_extended_seq;
+    {%- endif %}
+
+  constraint cst_xfer_base_prefab {
+    len == count * size;
+
+        {%- if is_sdio %}
+    addr inside {[0:32'h1_A000]};
+    addr[1:0] == 0;
+    function_number inside {[1:7]};
+    soft function_number == 1;
+    if(abort) {
+      count > 1;
+    }
+        {%- elif is_emmc %}
+    (ctx.bus_speed_mode_cur inside {HIGH_SPEED_DDR, HS400}) -> is_ddr;
+    (is_ddr) -> size == 512;
+        {%- elif is_sdcard %}
+    is_ddr == 0;
+        {%- endif %}
+
+    soft abort == 0;
+    soft dma_enable == 0;
+    soft addr == 0;
+
+    if(dma_enable) {
+      (longint'(adma_des.cmd_addr) >= adma_des.real_addr + len) || (longint'(adma_des.real_addr) >= adma_des.cmd_addr + adma_des.sizeof); // 命令和数据不重叠
+      adma_des.real_addr == addr;
+    }
+        {%- if is_sd %}
+    // SDSC不支持设置块数
+    (sys_cfg.boot_cfg.sd_capacity_type == SDSC) -> count == 1;
+        {%- endif %}
+  }
+
+  extern function void pre_randomize();
+  extern task body();
+
+  // 写adma的描述数据
+  extern virtual task write_adma_des();
+
+    {%- if is_emmc or is_sdcard %}
+  // 设置块个数
+  extern virtual task set_block_count();
+    {%- endif %}
+
+  // 设置块长度
+  extern virtual task set_block_length();
+
+  // 发送命令
+  extern virtual task execute_command();
+
+  // 停止
+  extern virtual task do_abort();
+
+    {%- if is_sdio %}
+  extern virtual task execute_sdio(bit[7:0] wdata[$]={});
+    {%- endif %}
+
+endclass
+
+function void {{ class_prefix }}xfer_base_seq::pre_randomize();
+  super.pre_randomize();
+
+  `uvm_create(adma_des)
+endfunction
+
+task {{ class_prefix }}xfer_base_seq::body();
+  write_adma_des();
+  set_block_length();
+    {%- if is_emmc or is_sdcard %}
+  set_block_count();
+    {%- endif %}
+  execute_command();
+  do_abort();
+endtask
+
+task {{ class_prefix }}xfer_base_seq::write_adma_des();
+  bit[7:0] d[$];
+
+  if(!dma_enable)
+    return;
+
+  if(!(dma_sel inside {ADMA2,ADMA2_3}))
+    return;
+
+  // unpack
+  d = adma_des.unpack();
+
+  if(d.size % 4 != 0)
+    `uvm_fatal("","")
+
+  `uvm_info("",$psprintf("write adma des:%s\nunpack data=%p",adma_des.sprint(),d),UVM_LOW)
+
+  `uvm_do_with(cpu_cfg_seq, {
+    addr == local::adma_des.cmd_addr;
+    wdata.size == local::d.size;
+    foreach(d[j])
+      wdata[j] == local::d[j];
+    len == local::d.size;
+    path == UVM_BACKDOOR;
+    access == UVM_WRITE;
+  })
+endtask
+
+task {{ class_prefix }}xfer_base_seq::execute_command();
+  `uvm_fatal("", "NotImplemented")
+endtask
+
+    {%- if is_sdio %}
+task {{ class_prefix }}xfer_base_seq::execute_sdio(bit[7:0] wdata[$]);
+  `uvm_do_with(io_rw_extended_seq, {
+    (local::data_xfer_dir == XFER_READ) -> (cmd_req.rw_flag == cmd_req.RW_FLAG_READ);
+    (local::data_xfer_dir == XFER_WRITE) -> (cmd_req.rw_flag == cmd_req.RW_FLAG_WRITE);
+    cmd_req.function_number == local::function_number;
+    cmd_req.block_mode == (local::count > 1 ? cmd_req.BLOCK : cmd_req.BYTE);
+    cmd_req.op_code == cmd_req.INCREMENTING;
+    cmd_req.register_address == local::addr;
+    if(cmd_req.block_mode == cmd_req.BLOCK) {
+      if(local::abort)
+        cmd_req.count == 0;
+      else
+        cmd_req.count == local::count;
+    }
+    else {
+      cmd_req.count == local::size;
+    }
+    cmd_req.block_size == local::size;
+    cmd_req.block_count == local::count;
+    cmd_req.addr == local::addr;
+    cmd_req.dma_enable == local::dma_enable;
+    cmd_req.dma_sel == local::dma_sel;
+
+    cmd_req.wdata.size == local::wdata.size;
+    foreach(wdata[j])
+      cmd_req.wdata[j] == local::wdata[j];
+  })
+endtask
+    {%- endif %}
+
+task {{ class_prefix }}xfer_base_seq::do_abort();
+    {%- if is_sdio %}
+  {{ class_prefix }}io_rw_direct_io_abort_command_seq io_abort_seq;
+
+  if(!abort)
+    return;
+
+  `uvm_do_with(io_abort_seq, {
+    cmd_req.as == local::function_number;
+  })
+    {%- elif is_emmc or is_sdcard %}
+    {%- endif %}
+endtask
+
+task {{ class_prefix }}xfer_base_seq::set_block_length();
+    {%- if is_sdio %}
+  {{ class_prefix }}io_rw_direct_fn0_block_size_seq fn0_block_size_seq;
+
+  // 单块不设置
+  if(count == 1)
+    return;
+
+  `uvm_do_with(fn0_block_size_seq, {
+    function_number == local::function_number;
+    block_length == local::size;
+  })
+    {%- elif is_emmc or is_sdcard %}
+  {{ class_prefix }}set_blocklen_command_seq set_blocklen_seq;
+
+  // 双工传输时不设置块长度
+  if(is_ddr)
+    return;
+
+  `uvm_do_with(set_blocklen_seq, {
+    cmd_req.block_length == local::size;
+  })
+    {%- endif %}
+endtask
+
+    {%- if is_emmc or is_sdcard %}
+task {{ class_prefix }}xfer_base_seq::set_block_count();
+  {{ class_prefix }}set_block_count_command_seq set_block_count_seq;
+
+  `uvm_do_with(set_block_count_seq, {
+    cmd_req.number_of_blocks == local::count;
+  })
+endtask
+    {%- endif %}
+
+`endif

@@ -1,69 +1,71 @@
-`ifndef {{ class_prefix | upper }}LOAD_MEMORY_FILE
-`define {{ class_prefix | upper }}LOAD_MEMORY_FILE
+`ifndef {{ class_prefix | upper }}_LOAD_MEMORY_FILE
+`define {{ class_prefix | upper }}_LOAD_MEMORY_FILE
 
-// 加载HEX文件
-//
-// filename : 文件名
-// data[$]  : 输出数据
-// dw : 数据位宽，默认等于最终的一行的长度
-// start_addr : 数据起始地址，默认0
-// len : 长度(byte)，默认全部
+/*
+ * 加载MEM文件
+ *
+ * filename : 文件名
+ * data[$] : 输出数据
+ * dw : 数据位宽，默认等于最长的一行的位宽
+ * start_addr : 起始地址，默认0
+ * len : 长度(Byte)，默认全部
+ */
 function automatic void {{ class_prefix }}load_memory_file(input string filename,output bit[7:0] data[$],input int dw=-1,input bit[31:0] start_addr=0,input int len=-1);
-    svt_mem mem;
-    bit[31:0] end_addr;
-    int width;
-    int dw_auto;
+  svt_mem mem;
+  bit[31:0] end_addr;
+  int width;
+  int dw_auto;
 
-    // 全部加载
-    if(len < 0) begin
-        int fh;
-        string s;
-        int n;
+  // 全部长度
+  if(len <= 0) begin
+    int fh;
+    string s;
+    int n;
 
-        fh = $fopen(filename,"r");
-        if(!fh)
-            `uvm_fatal("",$spsrintf("Not found `%s`",filename))
+    fh = $fopen(filename,"r");
+    if(!fh)
+      `uvm_fatal("",$sformatf("Not found %s",filename))
 
-        while(!$feof(fh))begin
-            $fgets(s,fh);
-            if(s.len)
-                n++;
-            dw_auto = $max(dw_auto,(s.len-1)*4);
-        end
-        $fclose(fh);
-
-        len = n;
+    while(!$feof(fh))begin
+      $fgets(s,fh);
+      if(s.len)
+        n++;
+      dw_auto = $max(dw_auto,(s.len-1)*4);
     end
+    $fclose(fh);
 
-    if(dw == -1)
-        dw = dw_auto;
-    else if(dw % 8 > 0)
-        `uvm_fatal("",$spsrintf("require data width align to byte,but dw=%0d",dw))
+    len = n;
+  end
 
-    // init
-    width = SVT_MEM_MAX_DATA_WIDTH / 8;
-    end_addr = start_addr + (len-1)*width;
+  if(dw == -1)
+    dw = dw_auto;
+  else if(dw % 8 > 0)
+    `uvm_fatal("",$sformatf("require data width align to byte,but dw=%0d",dw))
 
-    // new
-    mem = new(.data_width(SVT_MEM_MAX_DATA_WIDTH));
+  // init
+  width = `SVT_MEM_MAX_DATA_WIDTH / 8;
+  end_addr = start_addr + (len-1)*width;
 
-    // load
-    if(!mem.load_mem(filename,.start_addr(start_addr),.end_addr(end_addr)))
-        `uvm_fatal("","")
+  // new
+  mem = new(.data_width(`SVT_MEM_MAX_DATA_WIDTH));
 
-    for(int j=0;j<len;j++) begin
-        bit[31:0] adr;
-        bit[SVT_MEM_MAX_DATA_WIDTH-1:0] rdata;
-        bit[7:0] dat[$];
+  // load
+  if(!mem.load_mem(filename,,start_addr(start_addr),,end_addr(end_addr)))
+    `uvm_fatal("","")
 
-        adr = start_addr+j*width;
-        rdata = mem.read(adr);
+  for(int j=0;j<len;j++) begin
+    bit[31:0] adr;
+    bit[`SVT_MEM_MAX_DATA_WIDTH-1:0] rdat;
+    bit[7:0] dat[$];
 
-        dat = { {<<8{rdata[SVT_MEM_MAX_DATA_WIDTH-1:0]}} };
-        dat = dat[0+:(dw/8)];
+    adr = start_addr+j*width;
+    rdat = mem.read(adr);
 
-        data = {data,dat};
-    end
+    dat = { << 8 {rdat[`SVT_MEM_MAX_DATA_WIDTH-1:0]} };
+    dat = dat[0:dw/8-1];
+
+    data = {data,dat};
+  end
 endfunction
 
 `endif

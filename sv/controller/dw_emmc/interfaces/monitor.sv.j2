@@ -1,38 +1,40 @@
-`ifndef {{ class_prefix | upper }}MONITOR_INTERFACE
-`define {{ class_prefix | upper }}MONITOR_INTERFACE
+`ifndef {{ (class_prefix | upper) }}MONITOR_INTERFACE
+`define {{ (class_prefix | upper) }}MONITOR_INTERFACE
 
 interface {{ class_prefix }}monitor_interface(
-{% for clk in monitored_clocks %}
-    input wire {{ clk.name }}{{ "," if not loop.last }}
-{% endfor %}
+    {%- for clk in monitored_clocks %}
+    input wire {{ clk.name }}{{ ',' if not loop.last }}
+    {%- endfor %}
 );
 
 timeunit 1fs;
 timeprecision 1fs;
 
-{% for clk in monitored_clocks %}
-{{ class_prefix }}sample_interface sample_{{ clk.name }}_if({{ clk.name }});
+{%- for clk in monitored_clocks %}
+{{ class_prefix }}sample_interface #(.DW(1)) sample_{{ clk.name }}_if(.w({{ clk.name }}));
+{%- endfor %}
 
+{%- for clk in monitored_clocks %}
 // 检查 {{ clk.name }} 时钟频率
-task automatic check_clock_{{ clk.name }}_frequence(input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
-    if($isunknown({{ clk.name }})) begin
-        `uvm_fatal("", "require connect {{ clk.name }} clock signal to monitor_if")
-    end
+task automatic check_{{ clk.name }}_frequence(input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
+    if($isunknown({{ clk.name }}))
+        `uvm_fatal("", "require connect {{ clk.name }} Clock signal to monitor_if")
     sample_{{ clk.name }}_if.enable(1);
     check_clock_frequence(sample_{{ clk.name }}_if.r,freq,is_pass,is_timeout,measure_result,tol);
     sample_{{ clk.name }}_if.enable(0);
 endtask
+{%- endfor %}
 
-{% endfor %}
-
-// 检查时钟频率（非变频点采样稳定）
-//
-// clk : reg类型时钟信号
-// freq : 要求的时钟频率
-// is_pass : 检查结果是否通过
-// is_timeout : 检查是否超时
-// measure_result : 当前时间窗口测量结果
-// tol : 允许误差(0~100)
+/*
+ * 检查时钟频率 (需要开启频率采样使能)
+ *
+ * clk : reg类型时钟信号
+ * freq : 要求的时钟频率(Hz)
+ * is_pass : 输出结果是否成功
+ * is_timeout : 输出是否超时
+ * measure_result : 测出测量频率(Hz), 如果结果无效
+ * tol : 允许误差 [0%-100%]
+ */
 task automatic check_clock_frequence(ref reg clk,input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
     longint freq_min;
     longint freq_max;
@@ -40,14 +42,14 @@ task automatic check_clock_frequence(ref reg clk,input longint freq,output bit i
     longint timeout;
 
     if(tol < 0 || tol > 1)
-        `uvm_fatal("",$spsrintf("invalid tol=%0f",tol))
+        `uvm_fatal("",$sformatf("Invalid tol=%0f",tol))
     if(freq <= 0)
-        `uvm_fatal("",$spsrintf("invalid freq=%0d",freq))
+        `uvm_fatal("",$sformatf("Invalid freq=%0d",freq))
 
     freq_tol = tol * freq;
     freq_min = freq - freq_tol;
     freq_max = freq + freq_tol;
-    timeout = 1e15 / freq_min + 1 * 100;
+    timeout = (1e15 / freq_min + 1) * 100;
 
     fork begin
         fork
@@ -64,10 +66,10 @@ task automatic check_clock_frequence(ref reg clk,input longint freq,output bit i
                 start_time = $realtime;
                 @(clk);
                 end_time = $realtime;
-                period = end_time - start_time * 2;
+                period = (end_time - start_time) * 2;
                 measure_result = 1e15 / period;
             end
-        join any
+        join_any
         disable fork;
     end join
 

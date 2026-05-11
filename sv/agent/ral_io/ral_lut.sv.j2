@@ -3,78 +3,82 @@
 
 // 寄存器块树遍历与「地址+字节宽 → 相对路径」表构建。
 class {{ class_prefix }}ral_lut;
-    static function automatic void walk_register_map(
+    // 深度优先登记本层寄存器地址键，再递归子块。
+    // blk — 当前遍历块
+    // map — 参与地址计算的默认 map
+    // rel_prefix — 相对路径前缀（递归累加）
+    // lut — 输出 addr_hit 关联表（就地写入）
+    extern function void walk_register_map(
         uvm_reg_block blk,
         uvm_reg_map map,
-        string rel_prefix,
+        input string rel_prefix,
         ref {{ class_prefix }}addr_hit lut[string]
     );
-        uvm_reg regs[$];
-        uvm_reg_block subs[$];
-        uvm_reg rg;
-        uvm_reg_addr_t ra;
-        int nb;
-        string key;
-        string pth;
-        {{ class_prefix }}addr_hit hit;
-
-        blk.get_registers(regs, UVM_NO_HIER);
-        foreach (regs[i]) begin
-            rg = regs[i];
-            ra = rg.get_address(map);
-            nb = (rg.get_n_bits() + 7) / 8;
-            key = $sformatf("%016h_%0d", ra, nb);
-            if (rel_prefix.len())
-                pth = {rel_prefix, ".", rg.get_name()};
-            else
-                pth = rg.get_name();
-            hit = new;
-            hit.path = pth;
-            hit.n_bytes = nb;
-            if (lut.exists(key) && lut[key].path != hit.path)
-                `uvm_warning("REG_IO_RAL", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
-            lut[key] = hit;
-        end
-
-        blk.get_blocks(subs, UVM_NO_HIER);
-        foreach (subs[j]) begin
-            string np;
-            if (rel_prefix.len())
-                np = {rel_prefix, ".", subs[j].get_name()};
-            else
-                np = subs[j].get_name();
-            walk_register_map(subs[j], map, np, lut);
-        end
-    endfunction
-
-    static function automatic bit build_reg_addr_lut(
+    // 清空 lut 后从 root 填表；root 或 map 无效返回 0。
+    // root — RAL 根块
+    // map — 默认 map
+    // lut — 输出 LUT（先 delete）
+    extern function bit build_reg_addr_lut(
         uvm_reg_block root,
         uvm_reg_map map,
         ref {{ class_prefix }}addr_hit lut[string]
     );
-        lut.delete();
-        if (root == null || map == null)
-            return 0;
-        walk_register_map(root, map, "", lut);
-        return 1;
-    endfunction
 endclass
 
-function automatic void {{ class_prefix }}walk_register_map(
+function void {{ class_prefix }}ral_lut::walk_register_map(
     uvm_reg_block blk,
     uvm_reg_map map,
-    string rel_prefix,
+    input string rel_prefix,
     ref {{ class_prefix }}addr_hit lut[string]
 );
-    {{ class_prefix }}ral_lut::walk_register_map(blk, map, rel_prefix, lut);
+    uvm_reg regs[$];
+    uvm_reg_block subs[$];
+    uvm_reg rg;
+    uvm_reg_addr_t ra;
+    int nb;
+    string key;
+    string pth;
+    {{ class_prefix }}addr_hit hit;
+
+    blk.get_registers(regs, UVM_NO_HIER);
+    foreach (regs[i]) begin
+        rg = regs[i];
+        ra = rg.get_address(map);
+        nb = (rg.get_n_bits() + 7) / 8;
+        key = $sformatf("%016h_%0d", ra, nb);
+        if (rel_prefix.len())
+            pth = {rel_prefix, ".", rg.get_name()};
+        else
+            pth = rg.get_name();
+        hit = new;
+        hit.path = pth;
+        hit.n_bytes = nb;
+        if (lut.exists(key) && lut[key].path != hit.path)
+            `uvm_warning("REG_IO_RAL", $sformatf("addr lut collision key=%s old=%s new=%s", key, lut[key].path, hit.path))
+        lut[key] = hit;
+    end
+
+    blk.get_blocks(subs, UVM_NO_HIER);
+    foreach (subs[j]) begin
+        string np;
+        if (rel_prefix.len())
+            np = {rel_prefix, ".", subs[j].get_name()};
+        else
+            np = subs[j].get_name();
+        walk_register_map(subs[j], map, np, lut);
+    end
 endfunction
 
-function automatic bit {{ class_prefix }}build_reg_addr_lut(
+function bit {{ class_prefix }}ral_lut::build_reg_addr_lut(
     uvm_reg_block root,
     uvm_reg_map map,
     ref {{ class_prefix }}addr_hit lut[string]
 );
-    return {{ class_prefix }}ral_lut::build_reg_addr_lut(root, map, lut);
+    lut.delete();
+    if (root == null || map == null)
+        return 0;
+    walk_register_map(root, map, "", lut);
+    return 1;
 endfunction
 
 `endif

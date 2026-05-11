@@ -17,8 +17,11 @@ class {{ class_prefix }}agent extends uvm_agent;
         super.new(name, parent);
     endfunction
 
+    // 创建 sequencer、analysis port，挂 reg 回调与 config_db。
     extern function void build_phase(uvm_phase phase);
+    // 仿真开始时按需清空或截断写出文件。
     extern function void start_of_simulation_phase(uvm_phase phase);
+    // 将监控缓存写出 dump_file。
     extern function void final_phase(uvm_phase phase);
 endclass
 

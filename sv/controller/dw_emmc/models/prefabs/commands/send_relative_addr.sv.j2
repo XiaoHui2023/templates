@@ -1,18 +1,18 @@
-#ifndef {{ class_prefix | upper }}SEND_RELATIVE_ADDR_COMMAND_REQUEST
-#define {{ class_prefix | upper }}SEND_RELATIVE_ADDR_COMMAND_REQUEST
+`ifndef {{ class_prefix | upper }}SEND_RELATIVE_ADDR_COMMAND_REQUEST
+`define {{ class_prefix | upper }}SEND_RELATIVE_ADDR_COMMAND_REQUEST
 
-// 发送CMD3，要求所有设备发送相对地址
+// 发送CMD3, 要求所有设备发送相对地址
 class {{ class_prefix }}send_relative_addr_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils({{ class_prefix }}send_relative_addr_command_request)
+  `uvm_object_utils({{ class_prefix }}send_relative_addr_command_request)
 
-    function new(string name="{{ class_prefix }}send_relative_addr_command_request");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}send_relative_addr_command_request");
+    super.new(name);
+  endfunction
 
-    constraint cst_prefab {
-        cmd_index == 3;
-        resp == R6;
-    }
+  constraint cst_prefab {
+    cmd_index == 3;
+    resp == R6;
+  }
 endclass
 
 `endif

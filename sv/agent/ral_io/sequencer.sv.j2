@@ -7,15 +7,18 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     protected uvm_reg_block m_root;
     protected uvm_reg_map m_map;
     protected string init_file;
+    protected {{ class_prefix }}ral_tools m_tools;
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
+    // 从 config_db 取 regmodel、init_file，构造 m_tools。
     extern function void build_phase(uvm_phase phase);
+    // 若配置了 init_file 则加载 CSV 并前门写入。
     extern task main_phase(uvm_phase phase);
 
-    // load_csv — 读寄存器 CSV 并前门写入模型。
+    // 读寄存器 CSV 并前门写入模型。
     // filename — CSV 路径
     // clear_dump_first — 为 1 时先清空监控回调里待写出的写记录队列
     // ok — 全程是否成功
@@ -37,6 +40,8 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
         `uvm_fatal("REG_IO", "no default uvm_reg_map on regmodel; add a default map")
 
     void'(uvm_config_db #(string)::get(this, "", "init_file", init_file));
+
+    m_tools = new;
 endfunction
 
 task {{ class_prefix }}sequencer::main_phase(uvm_phase phase);
@@ -73,7 +78,7 @@ task {{ class_prefix }}sequencer::load_csv(
 
     foreach (rows[i]) begin
         bit row_ok;
-        {{ class_prefix }}commit_csv_row_to_reg(m_root, m_map, rows[i], row_ok);
+        m_tools.xact.commit_csv_row_to_reg(m_root, m_map, rows[i], row_ok);
         if (!row_ok)
             return;
     end

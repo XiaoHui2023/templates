@@ -4,7 +4,7 @@
 interface {{ class_prefix }}sample_interface#(
     parameter int DW=1
 )(
-    input wire [DW-1:0] v
+    input wire[DW-1:0] w
 );
 
 timeunit 1fs;
@@ -14,18 +14,18 @@ bit is_enabled;
 reg[DW-1:0] r;
 
 initial begin
-    r = {{ "'" }}0;
-    if( ^v === {DW{1'bZ}} )
-        is_enabled = 0;
+    {{ " r <= {DW{1'bz}};" }}
+    is_enabled = 0;
 end
 
 // 采样
-// wait forever begin @(v); if (v !== r) wait(is_enabled); end
-// 注意使能
+initial forever begin @(w); r <= w; wait(is_enabled); end
+
+// 设置使能
 function automatic void enable(bit en);
     is_enabled = en;
     if(en) begin
-        r = v;
+        r = w;
     end
 endfunction
 

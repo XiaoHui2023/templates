@@ -3,53 +3,56 @@
 
 /*
  * 关于ADMA的描述
- * ADMA的描述符由若干条目组成，获取地址和长度，写入控制器中
- * 每个ADMA描述符占用16字节
+ * ADMA会先读存放描述符的地址，获取地址和参数，再去读对应地址
+ * 使用ADMA时必须配置 cmd_addr
  *
- * 执行传输时先传输地址、长度等字节
+ * 在存储空间中存放描述符数据，占用多个字节
  *
- * ADMA2 64bit中{ADMA3, 32bit}可选
+ * ADMA2 (64bit) 和 ADMA3 (96bit) 使用
  */
+
 class {{ class_prefix }}adma_des_data extends {{ class_prefix }}base_data;
-    uvm_object_utils_begin({{ class_prefix }}adma_des_data)
-        `uvm_field_int(end_addr,UVM_ALL_ON|UVM_NOPACK)
-        `uvm_field_int(attr_valid,UVM_ALL_ON)
-        `uvm_field_int(attr_end,UVM_ALL_ON)
-        `uvm_field_int(attr_int,UVM_ALL_ON)
-        `uvm_field_int(attr_act0,UVM_ALL_ON)
-        `uvm_field_int(attr_act1,UVM_ALL_ON)
-        `uvm_field_int(attr_act2,UVM_ALL_ON)
-        `uvm_field_int(len_upper,UVM_ALL_ON)
-        `uvm_field_int(len_lower,UVM_ALL_ON)
-        `uvm_field_int(addr,UVM_ALL_ON)
-    uvm_object_utils_end
+  `uvm_object_utils_begin({{ class_prefix }}adma_des_data)
+    `uvm_field_int(cmd_addr, UVM_ALL_ON|UVM_NOPACK)
+    `uvm_field_int(attr_valid, UVM_ALL_ON)
+    `uvm_field_int(attr_end, UVM_ALL_ON)
+    `uvm_field_int(attr_int, UVM_ALL_ON)
+    `uvm_field_int(attr_act0, UVM_ALL_ON)
+    `uvm_field_int(attr_act1, UVM_ALL_ON)
+    `uvm_field_int(attr_act2, UVM_ALL_ON)
+    `uvm_field_int(len_upper, UVM_ALL_ON)
+    `uvm_field_int(len_lower, UVM_ALL_ON)
+    `uvm_field_int(real_addr, UVM_ALL_ON)
+  `uvm_object_utils_end
 
-    rand bit[31:0] end_addr; // ADMA首次读取这个地址的数据；后续以地址计数器递增去读对应地址，因此需要依次写好
-    rand bit[31:0] real_addr; // 真正的描述符地址
+  rand bit[31:0] cmd_addr; // ADMA会先读这个地址的数据，获取实际地址和参数，再去读对应地址，因此要预先写好
+  rand bit[31:0] real_addr; // 真正的dma数据地址
 
-    rand bit attr_valid;
-    rand bit attr_end;
-    rand bit attr_int;
-    rand bit attr_act0;
-    rand bit attr_act1;
-    rand bit attr_act2;
+  rand bit attr_valid;
+  rand bit attr_end;
+  rand bit attr_int;
+  rand bit attr_act0;
+  rand bit attr_act1;
+  rand bit attr_act2;
 
-    rand bit[9:0] len_upper;
-    rand bit[15:0] len_lower;
+  rand bit[9:0] len_upper;
+  rand bit[15:0] len_lower;
 
-    function new(string name="{{ class_prefix }}adma_des_data");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}adma_des_data");
+    super.new(name);
+  endfunction
 
-    constraint c_adma_des_default {
-        soft attr_valid == 0;
-        soft attr_end == 0;
-        soft attr_int == 0;
-        soft attr_act0 == 0;
-        soft attr_act1 == 0;
-        soft attr_act2 == 0;
-        soft len_upper == 0;
-        soft len_lower == 0;
-    }
+  constraint c_adma_des_default {
+    soft attr_valid == 0;
+    soft attr_end == 0;
+    soft attr_int == 0;
+    soft attr_act0 == 0;
+    soft attr_act1 == 0;
+    soft attr_act2 == 0;
+    soft len_upper == 0;
+    soft len_lower == 0;
+  }
+
 endclass
+
 `endif

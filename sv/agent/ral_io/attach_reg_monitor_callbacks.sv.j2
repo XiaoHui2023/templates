@@ -1,0 +1,25 @@
+`ifndef {{ (class_prefix ~ "attach_reg_monitor_callbacks") | upper }}
+`define {{ (class_prefix ~ "attach_reg_monitor_callbacks") | upper }}
+
+// 深度优先遍历子树，对本层每个 uvm_reg 注册同一回调实例。
+// blk — 当前子树根块
+// cb — 挂到各寄存器的回调对象
+function automatic void {{ class_prefix }}attach_reg_monitor_callbacks(uvm_reg_block blk, uvm_reg_cbs cb);
+    uvm_reg regs[$];
+    uvm_reg_block subs[$];
+    int i;
+    int j;
+
+    if (blk == null || cb == null)
+        return;
+
+    blk.get_registers(regs, UVM_NO_HIER);
+    for (i = 0; i < regs.size(); i++)
+        uvm_reg_cb::add(regs[i], cb);
+
+    blk.get_blocks(subs, UVM_NO_HIER);
+    for (j = 0; j < subs.size(); j++)
+        {{ class_prefix }}attach_reg_monitor_callbacks(subs[j], cb);
+endfunction
+
+`endif

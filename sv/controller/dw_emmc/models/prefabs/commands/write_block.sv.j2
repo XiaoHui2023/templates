@@ -1,27 +1,33 @@
-#ifndef {{ class_prefix | upper }}WRITE_BLOCK_COMMAND_REQUEST
-#define {{ class_prefix | upper }}WRITE_BLOCK_COMMAND_REQUEST
+`ifndef {{ class_prefix | upper }}WRITE_BLOCK_COMMAND_REQUEST
+`define {{ class_prefix | upper }}WRITE_BLOCK_COMMAND_REQUEST
 
-// 发送CMD24，写单块
+/*
+ * 发送CMD24写单块
+ *
+ * 需要先发送 SET_BLOCKLEN
+ * 需要注意块的边界，除非设置了 WRITE_BLK_MISALIGN
+ */
 class {{ class_prefix }}write_block_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}write_block_command_request)
-        `uvm_field_int(data_address,UVM_ALL_ON)
-    `uvm_object_utils_end
+  `uvm_object_utils_begin({{ class_prefix }}write_block_command_request)
+    `uvm_field_int(data_address, UVM_ALL_ON)
+  `uvm_object_utils_end
 
-    rand bit[31:0] data_address; // 地址，<=2GB表示字节地址，>2GB表示块(512B)地址
+  rand bit[31:0] data_address; // 地址，<=2GB表示字节地址，>2GB表示块(512B)地址
 
-    function new(string name="{{ class_prefix }}write_block_command_request");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}write_block_command_request");
+    super.new(name);
+  endfunction
 
-    constraint cst_prefab {
-        cmd_index == 24;
-        resp == R1;
-        data_xfer_dir == XFER_WRITE;
-        data_present_sel == 1;
-        multi_blk_sel == SINGLE;
-        data_address == addr[31:0];
-        data_address == argument;
-    }
+  constraint cst_prefab {
+    cmd_index == 24;
+    resp == R1;
+    data_xfer_dir == XFER_WRITE;
+    soft data_present_sel == 1;
+    multi_blk_sel == SINGLE;
+    data_address == addr[31:0];
+    data_address == argument;
+  }
+
 endclass
 
 `endif

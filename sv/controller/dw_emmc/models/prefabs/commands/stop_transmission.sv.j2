@@ -1,33 +1,33 @@
-#ifndef {{ class_prefix | upper }}STOP_TRANSMISSION_COMMAND_REQUEST
-#define {{ class_prefix | upper }}STOP_TRANSMISSION_COMMAND_REQUEST
+`ifndef {{ class_prefix | upper }}STOP_TRANSMISSION_COMMAND_REQUEST
+`define {{ class_prefix | upper }}STOP_TRANSMISSION_COMMAND_REQUEST
 
-// 发送CMD12，结束传输
+// 发送CMD12, ABORT, 强制停止传输
 class {{ class_prefix }}stop_transmission_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}stop_transmission_command_request)
-        `uvm_field_int(rca,UVM_ALL_ON)
-        `uvm_field_int(hpi,UVM_ALL_ON)
-    `uvm_object_utils_end
+  `uvm_object_utils_begin({{ class_prefix }}stop_transmission_command_request)
+    `uvm_field_int(rca, UVM_ALL_ON)
+    `uvm_field_int(hpi, UVM_ALL_ON)
+  `uvm_object_utils_end
 
-    rand bit[15:0] rca; // 相对地址
-    rand data_xfer_dir_e data_xfer_dir; // 传输方向
-    rand bit hpi; // 1 - 高优先级中断当前传输
+  rand bit[15:0] rca; // 相对地址
+  rand data_xfer_dir_e data_xfer_dir; // 传输方向
+  rand bit hpi; // 1 = 设备需要找个合适的时机停下来
 
-    function new(string name="{{ class_prefix }}stop_transmission_command_request");
-        super.new(name);
-    endfunction
+  function new(string name="{{ class_prefix }}stop_transmission_command_request");
+    super.new(name);
+  endfunction
 
-    constraint cst_prefab {
-        cmd_index == 12;
-        argument[31:16] == rca;
-        argument[0] == hpi;
-        if(data_xfer_dir == XFER_READ)
-            resp == R1;
-        else if(data_xfer_dir == XFER_WRITE)
-            resp == R1b;
-        rca != 0;
-        data_xfer_dir == super.data_xfer_dir;
-        soft rca == sys_cfg.boot_cfg.relative_addr;
-    }
+  constraint cst_prefab {
+    cmd_index == 12;
+    argument[31:16] == rca;
+    argument[0] == hpi;
+    if(data_xfer_dir == XFER_READ)
+      resp == R1;
+    else if(data_xfer_dir == XFER_WRITE)
+      resp == R1b;
+    rca != 0;
+    data_xfer_dir == super.data_xfer_dir;
+    soft rca == sys_cfg.boot_cfg.relative_addr;
+  }
 endclass
 
 `endif

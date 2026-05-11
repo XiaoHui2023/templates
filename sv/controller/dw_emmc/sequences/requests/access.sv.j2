@@ -1,0 +1,173 @@
+`ifndef {{ class_prefix | upper }}ACCESS_REQUEST_SEQ
+`define {{ class_prefix | upper }}ACCESS_REQUEST_SEQ
+
+class {{ class_prefix }}access_request_seq extends {{ class_prefix }}base_request_seq;
+  `uvm_object_utils({{ class_prefix }}access_request_seq)
+
+  rand {{ class_prefix }}access_request access_req;
+  rand {{ class_prefix }}reset_request rst_req;
+  rand {{ class_prefix }}check_error_request chk_err_req;
+
+  function new(string name="{{ class_prefix }}access_request_seq");
+    super.new(name);
+  endfunction
+
+  {{ class_prefix }}reset_request_seq reset_seq;
+
+  extern function void pre_randomize();
+  extern task body();
+
+  // 传输命令。完成后，再等待 cmd complete, 后备类型为 RESP LEN 48B 时,还需要等待 xfer_complete
+  extern task execute_access();
+
+  // 配置测试模式
+  extern task config_tune();
+
+  // 清空中断
+  extern task clear_interrupt_status();
+
+  extern function {{ class_prefix }}wait_field_request_seq create_wait_field_seq();
+  extern function {{ class_prefix }}wait_interrupt_request_seq create_wait_intr_seq();
+endclass
+
+function void {{ class_prefix }}access_request_seq::pre_randomize();
+  super.pre_randomize();
+
+  if(!access_req)
+    `uvm_create(access_req)
+  if(!rst_req)
+    `uvm_create(rst_req)
+  if(!chk_err_req)
+    `uvm_create(chk_err_req)
+
+  `uvm_create(reset_seq)
+  $cast(reset_seq.rst_req, rst_req);
+endfunction
+
+task {{ class_prefix }}access_request_seq::body();
+  // 清空中断
+  clear_interrupt_status();
+
+  // 复位
+  `uvm_rand_send(reset_seq)
+
+  // 配置测试
+  config_tune();
+
+  execute_access();
+endtask
+
+task {{ class_prefix }}access_request_seq::execute_access();
+  bit[31:0] rdata;
+  {{ class_prefix }}wait_field_request_seq wait_field_seq;
+
+  // 设置HOST控制1
+  rm.HOST_CTRL1_R.LED_CTRL.set(0);
+  rm.HOST_CTRL1_R.DAT_XFER_WIDTH.set(access_req.dat_xfer_width);
+  rm.HOST_CTRL1_R.HIGH_SPEED_EN.set(access_req.high_speed_en);
+  rm.HOST_CTRL1_R.DMA_SEL.set(access_req.dma_sel);
+  rm.HOST_CTRL1_R.EXT_DAT_XFER.set(access_req.ext_dat_xfer);
+  rm.HOST_CTRL1_R.CARD_DETECT_TEST_LVL.set(0);
+  rm.HOST_CTRL1_R.CARD_DETECT_SIG_SEL.set(0);
+  rm.HOST_CTRL1_R.write(status, rm.HOST_CTRL1_R.get());
+
+  // 设置HOST控制2
+  rm.HOST_CTRL2_R.read(status, rdata);
+  rm.HOST_CTRL2_R.UHS_MODE_SEL.set(access_req.uhs_mode_sel);
+  rm.HOST_CTRL2_R.write(status, rm.HOST_CTRL2_R.get());
+
+  // 等待命令寄存器
+  $cast(wait_field_seq, create_wait_field_seq());
+  `uvm_rand_send_with(wait_field_seq, {
+    wait_field_req.cmd_uninhibit;
+    wait_field_req.cmd_uninhibit_dat;
+  })
+
+  // [0x00] 设置地址
+  rm.SDMASA_R.write(status, access_req.sdmasa);
+
+  // [0x04] 设置buffer型号
+  rm.BLOCKSIZE_R.XFER_BLOCK_SIZE.set(access_req.xfer_block_size); // 1 byte
+  rm.BLOCKSIZE_R.SDMA_BUF_BDARY.set(access_req.sdma_buf_bdary); // DMA用
+  rm.BLOCKSIZE_R.write(status, rm.BLOCKSIZE_R.get());
+
+  // DMA
+  if(access_req.dma_enable) begin
+    rm.ADMA_SA_LOW_R.write(status, access_req.dma_addr);
+    // rm.ADMA_SA_HIGH_R.write(status, 0);
+  end
+
+  // [0x0c] 设置数据传输选项
+  rm.XFER_MODE_R.DMA_ENABLE.set(access_req.dma_enable);
+  rm.XFER_MODE_R.BLOCK_COUNT_ENABLE.set(1);
+  rm.XFER_MODE_R.AUTO_CMD_ENABLE.set(access_req.auto_cmd_enable);
+  rm.XFER_MODE_R.DATA_XFER_DIR.set(access_req.data_xfer_dir);
+  rm.XFER_MODE_R.MULTI_BLK_SEL.set(access_req.multi_blk_sel);
+  rm.XFER_MODE_R.RESP_TYPE_SELECT.set(access_req.resp_type);
+  rm.XFER_MODE_R.RESP_ERR_CHK_ENABLE.set(0);
+  rm.XFER_MODE_R.RESP_INT_DISABLE.set(0);
+  rm.XFER_MODE_R.write(status, rm.XFER_MODE_R.get());
+
+  // [0x08] 设置参数
+  rm.ARGUMENT_R.write(status, access_req.argument);
+
+  // [0x0e] 设置命令
+  rm.CMD_R.RESP_TYPE_SELECT.set(access_req.resp_type_select);
+  rm.CMD_R.SUB_CMD_FLAG.set(0);
+  rm.CMD_R.CMD_CRC_CHK_ENABLE.set(access_req.cmd_crc_chk_enable);
+  rm.CMD_R.CMD_IDX_CHK_ENABLE.set(access_req.cmd_idx_chk_enable);
+  rm.CMD_R.DATA_PRESENT_SEL.set(access_req.data_present_sel);
+  rm.CMD_R.CMD_TYPE.set(0);
+  rm.CMD_R.CMD_INDEX.set(access_req.cmd_index);
+  rm.CMD_R.write(status, rm.CMD_R.get());
+endtask
+
+task {{ class_prefix }}access_request_seq::config_tune();
+  bit[31:0] rdata;
+
+  if(!access_req.tune_en)
+    return;
+
+  // 关闭采样时钟
+  rm.CLK_CTRL_R.read(status,rdata);
+  rm.CLK_CTRL_R.SD_CLK_EN.set(0);
+  rm.CLK_CTRL_R.write(status,rm.CLK_CTRL_R.get());
+
+  // 设置自动调整控制
+  rm_vd1.AT_CTRL_R.read(status,rdata);
+  rm_vd1.AT_CTRL_R.SW_TUNE_EN.set(1);
+  rm_vd1.AT_CTRL_R.write(status,rm_vd1.AT_CTRL_R.get());
+
+  rm_vd1.AT_STAT_R.read(status,rdata);
+  rm_vd1.AT_STAT_R.CENTER_PH_CODE.set(access_req.center_ph_code);
+  rm_vd1.AT_STAT_R.write(status,rm_vd1.AT_STAT_R.get());
+
+  // 打开采样时钟
+  rm.CLK_CTRL_R.read(status,rdata);
+  rm.CLK_CTRL_R.SD_CLK_EN.set(1);
+  rm.CLK_CTRL_R.write(status,rm.CLK_CTRL_R.get());
+endtask
+
+task {{ class_prefix }}access_request_seq::clear_interrupt_status();
+  rm.NORMAL_INT_STAT_R.write(status,'hffff_ffff);
+endtask
+
+function {{ class_prefix }}wait_field_request_seq {{ class_prefix }}access_request_seq::create_wait_field_seq();
+  {{ class_prefix }}wait_field_request_seq wait_field_seq;
+
+  `uvm_create(wait_field_seq)
+  $cast(wait_field_seq.chk_err_req,chk_err_req);
+
+  return wait_field_seq;
+endfunction
+
+function {{ class_prefix }}wait_interrupt_request_seq {{ class_prefix }}access_request_seq::create_wait_intr_seq();
+  {{ class_prefix }}wait_interrupt_request_seq wait_intr_seq;
+
+  `uvm_create(wait_intr_seq)
+  $cast(wait_intr_seq.chk_err_req,chk_err_req);
+
+  return wait_intr_seq;
+endfunction
+
+`endif
