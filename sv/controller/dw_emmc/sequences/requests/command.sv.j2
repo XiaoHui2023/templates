@@ -3,245 +3,245 @@
 
 // 发送命令
 class {{ class_prefix }}command_request_seq #(
-        type CLASS_COMMAND_REQUEST = {{ class_prefix }}command_request
+    type CLASS_COMMAND_REQUEST = {{ class_prefix }}command_request
 ) extends {{ class_prefix }}base_request_seq#({{ class_prefix }}command_response);
-        `uvm_object_param_utils({{ class_prefix }}command_request_seq#(CLASS_COMMAND_REQUEST))
+    `uvm_object_param_utils({{ class_prefix }}command_request_seq#(CLASS_COMMAND_REQUEST))
 
-        rand CLASS_COMMAND_REQUEST cmd_req;
+    rand CLASS_COMMAND_REQUEST cmd_req;
 
-        {{ class_prefix }}access_request_seq access_seq;
-        {{ class_prefix }}wait_interrupt_request_seq wait_intr_seq;
-        {{ class_prefix }}wait_field_request_seq wait_field_seq;
-        {{ class_prefix }}cpu_config_dependency_seq cpu_cfg_seq;
+    {{ class_prefix }}access_request_seq access_seq;
+    {{ class_prefix }}wait_interrupt_request_seq wait_intr_seq;
+    {{ class_prefix }}wait_field_request_seq wait_field_seq;
+    {{ class_prefix }}cpu_config_dependency_seq cpu_cfg_seq;
 
-        function new(string name = "{{ class_prefix }}command_request_seq");
-                super.new(name);
-        endfunction
+    function new(string name = "{{ class_prefix }}command_request_seq");
+        super.new(name);
+    endfunction
 
-        extern function void pre_randomize();
-        extern task pre_start();
-        extern task body();
-        extern task post_start();
-        extern task read_resp();
-        extern task read(ref bit [7:0] data[$]);
-        extern task write(bit [7:0] data[$]);
-        extern task init_memory();
-        extern protected task write_memory(bit [7:0] data[$]);
-        extern task write_buffer(bit [7:0] data[$]);
-        extern protected task read_buffer(ref bit [7:0] data[$]);
-        extern protected task read_buffer_blocked(ref bit [7:0] data[$]);
-        extern protected task read_memory(ref bit [7:0] data[$]);
-        extern protected task write_buffer_one_block(ref bit [7:0] data[$]);
-        extern protected task read_buffer_one_block(ref bit [7:0] data[$]);
-        extern protected task abort();
-        extern task wait_cmd_complete();
-        extern task wait_xfer_complete();
-        extern function {{ class_prefix }}wait_field_request_seq create_wait_field_seq();
-        extern function {{ class_prefix }}wait_interrupt_request_seq create_wait_intr_seq();
+    extern function void pre_randomize();
+    extern task pre_start();
+    extern task body();
+    extern task post_start();
+    extern task read_resp();
+    extern task read(ref bit [7:0] data[$]);
+    extern task write(bit [7:0] data[$]);
+    extern task init_memory();
+    extern protected task write_memory(bit [7:0] data[$]);
+    extern task write_buffer(bit [7:0] data[$]);
+    extern protected task read_buffer(ref bit [7:0] data[$]);
+    extern protected task read_buffer_blocked(ref bit [7:0] data[$]);
+    extern protected task read_memory(ref bit [7:0] data[$]);
+    extern protected task write_buffer_one_block(ref bit [7:0] data[$]);
+    extern protected task read_buffer_one_block(ref bit [7:0] data[$]);
+    extern protected task abort();
+    extern task wait_cmd_complete();
+    extern task wait_xfer_complete();
+    extern function {{ class_prefix }}wait_field_request_seq create_wait_field_seq();
+    extern function {{ class_prefix }}wait_interrupt_request_seq create_wait_intr_seq();
 endclass
 
 function void {{ class_prefix }}command_request_seq::pre_randomize();
-        super.pre_randomize();
+    super.pre_randomize();
 
-        if (!cmd_req)
-                `uvm_create(cmd_req)
+    if (!cmd_req)
+        `uvm_create(cmd_req)
 
-        `uvm_create(access_seq)
-        $cast(access_seq.access_req, cmd_req.access_req);
-        $cast(access_seq.chk_err_req, cmd_req.chk_err_req);
-        $cast(access_seq.rst_req, cmd_req.rst_req);
+    `uvm_create(access_seq)
+    $cast(access_seq.access_req, cmd_req.access_req);
+    $cast(access_seq.chk_err_req, cmd_req.chk_err_req);
+    $cast(access_seq.rst_req, cmd_req.rst_req);
 endfunction
 
 task {{ class_prefix }}command_request_seq::pre_start();
-        super.pre_start();
+    super.pre_start();
 
-        `uvm_info("", $sformatf("Enter:\n%s", cmd_req.sprint()), UVM_LOW)
+    `uvm_info("", $sformatf("Enter:\n%s", cmd_req.sprint()), UVM_LOW)
 endtask
 
 task {{ class_prefix }}command_request_seq::body();
-        init_memory(); // 初始化内存
-        `uvm_rand_send(access_seq)
-        wait_cmd_complete(); // 等中断
-        // 读写数据
-        if (cmd_req.data_present_sel) begin
-                if (cmd_req.data_xfer_dir == cmd_req.XFER_READ)
-                        read(rsp.data);
-                else
-                        write(cmd_req.wdata);
-        end
-        // 读答案
-        if (cmd_req.resp_type_select != cmd_req.NO_RESP)
-                read_resp();
+    init_memory(); // 初始化内存
+    `uvm_rand_send(access_seq)
+    wait_cmd_complete(); // 等中断
+    // 读写数据
+    if (cmd_req.data_present_sel) begin
+        if (cmd_req.data_xfer_dir == cmd_req.XFER_READ)
+            read(rsp.data);
+        else
+            write(cmd_req.wdata);
+    end
+    // 读答案
+    if (cmd_req.resp_type_select != cmd_req.NO_RESP)
+        read_resp();
 endtask
 
 task {{ class_prefix }}command_request_seq::post_start();
-        super.post_start();
+    super.post_start();
 
-        `uvm_info("", "Exit", UVM_HIGH)
+    `uvm_info("", "Exit", UVM_HIGH)
 endtask
 
 task {{ class_prefix }}command_request_seq::read(ref bit [7:0] data[$]);
-        if (cmd_req.dma_enable) begin
-                wait_xfer_complete();
-                read_memory(data);
-        end
-        else begin
-                if (cmd_req.rd_blocking)
-                        read_buffer_blocked(data);
-                else
-                        read_buffer(data);
-                wait_xfer_complete();
-        end
+    if (cmd_req.dma_enable) begin
+        wait_xfer_complete();
+        read_memory(data);
+    end
+    else begin
+        if (cmd_req.rd_blocking)
+            read_buffer_blocked(data);
+        else
+            read_buffer(data);
+        wait_xfer_complete();
+    end
 endtask
 
 task {{ class_prefix }}command_request_seq::write(bit [7:0] data[$]);
-        if (cmd_req.dma_enable) begin
-        end
-        else begin
-                write_buffer(data);
-        end
-        wait_xfer_complete();
+    if (cmd_req.dma_enable) begin
+    end
+    else begin
+        write_buffer(data);
+    end
+    wait_xfer_complete();
 endtask
 
 task {{ class_prefix }}command_request_seq::init_memory();
-        if (cmd_req.dma_enable)
-                return;
-        if (cmd_req.data_xfer_dir != cmd_req.XFER_WRITE)
-                return;
-        write_memory(cmd_req.data);
+    if (cmd_req.dma_enable)
+        return;
+    if (cmd_req.data_xfer_dir != cmd_req.XFER_WRITE)
+        return;
+    write_memory(cmd_req.data);
 endtask
 
 task {{ class_prefix }}command_request_seq::write_memory(bit [7:0] data[$]);
-        `uvm_do_with(cpu_cfg_seq, {
-                addr == local::cmd_req.addr;
-                wdata.size() == local::data.size();
-                foreach (local::data[j])
-                        wdata[j] == local::data[j];
-                len == local::cmd_req.len;
-                path == UVM_BACKDOOR;
-                access == UVM_WRITE;
-        })
+    `uvm_do_with(cpu_cfg_seq, {
+        addr == local::cmd_req.addr;
+        wdata.size() == local::data.size();
+        foreach (local::data[j])
+            wdata[j] == local::data[j];
+        len == local::cmd_req.len;
+        path == UVM_BACKDOOR;
+        access == UVM_WRITE;
+    })
 endtask
 
 task {{ class_prefix }}command_request_seq::read_memory(ref bit [7:0] data[$]);
-        `uvm_do_with(cpu_cfg_seq, {
-                addr == local::cmd_req.addr;
-                len == local::cmd_req.len;
-                path == UVM_BACKDOOR;
-                access == UVM_READ;
-        })
-        foreach (cpu_cfg_seq.rdata[j])
-                data.push_back(cpu_cfg_seq.rdata[j]);
+    `uvm_do_with(cpu_cfg_seq, {
+        addr == local::cmd_req.addr;
+        len == local::cmd_req.len;
+        path == UVM_BACKDOOR;
+        access == UVM_READ;
+    })
+    foreach (cpu_cfg_seq.rdata[j])
+        data.push_back(cpu_cfg_seq.rdata[j]);
 endtask
 
 task {{ class_prefix }}command_request_seq::write_buffer(bit [7:0] data[$]);
-        repeat (cmd_req.block_count) begin
-                // wait ready
-                $cast(wait_intr_seq, create_wait_intr_seq());
-                `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.buf_wr_ready;})
-                // write
-                write_buffer_one_block(data);
-        end
+    repeat (cmd_req.block_count) begin
+        // wait ready
+        $cast(wait_intr_seq, create_wait_intr_seq());
+        `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.buf_wr_ready;})
+        // write
+        write_buffer_one_block(data);
+    end
 endtask
 
 task {{ class_prefix }}command_request_seq::read_buffer(ref bit [7:0] data[$]);
-        for (int j = 0; j < cmd_req.block_count; j++) begin
-                `uvm_info("", $psprintf("read buffer [%0d]", j), UVM_LOW)
-                // wait ready
-                $cast(wait_intr_seq, create_wait_intr_seq());
-                `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.buf_rd_ready;})
-                read_buffer_one_block(data);
-        end
-        `uvm_info("", "read buffer done", UVM_LOW)
+    for (int j = 0; j < cmd_req.block_count; j++) begin
+        `uvm_info("", $psprintf("read buffer [%0d]", j), UVM_LOW)
+        // wait ready
+        $cast(wait_intr_seq, create_wait_intr_seq());
+        `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.buf_rd_ready;})
+        read_buffer_one_block(data);
+    end
+    `uvm_info("", "read buffer done", UVM_LOW)
 endtask
 
 task {{ class_prefix }}command_request_seq::read_buffer_blocked(ref bit [7:0] data[$]);
-        for (int j = 0; j < cmd_req.block_count; j++) begin
-                $cast(wait_intr_seq, create_wait_intr_seq());
-                `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.buf_rd_ready;})
-        end
-        repeat (cmd_req.block_count)
-                read_buffer_one_block(data);
-        `uvm_info("", "read buffer blocked done", UVM_LOW)
+    for (int j = 0; j < cmd_req.block_count; j++) begin
+        $cast(wait_intr_seq, create_wait_intr_seq());
+        `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.buf_rd_ready;})
+    end
+    repeat (cmd_req.block_count)
+        read_buffer_one_block(data);
+    `uvm_info("", "read buffer blocked done", UVM_LOW)
 endtask
 
 task {{ class_prefix }}command_request_seq::write_buffer_one_block(ref bit [7:0] data[$]);
-        int words;
+    int words;
 
-        words = $ceil(cmd_req.block_size / 4.0);
-        repeat (words) begin
-                bit [7:0] d[$];
-                bit [31:0] dat;
+    words = $ceil(cmd_req.block_size / 4.0);
+    repeat (words) begin
+        bit [7:0] d[$];
+        bit [31:0] dat;
 
-                repeat (4)
-                        d.push_back(data.pop_front());
-                dat = {<<byte{d}};
-                rm.BUF_DATA_R.write(status, dat);
-        end
+        repeat (4)
+            d.push_back(data.pop_front());
+        dat = {<<byte{d}};
+        rm.BUF_DATA_R.write(status, dat);
+    end
 endtask
 
 task {{ class_prefix }}command_request_seq::read_buffer_one_block(ref bit [7:0] data[$]);
-        int words;
+    int words;
 
-        words = $ceil(cmd_req.block_size / 4.0);
-        `uvm_info("", $psprintf("read buffer one block words=%0d", words), UVM_LOW)
-        repeat (words) begin
-                bit [7:0] d[$];
-                bit [31:0] dat;
+    words = $ceil(cmd_req.block_size / 4.0);
+    `uvm_info("", $psprintf("read buffer one block words=%0d", words), UVM_LOW)
+    repeat (words) begin
+        bit [7:0] d[$];
+        bit [31:0] dat;
 
-                rm.BUF_DATA_R.read(status, dat);
-                d = {<<byte{dat}};
-                data = {data, d};
-        end
-        // 去掉多余的
-        repeat (words * 4 - cmd_req.block_size)
-                data.pop_back();
+        rm.BUF_DATA_R.read(status, dat);
+        d = {<<byte{dat}};
+        data = {data, d};
+    end
+    // 去掉多余的
+    repeat (words * 4 - cmd_req.block_size)
+        data.pop_back();
 endtask
 
 task {{ class_prefix }}command_request_seq::abort();
-        rm.BGAP_CTRL_R.STOP_BG_REQ.set(1);
-        rm.BGAP_CTRL_R.CONTINUE_REQ.set(0);
-        rm.BGAP_CTRL_R.MD_WAIT_CTRL.set(0);
-        rm.BGAP_CTRL_R.INT_AT_BGAP.set(1);
-        rm.BGAP_CTRL_R.write(status, rm.BGAP_CTRL_R.get());
+    rm.BGAP_CTRL_R.STOP_BG_REQ.set(1);
+    rm.BGAP_CTRL_R.CONTINUE_REQ.set(0);
+    rm.BGAP_CTRL_R.MD_WAIT_CTRL.set(0);
+    rm.BGAP_CTRL_R.INT_AT_BGAP.set(1);
+    rm.BGAP_CTRL_R.write(status, rm.BGAP_CTRL_R.get());
 endtask
 
 task {{ class_prefix }}command_request_seq::read_resp();
-        bit [31:0] w0, w1, w2, w3;
+    bit [31:0] w0, w1, w2, w3;
 
-        rm.RESP01_R.read(status, w0);
-        rm.RESP23_R.read(status, w1);
-        rm.RESP45_R.read(status, w2);
-        rm.RESP67_R.read(status, w3);
-        rsp.resp = {w3, w2, w1, w0};
+    rm.RESP01_R.read(status, w0);
+    rm.RESP23_R.read(status, w1);
+    rm.RESP45_R.read(status, w2);
+    rm.RESP67_R.read(status, w3);
+    rsp.resp = {w3, w2, w1, w0};
 
-        `uvm_info("", $psprintf("resp = %0xh", rsp.resp), UVM_LOW)
+    `uvm_info("", $psprintf("resp = %0xh", rsp.resp), UVM_LOW)
 endtask
 
 task {{ class_prefix }}command_request_seq::wait_cmd_complete();
-        $cast(wait_intr_seq, create_wait_intr_seq());
-        `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.cmd_complete;})
+    $cast(wait_intr_seq, create_wait_intr_seq());
+    `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.cmd_complete;})
 endtask
 
 task {{ class_prefix }}command_request_seq::wait_xfer_complete();
-        $cast(wait_intr_seq, create_wait_intr_seq());
-        `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.xfer_complete;})
+    $cast(wait_intr_seq, create_wait_intr_seq());
+    `uvm_rand_send_with(wait_intr_seq, {wait_intr_req.xfer_complete;})
 endtask
 
 function {{ class_prefix }}wait_field_request_seq {{ class_prefix }}command_request_seq::create_wait_field_seq();
-        {{ class_prefix }}wait_field_request_seq wait_field_seq;
+    {{ class_prefix }}wait_field_request_seq wait_field_seq;
 
-        `uvm_create(wait_field_seq)
-        $cast(wait_field_seq.chk_err_req, cmd_req.chk_err_req);
+    `uvm_create(wait_field_seq)
+    $cast(wait_field_seq.chk_err_req, cmd_req.chk_err_req);
 
-        return wait_field_seq;
+    return wait_field_seq;
 endfunction
 
 function {{ class_prefix }}wait_interrupt_request_seq {{ class_prefix }}command_request_seq::create_wait_intr_seq();
-        `uvm_create(wait_intr_seq)
-        $cast(wait_intr_seq.chk_err_req, cmd_req.chk_err_req);
+    `uvm_create(wait_intr_seq)
+    $cast(wait_intr_seq.chk_err_req, cmd_req.chk_err_req);
 
-        return wait_intr_seq;
+    return wait_intr_seq;
 endfunction
 
 `endif

@@ -2,45 +2,45 @@
 `define {{ class_prefix | upper }}SRAM_TEST_SEQ
 
 class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq;
-        `uvm_object_utils_begin({{ class_prefix }}sram_test_seq)
-                `uvm_field_int(block_count, UVM_ALL_ON)
-                `uvm_field_int(block_size, UVM_ALL_ON)
-        `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}sram_test_seq)
+        `uvm_field_int(block_count, UVM_ALL_ON)
+        `uvm_field_int(block_size, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-        rand int block_count; // 块数量
-        rand int block_size; // 块大小
+    rand int block_count; // 块数量
+    rand int block_size; // 块大小
 
-        constraint cst_test {
-                soft block_count == sys_cfg.boot_cfg.sram_size / block_size;
+    constraint cst_test {
+        soft block_count == sys_cfg.boot_cfg.sram_size / block_size;
 {%- if is_sdio %}
-                block_size == 512;
+        block_size == 512;
 {%- elif is_emmc or is_sdcard %}
-                if (sys_cfg.boot_cfg.sram_size % 2048 == 0)
-                        block_size == 2048;
-                else if (sys_cfg.boot_cfg.sram_size % 1024 == 0)
-                        block_size == 1024;
-                else if (sys_cfg.boot_cfg.sram_size % 512 == 0)
-                        block_size == 512;
+        if (sys_cfg.boot_cfg.sram_size % 2048 == 0)
+            block_size == 2048;
+        else if (sys_cfg.boot_cfg.sram_size % 1024 == 0)
+            block_size == 1024;
+        else if (sys_cfg.boot_cfg.sram_size % 512 == 0)
+            block_size == 512;
 {%- endif %}
-        }
+    }
 
-        function new(string name = "{{ class_prefix }}sram_test_seq");
-                super.new(name);
-        endfunction
+    function new(string name = "{{ class_prefix }}sram_test_seq");
+        super.new(name);
+    endfunction
 
-        {{ class_prefix }}rw_test_seq rw_test_seq;
+    {{ class_prefix }}rw_test_seq rw_test_seq;
 
-        task body();
-                // 只读，阻塞，读 sram 最大容量
-                `uvm_do_with(rw_test_seq, {
-                        rd_multi_block_count == local::block_count;
-                        rd_block_size == local::block_size;
-                        rd_blocking == 1;
-                        rd_multi == 1;
-                        // wr_multi_block_count == 32;
-                        wr == 0;
-                })
-        endtask
+    task body();
+        // 只读，阻塞，读 sram 最大容量
+        `uvm_do_with(rw_test_seq, {
+            rd_multi_block_count == local::block_count;
+            rd_block_size == local::block_size;
+            rd_blocking == 1;
+            rd_multi == 1;
+            // wr_multi_block_count == 32;
+            wr == 0;
+        })
+    endtask
 endclass
 
 `endif

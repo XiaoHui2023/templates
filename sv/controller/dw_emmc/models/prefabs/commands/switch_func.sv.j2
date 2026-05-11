@@ -3,54 +3,54 @@
 
 // 发送CMD6, 切换电流, 驱动强度, 电压, 总线速度等
 class {{ class_prefix }}switch_func_command_request extends {{ class_prefix }}command_request;
-        typedef enum {
+    typedef enum {
             CHECK_FUNCTION,
             SWITCH_FUNCTION
-        } mode_e;
-        typedef enum {
+    } mode_e;
+    typedef enum {
             TYPE_B,
             TYPE_A,
             TYPE_C,
             TYPE_D
-        } driver_strength_e;
-        typedef enum {
+    } driver_strength_e;
+    typedef enum {
             AFTER_INITIAL=0,
             FOR_EC=1,
             OTP=3,
             ASSD=4
-        } command_system_e;
+    } command_system_e;
 
-        `uvm_object_utils_begin({{ class_prefix }}switch_func_command_request)
+    `uvm_object_utils_begin({{ class_prefix }}switch_func_command_request)
             `uvm_field_enum(mode_e, mode, UVM_ALL_ON)
             `uvm_field_int(current_limit, UVM_ALL_ON)
             `uvm_field_enum(driver_strength_e, driver_strength, UVM_ALL_ON)
             `uvm_field_enum(command_system_e, command_system, UVM_ALL_ON)
             `uvm_field_int(access_mode, UVM_ALL_ON)
             `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-        `uvm_object_utils_end
+    `uvm_object_utils_end
 
-        rand mode_e mode; // 模式
-        rand int current_limit; // 电流(mA)
-        rand driver_strength_e driver_strength; // 驱动强度
-        rand command_system_e command_system; // 系统命令
-        rand bit[3:0] access_mode; // 总线速度模式
-        rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
+    rand mode_e mode; // 模式
+    rand int current_limit; // 电流(mA)
+    rand driver_strength_e driver_strength; // 驱动强度
+    rand command_system_e command_system; // 系统命令
+    rand bit[3:0] access_mode; // 总线速度模式
+    rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
 
-        function new(string name="{{ class_prefix }}switch_func_command_request");
+    function new(string name="{{ class_prefix }}switch_func_command_request");
             super.new(name);
-        endfunction
+    endfunction
 
-        constraint cst_prefab {
+    constraint cst_prefab {
             cmd_index == 6;
             argument[31] == mode;
             if(current_limit == 200)
-                argument[15:12] == 0;
+        argument[15:12] == 0;
             else if(current_limit == 400)
-                argument[15:12] == 1;
+        argument[15:12] == 1;
             else if(current_limit == 600)
-                argument[15:12] == 2;
+        argument[15:12] == 2;
             else if(current_limit == 800)
-                argument[15:12] == 3;
+        argument[15:12] == 3;
             argument[11:8] == driver_strength;
             argument[7:4] == command_system;
             argument[3:0] == access_mode;
@@ -73,7 +73,7 @@ class {{ class_prefix }}switch_func_command_request extends {{ class_prefix }}co
             soft current_limit == 200;
             soft driver_strength == TYPE_B;
             soft command_system == AFTER_INITIAL;
-        }
+    }
 endclass
 
 `endif

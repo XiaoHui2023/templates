@@ -1,5 +1,5 @@
 {%- macro monitor_context(name, variable_format) -%}
-        forever begin @(ctx.{{ name }}); `uvm_info("",$sformatf("context.{{ name }} has changed to {{ variable_format }}",ctx.{{ name }}),UVM_HIGH) end
+    forever begin @(ctx.{{ name }}); `uvm_info("",$sformatf("context.{{ name }} has changed to {{ variable_format }}",ctx.{{ name }}),UVM_HIGH) end
 {%- endmacro -%}
 
 `ifndef {{ (class_prefix | upper) }}AGENT

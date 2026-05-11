@@ -2,9 +2,9 @@
 `define {{ (class_prefix | upper) }}MONITOR_INTERFACE
 
 interface {{ class_prefix }}monitor_interface(
-        {%- for clk in monitored_clocks %}
-        input wire {{ clk.name }}{{ ',' if not loop.last }}
-        {%- endfor %}
+    {%- for clk in monitored_clocks %}
+    input wire {{ clk.name }}{{ ',' if not loop.last }}
+    {%- endfor %}
 );
 
 timeunit 1fs;
@@ -17,11 +17,11 @@ timeprecision 1fs;
 {%- for clk in monitored_clocks %}
 // 检查 {{ clk.name }} 时钟频率
 task automatic check_{{ clk.name }}_frequence(input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
-        if($isunknown({{ clk.name }}))
-                `uvm_fatal("", "require connect {{ clk.name }} Clock signal to monitor_if")
-        sample_{{ clk.name }}_if.enable(1);
-        check_clock_frequence(sample_{{ clk.name }}_if.r,freq,is_pass,is_timeout,measure_result,tol);
-        sample_{{ clk.name }}_if.enable(0);
+    if($isunknown({{ clk.name }}))
+        `uvm_fatal("", "require connect {{ clk.name }} Clock signal to monitor_if")
+    sample_{{ clk.name }}_if.enable(1);
+    check_clock_frequence(sample_{{ clk.name }}_if.r,freq,is_pass,is_timeout,measure_result,tol);
+    sample_{{ clk.name }}_if.enable(0);
 endtask
 {%- endfor %}
 
@@ -36,47 +36,47 @@ endtask
   * tol : 允许误差 [0%-100%]
   */
 task automatic check_clock_frequence(ref reg clk,input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
-        longint freq_min;
-        longint freq_max;
-        longint freq_tol;
-        longint timeout;
+    longint freq_min;
+    longint freq_max;
+    longint freq_tol;
+    longint timeout;
 
-        if(tol < 0 || tol > 1)
-                `uvm_fatal("",$sformatf("Invalid tol=%0f",tol))
-        if(freq <= 0)
-                `uvm_fatal("",$sformatf("Invalid freq=%0d",freq))
+    if(tol < 0 || tol > 1)
+        `uvm_fatal("",$sformatf("Invalid tol=%0f",tol))
+    if(freq <= 0)
+        `uvm_fatal("",$sformatf("Invalid freq=%0d",freq))
 
-        freq_tol = tol * freq;
-        freq_min = freq - freq_tol;
-        freq_max = freq + freq_tol;
-        timeout = (1e15 / freq_min + 1) * 100;
+    freq_tol = tol * freq;
+    freq_min = freq - freq_tol;
+    freq_max = freq + freq_tol;
+    timeout = (1e15 / freq_min + 1) * 100;
 
-        fork begin
-                fork
-                        begin
-                                #(timeout);
-                                is_timeout = 1;
-                        end
-                        begin
-                                longint start_time;
-                                longint end_time;
-                                longint period;
+    fork begin
+        fork
+            begin
+                #(timeout);
+                is_timeout = 1;
+            end
+            begin
+                longint start_time;
+                longint end_time;
+                longint period;
 
-                                @(clk);
-                                start_time = $realtime;
-                                @(clk);
-                                end_time = $realtime;
-                                period = (end_time - start_time) * 2;
-                                measure_result = 1e15 / period;
-                        end
-                join_any
-                disable fork;
-        end join
+                @(clk);
+                start_time = $realtime;
+                @(clk);
+                end_time = $realtime;
+                period = (end_time - start_time) * 2;
+                measure_result = 1e15 / period;
+            end
+        join_any
+        disable fork;
+    end join
 
-        if(is_timeout)
-                return;
+    if(is_timeout)
+        return;
 
-        is_pass = measure_result >= freq_min && measure_result <= freq_max;
+    is_pass = measure_result >= freq_min && measure_result <= freq_max;
 endtask
 endinterface
 

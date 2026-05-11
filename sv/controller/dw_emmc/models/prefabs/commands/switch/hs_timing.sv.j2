@@ -3,31 +3,31 @@
 
 // 设置 驱动强度 和 bus speed mode
 class {{ class_prefix }}switch_hs_timing_command_request extends {{ class_prefix }}switch_command_request;
-        `uvm_object_utils_begin({{ class_prefix }}switch_hs_timing_command_request)
-                `uvm_field_int(drive_strength, UVM_ALL_ON)
-                `uvm_field_int(timing_interface, UVM_ALL_ON)
-                `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-        `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}switch_hs_timing_command_request)
+        `uvm_field_int(drive_strength, UVM_ALL_ON)
+        `uvm_field_int(timing_interface, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-        rand bit[3:0] drive_strength; // 驱动强度值
-        rand bit[3:0] timing_interface; // 总线速度值
-        rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
+    rand bit[3:0] drive_strength; // 驱动强度值
+    rand bit[3:0] timing_interface; // 总线速度值
+    rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
 
-        function new(string name="{{ class_prefix }}switch_hs_timing_command_request");
-                super.new(name);
-        endfunction
+    function new(string name="{{ class_prefix }}switch_hs_timing_command_request");
+        super.new(name);
+    endfunction
 
-        constraint cst_prefab {
-                soft drive_strength == 0;
-                value[7:4] == drive_strength;
-                value[3:0] == timing_interface;
-                index == 185; // 0xb9
-                (bus_speed_mode == LEGACY) -> timing_interface == 0;
-                (bus_speed_mode == HIGH_SPEED_SDR) -> timing_interface == 1; // 26M
-                (bus_speed_mode == HIGH_SPEED_DDR) -> timing_interface == 1;
-                (bus_speed_mode == HS200) -> timing_interface == 2; // 200M
-                (bus_speed_mode == HS400) -> timing_interface == 3; // 400M
-        }
+    constraint cst_prefab {
+        soft drive_strength == 0;
+        value[7:4] == drive_strength;
+        value[3:0] == timing_interface;
+        index == 185; // 0xb9
+        (bus_speed_mode == LEGACY) -> timing_interface == 0;
+        (bus_speed_mode == HIGH_SPEED_SDR) -> timing_interface == 1; // 26M
+        (bus_speed_mode == HIGH_SPEED_DDR) -> timing_interface == 1;
+        (bus_speed_mode == HS200) -> timing_interface == 2; // 200M
+        (bus_speed_mode == HS400) -> timing_interface == 3; // 400M
+    }
 endclass
 
 `endif
