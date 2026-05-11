@@ -2,62 +2,62 @@
 `define {{ class_prefix | upper }}RESET_REQUEST_SEQ
 
 class {{ class_prefix }}reset_request_seq extends {{ class_prefix }}base_request_seq;
-  `uvm_object_utils({{ class_prefix }}reset_request_seq)
+    `uvm_object_utils({{ class_prefix }}reset_request_seq)
 
-  rand {{ class_prefix }}reset_request rst_req;
+    rand {{ class_prefix }}reset_request rst_req;
 
-  function new(string name="{{ class_prefix }}reset_request_seq");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}reset_request_seq");
+        super.new(name);
+    endfunction
 
-  extern function void pre_randomize();
-  extern task body();
+    extern function void pre_randomize();
+    extern task body();
 
-  // 复位 DAT 和 CMD
-  extern task execute_reset();
+    // 复位 DAT 和 CMD
+    extern task execute_reset();
 endclass
 
 function void {{ class_prefix }}reset_request_seq::pre_randomize();
-  super.pre_randomize();
+    super.pre_randomize();
 
-  if(!rst_req)
-    `uvm_create(rst_req)
+    if(!rst_req)
+        `uvm_create(rst_req)
 endfunction
 
 task {{ class_prefix }}reset_request_seq::body();
-  `uvm_info("",$psprintf("reset:\n%s",sprint()),UVM_DEBUG)
+    `uvm_info("",$psprintf("reset:\n%s",sprint()),UVM_DEBUG)
 
-  execute_reset();
+    execute_reset();
 endtask
 
 task {{ class_prefix }}reset_request_seq::execute_reset();
-  bit[31:0] rdata;
+    bit[31:0] rdata;
 
-  if(rst_req.sw_rst_cmd) begin
-    // 复位CMD
-    rm.SW_RST_R.SW_RST_ALL.set(0);
-    rm.SW_RST_R.SW_RST_CMD.set(1);
-    rm.SW_RST_R.SW_RST_DAT.set(0);
-    rm.SW_RST_R.write(status,rm.SW_RST_R.get());
+    if(rst_req.sw_rst_cmd) begin
+        // 复位CMD
+        rm.SW_RST_R.SW_RST_ALL.set(0);
+        rm.SW_RST_R.SW_RST_CMD.set(1);
+        rm.SW_RST_R.SW_RST_DAT.set(0);
+        rm.SW_RST_R.write(status,rm.SW_RST_R.get());
 
-    // 等待复位完毕
-    do begin
-      rm.SW_RST_R.read(status,rdata);
-    end while(rm.SW_RST_R.get());
-  end
+        // 等待复位完毕
+        do begin
+            rm.SW_RST_R.read(status,rdata);
+        end while(rm.SW_RST_R.get());
+    end
 
-  if(rst_req.sw_rst_dat) begin
-    // 复位DAT
-    rm.SW_RST_R.SW_RST_ALL.set(0);
-    rm.SW_RST_R.SW_RST_CMD.set(0);
-    rm.SW_RST_R.SW_RST_DAT.set(1);
-    rm.SW_RST_R.write(status,rm.SW_RST_R.get());
+    if(rst_req.sw_rst_dat) begin
+        // 复位DAT
+        rm.SW_RST_R.SW_RST_ALL.set(0);
+        rm.SW_RST_R.SW_RST_CMD.set(0);
+        rm.SW_RST_R.SW_RST_DAT.set(1);
+        rm.SW_RST_R.write(status,rm.SW_RST_R.get());
 
-    // 等待复位完毕
-    do begin
-      rm.SW_RST_R.read(status,rdata);
-    end while(rm.SW_RST_R.get());
-  end
+        // 等待复位完毕
+        do begin
+            rm.SW_RST_R.read(status,rdata);
+        end while(rm.SW_RST_R.get());
+    end
 endtask
 
 `endif

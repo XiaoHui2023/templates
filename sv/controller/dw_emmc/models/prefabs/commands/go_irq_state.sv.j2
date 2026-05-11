@@ -3,16 +3,16 @@
 
 // 发送CMD40，到中断状态
 class {{ class_prefix }}go_irq_state_command_request extends {{ class_prefix }}command_request;
-  `uvm_object_utils({{ class_prefix }}go_irq_state_command_request)
+    `uvm_object_utils({{ class_prefix }}go_irq_state_command_request)
 
-  function new(string name="{{ class_prefix }}go_irq_state_command_request");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}go_irq_state_command_request");
+        super.new(name);
+    endfunction
 
-  constraint cst_prefab {
-    cmd_index == 40;
-    resp == R5;
-  }
+    constraint cst_prefab {
+        cmd_index == 40;
+        resp == R5;
+    }
 endclass
 
 `endif

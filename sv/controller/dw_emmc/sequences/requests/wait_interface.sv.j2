@@ -2,142 +2,142 @@
 `define {{ class_prefix | upper }}_WAIT_INTERRUPT_REQUEST_SEQ
 
 class {{ class_prefix }}wait_interrupt_request_seq extends {{ class_prefix }}base_request_seq;
-    `uvm_object_utils({{ class_prefix }}wait_interrupt_request_seq)
+        `uvm_object_utils({{ class_prefix }}wait_interrupt_request_seq)
 
-    rand {{ class_prefix }}wait_interrupt_request wait_intr_req;
-    rand {{ class_prefix }}check_error_request chk_err_req;
+        rand {{ class_prefix }}wait_interrupt_request wait_intr_req;
+        rand {{ class_prefix }}check_error_request chk_err_req;
 
-    function new(string name = "{{ class_prefix }}wait_interrupt_request_seq");
-        super.new(name);
-    endfunction
+        function new(string name = "{{ class_prefix }}wait_interrupt_request_seq");
+                super.new(name);
+        endfunction
 
-    {{ class_prefix }}check_error_request_seq chk_err_seq;
+        {{ class_prefix }}check_error_request_seq chk_err_seq;
 
-    extern function void pre_randomize();
-    extern task body();
-    // 等待中断
-    extern task wait_interrupt();
-    // 等待中断信号
-    extern task wait_interrupt_signal();
-    // 清理中断状态
-    extern task clear_interrupt_status(uvm_reg_field f_stat, uvm_reg_field f_stat_en, uvm_reg_field f_signal_en);
+        extern function void pre_randomize();
+        extern task body();
+        // 等待中断
+        extern task wait_interrupt();
+        // 等待中断信号
+        extern task wait_interrupt_signal();
+        // 清理中断状态
+        extern task clear_interrupt_status(uvm_reg_field f_stat, uvm_reg_field f_stat_en, uvm_reg_field f_signal_en);
 endclass
 
 function void {{ class_prefix }}wait_interrupt_request_seq::pre_randomize();
-    super.pre_randomize();
+        super.pre_randomize();
 
-    if (!wait_intr_req)
-        `uvm_create(wait_intr_req)
-    if (!chk_err_req)
-        `uvm_create(chk_err_req)
-    `uvm_create(chk_err_seq)
-    $cast(chk_err_seq.chk_err_req, chk_err_req);
+        if (!wait_intr_req)
+                `uvm_create(wait_intr_req)
+        if (!chk_err_req)
+                `uvm_create(chk_err_req)
+        `uvm_create(chk_err_seq)
+        $cast(chk_err_seq.chk_err_req, chk_err_req);
 endfunction
 
 task {{ class_prefix }}wait_interrupt_request_seq::body();
-    `uvm_info("", $psprintf("wait interrupt:\n%s", wait_intr_req.sprint()), UVM_DEBUG)
-    wait_interrupt();
-    `uvm_info("", "wait interrupt done", UVM_DEBUG)
+        `uvm_info("", $psprintf("wait interrupt:\n%s", wait_intr_req.sprint()), UVM_DEBUG)
+        wait_interrupt();
+        `uvm_info("", "wait interrupt done", UVM_DEBUG)
 endtask
 
 task {{ class_prefix }}wait_interrupt_request_seq::wait_interrupt();
-    rm.NORMAL_INT_STAT_EN_R.set('hffff_ffff);
-    rm.NORMAL_INT_STAT_EN_R.update(status);
-    rm.NORMAL_INT_STAT_EN_R.write(status, rm.NORMAL_INT_STAT_EN_R.get());
+        rm.NORMAL_INT_STAT_EN_R.set('hffff_ffff);
+        rm.NORMAL_INT_STAT_EN_R.update(status);
+        rm.NORMAL_INT_STAT_EN_R.write(status, rm.NORMAL_INT_STAT_EN_R.get());
 
-    // 打开信号使能
-    rm.NORMAL_INT_SIGNAL_EN_R.CMD_COMPLETE_SIGNAL_EN.set(wait_intr_req.cmd_complete);
-    rm.NORMAL_INT_SIGNAL_EN_R.XFER_COMPLETE_SIGNAL_EN.set(wait_intr_req.xfer_complete);
-    rm.NORMAL_INT_SIGNAL_EN_R.BGAP_EVENT_SIGNAL_EN.set(wait_intr_req.bgap_event);
-    rm.NORMAL_INT_SIGNAL_EN_R.DMA_INTERRUPT_SIGNAL_EN.set(wait_intr_req.dma_interrupt);
-    rm.NORMAL_INT_SIGNAL_EN_R.BUF_WR_READY_SIGNAL_EN.set(wait_intr_req.buf_wr_ready);
-    rm.NORMAL_INT_SIGNAL_EN_R.BUF_RD_READY_SIGNAL_EN.set(wait_intr_req.buf_rd_ready);
-    rm.NORMAL_INT_SIGNAL_EN_R.CARD_INSERTION_SIGNAL_EN.set(wait_intr_req.card_insertion);
-    rm.NORMAL_INT_SIGNAL_EN_R.CARD_REMOVAL_SIGNAL_EN.set(wait_intr_req.card_removal);
-    rm.NORMAL_INT_SIGNAL_EN_R.CARD_INTERRUPT_SIGNAL_EN.set(wait_intr_req.card_interrupt);
-    rm.NORMAL_INT_SIGNAL_EN_R.INT_A_SIGNAL_EN.set(wait_intr_req.int_a);
-    rm.NORMAL_INT_SIGNAL_EN_R.INT_B_SIGNAL_EN.set(wait_intr_req.int_b);
-    rm.NORMAL_INT_SIGNAL_EN_R.INT_C_SIGNAL_EN.set(wait_intr_req.int_c);
-    rm.NORMAL_INT_SIGNAL_EN_R.RE_TUNE_EVENT_SIGNAL_EN.set(wait_intr_req.re_tune_event);
-    rm.NORMAL_INT_SIGNAL_EN_R.FX_EVENT_SIGNAL_EN.set(wait_intr_req.fx_event);
-    rm.NORMAL_INT_SIGNAL_EN_R.CQE_EVENT_SIGNAL_EN.set(wait_intr_req.cqc_event);
-    rm.NORMAL_INT_SIGNAL_EN_R.write(status, rm.NORMAL_INT_SIGNAL_EN_R.get());
+        // 打开信号使能
+        rm.NORMAL_INT_SIGNAL_EN_R.CMD_COMPLETE_SIGNAL_EN.set(wait_intr_req.cmd_complete);
+        rm.NORMAL_INT_SIGNAL_EN_R.XFER_COMPLETE_SIGNAL_EN.set(wait_intr_req.xfer_complete);
+        rm.NORMAL_INT_SIGNAL_EN_R.BGAP_EVENT_SIGNAL_EN.set(wait_intr_req.bgap_event);
+        rm.NORMAL_INT_SIGNAL_EN_R.DMA_INTERRUPT_SIGNAL_EN.set(wait_intr_req.dma_interrupt);
+        rm.NORMAL_INT_SIGNAL_EN_R.BUF_WR_READY_SIGNAL_EN.set(wait_intr_req.buf_wr_ready);
+        rm.NORMAL_INT_SIGNAL_EN_R.BUF_RD_READY_SIGNAL_EN.set(wait_intr_req.buf_rd_ready);
+        rm.NORMAL_INT_SIGNAL_EN_R.CARD_INSERTION_SIGNAL_EN.set(wait_intr_req.card_insertion);
+        rm.NORMAL_INT_SIGNAL_EN_R.CARD_REMOVAL_SIGNAL_EN.set(wait_intr_req.card_removal);
+        rm.NORMAL_INT_SIGNAL_EN_R.CARD_INTERRUPT_SIGNAL_EN.set(wait_intr_req.card_interrupt);
+        rm.NORMAL_INT_SIGNAL_EN_R.INT_A_SIGNAL_EN.set(wait_intr_req.int_a);
+        rm.NORMAL_INT_SIGNAL_EN_R.INT_B_SIGNAL_EN.set(wait_intr_req.int_b);
+        rm.NORMAL_INT_SIGNAL_EN_R.INT_C_SIGNAL_EN.set(wait_intr_req.int_c);
+        rm.NORMAL_INT_SIGNAL_EN_R.RE_TUNE_EVENT_SIGNAL_EN.set(wait_intr_req.re_tune_event);
+        rm.NORMAL_INT_SIGNAL_EN_R.FX_EVENT_SIGNAL_EN.set(wait_intr_req.fx_event);
+        rm.NORMAL_INT_SIGNAL_EN_R.CQE_EVENT_SIGNAL_EN.set(wait_intr_req.cqc_event);
+        rm.NORMAL_INT_SIGNAL_EN_R.write(status, rm.NORMAL_INT_SIGNAL_EN_R.get());
 
-    while (rm.NORMAL_INT_SIGNAL_EN_R.get()) begin
-        wait_interrupt_signal();
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.CMD_COMPLETE, rm.NORMAL_INT_STAT_EN_R.CMD_COMPLETE_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.CMD_COMPLETE_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.XFER_COMPLETE, rm.NORMAL_INT_STAT_EN_R.XFER_COMPLETE_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.XFER_COMPLETE_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.BGAP_EVENT, rm.NORMAL_INT_STAT_EN_R.BGAP_EVENT_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.BGAP_EVENT_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.DMA_INTERRUPT, rm.NORMAL_INT_STAT_EN_R.DMA_INTERRUPT_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.DMA_INTERRUPT_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.BUF_WR_READY, rm.NORMAL_INT_STAT_EN_R.BUF_WR_READY_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.BUF_WR_READY_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.BUF_RD_READY, rm.NORMAL_INT_STAT_EN_R.BUF_RD_READY_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.BUF_RD_READY_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.CARD_INSERTION, rm.NORMAL_INT_STAT_EN_R.CARD_INSERTION_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.CARD_INSERTION_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.CARD_REMOVAL, rm.NORMAL_INT_STAT_EN_R.CARD_REMOVAL_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.CARD_REMOVAL_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.CARD_INTERRUPT, rm.NORMAL_INT_STAT_EN_R.CARD_INTERRUPT_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.CARD_INTERRUPT_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.INT_A, rm.NORMAL_INT_STAT_EN_R.INT_A_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.INT_A_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.INT_B, rm.NORMAL_INT_STAT_EN_R.INT_B_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.INT_B_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.INT_C, rm.NORMAL_INT_STAT_EN_R.INT_C_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.INT_C_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.RE_TUNE_EVENT, rm.NORMAL_INT_STAT_EN_R.RE_TUNE_EVENT_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.RE_TUNE_EVENT_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.FX_EVENT, rm.NORMAL_INT_STAT_EN_R.FX_EVENT_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.FX_EVENT_SIGNAL_EN);
-        clear_interrupt_status(rm.NORMAL_INT_STAT_R.CQE_EVENT, rm.NORMAL_INT_STAT_EN_R.CQE_EVENT_STAT_EN,
-            rm.NORMAL_INT_SIGNAL_EN_R.CQE_EVENT_SIGNAL_EN);
-    end
+        while (rm.NORMAL_INT_SIGNAL_EN_R.get()) begin
+                wait_interrupt_signal();
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.CMD_COMPLETE, rm.NORMAL_INT_STAT_EN_R.CMD_COMPLETE_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.CMD_COMPLETE_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.XFER_COMPLETE, rm.NORMAL_INT_STAT_EN_R.XFER_COMPLETE_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.XFER_COMPLETE_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.BGAP_EVENT, rm.NORMAL_INT_STAT_EN_R.BGAP_EVENT_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.BGAP_EVENT_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.DMA_INTERRUPT, rm.NORMAL_INT_STAT_EN_R.DMA_INTERRUPT_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.DMA_INTERRUPT_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.BUF_WR_READY, rm.NORMAL_INT_STAT_EN_R.BUF_WR_READY_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.BUF_WR_READY_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.BUF_RD_READY, rm.NORMAL_INT_STAT_EN_R.BUF_RD_READY_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.BUF_RD_READY_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.CARD_INSERTION, rm.NORMAL_INT_STAT_EN_R.CARD_INSERTION_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.CARD_INSERTION_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.CARD_REMOVAL, rm.NORMAL_INT_STAT_EN_R.CARD_REMOVAL_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.CARD_REMOVAL_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.CARD_INTERRUPT, rm.NORMAL_INT_STAT_EN_R.CARD_INTERRUPT_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.CARD_INTERRUPT_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.INT_A, rm.NORMAL_INT_STAT_EN_R.INT_A_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.INT_A_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.INT_B, rm.NORMAL_INT_STAT_EN_R.INT_B_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.INT_B_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.INT_C, rm.NORMAL_INT_STAT_EN_R.INT_C_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.INT_C_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.RE_TUNE_EVENT, rm.NORMAL_INT_STAT_EN_R.RE_TUNE_EVENT_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.RE_TUNE_EVENT_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.FX_EVENT, rm.NORMAL_INT_STAT_EN_R.FX_EVENT_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.FX_EVENT_SIGNAL_EN);
+                clear_interrupt_status(rm.NORMAL_INT_STAT_R.CQE_EVENT, rm.NORMAL_INT_STAT_EN_R.CQE_EVENT_STAT_EN,
+                        rm.NORMAL_INT_SIGNAL_EN_R.CQE_EVENT_SIGNAL_EN);
+        end
 endtask
 
 task {{ class_prefix }}wait_interrupt_request_seq::wait_interrupt_signal();
-    bit [31:0] rdata;
+        bit [31:0] rdata;
 
-    fork
-        begin
-            p_sequencer.vif.wait_timeout(wait_intr_req.timeout_us);
-            `uvm_fatal("", $psprintf("wait interrupt timeout:\n%s", wait_intr_req.sprint()))
-        end
-        forever begin
-            `uvm_rand_send(chk_err_seq)
-            if (p_sequencer.vif.intr) begin
-                rm.NORMAL_INT_STAT_R.read(status, rdata);
-                if (|rm.NORMAL_INT_STAT_R.get())
-                    break;
-            end
-        end
-    join_any
-    disable fork;
+        fork
+                begin
+                        p_sequencer.vif.wait_timeout(wait_intr_req.timeout_us);
+                        `uvm_fatal("", $psprintf("wait interrupt timeout:\n%s", wait_intr_req.sprint()))
+                end
+                forever begin
+                        `uvm_rand_send(chk_err_seq)
+                        if (p_sequencer.vif.intr) begin
+                                rm.NORMAL_INT_STAT_R.read(status, rdata);
+                                if (|rm.NORMAL_INT_STAT_R.get())
+                                        break;
+                        end
+                end
+        join_any
+        disable fork;
 endtask
 
 task {{ class_prefix }}wait_interrupt_request_seq::clear_interrupt_status(uvm_reg_field f_stat,
-        uvm_reg_field f_stat_en, uvm_reg_field f_signal_en);
-    uvm_reg r_stat;
-    uvm_reg r_signal_en;
+                uvm_reg_field f_stat_en, uvm_reg_field f_signal_en);
+        uvm_reg r_stat;
+        uvm_reg r_signal_en;
 
-    if (!f_stat.get())
-        return;
+        if (!f_stat.get())
+                return;
 
-    r_stat = f_stat.get_register();
-    r_signal_en = f_signal_en.get_register();
+        r_stat = f_stat.get_register();
+        r_signal_en = f_signal_en.get_register();
 
-    if (!f_signal_en.get())
-        return;
+        if (!f_signal_en.get())
+                return;
 
-    r_stat.write(status, (1 << f_stat.get_lsb_pos()));
+        r_stat.write(status, (1 << f_stat.get_lsb_pos()));
 
-    if (f_signal_en.get()) begin
-        f_signal_en.set(0);
-        r_signal_en.write(status, r_signal_en.get());
-    end
+        if (f_signal_en.get()) begin
+                f_signal_en.set(0);
+                r_signal_en.write(status, r_signal_en.get());
+        end
 endtask
 
 `endif

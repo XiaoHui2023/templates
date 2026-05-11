@@ -2,19 +2,19 @@
 `define {{ class_prefix | upper }}COMMAND_RESPONSE
 
 class {{ class_prefix }}command_response extends {{ class_prefix }}base_response;
-  `uvm_object_utils_begin({{ class_prefix }}command_response)
-    `uvm_field_int(len, UVM_ALL_ON)
-    `uvm_field_queue_int(data, UVM_ALL_ON)
-    `uvm_field_int(resp, UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}command_response)
+        `uvm_field_int(len, UVM_ALL_ON)
+        `uvm_field_queue_int(data, UVM_ALL_ON)
+        `uvm_field_int(resp, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  int len;
-  bit[7:0] data[$];
-  bit[127:0] resp; // 答复
+    int len;
+    bit[7:0] data[$];
+    bit[127:0] resp; // 答复
 
-  function new(string name="{{ class_prefix }}command_response");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}command_response");
+        super.new(name);
+    endfunction
 endclass
 
 `endif

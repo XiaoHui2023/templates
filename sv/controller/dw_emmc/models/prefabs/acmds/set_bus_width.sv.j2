@@ -3,25 +3,25 @@
 
 // ACMD6 设置总线宽度
 class {{ class_prefix }}set_bus_width_acmd_request extends {{ class_prefix }}base_acmd_request;
-  `uvm_object_utils_begin({{ class_prefix }}set_bus_width_acmd_request)
-    `uvm_field_int(bus_width, UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}set_bus_width_acmd_request)
+        `uvm_field_int(bus_width, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  rand int bus_width; // 总线宽度
+    rand int bus_width; // 总线宽度
 
-  function new(string name="{{ class_prefix }}set_bus_width_acmd_request");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}set_bus_width_acmd_request");
+        super.new(name);
+    endfunction
 
-  constraint cst_acmd_prefab {
-    cmd_index == 6;
-    if(bus_width == 1)
-      argument[1:0] == 2'b00;
-    else if(bus_width == 4)
-      argument[1:0] == 2'b10;
-    resp == R1;
-    bus_width inside {1,4};
-    soft bus_width == sys_cfg.boot_cfg.default_data_width;
-  }
+    constraint cst_acmd_prefab {
+        cmd_index == 6;
+        if(bus_width == 1)
+            argument[1:0] == 2'b00;
+        else if(bus_width == 4)
+            argument[1:0] == 2'b10;
+        resp == R1;
+        bus_width inside {1,4};
+        soft bus_width == sys_cfg.boot_cfg.default_data_width;
+    }
 endclass
 `endif

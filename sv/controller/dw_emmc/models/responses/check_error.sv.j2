@@ -2,82 +2,82 @@
 `define {{ class_prefix | upper }}CHECK_ERROR_RESPONSE
 
 class {{ class_prefix }}check_error_response extends {{ class_prefix }}base_response;
-  `uvm_object_utils_begin({{ class_prefix }}check_error_response)
-    `uvm_field_int(is_error, UVM_ALL_ON)
-    if(is_error) begin
-      `uvm_field_int(count, UVM_ALL_ON)
-      `uvm_field_int(status, UVM_ALL_ON|(status?0:UVM_NOPRINT))
-      `uvm_field_int(adma_status, UVM_ALL_ON|(adma_status?0:UVM_NOPRINT))
-      `uvm_field_int(cmd_tout_err, UVM_ALL_ON|(cmd_tout_err?0:UVM_NOPRINT))
-      `uvm_field_int(cmd_crc_err, UVM_ALL_ON|(cmd_crc_err?0:UVM_NOPRINT))
-      `uvm_field_int(cmd_end_bit_err, UVM_ALL_ON|(cmd_end_bit_err?0:UVM_NOPRINT))
-      `uvm_field_int(cmd_idx_err, UVM_ALL_ON|(cmd_idx_err?0:UVM_NOPRINT))
-      `uvm_field_int(data_tout_err, UVM_ALL_ON|(data_tout_err?0:UVM_NOPRINT))
-      `uvm_field_int(data_crc_err, UVM_ALL_ON|(data_crc_err?0:UVM_NOPRINT))
-      `uvm_field_int(data_end_bit_err, UVM_ALL_ON|(data_end_bit_err?0:UVM_NOPRINT))
-      `uvm_field_int(cur_lmt_err, UVM_ALL_ON|(cur_lmt_err?0:UVM_NOPRINT))
-      `uvm_field_int(auto_cmd_err, UVM_ALL_ON|(auto_cmd_err?0:UVM_NOPRINT))
-      `uvm_field_int(adma_err, UVM_ALL_ON|(adma_err?0:UVM_NOPRINT))
-      `uvm_field_int(tuning_err, UVM_ALL_ON|(tuning_err?0:UVM_NOPRINT))
-      `uvm_field_int(resp_err, UVM_ALL_ON|(resp_err?0:UVM_NOPRINT))
-      `uvm_field_int(boot_ack_err, UVM_ALL_ON|(boot_ack_err?0:UVM_NOPRINT))
-      `uvm_field_int(adma_len_err, UVM_ALL_ON|(adma_len_err?0:UVM_NOPRINT))
-      `uvm_field_int(adma_st_stop_err, UVM_ALL_ON|(adma_st_stop_err?0:UVM_NOPRINT))
-      `uvm_field_int(adma_st_fds_err, UVM_ALL_ON|(adma_st_fds_err?0:UVM_NOPRINT))
-      `uvm_field_int(adma_unused_err, UVM_ALL_ON|(adma_unused_err?0:UVM_NOPRINT))
-      `uvm_field_int(adma_st_tfr_err, UVM_ALL_ON|(adma_st_tfr_err?0:UVM_NOPRINT))
-    end
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}check_error_response)
+        `uvm_field_int(is_error, UVM_ALL_ON)
+        if(is_error) begin
+            `uvm_field_int(count, UVM_ALL_ON)
+            `uvm_field_int(status, UVM_ALL_ON|(status?0:UVM_NOPRINT))
+            `uvm_field_int(adma_status, UVM_ALL_ON|(adma_status?0:UVM_NOPRINT))
+            `uvm_field_int(cmd_tout_err, UVM_ALL_ON|(cmd_tout_err?0:UVM_NOPRINT))
+            `uvm_field_int(cmd_crc_err, UVM_ALL_ON|(cmd_crc_err?0:UVM_NOPRINT))
+            `uvm_field_int(cmd_end_bit_err, UVM_ALL_ON|(cmd_end_bit_err?0:UVM_NOPRINT))
+            `uvm_field_int(cmd_idx_err, UVM_ALL_ON|(cmd_idx_err?0:UVM_NOPRINT))
+            `uvm_field_int(data_tout_err, UVM_ALL_ON|(data_tout_err?0:UVM_NOPRINT))
+            `uvm_field_int(data_crc_err, UVM_ALL_ON|(data_crc_err?0:UVM_NOPRINT))
+            `uvm_field_int(data_end_bit_err, UVM_ALL_ON|(data_end_bit_err?0:UVM_NOPRINT))
+            `uvm_field_int(cur_lmt_err, UVM_ALL_ON|(cur_lmt_err?0:UVM_NOPRINT))
+            `uvm_field_int(auto_cmd_err, UVM_ALL_ON|(auto_cmd_err?0:UVM_NOPRINT))
+            `uvm_field_int(adma_err, UVM_ALL_ON|(adma_err?0:UVM_NOPRINT))
+            `uvm_field_int(tuning_err, UVM_ALL_ON|(tuning_err?0:UVM_NOPRINT))
+            `uvm_field_int(resp_err, UVM_ALL_ON|(resp_err?0:UVM_NOPRINT))
+            `uvm_field_int(boot_ack_err, UVM_ALL_ON|(boot_ack_err?0:UVM_NOPRINT))
+            `uvm_field_int(adma_len_err, UVM_ALL_ON|(adma_len_err?0:UVM_NOPRINT))
+            `uvm_field_int(adma_st_stop_err, UVM_ALL_ON|(adma_st_stop_err?0:UVM_NOPRINT))
+            `uvm_field_int(adma_st_fds_err, UVM_ALL_ON|(adma_st_fds_err?0:UVM_NOPRINT))
+            `uvm_field_int(adma_unused_err, UVM_ALL_ON|(adma_unused_err?0:UVM_NOPRINT))
+            `uvm_field_int(adma_st_tfr_err, UVM_ALL_ON|(adma_st_tfr_err?0:UVM_NOPRINT))
+        end
+    `uvm_object_utils_end
 
-  rand bit is_error; // 是否有错
-  bit[12:0] status; // 错误状态
-  bit[2:0] adma_status; // ADMA错误状态
-  rand int count; // 错误计数
-  rand bit cmd_tout_err; // 命令超时错误
-  rand bit cmd_crc_err; // 命令CRC校验错误
-  rand bit cmd_end_bit_err; // 命令末位错误
-  rand bit cmd_idx_err; // 命令索引错误
-  rand bit data_tout_err; // 数据超时错误
-  rand bit data_crc_err; // 数据CRC校验错误
-  rand bit data_end_bit_err; // 数据末位错误
-  rand bit cur_lmt_err; // Current Limit 错误
-  rand bit auto_cmd_err; // 自动命令错误
-  rand bit adma_err; // ADMA错误
-  rand bit tuning_err; // 调优错误
-  rand bit resp_err; // 应答错误
-  rand bit boot_ack_err; // BOOT应答错误
-  rand bit adma_len_err;
-  rand bit adma_st_stop_err;
-  rand bit adma_st_fds_err;
-  rand bit adma_unused_err;
-  rand bit adma_st_tfr_err;
+    rand bit is_error; // 是否有错
+    bit[12:0] status; // 错误状态
+    bit[2:0] adma_status; // ADMA错误状态
+    rand int count; // 错误计数
+    rand bit cmd_tout_err; // 命令超时错误
+    rand bit cmd_crc_err; // 命令CRC校验错误
+    rand bit cmd_end_bit_err; // 命令末位错误
+    rand bit cmd_idx_err; // 命令索引错误
+    rand bit data_tout_err; // 数据超时错误
+    rand bit data_crc_err; // 数据CRC校验错误
+    rand bit data_end_bit_err; // 数据末位错误
+    rand bit cur_lmt_err; // Current Limit 错误
+    rand bit auto_cmd_err; // 自动命令错误
+    rand bit adma_err; // ADMA错误
+    rand bit tuning_err; // 调优错误
+    rand bit resp_err; // 应答错误
+    rand bit boot_ack_err; // BOOT应答错误
+    rand bit adma_len_err;
+    rand bit adma_st_stop_err;
+    rand bit adma_st_fds_err;
+    rand bit adma_unused_err;
+    rand bit adma_st_tfr_err;
 
-  constraint cst_check_error_response {
-    is_error == (count > 0);
-    count == $countones(status) + (adma_status[1:0]>0) + adma_len_err;
-    status[0] == cmd_tout_err;
-    status[1] == cmd_crc_err;
-    status[2] == cmd_end_bit_err;
-    status[3] == cmd_idx_err;
-    status[4] == data_tout_err;
-    status[5] == data_crc_err;
-    status[6] == data_end_bit_err;
-    status[7] == cur_lmt_err;
-    status[8] == auto_cmd_err;
-    status[9] == adma_err;
-    status[10] == tuning_err;
-    status[11] == resp_err;
-    status[12] == boot_ack_err;
-    adma_status[2] == adma_len_err;
-    (adma_status[1:0] == 0) -> adma_st_stop_err == 0;
-    (adma_status[1:0] == 1) -> adma_st_fds_err == 0;
-    (adma_status[1:0] == 2) -> adma_unused_err == 0;
-    (adma_status[1:0] == 3) -> adma_st_tfr_err == 0;
-  }
+    constraint cst_check_error_response {
+        is_error == (count > 0);
+        count == $countones(status) + (adma_status[1:0]>0) + adma_len_err;
+        status[0] == cmd_tout_err;
+        status[1] == cmd_crc_err;
+        status[2] == cmd_end_bit_err;
+        status[3] == cmd_idx_err;
+        status[4] == data_tout_err;
+        status[5] == data_crc_err;
+        status[6] == data_end_bit_err;
+        status[7] == cur_lmt_err;
+        status[8] == auto_cmd_err;
+        status[9] == adma_err;
+        status[10] == tuning_err;
+        status[11] == resp_err;
+        status[12] == boot_ack_err;
+        adma_status[2] == adma_len_err;
+        (adma_status[1:0] == 0) -> adma_st_stop_err == 0;
+        (adma_status[1:0] == 1) -> adma_st_fds_err == 0;
+        (adma_status[1:0] == 2) -> adma_unused_err == 0;
+        (adma_status[1:0] == 3) -> adma_st_tfr_err == 0;
+    }
 
-  function new(string name="{{ class_prefix }}check_error_response");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}check_error_response");
+        super.new(name);
+    endfunction
 endclass
 
 `endif

@@ -2,56 +2,56 @@
 `define {{ (class_prefix | upper) }}YIELD
 
 class {{ class_prefix }}yield extends uvm_sequence;
-  `uvm_object_utils({{ class_prefix }}yield)
+    `uvm_object_utils({{ class_prefix }}yield)
 
-  function new(string name="{{ class_prefix }}yield");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}yield");
+        super.new(name);
+    endfunction
 
-  protected bit has_requested; // 已经申请
-  protected bit is_ready;     // 是否准备好
-  protected bit has_resumed;   // 已经恢复
+    protected bit has_requested; // 已经申请
+    protected bit is_ready;     // 是否准备好
+    protected bit has_resumed;   // 已经恢复
 
-  extern task body();
+    extern task body();
 
-  // 外部申请让步 (内部阻塞)
-  extern virtual task request();
+    // 外部申请让步 (内部阻塞)
+    extern virtual task request();
 
-  // 内部准备好了，让步给外部 (内部阻塞，外部释放)
-  extern virtual task ready();
+    // 内部准备好了，让步给外部 (内部阻塞，外部释放)
+    extern virtual task ready();
 
-  // 外部交回控制权，恢复让步给内部 (内部释放)
-  extern virtual function void resume();
+    // 外部交回控制权，恢复让步给内部 (内部释放)
+    extern virtual function void resume();
 endclass
 
 task {{ class_prefix }}yield::body();
-  ready();
+    ready();
 endtask
 
 task {{ class_prefix }}yield::request();
-  `uvm_info("", "request", UVM_HIGH)
+    `uvm_info("", "request", UVM_HIGH)
 
-  if(is_ready)
-    `uvm_fatal("", "request arrived too late, sequence already ready")
+    if(is_ready)
+        `uvm_fatal("", "request arrived too late, sequence already ready")
 
-  has_requested = 1;
+    has_requested = 1;
 
-  wait(is_ready);
+    wait(is_ready);
 endtask
 
 task {{ class_prefix }}yield::ready();
-  `uvm_info("", "ready", UVM_HIGH)
+    `uvm_info("", "ready", UVM_HIGH)
 
-  is_ready = 1;
+    is_ready = 1;
 
-  if(has_requested)
-    wait(has_resumed);
+    if(has_requested)
+        wait(has_resumed);
 endtask
 
 function void {{ class_prefix }}yield::resume();
-  `uvm_info("", "resume", UVM_HIGH)
+    `uvm_info("", "resume", UVM_HIGH)
 
-  has_resumed = 1;
+    has_resumed = 1;
 endfunction
 
 `endif

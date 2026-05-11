@@ -2,12 +2,12 @@
 `define {{ class_prefix | upper }}_INTERFACE
 
 interface {{ class_prefix }}interface(
-    {%- if is_sd %}
-    output wire cd, // 插卡
-    output wire wp, // 写保护
-    {%- endif %}
-    input wire intr, // 中断信号
-    input wire[UVM_HDL_MAX_WIDTH-1:0] heartbeat // 心跳
+        {%- if is_sd %}
+        output wire cd, // 插卡
+        output wire wp, // 写保护
+        {%- endif %}
+        input wire intr, // 中断信号
+        input wire[UVM_HDL_MAX_WIDTH-1:0] heartbeat // 心跳
 );
 
 timeunit 1fs;
@@ -23,55 +23,55 @@ assign wp = wp_r;
 {{ class_prefix }}connections_interface connections_if(); // 连线接口
 
 initial begin
-    {%- if is_sd %}
-    cd_r <= 1'b1;
-    wp_r <= 1'b1;
-    {%- endif %}
+        {%- if is_sd %}
+        cd_r <= 1'b1;
+        wp_r <= 1'b1;
+        {%- endif %}
 end
 
 {%- if is_sd %}
 
 // 插入SD卡
 function automatic void card_insert();
-    cd_r = 0;
+        cd_r = 0;
 endfunction
 
 // 拔出SD卡
 function automatic void card_remove();
-    cd_r = 1;
+        cd_r = 1;
 endfunction
 
 // 设置写保护使能
 function automatic void set_write_protect(bit enable);
-    wp_r = ~enable;
+        wp_r = ~enable;
 endfunction
 
 {%- endif %}
 
 /*
- * 等待无超时
- *
- * timeout_us : 超时时限 (us)
- */
+  * 等待无超时
+  *
+  * timeout_us : 超时时限 (us)
+  */
 task automatic wait_timeout(longint timeout_us);
-    longint heartbeat_count;
+        longint heartbeat_count;
 
-    fork begin
-        fork
-            // 心跳检测
-            forever begin
-                heartbeat_count = timeout_us;
-                @(heartbeat);
-            end
-            // 计时
-            forever begin
-                #1us;
-                if(heartbeat_count-- < 0)
-                    break;
-            end
-        join_any
-        disable fork;
-    end join
+        fork begin
+                fork
+                        // 心跳检测
+                        forever begin
+                                heartbeat_count = timeout_us;
+                                @(heartbeat);
+                        end
+                        // 计时
+                        forever begin
+                                #1us;
+                                if(heartbeat_count-- < 0)
+                                        break;
+                        end
+                join_any
+                disable fork;
+        end join
 endtask
 
 endinterface

@@ -2,187 +2,187 @@
 `define {{ class_prefix | upper }}ACCESS_REQUEST
 
 class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
-  `uvm_object_utils_begin({{ class_prefix }}access_request)
-    `uvm_field_int(cmd_index, UVM_ALL_ON)
-    `uvm_field_int(argument, UVM_ALL_ON)
-    `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
-    `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON)
-    `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON)
-    `uvm_field_enum(sdma_buf_bdary_e, sdma_buf_bdary, UVM_ALL_ON)
-    `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
-    `uvm_field_int(data_width, UVM_ALL_ON)
-    `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
-    `uvm_field_int(resp_type, UVM_ALL_ON)
-    `uvm_field_int(dma_enable, UVM_ALL_ON)
-    `uvm_field_int(dma_addr, UVM_ALL_ON)
-    `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
-    `uvm_field_int(uhs_mode_sel, UVM_ALL_ON)
-    `uvm_field_int(data_present_sel, UVM_ALL_ON)
-    `uvm_field_int(dat_xfer_width, UVM_ALL_ON)
-    `uvm_field_int(ext_dat_xfer, UVM_ALL_ON)
-    `uvm_field_int(xfer_block_size, UVM_ALL_ON)
-    `uvm_field_int(sdmasa, UVM_ALL_ON)
-    `uvm_field_enum(resp_type_select_e, resp_type_select, UVM_ALL_ON)
-    `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-    `uvm_field_int(tune_en, UVM_ALL_ON)
-    `uvm_field_int(center_ph_code, UVM_ALL_ON)
-    `uvm_field_int(high_speed_en, UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}access_request)
+        `uvm_field_int(cmd_index, UVM_ALL_ON)
+        `uvm_field_int(argument, UVM_ALL_ON)
+        `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
+        `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON)
+        `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON)
+        `uvm_field_enum(sdma_buf_bdary_e, sdma_buf_bdary, UVM_ALL_ON)
+        `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+        `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
+        `uvm_field_int(resp_type, UVM_ALL_ON)
+        `uvm_field_int(dma_enable, UVM_ALL_ON)
+        `uvm_field_int(dma_addr, UVM_ALL_ON)
+        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+        `uvm_field_int(uhs_mode_sel, UVM_ALL_ON)
+        `uvm_field_int(data_present_sel, UVM_ALL_ON)
+        `uvm_field_int(dat_xfer_width, UVM_ALL_ON)
+        `uvm_field_int(ext_dat_xfer, UVM_ALL_ON)
+        `uvm_field_int(xfer_block_size, UVM_ALL_ON)
+        `uvm_field_int(sdmasa, UVM_ALL_ON)
+        `uvm_field_enum(resp_type_select_e, resp_type_select, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+        `uvm_field_int(tune_en, UVM_ALL_ON)
+        `uvm_field_int(center_ph_code, UVM_ALL_ON)
+        `uvm_field_int(high_speed_en, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  rand bit[5:0] cmd_index; // 传输命令索引
-  rand int argument; // 传输参数
-  rand data_xfer_dir_e data_xfer_dir; // 传输方向
-  rand bit cmd_crc_chk_enable; // 是否检查命令CRC
-  rand bit cmd_idx_chk_enable; // 是否检查命令索引
-  rand sdma_buf_bdary_e sdma_buf_bdary; // SDMA边界大小
-  rand auto_cmd_enable_e auto_cmd_enable; // 自动命令
-  rand int data_width; // 数据宽度
-  rand multi_blk_sel_e multi_blk_sel; // 是否传输多块
-  rand bit resp_type; // 应答类型
-  rand bit dma_enable; // DMA使能
-  rand bit[31:0] dma_addr; // DMA起始地址
-  rand dma_sel_e dma_sel; // DMA种类选择
-  rand int uhs_mode_sel; // 读写模式选择
-  rand bit data_present_sel; // 是否有数据
-  rand bit dat_xfer_width; // 影响数据位宽是否为 4bit (取决于 data_width)
-  rand bit ext_dat_xfer; // 影响数据位宽是否为 8bit (取决于 data_width)
-  rand int xfer_block_size; // 传输数据单次长度
-  rand int sdmasa; // 传输数据次数
-  rand resp_type_select_e resp_type_select; // 应答类型参数
-  rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
-  rand bit tune_en; // 调试使能
-  rand int center_ph_code; // 中心相位窗
-  rand bit high_speed_en; // 高速使能
+    rand bit[5:0] cmd_index; // 传输命令索引
+    rand int argument; // 传输参数
+    rand data_xfer_dir_e data_xfer_dir; // 传输方向
+    rand bit cmd_crc_chk_enable; // 是否检查命令CRC
+    rand bit cmd_idx_chk_enable; // 是否检查命令索引
+    rand sdma_buf_bdary_e sdma_buf_bdary; // SDMA边界大小
+    rand auto_cmd_enable_e auto_cmd_enable; // 自动命令
+    rand int data_width; // 数据宽度
+    rand multi_blk_sel_e multi_blk_sel; // 是否传输多块
+    rand bit resp_type; // 应答类型
+    rand bit dma_enable; // DMA使能
+    rand bit[31:0] dma_addr; // DMA起始地址
+    rand dma_sel_e dma_sel; // DMA种类选择
+    rand int uhs_mode_sel; // 读写模式选择
+    rand bit data_present_sel; // 是否有数据
+    rand bit dat_xfer_width; // 影响数据位宽是否为 4bit (取决于 data_width)
+    rand bit ext_dat_xfer; // 影响数据位宽是否为 8bit (取决于 data_width)
+    rand int xfer_block_size; // 传输数据单次长度
+    rand int sdmasa; // 传输数据次数
+    rand resp_type_select_e resp_type_select; // 应答类型参数
+    rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
+    rand bit tune_en; // 调试使能
+    rand int center_ph_code; // 中心相位窗
+    rand bit high_speed_en; // 高速使能
 
-  constraint cst_access_request {
-    // default
-    foreach (argument[i])
-      soft argument[i] == 0;
-    soft sdma_buf_bdary == BYTES_4K;
-    soft auto_cmd_enable == AUTO_CMD_DISABLED;
-    soft dma_enable == 0;
-    soft dma_addr == 'h0;
-    soft data_present_sel == 0;
-    soft multi_blk_sel == 0;
-    soft sdmasa == 0;
-    soft xfer_block_size == 0;
-    soft tune_en == 0;
-    soft center_ph_code == 0;
+    constraint cst_access_request {
+        // default
+        foreach (argument[i])
+            soft argument[i] == 0;
+        soft sdma_buf_bdary == BYTES_4K;
+        soft auto_cmd_enable == AUTO_CMD_DISABLED;
+        soft dma_enable == 0;
+        soft dma_addr == 'h0;
+        soft data_present_sel == 0;
+        soft multi_blk_sel == 0;
+        soft sdmasa == 0;
+        soft xfer_block_size == 0;
+        soft tune_en == 0;
+        soft center_ph_code == 0;
 
-    // valid
-    xfer_block_size inside {[0:'h800]};
+        // valid
+        xfer_block_size inside {[0:'h800]};
 
-    // context
-    data_width == ctx.data_width_cur;
-    bus_speed_mode == ctx.bus_speed_mode_cur;
+        // context
+        data_width == ctx.data_width_cur;
+        bus_speed_mode == ctx.bus_speed_mode_cur;
 
-    // data_width -> speed
-                                                                            {%- if is_emmc %}
-    if(data_width == 1)
-        uhs_mode_sel inside {
-            {{ UHS_MODE_SEL_SDR12_LEGACY }},
-            {{ UHS_MODE_SEL_SDR25_HIGH_SPEED_SDR }}
-        };
-    else if(data_width == 4)
-        uhs_mode_sel inside {
-            {{ UHS_MODE_SEL_SDR12_LEGACY }},
-            {{ UHS_MODE_SEL_SDR25_HIGH_SPEED_SDR }},
-            {{ UHS_MODE_SEL_SDR104_HS200 }},
-            {{ UHS_MODE_SEL_DDR50_HIGH_SPEED_DDR }}
-        };
-                                                                            {%- endif %}
+        // data_width -> speed
+                                                                                                                                                        {%- if is_emmc %}
+        if(data_width == 1)
+                uhs_mode_sel inside {
+                        {{ UHS_MODE_SEL_SDR12_LEGACY }},
+                        {{ UHS_MODE_SEL_SDR25_HIGH_SPEED_SDR }}
+                };
+        else if(data_width == 4)
+                uhs_mode_sel inside {
+                        {{ UHS_MODE_SEL_SDR12_LEGACY }},
+                        {{ UHS_MODE_SEL_SDR25_HIGH_SPEED_SDR }},
+                        {{ UHS_MODE_SEL_SDR104_HS200 }},
+                        {{ UHS_MODE_SEL_DDR50_HIGH_SPEED_DDR }}
+                };
+                                                                                                                                                        {%- endif %}
 
-    // speed -> data_width
-                                                                            {%- if is_emmc %}
-    (bus_speed_mode == LEGACY) -> data_width inside {1,4,8};
-    (bus_speed_mode == HIGH_SPEED_SDR) -> data_width inside {1,4,8};
-    (bus_speed_mode == HIGH_SPEED_DDR) -> data_width inside {4,8};
-    (bus_speed_mode == HS200) -> data_width inside {4,8};
-    (bus_speed_mode == HS400) -> data_width inside {8};
-                                                                            {%- elif is_sd %}
-    (bus_speed_mode inside {HS,DS}) -> data_width inside {1,4};
-    (bus_speed_mode inside {SDR12,SDR25,SDR50,SDR104,DDR50}) -> data_width inside {4};
-                                                                            {%- endif %}
+        // speed -> data_width
+                                                                                                                                                        {%- if is_emmc %}
+        (bus_speed_mode == LEGACY) -> data_width inside {1,4,8};
+        (bus_speed_mode == HIGH_SPEED_SDR) -> data_width inside {1,4,8};
+        (bus_speed_mode == HIGH_SPEED_DDR) -> data_width inside {4,8};
+        (bus_speed_mode == HS200) -> data_width inside {4,8};
+        (bus_speed_mode == HS400) -> data_width inside {8};
+                                                                                                                                                        {%- elif is_sd %}
+        (bus_speed_mode inside {HS,DS}) -> data_width inside {1,4};
+        (bus_speed_mode inside {SDR12,SDR25,SDR50,SDR104,DDR50}) -> data_width inside {4};
+                                                                                                                                                        {%- endif %}
 
-                                                                            {%- if is_sdcard %}
-    // speed / data_width
-    if(data_width == 1) {
+                                                                                                                                                        {%- if is_sdcard %}
+        // speed / data_width
+        if(data_width == 1) {
+                bus_speed_mode inside {
+                        DS,
+                        HS
+                };
+        }
+        else if(data_width == 4) {
+                bus_speed_mode inside {
+                        DS,
+                        HS,
+                        SDR12,
+                        SDR25,
+                        SDR50,
+                        SDR104,
+                        DDR50
+                };
+        }
+                                                                                                                                                        {%- endif %}
+
+        ext_dat_xfer == (data_width == 8);
+        dat_xfer_width == (data_width == 4);
+
+                                                                                                                                                        {%- if is_emmc %}
         bus_speed_mode inside {
-            DS,
-            HS
+                LEGACY,
+                HIGH_SPEED_SDR,
+                HIGH_SPEED_DDR,
+                HS200,
+                HS400
         };
-    }
-    else if(data_width == 4) {
+        (bus_speed_mode == LEGACY)         -> uhs_mode_sel == 0; // SDR12_LEGACY
+        (bus_speed_mode == HIGH_SPEED_SDR) -> uhs_mode_sel == 1; // SDR25_HIGH_SPEED_SDR
+        (bus_speed_mode == HIGH_SPEED_DDR) -> uhs_mode_sel == 4; // DDR50_HIGH_SPEED_DDR
+        (bus_speed_mode == HS200)          -> uhs_mode_sel == 3; // SDR104_HS200
+        (bus_speed_mode == HS400)          -> uhs_mode_sel == 7; // UHS2_HS400
+
+        (bus_speed_mode inside {LEGACY,HIGH_SPEED_SDR,HIGH_SPEED_DDR}) -> sys_cfg.boot_cfg.voltage inside {V3_0,V1_8,V1_2};
+        (bus_speed_mode inside {HS200,HS400}) -> sys_cfg.boot_cfg.voltage inside {V1_8,V1_2};
+                                                                                                                                                        {%- else %}
         bus_speed_mode inside {
-            DS,
-            HS,
-            SDR12,
-            SDR25,
-            SDR50,
-            SDR104,
-            DDR50
+                DS,
+                HS,
+                SDR12,
+                SDR25,
+                SDR50,
+                SDR104,
+                DDR50
         };
+
+        (bus_speed_mode inside {DS,HS}) -> uhs_mode_sel == 0; // DS,HS don't care
+        (bus_speed_mode == SDR12)  -> uhs_mode_sel == 0; // SDR12_LEGACY
+        (bus_speed_mode == SDR25)  -> uhs_mode_sel == 1; // SDR25_HIGH_SPEED_SDR
+        (bus_speed_mode == SDR50)  -> uhs_mode_sel == 2; // SDR50
+        (bus_speed_mode == SDR104) -> uhs_mode_sel == 3; // SDR104_HS200
+        (bus_speed_mode == DDR50)  -> uhs_mode_sel == 4; // DDR50_HIGH_SPEED_DDR
+
+        // SDR,DDR don't care
+        if(bus_speed_mode inside {DS})
+                high_speed_en == 0;
+        else if(bus_speed_mode inside {HS})
+                high_speed_en == 1;
+
+        (sys_cfg.boot_cfg.voltage == V3_3) -> bus_speed_mode inside {DS,HS};
+        (sys_cfg.boot_cfg.voltage == V1_8) -> bus_speed_mode inside {DS,SDR12,SDR25,SDR50,SDR104,DDR50};
+                                                                                                                                                        {%- endif %}
+
+                                                                                                                                                        {%- if is_sdio %}
+        resp_type == 1; // SDIO
+                                                                                                                                                        {%- else %}
+        resp_type == 0; // MEMORY
+                                                                                                                                                        {%- endif %}
+
     }
-                                                                            {%- endif %}
 
-    ext_dat_xfer == (data_width == 8);
-    dat_xfer_width == (data_width == 4);
-
-                                                                            {%- if is_emmc %}
-    bus_speed_mode inside {
-        LEGACY,
-        HIGH_SPEED_SDR,
-        HIGH_SPEED_DDR,
-        HS200,
-        HS400
-    };
-    (bus_speed_mode == LEGACY)         -> uhs_mode_sel == 0; // SDR12_LEGACY
-    (bus_speed_mode == HIGH_SPEED_SDR) -> uhs_mode_sel == 1; // SDR25_HIGH_SPEED_SDR
-    (bus_speed_mode == HIGH_SPEED_DDR) -> uhs_mode_sel == 4; // DDR50_HIGH_SPEED_DDR
-    (bus_speed_mode == HS200)          -> uhs_mode_sel == 3; // SDR104_HS200
-    (bus_speed_mode == HS400)          -> uhs_mode_sel == 7; // UHS2_HS400
-
-    (bus_speed_mode inside {LEGACY,HIGH_SPEED_SDR,HIGH_SPEED_DDR}) -> sys_cfg.boot_cfg.voltage inside {V3_0,V1_8,V1_2};
-    (bus_speed_mode inside {HS200,HS400}) -> sys_cfg.boot_cfg.voltage inside {V1_8,V1_2};
-                                                                            {%- else %}
-    bus_speed_mode inside {
-        DS,
-        HS,
-        SDR12,
-        SDR25,
-        SDR50,
-        SDR104,
-        DDR50
-    };
-
-    (bus_speed_mode inside {DS,HS}) -> uhs_mode_sel == 0; // DS,HS don't care
-    (bus_speed_mode == SDR12)  -> uhs_mode_sel == 0; // SDR12_LEGACY
-    (bus_speed_mode == SDR25)  -> uhs_mode_sel == 1; // SDR25_HIGH_SPEED_SDR
-    (bus_speed_mode == SDR50)  -> uhs_mode_sel == 2; // SDR50
-    (bus_speed_mode == SDR104) -> uhs_mode_sel == 3; // SDR104_HS200
-    (bus_speed_mode == DDR50)  -> uhs_mode_sel == 4; // DDR50_HIGH_SPEED_DDR
-
-    // SDR,DDR don't care
-    if(bus_speed_mode inside {DS})
-        high_speed_en == 0;
-    else if(bus_speed_mode inside {HS})
-        high_speed_en == 1;
-
-    (sys_cfg.boot_cfg.voltage == V3_3) -> bus_speed_mode inside {DS,HS};
-    (sys_cfg.boot_cfg.voltage == V1_8) -> bus_speed_mode inside {DS,SDR12,SDR25,SDR50,SDR104,DDR50};
-                                                                            {%- endif %}
-
-                                                                            {%- if is_sdio %}
-    resp_type == 1; // SDIO
-                                                                            {%- else %}
-    resp_type == 0; // MEMORY
-                                                                            {%- endif %}
-
-  }
-
-  function new(string name="{{ class_prefix }}access_request");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}access_request");
+        super.new(name);
+    endfunction
 endclass
 
 `endif

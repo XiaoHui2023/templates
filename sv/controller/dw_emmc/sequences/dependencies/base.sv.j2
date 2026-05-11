@@ -2,32 +2,32 @@
 `define {{ class_prefix | upper }}BASE_DEPENDENCY_SEQ
 
 class {{ class_prefix }}base_dependency_seq extends {{ class_prefix }}base_seq;
-  `uvm_object_utils({{ class_prefix }}base_dependency_seq)
+    `uvm_object_utils({{ class_prefix }}base_dependency_seq)
 
-  uvm_status_e status;
+    uvm_status_e status;
 
-  function new(string name="{{ class_prefix }}base_dependency_seq");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}base_dependency_seq");
+        super.new(name);
+    endfunction
 
-  extern task pre_start();
-  extern task body();
-  extern task post_start();
+    extern task pre_start();
+    extern task body();
+    extern task post_start();
 endclass
 
 task {{ class_prefix }}base_dependency_seq::pre_start();
-  super.pre_start();
+    super.pre_start();
 
-  `uvm_info("", $psprintf("enter: %s", sprint()), UVM_HIGH)
+    `uvm_info("", $psprintf("enter: %s", sprint()), UVM_HIGH)
 endtask
 
 task {{ class_prefix }}base_dependency_seq::body();
-  `uvm_fatal("", "require override")
+    `uvm_fatal("", "require override")
 endtask
 
 task {{ class_prefix }}base_dependency_seq::post_start();
-  super.post_start();
+    super.post_start();
 
-  `uvm_info("", "exit", UVM_HIGH)
+    `uvm_info("", "exit", UVM_HIGH)
 endtask
 `endif

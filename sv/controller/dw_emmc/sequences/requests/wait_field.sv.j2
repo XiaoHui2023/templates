@@ -2,78 +2,78 @@
 `define {{ (class_prefix | upper) }}WAIT_FIELD_REQUEST_SEQ
 
 class {{ class_prefix }}wait_field_request_seq extends {{ (class_prefix) }}base_request_seq;
-  `uvm_object_utils({{ class_prefix }}wait_field_request_seq)
+    `uvm_object_utils({{ class_prefix }}wait_field_request_seq)
 
-  rand {{ class_prefix }}wait_field_request wait_field_req;
-  rand {{ class_prefix }}check_error_request chk_err_req;
+    rand {{ class_prefix }}wait_field_request wait_field_req;
+    rand {{ class_prefix }}check_error_request chk_err_req;
 
-  function new(string name="{{ class_prefix }}wait_field_request_seq");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}wait_field_request_seq");
+        super.new(name);
+    endfunction
 
-  {{ class_prefix }}check_error_request_seq chk_err_seq;
+    {{ class_prefix }}check_error_request_seq chk_err_seq;
 
-  extern function void pre_randomize();
-  extern task body();
+    extern function void pre_randomize();
+    extern task body();
 
-  // 持续等待寄存器某一field，直到值为期望值
-  extern task wait_field(uvm_reg_field f, int value);
+    // 持续等待寄存器某一field，直到值为期望值
+    extern task wait_field(uvm_reg_field f, int value);
 endclass
 
 function void {{ class_prefix }}wait_field_request_seq::pre_randomize();
-  super.pre_randomize();
+    super.pre_randomize();
 
-  if(!wait_field_req)
-    `uvm_create(wait_field_req)
-  if(!chk_err_req)
-    `uvm_create(chk_err_req)
-  `uvm_create(chk_err_seq)
-  $cast(chk_err_seq.chk_err_req, chk_err_req);
+    if(!wait_field_req)
+        `uvm_create(wait_field_req)
+    if(!chk_err_req)
+        `uvm_create(chk_err_req)
+    `uvm_create(chk_err_seq)
+    $cast(chk_err_seq.chk_err_req, chk_err_req);
 endfunction
 
 task {{ class_prefix }}wait_field_request_seq::body();
-  `uvm_info("", $psprintf("wait field:\n%s", wait_field_req.sprint()), UVM_DEBUG)
+    `uvm_info("", $psprintf("wait field:\n%s", wait_field_req.sprint()), UVM_DEBUG)
 
-  if(wait_field_req.cmd_uninhibit) wait_field(rm.PSTATE_REG.CMD_INHIBIT, 0);
-  if(wait_field_req.cmd_uninhibit_dat) wait_field(rm.PSTATE_REG.CMD_INHIBIT_DAT, 0);
-  if(wait_field_req.internal_clk_stable) wait_field(rm.CLK_CTRL_R.INTERNAL_CLK_STABLE, 1);
-  if(wait_field_req.card_inserted) wait_field(rm.PSTATE_REG.CARD_INSERTED, 1);
-  if(wait_field_req.card_stable) wait_field(rm.PSTATE_REG.CARD_STABLE, 1);
-  if(wait_field_req.rd_xfer_inactive) wait_field(rm.PSTATE_REG.RD_XFER_ACTIVE, 0);
-  if(wait_field_req.wr_xfer_inactive) wait_field(rm.PSTATE_REG.WR_XFER_ACTIVE, 0);
-  if(wait_field_req.dat_line_inactive) wait_field(rm.PSTATE_REG.DAT_LINE_ACTIVE, 0);
+    if(wait_field_req.cmd_uninhibit) wait_field(rm.PSTATE_REG.CMD_INHIBIT, 0);
+    if(wait_field_req.cmd_uninhibit_dat) wait_field(rm.PSTATE_REG.CMD_INHIBIT_DAT, 0);
+    if(wait_field_req.internal_clk_stable) wait_field(rm.CLK_CTRL_R.INTERNAL_CLK_STABLE, 1);
+    if(wait_field_req.card_inserted) wait_field(rm.PSTATE_REG.CARD_INSERTED, 1);
+    if(wait_field_req.card_stable) wait_field(rm.PSTATE_REG.CARD_STABLE, 1);
+    if(wait_field_req.rd_xfer_inactive) wait_field(rm.PSTATE_REG.RD_XFER_ACTIVE, 0);
+    if(wait_field_req.wr_xfer_inactive) wait_field(rm.PSTATE_REG.WR_XFER_ACTIVE, 0);
+    if(wait_field_req.dat_line_inactive) wait_field(rm.PSTATE_REG.DAT_LINE_ACTIVE, 0);
 
-  `uvm_info("", "wait field done", UVM_DEBUG)
+    `uvm_info("", "wait field done", UVM_DEBUG)
 endtask
 
 task {{ class_prefix }}wait_field_request_seq::wait_field(uvm_reg_field f, int value);
-  int t;
-  bit [31:0] rdata;
-  uvm_reg r;
+    int t;
+    bit [31:0] rdata;
+    uvm_reg r;
 
-  r = f.get_register();
-  `uvm_info("", $psprintf("wait field.f = %s", f.get_full_name()), UVM_DEBUG)
-  `uvm_info("", $psprintf("wait field.r = %s", r.get_full_name()), UVM_DEBUG)
+    r = f.get_register();
+    `uvm_info("", $psprintf("wait field.f = %s", f.get_full_name()), UVM_DEBUG)
+    `uvm_info("", $psprintf("wait field.r = %s", r.get_full_name()), UVM_DEBUG)
 
-  fork begin
-    fork
-      begin
-        p_sequencer.vif.wait_timeout(wait_field_req.timeout_us);
-        `uvm_fatal("", $psprintf("wait field timeout:\n%s", wait_field_req.sprint()))
-      end
-      forever begin
-        `uvm_rand_send(chk_err_seq)
+    fork begin
+        fork
+            begin
+                p_sequencer.vif.wait_timeout(wait_field_req.timeout_us);
+                `uvm_fatal("", $psprintf("wait field timeout:\n%s", wait_field_req.sprint()))
+            end
+            forever begin
+                `uvm_rand_send(chk_err_seq)
 
-        r.read(status, rdata);
-        `uvm_info("", $psprintf("wait field.rdata = 0x%0h", rdata), UVM_DEBUG)
-        `uvm_info("", $psprintf("wait field.f.get = 0x%0h | 0x%0h", f.get(), value), UVM_DEBUG)
-        if(f.get() == value)
-          break;
-      end
-    join_any
-    disable fork;
-  end
-  join
+                r.read(status, rdata);
+                `uvm_info("", $psprintf("wait field.rdata = 0x%0h", rdata), UVM_DEBUG)
+                `uvm_info("", $psprintf("wait field.f.get = 0x%0h | 0x%0h", f.get(), value), UVM_DEBUG)
+                if(f.get() == value)
+                    break;
+            end
+        join_any
+        disable fork;
+    end
+    join
 endtask
 
 `endif

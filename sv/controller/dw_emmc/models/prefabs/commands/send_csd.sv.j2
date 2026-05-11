@@ -3,23 +3,23 @@
 
 // 发送CMD9, 要求相对地址的设备发送它的 CSD
 class {{ class_prefix }}send_csd_command_request extends {{ class_prefix }}command_request;
-  `uvm_object_utils_begin({{ class_prefix }}send_csd_command_request)
-    `uvm_field_int(rca, UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}send_csd_command_request)
+        `uvm_field_int(rca, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  rand bit[15:0] rca; // 相对地址
+    rand bit[15:0] rca; // 相对地址
 
-  function new(string name="{{ class_prefix }}send_csd_command_request");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}send_csd_command_request");
+        super.new(name);
+    endfunction
 
-  constraint cst_prefab {
-    cmd_index == 9;
-    argument[31:16] == rca;
-    resp == R2;
-    rca != 0;
-    soft rca == sys_cfg.boot_cfg.relative_addr;
-  }
+    constraint cst_prefab {
+        cmd_index == 9;
+        argument[31:16] == rca;
+        resp == R2;
+        rca != 0;
+        soft rca == sys_cfg.boot_cfg.relative_addr;
+    }
 endclass
 
 `endif

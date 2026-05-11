@@ -2,39 +2,39 @@
 `define {{ class_prefix | upper }}BASE_DATA
 
 class {{ class_prefix }}base_data extends {{ class_prefix }}base_item;
-    `uvm_object_utils_begin({{ class_prefix }}base_data)
-        `uvm_field_int(sizeof, UVM_ALL_ON | UVM_NOPACK | UVM_NOPRINT)
-    `uvm_object_utils_end
+        `uvm_object_utils_begin({{ class_prefix }}base_data)
+                `uvm_field_int(sizeof, UVM_ALL_ON | UVM_NOPACK | UVM_NOPRINT)
+        `uvm_object_utils_end
 
-    function new(string name = "{{ class_prefix }}base_data");
-        super.new(name);
-    endfunction
+        function new(string name = "{{ class_prefix }}base_data");
+                super.new(name);
+        endfunction
 
-    int sizeof; // 字节数
+        int sizeof; // 字节数
 
-    // 打包数据
-    extern function {{ class_prefix }}bytes unpack();
-    extern function void pre_randomize();
+        // 打包数据
+        extern function {{ class_prefix }}bytes unpack();
+        extern function void pre_randomize();
 endclass
 
 function {{ class_prefix }}bytes {{ class_prefix }}base_data::unpack();
-    uvm_packer pk;
-    byte unsigned d[];
+        uvm_packer pk;
+        byte unsigned d[];
 
-    pk = new();
-    pk.big_endian = 0;
+        pk = new();
+        pk.big_endian = 0;
 
-    this.pack_bytes(d, pk);
-    foreach(d[j])
-        unpack[j] = d[j];
+        this.pack_bytes(d, pk);
+        foreach(d[j])
+                unpack[j] = d[j];
 endfunction
 
 function void {{ class_prefix }}base_data::pre_randomize();
-    bit[7:0] d[$];
-    super.pre_randomize();
+        bit[7:0] d[$];
+        super.pre_randomize();
 
-    d = unpack();
-    sizeof = d.size();
+        d = unpack();
+        sizeof = d.size();
 endfunction
 
 `endif

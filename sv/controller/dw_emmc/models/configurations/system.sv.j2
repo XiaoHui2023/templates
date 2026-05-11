@@ -2,56 +2,56 @@
 `define {{ class_prefix | upper }}SYSTEM_CONFIGURATION
 
 class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_item;
-  `uvm_object_utils_begin({{ class_prefix }}system_configuration)
-    `uvm_field_object(boot_cfg, UVM_ALL_ON)
-    `uvm_field_object(chk_clk_cfg, UVM_ALL_ON)
-    `uvm_field_object(asrt_con_cfg, UVM_ALL_ON)
-    `uvm_field_object(regmodel, UVM_ALL_ON | UVM_NOPRINT | UVM_NOCOPY)
-    `uvm_field_object(card_mem, UVM_ALL_ON | UVM_NOPRINT | UVM_NOCOPY)
-    `uvm_field_int(has_randomized, UVM_ALL_ON | UVM_NOPRINT)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}system_configuration)
+        `uvm_field_object(boot_cfg, UVM_ALL_ON)
+        `uvm_field_object(chk_clk_cfg, UVM_ALL_ON)
+        `uvm_field_object(asrt_con_cfg, UVM_ALL_ON)
+        `uvm_field_object(regmodel, UVM_ALL_ON | UVM_NOPRINT | UVM_NOCOPY)
+        `uvm_field_object(card_mem, UVM_ALL_ON | UVM_NOPRINT | UVM_NOCOPY)
+        `uvm_field_int(has_randomized, UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
 
-  rand {{ class_prefix }}boot_configuration boot_cfg; // 启动配置
-  rand {{ class_prefix }}check_clock_configuration chk_clk_cfg; // 时钟检查配置
-  rand {{ class_prefix }}assert_connection_configuration asrt_con_cfg; // 断言连接配置
-  virtual {{ class_prefix }}interface vif; // 接口
-  {{ class_regmodel }} regmodel; // 寄存器模型虚拟句柄
-  svt_mem_backdoor card_mem; // card MEMORY句柄, 用于 card 内容读取
-  rand bit has_randomized; // 是否随机过
+    rand {{ class_prefix }}boot_configuration boot_cfg; // 启动配置
+    rand {{ class_prefix }}check_clock_configuration chk_clk_cfg; // 时钟检查配置
+    rand {{ class_prefix }}assert_connection_configuration asrt_con_cfg; // 断言连接配置
+    virtual {{ class_prefix }}interface vif; // 接口
+    {{ class_regmodel }} regmodel; // 寄存器模型虚拟句柄
+    svt_mem_backdoor card_mem; // card MEMORY句柄, 用于 card 内容读取
+    rand bit has_randomized; // 是否随机过
 
-  function new(string name="{{ class_prefix }}system_configuration");
-    super.new(name);
+    function new(string name="{{ class_prefix }}system_configuration");
+        super.new(name);
 
-    boot_cfg = {{ class_prefix }}boot_configuration::type_id::create("boot_cfg");
-    chk_clk_cfg = {{ class_prefix }}check_clock_configuration::type_id::create("chk_clk_cfg");
-    asrt_con_cfg = {{ class_prefix }}assert_connection_configuration::type_id::create("asrt_con_cfg");
-  endfunction
+        boot_cfg = {{ class_prefix }}boot_configuration::type_id::create("boot_cfg");
+        chk_clk_cfg = {{ class_prefix }}check_clock_configuration::type_id::create("chk_clk_cfg");
+        asrt_con_cfg = {{ class_prefix }}assert_connection_configuration::type_id::create("asrt_con_cfg");
+    endfunction
 
-  constraint cst_sys_cfg {
-    regmodel != null;
-    has_randomized == 1;
-  }
+    constraint cst_sys_cfg {
+        regmodel != null;
+        has_randomized == 1;
+    }
 
-  constraint cst_user;
-  constraint cst_case;
+    constraint cst_user;
+    constraint cst_case;
 
-  extern function void pre_randomize();
-  extern function void post_randomize();
+    extern function void pre_randomize();
+    extern function void post_randomize();
 endclass
 
 function void {{ class_prefix }}system_configuration::pre_randomize();
-  super.pre_randomize();
+    super.pre_randomize();
 
-  set_child_context(boot_cfg);
-  set_child_context(chk_clk_cfg);
-  set_child_context(asrt_con_cfg);
+    set_child_context(boot_cfg);
+    set_child_context(chk_clk_cfg);
+    set_child_context(asrt_con_cfg);
 endfunction
 
 function void {{ class_prefix }}system_configuration::post_randomize();
-  super.post_randomize();
+    super.post_randomize();
 
-  if(!vif)
-    `uvm_fatal("", "require vif")
+    if(!vif)
+        `uvm_fatal("", "require vif")
 endfunction
 
 `endif

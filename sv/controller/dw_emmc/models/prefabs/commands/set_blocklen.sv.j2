@@ -3,22 +3,22 @@
 
 // 发送CMD16, 设置块的大小
 class {{ class_prefix }}set_blocklen_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}set_blocklen_command_request)
-        `uvm_field_int(block_length, UVM_ALL_ON)
-    `uvm_object_utils_end
+        `uvm_object_utils_begin({{ class_prefix }}set_blocklen_command_request)
+                `uvm_field_int(block_length, UVM_ALL_ON)
+        `uvm_object_utils_end
 
-    rand bit[31:0] block_length; // 块的大小
+        rand bit[31:0] block_length; // 块的大小
 
-    function new(string name="{{ class_prefix }}set_blocklen_command_request");
-        super.new(name);
-    endfunction
+        function new(string name="{{ class_prefix }}set_blocklen_command_request");
+                super.new(name);
+        endfunction
 
-    constraint cst_prefab {
-        cmd_index == 16;
-        block_length == argument;
-        resp == R1;
-        soft block_length == 512;
-    }
+        constraint cst_prefab {
+                cmd_index == 16;
+                block_length == argument;
+                resp == R1;
+                soft block_length == 512;
+        }
 endclass
 
 `endif

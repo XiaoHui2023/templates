@@ -3,53 +3,53 @@
 
 // 设置时钟频率
 class {{ class_prefix }}frequence_set_dependency_seq extends {{ class_prefix }}base_dependency_seq;
-  `uvm_object_utils_begin({{ class_prefix }}frequence_set_dependency_seq)
-    `uvm_field_int(frequence, UVM_ALL_ON)
-    `uvm_field_int(should_check_clock_frequence, UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}frequence_set_dependency_seq)
+        `uvm_field_int(frequence, UVM_ALL_ON)
+        `uvm_field_int(should_check_clock_frequence, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  rand int frequence; // 要求的时钟频率 (Hz)
-  rand bit should_check_clock_frequence; // 是否检查时钟频率
+    rand int frequence; // 要求的时钟频率 (Hz)
+    rand bit should_check_clock_frequence; // 是否检查时钟频率
 
-  function new(string name = "{{ class_prefix }}frequence_set_dependency_seq");
-    super.new(name);
-  endfunction
+    function new(string name = "{{ class_prefix }}frequence_set_dependency_seq");
+        super.new(name);
+    endfunction
 
-  constraint cst_dependency {
-    soft should_check_clock_frequence == 1;
-                                              {%- if is_emmc %}
+    constraint cst_dependency {
+        soft should_check_clock_frequence == 1;
+                                                                                            {%- if is_emmc %}
 
-    (ctx.bus_speed_mode_cur == LEGACY)         -> soft frequence == sys_cfg.boot_cfg.frequence_legacy;
-    (ctx.bus_speed_mode_cur == HIGH_SPEED_SDR) -> soft frequence == sys_cfg.boot_cfg.frequence_high_speed_sdr;
-    (ctx.bus_speed_mode_cur == HIGH_SPEED_DDR) -> soft frequence == sys_cfg.boot_cfg.frequence_high_speed_ddr;
-    (ctx.bus_speed_mode_cur == HS200)          -> soft frequence == sys_cfg.boot_cfg.frequence_hs200;
-    (ctx.bus_speed_mode_cur == HS400)          -> soft frequence == sys_cfg.boot_cfg.frequence_hs400;
-                                              {%- elif is_sd %}
+        (ctx.bus_speed_mode_cur == LEGACY)         -> soft frequence == sys_cfg.boot_cfg.frequence_legacy;
+        (ctx.bus_speed_mode_cur == HIGH_SPEED_SDR) -> soft frequence == sys_cfg.boot_cfg.frequence_high_speed_sdr;
+        (ctx.bus_speed_mode_cur == HIGH_SPEED_DDR) -> soft frequence == sys_cfg.boot_cfg.frequence_high_speed_ddr;
+        (ctx.bus_speed_mode_cur == HS200)          -> soft frequence == sys_cfg.boot_cfg.frequence_hs200;
+        (ctx.bus_speed_mode_cur == HS400)          -> soft frequence == sys_cfg.boot_cfg.frequence_hs400;
+                                                                                            {%- elif is_sd %}
 
-    (ctx.bus_speed_mode_cur == DS)    -> soft frequence == sys_cfg.boot_cfg.frequence_ds;
-    (ctx.bus_speed_mode_cur == SDR12) -> soft frequence == sys_cfg.boot_cfg.frequence_sdr12;
-    (ctx.bus_speed_mode_cur == HS)    -> soft frequence == sys_cfg.boot_cfg.frequence_hs;
-    (ctx.bus_speed_mode_cur == SDR25) -> soft frequence == sys_cfg.boot_cfg.frequence_sdr25;
-    (ctx.bus_speed_mode_cur == DDR50) -> soft frequence == sys_cfg.boot_cfg.frequence_ddr50;
-    (ctx.bus_speed_mode_cur == SDR50) -> soft frequence == sys_cfg.boot_cfg.frequence_sdr50;
-    (ctx.bus_speed_mode_cur == SDR104)-> soft frequence == sys_cfg.boot_cfg.frequence_sdr104;
-                                              {%- endif %}
-  }
+        (ctx.bus_speed_mode_cur == DS)    -> soft frequence == sys_cfg.boot_cfg.frequence_ds;
+        (ctx.bus_speed_mode_cur == SDR12) -> soft frequence == sys_cfg.boot_cfg.frequence_sdr12;
+        (ctx.bus_speed_mode_cur == HS)    -> soft frequence == sys_cfg.boot_cfg.frequence_hs;
+        (ctx.bus_speed_mode_cur == SDR25) -> soft frequence == sys_cfg.boot_cfg.frequence_sdr25;
+        (ctx.bus_speed_mode_cur == DDR50) -> soft frequence == sys_cfg.boot_cfg.frequence_ddr50;
+        (ctx.bus_speed_mode_cur == SDR50) -> soft frequence == sys_cfg.boot_cfg.frequence_sdr50;
+        (ctx.bus_speed_mode_cur == SDR104)-> soft frequence == sys_cfg.boot_cfg.frequence_sdr104;
+                                                                                            {%- endif %}
+    }
 
-  extern task post_start();
+    extern task post_start();
 endclass
 
 task {{ class_prefix }}frequence_set_dependency_seq::post_start();
-  {{ class_prefix }}check_clock_frequence_test_seq chk_clk_freq_test_seq;
-  super.post_start();
+    {{ class_prefix }}check_clock_frequence_test_seq chk_clk_freq_test_seq;
+    super.post_start();
 
-  if(!should_check_clock_frequence)
-    return;
+    if(!should_check_clock_frequence)
+        return;
 
-  `uvm_do_with(chk_clk_freq_test_seq, {
-    frequence_cclk_rx == local::frequence;
-    frequence_cclk_tx == local::frequence;
-  })
+    `uvm_do_with(chk_clk_freq_test_seq, {
+        frequence_cclk_rx == local::frequence;
+        frequence_cclk_tx == local::frequence;
+    })
 endtask
 
 `endif

@@ -2,32 +2,32 @@
 `define {{ class_prefix | upper }}ASSERT_CONNECTION_CONFIGURATION
 
 class {{ class_prefix }}assert_connection_configuration extends {{ class_prefix }}base_item;
-    `uvm_object_utils_begin({{ class_prefix }}assert_connection_configuration)
-        `uvm_field_int(should, UVM_ALL_ON)
+        `uvm_object_utils_begin({{ class_prefix }}assert_connection_configuration)
+                `uvm_field_int(should, UVM_ALL_ON)
+                {%- for con in connections %}
+                `uvm_field_int(should_{{ con.name }}, UVM_ALL_ON)
+                {%- endfor %}
+        `uvm_object_utils_end
+
+        rand bit should; // 是否允许检查
         {%- for con in connections %}
-        `uvm_field_int(should_{{ con.name }}, UVM_ALL_ON)
+        rand bit should_{{ con.name }}; // 是否检查{{ con.name }}
         {%- endfor %}
-    `uvm_object_utils_end
 
-    rand bit should; // 是否允许检查
-    {%- for con in connections %}
-    rand bit should_{{ con.name }}; // 是否检查{{ con.name }}
-    {%- endfor %}
+        function new(string name="{{ class_prefix }}assert_connection_configuration");
+                super.new(name);
+        endfunction
 
-    function new(string name="{{ class_prefix }}assert_connection_configuration");
-        super.new(name);
-    endfunction
-
-    constraint cst_chk_clk_cfg {
-        soft should == 0;
-        {%- for con in connections %}
-        soft should_{{ con.name }} == 1;
-        {%- endfor %}
-        if(!should) {
-            {%- for con in connections %}
-            should_{{ con.name }} == 0;
-            {%- endfor %}
+        constraint cst_chk_clk_cfg {
+                soft should == 0;
+                {%- for con in connections %}
+                soft should_{{ con.name }} == 1;
+                {%- endfor %}
+                if(!should) {
+                        {%- for con in connections %}
+                        should_{{ con.name }} == 0;
+                        {%- endfor %}
+                }
         }
-    }
 endclass
 `endif

@@ -3,11 +3,11 @@
 
 `include "uvm_pkg.sv"
 `include "uvm_macros.svh"
-`include "svt_mem_uvm_pkg"
+`include "svt_mem.uvm.pkg"
 import uvm_pkg::*;
 import svt_uvm_pkg::*;
 import svt_mem_uvm_pkg::*;
 
-typedef bit[7:0] {{ class_prefix }}bytes[5];
+typedef bit[7:0] {{ class_prefix }}bytes[$];
 
 `endif

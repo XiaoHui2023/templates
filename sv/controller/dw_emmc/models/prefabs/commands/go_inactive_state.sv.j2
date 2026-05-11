@@ -3,16 +3,16 @@
 
 // 发送CMD15进入未激活状态
 class {{ class_prefix }}go_inactive_state_command_request extends {{ class_prefix }}command_request;
-  `uvm_object_utils({{ class_prefix }}go_inactive_state_command_request)
+    `uvm_object_utils({{ class_prefix }}go_inactive_state_command_request)
 
-  function new(string name="{{ class_prefix }}go_inactive_state_command_request");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}go_inactive_state_command_request");
+        super.new(name);
+    endfunction
 
-  constraint cst_prefab {
-    cmd_index == 15;
-    resp == NR;
-  }
+    constraint cst_prefab {
+        cmd_index == 15;
+        resp == NR;
+    }
 endclass
 
 `endif

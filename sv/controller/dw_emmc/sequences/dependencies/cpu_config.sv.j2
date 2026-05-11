@@ -3,113 +3,113 @@
 
 // 前后门读写
 class {{ class_prefix }}cpu_config_dependency_seq extends {{ class_prefix }}base_dependency_seq;
-  `uvm_object_utils_begin({{ class_prefix }}cpu_config_dependency_seq)
-    `uvm_field_int(addr,UVM_ALL_ON)
-    `uvm_field_int(len,UVM_ALL_ON)
-    `uvm_field_enum(uvm_path_e,path,UVM_ALL_ON)
-    `uvm_field_enum(uvm_access_e,access,UVM_ALL_ON)
-    if(access == UVM_READ)
-      `uvm_field_queue_int(rdata,UVM_ALL_ON)
-    else if(access == UVM_WRITE)
-      `uvm_field_queue_int(wdata,UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}cpu_config_dependency_seq)
+        `uvm_field_int(addr,UVM_ALL_ON)
+        `uvm_field_int(len,UVM_ALL_ON)
+        `uvm_field_enum(uvm_path_e,path,UVM_ALL_ON)
+        `uvm_field_enum(uvm_access_e,access,UVM_ALL_ON)
+        if(access == UVM_READ)
+            `uvm_field_queue_int(rdata,UVM_ALL_ON)
+        else if(access == UVM_WRITE)
+            `uvm_field_queue_int(wdata,UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  rand bit[63:0] addr; // 地址
-  rand int len; // 数据长度
-  rand uvm_path_e path; // 后门/前门方式 (后门是为了加速, 无法实现则用前门代替)
-  rand uvm_access_e access; // 读写方式
-  rand bit[7:0] wdata[$]; // 写入的数据
-  bit[7:0] rdata[$]; // 要读取出的数据
+    rand bit[63:0] addr; // 地址
+    rand int len; // 数据长度
+    rand uvm_path_e path; // 后门/前门方式 (后门是为了加速, 无法实现则用前门代替)
+    rand uvm_access_e access; // 读写方式
+    rand bit[7:0] wdata[$]; // 写入的数据
+    bit[7:0] rdata[$]; // 要读取出的数据
 
-  function new(string name = "{{ class_prefix }}cpu_config_dependency_seq");
-    super.new(name);
-  endfunction
+    function new(string name = "{{ class_prefix }}cpu_config_dependency_seq");
+        super.new(name);
+    endfunction
 
-  constraint cst_dependency {
-    soft path == UVM_FRONTDOOR;
-    path inside {UVM_FRONTDOOR, UVM_BACKDOOR};
-    access inside {UVM_READ, UVM_WRITE};
-    len > 0;
-    if(access == UVM_READ) {
-      wdata.size == 0;
+    constraint cst_dependency {
+        soft path == UVM_FRONTDOOR;
+        path inside {UVM_FRONTDOOR, UVM_BACKDOOR};
+        access inside {UVM_READ, UVM_WRITE};
+        len > 0;
+        if(access == UVM_READ) {
+            wdata.size == 0;
+        }
+        else if(access == UVM_WRITE) {
+            wdata.size == len;
+        }
     }
-    else if(access == UVM_WRITE) {
-      wdata.size == len;
-    }
-  }
 
-  extern task body();
-  extern task post_start();
+    extern task body();
+    extern task post_start();
 
-  // CPU读取, 需要实现
-  extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data);
+    // CPU读取, 需要实现
+    extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data);
 
-  // CPU写入, 需要实现
-  extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data);
+    // CPU写入, 需要实现
+    extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data);
 
 endclass
 
 task {{ class_prefix }}cpu_config_dependency_seq::body();
-  case(access)
-    UVM_READ : begin
-      bit[31:0] word;
-      bit[7:0] q[$];
-      bit[31:0] adr;
-      int count;
+    case(access)
+        UVM_READ : begin
+            bit[31:0] word;
+            bit[7:0] q[$];
+            bit[31:0] adr;
+            int count;
 
-      adr = addr;
-      count = len;
+            adr = addr;
+            count = len;
 
-      repeat($ceil(1.0*count/4)) begin
-        cpu_read(adr,word);
-        { << 8 {q} } = { << 32 {word} };
-        repeat(4)
-          if (count > 0) begin
-            rdata.push_back(q.pop_front());
-            count--;
-          end
-        adr += 4;
-      end
-    end
-    UVM_WRITE : begin
-      bit[31:0] word;
-      bit[7:0] buff[$];
-      bit[31:0] adr;
+            repeat($ceil(1.0*count/4)) begin
+                cpu_read(adr,word);
+                { << 8 {q} } = { << 32 {word} };
+                repeat(4)
+                    if (count > 0) begin
+                        rdata.push_back(q.pop_front());
+                        count--;
+                    end
+                adr += 4;
+            end
+        end
+        UVM_WRITE : begin
+            bit[31:0] word;
+            bit[7:0] buff[$];
+            bit[31:0] adr;
 
-      adr = addr;
-      buff = wdata;
+            adr = addr;
+            buff = wdata;
 
-      while(buff.size % 4)
-        buff.push_back(0);
+            while(buff.size % 4)
+                buff.push_back(0);
 
-      repeat(buff.size/4) begin
-        bit[7:0] q[$];
+            repeat(buff.size/4) begin
+                bit[7:0] q[$];
 
-        repeat(4)
-          q.push_back(buff.pop_front());
-        {{ "word = {<<32{{<<8{q}}}}; }" }}
+                repeat(4)
+                    q.push_back(buff.pop_front());
+                {{ "word = {<<32{{<<8{q}}}}; }" }}
 
-        cpu_write(adr,word);
-        adr += 4;
-      end
-    end
-  endcase
+                cpu_write(adr,word);
+                adr += 4;
+            end
+        end
+    endcase
 endtask
 
 task {{ class_prefix }}cpu_config_dependency_seq::post_start();
-  super.post_start();
+    super.post_start();
 
-  if(access == UVM_READ)
-    if(rdata.size != len)
-      `uvm_fatal("",$sformatf("require %0d rdata,but %0d",len,rdata.size))
+    if(access == UVM_READ)
+        if(rdata.size != len)
+            `uvm_fatal("",$sformatf("require %0d rdata,but %0d",len,rdata.size))
 endtask
 
 task {{ class_prefix }}cpu_config_dependency_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data);
-  `uvm_fatal("","require override")
+    `uvm_fatal("","require override")
 endtask
 
 task {{ class_prefix }}cpu_config_dependency_seq::cpu_write(bit[63:0] addr, bit[31:0] data);
-  `uvm_fatal("","require override")
+    `uvm_fatal("","require override")
 endtask
 
 `endif

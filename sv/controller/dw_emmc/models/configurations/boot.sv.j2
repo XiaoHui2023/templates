@@ -2,123 +2,123 @@
 `define {{ ( class_prefix | upper ) }}BOOT_CONFIGURATION
 
 class {{ class_prefix }}boot_configuration extends {{ class_prefix }}base_item;
-  `uvm_object_utils_begin({{ class_prefix }}boot_configuration)
-    `uvm_field_int(power_up_time_ns, UVM_ALL_ON)
-    `uvm_field_int(relative_addr, UVM_ALL_ON)
-    `uvm_field_enum(voltage_e, voltage, UVM_ALL_ON)
-    `uvm_field_int(voltage_switch_time_us, UVM_ALL_ON)
-    `uvm_field_int(default_data_width, UVM_ALL_ON)
-    `uvm_field_enum(bus_speed_mode_e, default_bus_speed_mode, UVM_ALL_ON)
-                                                                        {%- if is_sd %}
-    `uvm_field_enum(capacity_type_e, sd_capacity_type, UVM_ALL_ON)
-    `uvm_field_int(frequence_ds, UVM_ALL_ON)
-    `uvm_field_int(frequence_sdr12, UVM_ALL_ON)
-    `uvm_field_int(frequence_hs, UVM_ALL_ON)
-    `uvm_field_int(frequence_sdr25, UVM_ALL_ON)
-    `uvm_field_int(frequence_ddr50, UVM_ALL_ON)
-    `uvm_field_int(frequence_sdr50, UVM_ALL_ON)
-    `uvm_field_int(frequence_sdr104, UVM_ALL_ON)
-    `uvm_field_int(is_support_sdr12, UVM_ALL_ON)
-    `uvm_field_int(is_support_sdr25, UVM_ALL_ON)
-    `uvm_field_int(is_support_sdr50, UVM_ALL_ON)
-    `uvm_field_int(is_support_sdr104, UVM_ALL_ON)
-    `uvm_field_int(is_support_ddr50, UVM_ALL_ON)
-    `uvm_field_int(auto_card_insert, UVM_ALL_ON)
-                                                                        {%- endif %}
-                                                                        {%- if is_emmc %}
-    `uvm_field_int(frequence_legacy, UVM_ALL_ON)
-    `uvm_field_int(frequence_high_speed_sdr, UVM_ALL_ON)
-    `uvm_field_int(frequence_high_speed_ddr, UVM_ALL_ON)
-    `uvm_field_int(frequence_hs200, UVM_ALL_ON)
-    `uvm_field_int(frequence_hs400, UVM_ALL_ON)
-                                                                        {%- endif %}
-    `uvm_field_int(sram_size, UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}boot_configuration)
+        `uvm_field_int(power_up_time_ns, UVM_ALL_ON)
+        `uvm_field_int(relative_addr, UVM_ALL_ON)
+        `uvm_field_enum(voltage_e, voltage, UVM_ALL_ON)
+        `uvm_field_int(voltage_switch_time_us, UVM_ALL_ON)
+        `uvm_field_int(default_data_width, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, default_bus_speed_mode, UVM_ALL_ON)
+                                                                                                                                                {%- if is_sd %}
+        `uvm_field_enum(capacity_type_e, sd_capacity_type, UVM_ALL_ON)
+        `uvm_field_int(frequence_ds, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr12, UVM_ALL_ON)
+        `uvm_field_int(frequence_hs, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr25, UVM_ALL_ON)
+        `uvm_field_int(frequence_ddr50, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr50, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr104, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr12, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr25, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr50, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr104, UVM_ALL_ON)
+        `uvm_field_int(is_support_ddr50, UVM_ALL_ON)
+        `uvm_field_int(auto_card_insert, UVM_ALL_ON)
+                                                                                                                                                {%- endif %}
+                                                                                                                                                {%- if is_emmc %}
+        `uvm_field_int(frequence_legacy, UVM_ALL_ON)
+        `uvm_field_int(frequence_high_speed_sdr, UVM_ALL_ON)
+        `uvm_field_int(frequence_high_speed_ddr, UVM_ALL_ON)
+        `uvm_field_int(frequence_hs200, UVM_ALL_ON)
+        `uvm_field_int(frequence_hs400, UVM_ALL_ON)
+                                                                                                                                                {%- endif %}
+        `uvm_field_int(sram_size, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  rand int power_up_time_ns; // 首次上电等待的时间[ns], 首次上电等待至少 100000 ns 和 74个时钟周期
-  rand bit[15:0] relative_addr; // 相对地址
-  rand voltage_e voltage; // 电压
-  rand int voltage_switch_time_us; // 电压切换等待时间[us]
-  rand int default_data_width; // 默认设定工作的数据位宽
-  rand bus_speed_mode_e default_bus_speed_mode; // 默认让其工作的速度模式
-                                                                        {%- if is_sd %}
-  rand capacity_type_e sd_capacity_type; // SD卡的容量类型
-  rand int frequence_ds; // DS模式下时钟频率[Hz]
-  rand int frequence_sdr12; // SDR12模式下时钟频率[Hz]
-  rand int frequence_hs; // HS模式下时钟频率[Hz]
-  rand int frequence_sdr25; // SDR25模式下时钟频率[Hz]
-  rand int frequence_ddr50; // DDR50模式下时钟频率[Hz]
-  rand int frequence_sdr50; // SDR50模式下时钟频率[Hz]
-  rand int frequence_sdr104; // SDR104模式下时钟频率[Hz]
-  rand bit is_support_sdr12; // 是否支持SDR12模式
-  rand bit is_support_sdr25; // 是否支持SDR25模式
-  rand bit is_support_sdr50; // 是否支持SDR50模式
-  rand bit is_support_sdr104; // 是否支持SDR104模式
-  rand bit is_support_ddr50; // 是否支持DDR50模式
-  rand bit auto_card_insert; // 自动插卡
-                                                                        {%- endif %}
-                                                                        {%- if is_emmc %}
-  rand int frequence_legacy; // LEGACY模式下时钟频率[Hz]
-  rand int frequence_high_speed_sdr; // HIGH_SPEED_SDR模式下时钟频率[Hz]
-  rand int frequence_high_speed_ddr; // HIGH_SPEED_DDR模式下时钟频率[Hz]
-  rand int frequence_hs200; // HS200模式下时钟频率[Hz]
-  rand int frequence_hs400; // HS400模式下时钟频率[Hz]
-                                                                        {%- endif %}
+    rand int power_up_time_ns; // 首次上电等待的时间[ns], 首次上电等待至少 100000 ns 和 74个时钟周期
+    rand bit[15:0] relative_addr; // 相对地址
+    rand voltage_e voltage; // 电压
+    rand int voltage_switch_time_us; // 电压切换等待时间[us]
+    rand int default_data_width; // 默认设定工作的数据位宽
+    rand bus_speed_mode_e default_bus_speed_mode; // 默认让其工作的速度模式
+                                                                                                                                                {%- if is_sd %}
+    rand capacity_type_e sd_capacity_type; // SD卡的容量类型
+    rand int frequence_ds; // DS模式下时钟频率[Hz]
+    rand int frequence_sdr12; // SDR12模式下时钟频率[Hz]
+    rand int frequence_hs; // HS模式下时钟频率[Hz]
+    rand int frequence_sdr25; // SDR25模式下时钟频率[Hz]
+    rand int frequence_ddr50; // DDR50模式下时钟频率[Hz]
+    rand int frequence_sdr50; // SDR50模式下时钟频率[Hz]
+    rand int frequence_sdr104; // SDR104模式下时钟频率[Hz]
+    rand bit is_support_sdr12; // 是否支持SDR12模式
+    rand bit is_support_sdr25; // 是否支持SDR25模式
+    rand bit is_support_sdr50; // 是否支持SDR50模式
+    rand bit is_support_sdr104; // 是否支持SDR104模式
+    rand bit is_support_ddr50; // 是否支持DDR50模式
+    rand bit auto_card_insert; // 自动插卡
+                                                                                                                                                {%- endif %}
+                                                                                                                                                {%- if is_emmc %}
+    rand int frequence_legacy; // LEGACY模式下时钟频率[Hz]
+    rand int frequence_high_speed_sdr; // HIGH_SPEED_SDR模式下时钟频率[Hz]
+    rand int frequence_high_speed_ddr; // HIGH_SPEED_DDR模式下时钟频率[Hz]
+    rand int frequence_hs200; // HS200模式下时钟频率[Hz]
+    rand int frequence_hs400; // HS400模式下时钟频率[Hz]
+                                                                                                                                                {%- endif %}
 
-  rand int sram_size; // sram容量大小
+    rand int sram_size; // sram容量大小
 
-  function new(string name="{{ class_prefix }}boot_configuration");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}boot_configuration");
+        super.new(name);
+    endfunction
 
-    constraint cst_boot_cfg {
-      // default
-  {%- if is_emmc %}
-      soft default_data_width == 8;
-      soft default_bus_speed_mode == HS400;
-  {%- elif is_sd %}
-      soft default_data_width == 4;
-      (voltage == V3_3) -> soft default_bus_speed_mode == HS;
-      (voltage == V1_8) -> soft default_bus_speed_mode == (is_support_sdr104 ? SDR104 : is_support_ddr50 ? DDR50 : is_support_sdr50 ? SDR50 : is_support_sdr25 ? SDR25 : SDR12);
+        constraint cst_boot_cfg {
+            // default
+    {%- if is_emmc %}
+            soft default_data_width == 8;
+            soft default_bus_speed_mode == HS400;
+    {%- elif is_sd %}
+            soft default_data_width == 4;
+            (voltage == V3_3) -> soft default_bus_speed_mode == HS;
+            (voltage == V1_8) -> soft default_bus_speed_mode == (is_support_sdr104 ? SDR104 : is_support_ddr50 ? DDR50 : is_support_sdr50 ? SDR50 : is_support_sdr25 ? SDR25 : SDR12);
+    {%- endif %}
+
+            soft relative_addr == 1;
+
+    {%- if is_emmc %}
+            soft frequence_legacy == 26000000;
+            soft frequence_high_speed_sdr == 50000000;
+            soft frequence_high_speed_ddr == 50000000;
+            soft frequence_hs200 == 200000000;
+            soft frequence_hs400 == 200000000;
+            soft voltage == V1_8;
+    {%- elif is_sd %}
+            soft sd_capacity_type == SDXC;
+            soft frequence_ds == 24000000;
+            soft frequence_sdr12 == 24000000;
+            soft frequence_hs == 50000000;
+            soft frequence_sdr25 == 50000000;
+            soft frequence_sdr50 == 100000000;
+            soft frequence_ddr50 == 100000000;
+            soft frequence_sdr104 == 200000000;
+            soft is_support_sdr12 == 1;
+            soft is_support_sdr25 == 1;
+            soft is_support_sdr50 == 1;
+            soft is_support_sdr104 == 1;
+            soft is_support_ddr50 == 0;
+            soft voltage == V3_3;
+            soft auto_card_insert == 1;
   {%- endif %}
+          soft power_up_time_ns == 200000;
+          soft voltage_switch_time_us == 250; // 协议要求5ms，期间持续拉低时钟，保留为了加快仿真，建议您跳过这一步，默认0.25ms
 
-      soft relative_addr == 1;
+          soft sram_size == 512;
+          sram_size % 512 == 0; // 或512整数倍
 
-  {%- if is_emmc %}
-      soft frequence_legacy == 26000000;
-      soft frequence_high_speed_sdr == 50000000;
-      soft frequence_high_speed_ddr == 50000000;
-      soft frequence_hs200 == 200000000;
-      soft frequence_hs400 == 200000000;
-      soft voltage == V1_8;
-  {%- elif is_sd %}
-      soft sd_capacity_type == SDXC;
-      soft frequence_ds == 24000000;
-      soft frequence_sdr12 == 24000000;
-      soft frequence_hs == 50000000;
-      soft frequence_sdr25 == 50000000;
-      soft frequence_sdr50 == 100000000;
-      soft frequence_ddr50 == 100000000;
-      soft frequence_sdr104 == 200000000;
-      soft is_support_sdr12 == 1;
-      soft is_support_sdr25 == 1;
-      soft is_support_sdr50 == 1;
-      soft is_support_sdr104 == 1;
-      soft is_support_ddr50 == 0;
-      soft voltage == V3_3;
-      soft auto_card_insert == 1;
- {%- endif %}
-     soft power_up_time_ns == 200000;
-     soft voltage_switch_time_us == 250; // 协议要求5ms，期间持续拉低时钟，保留为了加快仿真，建议您跳过这一步，默认0.25ms
-
-     soft sram_size == 512;
-     sram_size % 512 == 0; // 或512整数倍
-
- {%- if is_sd %}
-     (sd_capacity_type == SDSC) -> voltage == V3_3;
-     relative_addr != 0;
- {%- endif %}
-   }
+  {%- if is_sd %}
+          (sd_capacity_type == SDSC) -> voltage == V3_3;
+          relative_addr != 0;
+  {%- endif %}
+      }
 endclass
 
 `endif

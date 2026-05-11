@@ -2,76 +2,76 @@
 `define {{ class_prefix | upper }}IO_RW_EXTENDED_COMMAND_REQUEST
 
 /*
- * 发送CMD53进行数据读写
- *
- * 需要 CCCR.SMB 寄存器开启支持
- * 块大小和每个指令的最大字节在 TPLFE_MAX_BLK_SIZE_C10
- *
- * 功能0的_size取决于CCCR.FN0寄存器, 1-7的_size取决于FBR寄存器
- */
+  * 发送CMD53进行数据读写
+  *
+  * 需要 CCCR.SMB 寄存器开启支持
+  * 块大小和每个指令的最大字节在 TPLFE_MAX_BLK_SIZE_C10
+  *
+  * 功能0的_size取决于CCCR.FN0寄存器, 1-7的_size取决于FBR寄存器
+  */
 class {{ class_prefix }}io_rw_extended_command_request extends {{ class_prefix }}command_request;
-  typedef enum {
-    BYTE,
-    BLOCK
-  } block_mode_e;
+    typedef enum {
+        BYTE,
+        BLOCK
+    } block_mode_e;
 
-  typedef enum {
-    FIXED,
-    INCREMENTING
-  } op_code_e;
+    typedef enum {
+        FIXED,
+        INCREMENTING
+    } op_code_e;
 
-  typedef enum {
-    RW_FLAG_READ=0,
-    RW_FLAG_WRITE=1
-  } rw_flag_e;
+    typedef enum {
+        RW_FLAG_READ=0,
+        RW_FLAG_WRITE=1
+    } rw_flag_e;
 
 
-  `uvm_object_utils_begin({{ class_prefix }}io_rw_extended_command_request)
-    `uvm_field_enum(rw_flag_e, rw_flag, UVM_ALL_ON)
-    `uvm_field_int(function_number, UVM_ALL_ON)
-    `uvm_field_enum(block_mode_e, block_mode, UVM_ALL_ON)
-    `uvm_field_enum(op_code_e, op_code, UVM_ALL_ON)
-    `uvm_field_int(register_address, UVM_ALL_ON)
-    `uvm_field_int(count, UVM_ALL_ON)
-  `uvm_object_utils_end
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_extended_command_request)
+        `uvm_field_enum(rw_flag_e, rw_flag, UVM_ALL_ON)
+        `uvm_field_int(function_number, UVM_ALL_ON)
+        `uvm_field_enum(block_mode_e, block_mode, UVM_ALL_ON)
+        `uvm_field_enum(op_code_e, op_code, UVM_ALL_ON)
+        `uvm_field_int(register_address, UVM_ALL_ON)
+        `uvm_field_int(count, UVM_ALL_ON)
+    `uvm_object_utils_end
 
-  rand rw_flag_e rw_flag; // 读还是写
-  rand bit[2:0] function_number; // 选择要读写的功能的ID
-  rand block_mode_e block_mode; // 字节还是块
-  rand op_code_e op_code; // 地址固定还是递增
-  rand bit[16:0] register_address; // 寄存器地址
-  rand int count; // 字节/块大小, 字节模式: 1-512; 块模式: 1-511; 0表示无限, 通过写CCCR.ASx寄存器停止
+    rand rw_flag_e rw_flag; // 读还是写
+    rand bit[2:0] function_number; // 选择要读写的功能的ID
+    rand block_mode_e block_mode; // 字节还是块
+    rand op_code_e op_code; // 地址固定还是递增
+    rand bit[16:0] register_address; // 寄存器地址
+    rand int count; // 字节/块大小, 字节模式: 1-512; 块模式: 1-511; 0表示无限, 通过写CCCR.ASx寄存器停止
 
-  function new(string name="{{ class_prefix }}io_rw_extended_command_request");
-    super.new(name);
-  endfunction
+    function new(string name="{{ class_prefix }}io_rw_extended_command_request");
+        super.new(name);
+    endfunction
 
-  constraint cst_prefab {
-    soft function_number == 0;
+    constraint cst_prefab {
+        soft function_number == 0;
 
-    cmd_index == 53;
-    argument[31] == rw_flag;
-    argument[30:28] == function_number;
-    argument[27] == block_mode;
-    argument[26] == op_code;
-    argument[25:9] == register_address;
-    if(block_mode == 0) {
-      count inside {[1:512]};
-      if(count == 512)
-        argument[8:0] == 0;
-      else
-        argument[8:0] == count;
+        cmd_index == 53;
+        argument[31] == rw_flag;
+        argument[30:28] == function_number;
+        argument[27] == block_mode;
+        argument[26] == op_code;
+        argument[25:9] == register_address;
+        if(block_mode == 0) {
+            count inside {[1:512]};
+            if(count == 512)
+                argument[8:0] == 0;
+            else
+                argument[8:0] == count;
+        }
+        else {
+            count inside {[0:511]};
+            argument[8:0] == count;
+        }
+
+        resp == R5;
+        data_present_sel == 1;
+        (rw_flag == RW_FLAG_READ) -> data_xfer_dir == XFER_READ;
+        (rw_flag == RW_FLAG_WRITE) -> data_xfer_dir == XFER_WRITE;
     }
-    else {
-      count inside {[0:511]};
-      argument[8:0] == count;
-    }
-
-    resp == R5;
-    data_present_sel == 1;
-    (rw_flag == RW_FLAG_READ) -> data_xfer_dir == XFER_READ;
-    (rw_flag == RW_FLAG_WRITE) -> data_xfer_dir == XFER_WRITE;
-  }
 endclass
 
 `endif
