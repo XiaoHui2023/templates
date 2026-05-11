@@ -61,7 +61,7 @@ function automatic void {{ class_prefix }}load_memory_file(input string filename
         adr = start_addr+J*width;
         rdat = mem.read(adr);
 
-        dat = {<<8{{<<`SVT_MEM_MAX_DATA_WIDTH{rdat}}}};
+        dat = {{ '{<<8{{<<`SVT_MEM_MAX_DATA_WIDTH{rdat}}}};' }}
         dat = dat[0:dw/8-1];
 
         data = {data,dat};
