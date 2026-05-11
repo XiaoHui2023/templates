@@ -9,18 +9,18 @@ class {{ class_prefix }}yield extends uvm_sequence;
     endfunction
 
     protected bit has_requested; // 已经申请
-    protected bit is_ready;     // 是否准备好
-    protected bit has_resumed;   // 已经恢复
+    protected bit is_ready; // 是否准备好
+    protected bit has_resumed; // 已经恢复
 
     extern task body();
 
-    // 外部申请让步 (内部阻塞)
+    // 外部申请让渡 (外部阻塞)
     extern virtual task request();
 
-    // 内部准备好了，让步给外部 (内部阻塞，外部释放)
+    // 内部准备好了，让渡给外部 (内部阻塞，外部释放)
     extern virtual task ready();
 
-    // 外部交回控制权，恢复让步给内部 (内部释放)
+    // 外部交回控制权，恢复让渡给内部 (内部释放)
     extern virtual function void resume();
 endclass
 
@@ -29,7 +29,7 @@ task {{ class_prefix }}yield::body();
 endtask
 
 task {{ class_prefix }}yield::request();
-    `uvm_info("", "request", UVM_HIGH)
+    `uvm_info("","request",UVM_HIGH)
 
     if(is_ready)
         `uvm_fatal("", "request arrived too late, sequence already ready")
@@ -40,7 +40,7 @@ task {{ class_prefix }}yield::request();
 endtask
 
 task {{ class_prefix }}yield::ready();
-    `uvm_info("", "ready", UVM_HIGH)
+    `uvm_info("","ready",UVM_HIGH)
 
     is_ready = 1;
 
@@ -49,7 +49,7 @@ task {{ class_prefix }}yield::ready();
 endtask
 
 function void {{ class_prefix }}yield::resume();
-    `uvm_info("", "resume", UVM_HIGH)
+    `uvm_info("","resume",UVM_HIGH)
 
     has_resumed = 1;
 endfunction

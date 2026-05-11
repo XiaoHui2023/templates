@@ -11,14 +11,14 @@ timeunit 1fs;
 timeprecision 1fs;
 
 {%- for clk in monitored_clocks %}
-{{ class_prefix }}sample_interface #(.DW(1)) sample_{{ clk.name }}_if(.w({{ clk.name }}));
+{{ class_prefix }}sample_interface sample_{{ clk.name }}_if({{ clk.name }});
 {%- endfor %}
 
 {%- for clk in monitored_clocks %}
 // 检查 {{ clk.name }} 时钟频率
 task automatic check_{{ clk.name }}_frequence(input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
     if($isunknown({{ clk.name }}))
-        `uvm_fatal("", "require connect {{ clk.name }} Clock signal to monitor_if")
+        `uvm_fatal("","require connect {{ clk.name }} Clock signal to monitor_if")
     sample_{{ clk.name }}_if.enable(1);
     check_clock_frequence(sample_{{ clk.name }}_if.r,freq,is_pass,is_timeout,measure_result,tol);
     sample_{{ clk.name }}_if.enable(0);

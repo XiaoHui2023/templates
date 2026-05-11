@@ -12,7 +12,7 @@ interface {{ class_prefix }}connection_interface#(
 timeunit 1fs;
 timeprecision 1fs;
 
-bit req; // 请求，检测到开始检查，检查完毕后置低
+bit req; // 请求，拉高时开始检查，检查完毕后拉低
 
 {{ class_prefix }}sample_interface#(.DW(DW)) sample_lhs_if(lhs);
 {{ class_prefix }}sample_interface#(.DW(DW)) sample_rhs_if(rhs);

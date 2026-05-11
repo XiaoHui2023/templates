@@ -15,7 +15,7 @@ class {{ class_prefix }}agent extends uvm_component;
     function new(string name="{{ class_prefix }}agent",uvm_component parent=null);
         super.new(name,parent);
 
-        sqr = {{ class_prefix }}sequencer::type_id::create({get_full_name(),".sqr"},this);
+        sqr = {{ class_prefix }}sequencer::type_id::create("sqr",this);
         sys_cfg = {{ class_prefix }}system_configuration::type_id::create({get_full_name(),".sys_cfg"});
     endfunction
 
@@ -60,7 +60,7 @@ task {{ class_prefix }}agent::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
 
     ctx = {{ class_prefix }}context::type_id::create({get_full_name(),".ctx"});
-    assert(ctx.randomize()) else `uvm_fatal("","randomize failed");
+    assert(ctx.randomize()) else `uvm_fatal("","randomize failed")
     $cast(sqr.ctx,ctx);
 endtask
 

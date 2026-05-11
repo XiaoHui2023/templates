@@ -9,36 +9,36 @@
     addr : 起始地址
 */
 function automatic {{ class_prefix }}bytes {{ class_prefix }}read_card_memory(svt_mem_backdoor card_mem,int len,bit[63:0] addr=0);
-        int mw;
-        bit[4096-1:0] mem[$];
-        bit[7:0] tmp[$];
-        bit[7:0] out[$];
-        int cnt;
+    int mw;
+    bit[4096-1:0] mem[$];
+    bit[7:0] tmp[$];
+    bit[7:0] out[$];
+    int cnt;
 
-        mw = card_mem.get_data_width();
-        cnt = $ceil(1.0 * len * 8 / mw);
+    mw = card_mem.get_data_width();
+    cnt = $ceil(1.0 * len * 8 / mw);
 
-        for(int j=0;j<cnt;j++)
-                void'(card_mem.peek(addr + j, mem[j]));
-        tmp = { << 8 { { << 4096 {mem} } } };
+    for(int J=0;J<cnt;J++)
+        void'(card_mem.peek(addr + J, mem[J]));
+    tmp = { << 8 { { << 4096 {mem} } } };
 
-        while(tmp.size) begin
-                int n_valid;
-                int sum;
+    while(tmp.size) begin
+        int n_valid;
+        int sum;
 
-                n_valid = mw/8;
-                sum = 4096/8;
+        n_valid = mw/8;
+        sum = 4096/8;
 
-                for(int j=0;j<sum;j++) begin
-                        bit[7:0] v;
+        for(int J=0;J<sum;J++) begin
+            bit[7:0] v;
 
-                        v = tmp.pop_front();
-                        if(j < n_valid)
-                                out.push_back(v);
-                end
+            v = tmp.pop_front();
+            if(J < n_valid)
+                out.push_back(v);
         end
+    end
 
-        return out;
+    return out;
 endfunction
 
-`endif
+`endif\

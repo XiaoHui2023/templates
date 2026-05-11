@@ -4,7 +4,7 @@
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
-    {{ class_prefix }}system_configuration sys_cfg; // 系统配置代
+    {{ class_prefix }}system_configuration sys_cfg; // 系统配置包
     {{ class_prefix }}context ctx; // 上下文
     virtual {{ class_prefix }}interface vif; // 接口
 
@@ -19,7 +19,7 @@ endclass
 task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
 
-    stop_sequences(); // 直接丢弃未完成的sequence,清空等候队列
+    stop_sequences(); // 直接丢弃未完成的sequence,清空等待队列
     start_phase_sequence(phase);
 endtask
 

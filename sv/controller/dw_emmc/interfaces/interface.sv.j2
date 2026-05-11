@@ -19,7 +19,7 @@ reg wp_r;
 assign cd = cd_r;
 assign wp = wp_r;
 
-{{ class_prefix }}monitor_interface monitor_if(); // 时钟监视接口
+{{ class_prefix }}monitor_interface monitor_if(); // 时钟监控接口
 {{ class_prefix }}connections_interface connections_if(); // 连线接口
 
 initial begin
@@ -49,10 +49,10 @@ endfunction
 {%- endif %}
 
 /*
-  * 等待无超时
-  *
-  * timeout_us : 超时时限 (us)
-  */
+    等待无超时
+   
+    timeout_us : 超时时限 (us)
+*/
 task automatic wait_timeout(longint timeout_us);
     longint heartbeat_count;
 
