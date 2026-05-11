@@ -42,9 +42,9 @@ task automatic check_clock_frequence(ref reg clk,input longint freq,output bit i
     longint timeout;
 
     if(tol < 0 || tol > 1)
-        `uvm_fatal("",$sformatf("Invalid tol=%0f",tol))
+        `uvm_fatal("",$psprintf("Invalid tol=%0f",tol))
     if(freq <= 0)
-        `uvm_fatal("",$sformatf("Invalid freq=%0d",freq))
+        `uvm_fatal("",$psprintf("Invalid freq=%0d",freq))
 
     freq_tol = tol * freq;
     freq_min = freq - freq_tol;

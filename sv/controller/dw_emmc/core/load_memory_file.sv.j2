@@ -24,7 +24,7 @@ function automatic void {{ class_prefix }}load_memory_file(input string filename
 
         fh = $fopen(filename,"r");
         if(!fh)
-            `uvm_fatal("",$sformatf("Not found %s",filename))
+            `uvm_fatal("",$psprintf("Not found %s",filename))
 
         while(!$feof(fh))begin
             $fgets(s,fh);
@@ -40,7 +40,7 @@ function automatic void {{ class_prefix }}load_memory_file(input string filename
     if(dw == -1)
         dw = dw_auto;
     else if(dw % 8 > 0)
-        `uvm_fatal("",$sformatf("require data width align to byte,but dw=%0d",dw))
+        `uvm_fatal("",$psprintf("require data width align to byte,but dw=%0d",dw))
 
     // init
     width = `SVT_MEM_MAX_DATA_WIDTH / 8;

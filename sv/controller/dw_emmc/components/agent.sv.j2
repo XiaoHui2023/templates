@@ -1,5 +1,5 @@
 {%- macro monitor_context(name, variable_format) -%}
-    forever begin @(ctx.{{ name }}); `uvm_info("",$sformatf("context.{{ name }} has changed to {{ variable_format }}",ctx.{{ name }}),UVM_HIGH) end
+    forever begin @(ctx.{{ name }}); `uvm_info("",$psprintf("context.{{ name }} has changed to {{ variable_format }}",ctx.{{ name }}),UVM_HIGH) end
 {%- endmacro -%}
 
 `ifndef {{ (class_prefix | upper) }}AGENT
@@ -16,7 +16,7 @@ class {{ class_prefix }}agent extends uvm_component;
         super.new(name,parent);
 
         sqr = {{ class_prefix }}sequencer::type_id::create("sqr",this);
-        sys_cfg = {{ class_prefix }}system_configuration::type_id::create(get_full_name(),".sys_cfg");
+        sys_cfg = {{ class_prefix }}system_configuration::type_id::create({get_full_name(),".sys_cfg"});
     endfunction
 
     extern function void build();
@@ -25,7 +25,7 @@ class {{ class_prefix }}agent extends uvm_component;
     extern task reset_phase(uvm_phase phase);
     extern task main_phase(uvm_phase phase);
 
-    // 监控上下文，变化时打印
+    // 监控上下文，变化时报告
     extern task monitor_context();
 endclass
 
@@ -53,13 +53,13 @@ function void {{ class_prefix }}agent::start_of_simulation();
     if(!sys_cfg.has_randomized)
         assert(sys_cfg.randomize()) else `uvm_fatal("","randomize failed")
 
-    `uvm_info("",$sformatf("system config:\n%s",sys_cfg.sprint()),UVM_LOW)
+    `uvm_info("",$psprintf("system config:\n%s",sys_cfg.sprint()),UVM_LOW)
 endfunction
 
 task {{ class_prefix }}agent::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
 
-    ctx = {{ class_prefix }}context::type_id::create(get_full_name(),".ctx");
+    ctx = {{ class_prefix }}context::type_id::create({get_full_name(),".ctx"});
     assert(ctx.randomize()) else `uvm_fatal("","randomize failed");
     $cast(sqr.ctx,ctx);
 endtask

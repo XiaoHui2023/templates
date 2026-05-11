@@ -101,7 +101,7 @@ task {{ class_prefix }}cpu_config_dependency_seq::post_start();
 
     if(access == UVM_READ)
         if(rdata.size != len)
-            `uvm_fatal("",$sformatf("require %0d rdata,but %0d",len,rdata.size))
+            `uvm_fatal("",$psprintf("require %0d rdata,but %0d",len,rdata.size))
 endtask
 
 task {{ class_prefix }}cpu_config_dependency_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data);

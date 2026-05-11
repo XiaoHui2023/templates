@@ -55,7 +55,7 @@ endfunction
 task {{ class_prefix }}command_request_seq::pre_start();
     super.pre_start();
 
-    `uvm_info("", $sformatf("Enter:\n%s", cmd_req.sprint()), UVM_LOW)
+    `uvm_info("", $psprintf("Enter:\n%s", cmd_req.sprint()), UVM_LOW)
 endtask
 
 task {{ class_prefix }}command_request_seq::body();

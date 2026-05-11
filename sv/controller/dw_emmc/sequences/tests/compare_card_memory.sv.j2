@@ -30,7 +30,7 @@ class {{ class_prefix }}compare_card_memory_test_seq extends {{ class_prefix }}d
 endclass
 
 task {{ class_prefix }}compare_card_memory_test_seq::body();
-    `uvm_info("", $sformatf("compare: %s", sprint()), UVM_LOW)
+    `uvm_info("", $psprintf("compare: %s", sprint()), UVM_LOW)
 
     execute_compare();
 endtask
@@ -47,7 +47,7 @@ task {{ class_prefix }}compare_card_memory_test_seq::execute_compare();
     mem_data = card_mem_get_seq.rdata;
 
     if(data.size != mem_data.size)
-        `uvm_error("", $sformatf("result has %0d bytes, but memory has %0d bytes", data.size, mem_data.size))
+        `uvm_error("", $psprintf("result has %0d bytes, but memory has %0d bytes", data.size, mem_data.size))
 
     if(data == mem_data)
         `uvm_info("", "compare successful", UVM_LOW)
@@ -56,7 +56,7 @@ task {{ class_prefix }}compare_card_memory_test_seq::execute_compare();
             if(data[j] == mem_data[j])
                 continue;
 
-            `uvm_error("", $sformatf("[%0d] result = 0x%0h, but memory = 0x%0h", j, data[j], mem_data[j]))
+            `uvm_error("", $psprintf("[%0d] result = 0x%0h, but memory = 0x%0h", j, data[j], mem_data[j]))
             break;
         end
 endtask
