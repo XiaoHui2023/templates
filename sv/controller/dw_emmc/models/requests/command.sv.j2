@@ -151,9 +151,9 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
     function new(string name="{{ class_prefix }}command_request");
         super.new(name);
 
-        access_req = {{ class_prefix }}access_request::type_id::create("access_req");
-        chk_err_req = {{ class_prefix }}check_error_request::type_id::create("chk_err_req");
-        rst_req = {{ class_prefix }}reset_request::type_id::create("rst_req");
+        access_req = {{ class_prefix }}access_request::type_id::create({get_full_name(),".access_req"});
+        chk_err_req = {{ class_prefix }}check_error_request::type_id::create({get_full_name(),".chk_err_req"});
+        rst_req = {{ class_prefix }}reset_request::type_id::create({get_full_name(),".rst_req"});
     endfunction
 
     function void pre_randomize();
