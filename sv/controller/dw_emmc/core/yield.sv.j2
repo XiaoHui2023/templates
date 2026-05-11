@@ -14,13 +14,13 @@ class {{ class_prefix }}yield extends uvm_sequence;
 
     extern task body();
 
-    // 外部申请让渡 (外部阻塞)
+    // 外部申请让渡 （外部阻塞）
     extern virtual task request();
 
-    // 内部准备好了，让渡给外部 (内部阻塞，外部释放)
+    // 内部准备好了，让渡给外部 （内部阻塞，外部释放）
     extern virtual task ready();
 
-    // 外部交回控制权，恢复让渡给内部 (内部释放)
+    // 外部交回控制权，恢复让渡给内部 （内部释放）
     extern virtual function void resume();
 endclass
 

@@ -8,7 +8,7 @@
     data[$] : 输出数据
     dw : 数据位宽，默认等于最长的一行的位宽
     start_addr : 起始地址，默认0
-    len : 长度(Byte)，默认全部
+    len : 长度（Byte），默认全部
 */
 function automatic void {{ class_prefix }}load_memory_file(input string filename,output bit[7:0] data[$],input int dw=-1,input bit[31:0] start_addr=0,input int len=-1);
     svt_mem mem;
@@ -61,7 +61,7 @@ function automatic void {{ class_prefix }}load_memory_file(input string filename
         adr = start_addr+J*width;
         rdat = mem.read(adr);
 
-        dat = {<<8{rdat[`SVT_MEM_MAX_DATA_WIDTH-1:0]}};
+        dat = {<<8{{<<`SVT_MEM_MAX_DATA_WIDTH{rdat}}}};
         dat = dat[0:dw/8-1];
 
         data = {data,dat};

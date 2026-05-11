@@ -20,7 +20,7 @@ timeprecision 1fs;
 // 请求检查 {{ con.name }}
 function automatic void request_{{ con.name }}();
     if($isunknown({{ con.name }}_lhs) || $isunknown({{ con.name }}_rhs))
-        `uvm_fatal("","require connect {{ con.name }} signal to connections if")
+        `uvm_fatal("","require connect {{ con.name }} signal to connections_if")
     {{ con.name }}_if.request();
 endfunction
     {%- endfor %}
