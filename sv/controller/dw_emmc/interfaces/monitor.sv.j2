@@ -26,15 +26,15 @@ endtask
 {%- endfor %}
 
 /*
-  * 检查时钟频率 (需要开启频率采样使能)
-  *
-  * clk : reg类型时钟信号
-  * freq : 要求的时钟频率(Hz)
-  * is_pass : 输出结果是否成功
-  * is_timeout : 输出是否超时
-  * measure_result : 测出测量频率(Hz), 如果结果无效
-  * tol : 允许误差 [0%-100%]
-  */
+    检查时钟频率 (需要开启频率采样使能)
+
+    clk : reg类型时钟信号
+    freq : 要求的时钟频率(Hz)
+    is_pass : 输出结果是否成功
+    is_timeout : 输出是否超时
+    measure_result : 测出测量频率(Hz), 如果结果无效
+    tol : 允许误差 [0%-100%]
+*/
 task automatic check_clock_frequence(ref reg clk,input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
     longint freq_min;
     longint freq_max;

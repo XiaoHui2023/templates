@@ -2,14 +2,14 @@
 `define {{ class_prefix | upper }}ADMA_DES_DATA
 
 /*
-  * 关于ADMA的描述
-  * ADMA会先读存放描述符的地址，获取地址和参数，再去读对应地址
-  * 使用ADMA时必须配置 cmd_addr
-  *
-  * 在存储空间中存放描述符数据，占用多个字节
-  *
-  * ADMA2 (64bit) 和 ADMA3 (96bit) 使用
-  */
+    关于ADMA的描述
+    ADMA会先读存放描述符的地址，获取地址和参数，再去读对应地址
+    使用ADMA时必须配置 cmd_addr
+
+    在存储空间中存放描述符数据，占用多个字节
+
+    ADMA2 (64bit) 和 ADMA3 (96bit) 使用
+*/
 
 class {{ class_prefix }}adma_des_data extends {{ class_prefix }}base_data;
     `uvm_object_utils_begin({{ class_prefix }}adma_des_data)

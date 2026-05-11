@@ -2,11 +2,11 @@
 `define {{ class_prefix | upper }}WRITE_BLOCK_COMMAND_REQUEST
 
 /*
-  * 发送CMD24写单块
-  *
-  * 需要先发送 SET_BLOCKLEN
-  * 需要注意块的边界，除非设置了 WRITE_BLK_MISALIGN
-  */
+    发送CMD24写单块
+
+    需要先发送 SET_BLOCKLEN
+    需要注意块的边界，除非设置了 WRITE_BLK_MISALIGN
+*/
 class {{ class_prefix }}write_block_command_request extends {{ class_prefix }}command_request;
     `uvm_object_utils_begin({{ class_prefix }}write_block_command_request)
         `uvm_field_int(data_address, UVM_ALL_ON)

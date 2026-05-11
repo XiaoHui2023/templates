@@ -2,13 +2,13 @@
 `define {{ class_prefix | upper }}IO_RW_EXTENDED_COMMAND_REQUEST
 
 /*
-  * 发送CMD53进行数据读写
-  *
-  * 需要 CCCR.SMB 寄存器开启支持
-  * 块大小和每个指令的最大字节在 TPLFE_MAX_BLK_SIZE_C10
-  *
-  * 功能0的_size取决于CCCR.FN0寄存器, 1-7的_size取决于FBR寄存器
-  */
+    发送CMD53进行数据读写
+
+    需要 CCCR.SMB 寄存器开启支持
+    块大小和每个指令的最大字节在 TPLFE_MAX_BLK_SIZE_C10
+
+    功能0的_size取决于CCCR.FN0寄存器, 1-7的_size取决于FBR寄存器
+*/
 class {{ class_prefix }}io_rw_extended_command_request extends {{ class_prefix }}command_request;
     typedef enum {
         BYTE,

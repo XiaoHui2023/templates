@@ -2,10 +2,10 @@
 `define {{ (class_prefix | upper) }}CARD_MEMORY_GET_DEPENDENCY_SEQ
 
 /*
-  * 获取card内存数据
-  *
-  * 默认从 system_config 的 card_mem 读取(如果有的话)
-  */
+    获取card内存数据
+
+    默认从 system_config 的 card_mem 读取(如果有的话)
+*/
 class {{ (class_prefix) }}card_memory_get_dependency_seq extends {{ (class_prefix) }}base_dependency_seq;
     `uvm_object_utils_begin({{ (class_prefix) }}card_memory_get_dependency_seq)
         `uvm_field_int(addr, UVM_ALL_ON)

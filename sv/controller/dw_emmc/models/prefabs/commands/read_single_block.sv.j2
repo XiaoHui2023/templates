@@ -2,11 +2,11 @@
 `define {{ class_prefix | upper }}READ_SINGLE_BLOCK_COMMAND_REQUEST
 
 /*
-  * 发送CMD17读单块
-  *
-  * 需要先发送 SET_BLOCKLEN
-  * 需要注意块的到边界, 指令设置了 READ BLK MISALIGN
-  */
+    发送CMD17读单块
+
+    需要先发送 SET_BLOCKLEN
+    需要注意块的到边界, 指令设置了 READ BLK MISALIGN
+*/
 class {{ class_prefix }}read_single_block_command_request extends {{ class_prefix }}command_request;
     `uvm_object_utils_begin({{ class_prefix }}read_single_block_command_request)
         `uvm_field_int(data_address, UVM_ALL_ON)

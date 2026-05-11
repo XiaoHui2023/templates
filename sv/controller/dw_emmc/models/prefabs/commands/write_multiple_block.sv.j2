@@ -2,10 +2,10 @@
 `define {{ class_prefix | upper }}WRITE_MULTIPLE_BLOCK_COMMAND_REQUEST
 
 /*
-  * 发送CMD25写多块
-  *
-  * 发送 STOP_TRANSMISSION 或者写够了额定的块数，就会停下来
-  */
+    发送CMD25写多块
+
+    发送 STOP_TRANSMISSION 或者写够了额定的块数，就会停下来
+*/
 class {{ class_prefix }}write_multiple_block_command_request extends {{ class_prefix }}command_request;
     `uvm_object_utils_begin({{ class_prefix }}write_multiple_block_command_request)
         `uvm_field_int(data_address, UVM_ALL_ON)
