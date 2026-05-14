@@ -18,15 +18,11 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     // 若配置了 init_file 则加载 CSV 并前门写入。
     extern task main_phase(uvm_phase phase);
 
-    // 读寄存器 CSV 并前门写入模型。
+    // 读寄存器 CSV 并前门写入模型；任一步失败则报错并中止。
     // filename — CSV 路径
-    // clear_dump_first — 为 1 时先清空监控回调里待写出的写记录队列
-    // ok — 全程是否成功
-    extern task load_csv(
-        input string filename,
-        input bit clear_dump_first,
-        output bit ok
-    );
+    extern task load_csv(input string filename);
+    // 若已通过 config_db 绑定 reg_mon_cb，则清空其待写出写记录队列。
+    extern function void clear_dump();
 endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
@@ -46,43 +42,37 @@ endfunction
 
 task {{ class_prefix }}sequencer::main_phase(uvm_phase phase);
     if (init_file.len()) begin
-        bit ok;
-
         phase.raise_objection(this);
         `uvm_info("REG_IO", $sformatf("init reg csv (main_phase): %s", init_file), UVM_LOW)
-        load_csv(init_file, 0, ok);
-        if (!ok)
-            `uvm_error("REG_IO", $sformatf("load_csv failed for init_file=%s", init_file))
+        load_csv(init_file);
         phase.drop_objection(this);
     end
     super.main_phase(phase);
 endtask
 
-task {{ class_prefix }}sequencer::load_csv(
-    input string filename,
-    input bit clear_dump_first,
-    output bit ok
-);
+function void {{ class_prefix }}sequencer::clear_dump();
+    {{ class_prefix }}reg_monitor_cb mon_cb;
+    if (uvm_config_db #({{ class_prefix }}reg_monitor_cb)::get(this, "", "reg_mon_cb", mon_cb))
+        if (mon_cb != null)
+            mon_cb.clear_dump_rows();
+endfunction
+
+task {{ class_prefix }}sequencer::load_csv(input string filename);
     {{ class_prefix }}csv_row rows[$];
 
-    ok = 0;
-    if (clear_dump_first) begin
-        {{ class_prefix }}reg_monitor_cb mon_cb;
-        if (uvm_config_db #({{ class_prefix }}reg_monitor_cb)::get(this, "", "reg_mon_cb", mon_cb))
-            if (mon_cb != null)
-                mon_cb.clear_dump_rows();
-    end
-
-    if (!{{ class_prefix }}read_reg_csv_file(filename, rows))
+    if (!{{ class_prefix }}read_reg_csv_file(filename, rows)) begin
+        `uvm_error("REG_IO", $sformatf("read_reg_csv_file failed: %s", filename))
         return;
+    end
 
     foreach (rows[i]) begin
         bit row_ok;
         m_tools.xact.commit_csv_row_to_reg(m_root, m_map, rows[i], row_ok);
-        if (!row_ok)
+        if (!row_ok) begin
+            `uvm_error("REG_IO", $sformatf("commit_csv_row_to_reg failed: %s row %0d", filename, i))
             return;
+        end
     end
-    ok = 1;
 endtask
 
 `endif
