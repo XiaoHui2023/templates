@@ -8,5 +8,5 @@ class Models(BaseModel):
     memh_max_bytes_per_line: int = Field(
         16,
         ge=1,
-        description="写出 memh 时每行最多包含的连续数据字节数；修改后须重新生成 SV 才会反映到写出格式。",
+        description="写出 memh 时每行最多包含的连续数据字节数。",
     )

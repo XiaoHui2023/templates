@@ -1,9 +1,8 @@
 `ifndef {{ (class_prefix ~ "memh_engine") | upper }}
 `define {{ (class_prefix ~ "memh_engine") | upper }}
 
-// 读 memh 文件、写 memh 文件，以及从「字节地址对应一个字节」的存储里按起始地址连续读出字节队列；本包文件顶部的几个函数和 sequencer 共用这里的实现。
 class {{ class_prefix }}memh_engine;
-    // max_bytes_per_line — 写出 memh 时单个 @ 地址行里连续数据字节个数上限
+    // 写出 memh 时单个 @ 地址行里连续数据字节个数上限
     parameter int max_bytes_per_line = {{ memh_max_bytes_per_line }};
 
     // 根据最大地址算出 @ 后面要用几位十六进制（至少 1 位）
@@ -38,7 +37,7 @@ class {{ class_prefix }}memh_engine;
     );
     // 按地址从小到大写文件：地址紧挨着的字节会写在同一行或相邻行里（memh 的 @ 行格式）
     extern function bit write_from_map(string filename, ref bit [7:0] src[bit [63:0]]);
-    // 比较两个「地址到字节」的存储：出现的地址必须完全一样，同一地址上的字节也必须一样
+    // 比较两个（地址到字节）的存储：出现的地址必须完全一样，同一地址上的字节也必须一样
     extern function bit compare_maps(
         ref bit [7:0] actual[bit [63:0]],
         ref bit [7:0] expected[bit [63:0]],

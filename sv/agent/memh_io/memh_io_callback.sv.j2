@@ -1,0 +1,22 @@
+`ifndef {{ (class_prefix ~ "memh_io_callback") | upper }}
+`define {{ (class_prefix ~ "memh_io_callback") | upper }}
+
+class {{ class_prefix }}memh_io_callback extends uvm_callback;
+    `uvm_object_utils({{ class_prefix }}memh_io_callback)
+
+    function new(string name="{{ class_prefix }}memh_io_callback");
+        super.new(name);
+    endfunction
+
+    // 目标 memory 已收下本段字节之后立刻触发
+    // addr — 本段起始字节地址
+    // data — 自该地址起按递增顺序排列的本段字节
+    virtual function void on_write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
+    endfunction
+
+    // 目标 memory 已整体清空之后触发
+    virtual function void on_clear();
+    endfunction
+endclass
+
+`endif

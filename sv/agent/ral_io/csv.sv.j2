@@ -29,7 +29,7 @@ function automatic void {{ class_prefix }}csv_trim_both(ref string s);
         s = "";
 endfunction
 
-// 读「路径,值」格式 CSV；跳过空行与 // 注释行。
+// 读（路径,值）格式 CSV；跳过空行与 // 注释行。
 // filename — 输入文件路径
 // rows — 解析得到的行队列
 function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref {{ class_prefix }}csv_row rows[$]);
@@ -94,7 +94,7 @@ function automatic bit {{ class_prefix }}read_reg_csv_file(string filename, ref 
     return 1;
 endfunction
 
-// 将行队列写成 CSV（每行「路径,值」）。
+// 将行队列写成 CSV（每行（路径,值））。
 // filename — 输出文件路径
 // rows — 待写出的行队列
 function automatic bit {{ class_prefix }}write_reg_csv_file(string filename, ref {{ class_prefix }}csv_row rows[$]);

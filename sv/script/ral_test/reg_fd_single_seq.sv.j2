@@ -1,0 +1,102 @@
+`ifndef {{ class_name | upper }}_REG_FD_SINGLE_SEQ
+`define {{ class_name | upper }}_REG_FD_SINGLE_SEQ
+
+{%- set _acc = access | default(false) %}
+{%- if _acc %}
+class {{ class_name }}_single_reg_fd_access_seq extends uvm_reg_single_access_seq;
+    `uvm_object_utils({{ class_name }}_single_reg_fd_access_seq)
+
+    function new(string name = "{{ class_name }}_single_reg_fd_access_seq");
+        super.new(name);
+    endfunction
+
+    virtual task body();
+        uvm_reg_map maps[$];
+
+        if (rg == null) begin
+            `uvm_error("RAL_TEST/REG_FD", "No register specified to run sequence on")
+            return;
+        end
+
+        if (uvm_resource_db#(bit)::get_by_name({"REG::", rg.get_full_name()},
+                "NO_REG_TESTS", 0) != null ||
+                uvm_resource_db#(bit)::get_by_name({"REG::", rg.get_full_name()},
+                "NO_REG_ACCESS_TEST", 0) != null) begin
+            return;
+        end
+
+        rg.get_maps(maps);
+
+        begin
+            uvm_reg_field fields[$];
+
+            rg.get_fields(fields);
+            foreach (maps[k]) begin
+                int ro;
+
+                ro = 0;
+                foreach (fields[j]) begin
+                    if (fields[j].get_access(maps[k]) == "RO") begin
+                        ro++;
+                    end
+                    if (!fields[j].is_known_access(maps[k])) begin
+                        `uvm_warning("RAL_TEST/REG_FD", {"Register '", rg.get_full_name(),
+                            "' has field with unknown access type '",
+                            fields[j].get_access(maps[k]), "', skipping"})
+                        return;
+                    end
+                end
+                if (ro == fields.size()) begin
+                    `uvm_warning("RAL_TEST/REG_FD", {"Register '",
+                        rg.get_full_name(), "' has only RO fields in map ", maps[k].get_full_name(), ", skipping"})
+                    return;
+                end
+            end
+        end
+
+        foreach (maps[j]) begin
+            uvm_status_e status;
+            uvm_reg_data_t v;
+
+            `uvm_info("RAL_TEST/REG_FD", {"Verifying frontdoor access of register '",
+                rg.get_full_name(), "' in map '", maps[j].get_full_name(),
+                "' ..."}, UVM_LOW)
+
+            v = rg.get();
+
+            rg.write(status, ~v, UVM_FRONTDOOR, maps[j], this);
+
+            if (status != UVM_IS_OK) begin
+                `uvm_error("RAL_TEST/REG_FD", {"Status was '", status.name(),
+                    "' when writing '", rg.get_full_name(),
+                    "' through map '", maps[j].get_full_name(), "'"})
+            end
+            #1;
+
+            rg.mirror(status, UVM_CHECK, UVM_FRONTDOOR, maps[j], this);
+            if (status != UVM_IS_OK) begin
+                `uvm_error("RAL_TEST/REG_FD", {"Status was '", status.name(),
+                    "' when mirroring register '",
+                    rg.get_full_name(), "' through map '", maps[j].get_full_name(), "'"})
+            end
+
+            rg.write(status, v, UVM_FRONTDOOR, maps[j], this);
+            if (status != UVM_IS_OK) begin
+                `uvm_error("RAL_TEST/REG_FD", {"Status was '", status.name(),
+                    "' when writing '", rg.get_full_name(),
+                    "' through map '", maps[j].get_full_name(), "'"})
+            end
+
+            rg.mirror(status, UVM_CHECK, UVM_FRONTDOOR, maps[j], this);
+            if (status != UVM_IS_OK) begin
+                `uvm_error("RAL_TEST/REG_FD", {"Status was '", status.name(),
+                    "' when mirroring register '",
+                    rg.get_full_name(), "' through map '",
+                    maps[j].get_full_name(), "'"})
+            end
+        end
+    endtask
+endclass
+
+{%- endif %}
+`endif

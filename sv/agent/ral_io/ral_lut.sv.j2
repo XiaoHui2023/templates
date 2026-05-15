@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "ral_lut") | upper }}
 `define {{ (class_prefix ~ "ral_lut") | upper }}
 
-// 寄存器块树遍历与「地址+字节宽 → 相对路径」表构建。
+// 寄存器块树遍历与（地址+字节宽 → 相对路径）表构建。
 class {{ class_prefix }}ral_lut;
     // 深度优先登记本层寄存器地址键，再递归子块。
     // blk — 当前遍历块

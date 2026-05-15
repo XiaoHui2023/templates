@@ -1,8 +1,6 @@
 `ifndef {{ (class_prefix ~ "functions") | upper }}
 `define {{ (class_prefix ~ "functions") | upper }}
 
-// 本文件只有几行封装：真正读写在 {{ class_prefix }}memh_engine 类里。
-
 // 读 memh 文件，把结果放进 dst；clear_first 为真则先清空 dst
 function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
     {{ class_prefix }}memh_engine eng;
@@ -22,7 +20,7 @@ function automatic bit {{ class_prefix }}read_memh_file_to_byte_q(
     return eng.read_file_to_byte_q(filename, q, start_addr, len);
 endfunction
 
-// 把「地址到字节」的存储写成 memh；每行数据字节数由引擎在生成时确定
+// 把（地址到字节）的存储写成 memh；每行数据字节数由引擎在生成时确定
 function automatic bit {{ class_prefix }}write_memh_file(
     string filename,
     ref bit [7:0] src[bit [63:0]]

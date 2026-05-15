@@ -5,7 +5,10 @@
 {%- set _acc = access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
-// 按布尔开关串联 UVM RAL 内建寄存器测试 sequence。
+{%- if _acc %}
+`include "reg_fd_single_seq.sv"
+`include "reg_fd_access_seq.sv"
+{%- endif %}
 class {{ class_name }} extends uvm_sequence;
     `uvm_object_utils({{ class_name }})
     `uvm_declare_p_sequencer(uvm_sequencer #(uvm_reg_item))
@@ -24,7 +27,7 @@ class {{ class_name }} extends uvm_sequence;
         uvm_reg_hw_reset_seq hw_reset_seq;
 {%- endif %}
 {%- if _acc %}
-        uvm_reg_access_seq reg_access_seq;
+        {{ class_name }}_reg_fd_access_seq reg_fd_access_seq;
 {%- endif %}
 {%- if _mh %}
         uvm_reg_mem_hdl_paths_seq mem_hdl_paths_seq;
@@ -49,9 +52,9 @@ class {{ class_name }} extends uvm_sequence;
 {%- endif %}
 {%- if _acc %}
 
-        reg_access_seq = uvm_reg_access_seq::type_id::create({get_name(), ".reg_access"});
-        reg_access_seq.model = regmodel;
-        reg_access_seq.start(p_sequencer);
+        reg_fd_access_seq = {{ class_name }}_reg_fd_access_seq::type_id::create({get_name(), ".reg_fd_access"});
+        reg_fd_access_seq.model = regmodel;
+        reg_fd_access_seq.start(p_sequencer);
 {%- endif %}
 {%- if _mh %}
 

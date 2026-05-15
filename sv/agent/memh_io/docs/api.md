@@ -1,8 +1,6 @@
-# Sequencer API
+# API
 
-生成后的类型名为 **`<class_prefix>sequencer`**：`<class_prefix>` 为生成配置里的类名前缀，出现在 agent、sequencer 等类型名中。下文**只写方法名**；仿真里请使用带该前缀的完整类型名（默认前缀下例如 `memh_sequencer`）。
-
-端口与 **`config_db`**：**[README](../README.md)**。
+类名与方法名均带配置的 `class_prefix` 前缀；下文只写方法 basename。
 
 ## 分析口与 `memory`
 
@@ -32,7 +30,7 @@
 | --- | --- | --- | --- | --- |
 | `filename` | input | `string` |  | 输出文件路径 |
 
-写出时每行最多几个数据字节与同包 `write_memh_file` 一致，均在**重新生成**源码前由配置决定；说明见 **[全局 function](memh_global_functions.md)** 的 `write_memh_file` 一节。
+写出时每行最多几个数据字节由生成前配置中的行宽项决定，与同包 **`write_memh_file`** 一致；**不在** `save_file` 与 **`write_memh_file`** 的形参中出现。
 
 **返回值：** `bit` — 成功为 1，失败为 0。
 
@@ -46,7 +44,7 @@
 
 ## `write_payload`
 
-写入 `uvm_tlm_generic_payload`（与 `write` 相比不克隆，由调用方保证生命周期与复用策略）。
+写入 `uvm_tlm_generic_payload`（与 `write` 相比不克隆；生命周期与复用须由上层调用代码自行约束）。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -117,7 +115,7 @@
 
 ## `compare_memory`
 
-与另一份「字节地址到 8 位值」的期望数据比较，不一致时上报 `uvm_error`。
+与另一份 **字节地址到 8 位值** 形式的期望数据比较，不一致时上报 `uvm_error`。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |

@@ -43,7 +43,7 @@ class {{ class_prefix }}reg_monitor_cb extends uvm_reg_cbs;
     // rw — RAL 传入的读事务项
     extern virtual task post_read(uvm_reg_item rw);
 
-    // 向内部队列追加一行「路径,值」文本。
+    // 向内部队列追加一行（路径,值）文本。
     // path — 寄存器点分路径
     // value_text — 值列格式化字符串
     extern function void push_dump_row(string path, string value_text);

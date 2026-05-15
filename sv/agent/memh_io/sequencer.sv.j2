@@ -1,12 +1,15 @@
 `ifndef {{ (class_prefix ~ "sequencer") | upper }}
 `define {{ (class_prefix ~ "sequencer") | upper }}
 
-// 按字节地址保存数据的 sequencer：可读 memh、写 memh、和文件或其它存储比较；从分析口进来的写和 load_file 都走 generic_payload。
+typedef class {{ class_prefix }}seq_tools;
+
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
+    `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}memh_io_callback)
 
     bit [7:0] memory[bit [63:0]]; // 下标是字节地址，存 8 位数据
     protected {{ class_prefix }}memh_engine memh_eng; // 读 memh、写 memh、比较文件时共用的逻辑
+    protected {{ class_prefix }}seq_tools m_tools; // 字节图、payload、load 分段与回调触发
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp; // 分析口写入入口
     uvm_analysis_port #(uvm_tlm_generic_payload) o_ap; // write_payload 之后把同一份 payload 再发出去
     uvm_analysis_port #(uvm_tlm_generic_payload) o_load_ap; // load_file 时按连续地址段发写事务
@@ -42,18 +45,20 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     // 读 memh 文件；行里以 @ 换地址，后面是十六进制字节；clear_first 为真则先清空 memory
     extern function bit load_file(string filename, bit clear_first=0);
     extern function bit save_file(string filename);
-    extern protected function void emit_load_payloads(ref bit [7:0] load_memory[bit [63:0]]);
-    extern protected function void emit_load_payload(bit [63:0] addr, ref bit [7:0] data_q[$]);
 
     extern function bit compare_file(string filename);
     // 和 expected 比较：两边出现过的地址必须一致，同一地址上的字节也必须一致
     extern function bit compare_memory(ref bit [7:0] expected[bit [63:0]], input string expected_name="expected");
 endclass
 
+// seq_tools 须在首条 sequencer:: 实现之前完成解析（互指类型）；源文件仍单独生成，由 include 拉入
+`include "seq_tools.sv"
+
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
 
     memh_eng = new();
+    m_tools = new(this, memh_eng);
 
     imp = new("imp", this);
     o_ap = new("o_ap", this);
@@ -105,151 +110,47 @@ function void {{ class_prefix }}sequencer::write(uvm_tlm_generic_payload payload
 endfunction
 
 function void {{ class_prefix }}sequencer::clear();
-    memory.delete();
+    m_tools.clear_mem();
 endfunction
 
 function void {{ class_prefix }}sequencer::write_byte(bit [63:0] addr, bit [7:0] data);
-    memory[addr] = data;
+    m_tools.write_byte(addr, data);
 endfunction
 
 function bit [7:0] {{ class_prefix }}sequencer::read_byte(bit [63:0] addr, bit [7:0] default_value='0);
-    if (memory.exists(addr))
-        return memory[addr];
-    return default_value;
+    return m_tools.read_byte(addr, default_value);
 endfunction
 
 function void {{ class_prefix }}sequencer::write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
-    foreach (data[i])
-        write_byte(addr + i, data[i]);
+    m_tools.write_data(addr, data);
 endfunction
 
 function void {{ class_prefix }}sequencer::read_data(input bit [63:0] addr, input int len, output bit [7:0] data_q[$], input bit [7:0] default_value='0);
-    data_q.delete();
-    for (int i = 0; i < len; i++)
-        data_q.push_back(read_byte(addr + i, default_value));
+    m_tools.read_data(addr, len, data_q, default_value);
 endfunction
 
 function void {{ class_prefix }}sequencer::write_payload(uvm_tlm_generic_payload payload);
-    byte unsigned data_dyn[];
-    bit [63:0] addr;
-    int len;
-
-    if (payload == null) begin
-        `uvm_error("", "write_payload got null payload")
-        return;
-    end
-
-    `uvm_info("", $sformatf("write payload input:\n%s", payload.sprint()), UVM_DEBUG)
-
-    addr = payload.get_address();
-    payload.get_data(data_dyn);
-    len = payload.get_data_length();
-    if (len == 0 || len > data_dyn.size())
-        len = data_dyn.size();
-
-    for (int i = 0; i < len; i++)
-        write_byte(addr + i, data_dyn[i]);
-
-    `uvm_info("", $sformatf("write payload output:\n%s", payload.sprint()), UVM_DEBUG)
-    o_ap.write(payload);
+    m_tools.write_payload(payload);
 endfunction
 
 function uvm_tlm_generic_payload {{ class_prefix }}sequencer::read_payload(bit [63:0] addr, int len, string name="memh_payload");
-    uvm_tlm_generic_payload payload;
-    bit [7:0] data_q[$];
-    byte unsigned data_dyn[];
-
-    payload = uvm_tlm_generic_payload::type_id::create(name);
-    read_data(addr, len, data_q);
-    data_dyn = new[data_q.size()];
-    foreach (data_q[i])
-        data_dyn[i] = data_q[i];
-
-    payload.set_command(UVM_TLM_READ_COMMAND);
-    payload.set_address(addr);
-    payload.set_data(data_dyn);
-    payload.set_data_length(len);
-    payload.set_streaming_width(len);
-    payload.set_response_status(UVM_TLM_OK_RESPONSE);
-    `uvm_info("", $sformatf("read payload output:\n%s", payload.sprint()), UVM_DEBUG)
-    return payload;
+    return m_tools.read_payload(addr, len, name);
 endfunction
 
 function bit {{ class_prefix }}sequencer::load_file(string filename, bit clear_first=0);
-    bit [7:0] load_memory[bit [63:0]];
-
-    if (!memh_eng.read_into_map(filename, load_memory, 1))
-        return 0;
-
-    if (clear_first)
-        memory.delete();
-
-    foreach (load_memory[addr])
-        memory[addr] = load_memory[addr];
-
-    `uvm_info("", $sformatf("load memh file to memory: %s", filename), UVM_LOW)
-    emit_load_payloads(load_memory);
-    return 1;
-endfunction
-
-function void {{ class_prefix }}sequencer::emit_load_payloads(ref bit [7:0] load_memory[bit [63:0]]);
-    bit has_run;
-    bit [63:0] run_addr;
-    bit [63:0] last_addr;
-    bit [7:0] data_q[$];
-
-    foreach (load_memory[addr]) begin
-        if (!has_run) begin
-            has_run = 1;
-            run_addr = addr;
-            last_addr = addr;
-            data_q.delete();
-            data_q.push_back(load_memory[addr]);
-        end else if (addr == last_addr + 1) begin
-            last_addr = addr;
-            data_q.push_back(load_memory[addr]);
-        end else begin
-            emit_load_payload(run_addr, data_q);
-            run_addr = addr;
-            last_addr = addr;
-            data_q.delete();
-            data_q.push_back(load_memory[addr]);
-        end
-    end
-
-    if (has_run)
-        emit_load_payload(run_addr, data_q);
-endfunction
-
-function void {{ class_prefix }}sequencer::emit_load_payload(bit [63:0] addr, ref bit [7:0] data_q[$]);
-    uvm_tlm_generic_payload payload;
-    byte unsigned data_dyn[];
-
-    data_dyn = new[data_q.size()];
-    foreach (data_q[i])
-        data_dyn[i] = data_q[i];
-
-    payload = uvm_tlm_generic_payload::type_id::create($sformatf("%s.load_payload_%0h", get_full_name(), addr));
-    payload.set_command(UVM_TLM_WRITE_COMMAND);
-    payload.set_address(addr);
-    payload.set_data(data_dyn);
-    payload.set_data_length(data_dyn.size());
-    payload.set_streaming_width(data_dyn.size());
-    payload.set_response_status(UVM_TLM_OK_RESPONSE);
-    `uvm_info("", $sformatf("load payload output:\n%s", payload.sprint()), UVM_DEBUG)
-    o_load_ap.write(payload);
+    return m_tools.load_file(filename, clear_first);
 endfunction
 
 function bit {{ class_prefix }}sequencer::save_file(string filename);
-    return memh_eng.write_from_map(filename, memory);
+    return m_tools.save_file(filename);
 endfunction
 
 function bit {{ class_prefix }}sequencer::compare_file(string filename);
-    return memh_eng.compare_map_to_memh(memory, filename);
+    return m_tools.compare_file(filename);
 endfunction
 
 function bit {{ class_prefix }}sequencer::compare_memory(ref bit [7:0] expected[bit [63:0]], input string expected_name="expected");
-    return memh_eng.compare_maps(memory, expected, expected_name);
+    return m_tools.compare_memory(expected, expected_name);
 endfunction
 
 `endif

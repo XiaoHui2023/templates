@@ -1,7 +1,6 @@
 `ifndef {{ (class_prefix ~ "agent") | upper }}
 `define {{ (class_prefix ~ "agent") | upper }}
 
-// 包住 sequencer：在 build 里把初始化文件、保存 memh 的路径、比对文件路径交给 sqr，并接好分析口。
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 

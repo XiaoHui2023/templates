@@ -8,7 +8,10 @@ class Models(BaseModel):
         description="该 sequence 的类名。",
     )
     hw_reset: bool = Field(False, description="启用 `uvm_reg_hw_reset_seq`。")
-    access: bool = Field(False, description="启用 `uvm_reg_access_seq`。")
+    access: bool = Field(
+        False,
+        description="启用寄存器访问自测：前门写读与镜像核对，不依赖后门或 HDL 路径。",
+    )
     mem_hdl_paths: bool = Field(
         False, description="启用 `uvm_reg_mem_hdl_paths_seq`。"
     )

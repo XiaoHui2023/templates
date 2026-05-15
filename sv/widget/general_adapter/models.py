@@ -51,7 +51,7 @@ class Models(BaseModel):
     # 使用方式
 
     - 配置 `class_adapter`、`class_data`、`data_types` 与端口名。
-    - 按「实现输出转换」一节为 `data_types` 中的每一种输出补齐转换函数。
+    - 按后文 **# 实现输出转换** 小节为 `data_types` 中的每一种输出补齐转换函数。
     - 需要额外成员时，配置 `custom_attributes`。
 
     # ports
