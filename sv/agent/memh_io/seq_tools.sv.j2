@@ -5,10 +5,10 @@ typedef class {{ class_prefix }}sequencer;
 
 class {{ class_prefix }}seq_tools;
     protected {{ class_prefix }}sequencer m_sqr; // 经此访问宿主字节图与对外分析口
-    protected {{ class_prefix }}memh_engine m_eng; // memh 读写与双图比较共用的引擎
+    protected {{ class_prefix }}engine m_eng; // memh 读写与双图比较共用的引擎
 
     // 缓存宿主与引擎句柄，供直连 memory 与文件侧子程序使用
-    function new({{ class_prefix }}sequencer sqr, {{ class_prefix }}memh_engine eng);
+    function new({{ class_prefix }}sequencer sqr, {{ class_prefix }}engine eng);
         m_sqr = sqr;
         m_eng = eng;
     endfunction
@@ -67,11 +67,11 @@ function void {{ class_prefix }}seq_tools::mem_store_byte(bit [63:0] addr, bit [
 endfunction
 
 function void {{ class_prefix }}seq_tools::notify_on_write(bit [63:0] addr, const ref bit [7:0] data[$]);
-    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}memh_io_callback, m_sqr, on_write_data(addr, data))
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, m_sqr, on_write_data(addr, data))
 endfunction
 
 function void {{ class_prefix }}seq_tools::notify_on_clear();
-    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}memh_io_callback, m_sqr, on_clear())
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, m_sqr, on_clear())
 endfunction
 
 function void {{ class_prefix }}seq_tools::merge_loaded_map(ref bit [7:0] load_memory[bit [63:0]]);

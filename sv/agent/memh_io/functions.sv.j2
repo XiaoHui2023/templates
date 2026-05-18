@@ -3,7 +3,7 @@
 
 // 读 memh 文件，把结果放进 dst；clear_first 为真则先清空 dst
 function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
-    {{ class_prefix }}memh_engine eng;
+    {{ class_prefix }}engine eng;
     eng = new();
     return eng.read_into_map(filename, dst, clear_first);
 endfunction
@@ -15,7 +15,7 @@ function automatic bit {{ class_prefix }}read_memh_file_to_byte_q(
     input bit [63:0] start_addr='0,
     input int len=-1
 );
-    {{ class_prefix }}memh_engine eng;
+    {{ class_prefix }}engine eng;
     eng = new();
     return eng.read_file_to_byte_q(filename, q, start_addr, len);
 endfunction
@@ -25,7 +25,7 @@ function automatic bit {{ class_prefix }}write_memh_file(
     string filename,
     ref bit [7:0] src[bit [63:0]]
 );
-    {{ class_prefix }}memh_engine eng;
+    {{ class_prefix }}engine eng;
     eng = new();
     return eng.write_from_map(filename, src);
 endfunction
@@ -36,7 +36,7 @@ function automatic bit {{ class_prefix }}compare_memory(
     ref bit [7:0] expected[bit [63:0]],
     input string expected_name="expected"
 );
-    {{ class_prefix }}memh_engine eng;
+    {{ class_prefix }}engine eng;
     eng = new();
     return eng.compare_maps(actual, expected, expected_name);
 endfunction
@@ -46,7 +46,7 @@ function automatic bit {{ class_prefix }}compare_memh_file(
     ref bit [7:0] actual[bit [63:0]],
     input string filename
 );
-    {{ class_prefix }}memh_engine eng;
+    {{ class_prefix }}engine eng;
     eng = new();
     return eng.compare_map_to_memh(actual, filename);
 endfunction

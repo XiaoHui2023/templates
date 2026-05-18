@@ -5,10 +5,10 @@ typedef class {{ class_prefix }}seq_tools;
 
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
-    `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}memh_io_callback)
+    `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
 
     bit [7:0] memory[bit [63:0]]; // 下标是字节地址，存 8 位数据
-    protected {{ class_prefix }}memh_engine memh_eng; // 读 memh、写 memh、比较文件时共用的逻辑
+    protected {{ class_prefix }}engine memh_eng; // 读 memh、写 memh、比较文件时共用的逻辑
     protected {{ class_prefix }}seq_tools m_tools; // 字节图、payload、load 分段与回调触发
     uvm_analysis_imp #(uvm_tlm_generic_payload, {{ class_prefix }}sequencer) imp; // 分析口写入入口
     uvm_analysis_port #(uvm_tlm_generic_payload) o_ap; // write_payload 之后把同一份 payload 再发出去

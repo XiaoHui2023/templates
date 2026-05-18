@@ -1,11 +1,9 @@
 # 回调
 
-类名与方法名均带配置的 `class_prefix` 前缀；下文只写类型与方法的 basename。
-
-下面示例默认前缀为 **`memh_`**（与常见配置一致）；若你改了 `class_prefix`，请把类型名里的 **`memh_`** 换成你的前缀。
+类名由 **`class_prefix`** 与族内固定后缀拼接；下文示例默认 **`class_prefix="memh_io_"`**（建议前缀始终带末尾下划线）。若你改了前缀，请把示例里的 **`memh_io_`** 换成你的前缀。回调基类由后缀 **`callback`** 拼出（默认 **`memh_io_callback`**）。
 
 ```systemverilog
-class my_memh_cb extends memh_memh_io_callback;
+class my_memh_cb extends memh_io_callback;
   `uvm_object_utils(my_memh_cb)
   function new(string name="my_memh_cb");
     super.new(name);
@@ -15,9 +13,9 @@ class my_memh_cb extends memh_memh_io_callback;
   endfunction
 endclass
 
-// sqr：该 agent 里已创建的 sequencer 句柄（类型为 memh_sequencer）
+// sqr：该 agent 里已创建的 sequencer 句柄（类型为 memh_io_sequencer）
 my_memh_cb cb = my_memh_cb::type_id::create("memh_cb");
-uvm_callbacks#(memh_sequencer, memh_memh_io_callback)::add(sqr, cb);
+uvm_callbacks#(memh_io_sequencer, memh_io_callback)::add(sqr, cb);
 ```
 
 ## `on_write_data`
