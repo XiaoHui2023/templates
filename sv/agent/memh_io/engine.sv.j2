@@ -43,7 +43,7 @@ class {{ class_prefix }}engine;
         ref bit [7:0] expected[bit [63:0]],
         input string expected_name
     );
-    // 先把 filename 里的 memh 读成期望数据，再和 actual 比较；打印错误时用 filename 当作期望一侧的名字
+    // 先把 filename 里的 memh 读成期望数据，再和 actual 比较；打印错误时用 filename 作为期望数据来源的显示名
     extern function bit compare_map_to_memh(ref bit [7:0] actual[bit [63:0]], input string filename);
 endclass
 

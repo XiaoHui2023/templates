@@ -1,8 +1,8 @@
-# 全局 function（memh 辅助）
+# 全局 function，memh 辅助
 
-生成代码会包含 **`function automatic`**，完整名称为 **`<class_prefix>` 与下表方法名连接而成**；`class_prefix` 与 **agent** 所用类型名前缀一致。下表与下文各节标题只写方法名本身，不重复前缀。
+同包还提供若干 **`function automatic`**，完整名称为 **`<class_prefix>` 与下表方法名连接而成**；`class_prefix` 与 **agent** 所用类型名前缀一致。下表与下文各节标题只写方法名本身，不重复前缀。
 
-下列函数与 **agent** 里 **sequencer** 的成员方法一并生成，可在不持有 **sequencer** 的场景中直接使用。
+下列函数与 **agent** 里 **sequencer** 的对应成员方法一致，可在不持有 **sequencer** 的场景中直接使用。
 
 ## `read_memh_file`
 
@@ -34,7 +34,7 @@
 
 ## `write_memh_file`
 
-把 **字节地址到 8 位值** 的存储写成 memh 文件。每行最多几个数据字节由生成前配置中的行宽项决定，**不在**本函数形参中出现。
+把 **字节地址到 8 位值** 的存储写成 memh 文件。每行最多几个数据字节由配置里的行宽项决定，**不在**本函数形参中出现。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -49,9 +49,9 @@
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `actual` | ref | `bit [7:0] actual[bit [63:0]]` |  | 实际一侧 |
-| `expected` | ref | `bit [7:0] expected[bit [63:0]]` |  | 期望一侧 |
-| `expected_name` | input | `string` |  | 期望一侧在提示中的显示名 |
+| `actual` | ref | `bit [7:0] actual[bit [63:0]]` |  | 参与比较的 **`actual`** 字节图 |
+| `expected` | ref | `bit [7:0] expected[bit [63:0]]` |  | 参与比较的 **`expected`** 字节图 |
+| `expected_name` | input | `string` |  | 上述 **`expected`** 在提示中的显示名 |
 
 **返回值：** `bit` — 完全一致为 1，否则为 0。
 
@@ -61,7 +61,7 @@
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `actual` | ref | `bit [7:0] actual[bit [63:0]]` |  | 实际一侧 |
+| `actual` | ref | `bit [7:0] actual[bit [63:0]]` |  | 参与比较的 **`actual`** 字节图 |
 | `filename` | input | `string` |  | 期望 memh 路径 |
 
 **返回值：** `bit` — 完全一致为 1，否则为 0。

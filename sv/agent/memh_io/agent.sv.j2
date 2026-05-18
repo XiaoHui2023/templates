@@ -5,7 +5,7 @@ class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
     {{ class_prefix }}sequencer sqr; // 本 agent 里的 sequencer
-    uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }}; // 外部写入用的分析口
+    uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }}; // 外部写入用端口，连到 sequencer.imp
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }}; // load 文件时合并出的连续写事务
     protected string init_file; // 初始化 memh 路径（build 时交给 sqr）
     protected string dump_file; // 写出 memh 的路径（build 时交给 sqr）

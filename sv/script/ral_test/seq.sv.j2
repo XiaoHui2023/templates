@@ -5,10 +5,6 @@
 {%- set _acc = access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
-{%- if _acc %}
-`include "reg_fd_single_seq.sv"
-`include "reg_fd_access_seq.sv"
-{%- endif %}
 class {{ class_name }} extends uvm_sequence;
     `uvm_object_utils({{ class_name }})
     `uvm_declare_p_sequencer(uvm_sequencer #(uvm_reg_item))

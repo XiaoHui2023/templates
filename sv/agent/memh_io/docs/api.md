@@ -2,14 +2,14 @@
 
 类名与方法名均带配置的 `class_prefix` 前缀；下文只写方法 basename。
 
-## 分析口与 `memory`
+## `imp` 与 `memory`
 
 | 成员 | 说明 |
 | --- | --- |
 | `memory` | 按 64 位字节地址保存 8 位数据；未写过的地址视为无数据。 |
-| `imp` | 分析口写入入口：收到 `uvm_tlm_generic_payload` 后按地址与数据写入 `memory`。 |
+| `imp` | 收到 `uvm_tlm_generic_payload` 后按地址与数据写入 `memory`。 |
 | `o_ap` | `write_payload` 完成后把同一份 payload 再发出去。 |
-| `o_load_ap` | `load_file` 时按连续地址段发出写事务（仍为 generic payload）。 |
+| `o_load_ap` | `load_file` 时按连续地址段发出写事务，仍为 generic payload。 |
 
 ## `load_file`
 
@@ -30,13 +30,13 @@
 | --- | --- | --- | --- | --- |
 | `filename` | input | `string` |  | 输出文件路径 |
 
-写出时每行最多几个数据字节由生成前配置中的行宽项决定，与同包 **`write_memh_file`** 一致；**不在** `save_file` 与 **`write_memh_file`** 的形参中出现。
+写出时每行最多几个数据字节由配置里的行宽项决定，与同包 **`write_memh_file`** 一致；**不在** `save_file` 与 **`write_memh_file`** 的形参中出现。
 
 **返回值：** `bit` — 成功为 1，失败为 0。
 
 ## `write`
 
-按 `uvm_tlm_generic_payload` 的地址与数据写入 `memory`，克隆后经 `write_payload` 路径并走 `o_ap`。
+按 `uvm_tlm_generic_payload` 的地址与数据写入 `memory`，克隆后调用 `write_payload`，再由 `o_ap` 发出。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -44,7 +44,7 @@
 
 ## `write_payload`
 
-写入 `uvm_tlm_generic_payload`（与 `write` 相比不克隆；生命周期与复用须由上层调用代码自行约束）。
+写入 `uvm_tlm_generic_payload`。与 `write` 不同，本方法不克隆对象；生命周期与复用由调用方自行约束。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -52,7 +52,7 @@
 
 ## `read_payload`
 
-读取 `uvm_tlm_generic_payload`（READ 语义，数据与地址填入新 payload）。
+读取 `uvm_tlm_generic_payload`，READ 语义，数据与地址填入新 payload。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -81,7 +81,7 @@
 | `len` | input | `int` |  | 字节数 |
 | `default_value` | input | `bit [7:0]` |  | 未写过地址的填充值 |
 
-**返回值：** 通过 `output` 形参 `data_q` 传出 `bit [7:0][$]`（长度 `len`）。
+**返回值：** 通过 `output` 形参 `data_q` 传出 `bit [7:0][$]`，长度等于 `len`。
 
 ## `write_byte`
 
@@ -105,7 +105,7 @@
 
 ## `compare_file`
 
-与 memh 文件比较，不一致时上报 `uvm_error`。
+与 memh 文件比较，不一致时上报 `uvm_error`。比较前从 **memory** 按连续地址段读出，并调用 **`after_read_data`**。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -115,12 +115,12 @@
 
 ## `compare_memory`
 
-与另一份 **字节地址到 8 位值** 形式的期望数据比较，不一致时上报 `uvm_error`。
+与另一份 **字节地址到 8 位值** 形式的期望数据比较，不一致时上报 `uvm_error`。比较前从 **memory** 按连续地址段读出，并调用 **`after_read_data`**。期望由参数 **`expected`** 给出。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `expected` | ref | `bit [7:0] expected[bit [63:0]]` |  | 期望数据 |
-| `expected_name` | input | `string` |  | 报错里称呼期望一侧用的名字 |
+| `expected_name` | input | `string` |  | 报错里指称 **expected** 数据所用的名字 |
 
 **返回值：** `bit` — 完全一致为 1，否则为 0。
 

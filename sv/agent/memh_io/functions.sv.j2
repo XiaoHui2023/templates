@@ -20,7 +20,7 @@ function automatic bit {{ class_prefix }}read_memh_file_to_byte_q(
     return eng.read_file_to_byte_q(filename, q, start_addr, len);
 endfunction
 
-// 把（地址到字节）的存储写成 memh；每行数据字节数由引擎在生成时确定
+// 把（地址到字节）的存储写成 memh；每行数据字节数由引擎参数 max_bytes_per_line 决定
 function automatic bit {{ class_prefix }}write_memh_file(
     string filename,
     ref bit [7:0] src[bit [63:0]]
