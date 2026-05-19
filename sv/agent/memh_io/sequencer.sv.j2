@@ -32,7 +32,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function void write_byte(bit [63:0] addr, bit [7:0] data);
     extern function bit [7:0] read_byte(bit [63:0] addr, bit [7:0] default_value='0);
 
-    extern function void write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
+    extern function void write_data(bit [63:0] addr, bit [7:0] data[$]);
     // 从 addr 起读 len 个字节；某个地址没写过则用 default_value 填
     extern function void read_data(input bit [63:0] addr, input int len, output bit [7:0] data_q[$], input bit [7:0] default_value='0);
 
@@ -48,7 +48,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function bit compare_memory(ref bit [7:0] expected[bit [63:0]], input string expected_name="expected");
 
     extern protected function void mh_mem_store_byte(bit [63:0] addr, bit [7:0] data);
-    extern protected function void mh_notify_on_write(bit [63:0] addr, const ref bit [7:0] data[$]);
+    extern protected function void mh_notify_on_write(bit [63:0] addr, bit [7:0] data[$]);
     extern local function void mh_notify_after_read_data(input bit [63:0] addr, input int len, ref bit [7:0] data[$]);
     extern protected function void mh_notify_on_clear();
     extern local function void mh_fill_shim_from_memory_with_read_cb(output bit [7:0] shim[bit [63:0]]);
@@ -57,12 +57,12 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern protected function void mh_write_byte_impl(bit [63:0] addr, bit [7:0] data);
     extern protected function bit [7:0] mh_read_byte_impl(bit [63:0] addr, bit [7:0] default_value);
     extern protected function void mh_read_data_impl(input bit [63:0] addr, input int len, output bit [7:0] data_q[$], input bit [7:0] default_value);
-    extern protected function void mh_write_data_impl(bit [63:0] addr, const ref bit [7:0] data[$]);
+    extern protected function void mh_write_data_impl(bit [63:0] addr, bit [7:0] data[$]);
     extern protected function void mh_write_payload_impl(uvm_tlm_generic_payload payload);
     extern protected function uvm_tlm_generic_payload mh_read_payload_impl(bit [63:0] addr, int len, string name);
     extern protected function bit mh_load_file_impl(string filename, bit clear_first);
     extern protected function void mh_emit_load_payloads(ref bit [7:0] load_memory[bit [63:0]]);
-    extern protected function void mh_emit_load_payload(bit [63:0] addr, ref bit [7:0] data_q[$]);
+    extern protected function void mh_emit_load_payload(input bit [63:0] addr, ref bit [7:0] data_q[$]);
     extern protected function bit mh_save_file_impl(string filename);
     extern protected function bit mh_compare_file_impl(string filename);
     extern protected function bit mh_compare_memory_impl(ref bit [7:0] expected[bit [63:0]], input string expected_name);
@@ -73,7 +73,7 @@ function void {{ class_prefix }}sequencer::mh_mem_store_byte(bit [63:0] addr, bi
     memory[addr] = data;
 endfunction
 
-function void {{ class_prefix }}sequencer::mh_notify_on_write(bit [63:0] addr, const ref bit [7:0] data[$]);
+function void {{ class_prefix }}sequencer::mh_notify_on_write(bit [63:0] addr, bit [7:0] data[$]);
     `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, on_write_data(addr, data))
 endfunction
 
@@ -193,7 +193,7 @@ function void {{ class_prefix }}sequencer::mh_read_data_impl(input bit [63:0] ad
         mh_notify_after_read_data(addr, len, data_q);
 endfunction
 
-function void {{ class_prefix }}sequencer::mh_write_data_impl(bit [63:0] addr, const ref bit [7:0] data[$]);
+function void {{ class_prefix }}sequencer::mh_write_data_impl(bit [63:0] addr, bit [7:0] data[$]);
     foreach (data[i])
         mh_mem_store_byte(addr + i, data[i]);
     if (data.size() > 0)
@@ -297,7 +297,7 @@ function void {{ class_prefix }}sequencer::mh_emit_load_payloads(ref bit [7:0] l
         mh_emit_load_payload(run_addr, data_q);
 endfunction
 
-function void {{ class_prefix }}sequencer::mh_emit_load_payload(bit [63:0] addr, ref bit [7:0] data_q[$]);
+function void {{ class_prefix }}sequencer::mh_emit_load_payload(input bit [63:0] addr, ref bit [7:0] data_q[$]);
     uvm_tlm_generic_payload payload;
     byte unsigned data_dyn[];
 
@@ -403,7 +403,7 @@ function bit [7:0] {{ class_prefix }}sequencer::read_byte(bit [63:0] addr, bit [
     return mh_read_byte_impl(addr, default_value);
 endfunction
 
-function void {{ class_prefix }}sequencer::write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
+function void {{ class_prefix }}sequencer::write_data(bit [63:0] addr, bit [7:0] data[$]);
     mh_write_data_impl(addr, data);
 endfunction
 

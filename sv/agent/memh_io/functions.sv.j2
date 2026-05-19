@@ -2,7 +2,7 @@
 `define {{ (class_prefix ~ "functions") | upper }}
 
 // 读 memh 文件，把结果放进 dst；clear_first 为真则先清空 dst
-function automatic bit {{ class_prefix }}read_memh_file(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
+function automatic bit {{ class_prefix }}read_memh_file(input string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first=1);
     {{ class_prefix }}engine eng;
     eng = new();
     return eng.read_into_map(filename, dst, clear_first);
@@ -22,7 +22,7 @@ endfunction
 
 // 把（地址到字节）的存储写成 memh；每行数据字节数由引擎参数 max_bytes_per_line 决定
 function automatic bit {{ class_prefix }}write_memh_file(
-    string filename,
+    input string filename,
     ref bit [7:0] src[bit [63:0]]
 );
     {{ class_prefix }}engine eng;

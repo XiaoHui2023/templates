@@ -6,9 +6,9 @@ class {{ class_prefix }}engine;
     parameter int max_bytes_per_line = {{ memh_max_bytes_per_line }};
 
     // 根据最大地址算出 @ 后面要用几位十六进制（至少 1 位）
-    extern local function int memh_addr_hex_digits(input bit [63:0] max_addr);
+    extern local function int memh_addr_hex_digits(bit [63:0] max_addr);
     // 把地址变成固定长度的十六进制字符串，不要 0x 前缀，用在 @ 开头的行里
-    extern local function string memh_padded_hex_addr(input bit [63:0] addr, input int hex_digits);
+    extern local function string memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
     // 从地址 base 起连续 len 个字节写到文件里，一行写不下就拆多行，每行最多 bytes_per_line 个数据字节
     extern local function void emit_memh_run(
         input int file,
@@ -20,7 +20,7 @@ class {{ class_prefix }}engine;
     );
 
     // 读 memh 文件，把内容放进 dst；clear_first 为真则先把 dst 清空
-    extern function bit read_into_map(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
+    extern function bit read_into_map(input string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
     // 从存储 src 里按地址从 start_addr 起连续取字节放进 q：len 为负时遇到第一个没有数据的地址就停；len 非负时这一段必须每个地址都有数据，否则失败并清空 q
     extern function bit slice_bytes_from_map(
         ref bit [7:0] src[bit [63:0]],
@@ -36,7 +36,7 @@ class {{ class_prefix }}engine;
         input int len
     );
     // 按地址从小到大写文件：地址紧挨着的字节会写在同一行或相邻行里（memh 的 @ 行格式）
-    extern function bit write_from_map(string filename, ref bit [7:0] src[bit [63:0]]);
+    extern function bit write_from_map(input string filename, ref bit [7:0] src[bit [63:0]]);
     // 比较两个（地址到字节）的存储：出现的地址必须完全一样，同一地址上的字节也必须一样
     extern function bit compare_maps(
         ref bit [7:0] actual[bit [63:0]],
@@ -47,7 +47,7 @@ class {{ class_prefix }}engine;
     extern function bit compare_map_to_memh(ref bit [7:0] actual[bit [63:0]], input string filename);
 endclass
 
-function int {{ class_prefix }}engine::memh_addr_hex_digits(input bit [63:0] max_addr);
+function int {{ class_prefix }}engine::memh_addr_hex_digits(bit [63:0] max_addr);
     bit [63:0] a;
     int d;
     if (max_addr == 0)
@@ -61,7 +61,7 @@ function int {{ class_prefix }}engine::memh_addr_hex_digits(input bit [63:0] max
     return d;
 endfunction
 
-function string {{ class_prefix }}engine::memh_padded_hex_addr(input bit [63:0] addr, input int hex_digits);
+function string {{ class_prefix }}engine::memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
     string s;
     string ch;
     int i;
@@ -105,7 +105,7 @@ function void {{ class_prefix }}engine::emit_memh_run(
     end
 endfunction
 
-function bit {{ class_prefix }}engine::read_into_map(string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
+function bit {{ class_prefix }}engine::read_into_map(input string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
     int file;
     int code;
     int value;
@@ -201,7 +201,7 @@ function bit {{ class_prefix }}engine::read_file_to_byte_q(
     return slice_bytes_from_map(m, start_addr, len, q);
 endfunction
 
-function bit {{ class_prefix }}engine::write_from_map(string filename, ref bit [7:0] src[bit [63:0]]);
+function bit {{ class_prefix }}engine::write_from_map(input string filename, ref bit [7:0] src[bit [63:0]]);
     int file;
     bit [63:0] max_addr;
     int addr_hex_digits;

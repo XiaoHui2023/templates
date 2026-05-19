@@ -10,7 +10,7 @@ class your_prefix_my_cb extends your_prefix_callback;
   function new(string name="your_prefix_my_cb");
     super.new(name);
   endfunction
-  virtual function void on_write_data(bit [63:0] addr, const ref bit [7:0] data[$]);
+  virtual function void on_write_data(bit [63:0] addr, bit [7:0] data[$]);
     // …
   endfunction
   virtual function void after_read_data(input bit [63:0] addr, input int len, ref bit [7:0] data[$]);
@@ -36,7 +36,7 @@ uvm_callbacks#(your_prefix_sequencer, your_prefix_callback)::add(sqr, cb);
 | 方向 | 类型 | 参数名 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | input | `bit [63:0]` | `addr` | 无 | 首字节地址 |
-| input | `const ref bit [7:0] data[$]` | `data` | 无 | 字节 |
+| input | `bit [7:0] data[$]` | `data` | 无 | 字节 |
 
 ## `on_clear`
 

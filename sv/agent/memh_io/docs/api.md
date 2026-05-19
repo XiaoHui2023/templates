@@ -69,7 +69,7 @@
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `addr` | input | `bit [63:0]` |  | 起始字节地址 |
-| `data` | input | `const ref bit [7:0] data[$]` |  | 字节队列 |
+| `data` | input | `bit [7:0] data[$]` |  | 字节队列 |
 
 ## `read_data`
 
