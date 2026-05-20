@@ -49,12 +49,12 @@ uvm_callbacks#(your_prefix_sequencer, your_prefix_callback)::add(sqr, cb);
 
 ## `after_read_data`
 
-读路径把 **memory** 填进字节队列后调用 **`after_read_data`**；只可改元素值，不得增删条目；进入与返回时队列长度须与长度形参一致。
+读路径按地址区间组字节队列（**memory** 有则取之，无则用读 API 的默认填充值）后调用 **`after_read_data`**；只可改元素值，不得增删条目；进入与返回时队列长度须与长度形参一致。
 
 - **会触发**
   - 每次 `read_byte`
   - 每次 `read_data`，且长度大于零时整段一次
-  - `compare_file`、`compare_memory` 从 **memory** 按连续地址区间读时：每区间一次，内部调用 `read_data`
+  - `compare_file`、`compare_memory`：在 **memory** 与 **expected** 地址并集上按连续段读出，每段一次；**memory** 无该址仍走读路径与 **`after_read_data`**
 - **不会触发**
   - `read_data` 长度为零
   - `save_file` 从 **memory** 直读写文件，不通过 `read_byte` / `read_data`

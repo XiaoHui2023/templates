@@ -56,7 +56,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern protected function void mh_notify_on_write(bit [63:0] addr, bit [7:0] data[$]);
     extern local function void mh_notify_after_read_data(input bit [63:0] addr, input int len, ref bit [7:0] data[$]);
     extern protected function void mh_notify_on_clear();
-    extern local function void mh_fill_shim_from_memory_with_read_cb(output bit [7:0] shim[bit [63:0]]);
+    extern local function void mh_fill_shim_for_compare(output bit [7:0] shim[bit [63:0]], ref bit [7:0] expected[bit [63:0]]);
     extern protected function void mh_merge_loaded_map(ref bit [7:0] load_memory[bit [63:0]]);
     extern protected function void mh_clear_mem();
     extern protected function void mh_write_byte_impl(bit [63:0] addr, bit [7:0] data);
@@ -92,8 +92,9 @@ function void {{ class_prefix }}sequencer::mh_notify_after_read_data(input bit [
         `uvm_fatal("MEMH_RD_CB", $sformatf("after_read_data must keep data.size()==len: addr=0x%016h len=%0d data.size=%0d", addr, len, data.size()))
 endfunction
 
-function void {{ class_prefix }}sequencer::mh_fill_shim_from_memory_with_read_cb(output bit [7:0] shim[bit [63:0]]);
+function void {{ class_prefix }}sequencer::mh_fill_shim_for_compare(output bit [7:0] shim[bit [63:0]], ref bit [7:0] expected[bit [63:0]]);
     bit [63:0] addrs[$];
+    bit [63:0] keys[bit [63:0]];
     bit [63:0] run_base;
     int run_len;
     int i;
@@ -102,7 +103,12 @@ function void {{ class_prefix }}sequencer::mh_fill_shim_from_memory_with_read_cb
 
     shim.delete();
     addrs.delete();
+    keys.delete();
     foreach (memory[a])
+        keys[a] = 1;
+    foreach (expected[a])
+        keys[a] = 1;
+    foreach (keys[a])
         addrs.push_back(a);
     if (addrs.size() == 0)
         return;
@@ -336,7 +342,7 @@ endfunction
 function bit {{ class_prefix }}sequencer::mh_compare_memory_impl(ref bit [7:0] expected[bit [63:0]], input string expected_name);
     bit [7:0] shim[bit [63:0]];
 
-    mh_fill_shim_from_memory_with_read_cb(shim);
+    mh_fill_shim_for_compare(shim, expected);
     return memh_eng.compare_maps(shim, expected, expected_name, settings.compare_type);
 endfunction
 
