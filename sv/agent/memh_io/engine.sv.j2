@@ -37,14 +37,19 @@ class {{ class_prefix }}engine;
     );
     // 按地址从小到大写文件：地址紧挨着的字节会写在同一行或相邻行里（memh 的 @ 行格式）
     extern function bit write_from_map(input string filename, ref bit [7:0] src[bit [63:0]]);
-    // 比较两个（地址到字节）的存储：出现的地址必须完全一样，同一地址上的字节也必须一样
+    // 按 compare_type 比较 actual 与 expected 两份地址图
     extern function bit compare_maps(
         ref bit [7:0] actual[bit [63:0]],
         ref bit [7:0] expected[bit [63:0]],
-        input string expected_name
+        input string expected_name,
+        input {{ class_prefix }}settings::compare_type_e compare_type
     );
     // 先把 filename 里的 memh 读成期望数据，再和 actual 比较；打印错误时用 filename 作为期望数据来源的显示名
-    extern function bit compare_map_to_memh(ref bit [7:0] actual[bit [63:0]], input string filename);
+    extern function bit compare_map_to_memh(
+        ref bit [7:0] actual[bit [63:0]],
+        input string filename,
+        input {{ class_prefix }}settings::compare_type_e compare_type
+    );
 endclass
 
 function int {{ class_prefix }}engine::memh_addr_hex_digits(bit [63:0] max_addr);
@@ -252,39 +257,89 @@ endfunction
 function bit {{ class_prefix }}engine::compare_maps(
     ref bit [7:0] actual[bit [63:0]],
     ref bit [7:0] expected[bit [63:0]],
-    input string expected_name
+    input string expected_name,
+    input {{ class_prefix }}settings::compare_type_e compare_type
 );
     bit pass;
+    int checked;
 
     pass = 1;
-    foreach (actual[addr]) begin
-        if (!expected.exists(addr)) begin
-            `uvm_error("", $sformatf("memory compare failed: unexpected byte @0x%016h actual=0x%02h expected=<missing> (%s)", addr, actual[addr], expected_name))
-            pass = 0;
-        end else if (actual[addr] != expected[addr]) begin
-            `uvm_error("", $sformatf("memory compare failed: mismatch @0x%016h actual=0x%02h expected=0x%02h (%s)", addr, actual[addr], expected[addr], expected_name))
-            pass = 0;
+    checked = 0;
+    case (compare_type)
+        {{ class_prefix }}settings::SUBSET: begin
+            foreach (expected[addr]) begin
+                checked++;
+                if (!actual.exists(addr)) begin
+                    `uvm_error("", $sformatf("memory compare failed: missing byte @0x%016h actual=<missing> expected=0x%02h (%s, %s)", addr, expected[addr], expected_name, compare_type.name()))
+                    pass = 0;
+                end else if (actual[addr] != expected[addr]) begin
+                    `uvm_error("", $sformatf("memory compare failed: mismatch @0x%016h actual=0x%02h expected=0x%02h (%s, %s)", addr, actual[addr], expected[addr], expected_name, compare_type.name()))
+                    pass = 0;
+                end
+            end
         end
-    end
-
-    foreach (expected[addr]) begin
-        if (!actual.exists(addr)) begin
-            `uvm_error("", $sformatf("memory compare failed: missing byte @0x%016h actual=<missing> expected=0x%02h (%s)", addr, expected[addr], expected_name))
-            pass = 0;
+        {{ class_prefix }}settings::STRICT: begin
+            foreach (actual[addr]) begin
+                if (!expected.exists(addr)) begin
+                    `uvm_error("", $sformatf("memory compare failed: unexpected byte @0x%016h actual=0x%02h expected=<missing> (%s, %s)", addr, actual[addr], expected_name, compare_type.name()))
+                    pass = 0;
+                end else if (actual[addr] != expected[addr]) begin
+                    `uvm_error("", $sformatf("memory compare failed: mismatch @0x%016h actual=0x%02h expected=0x%02h (%s, %s)", addr, actual[addr], expected[addr], expected_name, compare_type.name()))
+                    pass = 0;
+                end
+            end
+            foreach (expected[addr]) begin
+                if (!actual.exists(addr)) begin
+                    `uvm_error("", $sformatf("memory compare failed: missing byte @0x%016h actual=<missing> expected=0x%02h (%s, %s)", addr, expected[addr], expected_name, compare_type.name()))
+                    pass = 0;
+                end
+            end
+            checked = actual.num();
         end
-    end
+        {{ class_prefix }}settings::SUPERSET: begin
+            foreach (actual[addr]) begin
+                checked++;
+                if (!expected.exists(addr)) begin
+                    `uvm_error("", $sformatf("memory compare failed: unexpected byte @0x%016h actual=0x%02h expected=<missing> (%s, %s)", addr, actual[addr], expected_name, compare_type.name()))
+                    pass = 0;
+                end else if (actual[addr] != expected[addr]) begin
+                    `uvm_error("", $sformatf("memory compare failed: mismatch @0x%016h actual=0x%02h expected=0x%02h (%s, %s)", addr, actual[addr], expected[addr], expected_name, compare_type.name()))
+                    pass = 0;
+                end
+            end
+        end
+        {{ class_prefix }}settings::INTERSECT: begin
+            foreach (actual[addr]) begin
+                if (expected.exists(addr)) begin
+                    checked++;
+                    if (actual[addr] != expected[addr]) begin
+                        `uvm_error("", $sformatf("memory compare failed: mismatch @0x%016h actual=0x%02h expected=0x%02h (%s, %s)", addr, actual[addr], expected[addr], expected_name, compare_type.name()))
+                        pass = 0;
+                    end
+                end
+            end
+        end
+        default: begin
+            `uvm_error("", $sformatf("memory compare failed: unknown compare_type %s", compare_type.name()))
+            return 0;
+        end
+    endcase
 
     if (pass)
-        `uvm_info("", $sformatf("memory compare passed with %0d bytes (%s)", actual.num(), expected_name), UVM_LOW)
+        `uvm_info("", $sformatf("memory compare passed, %0d bytes checked (%s, %s)", checked, expected_name, compare_type.name()), UVM_LOW)
     return pass;
 endfunction
 
-function bit {{ class_prefix }}engine::compare_map_to_memh(ref bit [7:0] actual[bit [63:0]], input string filename);
+function bit {{ class_prefix }}engine::compare_map_to_memh(
+    ref bit [7:0] actual[bit [63:0]],
+    input string filename,
+    input {{ class_prefix }}settings::compare_type_e compare_type
+);
     bit [7:0] expected[bit [63:0]];
 
     if (!read_into_map(filename, expected, 1))
         return 0;
-    return compare_maps(actual, expected, filename);
+    return compare_maps(actual, expected, filename, compare_type);
 endfunction
 
 `endif

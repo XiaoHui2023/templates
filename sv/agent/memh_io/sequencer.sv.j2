@@ -14,6 +14,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     protected string init_file; // 可选：仿真开始阶段用 config_db 里的路径自动加载 memh
     protected string dump_file; // 可选：结束时用 config_db 里的路径把当前数据写成 memh
     protected string compare_path; // 可选：检查阶段用 config_db 里的 memh 路径和当前数据比较
+    protected {{ class_prefix }}settings settings;
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
@@ -48,7 +49,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function bit save_file(string filename);
 
     extern function bit compare_file(string filename);
-    // 和 expected 比较：两边出现过的地址必须一致，同一地址上的字节也必须一致
+    // 和 expected 比较，语义由 settings.compare_type 决定
     extern function bit compare_memory(ref bit [7:0] expected[bit [63:0]], input string expected_name="expected");
 
     extern protected function void mh_mem_store_byte(bit [63:0] addr, bit [7:0] data);
@@ -336,7 +337,7 @@ function bit {{ class_prefix }}sequencer::mh_compare_memory_impl(ref bit [7:0] e
     bit [7:0] shim[bit [63:0]];
 
     mh_fill_shim_from_memory_with_read_cb(shim);
-    return memh_eng.compare_maps(shim, expected, expected_name);
+    return memh_eng.compare_maps(shim, expected, expected_name, settings.compare_type);
 endfunction
 
 
@@ -346,6 +347,9 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
 
     void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
     void'(uvm_config_db #(string)::get(this, "", "compare_file", compare_path));
+
+    if (!uvm_config_db #({{ class_prefix }}settings)::get(this, "", "settings", settings) || settings == null)
+        `uvm_fatal("MEMH_IO", "uvm_config_db settings is required on sequencer")
 endfunction
 
 function void {{ class_prefix }}sequencer::start_of_simulation_phase(uvm_phase phase);

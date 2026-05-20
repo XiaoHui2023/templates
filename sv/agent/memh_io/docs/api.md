@@ -105,24 +105,24 @@
 
 ## `compare_file`
 
-与 memh 文件比较，不一致时上报 `uvm_error`。比较前从 **memory** 按连续地址段读出，并调用 **`after_read_data`**。
+与 memh 文件比较，不满足当前比对规则时上报 `uvm_error`。比较前从 **memory** 按连续地址段读出，并调用 **`after_read_data`**。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `filename` | input | `string` |  | 期望 memh 路径 |
 
-**返回值：** `bit` — 完全一致为 1，否则为 0。
+**返回值：** `bit` — 满足比对规则为 1，否则为 0。
 
 ## `compare_memory`
 
-与另一份 **字节地址到 8 位值** 形式的期望数据比较，不一致时上报 `uvm_error`。比较前从 **memory** 按连续地址段读出，并调用 **`after_read_data`**。期望由参数 **`expected`** 给出。
+与另一份 **字节地址到 8 位值** 形式的期望数据比较，不满足当前比对规则时上报 `uvm_error`。比较前从 **memory** 按连续地址段读出，并调用 **`after_read_data`**。期望由参数 **`expected`** 给出。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `expected` | ref | `bit [7:0] expected[bit [63:0]]` |  | 期望数据 |
 | `expected_name` | input | `string` |  | 报错里指称 **expected** 数据所用的名字 |
 
-**返回值：** `bit` — 完全一致为 1，否则为 0。
+**返回值：** `bit` — 满足比对规则为 1，否则为 0。
 
 ## `clear`
 

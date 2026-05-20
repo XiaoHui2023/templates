@@ -30,25 +30,27 @@ function automatic bit {{ class_prefix }}write_memh_file(
     return eng.write_from_map(filename, src);
 endfunction
 
-// 两个存储里出现的地址必须相同，同一地址上的字节也必须相同
+// 按 compare_type 比较两份地址图
 function automatic bit {{ class_prefix }}compare_memory(
     ref bit [7:0] actual[bit [63:0]],
     ref bit [7:0] expected[bit [63:0]],
-    input string expected_name="expected"
+    input string expected_name="expected",
+    input {{ class_prefix }}settings::compare_type_e compare_type={{ class_prefix }}settings::STRICT
 );
     {{ class_prefix }}engine eng;
     eng = new();
-    return eng.compare_maps(actual, expected, expected_name);
+    return eng.compare_maps(actual, expected, expected_name, compare_type);
 endfunction
 
-// 从 memh 文件读出期望数据，再和 actual 比较
+// 从 memh 文件读出期望数据，再和 actual 按 compare_type 比较
 function automatic bit {{ class_prefix }}compare_memh_file(
     ref bit [7:0] actual[bit [63:0]],
-    input string filename
+    input string filename,
+    input {{ class_prefix }}settings::compare_type_e compare_type={{ class_prefix }}settings::STRICT
 );
     {{ class_prefix }}engine eng;
     eng = new();
-    return eng.compare_map_to_memh(actual, filename);
+    return eng.compare_map_to_memh(actual, filename, compare_type);
 endfunction
 
 `endif

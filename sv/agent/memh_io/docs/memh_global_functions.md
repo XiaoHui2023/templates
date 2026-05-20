@@ -45,23 +45,25 @@
 
 ## `compare_memory`
 
-比较两份 **字节地址到 8 位值** 形式的存储。出现过的地址集合须相同，同址字节须相等。
+按 `compare_type` 比较两份 **字节地址到 8 位值** 形式的存储。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `actual` | ref | `bit [7:0] actual[bit [63:0]]` |  | 参与比较的 **`actual`** 字节图 |
 | `expected` | ref | `bit [7:0] expected[bit [63:0]]` |  | 参与比较的 **`expected`** 字节图 |
 | `expected_name` | input | `string` |  | 上述 **`expected`** 在提示中的显示名 |
+| `compare_type` | input | `compare_type_e` | `STRICT` | `SUBSET`、`STRICT`、`SUPERSET`、`INTERSECT`，含义与 settings 中同名枚举一致 |
 
-**返回值：** `bit` — 完全一致为 1，否则为 0。
+**返回值：** `bit` — 满足比对规则为 1，否则为 0。
 
 ## `compare_memh_file`
 
-从 memh 文件读出期望数据，再与 `actual` 比较。两存储须地址集合相同且同址字节相等。
+从 memh 文件读出期望数据，再与 `actual` 按 `compare_type` 比较。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `actual` | ref | `bit [7:0] actual[bit [63:0]]` |  | 参与比较的 **`actual`** 字节图 |
 | `filename` | input | `string` |  | 期望 memh 路径 |
+| `compare_type` | input | `compare_type_e` | `STRICT` | 同 `compare_memory` |
 
-**返回值：** `bit` — 完全一致为 1，否则为 0。
+**返回值：** `bit` — 满足比对规则为 1，否则为 0。

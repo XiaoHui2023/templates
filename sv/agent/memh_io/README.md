@@ -14,6 +14,7 @@
 
 | key | 类型 | 说明 |
 | --- | --- | --- |
+| `settings` | `<prefix>settings` | 可选，行为设置对象 |
 | `init_file` | `string` | 非空时：在 `start_of_simulation_phase` 自动 `load_file` 初始化 memory |
 | `dump_file` | `string` | 非空时：在 `final_phase` 自动调用 `save_file`，将当前 memory 保存到该路径 |
 | `compare_file` | `string` | 非空时：在 `check_phase` 读取该 memh 并与 memory 比对，与同名成员函数行为一致 |

@@ -1,0 +1,30 @@
+`ifndef {{ (class_prefix ~ "settings") | upper }}
+`define {{ (class_prefix ~ "settings") | upper }}
+
+class {{ class_prefix }}settings extends uvm_object;
+    typedef enum {
+        SUBSET,     // 文件中每条地址数据须在 memory 中存在且一致；memory 多出的地址与字节不参与比对
+        STRICT,     // 文件与 memory 的地址集合及对应字节须完全一致
+        SUPERSET,   // memory 中每条地址数据须在文件中存在且一致；文件多出的地址与字节不参与比对
+        INTERSECT   // 仅对双方共有地址比对字节是否一致；仅出现在文件或仅出现在 memory 的地址不参与比对
+    } compare_type_e;
+
+    `uvm_object_utils_begin({{ class_prefix }}settings)
+        `uvm_field_enum(compare_type_e, compare_type, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand compare_type_e compare_type;
+
+    function new(string name="{{ class_prefix }}settings");
+        super.new(name);
+    endfunction
+
+    constraint cst {
+        soft compare_type == STRICT;
+    }
+
+    constraint cst_user;
+    constraint cst_case;
+endclass
+
+`endif

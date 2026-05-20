@@ -10,6 +10,7 @@ class {{ class_prefix }}agent extends uvm_agent;
     protected string init_file; // 初始化 memh 路径（build_phase 下发给 sqr）
     protected string dump_file; // 写出 memh 的路径（build_phase 下发给 sqr）
     protected string compare_file; // 比对用 memh 路径（build_phase 下发给 sqr）
+    protected {{ class_prefix }}settings settings;
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
@@ -20,6 +21,7 @@ class {{ class_prefix }}agent extends uvm_agent;
 
     extern function void build_phase(uvm_phase phase);
     extern function void connect_phase(uvm_phase phase);
+    extern function void start_of_simulation_phase(uvm_phase phase);
 endclass
 
 function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
@@ -33,6 +35,19 @@ function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
 
     if (uvm_config_db #(string)::get(this, "", "compare_file", compare_file))
         uvm_config_db #(string)::set(this, "sqr", "compare_file", compare_file);
+
+    if (!uvm_config_db #({{ class_prefix }}settings)::get(this, "", "settings", settings)) begin
+        settings = {{ class_prefix }}settings::type_id::create("settings");
+        if (!settings.randomize())
+            `uvm_fatal("MEMH_IO", "settings.randomize() failed after default create")
+    end
+    uvm_config_db #({{ class_prefix }}settings)::set(this, "sqr", "settings", settings);
+endfunction
+
+function void {{ class_prefix }}agent::start_of_simulation_phase(uvm_phase phase);
+    super.start_of_simulation_phase(phase);
+
+    `uvm_info("", $sformatf("settings:\n%s", settings.sprint()), UVM_LOW)
 endfunction
 
 function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
