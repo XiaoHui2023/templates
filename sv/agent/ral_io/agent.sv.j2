@@ -15,9 +15,11 @@ class {{ class_prefix }}agent extends uvm_agent;
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
+        sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
+        {{ o_ap }} = new("{{ o_ap }}", this);
     endfunction
 
-    // 创建 sequencer、analysis port，挂 reg 回调与 config_db。
+    // 从 config_db 取 regmodel，挂 reg 回调并下发子组件配置。
     extern function void build_phase(uvm_phase phase);
     // 仿真开始时按需清空或截断写出文件。
     extern function void start_of_simulation_phase(uvm_phase phase);
@@ -27,9 +29,6 @@ endclass
 
 function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
     super.build_phase(phase);
-
-    sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
-    {{ o_ap }} = new("{{ o_ap }}", this);
 
     if (!uvm_config_db #(uvm_reg_block)::get(this, "", "regmodel", regmodel) || regmodel == null)
         `uvm_fatal("REG_IO", "uvm_config_db #(uvm_reg_block) regmodel is required")

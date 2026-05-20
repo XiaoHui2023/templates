@@ -7,12 +7,15 @@ class {{ class_prefix }}agent extends uvm_agent;
     {{ class_prefix }}sequencer sqr; // 本 agent 里的 sequencer
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ input_port_name }}; // 外部写入用端口，连到 sequencer.imp
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_port_name }}; // load 文件时合并出的连续写事务
-    protected string init_file; // 初始化 memh 路径（build 时交给 sqr）
-    protected string dump_file; // 写出 memh 的路径（build 时交给 sqr）
-    protected string compare_file; // 比对用 memh 路径（build 时交给 sqr）
+    protected string init_file; // 初始化 memh 路径（build_phase 下发给 sqr）
+    protected string dump_file; // 写出 memh 的路径（build_phase 下发给 sqr）
+    protected string compare_file; // 比对用 memh 路径（build_phase 下发给 sqr）
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
+        sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
+        {{ input_port_name }} = new("{{ input_port_name }}", this);
+        {{ output_port_name }} = new("{{ output_port_name }}", this);
     endfunction
 
     extern function void build_phase(uvm_phase phase);
@@ -21,10 +24,6 @@ endclass
 
 function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
     super.build_phase(phase);
-
-    sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
-    {{ input_port_name }} = new("{{ input_port_name }}", this);
-    {{ output_port_name }} = new("{{ output_port_name }}", this);
 
     if (uvm_config_db #(string)::get(this, "", "init_file", init_file))
         uvm_config_db #(string)::set(this, "sqr", "init_file", init_file);

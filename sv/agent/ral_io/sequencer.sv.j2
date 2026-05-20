@@ -11,9 +11,10 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
+        m_tools = new;
     endfunction
 
-    // 从 config_db 取 regmodel、init_file，构造 m_tools。
+    // 从 config_db 取 regmodel、init_file。
     extern function void build_phase(uvm_phase phase);
     // 若配置了 init_file 则加载 CSV 并前门写入。
     extern task main_phase(uvm_phase phase);
@@ -36,8 +37,6 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
         `uvm_fatal("REG_IO", "no default uvm_reg_map on regmodel; add a default map")
 
     void'(uvm_config_db #(string)::get(this, "", "init_file", init_file));
-
-    m_tools = new;
 endfunction
 
 task {{ class_prefix }}sequencer::main_phase(uvm_phase phase);

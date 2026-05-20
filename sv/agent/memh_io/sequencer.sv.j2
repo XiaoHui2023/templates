@@ -17,6 +17,10 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
+        memh_eng = new();
+        imp = new("imp", this);
+        o_ap = new("o_ap", this);
+        o_load_ap = new("o_load_ap", this);
     endfunction
 
     extern function void build_phase(uvm_phase phase);
@@ -339,12 +343,6 @@ endfunction
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
-
-    memh_eng = new();
-
-    imp = new("imp", this);
-    o_ap = new("o_ap", this);
-    o_load_ap = new("o_load_ap", this);
 
     void'(uvm_config_db #(string)::get(this, "", "dump_file", dump_file));
     void'(uvm_config_db #(string)::get(this, "", "compare_file", compare_path));
