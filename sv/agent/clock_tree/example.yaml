@@ -1,0 +1,72 @@
+# clock_tree 配置示范
+# 字段与 models.py 中 Models / Node / Source 一致；渲染模板时载入本文件即可校验。
+
+nodes:
+  - name: xtal
+    kind: clk
+    path: tb.xtal_clk
+    frequencies:
+      - 25000000
+      - 24000000
+    sources: []
+
+  - name: pll0
+    kind: pll
+    path: dut.u_pll_wrap.u_pll
+    frequencies: []
+    sources:
+      - name: xtal
+        key: ""
+
+  - name: root_mux
+    kind: mux
+    path: dut.u_clk_root_mux
+    frequencies: []
+    sources:
+      - name: xtal
+        key: "0"
+      - name: pll0
+        key: "1"
+
+  - name: div_core
+    kind: div
+    path: dut.u_clk_div_core
+    frequencies: []
+    sources:
+      - name: root_mux
+        key: ""
+
+  - name: gate_cpu
+    kind: gate
+    path: dut.u_clk_gate_cpu
+    frequencies: []
+    sources:
+      - name: div_core
+        key: ""
+
+  - name: inv_dbg
+    kind: inv
+    path: dut.u_clk_inv_dbg
+    frequencies: []
+    allow_bad_duty: true
+    sources:
+      - name: gate_cpu
+        key: ""
+
+  - name: wire_periph
+    kind: wire
+    path: dut.u_clk_wire_periph
+    frequencies: []
+    sources:
+      - name: inv_dbg
+        key: ""
+
+vars:
+  dut_prefix: dut.
+  tb_prefix: tb.
+
+min_freq_hz: 500
+duty_min: 0.50
+duty_max: 0.66
+# 类型名前缀，默认 clk_tree_ → clk_tree_tree、clk_tree_node_if 等
+# class_prefix: clk_tree_

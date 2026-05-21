@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "pll") | upper }}
+`define {{ (class_prefix ~ "pll") | upper }}
+
+class {{ class_prefix }}pll extends {{ class_prefix }}node_base;
+    `uvm_object_utils_begin({{ class_prefix }}pll)
+        `uvm_field_int(locked, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit locked;
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

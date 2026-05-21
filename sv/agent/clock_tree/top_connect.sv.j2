@@ -1,0 +1,31 @@
+`ifndef {{ (class_prefix ~ "top_connect") | upper }}
+`define {{ (class_prefix ~ "top_connect") | upper }}
+
+{% set _mac = "_" ~ (class_prefix ~ "top_hook") | replace("-", "_") | upper %}
+`define {{ _mac }}(if_inst, sig) \
+    initial begin \
+        forever begin \
+            @(if_inst.out); \
+            if (!$isunknown(if_inst.out)) \
+                force sig = if_inst.out; \
+        end \
+    end
+
+module {{ class_prefix }}top_connect;
+{% for node in nodes %}
+    {{ class_prefix }}node_if #(
+        .MIN_FREQ_HZ({{ min_freq_hz }}),
+        .STABLE_CYCLES({{ stable_cycles }}),
+        .PERIOD_TOL({{ period_tolerance }}),
+        .DUTY_MIN({{ duty_min }}),
+        .DUTY_MAX({{ duty_max }})
+    ) node_if_{{ node.name }} (
+        .in({{ node.path }})
+    );
+    `{{ _mac }}(node_if_{{ node.name }}, {{ node.path }})
+{% endfor %}
+endmodule
+
+`undef {{ _mac }}
+
+`endif

@@ -1,0 +1,131 @@
+`ifndef {{ (class_prefix ~ "node_if") | upper }}
+`define {{ (class_prefix ~ "node_if") | upper }}
+
+interface {{ class_prefix }}node_if #(
+    parameter int MIN_FREQ_HZ = {{ min_freq_hz }},
+    parameter int STABLE_CYCLES = {{ stable_cycles }},
+    parameter real PERIOD_TOL = {{ period_tolerance }},
+    parameter real DUTY_MIN = {{ duty_min }},
+    parameter real DUTY_MAX = {{ duty_max }}
+) (
+    input wire in,
+    output wire out
+);
+    timeunit 1ns;
+    timeprecision 1fs;
+
+    localparam int MEAS_TIMEOUT_NS = (1_000_000_000 + MIN_FREQ_HZ - 1) / MIN_FREQ_HZ;
+    localparam time MEAS_TIMEOUT = MEAS_TIMEOUT_NS * 1ns;
+    localparam real MAX_EDGE_PERIOD_SEC = 1.0 / MIN_FREQ_HZ;
+
+    reg force_val;
+    initial force_val = 'z;
+    assign out = force_val;
+
+    logic active;
+    real freq_hz;
+    real duty;
+    logic duty_ok;
+    logic stable;
+
+    realtime last_edge_s;
+    realtime last_posedge_s;
+    realtime last_period_s;
+    realtime high_end_s;
+    int stable_match_cnt;
+
+    function automatic void reset_measure();
+        active = 1'b0;
+        stable = 1'b0;
+        freq_hz = 0.0;
+        duty = 0.0;
+        duty_ok = 1'b0;
+        last_edge_s = 0.0;
+        last_posedge_s = 0.0;
+        last_period_s = 0.0;
+        high_end_s = 0.0;
+        stable_match_cnt = 0;
+    endfunction
+
+    function automatic void mark_timeout();
+        active = 1'b0;
+        stable = 1'b0;
+        freq_hz = 0.0;
+        duty = 0.0;
+        duty_ok = 1'b0;
+        stable_match_cnt = 0;
+    endfunction
+
+    function automatic void sample_period(realtime pos_s, realtime prev_pos_s);
+        realtime period_s;
+        realtime high_s;
+        real rel_diff;
+
+        period_s = pos_s - prev_pos_s;
+        if (period_s <= 0.0)
+            return;
+
+        if (period_s > MAX_EDGE_PERIOD_SEC)
+            return;
+
+        freq_hz = 1.0 / period_s;
+
+        if (high_end_s > prev_pos_s && high_end_s <= pos_s) begin
+            high_s = high_end_s - prev_pos_s;
+            duty = high_s / period_s;
+            if (duty < 0.0)
+                duty = 0.0;
+            else if (duty > 1.0)
+                duty = 1.0;
+            duty_ok = (duty >= DUTY_MIN) && (duty <= DUTY_MAX);
+        end
+
+        if (last_period_s > 0.0) begin
+            rel_diff = (period_s > last_period_s) ?
+                (period_s - last_period_s) / last_period_s :
+                (last_period_s - period_s) / last_period_s;
+            if (rel_diff <= PERIOD_TOL)
+                stable_match_cnt++;
+            else
+                stable_match_cnt = 0;
+            if (stable_match_cnt >= STABLE_CYCLES - 1)
+                stable = 1'b1;
+        end
+
+        last_period_s = period_s;
+    endfunction
+
+    initial reset_measure();
+
+    always @(posedge in) begin
+        realtime now_s;
+        realtime prev_pos_s;
+
+        now_s = $realtime;
+        last_edge_s = now_s;
+        active = 1'b1;
+
+        prev_pos_s = last_posedge_s;
+        last_posedge_s = now_s;
+
+        if (prev_pos_s > 0.0)
+            sample_period(now_s, prev_pos_s);
+    end
+
+    always @(negedge in) begin
+        last_edge_s = $realtime;
+        active = 1'b1;
+        high_end_s = last_edge_s;
+    end
+
+    initial begin
+        forever begin
+            #MEAS_TIMEOUT;
+            if (last_edge_s > 0.0 && ($realtime - last_edge_s) >= MAX_EDGE_PERIOD_SEC)
+                mark_timeout();
+        end
+    end
+
+endinterface
+
+`endif

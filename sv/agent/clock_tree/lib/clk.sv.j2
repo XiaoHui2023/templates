@@ -1,0 +1,15 @@
+`ifndef {{ (class_prefix ~ "clk") | upper }}
+`define {{ (class_prefix ~ "clk") | upper }}
+
+class {{ class_prefix }}clk extends {{ class_prefix }}node_base;
+    `uvm_object_utils_begin({{ class_prefix }}clk)
+    `uvm_object_utils_end
+
+    longint typical_freq[$];
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -1,0 +1,25 @@
+`ifndef {{ (class_prefix ~ "node_base") | upper }}
+`define {{ (class_prefix ~ "node_base") | upper }}
+
+typedef class {{ class_prefix }}node_base;
+
+class {{ class_prefix }}node_base extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}node_base)
+        `uvm_field_string(label, UVM_ALL_ON)
+        `uvm_field_string(path, UVM_ALL_ON)
+        `uvm_field_sarray_int(frequencies, UVM_ALL_ON)
+        `uvm_field_int(allow_bad_duty, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    string label;
+    string path;
+    int frequencies[$];
+    bit allow_bad_duty;
+    {{ class_prefix }}node_base sources[string];
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -1,0 +1,22 @@
+`ifndef {{ (class_prefix ~ "div") | upper }}
+`define {{ (class_prefix ~ "div") | upper }}
+
+class {{ class_prefix }}div extends {{ class_prefix }}node_base;
+    `uvm_object_utils_begin({{ class_prefix }}div)
+        `uvm_field_int(rstn, UVM_ALL_ON)
+        `uvm_field_int(load_en, UVM_ALL_ON)
+        `uvm_field_int(bypass, UVM_ALL_ON)
+        `uvm_field_int(step, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit rstn;
+    rand bit load_en;
+    rand bit bypass;
+    rand int step;
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+endclass
+
+`endif
