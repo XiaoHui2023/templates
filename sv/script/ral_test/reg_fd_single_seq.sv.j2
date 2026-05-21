@@ -1,8 +1,8 @@
+{%- set _acc = access | default(false) %}
+{%- if _acc %}
 `ifndef {{ class_name | upper }}_REG_FD_SINGLE_SEQ
 `define {{ class_name | upper }}_REG_FD_SINGLE_SEQ
 
-{%- set _acc = access | default(false) %}
-{%- if _acc %}
 class {{ class_name }}_single_reg_fd_access_seq extends uvm_reg_single_access_seq;
     `uvm_object_utils({{ class_name }}_single_reg_fd_access_seq)
 
@@ -98,5 +98,5 @@ class {{ class_name }}_single_reg_fd_access_seq extends uvm_reg_single_access_se
     endtask
 endclass
 
-{%- endif %}
 `endif
+{%- endif %}

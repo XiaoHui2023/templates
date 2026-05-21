@@ -9,9 +9,9 @@ class {{ class_name }} extends uvm_sequence;
     `uvm_object_utils({{ class_name }})
     `uvm_declare_p_sequencer(uvm_sequencer #(uvm_reg_item))
 
-    // regmodel — RAL 根块句柄
+    // RAL 根块句柄
     uvm_reg_block regmodel;
-    // no_test_regs — 跳过内建测试的寄存器；空队列表示不排除
+    // 跳过内建测试的寄存器；空队列表示不排除
     uvm_reg no_test_regs[$];
 
     function new(string name = "{{ class_name }}");
