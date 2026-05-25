@@ -5,6 +5,7 @@ model/base.sv
 model/settings.sv
 {% endif %}
 model/node_base.sv
+model/source.sv
 model/clk.sv
 model/div.sv
 model/dto.sv
@@ -19,5 +20,9 @@ top/connection.sv
 component/callback.sv
 component/sequencer.sv
 component/kit_sequencer.sv
+component/kit_interface.sv
 component/agent.sv
 sequence/base.sv
+sequence/behavior/enable_clock_source/req.sv
+sequence/behavior/enable_clock_source/rsp.sv
+sequence/behavior/enable_clock_source/behavior.sv

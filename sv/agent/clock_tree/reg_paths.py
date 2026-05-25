@@ -77,64 +77,24 @@ def reg_path_sv_expr(path: str, root: str = "regmodel") -> str:
 
 
 def collect_div_reg_keys(trees: List[Tree]) -> List[str]:
-    keys: set[str] = set()
-    for tree in trees:
-        for node in tree.nodes:
-            if node.kind == "div" and node.regs:
-                keys.update(flatten_regs(node.regs))
-    return sorted(keys)
+    return []
 
 
 def collect_dto_reg_keys(trees: List[Tree]) -> List[str]:
-    keys: set[str] = set()
-    for tree in trees:
-        for node in tree.nodes:
-            if node.kind == "dto" and node.regs:
-                keys.update(flatten_regs(node.regs))
-    return sorted(keys)
+    return []
 
 
 def collect_pll_reg_keys(trees: List[Tree]) -> List[str]:
-    keys: set[str] = set()
-    for tree in trees:
-        for node in tree.nodes:
-            if node.kind == "pll" and node.regs:
-                keys.update(flatten_regs(node.regs))
-    return sorted(keys)
+    return []
 
 
 def any_gate_reg_configured(trees: List[Tree]) -> bool:
-    for tree in trees:
-        for node in tree.nodes:
-            if node.kind == "gate" and node.reg_gate:
-                return True
     return False
 
 
 def any_reg_configured(trees: List[Tree]) -> bool:
-    if any_gate_reg_configured(trees):
-        return True
-    for tree in trees:
-        for node in tree.nodes:
-            if node.kind in ("div", "dto", "pll") and node.regs:
-                return True
     return False
 
 
 def iter_reg_bindings(trees: List[Tree]) -> List[tuple[str, str, str, str]]:
-    """返回 tree 名、节点名、SV 成员名、自 regmodel 根起的 field 路径。"""
-    out: list[tuple[str, str, str, str]] = []
-    for tree in trees:
-        for node in tree.nodes:
-            if node.kind == "gate" and node.reg_gate:
-                out.append((tree.name, node.name, "reg_gate_f", node.reg_gate))
-            elif node.kind == "div" and node.regs:
-                for key, path in flatten_regs(node.regs).items():
-                    out.append((tree.name, node.name, f"{key}_rf", path))
-            elif node.kind == "dto" and node.regs:
-                for key, path in flatten_regs(node.regs).items():
-                    out.append((tree.name, node.name, f"{key}_rf", path))
-            elif node.kind == "pll" and node.regs:
-                for key, path in flatten_regs(node.regs).items():
-                    out.append((tree.name, node.name, f"{key}_rf", path))
-    return out
+    return []

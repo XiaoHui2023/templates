@@ -16,93 +16,51 @@ trees:
       run_tree_check: 1
     nodes:
       - name: xtal
-        kind: clk
-        path: tb.xtal_clk
-        frequence: 25000000
-        sources: []
+        kind: source
+        targets:
+          - pll_main
 
-      - name: pll0
+      - name: pll_main
         kind: pll
-        path: dut.u_pll_wrap.u_pll
-        frequence: 100000000
-        pll_kind: PLL_TCI
-        regs:
-          u_pll_wrap:
-            lock: pll_lock_f
-            bypass: pll_bypass_f
-            ndiv: pll_ndiv_f
-        sources:
-          - name: xtal
-            key: 0
+        targets:
+          - gate0
+          - div0
 
-      - name: root_mux
-        kind: mux
-        path: dut.u_clk_root_mux
-        frequence: 25000000
-        sel: 0
-        sources:
-          - name: xtal
-            key: 0
-          - name: pll0
-            key: 1
-
-      - name: div_core
-        kind: div
-        path: dut.u_clk_div_core
-        frequence: 25000000
-        div_ratio: 1
-        regs:
-          u_clk_div_core:
-            ratio: div_ratio_f
-            enable: div_en_f
-        sources:
-          - name: root_mux
-            key: 0
-
-      - name: dto_core
-        kind: dto
-        path: dut.u_clk_dto_core
-        frequence: 12500000
-        div_ratio: 2
-        regs:
-          ratio: u_clk_dto_core.dto_ratio_f
-          duty: u_clk_dto_core.dto_duty_f
-        sources:
-          - name: div_core
-            key: 0
-
-      - name: gate_cpu
+      - name: gate0
         kind: gate
-        path: dut.u_clk_gate_cpu
-        frequence: 12500000
-        reg_gate: u_clk_gate_cpu.clk_en_f
-        sources:
-          - name: dto_core
-            key: 0
+        source: w_pll_main_gate0
+        target: w_gate0_div0
 
-      - name: inv_dbg
+      - name: div0
+        kind: div
+        source: w_gate0_div0
+        target: w_div0_inv0
+
+      - name: inv0
         kind: inv
-        path: dut.u_clk_inv_dbg
-        frequence: 12500000
-        allow_bad_duty: true
-        sources:
-          - name: gate_cpu
-            key: 0
+        source: w_div0_inv0
+        target: w_inv0_dto0
 
-      - name: wire_periph
-        kind: wire
-        path: dut.u_clk_wire_periph
-        frequence: 12500000
-        sources:
-          - name: inv_dbg
-            key: 0
+      - name: dto0
+        kind: dto
+        source: w_inv0_dto0
+        target: w_dto0_clk_sys
+
+      - name: clk_sys
+        kind: clock
+        freq: "100"
+        source: w_dto0_clk_sys
+
+      - name: mux2
+        kind: mux
+        source:
+          "0": pll_main
+          "1": xtal
+        target: w_mux2_out
 
 vars:
   dut_prefix: dut.
-  tb_prefix: tb.
 
 min_freq_hz: 500
 duty_min: 0.50
 duty_max: 0.66
-class_regmodel: ral_clk_top
-# class_prefix: clk_tree_

@@ -12,7 +12,9 @@ import uvm_reg_pkg::*;
     initial begin \
         forever begin \
             @({{ class_prefix }}##t##_##n##_if.out); \
-            if (!$isunknown({{ class_prefix }}##t##_##n##_if.out)) \
+            if ($isunknown({{ class_prefix }}##t##_##n##_if.out)) \
+                release p; \
+            else \
                 force p = {{ class_prefix }}##t##_##n##_if.out; \
         end \
     end

@@ -24,9 +24,13 @@
 | cst_clk_from_src | 约束 | 前级非空时 **clk_on** 与前级一致 |
 | cst_freq_from_src | 约束 | 前级非空时 **frequence** 与前级一致 |
 
+## source
+
+配置 **kind: source** 的时钟根节点；**clk_on** 恒为 1；无上游时关闭 **cst_freq_from_src**，频率由 **tree** 软约束或随机。
+
 ## clk
 
-时钟源节点；**clk_on** 恒为 1。
+观测用时钟节点；**clk_on** 恒为 1。
 
 ## pll
 
@@ -98,6 +102,19 @@ PLL 节点；关闭 **cst_freq_from_src**，频率仍由 tree 软约束指向配
 
 直通节点，无附加字段。
 
+## interface
+
+每节点对应一个 **interface** 实例；**in** 接 DUT 观测，**out** 由 **connection** 对 **path** 做 **force** 或 **release**。
+
+| 成员 / 方法 | 说明 |
+| --- | --- |
+| active、freq_hz、duty、stable 等 | 对 **in** 边沿测量 |
+| gen_en | 时钟发生开关，初值为 0；为 0 时不驱动 **out** |
+| gen_hz | 发生频率，单位 Hz |
+| gen_clk | 内部方波寄存器 |
+| set_clock_gen | 设置 **gen_en** 与 **gen_hz** |
+| **out** | **gen_en** 为 1 时等于 **gen_clk**；为 0 时为高阻 |
+
 ## spec 与 base_item
 
 **spec** 为参数化壳类 **`spec#(type T)`**，**extends T**，用于在继承链上集中放置 **enum** 与 **typedef enum**。**base_item** 派生 **spec#(uvm_sequence_item)**，承载 **pll_kind_e** 等族级枚举。
@@ -108,7 +125,7 @@ PLL 节点；关闭 **cst_freq_from_src**，频率仍由 tree 软约束指向配
 
 ## 各 tree 类型
 
-配置中每棵 **tree** 展开为 **`{name}_tree`** 类，平铺 **rand** 节点成员；**new** 中创建 **settings** 并按 YAML **settings** 字典逐字段赋值；**nodes** 队列在 **base_tree**；**cst** 对 **clk** 与 **pll** 的典型频率做软约束，并预留 **cst_user**、**cst_case**。
+配置中每棵 **tree** 展开为 **`{name}_tree`** 类，平铺 **rand** 节点成员；**new** 中创建 **settings** 并按 YAML **settings** 字典逐字段赋值；**nodes** 队列在 **base_tree**；**cst** 对 **source**、**clk** 与 **pll** 的典型频率做软约束，并预留 **cst_user**、**cst_case**。
 
 ## settings
 

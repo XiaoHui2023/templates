@@ -18,9 +18,11 @@ interface {{ class_prefix }}interface #(
     localparam time MEAS_TIMEOUT = MEAS_TIMEOUT_NS * 1ns;
     localparam real MAX_EDGE_PERIOD_SEC = 1.0 / MIN_FREQ_HZ;
 
-    reg force_val;
-    initial force_val = 'z;
-    assign out = force_val;
+    bit gen_en;
+    real gen_hz;
+    reg gen_clk;
+
+    assign out = gen_en ? gen_clk : 1'bz;
 
     logic active;
     real freq_hz;
@@ -95,7 +97,54 @@ interface {{ class_prefix }}interface #(
         last_period_s = period_s;
     endfunction
 
-    initial reset_measure();
+    function automatic void set_clock_gen(bit en, real hz);
+        gen_en = en;
+        gen_hz = hz;
+    endfunction
+
+    task automatic drive_gen_clock();
+        realtime half_ns;
+
+        gen_clk = 1'b0;
+        forever begin
+            @(gen_en or gen_hz);
+            while (!gen_en)
+                @(gen_en);
+
+            forever begin
+                if (gen_hz > 0.0)
+                    half_ns = 0.5e9 / gen_hz;
+                else
+                    half_ns = 0.0;
+
+                if (half_ns <= 0.0) begin
+                    gen_clk = 1'b0;
+                    @(gen_hz or gen_en);
+                    if (!gen_en)
+                        break;
+                    continue;
+                end
+
+                gen_clk = ~gen_clk;
+                #(half_ns * 1ns);
+
+                if (!gen_en) begin
+                    gen_clk = 1'b0;
+                    break;
+                end
+            end
+        end
+    endtask
+
+    initial begin
+        gen_en = 1'b0;
+        gen_hz = 0.0;
+        gen_clk = 1'b0;
+        reset_measure();
+        fork
+            drive_gen_clock();
+        join_none
+    end
 
     always @(posedge in) begin
         realtime now_s;
