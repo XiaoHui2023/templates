@@ -4,7 +4,7 @@ import re
 from typing import TYPE_CHECKING, Dict, List, Union
 
 if TYPE_CHECKING:
-    from sv.agent.clock_tree.nodes import Tree
+    from nodes import Tree
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 

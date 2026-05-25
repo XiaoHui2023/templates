@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field, computed_field, model_validator
 
 _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
-from sv.agent.clock_tree.nodes import Tree, validate_nodes_graph
-from sv.agent.clock_tree.reg_paths import (
+from nodes import Tree, validate_nodes_graph
+from reg_paths import (
     any_gate_reg_configured,
     any_reg_configured,
     collect_div_reg_keys,
