@@ -1,11 +1,23 @@
-interface.sv
-lib/node_base.sv
-lib/clk.sv
-lib/div.sv
-lib/gate.sv
-lib/mux.sv
-lib/inv.sv
-lib/pll.sv
-lib/wire.sv
-manifest.sv
-tree.sv
+model/interface.sv
+model/spec.sv
+model/base.sv
+{% if setting_defs %}
+model/settings.sv
+{% endif %}
+model/node_base.sv
+model/clk.sv
+model/div.sv
+model/dto.sv
+model/gate.sv
+model/mux.sv
+model/inv.sv
+model/pll.sv
+model/wire.sv
+model/base_tree.sv
+top/trees.sv
+top/connection.sv
+component/callback.sv
+component/sequencer.sv
+component/kit_sequencer.sv
+component/agent.sv
+sequence/base.sv

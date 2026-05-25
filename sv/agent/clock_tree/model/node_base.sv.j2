@@ -1,0 +1,34 @@
+`ifndef {{ (class_prefix ~ "node_base") | upper }}
+`define {{ (class_prefix ~ "node_base") | upper }}
+
+class {{ class_prefix }}node_base extends {{ class_prefix }}base_item;
+    `uvm_object_utils_begin({{ class_prefix }}node_base)
+        `uvm_field_string(name, UVM_ALL_ON)
+        `uvm_field_string(path, UVM_ALL_ON)
+        `uvm_field_int(allow_bad_duty, UVM_ALL_ON)
+        `uvm_field_int(frequence, UVM_ALL_ON)
+        `uvm_field_int(clk_on, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    string name;
+    string path;
+    bit allow_bad_duty;
+    rand longint frequence;
+    rand bit clk_on;
+    virtual {{ class_prefix }}interface vif;
+    {{ class_prefix }}node_base source;
+
+    constraint cst_clk_from_src {
+        source != null -> clk_on == source.clk_on;
+    }
+
+    constraint cst_freq_from_src {
+        source != null -> frequence == source.frequence;
+    }
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

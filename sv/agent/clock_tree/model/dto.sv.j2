@@ -1,0 +1,27 @@
+`ifndef {{ (class_prefix ~ "dto") | upper }}
+`define {{ (class_prefix ~ "dto") | upper }}
+
+{% if dto_reg_keys %}
+import uvm_reg_pkg::*;
+{% endif %}
+
+class {{ class_prefix }}dto extends {{ class_prefix }}node_base;
+    `uvm_object_utils_begin({{ class_prefix }}dto)
+        `uvm_field_int(div_ratio, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    int div_ratio;
+{% for key in dto_reg_keys %}
+    uvm_reg_field {{ key }}_rf;
+{% endfor %}
+
+    constraint cst_freq_from_src {
+        source != null && div_ratio > 0 -> frequence == source.frequence / div_ratio;
+    }
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

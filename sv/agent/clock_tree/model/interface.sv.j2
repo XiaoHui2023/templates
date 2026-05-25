@@ -1,7 +1,7 @@
-`ifndef {{ (class_prefix ~ "node_if") | upper }}
-`define {{ (class_prefix ~ "node_if") | upper }}
+`ifndef {{ (class_prefix ~ "interface") | upper }}
+`define {{ (class_prefix ~ "interface") | upper }}
 
-interface {{ class_prefix }}node_if #(
+interface {{ class_prefix }}interface #(
     parameter int MIN_FREQ_HZ = {{ min_freq_hz }},
     parameter int STABLE_CYCLES = {{ stable_cycles }},
     parameter real PERIOD_TOL = {{ period_tolerance }},

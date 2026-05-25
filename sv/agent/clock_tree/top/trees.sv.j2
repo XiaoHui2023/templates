@@ -1,0 +1,87 @@
+`ifndef {{ (class_prefix ~ "trees") | upper }}
+`define {{ (class_prefix ~ "trees") | upper }}
+
+{% for tree in trees %}
+`ifndef {{ (class_prefix ~ tree.name ~ "_tree") | upper }}
+`define {{ (class_prefix ~ tree.name ~ "_tree") | upper }}
+
+class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree;
+    `uvm_object_utils_begin({{ class_prefix }}{{ tree.name }}_tree)
+{% for node in tree.nodes %}
+        `uvm_field_object({{ node.name }}, UVM_ALL_ON)
+{% endfor %}
+    `uvm_object_utils_end
+
+{% for node in tree.nodes %}
+    rand {{ class_prefix }}{{ node.kind }} {{ node.name }};
+{% endfor %}
+
+    constraint cst {
+{% for node in tree.nodes %}
+{% if node.kind in ["clk", "pll"] %}
+        soft {{ node.name }}.frequence == {{ node.frequence }}'l;
+{% endif %}
+{% endfor %}
+    }
+
+    constraint cst_user;
+    constraint cst_case;
+
+    function new(string name="{{ class_prefix }}{{ tree.name }}_tree");
+        super.new(name);
+{% if setting_defs %}
+        settings = {{ class_prefix }}settings::type_id::create("settings");
+{% for def in setting_defs %}
+        settings.{{ def.name }} = {{ tree.settings[def.name] }};
+{% endfor %}
+{% endif %}
+{% for node in tree.nodes %}
+        {{ node.name }} = {{ class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
+        {{ node.name }}.name = "{{ node.name }}";
+        {{ node.name }}.path = "{{ node.path }}";
+        {{ node.name }}.allow_bad_duty = {{ 1 if node.allow_bad_duty else 0 }};
+{% if node.kind == "mux" %}
+        {{ node.name }}.sel = {{ node.sel }};
+{% endif %}
+{% if node.kind == "pll" %}
+        {{ node.name }}.kind = {{ class_prefix }}base_item::{{ node.pll_kind }};
+{% endif %}
+{% if node.kind in ["div", "dto"] %}
+        {{ node.name }}.div_ratio = {{ node.div_ratio }};
+{% endif %}
+{% endfor %}
+{% for node in tree.nodes %}
+{% for src in node.sources %}
+        begin
+            {{ class_prefix }}node_base tgt;
+            {{ class_prefix }}node_base drv;
+            tgt = {{ node.name }};
+            foreach (nodes[i]) begin
+                if (nodes[i].name == "{{ src.name }}")
+                    drv = nodes[i];
+            end
+{% if node.kind == "mux" %}
+            tgt.to_source[{{ src.key }}] = drv;
+{% else %}
+            tgt.source = drv;
+{% endif %}
+        end
+{% endfor %}
+{% endfor %}
+{% for node in tree.nodes %}
+{% if node.kind == "mux" %}
+        if ({{ node.name }}.to_source.exists({{ node.sel }}))
+            {{ node.name }}.source = {{ node.name }}.to_source[{{ node.sel }}];
+{% endif %}
+{% endfor %}
+        nodes.delete();
+{% for node in tree.nodes %}
+        nodes.push_back({{ node.name }});
+{% endfor %}
+    endfunction
+endclass
+
+`endif
+{% endfor %}
+
+`endif

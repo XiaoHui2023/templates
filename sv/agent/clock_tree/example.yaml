@@ -1,65 +1,101 @@
 # clock_tree 配置示范
-# 字段与 models.py 中 Models / Node / Source 一致；渲染模板时载入本文件即可校验。
+# 字段与 models.py、nodes.py 一致；渲染模板时载入本文件即可校验。
 
-nodes:
-  - name: xtal
-    kind: clk
-    path: tb.xtal_clk
-    frequencies:
-      - 25000000
-      - 24000000
-    sources: []
+setting_defs:
+  - name: pll_sel
+    type: int
+    default: 0
+  - name: run_tree_check
+    type: bit
+    default: true
 
-  - name: pll0
-    kind: pll
-    path: dut.u_pll_wrap.u_pll
-    frequencies: []
-    sources:
+trees:
+  - name: main
+    settings:
+      pll_sel: 0
+      run_tree_check: 1
+    nodes:
       - name: xtal
-        key: ""
+        kind: clk
+        path: tb.xtal_clk
+        frequence: 25000000
+        sources: []
 
-  - name: root_mux
-    kind: mux
-    path: dut.u_clk_root_mux
-    frequencies: []
-    sources:
-      - name: xtal
-        key: "0"
       - name: pll0
-        key: "1"
+        kind: pll
+        path: dut.u_pll_wrap.u_pll
+        frequence: 100000000
+        pll_kind: PLL_TCI
+        regs:
+          u_pll_wrap:
+            lock: pll_lock_f
+            bypass: pll_bypass_f
+            ndiv: pll_ndiv_f
+        sources:
+          - name: xtal
+            key: 0
 
-  - name: div_core
-    kind: div
-    path: dut.u_clk_div_core
-    frequencies: []
-    sources:
       - name: root_mux
-        key: ""
+        kind: mux
+        path: dut.u_clk_root_mux
+        frequence: 25000000
+        sel: 0
+        sources:
+          - name: xtal
+            key: 0
+          - name: pll0
+            key: 1
 
-  - name: gate_cpu
-    kind: gate
-    path: dut.u_clk_gate_cpu
-    frequencies: []
-    sources:
       - name: div_core
-        key: ""
+        kind: div
+        path: dut.u_clk_div_core
+        frequence: 25000000
+        div_ratio: 1
+        regs:
+          u_clk_div_core:
+            ratio: div_ratio_f
+            enable: div_en_f
+        sources:
+          - name: root_mux
+            key: 0
 
-  - name: inv_dbg
-    kind: inv
-    path: dut.u_clk_inv_dbg
-    frequencies: []
-    allow_bad_duty: true
-    sources:
+      - name: dto_core
+        kind: dto
+        path: dut.u_clk_dto_core
+        frequence: 12500000
+        div_ratio: 2
+        regs:
+          ratio: u_clk_dto_core.dto_ratio_f
+          duty: u_clk_dto_core.dto_duty_f
+        sources:
+          - name: div_core
+            key: 0
+
       - name: gate_cpu
-        key: ""
+        kind: gate
+        path: dut.u_clk_gate_cpu
+        frequence: 12500000
+        reg_gate: u_clk_gate_cpu.clk_en_f
+        sources:
+          - name: dto_core
+            key: 0
 
-  - name: wire_periph
-    kind: wire
-    path: dut.u_clk_wire_periph
-    frequencies: []
-    sources:
       - name: inv_dbg
-        key: ""
+        kind: inv
+        path: dut.u_clk_inv_dbg
+        frequence: 12500000
+        allow_bad_duty: true
+        sources:
+          - name: gate_cpu
+            key: 0
+
+      - name: wire_periph
+        kind: wire
+        path: dut.u_clk_wire_periph
+        frequence: 12500000
+        sources:
+          - name: inv_dbg
+            key: 0
 
 vars:
   dut_prefix: dut.
@@ -68,5 +104,5 @@ vars:
 min_freq_hz: 500
 duty_min: 0.50
 duty_max: 0.66
-# 类型名前缀，默认 clk_tree_ → clk_tree_tree、clk_tree_node_if 等
+class_regmodel: ral_clk_top
 # class_prefix: clk_tree_

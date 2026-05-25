@@ -1,0 +1,7 @@
+`ifndef {{ (class_prefix ~ "spec") | upper }}
+`define {{ (class_prefix ~ "spec") | upper }}
+
+class {{ class_prefix }}spec#(type T = uvm_object) extends T;
+endclass
+
+`endif

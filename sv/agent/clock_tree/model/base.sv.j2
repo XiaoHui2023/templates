@@ -1,0 +1,18 @@
+`ifndef {{ (class_prefix ~ "base_item") | upper }}
+`define {{ (class_prefix ~ "base_item") | upper }}
+
+class {{ class_prefix }}base_item extends {{ class_prefix }}spec#(uvm_sequence_item);
+    typedef enum {
+        PLL_TCI,
+        PLL_SC,
+        PLL_DW
+    } pll_kind_e;
+
+    `uvm_object_utils({{ class_prefix }}base_item)
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -1,0 +1,30 @@
+`ifndef {{ (class_prefix ~ "kit_sequencer") | upper }}
+`define {{ (class_prefix ~ "kit_sequencer") | upper }}
+
+class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
+    `uvm_component_utils({{ class_prefix }}kit_sequencer)
+
+    function new(string name="{{ class_prefix }}kit_sequencer", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+{% if setting_defs %}
+    extern function void configure_tree({{ class_prefix }}base_tree tree);
+    extern function void configure_all_trees();
+{% endif %}
+endclass
+
+{% if setting_defs %}
+function void {{ class_prefix }}kit_sequencer::configure_tree({{ class_prefix }}base_tree tree);
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "configure_tree: tree is null")
+    configure_settings(tree.settings);
+endfunction
+
+function void {{ class_prefix }}kit_sequencer::configure_all_trees();
+    foreach (trees[i])
+        configure_settings(trees[i].settings);
+endfunction
+{% endif %}
+
+`endif

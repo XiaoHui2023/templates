@@ -1,0 +1,35 @@
+`ifndef {{ (class_prefix ~ "sequencer") | upper }}
+`define {{ (class_prefix ~ "sequencer") | upper }}
+
+class {{ class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ class_prefix }}sequencer)
+    `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
+
+    {{ class_prefix }}base_tree trees[$];
+
+    function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+{% if setting_defs %}
+    extern function void configure_settings({{ class_prefix }}settings settings);
+{% endif %}
+endclass
+
+function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    if (!uvm_config_db #({{ class_prefix }}base_tree)::get(this, "", "trees", trees) || trees.size() == 0)
+        `uvm_fatal("CLK_TREE", "uvm_config_db #({{ class_prefix }}base_tree) trees is required on sequencer")
+endfunction
+
+{% if setting_defs %}
+function void {{ class_prefix }}sequencer::configure_settings({{ class_prefix }}settings settings);
+    if (settings == null)
+        `uvm_fatal("CLK_TREE", "configure_settings: settings is null")
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, on_configure_settings(settings))
+endfunction
+{% endif %}
+
+`endif

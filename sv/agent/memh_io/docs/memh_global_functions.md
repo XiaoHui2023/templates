@@ -1,6 +1,6 @@
 # 全局 function，memh 辅助
 
-同包还提供若干 **`function automatic`**，完整名称为 **`<class_prefix>` 与下表方法名连接而成**；`class_prefix` 与 **agent** 所用类型名前缀一致。下表与下文各节标题只写方法名本身，不重复前缀。
+同包还提供多个 **`function automatic`**，完整名称为 **`<class_prefix>` 与下表方法名连接而成**；`class_prefix` 与 **agent** 所用类型名前缀一致。下表与下文各节标题只写方法名本身，不重复前缀。
 
 下列函数与 **agent** 里 **sequencer** 的对应成员方法一致，可在不持有 **sequencer** 的场景中直接使用。
 

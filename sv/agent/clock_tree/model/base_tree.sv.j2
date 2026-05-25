@@ -1,0 +1,22 @@
+`ifndef {{ (class_prefix ~ "base_tree") | upper }}
+`define {{ (class_prefix ~ "base_tree") | upper }}
+
+class {{ class_prefix }}base_tree extends {{ class_prefix }}base_item;
+    `uvm_object_utils_begin({{ class_prefix }}base_tree)
+        `uvm_field_queue_object(nodes, UVM_ALL_ON)
+{% if setting_defs %}
+        `uvm_field_object(settings, UVM_ALL_ON)
+{% endif %}
+    `uvm_object_utils_end
+
+    {{ class_prefix }}node_base nodes[$];
+{% if setting_defs %}
+    {{ class_prefix }}settings settings;
+{% endif %}
+
+    function new(string name = "{{ class_prefix }}base_tree");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

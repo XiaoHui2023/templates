@@ -1,18 +1,23 @@
 `ifndef {{ (class_prefix ~ "div") | upper }}
 `define {{ (class_prefix ~ "div") | upper }}
 
+{% if div_reg_keys %}
+import uvm_reg_pkg::*;
+{% endif %}
+
 class {{ class_prefix }}div extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}div)
-        `uvm_field_int(rstn, UVM_ALL_ON)
-        `uvm_field_int(load_en, UVM_ALL_ON)
-        `uvm_field_int(bypass, UVM_ALL_ON)
-        `uvm_field_int(step, UVM_ALL_ON)
+        `uvm_field_int(div_ratio, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand bit rstn;
-    rand bit load_en;
-    rand bit bypass;
-    rand int step;
+    int div_ratio;
+{% for key in div_reg_keys %}
+    uvm_reg_field {{ key }}_rf;
+{% endfor %}
+
+    constraint cst_freq_from_src {
+        source != null && div_ratio > 0 -> frequence == source.frequence / div_ratio;
+    }
 
     function new(string name = "");
         super.new(name);

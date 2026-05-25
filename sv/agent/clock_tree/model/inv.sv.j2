@@ -6,7 +6,7 @@ class {{ class_prefix }}inv extends {{ class_prefix }}node_base;
         `uvm_field_int(inv, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand bit inv;
+    bit inv;
 
     function new(string name = "");
         super.new(name);

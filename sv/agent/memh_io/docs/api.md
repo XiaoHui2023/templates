@@ -44,7 +44,7 @@
 
 ## `write_payload`
 
-写入 `uvm_tlm_generic_payload`。与 `write` 不同，本方法不克隆对象；生命周期与复用由调用方自行约束。
+写入 `uvm_tlm_generic_payload`。与 `write` 不同，本方法不克隆对象；生命周期与复用由上层调用代码自行约束。
 
 | 参数 | 方向 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |

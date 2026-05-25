@@ -1,0 +1,17 @@
+`ifndef {{ (class_prefix ~ "callback") | upper }}
+`define {{ (class_prefix ~ "callback") | upper }}
+
+class {{ class_prefix }}callback extends uvm_callback;
+    `uvm_object_utils({{ class_prefix }}callback)
+
+    function new(string name="{{ class_prefix }}callback");
+        super.new(name);
+    endfunction
+
+{% if setting_defs %}
+    virtual function void on_configure_settings({{ class_prefix }}settings settings);
+    endfunction
+{% endif %}
+endclass
+
+`endif

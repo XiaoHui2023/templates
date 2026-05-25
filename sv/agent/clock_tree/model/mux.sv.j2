@@ -1,0 +1,30 @@
+`ifndef {{ (class_prefix ~ "mux") | upper }}
+`define {{ (class_prefix ~ "mux") | upper }}
+
+class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
+    `uvm_object_utils_begin({{ class_prefix }}mux)
+        `uvm_field_int(sel, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    int sel;
+    {{ class_prefix }}node_base to_source[int];
+
+    constraint cst_clk_from_src {
+        to_source.exists(sel) -> clk_on == to_source[sel].clk_on;
+    }
+
+    constraint cst_freq_from_src {
+        to_source.exists(sel) -> frequence == to_source[sel].frequence;
+    }
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+
+    function void post_randomize();
+        if (to_source.exists(sel))
+            source = to_source[sel];
+    endfunction
+endclass
+
+`endif

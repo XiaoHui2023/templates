@@ -2,10 +2,11 @@
 `define {{ (class_prefix ~ "clk") | upper }}
 
 class {{ class_prefix }}clk extends {{ class_prefix }}node_base;
-    `uvm_object_utils_begin({{ class_prefix }}clk)
-    `uvm_object_utils_end
+    `uvm_object_utils({{ class_prefix }}clk)
 
-    longint typical_freq[$];
+    constraint cst_clk_from_src {
+        clk_on == 1'b1;
+    }
 
     function new(string name = "");
         super.new(name);
