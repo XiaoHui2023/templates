@@ -1,15 +1,80 @@
 # clock_tree
 
-用于芯片验证的时钟树 agent。
+## 示例
 
-- 支持多棵 **tree**；每棵平铺节点、**randomize** 典型频率，并对 **clk**、**pll** 做软约束。
-- 各节点 **interface** 做频率与占空比测量。
-- 可选 **setting_defs**；每棵 **tree** 自带 **settings**，在检查前由 **kit_sequencer** 便捷方法完成系统配置。
-- 可选 **class_regmodel** 与节点寄存器 field 路径；**connection** 建树时绑定 **uvm_reg_field**。
-- **sequence/behavior** 按行为分子目录；**kit_interface** 在 **agent.sqr** 上启动行为并读取 **rsp**。
+```yaml
+class_prefix: chip_clk_
+setting_defs:
+  - name: pll_sel
+    type: int
+    default: 0
+trees:
+  - name: main
+    settings:
+      pll_sel: 0
+    nodes:
+      - kind: source
+        name: osc
+        targets: [pll0]
+      - kind: pll
+        name: pll0
+        targets: [clk_cpu]
+        freq: 1000000000
+      - kind: clk
+        name: clk_cpu
+        source: w_pll0_clk_cpu
+```
 
-# 相关文档
+## 数据结构
 
-- [数据模型](model.md)
-- [UVM 组件](component.md)
-- [回调](callback.md)
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `class_prefix` | `str` | `clk_tree_` | 命名前缀。没有重名风险时可保持默认。 |
+| `setting_defs` | `list[SettingDef]` | `[]` | 全局设置项声明，每棵 tree 的 `settings` 使用同一组键。 |
+| `trees` | `list[Tree]` | 必填 | 时钟树列表，至少填写一棵。 |
+| `vars` | `dict[str, Any]` | `{}` | 自定义变量，未使用时留空。 |
+| `class_regmodel` | `str` | `""` | RAL 根块类名称，节点填写寄存器路径时需要设置。 |
+| `min_freq_hz` | `int` | `500` | 判断时钟仍在活动的最低频率。 |
+| `stable_cycles` | `int` | `3` | 连续稳定周期数。 |
+| `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
+| `duty_min` | `float` | `0.50` | 允许占空比下限。 |
+| `duty_max` | `float` | `0.66` | 允许占空比上限。 |
+
+### SettingDef
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `name` | `str` | 必填 | 设置项名，也是每棵 tree 的 `settings` 键名。 |
+| `type` | `int`, `longint`, `bit`, `string` | 必填 | 设置项成员类型。 |
+| `default` | `Any` | 必填 | 设置项默认取值。 |
+
+### Tree
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `name` | `str` | 必填 | 时钟树名称。 |
+| `settings` | `dict[str, int]` | `{}` | 本棵时钟树的设置项取值，键与 `setting_defs.name` 一致。 |
+| `nodes` | `list[Node]` | 必填 | 本棵时钟树的节点列表。 |
+
+### Node
+
+所有节点都可以填写下列公共字段。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | 必填 | 节点类型。 |
+| `name` | `str` | 必填 | 节点名称。 |
+| `path` | `str` | `""` | DUT 上的实例层次路径。 |
+| `allow_bad_duty` | `bool` | `false` | 为真时放宽占空比检查。 |
+| `freq` | `optional int` | `null` | 典型频率。 |
+
+| `kind` | 主要字段 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `source` | `targets` | `targets` 必填 | 时钟源节点，`targets` 写目标节点名列表。 |
+| `pll` | `targets`, `pll_kind` | `targets` 必填，`pll_kind` 为 `PLL_TCI` | PLL 节点，`pll_kind` 可为 `PLL_TCI`、`PLL_SC`、`PLL_DW`。 |
+| `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写成 `w_<driver>_<name>`。 |
+| `gate` | `source`, `target` | `source` 与 `target` 必填 | 门控节点，`source` 写输入连线名，`target` 写输出连线名。 |
+| `div` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | 分频节点，`div_ratio` 写分频比。 |
+| `dto` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | DTO 分频节点，`div_ratio` 写分频比。 |
+| `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写输入连线名，`target` 写输出连线名。 |
+| `mux` | `source`, `target`, `sel` | `source` 与 `target` 必填，`sel` 省略时取 `settings.pll_sel`，没有该键则为 `0` | 多路选择节点，`source` 的键为输入选择值，值为对端器件名。 |
