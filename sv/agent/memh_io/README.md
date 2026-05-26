@@ -20,6 +20,6 @@
 
 # 相关文档
 
-- [Sequencer 对外接口](docs/api.md)
-- [回调](docs/callback.md)
-- [同包全局 function 参考](docs/memh_global_functions.md)
+- [Sequencer 对外接口](api.md)
+- [回调](callback.md)
+- [同包全局 function 参考](memh_global_functions.md)

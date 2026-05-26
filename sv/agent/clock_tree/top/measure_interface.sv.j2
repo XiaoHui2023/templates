@@ -1,15 +1,15 @@
-`ifndef {{ (class_prefix ~ "interface") | upper }}
-`define {{ (class_prefix ~ "interface") | upper }}
+`ifndef {{ (class_prefix ~ "measure_interface") | upper }}
+`define {{ (class_prefix ~ "measure_interface") | upper }}
 
-interface {{ class_prefix }}interface #(
+interface {{ class_prefix }}measure_interface #(
     parameter int MIN_FREQ_HZ = {{ min_freq_hz }},
     parameter int STABLE_CYCLES = {{ stable_cycles }},
     parameter real PERIOD_TOL = {{ period_tolerance }},
     parameter real DUTY_MIN = {{ duty_min }},
-    parameter real DUTY_MAX = {{ duty_max }}
+    parameter real DUTY_MAX = {{ duty_max }},
+    parameter bit OBSERVE_IN = 1'b1
 ) (
-    input wire in,
-    output wire out
+    input wire in
 );
     timeunit 1ns;
     timeprecision 1fs;
@@ -18,11 +18,7 @@ interface {{ class_prefix }}interface #(
     localparam time MEAS_TIMEOUT = MEAS_TIMEOUT_NS * 1ns;
     localparam real MAX_EDGE_PERIOD_SEC = 1.0 / MIN_FREQ_HZ;
 
-    bit gen_en;
-    real gen_hz;
-    reg gen_clk;
-
-    assign out = gen_en ? gen_clk : 1'bz;
+    bit meas_en;
 
     logic active;
     real freq_hz;
@@ -97,84 +93,62 @@ interface {{ class_prefix }}interface #(
         last_period_s = period_s;
     endfunction
 
-    function automatic void set_clock_gen(bit en, real hz);
-        gen_en = en;
-        gen_hz = hz;
+    function automatic void set_measure_en(bit en);
+        meas_en = en;
+        if (!en)
+            reset_measure();
     endfunction
 
-    task automatic drive_gen_clock();
-        realtime half_ns;
+    initial begin
+        meas_en = 1'b0;
+        reset_measure();
+    end
 
-        gen_clk = 1'b0;
-        forever begin
-            @(gen_en or gen_hz);
-            while (!gen_en)
-                @(gen_en);
+    generate
+        if (OBSERVE_IN) begin : g_observe_in
+            always @(posedge in) begin
+                realtime now_s;
+                realtime prev_pos_s;
 
-            forever begin
-                if (gen_hz > 0.0)
-                    half_ns = 0.5e9 / gen_hz;
-                else
-                    half_ns = 0.0;
+                if (!meas_en)
+                    return;
 
-                if (half_ns <= 0.0) begin
-                    gen_clk = 1'b0;
-                    @(gen_hz or gen_en);
-                    if (!gen_en)
-                        break;
-                    continue;
-                end
+                now_s = $realtime;
+                last_edge_s = now_s;
+                active = 1'b1;
 
-                gen_clk = ~gen_clk;
-                #(half_ns * 1ns);
+                prev_pos_s = last_posedge_s;
+                last_posedge_s = now_s;
 
-                if (!gen_en) begin
-                    gen_clk = 1'b0;
-                    break;
+                if (prev_pos_s > 0.0)
+                    sample_period(now_s, prev_pos_s);
+            end
+
+            always @(negedge in) begin
+                if (!meas_en)
+                    return;
+
+                last_edge_s = $realtime;
+                active = 1'b1;
+                high_end_s = last_edge_s;
+            end
+
+            initial begin : meas_timeout_loop
+                forever begin
+                    wait (meas_en === 1'b1);
+                    forever begin
+                        #MEAS_TIMEOUT;
+                        if (!meas_en)
+                            break;
+                        if (last_edge_s > 0.0 &&
+                                ($realtime - last_edge_s) >= MAX_EDGE_PERIOD_SEC)
+                            mark_timeout();
+                    end
+                    reset_measure();
                 end
             end
         end
-    endtask
-
-    initial begin
-        gen_en = 1'b0;
-        gen_hz = 0.0;
-        gen_clk = 1'b0;
-        reset_measure();
-        fork
-            drive_gen_clock();
-        join_none
-    end
-
-    always @(posedge in) begin
-        realtime now_s;
-        realtime prev_pos_s;
-
-        now_s = $realtime;
-        last_edge_s = now_s;
-        active = 1'b1;
-
-        prev_pos_s = last_posedge_s;
-        last_posedge_s = now_s;
-
-        if (prev_pos_s > 0.0)
-            sample_period(now_s, prev_pos_s);
-    end
-
-    always @(negedge in) begin
-        last_edge_s = $realtime;
-        active = 1'b1;
-        high_end_s = last_edge_s;
-    end
-
-    initial begin
-        forever begin
-            #MEAS_TIMEOUT;
-            if (last_edge_s > 0.0 && ($realtime - last_edge_s) >= MAX_EDGE_PERIOD_SEC)
-                mark_timeout();
-        end
-    end
-
+    endgenerate
 endinterface
 
 `endif

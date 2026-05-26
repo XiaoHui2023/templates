@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, computed_field, model_validator
 
 _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
-from nodes import Tree, validate_nodes_graph
+from nodes import Tree, enrich_tree_nodes, validate_nodes_graph
 from reg_paths import (
     any_gate_reg_configured,
     any_reg_configured,
@@ -146,4 +146,15 @@ class Models(BaseModel):
                     f"期望 {sorted(expected)}, 实际 {sorted(keys)}"
                 )
             validate_nodes_graph(tree.nodes)
-        return self
+        enriched_trees = [
+            tree.model_copy(
+                update={
+                    "nodes": enrich_tree_nodes(
+                        tree.nodes,
+                        settings=tree.settings,
+                    )
+                }
+            )
+            for tree in self.trees
+        ]
+        return self.model_copy(update={"trees": enriched_trees})

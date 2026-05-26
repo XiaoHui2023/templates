@@ -15,7 +15,7 @@
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | name | string | 节点名，与配置一致 |
-| path | string | 设计层次路径 |
+| path | string | 对应信号实例层次路径；留空则不接 **in**，**out** 变化 **uvm_fatal** |
 | allow_bad_duty | bit | 为真时放宽占空比检查 |
 | frequence | longint | 典型频率，单位 Hz，rand |
 | clk_on | bit，rand | 当前节点时钟是否有效；无前级时由子类约束 |
@@ -104,16 +104,21 @@ PLL 节点；关闭 **cst_freq_from_src**，频率仍由 tree 软约束指向配
 
 ## interface
 
-每节点对应一个 **interface** 实例；**in** 接 DUT 观测，**out** 由 **connection** 对 **path** 做 **force** 或 **release**。
+每节点对应一个 **interface** 实例，内含 **generate_interface** 与 **measure_interface** 子实例；时间单位为 **1ns**、精度 **1fs**。配置 **path** 非空时 **in** 接该层次路径，**out** 由 **connection** 对该路径 **force** 或 **release**；测量读 **meas** 子实例。配置 **path** 留空时 **in** 不接 DUT，**out** 变化 **uvm_fatal**。
 
 | 成员 / 方法 | 说明 |
 | --- | --- |
-| active、freq_hz、duty、stable 等 | 对 **in** 边沿测量 |
-| gen_en | 时钟发生开关，初值为 0；为 0 时不驱动 **out** |
-| gen_hz | 发生频率，单位 Hz |
-| gen_clk | 内部方波寄存器 |
-| set_clock_gen | 设置 **gen_en** 与 **gen_hz** |
-| **out** | **gen_en** 为 1 时等于 **gen_clk**；为 0 时为高阻 |
+| **gen** | 时钟发生子 **interface**；**out** 由顶层 **out** 引出 |
+| gen.gen_en | 发生开关，初值为 0；为 0 时不驱动方波，发生任务阻塞等待 |
+| gen.gen_hz | 发生频率，单位 Hz |
+| gen.set_clock_gen | 设置 **gen_en** 与 **gen_hz** |
+| set_clock_gen | 转调 **gen.set_clock_gen** |
+| **meas** | 测量子 **interface**；**in** 接顶层 **in** |
+| meas.meas_en | 测量总开关，初值为 0；为 0 时不采样边沿、不跑超时循环 |
+| meas.set_measure_en | 设置 **meas_en**；关时清零测量结果 |
+| set_measure_en | 转调 **meas.set_measure_en** |
+| meas.active、meas.freq_hz、meas.duty、meas.stable 等 | **meas_en** 为 1 时对 **in** 边沿测量 |
+| **out** | **gen.gen_en** 为 1 时等于 **gen.gen_clk**；为 0 时为高阻 |
 
 ## spec 与 base_item
 

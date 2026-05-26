@@ -1,0 +1,63 @@
+`ifndef {{ (class_prefix ~ "interface") | upper }}
+`define {{ (class_prefix ~ "interface") | upper }}
+
+interface {{ class_prefix }}interface #(
+    parameter int MIN_FREQ_HZ = {{ min_freq_hz }},
+    parameter int STABLE_CYCLES = {{ stable_cycles }},
+    parameter real PERIOD_TOL = {{ period_tolerance }},
+    parameter real DUTY_MIN = {{ duty_min }},
+    parameter real DUTY_MAX = {{ duty_max }},
+    parameter bit OBSERVE_IN = 1'b1,
+    parameter string INSTANCE_TAG = ""
+) (
+    input wire in,
+    output wire out
+);
+    timeunit 1ns;
+    timeprecision 1fs;
+
+    {{ class_prefix }}generate_interface gen();
+    {{ class_prefix }}measure_interface #(
+        .MIN_FREQ_HZ(MIN_FREQ_HZ),
+        .STABLE_CYCLES(STABLE_CYCLES),
+        .PERIOD_TOL(PERIOD_TOL),
+        .DUTY_MIN(DUTY_MIN),
+        .DUTY_MAX(DUTY_MAX),
+        .OBSERVE_IN(OBSERVE_IN)
+    ) meas(.in(in));
+
+    assign out = gen.out;
+
+    function automatic void set_clock_gen(bit en, real hz);
+        gen.set_clock_gen(en, hz);
+    endfunction
+
+    function automatic void set_measure_en(bit en);
+        meas.set_measure_en(en);
+    endfunction
+
+    generate
+        if (!OBSERVE_IN) begin : g_out_only
+            logic out_prev;
+
+            initial begin
+                out_prev = out;
+                forever begin
+                    @(out);
+                    if (out !== out_prev)
+                        uvm_pkg::uvm_report_fatal(
+                            "CLK_TREE",
+                            $sformatf(
+                                "clock_tree %s: out changed without observe path",
+                                INSTANCE_TAG
+                            ),
+                            uvm_pkg::UVM_NONE
+                        );
+                    out_prev = out;
+                end
+            end
+        end
+    endgenerate
+endinterface
+
+`endif

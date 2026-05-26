@@ -18,8 +18,8 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 
     constraint cst {
 {% for node in tree.nodes %}
-{% if node.kind in ["clk", "pll", "source"] %}
-        soft {{ node.name }}.frequence == {{ node.frequence }}'l;
+{% if node.kind in ["clk", "pll", "source"] and node.freq is not none %}
+        soft {{ node.name }}.frequence == {{ node.freq }}'l;
 {% endif %}
 {% endfor %}
     }

@@ -10,6 +10,6 @@
 
 # 相关文档
 
-- [数据模型](docs/model.md)
-- [UVM 组件](docs/component.md)
-- [回调](docs/callback.md)
+- [数据模型](model.md)
+- [UVM 组件](component.md)
+- [回调](callback.md)

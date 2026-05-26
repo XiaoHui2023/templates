@@ -21,4 +21,4 @@
 
 # 相关文档
 
-- [Sequencer 对外接口](docs/api.md)
+- [Sequencer 对外接口](api.md)

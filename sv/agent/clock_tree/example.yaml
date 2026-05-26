@@ -17,11 +17,13 @@ trees:
     nodes:
       - name: xtal
         kind: source
+        path: dut.xtal
         targets:
           - pll_main
 
       - name: pll_main
         kind: pll
+        path: dut.pll_main_out
         targets:
           - gate0
           - div0
@@ -47,8 +49,9 @@ trees:
         target: w_dto0_clk_sys
 
       - name: clk_sys
-        kind: clock
-        freq: "100"
+        kind: clk
+        freq: 100
+        path: dut.clk_sys
         source: w_dto0_clk_sys
 
       - name: mux2
