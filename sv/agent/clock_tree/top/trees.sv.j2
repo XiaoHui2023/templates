@@ -7,17 +7,17 @@
 
 class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree;
     `uvm_object_utils_begin({{ class_prefix }}{{ tree.name }}_tree)
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
         `uvm_field_object({{ node.name }}, UVM_ALL_ON)
 {% endfor %}
     `uvm_object_utils_end
 
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
     rand {{ class_prefix }}{{ node.kind }} {{ node.name }};
 {% endfor %}
 
     constraint cst {
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
 {% if node.kind in ["clk", "pll", "source"] and node.freq is not none %}
         soft {{ node.name }}.frequence == {{ node.freq }}'l;
 {% endif %}
@@ -35,7 +35,7 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
         settings.{{ def.name }} = {{ tree.settings[def.name] }};
 {% endfor %}
 {% endif %}
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
         {{ node.name }} = {{ class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
         {{ node.name }}.name = "{{ node.name }}";
         {{ node.name }}.path = "{{ node.path }}";
@@ -50,7 +50,7 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
         {{ node.name }}.div_ratio = {{ node.div_ratio }};
 {% endif %}
 {% endfor %}
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
 {% for src in node.sources %}
         begin
             {{ class_prefix }}node_base tgt;
@@ -68,14 +68,14 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
         end
 {% endfor %}
 {% endfor %}
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
 {% if node.kind == "mux" %}
         if ({{ node.name }}.to_source.exists({{ node.sel }}))
             {{ node.name }}.source = {{ node.name }}.to_source[{{ node.sel }}];
 {% endif %}
 {% endfor %}
         nodes.delete();
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
         nodes.push_back({{ node.name }});
 {% endfor %}
     endfunction

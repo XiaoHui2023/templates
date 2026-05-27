@@ -13,15 +13,15 @@ trees:
     settings:
       pll_sel: 0
     nodes:
-      - kind: source
-        name: osc
+      osc:
+        kind: source
         targets: [pll0]
-      - kind: pll
-        name: pll0
+      pll0:
+        kind: pll
         targets: [clk_cpu]
         freq: 1000000000
-      - kind: clk
-        name: clk_cpu
+      clk_cpu:
+        kind: clk
         source: w_pll0_clk_cpu
 ```
 
@@ -54,7 +54,7 @@ trees:
 | --- | --- | --- | --- |
 | `name` | `str` | 必填 | 时钟树名称。 |
 | `settings` | `dict[str, int]` | `{}` | 本棵时钟树的设置项取值，键与 `setting_defs.name` 一致。 |
-| `nodes` | `list[Node]` | 必填 | 本棵时钟树的节点列表。 |
+| `nodes` | `dict[str, Node]` | 必填 | 本棵时钟树的节点表，键为节点 name，节点体内勿填 name。 |
 
 ### Node
 
@@ -63,7 +63,7 @@ trees:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | 必填 | 节点类型。 |
-| `name` | `str` | 必填 | 节点名称。 |
+| `name` | `str` | — | 由 `nodes` 字典键注入，配置中勿填。 |
 | `path` | `str` | `""` | DUT 上的实例层次路径。 |
 | `allow_bad_duty` | `bool` | `false` | 为真时放宽占空比检查。 |
 | `freq` | `optional int` | `null` | 典型频率。 |

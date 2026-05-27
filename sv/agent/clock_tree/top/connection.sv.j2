@@ -26,7 +26,7 @@
     ) ( .in({{ class_prefix }}##t##_##n##_in_stub) )
 
 {% for tree in trees %}
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
 {% if node.path %}
 `{{ _mac_obs }}({{ tree.name }}, {{ node.name }}, {{ node.path }}, "{{ tree.name }}.{{ node.name }}")
 {% else %}
@@ -40,7 +40,7 @@ function automatic {{ class_prefix }}{{ tree.name }}_tree {{ class_prefix }}buil
     {{ class_prefix }}{{ tree.name }}_tree t;
 
     t = {{ class_prefix }}{{ tree.name }}_tree::type_id::create("{{ tree.name }}");
-{% for node in tree.nodes %}
+{% for node in tree.nodes_ordered %}
     t.{{ node.name }}.vif = {{ class_prefix }}{{ tree.name }}_{{ node.name }}_if;
 {% endfor %}
 {% for tree_name, node_name, member, path in reg_bindings if tree_name == tree.name %}
