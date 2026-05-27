@@ -15,7 +15,7 @@
 
 ## sequencer
 
-基础 **sequencer**；**callback** 注册于此类型；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **trees**，不从 **config_db** 读取 **trees**。
+基础 **sequencer**；**callback** 注册于此类型；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **trees**。
 
 | 方法 | 说明 |
 | --- | --- |
@@ -33,16 +33,16 @@
 | --- | --- |
 | `configure_tree` | 对单棵 **tree** 的 **settings** 调用 **configure_settings**；仅声明 **setting_defs** 时存在 |
 | `configure_all_trees` | 对 **trees** 队列中每棵 **tree** 依次配置；仅声明 **setting_defs** 时存在 |
-| `run_set_clock_gen` | 入参 **node**、**gen_en** 默认 1；启动 **set_clock_gen** 行为 |
-| `run_set_clock_gen_nodes` | 入参节点队列与 **gen_en**；逐节点调用上一方法 |
-| `run_set_clock_gen_tree` | 入参 **tree** 与 **gen_en**；对该树全部带 **vif** 的节点调用 |
-| `run_set_clock_gen_trees` | 入参 **trees** 队列与 **gen_en**；对每棵树调用上一方法 |
+| `set_clock_gen` | 入参 **node**、**gen_en** 默认 1；启动 **set_clock_gen** 行为 |
+| `set_clock_gen_nodes` | 入参节点队列与 **gen_en**；逐节点调用上一方法 |
+| `set_clock_gen_tree` | 入参 **tree** 与 **gen_en**；对该树全部带 **vif** 的节点调用 |
+| `set_clock_gen_trees` | 入参 **trees** 队列与 **gen_en**；对每棵树调用上一方法 |
 | `gen_source_clock` | 无参；对 **trees** 中全部 **source** 节点执行 **set_clock_gen(1)** |
-| `run_set_pll` | 入参 **pll** 节点；启动 **set_pll**，寄存器细节待补 |
-| `run_apply` | 入参 **tree**；启动 **apply**，**gate/div/dto/mux** 寄存器待补 |
-| `run_check_clk` | 入参 **tree**；检查全部 **clk** 节点频率 |
-| `run_check_pll` | 入参 **tree**；检查全部 **pll** 节点频率 |
-| `run_check_duty` | 入参 **tree**、**gen_after_check** 默认 0；检查占空比，可选检查后对该节点 **set_clock_gen(1)** |
+| `set_pll` | 入参 **pll** 节点；启动 **set_pll**，寄存器细节待补 |
+| `apply` | 入参 **tree**；启动 **apply**，**gate/div/dto/mux** 寄存器待补 |
+| `check_clk` | 入参 **tree**；检查全部 **clk** 节点频率 |
+| `check_pll` | 入参 **tree**；检查全部 **pll** 节点频率 |
+| `check_duty` | 入参 **tree**、**gen_after_check** 默认 0；检查占空比，可选检查后对该节点 **set_clock_gen(1)** |
 
 ## sequence · behavior
 
