@@ -4,14 +4,11 @@
 class {{ class_prefix }}source extends {{ class_prefix }}node_base;
     `uvm_object_utils({{ class_prefix }}source)
 
-    constraint cst_clk_from_src {
-        clk_on == 1'b1;
-    }
-
     constraint cst_freq_from_src;
 
     function new(string name = "");
         super.new(name);
+        kind = "source";
     endfunction
 endclass
 

@@ -11,12 +11,17 @@ class {{ class_prefix }}div extends {{ class_prefix }}node_base;
     uvm_reg_field {{ key }}_rf;
 {% endfor %}
 
+    constraint cst_div {
+        div_ratio > 0;
+    }
+
     constraint cst_freq_from_src {
-        source != null && div_ratio > 0 -> frequence == source.frequence / div_ratio;
+        source != null -> frequence == source.frequence / div_ratio;
     }
 
     function new(string name = "");
         super.new(name);
+        kind = "div";
     endfunction
 endclass
 

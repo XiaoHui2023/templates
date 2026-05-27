@@ -3,11 +3,11 @@
 
 class {{ class_prefix }}pll extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}pll)
-        `uvm_field_enum({{ class_prefix }}base_item::pll_kind_e, kind, UVM_ALL_ON)
+        `uvm_field_enum(pll_kind_e, pll_kind, UVM_ALL_ON)
         `uvm_field_int(locked, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    {{ class_prefix }}base_item::pll_kind_e kind;
+    pll_kind_e pll_kind;
     bit locked;
 {% for key in pll_reg_keys %}
     uvm_reg_field {{ key }}_rf;
@@ -17,6 +17,7 @@ class {{ class_prefix }}pll extends {{ class_prefix }}node_base;
 
     function new(string name = "");
         super.new(name);
+        kind = "pll";
     endfunction
 endclass
 

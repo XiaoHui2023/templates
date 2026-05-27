@@ -12,11 +12,12 @@ class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
 {% endif %}
 
     constraint cst_clk_from_src {
-        source != null -> clk_on == (source.clk_on && gate);
+        source != null -> valid == (source.valid && gate);
     }
 
     function new(string name = "");
         super.new(name);
+        kind = "gate";
     endfunction
 endclass
 

@@ -10,7 +10,7 @@ class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
     {{ class_prefix }}node_base to_source[int];
 
     constraint cst_clk_from_src {
-        to_source.exists(sel) -> clk_on == to_source[sel].clk_on;
+        to_source.exists(sel) -> valid == to_source[sel].valid;
     }
 
     constraint cst_freq_from_src {
@@ -19,6 +19,7 @@ class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
 
     function new(string name = "");
         super.new(name);
+        kind = "mux";
     endfunction
 
     function void post_randomize();

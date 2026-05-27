@@ -6,8 +6,7 @@ interface {{ class_prefix }}measure_interface #(
     parameter int STABLE_CYCLES = {{ stable_cycles }},
     parameter real PERIOD_TOL = {{ period_tolerance }},
     parameter real DUTY_MIN = {{ duty_min }},
-    parameter real DUTY_MAX = {{ duty_max }},
-    parameter bit OBSERVE_IN = 1'b1
+    parameter real DUTY_MAX = {{ duty_max }}
 ) (
     input wire in
 );
@@ -104,51 +103,47 @@ interface {{ class_prefix }}measure_interface #(
         reset_measure();
     end
 
-    generate
-        if (OBSERVE_IN) begin : g_observe_in
-            always @(posedge in) begin
-                realtime now_s;
-                realtime prev_pos_s;
+    always @(posedge in) begin
+        realtime now_s;
+        realtime prev_pos_s;
 
+        if (!meas_en)
+            return;
+
+        now_s = $realtime;
+        last_edge_s = now_s;
+        active = 1'b1;
+
+        prev_pos_s = last_posedge_s;
+        last_posedge_s = now_s;
+
+        if (prev_pos_s > 0.0)
+            sample_period(now_s, prev_pos_s);
+    end
+
+    always @(negedge in) begin
+        if (!meas_en)
+            return;
+
+        last_edge_s = $realtime;
+        active = 1'b1;
+        high_end_s = last_edge_s;
+    end
+
+    initial begin : meas_timeout_loop
+        forever begin
+            wait (meas_en === 1'b1);
+            forever begin
+                #MEAS_TIMEOUT;
                 if (!meas_en)
-                    return;
-
-                now_s = $realtime;
-                last_edge_s = now_s;
-                active = 1'b1;
-
-                prev_pos_s = last_posedge_s;
-                last_posedge_s = now_s;
-
-                if (prev_pos_s > 0.0)
-                    sample_period(now_s, prev_pos_s);
+                    break;
+                if (last_edge_s > 0.0 &&
+                        ($realtime - last_edge_s) >= MAX_EDGE_PERIOD_SEC)
+                    mark_timeout();
             end
-
-            always @(negedge in) begin
-                if (!meas_en)
-                    return;
-
-                last_edge_s = $realtime;
-                active = 1'b1;
-                high_end_s = last_edge_s;
-            end
-
-            initial begin : meas_timeout_loop
-                forever begin
-                    wait (meas_en === 1'b1);
-                    forever begin
-                        #MEAS_TIMEOUT;
-                        if (!meas_en)
-                            break;
-                        if (last_edge_s > 0.0 &&
-                                ($realtime - last_edge_s) >= MAX_EDGE_PERIOD_SEC)
-                            mark_timeout();
-                    end
-                    reset_measure();
-                end
-            end
+            reset_measure();
         end
-    endgenerate
+    end
 endinterface
 
 `endif

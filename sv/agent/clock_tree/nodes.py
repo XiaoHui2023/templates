@@ -23,7 +23,7 @@ class NodeBase(BaseModel):
     name: str = Field(..., min_length=1, description="记录标识；YAML 以 nodes 字典键为准，勿在节点内重复填写。")
     path: str = Field(
         "",
-        description="对应信号在 DUT 上的实例层次路径；留空则不接 interface.in，out 任一变化 uvm_fatal。",
+        description="DUT 信号层次路径；留空则不例化 interface，节点 vif 为 null。",
     )
     allow_bad_duty: bool = Field(
         False,
@@ -69,14 +69,14 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
-    div_ratio: int = Field(1, ge=1, description="分频比。")
+    div_ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
 
 
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
-    div_ratio: int = Field(1, ge=1, description="分频比。")
+    div_ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
 
 
 class InvNode(NodeBase):

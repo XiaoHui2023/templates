@@ -3,23 +3,23 @@
 
 class {{ class_prefix }}node_base extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}node_base)
-        `uvm_field_string(name, UVM_ALL_ON)
+        `uvm_field_string(kind, UVM_ALL_ON)
         `uvm_field_string(path, UVM_ALL_ON)
         `uvm_field_int(allow_bad_duty, UVM_ALL_ON)
         `uvm_field_int(frequence, UVM_ALL_ON)
-        `uvm_field_int(clk_on, UVM_ALL_ON)
+        `uvm_field_int(valid, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    string name;
+    string kind;
     string path;
     bit allow_bad_duty;
     rand longint frequence;
-    rand bit clk_on;
+    rand bit valid;
     virtual {{ class_prefix }}interface vif;
     {{ class_prefix }}node_base source;
 
     constraint cst_clk_from_src {
-        source != null -> clk_on == source.clk_on;
+        source != null -> valid == source.valid;
     }
 
     constraint cst_freq_from_src {

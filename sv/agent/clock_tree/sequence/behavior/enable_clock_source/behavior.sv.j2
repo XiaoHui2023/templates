@@ -26,12 +26,12 @@ task {{ class_prefix }}enable_clock_source_seq::body();
     if (rq.node == null)
         `uvm_fatal("CLK_TREE", "enable_clock_source: req.node is null")
     if (rq.node.vif == null)
-        `uvm_fatal("CLK_TREE", $sformatf("enable_clock_source: node %s vif is null", rq.node.name))
+        `uvm_fatal("CLK_TREE", $sformatf("enable_clock_source: node %s vif is null", rq.node.get_name()))
 
     if (rq.node.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "enable_clock_source: node %s frequence must be positive, got %0d",
-            rq.node.name, rq.node.frequence))
+            rq.node.get_name(), rq.node.frequence))
 
     rq.node.vif.set_clock_gen(1'b1, real'(rq.node.frequence));
 

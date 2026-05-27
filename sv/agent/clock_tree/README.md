@@ -1,5 +1,11 @@
 # clock_tree
 
+## 相关文档
+
+[数据模型](model.md)
+
+[节点 interface](interface.md)
+
 ## 示例
 
 ```yaml

@@ -1,11 +1,11 @@
 `ifndef {{ (class_prefix ~ "generate_interface") | upper }}
 `define {{ (class_prefix ~ "generate_interface") | upper }}
 
-interface {{ class_prefix }}generate_interface;
+interface {{ class_prefix }}generate_interface (
+    output wire out
+);
     timeunit 1ns;
     timeprecision 1fs;
-
-    wire out;
 
     bit gen_en;
     real gen_hz;
