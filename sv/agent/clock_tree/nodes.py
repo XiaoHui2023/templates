@@ -61,27 +61,27 @@ class NodeBase(BaseModel):
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
-    source: str = Field(..., min_length=1, description="输入连线名。")
+    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
 
 
 class DivNode(NodeBase):
     kind: Literal["div"] = "div"
-    source: str = Field(..., min_length=1, description="输入连线名。")
+    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
     div_ratio: int = Field(1, ge=1, description="分频比。")
 
 
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
-    source: str = Field(..., min_length=1, description="输入连线名。")
+    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
     div_ratio: int = Field(1, ge=1, description="分频比。")
 
 
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
-    source: str = Field(..., min_length=1, description="输入连线名。")
+    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
 
 
@@ -106,7 +106,7 @@ class PllNode(NodeBase):
 
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
-    source: str = Field(..., min_length=1, description="输入连线名。")
+    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
 
 
 class MuxNode(NodeBase):
@@ -231,18 +231,9 @@ def _peer_names(node: Node) -> List[str]:
         return list(node.targets)
     if node.kind == "mux":
         return list(node.source.values())
+    if node.kind in ("gate", "div", "dto", "inv", "clk"):
+        return [node.source]
     return []
-
-
-def _driver_from_wire(wire: str, sink: str, known: set[str]) -> Optional[str]:
-    prefix = "w_"
-    suffix = f"_{sink}"
-    if not wire.startswith(prefix) or not wire.endswith(suffix):
-        return None
-    driver = wire[len(prefix) : -len(suffix)]
-    if not driver or not _SV_ID.match(driver):
-        return None
-    return driver if driver in known else None
 
 
 def _build_sources(node: Node, known: set[str]) -> List[SourceRef]:
@@ -253,13 +244,12 @@ def _build_sources(node: Node, known: set[str]) -> List[SourceRef]:
         ]
     if node.kind in ("source", "pll"):
         return []
-    wire = node.source
-    driver = _driver_from_wire(wire, node.name, known)
-    if driver is None:
+    peer = node.source
+    if peer not in known:
         raise ValueError(
-            f"节点 {node.name!r} 的输入连线 {wire!r} 须形如 w_<驱动器件>_{node.name}"
+            f"节点 {node.name!r} 的 source {peer!r} 须为本 tree nodes 的键"
         )
-    return [SourceRef(name=driver)]
+    return [SourceRef(name=peer)]
 
 
 def enrich_tree_nodes(
@@ -284,10 +274,10 @@ def enrich_tree_nodes(
 
 
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
-    """校验 targets / mux.source 对端名引用与连线命名。
+    """校验 targets、source、mux.source 等对端节点名引用。
 
     Raises:
-        ValueError: 对端器件名不在 nodes 键集合中，或连线名不符合约定时。
+        ValueError: 对端节点名不在 nodes 键集合中时。
     """
     known = set(nodes.keys())
     for key, node in nodes.items():
@@ -298,12 +288,6 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
         for peer in _peer_names(node):
             if peer not in known:
                 raise ValueError(
-                    f"节点 {node.name!r} 引用对端器件名 {peer!r} "
+                    f"节点 {node.name!r} 引用对端节点名 {peer!r} "
                     f"不在 nodes 的键集合中"
-                )
-        if node.kind not in ("source", "pll", "mux"):
-            if _driver_from_wire(node.source, node.name, known) is None:
-                raise ValueError(
-                    f"节点 {node.name!r} 的输入连线 {node.source!r} "
-                    f"须形如 w_<驱动器件>_{node.name}"
                 )

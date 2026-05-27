@@ -22,7 +22,7 @@ trees:
         freq: 1000000000
       clk_cpu:
         kind: clk
-        source: w_pll0_clk_cpu
+        source: pll0
 ```
 
 ## 数据结构
@@ -72,9 +72,9 @@ trees:
 | --- | --- | --- | --- |
 | `source` | `targets` | `targets` 必填 | 时钟源节点，`targets` 写目标节点名列表。 |
 | `pll` | `targets`, `pll_kind` | `targets` 必填，`pll_kind` 为 `PLL_TCI` | PLL 节点，`pll_kind` 可为 `PLL_TCI`、`PLL_SC`、`PLL_DW`。 |
-| `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写成 `w_<driver>_<name>`。 |
-| `gate` | `source`, `target` | `source` 与 `target` 必填 | 门控节点，`source` 写输入连线名，`target` 写输出连线名。 |
-| `div` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | 分频节点，`div_ratio` 写分频比。 |
-| `dto` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | DTO 分频节点，`div_ratio` 写分频比。 |
-| `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写输入连线名，`target` 写输出连线名。 |
+| `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写前级节点名。 |
+| `gate` | `source`, `target` | `source` 与 `target` 必填 | 门控节点，`source` 写前级节点名，`target` 写输出连线名。 |
+| `div` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | 分频节点，`source` 写前级节点名，`div_ratio` 写分频比。 |
+| `dto` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | DTO 分频节点，`source` 写前级节点名，`div_ratio` 写分频比。 |
+| `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写前级节点名，`target` 写输出连线名。 |
 | `mux` | `source`, `target`, `sel` | `source` 与 `target` 必填，`sel` 省略时取 `settings.pll_sel`，没有该键则为 `0` | 多路选择节点，`source` 的键为输入选择值，值为对端器件名。 |

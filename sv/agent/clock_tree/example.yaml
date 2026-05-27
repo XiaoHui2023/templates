@@ -30,29 +30,29 @@ trees:
 
       gate0:
         kind: gate
-        source: w_pll_main_gate0
+        source: pll_main
         target: w_gate0_div0
 
       div0:
         kind: div
-        source: w_gate0_div0
+        source: gate0
         target: w_div0_inv0
 
       inv0:
         kind: inv
-        source: w_div0_inv0
+        source: div0
         target: w_inv0_dto0
 
       dto0:
         kind: dto
-        source: w_inv0_dto0
+        source: inv0
         target: w_dto0_clk_sys
 
       clk_sys:
         kind: clk
         freq: 100
         path: dut.clk_sys
-        source: w_dto0_clk_sys
+        source: dto0
 
       mux2:
         kind: mux
