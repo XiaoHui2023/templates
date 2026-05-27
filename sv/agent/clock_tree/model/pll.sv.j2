@@ -1,10 +1,6 @@
 `ifndef {{ (class_prefix ~ "pll") | upper }}
 `define {{ (class_prefix ~ "pll") | upper }}
 
-{% if pll_reg_keys %}
-import uvm_reg_pkg::*;
-{% endif %}
-
 class {{ class_prefix }}pll extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}pll)
         `uvm_field_enum({{ class_prefix }}base_item::pll_kind_e, kind, UVM_ALL_ON)

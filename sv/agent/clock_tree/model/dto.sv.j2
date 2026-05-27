@@ -1,10 +1,6 @@
 `ifndef {{ (class_prefix ~ "dto") | upper }}
 `define {{ (class_prefix ~ "dto") | upper }}
 
-{% if dto_reg_keys %}
-import uvm_reg_pkg::*;
-{% endif %}
-
 class {{ class_prefix }}dto extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}dto)
         `uvm_field_int(div_ratio, UVM_ALL_ON)

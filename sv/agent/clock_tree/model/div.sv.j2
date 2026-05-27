@@ -1,10 +1,6 @@
 `ifndef {{ (class_prefix ~ "div") | upper }}
 `define {{ (class_prefix ~ "div") | upper }}
 
-{% if div_reg_keys %}
-import uvm_reg_pkg::*;
-{% endif %}
-
 class {{ class_prefix }}div extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}div)
         `uvm_field_int(div_ratio, UVM_ALL_ON)

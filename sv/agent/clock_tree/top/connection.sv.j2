@@ -1,11 +1,6 @@
 `ifndef {{ (class_prefix ~ "connection") | upper }}
 `define {{ (class_prefix ~ "connection") | upper }}
 
-import uvm_pkg::*;
-{% if class_regmodel %}
-import uvm_reg_pkg::*;
-{% endif %}
-
 {% set _mac_obs = "_" ~ (class_prefix ~ "conn_observe") | replace("-", "_") | upper %}
 {% set _mac_drv = "_" ~ (class_prefix ~ "conn_drive_only") | replace("-", "_") | upper %}
 `define {{ _mac_obs }}(t, n, p, tag) \

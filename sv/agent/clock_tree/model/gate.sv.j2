@@ -1,10 +1,6 @@
 `ifndef {{ (class_prefix ~ "gate") | upper }}
 `define {{ (class_prefix ~ "gate") | upper }}
 
-{% if gate_reg_enabled %}
-import uvm_reg_pkg::*;
-{% endif %}
-
 class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}gate)
         `uvm_field_int(gate, UVM_ALL_ON)

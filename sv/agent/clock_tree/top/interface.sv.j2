@@ -45,13 +45,13 @@ interface {{ class_prefix }}interface #(
                 forever begin
                     @(out);
                     if (out !== out_prev)
-                        uvm_pkg::uvm_report_fatal(
+                        uvm_report_fatal(
                             "CLK_TREE",
                             $sformatf(
                                 "clock_tree %s: out changed without observe path",
                                 INSTANCE_TAG
                             ),
-                            uvm_pkg::UVM_NONE
+                            UVM_NONE
                         );
                     out_prev = out;
                 end
