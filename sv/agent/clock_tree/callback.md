@@ -4,7 +4,7 @@
 
 ## 示例
 
-下例中 **`your_prefix_*`** 须换成本地 **class_prefix** 拼出的类型名；**`sqr`** 为 **kit_interface** 句柄，**callback** 仍注册在 **sequencer** 类型上。
+下例中 **`your_prefix_*`** 须换成本地 **class_prefix** 拼出的类型名；**`sqr`** 为 **kit_sequencer** 句柄，**callback** 仍注册在 **sequencer** 类型上。
 
 ```systemverilog
 class your_prefix_my_cb extends your_prefix_callback;

@@ -4,11 +4,11 @@
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
-    {{ class_prefix }}kit_interface sqr;
+    {{ class_prefix }}kit_sequencer sqr;
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent=null);
         super.new(name, parent);
-        sqr = {{ class_prefix }}kit_interface::type_id::create("sqr", this);
+        sqr = {{ class_prefix }}kit_sequencer::type_id::create("sqr", this);
     endfunction
 
     extern function void build_phase(uvm_phase phase);

@@ -12,6 +12,10 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern function void configure_tree({{ class_prefix }}base_tree tree);
     extern function void configure_all_trees();
 {% endif %}
+    extern function {{ class_prefix }}enable_clock_source_rsp run_enable_clock_source(
+        {{ class_prefix }}node_base node);
+    extern function void run_enable_clock_source_nodes({{ class_prefix }}node_base nodes[$]);
+    extern function void run_enable_clock_source_tree({{ class_prefix }}base_tree tree);
 endclass
 
 {% if setting_defs %}
@@ -26,5 +30,41 @@ function void {{ class_prefix }}kit_sequencer::configure_all_trees();
         configure_settings(trees[i].settings);
 endfunction
 {% endif %}
+
+function {{ class_prefix }}enable_clock_source_rsp {{ class_prefix }}kit_sequencer::run_enable_clock_source(
+        {{ class_prefix }}node_base node);
+    {{ class_prefix }}enable_clock_source_req req;
+    {{ class_prefix }}enable_clock_source_rsp rsp;
+    {{ class_prefix }}enable_clock_source_seq seq;
+
+    if (node == null)
+        `uvm_fatal("CLK_TREE", "run_enable_clock_source: node is null")
+
+    req = {{ class_prefix }}enable_clock_source_req::type_id::create("req");
+    req.node = node;
+
+    seq = {{ class_prefix }}enable_clock_source_seq::type_id::create("enable_clock_source");
+    seq.req = req;
+    seq.start(this);
+    void'(seq.get_response(rsp));
+    return rsp;
+endfunction
+
+function void {{ class_prefix }}kit_sequencer::run_enable_clock_source_nodes({{ class_prefix }}node_base nodes[$]);
+    foreach (nodes[i])
+        void'(run_enable_clock_source(nodes[i]));
+endfunction
+
+function void {{ class_prefix }}kit_sequencer::run_enable_clock_source_tree({{ class_prefix }}base_tree tree);
+    {{ class_prefix }}source src;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "run_enable_clock_source_tree: tree is null")
+
+    foreach (tree.nodes[i]) begin
+        if ($cast(src, tree.nodes[i]))
+            void'(run_enable_clock_source(src));
+    end
+endfunction
 
 `endif
