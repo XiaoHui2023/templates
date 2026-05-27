@@ -22,7 +22,7 @@ function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
     if (!uvm_config_db #({{ class_prefix }}base_tree)::get(this, "", "trees", trees) || trees.size() == 0)
         `uvm_fatal("CLK_TREE", "uvm_config_db #({{ class_prefix }}base_tree) trees is required on agent")
 
-    uvm_config_db #({{ class_prefix }}base_tree)::set(this, "sqr", "trees", trees);
+    sqr.trees = trees;
 endfunction
 
 `endif

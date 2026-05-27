@@ -3,16 +3,16 @@
 
 class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}gate)
-        `uvm_field_int(gate, UVM_ALL_ON)
+        `uvm_field_int(open, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    bit gate;
+    rand bit open;
 {% if gate_reg_enabled %}
-    uvm_reg_field reg_gate_f;
+    uvm_reg_field f_gate;
 {% endif %}
 
     constraint cst_clk_from_src {
-        source != null -> valid == (source.valid && gate);
+        source != null -> valid == (source.valid && open);
     }
 
     function new(string name = "");

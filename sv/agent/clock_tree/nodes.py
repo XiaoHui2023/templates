@@ -13,8 +13,15 @@ PllKind = Literal["PLL_TCI", "PLL_SC", "PLL_DW"]
 class SourceRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., min_length=1, description="前级器件名。")
-    key: Optional[int] = Field(None, description="mux 输入选择键；非 mux 为 null。")
+    name: str = Field(
+        ...,
+        min_length=1,
+        description="前级节点名，与 tree 成员名一致；模板展开为 SV 句柄赋值右端。",
+    )
+    key: Optional[int] = Field(
+        None,
+        description="mux 的 to_source 键；非 mux 为 null。",
+    )
 
 
 class NodeBase(BaseModel):
@@ -23,7 +30,7 @@ class NodeBase(BaseModel):
     name: str = Field(..., min_length=1, description="记录标识；YAML 以 nodes 字典键为准，勿在节点内重复填写。")
     path: str = Field(
         "",
-        description="DUT 信号层次路径；留空则不例化 interface，节点 vif 为 null。",
+        description="RTL 层次路径，仅用于 connection 展开时 force 到 DUT；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
     )
     allow_bad_duty: bool = Field(
         False,
@@ -36,7 +43,15 @@ class NodeBase(BaseModel):
     )
     sources: List[SourceRef] = Field(
         default_factory=list,
-        description="建树时由校验推导的前级列表；配置中勿填。",
+        description="校验后推导的前级连线；非 mux 一项写 source，mux 多项写 to_source；配置中勿填。",
+    )
+    mux_sel_keys: List[int] = Field(
+        default_factory=list,
+        description="mux 可选 sel 键列表；非 mux 为空。",
+    )
+    mux_sel_inside: str = Field(
+        "",
+        description="mux sel inside 集合字面量，如 0, 1；模板直接写入 constraint。",
     )
 
     @field_validator("path")
@@ -69,14 +84,14 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
-    div_ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
+    ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
 
 
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
-    div_ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
+    ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
 
 
 class InvNode(NodeBase):
@@ -238,10 +253,16 @@ def _peer_names(node: Node) -> List[str]:
 
 def _build_sources(node: Node, known: set[str]) -> List[SourceRef]:
     if node.kind == "mux":
-        return [
+        refs = [
             SourceRef(name=peer, key=int(key))
             for key, peer in node.source.items()
         ]
+        for ref in refs:
+            if ref.name not in known:
+                raise ValueError(
+                    f"mux 节点 {node.name!r} 的对端 {ref.name!r} 须为本 tree nodes 的键"
+                )
+        return refs
     if node.kind in ("source", "pll"):
         return []
     peer = node.source
@@ -267,8 +288,12 @@ def enrich_tree_nodes(
         updates: dict[str, Any] = {
             "sources": _build_sources(node, known),
         }
-        if node.kind == "mux" and node.sel is None:
-            updates["sel"] = settings.get("pll_sel", 0)
+        if node.kind == "mux":
+            if node.sel is None:
+                updates["sel"] = settings.get("pll_sel", 0)
+            keys = sorted(int(k) for k in node.source.keys())
+            updates["mux_sel_keys"] = keys
+            updates["mux_sel_inside"] = ", ".join(str(k) for k in keys)
         enriched[key] = node.model_copy(update=updates)
     return enriched
 

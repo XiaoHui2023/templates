@@ -17,14 +17,14 @@ from reg_paths import (
     iter_reg_bindings,
 )
 
-SettingDefType = Literal["int", "longint", "bit", "string"]
+SettingDefType = Literal["str", "int", "bit"]
 
 
 class SettingDef(BaseModel):
     name: str = Field(..., min_length=1, description="设置项名，兼作 settings 与每棵 tree 的 settings 键名。")
     type: SettingDefType = Field(
         ...,
-        description="展开后 settings 成员类型：int、longint、bit、string。",
+        description="展开后 settings 成员类型：str、int、bit。",
     )
     default: Any = Field(..., description="settings.new 中的初值。")
 

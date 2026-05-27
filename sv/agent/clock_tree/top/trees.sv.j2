@@ -16,13 +16,9 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
     rand {{ class_prefix }}{{ node.kind }} {{ node.name }};
 {%- endfor %}
 
-    constraint cst_{{ tree.name }} {
-{%- for node in tree.nodes_ordered %}
-{%- if node.kind in ["clk", "pll", "source"] and node.freq is not none %}
-        soft {{ node.name }}.frequence == {{ node.freq }}'l;
-{%- endif %}
-{%- endfor %}
-    }
+    constraint cst_base;
+    constraint cst_user;
+    constraint cst_case;
 
     function new(string name="{{ class_prefix }}{{ tree.name }}_tree");
         super.new(name);
@@ -34,41 +30,18 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 {%- endif %}
 {%- for node in tree.nodes_ordered %}
         {{ node.name }} = {{ class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
-        {{ node.name }}.path = "{{ node.path }}";
-        {{ node.name }}.allow_bad_duty = {{ 1 if node.allow_bad_duty else 0 }};
-{%- if node.kind == "mux" %}
-        {{ node.name }}.sel = {{ node.sel }};
-{%- endif %}
 {%- if node.kind == "pll" %}
         {{ node.name }}.pll_kind = {{ node.pll_kind }};
-{%- endif %}
-{%- if node.kind in ["div", "dto"] %}
-        {{ node.name }}.div_ratio = {{ node.div_ratio }};
 {%- endif %}
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
 {%- for src in node.sources %}
-        begin
-            {{ class_prefix }}node_base tgt;
-            {{ class_prefix }}node_base drv;
-            tgt = {{ node.name }};
-            foreach (nodes[i]) begin
-                if (nodes[i].get_name() == "{{ src.name }}")
-                    drv = nodes[i];
-            end
 {%- if node.kind == "mux" %}
-            tgt.to_source[{{ src.key }}] = drv;
+        {{ node.name }}.to_source[{{ src.key }}] = {{ src.name }};
 {%- else %}
-            tgt.source = drv;
+        {{ node.name }}.source = {{ src.name }};
 {%- endif %}
-        end
 {%- endfor %}
-{%- endfor %}
-{%- for node in tree.nodes_ordered %}
-{%- if node.kind == "mux" %}
-        if ({{ node.name }}.to_source.exists({{ node.sel }}))
-            {{ node.name }}.source = {{ node.name }}.to_source[{{ node.sel }}];
-{%- endif %}
 {%- endfor %}
         nodes.delete();
 {%- for node in tree.nodes_ordered %}

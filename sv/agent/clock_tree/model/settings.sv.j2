@@ -5,7 +5,7 @@
 class {{ class_prefix }}settings extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}settings)
 {% for def in setting_defs %}
-{% if def.type == 'string' %}
+{% if def.type == 'str' %}
         `uvm_field_string({{ def.name }}, UVM_ALL_ON)
 {% else %}
         `uvm_field_int({{ def.name }}, UVM_ALL_ON)
@@ -14,16 +14,14 @@ class {{ class_prefix }}settings extends {{ class_prefix }}base_item;
     `uvm_object_utils_end
 
 {% for def in setting_defs %}
-    {{ def.type if def.type != "string" else "string" }} {{ def.name }};
+    {{ "string" if def.type == "str" else def.type }} {{ def.name }};
 {% endfor %}
 
     function new(string name="{{ class_prefix }}settings");
         super.new(name);
 {% for def in setting_defs %}
-{% if def.type == 'string' %}
+{% if def.type == 'str' %}
         {{ def.name }} = "{{ def.default | replace('"', '\\"') }}";
-{% elif def.type == 'longint' %}
-        {{ def.name }} = {{ def.default }}'l;
 {% elif def.type == 'bit' %}
         {{ def.name }} = {{ 1 if def.default else 0 }};
 {% else %}

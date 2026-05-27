@@ -3,20 +3,20 @@
 
 class {{ class_prefix }}div extends {{ class_prefix }}node_base;
     `uvm_object_utils_begin({{ class_prefix }}div)
-        `uvm_field_int(div_ratio, UVM_ALL_ON)
+        `uvm_field_int(ratio, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    int div_ratio;
+    rand int ratio;
 {% for key in div_reg_keys %}
-    uvm_reg_field {{ key }}_rf;
+    uvm_reg_field f_{{ key }};
 {% endfor %}
 
     constraint cst_div {
-        div_ratio > 0;
+        ratio > 0;
     }
 
     constraint cst_freq_from_src {
-        source != null -> frequence == source.frequence / div_ratio;
+        source != null -> frequence == source.frequence / ratio;
     }
 
     function new(string name = "");

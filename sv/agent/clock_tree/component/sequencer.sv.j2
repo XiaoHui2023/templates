@@ -5,8 +5,6 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
     `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
 
-    {{ class_prefix }}base_tree trees[$];
-
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
@@ -19,9 +17,6 @@ endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
-
-    if (!uvm_config_db #({{ class_prefix }}base_tree)::get(this, "", "trees", trees) || trees.size() == 0)
-        `uvm_fatal("CLK_TREE", "uvm_config_db #({{ class_prefix }}base_tree) trees is required on sequencer")
 endfunction
 
 {% if setting_defs %}

@@ -10,10 +10,14 @@ class {{ class_prefix }}pll extends {{ class_prefix }}node_base;
     pll_kind_e pll_kind;
     bit locked;
 {% for key in pll_reg_keys %}
-    uvm_reg_field {{ key }}_rf;
+    uvm_reg_field f_{{ key }};
 {% endfor %}
 
     constraint cst_freq_from_src;
+
+    constraint cst_pll {
+        frequence > 0 -> valid == 1;
+    }
 
     function new(string name = "");
         super.new(name);

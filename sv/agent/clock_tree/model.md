@@ -41,18 +41,27 @@ classDiagram
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | kind | string | 器件类型；各派生类在 **new** 中设为配置 **kind** 字面量 |
-| path | string | DUT 信号层次路径；留空则不例化 interface，**vif** 为 null |
-| allow_bad_duty | bit | 为真时放宽占空比检查 |
-| frequence | longint | 典型频率，单位 Hz，rand |
-| valid | bit，rand | 当前节点时钟是否有效；无前级时由子类约束 |
-| vif | virtual interface | **path** 非空时由 **connection** 绑定对应 interface |
+| allow_bad_duty | bit，rand | 为真时放宽占空比检查；**node_base** 软约束默认为 0，配置为真时 **tree** 软约束为 1 |
+| frequence | longint，rand | 典型频率，单位 Hz；**cst_node_base** 软约束默认为 0 |
+| valid | bit，rand | 时钟是否有效；**cst_node_base** 软约束默认为 0 |
+| vif | virtual interface | 配置中填写 RTL 路径时由 **connection** 绑定对应 interface；未配置则为 null |
 | source | 节点句柄 | 前级驱动；无配置则为 null |
 | cst_clk_from_src | 约束 | 前级非空时 **valid** 与前级一致；子类可重载 |
 | cst_freq_from_src | 约束 | 前级非空时 **frequence** 与前级一致；子类可重载或空关断 |
 
+## base_tree
+
+整棵时钟树的节点容器。
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| nodes | 节点队列 | 建树后装入的全部节点句柄 |
+| low_power | bit，rand | 低功耗；软约束默认为 0。为 0 时 **cst_base** 将各 **gate** 的 **valid** 软约束为 1；为 1 时软约束为 0 |
+| settings | settings | 仅声明 **setting_defs** 时存在 |
+
 ## source
 
-配置 **kind: source** 的时钟根节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束或随机。
+配置 **kind: source** 的时钟根节点；无前级时 **cst_freq_from_src** 不施加频率等式，频率由 **tree** 软约束或随机。**cst_source**：**frequence** 大于 0 时 **valid** 为 1。
 
 ## clk
 
@@ -60,7 +69,7 @@ classDiagram
 
 ## pll
 
-PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指向配置典型值。
+PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指向配置典型值。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
 
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
@@ -80,8 +89,10 @@ PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指�
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| sel | int | 选择值 |
-| to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 按 **sel** 写入 **source** |
+| sel | int，rand | 选择值；**cst_base** 中 **inside** 与软约束与配置一致 |
+| to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 在 **to_source[sel] != null** 时写入 **source** |
+
+**cst_clk_from_src**：**to_source[sel]** 为空则 **valid** 为 0，否则随所选前级 **valid**。
 
 ## div
 
@@ -89,10 +100,10 @@ PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指�
 
 | 成员 / 配置 | 说明 |
 | --- | --- |
-| div_ratio | 分频比，默认 1，须大于 0 |
+| ratio | 分频比，rand，默认 1，须大于 0 |
 | regs | 可选；逻辑名 **ratio**、**enable**、**bypass** 对应 **uvm_reg_field**；值为自 RAL 根起的点分路径，或一层 block 名下挂 field 短名 |
 
-**cst_div**：**div_ratio** 须大于 0；重载 **cst_freq_from_src**，前级频率整除 **div_ratio**。
+**cst_div**：**ratio** 须大于 0；重载 **cst_freq_from_src**，前级频率整除 **ratio**。**cst_base** 软约束配置典型 **ratio**。
 
 ## dto
 
@@ -100,10 +111,10 @@ PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指�
 
 | 成员 / 配置 | 说明 |
 | --- | --- |
-| div_ratio | 分频比，默认 1，须大于 0 |
+| ratio | 分频比，rand，默认 1，须大于 0 |
 | regs | 可选；逻辑名 **ratio**、**duty**、**enable**、**bypass**；路径写法同 **div** |
 
-频率约束同 **div**。
+频率约束同 **div**。**cst_base** 软约束配置典型 **ratio**。
 
 ## gate
 
@@ -111,15 +122,11 @@ PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指�
 
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
-| gate | bit | 门控开关 |
+| open | bit，rand | 为真时开放时钟通行；为假时屏蔽输出 |
 | reg_gate | string，可选 | 门控 field 点分路径；省略表示无寄存器 |
 
-重载 **cst_clk_from_src**：前级有效且 **gate** 为真时 **valid** 为真。
+重载 **cst_clk_from_src**：前级有效且 **open** 为真时 **valid** 为真。
 
 ## inv
 
-反相器节点。
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| inv | bit | 反相使能 |
+反相器节点；除 **node_base** 公共字段外无附加成员。

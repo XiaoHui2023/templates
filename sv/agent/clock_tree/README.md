@@ -51,7 +51,7 @@ trees:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `name` | `str` | 必填 | 设置项名，也是每棵 tree 的 `settings` 键名。 |
-| `type` | `int`, `longint`, `bit`, `string` | 必填 | 设置项成员类型。 |
+| `type` | `str`, `int`, `bit` | 必填 | 设置项成员类型。 |
 | `default` | `Any` | 必填 | 设置项默认取值。 |
 
 ### Tree
@@ -70,7 +70,7 @@ trees:
 | --- | --- | --- | --- |
 | `kind` | `str` | 必填 | 节点类型。 |
 | `name` | `str` | — | 由 `nodes` 字典键注入，配置中勿填。 |
-| `path` | `str` | `""` | DUT 上的实例层次路径。 |
+| `path` | `str` | `""` | RTL 层次路径，仅用于 **connection** 展开；不写入节点类。留空则不生成 interface。 |
 | `allow_bad_duty` | `bool` | `false` | 为真时放宽占空比检查。 |
 | `freq` | `optional int` | `null` | 典型频率。 |
 
@@ -80,7 +80,7 @@ trees:
 | `pll` | `targets`, `pll_kind` | `targets` 必填，`pll_kind` 为 `PLL_TCI` | PLL 节点，`pll_kind` 可为 `PLL_TCI`、`PLL_SC`、`PLL_DW`。 |
 | `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写前级节点名。 |
 | `gate` | `source`, `target` | `source` 与 `target` 必填 | 门控节点，`source` 写前级节点名，`target` 写输出连线名。 |
-| `div` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | 分频节点，`source` 写前级节点名，`div_ratio` 写分频比。 |
-| `dto` | `source`, `target`, `div_ratio` | `source` 与 `target` 必填，`div_ratio` 为 `1` | DTO 分频节点，`source` 写前级节点名，`div_ratio` 写分频比。 |
+| `div` | `source`, `target`, `ratio` | `source` 与 `target` 必填，`ratio` 为 `1` | 分频节点，`source` 写前级节点名，`ratio` 写分频比。 |
+| `dto` | `source`, `target`, `ratio` | `source` 与 `target` 必填，`ratio` 为 `1` | DTO 分频节点，`source` 写前级节点名，`ratio` 写分频比。 |
 | `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写前级节点名，`target` 写输出连线名。 |
 | `mux` | `source`, `target`, `sel` | `source` 与 `target` 必填，`sel` 省略时取 `settings.pll_sel`，没有该键则为 `0` | 多路选择节点，`source` 的键为输入选择值，值为对端器件名。 |

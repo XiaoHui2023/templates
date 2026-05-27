@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "base_seq") | upper }}
 `define {{ (class_prefix ~ "base_seq") | upper }}
 
-class {{ class_prefix }}base_seq extends uvm_sequence;
+class {{ class_prefix }}base_seq extends {{ class_prefix }}spec#(uvm_sequence);
     `uvm_object_utils({{ class_prefix }}base_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 

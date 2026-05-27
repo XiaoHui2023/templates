@@ -4,7 +4,9 @@
 class {{ class_prefix }}source extends {{ class_prefix }}node_base;
     `uvm_object_utils({{ class_prefix }}source)
 
-    constraint cst_freq_from_src;
+    constraint cst_source {
+        frequence > 0 -> valid == 1;
+    }
 
     function new(string name = "");
         super.new(name);

@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "check_clk_rsp") | upper }}
+`define {{ (class_prefix ~ "check_clk_rsp") | upper }}
+
+class {{ class_prefix }}check_clk_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}check_clk_rsp)
+        `uvm_field_int(ok, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit ok;
+
+    function new(string name = "{{ class_prefix }}check_clk_rsp");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -4,7 +4,7 @@
 
 ## interface
 
-每节点在 **path** 非空时例化一个 **interface** 实例；时间单位为 **1ns**、精度 **1fs**。
+配置中为该节点填写 RTL 路径时，**connection** 例化一个 **interface** 并 force 到 DUT；时间单位为 **1ns**、精度 **1fs**。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |

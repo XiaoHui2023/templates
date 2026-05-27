@@ -1,0 +1,84 @@
+`ifndef {{ (class_prefix ~ "check_clk_seq") | upper }}
+`define {{ (class_prefix ~ "check_clk_seq") | upper }}
+
+class {{ class_prefix }}check_clk_seq extends uvm_sequence #(
+    {{ class_prefix }}check_clk_req,
+    {{ class_prefix }}check_clk_rsp
+);
+    `uvm_object_utils({{ class_prefix }}check_clk_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name = "{{ class_prefix }}check_clk_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}check_clk_seq::body();
+    {{ class_prefix }}check_clk_req rq;
+    {{ class_prefix }}check_clk_rsp rs;
+    {{ class_prefix }}clk clk_nd;
+    int meas_timeout_ns;
+    int elapsed_ns;
+    real expected_hz;
+    real measured_hz;
+    real rel_diff;
+
+    meas_timeout_ns = (1_000_000_000 + {{ min_freq_hz }} - 1) / {{ min_freq_hz }};
+
+    if (req == null)
+        `uvm_fatal("CLK_TREE", "check_clk: req is null")
+
+    rq = req;
+    if (rq.tree == null)
+        `uvm_fatal("CLK_TREE", "check_clk: req.tree is null")
+
+    rs = {{ class_prefix }}check_clk_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    foreach (rq.tree.nodes[i]) begin
+        if (!$cast(clk_nd, rq.tree.nodes[i]))
+            continue;
+        if (clk_nd.vif == null)
+            continue;
+
+        clk_nd.vif.set_measure_en(1'b1);
+        elapsed_ns = 0;
+        while (!clk_nd.vif.meas.stable && elapsed_ns < meas_timeout_ns) begin
+            #1ns;
+            elapsed_ns++;
+        end
+        clk_nd.vif.set_measure_en(1'b0);
+
+        if (!clk_nd.vif.meas.stable) begin
+            `uvm_error("CLK_TREE", $sformatf(
+                "check_clk: node %s did not stabilize", clk_nd.get_name()))
+            rs.ok = 1'b0;
+            continue;
+        end
+
+        expected_hz = real'(clk_nd.frequence);
+        measured_hz = clk_nd.vif.meas.freq_hz;
+        if (expected_hz <= 0.0) begin
+            `uvm_error("CLK_TREE", $sformatf(
+                "check_clk: node %s frequence must be positive", clk_nd.get_name()))
+            rs.ok = 1'b0;
+            continue;
+        end
+
+        rel_diff = (measured_hz > expected_hz) ?
+            (measured_hz - expected_hz) / expected_hz :
+            (expected_hz - measured_hz) / expected_hz;
+        if (rel_diff > {{ period_tolerance }}) begin
+            `uvm_error("CLK_TREE", $sformatf(
+                "check_clk: node %s freq expected %0.0f Hz measured %0.2f Hz rel %0.4f",
+                clk_nd.get_name(), expected_hz, measured_hz, rel_diff))
+            rs.ok = 1'b0;
+        end
+    end
+
+    rsp = rs;
+endtask
+
+`endif

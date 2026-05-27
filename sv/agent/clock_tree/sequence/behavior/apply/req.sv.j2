@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "apply_req") | upper }}
+`define {{ (class_prefix ~ "apply_req") | upper }}
+
+class {{ class_prefix }}apply_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}apply_req)
+        `uvm_field_object(tree, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    {{ class_prefix }}base_tree tree;
+
+    function new(string name = "{{ class_prefix }}apply_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

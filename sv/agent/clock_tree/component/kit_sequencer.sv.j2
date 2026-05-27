@@ -4,6 +4,8 @@
 class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     `uvm_component_utils({{ class_prefix }}kit_sequencer)
 
+    {{ class_prefix }}base_tree trees[$];
+
     function new(string name="{{ class_prefix }}kit_sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
@@ -12,10 +14,21 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern function void configure_tree({{ class_prefix }}base_tree tree);
     extern function void configure_all_trees();
 {% endif %}
-    extern function {{ class_prefix }}enable_clock_source_rsp run_enable_clock_source(
-        {{ class_prefix }}node_base node);
-    extern function void run_enable_clock_source_nodes({{ class_prefix }}node_base nodes[$]);
-    extern function void run_enable_clock_source_tree({{ class_prefix }}base_tree tree);
+    extern function {{ class_prefix }}set_clock_gen_rsp run_set_clock_gen(
+        {{ class_prefix }}node_base node, bit gen_en = 1'b1);
+    extern function void run_set_clock_gen_nodes(
+        {{ class_prefix }}node_base nodes[$], bit gen_en = 1'b1);
+    extern function void run_set_clock_gen_tree(
+        {{ class_prefix }}base_tree tree, bit gen_en = 1'b1);
+    extern function void run_set_clock_gen_trees(
+        {{ class_prefix }}base_tree trees[$], bit gen_en = 1'b1);
+    extern function void gen_source_clock();
+    extern function {{ class_prefix }}set_pll_rsp run_set_pll({{ class_prefix }}pll node);
+    extern function {{ class_prefix }}apply_rsp run_apply({{ class_prefix }}base_tree tree);
+    extern function {{ class_prefix }}check_clk_rsp run_check_clk({{ class_prefix }}base_tree tree);
+    extern function {{ class_prefix }}check_pll_rsp run_check_pll({{ class_prefix }}base_tree tree);
+    extern function {{ class_prefix }}check_duty_rsp run_check_duty(
+        {{ class_prefix }}base_tree tree, bit gen_after_check = 1'b0);
 endclass
 
 {% if setting_defs %}
@@ -27,44 +40,158 @@ endfunction
 
 function void {{ class_prefix }}kit_sequencer::configure_all_trees();
     foreach (trees[i])
-        configure_settings(trees[i].settings);
+        configure_tree(trees[i]);
 endfunction
 {% endif %}
 
-function {{ class_prefix }}enable_clock_source_rsp {{ class_prefix }}kit_sequencer::run_enable_clock_source(
-        {{ class_prefix }}node_base node);
-    {{ class_prefix }}enable_clock_source_req req;
-    {{ class_prefix }}enable_clock_source_rsp rsp;
-    {{ class_prefix }}enable_clock_source_seq seq;
+function {{ class_prefix }}set_clock_gen_rsp {{ class_prefix }}kit_sequencer::run_set_clock_gen(
+        {{ class_prefix }}node_base node, bit gen_en);
+    {{ class_prefix }}set_clock_gen_req req;
+    {{ class_prefix }}set_clock_gen_rsp rsp;
+    {{ class_prefix }}set_clock_gen_seq seq;
 
     if (node == null)
-        `uvm_fatal("CLK_TREE", "run_enable_clock_source: node is null")
+        `uvm_fatal("CLK_TREE", "run_set_clock_gen: node is null")
 
-    req = {{ class_prefix }}enable_clock_source_req::type_id::create("req");
+    req = {{ class_prefix }}set_clock_gen_req::type_id::create("req");
     req.node = node;
+    req.gen_en = gen_en;
 
-    seq = {{ class_prefix }}enable_clock_source_seq::type_id::create("enable_clock_source");
+    seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
     seq.req = req;
     seq.start(this);
     void'(seq.get_response(rsp));
     return rsp;
 endfunction
 
-function void {{ class_prefix }}kit_sequencer::run_enable_clock_source_nodes({{ class_prefix }}node_base nodes[$]);
+function void {{ class_prefix }}kit_sequencer::run_set_clock_gen_nodes(
+        {{ class_prefix }}node_base nodes[$], bit gen_en);
     foreach (nodes[i])
-        void'(run_enable_clock_source(nodes[i]));
+        void'(run_set_clock_gen(nodes[i], gen_en));
 endfunction
 
-function void {{ class_prefix }}kit_sequencer::run_enable_clock_source_tree({{ class_prefix }}base_tree tree);
-    {{ class_prefix }}source src;
-
+function void {{ class_prefix }}kit_sequencer::run_set_clock_gen_tree(
+        {{ class_prefix }}base_tree tree, bit gen_en);
     if (tree == null)
-        `uvm_fatal("CLK_TREE", "run_enable_clock_source_tree: tree is null")
+        `uvm_fatal("CLK_TREE", "run_set_clock_gen_tree: tree is null")
 
     foreach (tree.nodes[i]) begin
-        if ($cast(src, tree.nodes[i]))
-            void'(run_enable_clock_source(src));
+        if (tree.nodes[i].vif != null)
+            void'(run_set_clock_gen(tree.nodes[i], gen_en));
     end
+endfunction
+
+function void {{ class_prefix }}kit_sequencer::run_set_clock_gen_trees(
+        {{ class_prefix }}base_tree trees[$], bit gen_en);
+    foreach (trees[i])
+        run_set_clock_gen_tree(trees[i], gen_en);
+endfunction
+
+function void {{ class_prefix }}kit_sequencer::gen_source_clock();
+    {{ class_prefix }}source src;
+
+    foreach (trees[i]) begin
+        foreach (trees[i].nodes[j]) begin
+            if ($cast(src, trees[i].nodes[j]))
+                void'(run_set_clock_gen(src, 1'b1));
+        end
+    end
+endfunction
+
+function {{ class_prefix }}set_pll_rsp {{ class_prefix }}kit_sequencer::run_set_pll(
+        {{ class_prefix }}pll node);
+    {{ class_prefix }}set_pll_req req;
+    {{ class_prefix }}set_pll_rsp rsp;
+    {{ class_prefix }}set_pll_seq seq;
+
+    if (node == null)
+        `uvm_fatal("CLK_TREE", "run_set_pll: node is null")
+
+    req = {{ class_prefix }}set_pll_req::type_id::create("req");
+    req.node = node;
+
+    seq = {{ class_prefix }}set_pll_seq::type_id::create("set_pll");
+    seq.req = req;
+    seq.start(this);
+    void'(seq.get_response(rsp));
+    return rsp;
+endfunction
+
+function {{ class_prefix }}apply_rsp {{ class_prefix }}kit_sequencer::run_apply(
+        {{ class_prefix }}base_tree tree);
+    {{ class_prefix }}apply_req req;
+    {{ class_prefix }}apply_rsp rsp;
+    {{ class_prefix }}apply_seq seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "run_apply: tree is null")
+
+    req = {{ class_prefix }}apply_req::type_id::create("req");
+    req.tree = tree;
+
+    seq = {{ class_prefix }}apply_seq::type_id::create("apply");
+    seq.req = req;
+    seq.start(this);
+    void'(seq.get_response(rsp));
+    return rsp;
+endfunction
+
+function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::run_check_clk(
+        {{ class_prefix }}base_tree tree);
+    {{ class_prefix }}check_clk_req req;
+    {{ class_prefix }}check_clk_rsp rsp;
+    {{ class_prefix }}check_clk_seq seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "run_check_clk: tree is null")
+
+    req = {{ class_prefix }}check_clk_req::type_id::create("req");
+    req.tree = tree;
+
+    seq = {{ class_prefix }}check_clk_seq::type_id::create("check_clk");
+    seq.req = req;
+    seq.start(this);
+    void'(seq.get_response(rsp));
+    return rsp;
+endfunction
+
+function {{ class_prefix }}check_pll_rsp {{ class_prefix }}kit_sequencer::run_check_pll(
+        {{ class_prefix }}base_tree tree);
+    {{ class_prefix }}check_pll_req req;
+    {{ class_prefix }}check_pll_rsp rsp;
+    {{ class_prefix }}check_pll_seq seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "run_check_pll: tree is null")
+
+    req = {{ class_prefix }}check_pll_req::type_id::create("req");
+    req.tree = tree;
+
+    seq = {{ class_prefix }}check_pll_seq::type_id::create("check_pll");
+    seq.req = req;
+    seq.start(this);
+    void'(seq.get_response(rsp));
+    return rsp;
+endfunction
+
+function {{ class_prefix }}check_duty_rsp {{ class_prefix }}kit_sequencer::run_check_duty(
+        {{ class_prefix }}base_tree tree, bit gen_after_check);
+    {{ class_prefix }}check_duty_req req;
+    {{ class_prefix }}check_duty_rsp rsp;
+    {{ class_prefix }}check_duty_seq seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "run_check_duty: tree is null")
+
+    req = {{ class_prefix }}check_duty_req::type_id::create("req");
+    req.tree = tree;
+    req.gen_after_check = gen_after_check;
+
+    seq = {{ class_prefix }}check_duty_seq::type_id::create("check_duty");
+    seq.req = req;
+    seq.start(this);
+    void'(seq.get_response(rsp));
+    return rsp;
 endfunction
 
 `endif

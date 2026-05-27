@@ -6,15 +6,16 @@ class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
         `uvm_field_int(sel, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    int sel;
+    rand int sel;
     {{ class_prefix }}node_base to_source[int];
 
     constraint cst_clk_from_src {
-        to_source.exists(sel) -> valid == to_source[sel].valid;
+        to_source[sel] == null -> valid == 0;
+        to_source[sel] != null -> valid == to_source[sel].valid;
     }
 
     constraint cst_freq_from_src {
-        to_source.exists(sel) -> frequence == to_source[sel].frequence;
+        to_source[sel] != null -> frequence == to_source[sel].frequence;
     }
 
     function new(string name = "");
@@ -23,7 +24,8 @@ class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
     endfunction
 
     function void post_randomize();
-        if (to_source.exists(sel))
+        super.post_randomize();
+        if (to_source[sel] != null)
             source = to_source[sel];
     endfunction
 endclass
