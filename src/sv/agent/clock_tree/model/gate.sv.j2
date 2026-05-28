@@ -7,9 +7,7 @@ class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
     `uvm_object_utils_end
 
     rand bit open;
-{% if gate_reg_enabled %}
-    uvm_reg_field f_gate;
-{% endif %}
+    uvm_reg_field f_reg;
 
     constraint cst_clk_from_src {
         source != null -> valid == (source.valid && open);

@@ -13,12 +13,151 @@ class {{ class_prefix }}configure_seq extends uvm_sequence #(
     endfunction
 
     extern virtual task body();
+    extern task configure_gate_node({{ class_prefix }}gate gate_nd);
+    extern task configure_mux_node({{ class_prefix }}mux mux_nd);
+    extern task configure_div_node({{ class_prefix }}div div_nd);
+    extern task configure_dto_node({{ class_prefix }}dto dto_nd);
+    extern task configure_pll_node({{ class_prefix }}base_pll pll_nd);
+    extern task wait_pll_lock_node({{ class_prefix }}base_pll pll_nd);
 endclass
+
+task {{ class_prefix }}configure_seq::configure_gate_node({{ class_prefix }}gate gate_nd);
+    if (gate_nd.f_reg == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: gate %s f_reg not bound", gate_nd.get_name()))
+    {{ class_prefix }}configure_gate(gate_nd.f_reg, gate_nd.open);
+endtask
+
+task {{ class_prefix }}configure_seq::configure_mux_node({{ class_prefix }}mux mux_nd);
+    if (mux_nd.f_reg == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: mux %s f_reg not bound", mux_nd.get_name()))
+    {{ class_prefix }}configure_mux(mux_nd.f_reg, mux_nd.sel);
+endtask
+
+task {{ class_prefix }}configure_seq::configure_div_node({{ class_prefix }}div div_nd);
+    if (div_nd.f_reg == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: div %s f_reg not bound", div_nd.get_name()))
+    {{ class_prefix }}configure_div(div_nd.f_reg, div_nd.ratio);
+endtask
+
+task {{ class_prefix }}configure_seq::configure_dto_node({{ class_prefix }}dto dto_nd);
+    if (dto_nd.f_rstn == null || dto_nd.f_load == null || dto_nd.f_bypass == null
+            || dto_nd.f_step == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: dto %s regs not bound", dto_nd.get_name()))
+    {{ class_prefix }}configure_dto(
+        dto_nd.f_rstn, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
+endtask
+
+task {{ class_prefix }}configure_seq::configure_pll_node({{ class_prefix }}base_pll pll_nd);
+    longint ref_hz;
+    uvm_reg_data_t clkr;
+    uvm_reg_data_t clkf;
+    uvm_reg_data_t clkod;
+    uvm_reg_data_t bwadj;
+    uvm_reg_data_t fbdiv;
+    uvm_reg_data_t refdiv;
+    uvm_reg_data_t postdiv1;
+    uvm_reg_data_t postdiv2;
+    uvm_reg_data_t prediv;
+    uvm_reg_data_t divvcop;
+    uvm_reg_data_t p;
+    uvm_reg_data_t divvcor;
+    uvm_reg_data_t r;
+    {{ class_prefix }}pll_tci pll_tci_nd;
+    {{ class_prefix }}pll_sc pll_sc_nd;
+    {{ class_prefix }}pll_dw pll_dw_nd;
+
+    if (pll_nd.source == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: pll %s has no source for ref frequency", pll_nd.get_name()))
+
+    ref_hz = pll_nd.source.frequence;
+    if (ref_hz <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: pll %s source frequence must be positive", pll_nd.get_name()))
+
+    if ($cast(pll_tci_nd, pll_nd)) begin
+        if (pll_tci_nd.f_bypass == null || pll_tci_nd.f_pwrdn == null || pll_tci_nd.f_reset == null
+                || pll_tci_nd.f_clkod == null || pll_tci_nd.f_clkf == null
+                || pll_tci_nd.f_clkr == null || pll_tci_nd.f_bwadj == null)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "configure: pll_tci %s regs not bound", pll_tci_nd.get_name()))
+        {{ class_prefix }}pll_tci_divisors(
+            pll_tci_nd.frequence, ref_hz, clkr, clkf, clkod, bwadj);
+        {{ class_prefix }}configure_pll_tci(
+            pll_tci_nd.f_bypass, pll_tci_nd.f_pwrdn, pll_tci_nd.f_reset, pll_tci_nd.f_clkod,
+            pll_tci_nd.f_clkf, pll_tci_nd.f_clkr, pll_tci_nd.f_bwadj,
+            clkr, clkf, clkod, bwadj);
+    end else if ($cast(pll_sc_nd, pll_nd)) begin
+        if (pll_sc_nd.f_vocpd == null || pll_sc_nd.f_postdivpd == null || pll_sc_nd.f_dsmpd == null
+                || pll_sc_nd.f_pd == null || pll_sc_nd.f_bypass == null || pll_sc_nd.f_refdiv == null
+                || pll_sc_nd.f_postdiv2 == null || pll_sc_nd.f_postdiv1 == null
+                || pll_sc_nd.f_fbdiv == null)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "configure: pll_sc %s regs not bound", pll_sc_nd.get_name()))
+        {{ class_prefix }}pll_sc_divisors(
+            pll_sc_nd.frequence, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
+        {{ class_prefix }}configure_pll_sc(
+            pll_sc_nd.f_vocpd, pll_sc_nd.f_postdivpd, pll_sc_nd.f_dsmpd, pll_sc_nd.f_pd,
+            pll_sc_nd.f_bypass, pll_sc_nd.f_refdiv, pll_sc_nd.f_postdiv2, pll_sc_nd.f_postdiv1,
+            pll_sc_nd.f_fbdiv, fbdiv, refdiv, postdiv1, postdiv2);
+    end else if ($cast(pll_dw_nd, pll_nd)) begin
+        if (pll_dw_nd.f_fbdiv == null || pll_dw_nd.f_prediv == null || pll_dw_nd.f_reset == null
+                || pll_dw_nd.f_pwron == null || pll_dw_nd.f_shift == null || pll_dw_nd.f_bypass == null
+                || pll_dw_nd.f_divvcor == null || pll_dw_nd.f_r == null || pll_dw_nd.f_p == null
+                || pll_dw_nd.f_divvcop == null || pll_dw_nd.f_enr == null || pll_dw_nd.f_enp == null)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "configure: pll_dw %s regs not bound", pll_dw_nd.get_name()))
+        {{ class_prefix }}pll_dw_divisors(
+            pll_dw_nd.frequence, ref_hz, fbdiv, prediv, divvcop, p, divvcor, r);
+        {{ class_prefix }}configure_pll_dw(
+            pll_dw_nd.f_fbdiv, pll_dw_nd.f_prediv, pll_dw_nd.f_reset, pll_dw_nd.f_pwron,
+            pll_dw_nd.f_shift, pll_dw_nd.f_bypass, pll_dw_nd.f_divvcor, pll_dw_nd.f_r,
+            pll_dw_nd.f_p, pll_dw_nd.f_divvcop, pll_dw_nd.f_enr, pll_dw_nd.f_enp,
+            fbdiv, prediv, divvcop, p, divvcor, r);
+    end else
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: pll %s is not pll_tci, pll_sc, or pll_dw", pll_nd.get_name()))
+endtask
+
+task {{ class_prefix }}configure_seq::wait_pll_lock_node({{ class_prefix }}base_pll pll_nd);
+    {{ class_prefix }}pll_tci pll_tci_nd;
+    {{ class_prefix }}pll_sc pll_sc_nd;
+    {{ class_prefix }}pll_dw pll_dw_nd;
+    uvm_reg_field f_lock;
+
+    f_lock = null;
+    if ($cast(pll_tci_nd, pll_nd))
+        f_lock = pll_tci_nd.f_lock;
+    else if ($cast(pll_sc_nd, pll_nd))
+        f_lock = pll_sc_nd.f_lock;
+    else if ($cast(pll_dw_nd, pll_nd))
+        f_lock = pll_dw_nd.f_lock;
+    else
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: pll %s is not pll_tci, pll_sc, or pll_dw", pll_nd.get_name()))
+
+    if (f_lock == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "configure: pll %s f_lock not bound", pll_nd.get_name()))
+    {{ class_prefix }}wait_pll_lock(f_lock, {{ pll_lock_timeout_us }}us);
+    pll_nd.locked = 1'b1;
+endtask
 
 task {{ class_prefix }}configure_seq::body();
     {{ class_prefix }}configure_req rq;
     {{ class_prefix }}configure_rsp rs;
+    {{ class_prefix }}gate gate_nd;
+    {{ class_prefix }}mux mux_nd;
+    {{ class_prefix }}div div_nd;
+    {{ class_prefix }}dto dto_nd;
+    {{ class_prefix }}base_pll pll_nd;
+    {{ class_prefix }}base_pll plls[$];
     int n_nodes;
+    int n_pll;
 
     if (req == null)
         `uvm_fatal("CLK_TREE", "configure: req is null")
@@ -30,9 +169,29 @@ task {{ class_prefix }}configure_seq::body();
     rs = {{ class_prefix }}configure_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
     n_nodes = rq.nodes.size();
+    n_pll = 0;
+
+    for (int i = 0; i < n_nodes; i++) begin
+        if ($cast(gate_nd, rq.nodes[i]))
+            configure_gate_node(gate_nd);
+        else if ($cast(mux_nd, rq.nodes[i]))
+            configure_mux_node(mux_nd);
+        else if ($cast(div_nd, rq.nodes[i]))
+            configure_div_node(div_nd);
+        else if ($cast(dto_nd, rq.nodes[i]))
+            configure_dto_node(dto_nd);
+        else if ($cast(pll_nd, rq.nodes[i])) begin
+            configure_pll_node(pll_nd);
+            plls.push_back(pll_nd);
+            n_pll++;
+        end
+    end
+
+    for (int i = 0; i < plls.size(); i++)
+        wait_pll_lock_node(plls[i]);
 
     `uvm_info("CLK_TREE", $sformatf(
-        "configure: %0d node(s), ok %0b", n_nodes, rs.ok), UVM_HIGH)
+        "configure: %0d node(s), %0d pll locked, ok %0b", n_nodes, n_pll, rs.ok), UVM_HIGH)
 
     rsp = rs;
 endtask

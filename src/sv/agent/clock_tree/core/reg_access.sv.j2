@@ -1,0 +1,14 @@
+`ifndef {{ (class_prefix ~ "reg_access") | upper }}
+`define {{ (class_prefix ~ "reg_access") | upper }}
+
+function automatic void {{ class_prefix }}reg_field_set(uvm_reg_field f, uvm_reg_data_t value);
+    uvm_status_e status;
+    if (f == null)
+        `uvm_fatal("CLK_TREE", "reg_field_set: field is null")
+    f.set(value, status);
+    if (status != UVM_IS_OK)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "reg_field_set: %s set 0x%0h failed", f.get_full_name(), value))
+endfunction
+
+`endif

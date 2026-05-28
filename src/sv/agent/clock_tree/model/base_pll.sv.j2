@@ -1,17 +1,14 @@
-`ifndef {{ (class_prefix ~ "pll") | upper }}
-`define {{ (class_prefix ~ "pll") | upper }}
+`ifndef {{ (class_prefix ~ "base_pll") | upper }}
+`define {{ (class_prefix ~ "base_pll") | upper }}
 
-class {{ class_prefix }}pll extends {{ class_prefix }}node_base;
-    `uvm_object_utils_begin({{ class_prefix }}pll)
+class {{ class_prefix }}base_pll extends {{ class_prefix }}node_base;
+    `uvm_object_utils_begin({{ class_prefix }}base_pll)
         `uvm_field_enum(pll_kind_e, pll_kind, UVM_ALL_ON)
         `uvm_field_int(locked, UVM_ALL_ON)
     `uvm_object_utils_end
 
     pll_kind_e pll_kind;
     bit locked;
-{% for key in pll_reg_keys %}
-    uvm_reg_field f_{{ key }};
-{% endfor %}
 
     constraint cst_freq_from_src;
 

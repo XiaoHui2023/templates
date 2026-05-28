@@ -16,7 +16,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern function void set_clock_gen(
         {{ class_prefix }}node_base nodes[$], bit gen_en = 1'b1);
     extern function void gen_source_clock();
-    extern function {{ class_prefix }}set_pll_rsp set_pll({{ class_prefix }}pll node);
+    extern function {{ class_prefix }}set_pll_rsp set_pll({{ class_prefix }}base_pll node);
     extern function {{ class_prefix }}configure_rsp configure({{ class_prefix }}node_base nodes[$]);
     extern function {{ class_prefix }}check_clk_rsp check_clk({{ class_prefix }}node_base nodes[$]);
     extern function {{ class_prefix }}check_pll_rsp check_pll({{ class_prefix }}node_base nodes[$]);
@@ -89,7 +89,7 @@ function void {{ class_prefix }}kit_sequencer::gen_source_clock();
 endfunction
 
 function {{ class_prefix }}set_pll_rsp {{ class_prefix }}kit_sequencer::set_pll(
-        {{ class_prefix }}pll node);
+        {{ class_prefix }}base_pll node);
     {{ class_prefix }}set_pll_req req;
     {{ class_prefix }}set_pll_rsp rsp;
     {{ class_prefix }}set_pll_seq seq;

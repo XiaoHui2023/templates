@@ -7,12 +7,14 @@ class {{ class_prefix }}dto extends {{ class_prefix }}node_base;
     `uvm_object_utils_end
 
     rand int ratio;
-{% for key in dto_reg_keys %}
-    uvm_reg_field f_{{ key }};
-{% endfor %}
+    uvm_reg_field f_rstn;
+    uvm_reg_field f_load;
+    uvm_reg_field f_bypass;
+    uvm_reg_field f_step;
 
     constraint cst_dto {
         ratio > 0;
+        ratio <= (1 << 25);
     }
 
     constraint cst_freq_from_src {

@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "pll_sc") | upper }}
+`define {{ (class_prefix ~ "pll_sc") | upper }}
+
+class {{ class_prefix }}pll_sc extends {{ class_prefix }}base_pll;
+    `uvm_object_utils({{ class_prefix }}pll_sc)
+{%- for key in pll_reg_keys_by_kind['PLL_SC'] %}
+    uvm_reg_field f_{{ key }};
+{%- endfor %}
+
+    function new(string name = "");
+        super.new(name);
+        pll_kind = PLL_SC;
+    endfunction
+endclass
+
+`endif

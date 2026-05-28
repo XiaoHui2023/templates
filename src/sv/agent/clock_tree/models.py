@@ -9,11 +9,9 @@ _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 from nodes import Tree
 from reg_paths import (
-    any_gate_reg_configured,
+    PLL_REG_KEYS,
     any_reg_configured,
-    collect_div_reg_keys,
-    collect_dto_reg_keys,
-    collect_pll_reg_keys,
+    collect_pll_sv_classes,
     iter_reg_bindings,
 )
 
@@ -76,6 +74,11 @@ class Models(BaseModel):
         le=1.0,
         description="允许占空比上限，份额 0～1，默认 0.66。",
     )
+    pll_lock_timeout_us: int = Field(
+        10_000,
+        ge=1,
+        description="configure 等待各 pll lock 为 1 的最长时间，微秒。",
+    )
 
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Models:
@@ -95,23 +98,13 @@ class Models(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def div_reg_keys(self) -> List[str]:
-        return collect_div_reg_keys(self.trees)
+    def pll_sv_classes(self) -> List[str]:
+        return collect_pll_sv_classes(self.trees)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def dto_reg_keys(self) -> List[str]:
-        return collect_dto_reg_keys(self.trees)
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def pll_reg_keys(self) -> List[str]:
-        return collect_pll_reg_keys(self.trees)
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def gate_reg_enabled(self) -> bool:
-        return any_gate_reg_configured(self.trees)
+    def pll_reg_keys_by_kind(self) -> Dict[str, List[str]]:
+        return {kind: sorted(keys) for kind, keys in PLL_REG_KEYS.items()}
 
     @computed_field  # type: ignore[prop-decorator]
     @property

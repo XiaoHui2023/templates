@@ -1,0 +1,178 @@
+`ifndef {{ (class_prefix ~ "pll_config") | upper }}
+`define {{ (class_prefix ~ "pll_config") | upper }}
+
+function automatic void {{ class_prefix }}pll_tci_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output uvm_reg_data_t clkr,
+        output uvm_reg_data_t clkf,
+        output uvm_reg_data_t clkod,
+        output uvm_reg_data_t bwadj);
+    clkr = 1;
+    clkod = 1;
+    if (ref_hz > 0 && out_hz > 0)
+        clkf = uvm_reg_data_t'(out_hz / ref_hz);
+    else
+        clkf = 1;
+    bwadj = clkf;
+endfunction
+
+function automatic void {{ class_prefix }}pll_sc_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output uvm_reg_data_t fbdiv,
+        output uvm_reg_data_t refdiv,
+        output uvm_reg_data_t postdiv1,
+        output uvm_reg_data_t postdiv2);
+    refdiv = 1;
+    postdiv1 = 1;
+    postdiv2 = 1;
+    if (ref_hz > 0 && out_hz > 0)
+        fbdiv = uvm_reg_data_t'(out_hz / ref_hz);
+    else
+        fbdiv = 1;
+endfunction
+
+function automatic void {{ class_prefix }}pll_dw_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output uvm_reg_data_t fbdiv,
+        output uvm_reg_data_t prediv,
+        output uvm_reg_data_t divvcop,
+        output uvm_reg_data_t p,
+        output uvm_reg_data_t divvcor,
+        output uvm_reg_data_t r);
+    prediv = 1;
+    divvcop = 1;
+    p = 1;
+    divvcor = 1;
+    r = 1;
+    if (ref_hz > 0 && out_hz > 0)
+        fbdiv = uvm_reg_data_t'(out_hz / ref_hz);
+    else
+        fbdiv = 1;
+endfunction
+
+// TCI：先 bypass 与 reset，再写分频，最后释放 reset 并关 bypass
+task automatic {{ class_prefix }}configure_pll_tci(
+        uvm_reg_field f_bypass,
+        uvm_reg_field f_pwrdn,
+        uvm_reg_field f_reset,
+        uvm_reg_field f_clkod,
+        uvm_reg_field f_clkf,
+        uvm_reg_field f_clkr,
+        uvm_reg_field f_bwadj,
+        input uvm_reg_data_t clkr,
+        input uvm_reg_data_t clkf,
+        input uvm_reg_data_t clkod,
+        input uvm_reg_data_t bwadj);
+    {{ class_prefix }}reg_field_set(f_bypass, 1);
+    {{ class_prefix }}reg_field_set(f_pwrdn, 0);
+    {{ class_prefix }}reg_field_set(f_reset, 1);
+    {{ class_prefix }}reg_field_set(f_clkod, clkod);
+    {{ class_prefix }}reg_field_set(f_clkf, clkf);
+    {{ class_prefix }}reg_field_set(f_clkr, clkr);
+    {{ class_prefix }}reg_field_set(f_bwadj, bwadj);
+    {{ class_prefix }}reg_field_set(f_reset, 0);
+    {{ class_prefix }}reg_field_set(f_bypass, 0);
+endtask
+
+// SC：先保持 pd 与 bypass，写分频比，再退出掉电
+task automatic {{ class_prefix }}configure_pll_sc(
+        uvm_reg_field f_vocpd,
+        uvm_reg_field f_postdivpd,
+        uvm_reg_field f_dsmpd,
+        uvm_reg_field f_pd,
+        uvm_reg_field f_bypass,
+        uvm_reg_field f_refdiv,
+        uvm_reg_field f_postdiv2,
+        uvm_reg_field f_postdiv1,
+        uvm_reg_field f_fbdiv,
+        input uvm_reg_data_t fbdiv,
+        input uvm_reg_data_t refdiv,
+        input uvm_reg_data_t postdiv1,
+        input uvm_reg_data_t postdiv2);
+    {{ class_prefix }}reg_field_set(f_vocpd, 1);
+    {{ class_prefix }}reg_field_set(f_postdivpd, 1);
+    {{ class_prefix }}reg_field_set(f_dsmpd, 1);
+    {{ class_prefix }}reg_field_set(f_pd, 1);
+    {{ class_prefix }}reg_field_set(f_bypass, 1);
+    {{ class_prefix }}reg_field_set(f_refdiv, refdiv);
+    {{ class_prefix }}reg_field_set(f_postdiv2, postdiv2);
+    {{ class_prefix }}reg_field_set(f_postdiv1, postdiv1);
+    {{ class_prefix }}reg_field_set(f_fbdiv, fbdiv);
+    {{ class_prefix }}reg_field_set(f_vocpd, 0);
+    {{ class_prefix }}reg_field_set(f_postdivpd, 0);
+    {{ class_prefix }}reg_field_set(f_dsmpd, 0);
+    {{ class_prefix }}reg_field_set(f_pd, 0);
+    {{ class_prefix }}reg_field_set(f_bypass, 0);
+endtask
+
+// DW：分步上电、固定等待后再写 VCO 分频
+task automatic {{ class_prefix }}configure_pll_dw(
+        uvm_reg_field f_fbdiv,
+        uvm_reg_field f_prediv,
+        uvm_reg_field f_reset,
+        uvm_reg_field f_pwron,
+        uvm_reg_field f_shift,
+        uvm_reg_field f_bypass,
+        uvm_reg_field f_divvcor,
+        uvm_reg_field f_r,
+        uvm_reg_field f_p,
+        uvm_reg_field f_divvcop,
+        uvm_reg_field f_enr,
+        uvm_reg_field f_enp,
+        input uvm_reg_data_t fbdiv,
+        input uvm_reg_data_t prediv,
+        input uvm_reg_data_t divvcop,
+        input uvm_reg_data_t p,
+        input uvm_reg_data_t divvcor,
+        input uvm_reg_data_t r);
+    {{ class_prefix }}reg_field_set(f_fbdiv, fbdiv);
+    {{ class_prefix }}reg_field_set(f_prediv, prediv);
+    {{ class_prefix }}reg_field_set(f_reset, 1);
+    {{ class_prefix }}reg_field_set(f_pwron, 1);
+    {{ class_prefix }}reg_field_set(f_shift, 1);
+    {{ class_prefix }}reg_field_set(f_bypass, 0);
+    #4us;
+    {{ class_prefix }}reg_field_set(f_reset, 0);
+    #16us;
+    {{ class_prefix }}reg_field_set(f_shift, 0);
+    #10us;
+    {{ class_prefix }}reg_field_set(f_divvcor, divvcor);
+    {{ class_prefix }}reg_field_set(f_r, r);
+    {{ class_prefix }}reg_field_set(f_p, p);
+    {{ class_prefix }}reg_field_set(f_divvcop, divvcop);
+    {{ class_prefix }}reg_field_set(f_enr, 1);
+    {{ class_prefix }}reg_field_set(f_enp, 1);
+endtask
+
+// 每 2us 读 lock，直至为 1 或超过 timeout
+task automatic {{ class_prefix }}wait_pll_lock(
+        uvm_reg_field f_lock,
+        input time timeout);
+    time elapsed;
+    uvm_status_e status;
+    uvm_reg_data_t rdata;
+    uvm_reg r;
+
+    if (f_lock == null)
+        `uvm_fatal("CLK_TREE", "wait_pll_lock: f_lock is null")
+
+    elapsed = 0;
+    while (elapsed < timeout) begin
+        r = f_lock.get_register();
+        r.read(status, rdata);
+        if (status != UVM_IS_OK)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "wait_pll_lock: read %s failed", r.get_full_name()))
+        if (f_lock.get() == 1)
+            return;
+        #2us;
+        elapsed += 2us;
+    end
+    `uvm_fatal("CLK_TREE", $sformatf(
+        "wait_pll_lock: %s lock not 1 within %0t", f_lock.get_full_name(), timeout))
+endtask
+
+`endif

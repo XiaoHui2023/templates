@@ -5,6 +5,14 @@ from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
+from reg_paths import (
+    DTO_REG_KEYS,
+    PLL_KIND_TO_SV,
+    validate_optional_reg,
+    validate_pll_regs_exact,
+    validate_regs_exact,
+)
+
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 PllKind = Literal["PLL_TCI", "PLL_SC", "PLL_DW"]
@@ -78,18 +86,47 @@ class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
+    reg: str = Field(
+        "",
+        description="可选；RAL 点分路径，绑定到 f_reg。",
+    )
+
+    @model_validator(mode="after")
+    def _validate_gate_reg(self) -> GateNode:
+        validate_optional_reg(self.reg, node_name=self.name, kind="gate")
+        return self
 
 
 class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
+    reg: str = Field(
+        "",
+        description="可选；8 位分频控制寄存器 RAL 点分路径，绑定到 f_reg。",
+    )
+
+    @model_validator(mode="after")
+    def _validate_div_reg(self) -> DivNode:
+        validate_optional_reg(self.reg, node_name=self.name, kind="div")
+        return self
 
 
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
+    regs: Dict[str, str] = Field(
+        default_factory=dict,
+        description="可选；非空时键须为 rstn、load、bypass、step，值为各 field 的 RAL 点分路径。",
+    )
+
+    @model_validator(mode="after")
+    def _validate_dto_regs(self) -> DtoNode:
+        validate_regs_exact(
+            self.regs, DTO_REG_KEYS, node_name=self.name, kind="dto"
+        )
+        return self
 
 
 class InvNode(NodeBase):
@@ -115,6 +152,20 @@ class PllNode(NodeBase):
         description="可驱动的下游器件名列表，须为本 tree nodes 的键。",
     )
     pll_kind: PllKind = Field("PLL_TCI", description="PLL 型号枚举名。")
+    regs: Dict[str, str] = Field(
+        default_factory=dict,
+        description="可选；非空时键须与 pll_kind 允许集合完全一致，值为自 RAL 根起的点分路径。",
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def sv_pll_class(self) -> str:
+        return PLL_KIND_TO_SV[self.pll_kind]
+
+    @model_validator(mode="after")
+    def _validate_pll_regs(self) -> PllNode:
+        validate_pll_regs_exact(self.regs, self.pll_kind, node_name=self.name)
+        return self
 
 
 class ClkNode(NodeBase):
@@ -134,11 +185,16 @@ class MuxNode(NodeBase):
         None,
         description="选择值；省略时取本 tree settings 中 pll_sel，若无则为 0。",
     )
+    reg: str = Field(
+        "",
+        description="可选；RAL 点分路径，绑定到 f_reg。",
+    )
 
     @model_validator(mode="after")
-    def _validate_mux_source_keys(self) -> MuxNode:
+    def _validate_mux(self) -> MuxNode:
         if not self.source:
             raise ValueError(f"mux 节点 {self.name!r} 的 source 不得为空")
+        validate_optional_reg(self.reg, node_name=self.name, kind="mux")
         return self
 
 

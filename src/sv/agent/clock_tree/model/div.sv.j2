@@ -7,12 +7,11 @@ class {{ class_prefix }}div extends {{ class_prefix }}node_base;
     `uvm_object_utils_end
 
     rand int ratio;
-{% for key in div_reg_keys %}
-    uvm_reg_field f_{{ key }};
-{% endfor %}
+    uvm_reg_field f_reg;
 
     constraint cst_div {
         ratio > 0;
+        ratio <= 64;
     }
 
     constraint cst_freq_from_src {

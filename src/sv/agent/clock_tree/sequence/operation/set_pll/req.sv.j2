@@ -6,7 +6,7 @@ class {{ class_prefix }}set_pll_req extends uvm_sequence_item;
         `uvm_field_object(node, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    {{ class_prefix }}pll node;
+    {{ class_prefix }}base_pll node;
 
     function new(string name = "{{ class_prefix }}set_pll_req");
         super.new(name);

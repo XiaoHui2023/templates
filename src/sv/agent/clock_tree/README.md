@@ -77,10 +77,10 @@ trees:
 | `kind` | 主要字段 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `targets` | `targets` 必填 | 时钟源节点，`targets` 写目标节点名列表。 |
-| `pll` | `targets`, `pll_kind` | `targets` 必填，`pll_kind` 为 `PLL_TCI` | PLL 节点，`pll_kind` 可为 `PLL_TCI`、`PLL_SC`、`PLL_DW`。 |
+| `pll` | `targets`, `pll_kind`, `regs` | `targets` 必填，`pll_kind` 为 `PLL_TCI` | PLL 节点；`pll_kind` 为 `PLL_TCI`、`PLL_SC`、`PLL_DW` 之一；`regs` 为逻辑名到 RAL 路径的映射，非空时键须与该 `pll_kind` 允许集合完全一致。 |
 | `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写前级节点名。 |
-| `gate` | `source`, `target` | `source` 与 `target` 必填 | 门控节点，`source` 写前级节点名，`target` 写输出连线名。 |
-| `div` | `source`, `target` | `source` 与 `target` 必填 | 分频节点，`source` 写前级节点名，`target` 写输出连线名。 |
-| `dto` | `source`, `target` | `source` 与 `target` 必填 | DTO 节点，`source` 写前级节点名，`target` 写输出连线名。 |
+| `gate` | `source`, `target`, `reg` | `source` 与 `target` 必填 | 门控节点；`reg` 为可选 RAL 点分路径。 |
+| `div` | `source`, `target`, `reg` | `source` 与 `target` 必填 | 分频节点；`reg` 为可选 8 位控制寄存器路径。 |
+| `dto` | `source`, `target`, `regs` | `source` 与 `target` 必填 | DTO 节点；`regs` 非空时键为 `rstn`、`load`、`bypass`、`step`。 |
 | `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写前级节点名，`target` 写输出连线名。 |
-| `mux` | `source`, `target`, `sel` | `source` 与 `target` 必填，`sel` 省略时取 `settings.pll_sel`，没有该键则为 `0` | 多路选择节点，`source` 的键为输入选择值，值为对端器件名。 |
+| `mux` | `source`, `target`, `sel`, `reg` | `source` 与 `target` 必填，`sel` 省略时取 `settings.pll_sel`，没有该键则为 `0` | 多路选择节点；`reg` 为可选 RAL 路径。 |

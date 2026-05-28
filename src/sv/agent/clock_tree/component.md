@@ -49,7 +49,7 @@
 | --- | --- |
 | `set_clock_gen` | 按 **req.gen_en** 与节点 **frequence** 设置 **vif** 时钟发生；**gen_en** 为 0 关闭 |
 | `set_pll` | **pll** 频率与寄存器配置，主体待补 |
-| `configure` | 写入 **gate**、**div**、**dto**、**mux** 配置寄存器，主体待补；**req.nodes** 指定范围 |
+| `configure` | 对 **gate**、**mux**、**div**、**dto**、**pll** 写 RAL；**pll** 配完后依次 **wait_pll_lock** |
 | `check_clk` | 检查 **req.nodes** 中 **clk** 频率 |
 | `check_pll` | 检查 **req.nodes** 中 **pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |

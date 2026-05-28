@@ -8,6 +8,7 @@ class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
 
     rand int sel;
     {{ class_prefix }}node_base to_source[int];
+    uvm_reg_field f_reg;
 
     constraint cst_clk_from_src {
         to_source[sel] == null -> valid == 0;

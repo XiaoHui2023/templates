@@ -13,7 +13,11 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
     `uvm_object_utils_end
 
 {%- for node in tree.nodes_ordered %}
+{%- if node.kind == "pll" %}
+    rand {{ class_prefix }}{{ node.sv_pll_class }} {{ node.name }};
+{%- else %}
     rand {{ class_prefix }}{{ node.kind }} {{ node.name }};
+{%- endif %}
 {%- endfor %}
 
     constraint cst_base;
@@ -29,9 +33,10 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 {%- endfor %}
 {%- endif %}
 {%- for node in tree.nodes_ordered %}
-        {{ node.name }} = {{ class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
 {%- if node.kind == "pll" %}
-        {{ node.name }}.pll_kind = {{ node.pll_kind }};
+        {{ node.name }} = {{ class_prefix }}{{ node.sv_pll_class }}::type_id::create("{{ node.name }}");
+{%- else %}
+        {{ node.name }} = {{ class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
 {%- endif %}
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
