@@ -67,6 +67,11 @@ task {{ class_prefix }}check_duty_seq::body();
             nd.vif.set_clock_gen(1'b1, real'(nd.frequence));
     end
 
+    if (rs.ok)
+        `uvm_info("CLK_TREE", $sformatf(
+            "check_duty: passed, tree %s, gen_after_check %0b",
+            rq.tree.get_name(), rq.gen_after_check), UVM_LOW)
+
     rsp = rs;
 endtask
 

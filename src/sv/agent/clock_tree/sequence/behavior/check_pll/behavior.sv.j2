@@ -78,6 +78,10 @@ task {{ class_prefix }}check_pll_seq::body();
         end
     end
 
+    if (rs.ok)
+        `uvm_info("CLK_TREE", $sformatf(
+            "check_pll: passed, tree %s", rq.tree.get_name()), UVM_LOW)
+
     rsp = rs;
 endtask
 

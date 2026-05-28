@@ -28,6 +28,11 @@ task {{ class_prefix }}set_pll_seq::body();
 
     rs = {{ class_prefix }}set_pll_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "set_pll: node %s, pll_kind %s, frequence %0d Hz, ok %0b",
+        rq.node.get_name(), rq.node.pll_kind.name(), rq.node.frequence, rs.ok), UVM_HIGH)
+
     rsp = rs;
 endtask
 

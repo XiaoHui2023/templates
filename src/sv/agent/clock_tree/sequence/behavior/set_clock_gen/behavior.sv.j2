@@ -40,6 +40,11 @@ task {{ class_prefix }}set_clock_gen_seq::body();
 
     rs = {{ class_prefix }}set_clock_gen_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "set_clock_gen: node %s, gen_en %0b, frequence %0d Hz, ok %0b",
+        rq.node.get_name(), rq.gen_en, rq.node.frequence, rs.ok), UVM_HIGH)
+
     rsp = rs;
 endtask
 

@@ -28,6 +28,10 @@ task {{ class_prefix }}apply_seq::body();
 
     rs = {{ class_prefix }}apply_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "apply: tree %s, ok %0b", rq.tree.get_name(), rs.ok), UVM_HIGH)
+
     rsp = rs;
 endtask
 
