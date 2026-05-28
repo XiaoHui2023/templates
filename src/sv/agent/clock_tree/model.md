@@ -56,7 +56,7 @@ classDiagram
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | nodes | 节点队列 | 建树后装入的全部节点句柄 |
-| low_power | bit，rand | 低功耗；软约束默认为 0。**cst_base_tree** 在 **low_power** 为 0 时将 **nodes** 中 **kind** 为 **gate** 的 **valid** 软约束为 1，为 1 时软约束为 0 |
+| low_power | bit，rand | 低功耗；软约束默认为 0。**cst_base_tree** 在 **low_power** 为 0 时将 **nodes** 中 **kind** 为 **clk** 的 **valid** 软约束为 1，为 1 时软约束为 0 |
 | settings | settings | 仅声明 **setting_defs** 时存在 |
 
 ## source

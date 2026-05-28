@@ -17,11 +17,11 @@ class {{ class_prefix }}base_tree extends {{ class_prefix }}base_item;
 {% endif %}
 
     constraint cst_base_tree {
-        soft low_power == 0;
+        soft !low_power;
         foreach (nodes[i]) {
-            nodes[i].kind == "gate" -> {
-                low_power -> soft nodes[i].valid == 0;
-                !low_power -> soft nodes[i].valid == 1;
+            nodes[i].kind == "clk" -> {
+                low_power -> soft !nodes[i].valid;
+                !low_power -> soft nodes[i].valid;
             }
         }
     }

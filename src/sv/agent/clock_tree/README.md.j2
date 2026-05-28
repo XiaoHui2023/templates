@@ -1,0 +1,39 @@
+# 说明
+
+## 外部约束
+
++ 你可以使用以下外部约束：
+  + `cst_user`
+  + `cst_case`
+
+```systemverilog
+constraint {{ class_prefix }}{{ trees[0].name }}_tree::cst_user {
+    ...
+}
+constraint {{ class_prefix }}{{ trees[0].name }}_tree::cst_case {
+    ...
+}
+```
+
+{% if first_clk_name %}
+## 时钟
+
+开关时钟或改变频率，以 {{ first_clk_name }} 为例（时钟列表详见 `top/trees.sv`）。
+
+```systemverilog
+constraint {{ class_prefix }}{{ first_clk_tree_name }}_tree::cst_user {
+    {{ first_clk_name }}.valid; // 打开时钟
+    {{ first_clk_name }}.frequence == 123456000; // 频率123.456Mhz
+}
+```
+
+{% endif %}
+## 低功耗
+
+尽可能关闭所有时钟。
+
+```systemverilog
+constraint {{ class_prefix }}{{ trees[0].name }}_tree::cst_user {
+    low_power; // 默认所有时钟关闭
+}
+```

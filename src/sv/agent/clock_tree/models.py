@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
@@ -117,6 +117,24 @@ class Models(BaseModel):
     @property
     def reg_bindings(self) -> List[tuple[str, str, str, str]]:
         return iter_reg_bindings(self.trees)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def first_clk_name(self) -> Optional[str]:
+        for tree in self.trees:
+            for node in tree.nodes_ordered:
+                if node.kind == "clk":
+                    return node.name
+        return None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def first_clk_tree_name(self) -> Optional[str]:
+        for tree in self.trees:
+            for node in tree.nodes_ordered:
+                if node.kind == "clk":
+                    return tree.name
+        return None
 
     @model_validator(mode="after")
     def _validate_regmodel(self) -> Models:
