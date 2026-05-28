@@ -8,7 +8,7 @@
 
 | 成员 / 配置 | 说明 |
 | --- | --- |
-| `sqr` | **kit_sequencer** 句柄；**callback** 注册、**trees** 访问、配置与行为便捷方法均在此句柄上 |
+| `sqr` | **kit_sequencer** 句柄；**callback** 注册、**trees** 访问、配置与 **operation** 便捷方法均在此句柄上 |
 | **config_db** | 键 **`trees`**，值为 **base_tree** 队列；环境在例化 **agent** 前设置 |
 
 环境先由 **connection** 建好各 **tree** 并 **randomize**，再通过 **config_db** 提供给 **agent** 后例化 **agent**。**agent** 将 **trees** 赋给 **sqr.trees**，不向基础 **sequencer** 传递。
@@ -23,7 +23,7 @@
 
 ## kit_sequencer
 
-派生 **sequencer**；**agent.sqr** 的实际类型。持有 **trees[$]**；配置与 **sequence/behavior** 的便捷入口均在本类。
+派生 **sequencer**；**agent.sqr** 的实际类型。持有 **trees[$]**；配置与 **sequence/operation** 的便捷入口均在本类。
 
 | 成员 | 说明 |
 | --- | --- |
@@ -44,9 +44,9 @@
 | `check_pll` | 入参 **tree**；检查全部 **pll** 节点频率 |
 | `check_duty` | 入参 **tree**、**gen_after_check** 默认 0；检查占空比，可选检查后对该节点 **set_clock_gen(1)** |
 
-## sequence · behavior
+## sequence · operation
 
-每种行为独占 **`sequence/behavior/<行为名>/`**，含 **req**、**rsp** 与 **behavior** 序列。**behavior** 的 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台经 **kit** 填 **req** 后 **start** 行为。
+每种底层操作独占 **`sequence/operation/<操作名>/`**，含 **req**、**rsp** 与 **operation** 序列。**operation** 的 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台经 **kit** 填 **req** 后 **start** 该序列。
 
 | 行为目录 | 说明 |
 | --- | --- |
