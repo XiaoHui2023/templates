@@ -14,15 +14,6 @@ constraint {{ class_prefix }}{{ tree.name }}_tree::cst_base {
     soft {{ node.name }}.sel == {{ node.sel }};
     {{ node.name }}.sel inside { {{ node.mux_sel_inside }} };
 {%- endif %}
-{%- if node.kind in ["div", "dto"] %}
-    soft {{ node.name }}.ratio == {{ node.ratio }};
-{%- endif %}
-{%- endfor %}
-{%- for node in tree.nodes_ordered %}
-{%- if node.kind == "gate" %}
-    low_power -> soft {{ node.name }}.valid == 0;
-    !low_power -> soft {{ node.name }}.valid == 1;
-{%- endif %}
 {%- endfor %}
 }
 

@@ -84,14 +84,12 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
-    ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
 
 
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
-    ratio: int = Field(1, gt=0, description="分频比，须为正整数。")
 
 
 class InvNode(NodeBase):

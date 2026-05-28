@@ -18,6 +18,12 @@ class {{ class_prefix }}base_tree extends {{ class_prefix }}base_item;
 
     constraint cst_base_tree {
         soft low_power == 0;
+        foreach (nodes[i]) {
+            nodes[i].kind == "gate" -> {
+                low_power -> soft nodes[i].valid == 0;
+                !low_power -> soft nodes[i].valid == 1;
+            }
+        }
     }
 
     function new(string name = "{{ class_prefix }}base_tree");

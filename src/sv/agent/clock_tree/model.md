@@ -56,7 +56,7 @@ classDiagram
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | nodes | 节点队列 | 建树后装入的全部节点句柄 |
-| low_power | bit，rand | 低功耗；软约束默认为 0。为 0 时 **cst_base** 将各 **gate** 的 **valid** 软约束为 1；为 1 时软约束为 0 |
+| low_power | bit，rand | 低功耗；软约束默认为 0。**cst_base_tree** 在 **low_power** 为 0 时将 **nodes** 中 **kind** 为 **gate** 的 **valid** 软约束为 1，为 1 时软约束为 0 |
 | settings | settings | 仅声明 **setting_defs** 时存在 |
 
 ## source
@@ -103,7 +103,7 @@ PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指�
 | ratio | 分频比，rand，默认 1，须大于 0 |
 | regs | 可选；逻辑名 **ratio**、**enable**、**bypass** 对应 **uvm_reg_field**；值为自 RAL 根起的点分路径，或一层 block 名下挂 field 短名 |
 
-**cst_div**：**ratio** 须大于 0；重载 **cst_freq_from_src**，前级频率整除 **ratio**。**cst_base** 软约束配置典型 **ratio**。
+**cst_div**：**ratio** 须大于 0；重载 **cst_freq_from_src**，前级频率整除 **ratio**。
 
 ## dto
 
@@ -114,7 +114,7 @@ PLL 节点；空关断 **cst_freq_from_src**，频率由 **tree** 软约束指�
 | ratio | 分频比，rand，默认 1，须大于 0 |
 | regs | 可选；逻辑名 **ratio**、**duty**、**enable**、**bypass**；路径写法同 **div** |
 
-频率约束同 **div**。**cst_base** 软约束配置典型 **ratio**。
+频率约束同 **div**。
 
 ## gate
 

@@ -63,4 +63,4 @@
 
 ## tree 外部约束
 
-每棵 **{name}_tree** 声明 **cst_base**、**cst_user**、**cst_case**；**cst_base** 实现在 **constraint.sv**，含频率软约束、**mux.sel** 范围、**gate** 低功耗 **valid** 等。
+每棵 **{name}_tree** 声明 **cst_base**、**cst_user**、**cst_case**；**cst_base** 实现在 **constraint.sv**，含频率软约束、**mux.sel** 范围等。**gate** 与 **low_power** 的 **valid** 关系在 **base_tree** 的 **cst_base_tree**。
