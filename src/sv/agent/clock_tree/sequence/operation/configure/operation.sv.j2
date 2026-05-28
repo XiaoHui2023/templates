@@ -1,0 +1,40 @@
+`ifndef {{ (class_prefix ~ "configure_seq") | upper }}
+`define {{ (class_prefix ~ "configure_seq") | upper }}
+
+class {{ class_prefix }}configure_seq extends uvm_sequence #(
+    {{ class_prefix }}configure_req,
+    {{ class_prefix }}configure_rsp
+);
+    `uvm_object_utils({{ class_prefix }}configure_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name = "{{ class_prefix }}configure_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}configure_seq::body();
+    {{ class_prefix }}configure_req rq;
+    {{ class_prefix }}configure_rsp rs;
+    int n_nodes;
+
+    if (req == null)
+        `uvm_fatal("CLK_TREE", "configure: req is null")
+
+    rq = req;
+    if (rq.nodes.size() == 0)
+        `uvm_fatal("CLK_TREE", "configure: req.nodes is empty")
+
+    rs = {{ class_prefix }}configure_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+    n_nodes = rq.nodes.size();
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "configure: %0d node(s), ok %0b", n_nodes, rs.ok), UVM_HIGH)
+
+    rsp = rs;
+endtask
+
+`endif

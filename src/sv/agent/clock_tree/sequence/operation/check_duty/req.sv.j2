@@ -3,16 +3,13 @@
 
 class {{ class_prefix }}check_duty_req extends uvm_sequence_item;
     `uvm_object_utils_begin({{ class_prefix }}check_duty_req)
-        `uvm_field_object(tree, UVM_ALL_ON)
-        `uvm_field_int(gen_after_check, UVM_ALL_ON)
+        `uvm_field_queue_object(nodes, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    {{ class_prefix }}base_tree tree;
-    bit gen_after_check;
+    {{ class_prefix }}node_base nodes[$];
 
     function new(string name = "{{ class_prefix }}check_duty_req");
         super.new(name);
-        gen_after_check = 1'b0;
     endfunction
 endclass
 

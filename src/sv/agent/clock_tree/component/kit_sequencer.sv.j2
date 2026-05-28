@@ -11,91 +11,81 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     endfunction
 
 {% if setting_defs %}
-    extern function void configure_tree({{ class_prefix }}base_tree tree);
-    extern function void configure_all_trees();
+    extern function void apply_settings({{ class_prefix }}settings settings = null);
 {% endif %}
-    extern function {{ class_prefix }}set_clock_gen_rsp set_clock_gen(
-        {{ class_prefix }}node_base node, bit gen_en = 1'b1);
-    extern function void set_clock_gen_nodes(
+    extern function void set_clock_gen(
         {{ class_prefix }}node_base nodes[$], bit gen_en = 1'b1);
-    extern function void set_clock_gen_tree(
-        {{ class_prefix }}base_tree tree, bit gen_en = 1'b1);
-    extern function void set_clock_gen_trees(
-        {{ class_prefix }}base_tree trees[$], bit gen_en = 1'b1);
     extern function void gen_source_clock();
     extern function {{ class_prefix }}set_pll_rsp set_pll({{ class_prefix }}pll node);
-    extern function {{ class_prefix }}apply_rsp apply({{ class_prefix }}base_tree tree);
-    extern function {{ class_prefix }}check_clk_rsp check_clk({{ class_prefix }}base_tree tree);
-    extern function {{ class_prefix }}check_pll_rsp check_pll({{ class_prefix }}base_tree tree);
-    extern function {{ class_prefix }}check_duty_rsp check_duty(
-        {{ class_prefix }}base_tree tree, bit gen_after_check = 1'b0);
+    extern function {{ class_prefix }}configure_rsp configure({{ class_prefix }}node_base nodes[$]);
+    extern function {{ class_prefix }}check_clk_rsp check_clk({{ class_prefix }}node_base nodes[$]);
+    extern function {{ class_prefix }}check_pll_rsp check_pll({{ class_prefix }}node_base nodes[$]);
+    extern function {{ class_prefix }}check_duty_rsp check_duty({{ class_prefix }}node_base nodes[$]);
+    extern function {{ class_prefix }}test_duty_wavefront_rsp test_duty_wavefront(
+        {{ class_prefix }}node_base nodes[$]);
 endclass
 
 {% if setting_defs %}
-function void {{ class_prefix }}kit_sequencer::configure_tree({{ class_prefix }}base_tree tree);
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "configure_tree: tree is null")
-    configure_settings(tree.settings);
-endfunction
-
-function void {{ class_prefix }}kit_sequencer::configure_all_trees();
-    foreach (trees[i])
-        configure_tree(trees[i]);
+function void {{ class_prefix }}kit_sequencer::apply_settings({{ class_prefix }}settings settings);
+    if (settings == null) begin
+        if (trees.size() == 0)
+            `uvm_fatal("CLK_TREE", "apply_settings: settings null and no trees")
+        foreach (trees[i]) begin
+            if (trees[i] == null)
+                `uvm_fatal("CLK_TREE", "apply_settings: tree is null")
+            if (trees[i].settings == null)
+                `uvm_fatal("CLK_TREE", $sformatf(
+                    "apply_settings: tree %s settings is null", trees[i].get_name()))
+            apply_settings(trees[i].settings);
+        end
+        return;
+    end
+    super.apply_settings(settings);
 endfunction
 {% endif %}
 
-function {{ class_prefix }}set_clock_gen_rsp {{ class_prefix }}kit_sequencer::set_clock_gen(
-        {{ class_prefix }}node_base node, bit gen_en);
-    {{ class_prefix }}set_clock_gen_req req;
-    {{ class_prefix }}set_clock_gen_rsp rsp;
-    {{ class_prefix }}set_clock_gen_seq seq;
-
-    if (node == null)
-        `uvm_fatal("CLK_TREE", "set_clock_gen: node is null")
-
-    req = {{ class_prefix }}set_clock_gen_req::type_id::create("req");
-    req.node = node;
-    req.gen_en = gen_en;
-
-    seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
-    seq.req = req;
-    seq.start(this);
-    void'(seq.get_response(rsp));
-    return rsp;
-endfunction
-
-function void {{ class_prefix }}kit_sequencer::set_clock_gen_nodes(
+function void {{ class_prefix }}kit_sequencer::set_clock_gen(
         {{ class_prefix }}node_base nodes[$], bit gen_en);
-    foreach (nodes[i])
-        void'(set_clock_gen(nodes[i], gen_en));
-endfunction
-
-function void {{ class_prefix }}kit_sequencer::set_clock_gen_tree(
-        {{ class_prefix }}base_tree tree, bit gen_en);
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "set_clock_gen_tree: tree is null")
-
-    foreach (tree.nodes[i]) begin
-        if (tree.nodes[i].vif != null)
-            void'(set_clock_gen(tree.nodes[i], gen_en));
+    if (nodes.size() == 0) begin
+        if (trees.size() == 0)
+            `uvm_fatal("CLK_TREE", "set_clock_gen: nodes empty and no trees")
+        foreach (trees[i])
+            set_clock_gen(trees[i].nodes, gen_en);
+        return;
     end
-endfunction
 
-function void {{ class_prefix }}kit_sequencer::set_clock_gen_trees(
-        {{ class_prefix }}base_tree trees[$], bit gen_en);
-    foreach (trees[i])
-        set_clock_gen_tree(trees[i], gen_en);
+    foreach (nodes[i]) begin
+        {{ class_prefix }}set_clock_gen_req req;
+        {{ class_prefix }}set_clock_gen_rsp rsp;
+        {{ class_prefix }}set_clock_gen_seq seq;
+
+        if (nodes[i] == null)
+            continue;
+        if (nodes[i].vif == null)
+            continue;
+
+        req = {{ class_prefix }}set_clock_gen_req::type_id::create("req");
+        req.node = nodes[i];
+        req.gen_en = gen_en;
+
+        seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
+        seq.req = req;
+        seq.start(this);
+        void'(seq.get_response(rsp));
+    end
 endfunction
 
 function void {{ class_prefix }}kit_sequencer::gen_source_clock();
     {{ class_prefix }}source src;
+    {{ class_prefix }}node_base src_nodes[$];
 
     foreach (trees[i]) begin
         foreach (trees[i].nodes[j]) begin
             if ($cast(src, trees[i].nodes[j]))
-                void'(set_clock_gen(src, 1'b1));
+                src_nodes.push_back(src);
         end
     end
+    set_clock_gen(src_nodes, 1'b1);
 endfunction
 
 function {{ class_prefix }}set_pll_rsp {{ class_prefix }}kit_sequencer::set_pll(
@@ -117,19 +107,24 @@ function {{ class_prefix }}set_pll_rsp {{ class_prefix }}kit_sequencer::set_pll(
     return rsp;
 endfunction
 
-function {{ class_prefix }}apply_rsp {{ class_prefix }}kit_sequencer::apply(
-        {{ class_prefix }}base_tree tree);
-    {{ class_prefix }}apply_req req;
-    {{ class_prefix }}apply_rsp rsp;
-    {{ class_prefix }}apply_seq seq;
+function {{ class_prefix }}configure_rsp {{ class_prefix }}kit_sequencer::configure(
+        {{ class_prefix }}node_base nodes[$]);
+    {{ class_prefix }}configure_req req;
+    {{ class_prefix }}configure_rsp rsp;
+    {{ class_prefix }}configure_seq seq;
 
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "apply: tree is null")
+    if (nodes.size() == 0) begin
+        if (trees.size() == 0)
+            `uvm_fatal("CLK_TREE", "configure: nodes empty and no trees")
+        foreach (trees[i])
+            rsp = configure(trees[i].nodes);
+        return rsp;
+    end
 
-    req = {{ class_prefix }}apply_req::type_id::create("req");
-    req.tree = tree;
+    req = {{ class_prefix }}configure_req::type_id::create("req");
+    req.nodes = nodes;
 
-    seq = {{ class_prefix }}apply_seq::type_id::create("apply");
+    seq = {{ class_prefix }}configure_seq::type_id::create("configure");
     seq.req = req;
     seq.start(this);
     void'(seq.get_response(rsp));
@@ -137,16 +132,21 @@ function {{ class_prefix }}apply_rsp {{ class_prefix }}kit_sequencer::apply(
 endfunction
 
 function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::check_clk(
-        {{ class_prefix }}base_tree tree);
+        {{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}check_clk_req req;
     {{ class_prefix }}check_clk_rsp rsp;
     {{ class_prefix }}check_clk_seq seq;
 
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_clk: tree is null")
+    if (nodes.size() == 0) begin
+        if (trees.size() == 0)
+            `uvm_fatal("CLK_TREE", "check_clk: nodes empty and no trees")
+        foreach (trees[i])
+            rsp = check_clk(trees[i].nodes);
+        return rsp;
+    end
 
     req = {{ class_prefix }}check_clk_req::type_id::create("req");
-    req.tree = tree;
+    req.nodes = nodes;
 
     seq = {{ class_prefix }}check_clk_seq::type_id::create("check_clk");
     seq.req = req;
@@ -156,16 +156,21 @@ function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::check_
 endfunction
 
 function {{ class_prefix }}check_pll_rsp {{ class_prefix }}kit_sequencer::check_pll(
-        {{ class_prefix }}base_tree tree);
+        {{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}check_pll_req req;
     {{ class_prefix }}check_pll_rsp rsp;
     {{ class_prefix }}check_pll_seq seq;
 
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_pll: tree is null")
+    if (nodes.size() == 0) begin
+        if (trees.size() == 0)
+            `uvm_fatal("CLK_TREE", "check_pll: nodes empty and no trees")
+        foreach (trees[i])
+            rsp = check_pll(trees[i].nodes);
+        return rsp;
+    end
 
     req = {{ class_prefix }}check_pll_req::type_id::create("req");
-    req.tree = tree;
+    req.nodes = nodes;
 
     seq = {{ class_prefix }}check_pll_seq::type_id::create("check_pll");
     seq.req = req;
@@ -175,19 +180,47 @@ function {{ class_prefix }}check_pll_rsp {{ class_prefix }}kit_sequencer::check_
 endfunction
 
 function {{ class_prefix }}check_duty_rsp {{ class_prefix }}kit_sequencer::check_duty(
-        {{ class_prefix }}base_tree tree, bit gen_after_check);
+        {{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}check_duty_req req;
     {{ class_prefix }}check_duty_rsp rsp;
     {{ class_prefix }}check_duty_seq seq;
 
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_duty: tree is null")
+    if (nodes.size() == 0) begin
+        if (trees.size() == 0)
+            `uvm_fatal("CLK_TREE", "check_duty: nodes empty and no trees")
+        foreach (trees[i])
+            rsp = check_duty(trees[i].nodes);
+        return rsp;
+    end
 
     req = {{ class_prefix }}check_duty_req::type_id::create("req");
-    req.tree = tree;
-    req.gen_after_check = gen_after_check;
+    req.nodes = nodes;
 
     seq = {{ class_prefix }}check_duty_seq::type_id::create("check_duty");
+    seq.req = req;
+    seq.start(this);
+    void'(seq.get_response(rsp));
+    return rsp;
+endfunction
+
+function {{ class_prefix }}test_duty_wavefront_rsp {{ class_prefix }}kit_sequencer::test_duty_wavefront(
+        {{ class_prefix }}node_base nodes[$]);
+    {{ class_prefix }}test_duty_wavefront_req req;
+    {{ class_prefix }}test_duty_wavefront_rsp rsp;
+    {{ class_prefix }}test_duty_wavefront_seq seq;
+
+    if (nodes.size() == 0) begin
+        if (trees.size() == 0)
+            `uvm_fatal("CLK_TREE", "test_duty_wavefront: nodes empty and no trees")
+        foreach (trees[i])
+            rsp = test_duty_wavefront(trees[i].nodes);
+        return rsp;
+    end
+
+    req = {{ class_prefix }}test_duty_wavefront_req::type_id::create("req");
+    req.nodes = nodes;
+
+    seq = {{ class_prefix }}test_duty_wavefront_seq::type_id::create("test_duty_wavefront");
     seq.req = req;
     seq.start(this);
     void'(seq.get_response(rsp));

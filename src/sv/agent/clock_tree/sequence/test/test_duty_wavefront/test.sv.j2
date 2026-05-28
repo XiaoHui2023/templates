@@ -1,0 +1,127 @@
+`ifndef {{ (class_prefix ~ "test_duty_wavefront_seq") | upper }}
+`define {{ (class_prefix ~ "test_duty_wavefront_seq") | upper }}
+
+function automatic bit {{ class_prefix }}node_in_queue(
+        {{ class_prefix }}node_base nd,
+        {{ class_prefix }}node_base q[$]);
+    foreach (q[i])
+        if (q[i] == nd)
+            return 1'b1;
+    return 1'b0;
+endfunction
+
+function automatic void {{ class_prefix }}remove_nodes_from_queue(
+        ref {{ class_prefix }}node_base pending[$],
+        {{ class_prefix }}node_base remove[$]);
+    {{ class_prefix }}node_base keep[$];
+    bit drop;
+
+    keep.delete();
+    foreach (pending[i]) begin
+        drop = 1'b0;
+        foreach (remove[j])
+            if (pending[i] == remove[j])
+                drop = 1'b1;
+        if (!drop)
+            keep.push_back(pending[i]);
+    end
+    pending = keep;
+endfunction
+
+class {{ class_prefix }}test_duty_wavefront_seq extends uvm_sequence #(
+    {{ class_prefix }}test_duty_wavefront_req,
+    {{ class_prefix }}test_duty_wavefront_rsp
+);
+    `uvm_object_utils({{ class_prefix }}test_duty_wavefront_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name = "{{ class_prefix }}test_duty_wavefront_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}test_duty_wavefront_seq::body();
+    {{ class_prefix }}test_duty_wavefront_req rq;
+    {{ class_prefix }}test_duty_wavefront_rsp rs;
+    {{ class_prefix }}node_base pending[$];
+    {{ class_prefix }}node_base frontier[$];
+    {{ class_prefix }}check_duty_req duty_req;
+    {{ class_prefix }}check_duty_rsp duty_rsp;
+    {{ class_prefix }}check_duty_seq duty_seq;
+    {{ class_prefix }}set_clock_gen_req gen_req;
+    {{ class_prefix }}set_clock_gen_rsp gen_rsp;
+    {{ class_prefix }}set_clock_gen_seq gen_seq;
+    {{ class_prefix }}node_base nd;
+    int wave;
+
+    if (req == null)
+        `uvm_fatal("CLK_TREE", "test_duty_wavefront: req is null")
+
+    rq = req;
+    if (rq.nodes.size() == 0)
+        `uvm_fatal("CLK_TREE", "test_duty_wavefront: req.nodes is empty")
+
+    rs = {{ class_prefix }}test_duty_wavefront_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+    pending = rq.nodes;
+    wave = 0;
+
+    while (pending.size() > 0) begin
+        frontier.delete();
+        foreach (pending[i]) begin
+            nd = pending[i];
+            if (nd == null)
+                continue;
+            if (nd.source == null || !{{ class_prefix }}node_in_queue(nd.source, pending))
+                frontier.push_back(nd);
+        end
+
+        if (frontier.size() == 0)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_duty_wavefront: no frontier at wave %0d, %0d node(s) left",
+                wave, pending.size()))
+
+        duty_req = {{ class_prefix }}check_duty_req::type_id::create("duty_req");
+        duty_req.nodes = frontier;
+        duty_seq = {{ class_prefix }}check_duty_seq::type_id::create("check_duty");
+        duty_seq.req = duty_req;
+        duty_seq.start(p_sequencer);
+        void'(duty_seq.get_response(duty_rsp));
+        if (!duty_rsp.ok)
+            rs.ok = 1'b0;
+
+        foreach (frontier[i]) begin
+            nd = frontier[i];
+            if (nd == null || nd.vif == null)
+                continue;
+            if (nd.frequence <= 0)
+                continue;
+
+            gen_req = {{ class_prefix }}set_clock_gen_req::type_id::create("gen_req");
+            gen_req.node = nd;
+            gen_req.gen_en = 1'b1;
+            gen_seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
+            gen_seq.req = gen_req;
+            gen_seq.start(p_sequencer);
+            void'(gen_seq.get_response(gen_rsp));
+            if (!gen_rsp.ok)
+                rs.ok = 1'b0;
+        end
+
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_duty_wavefront: wave %0d, %0d node(s)", wave, frontier.size()), UVM_LOW)
+
+        {{ class_prefix }}remove_nodes_from_queue(pending, frontier);
+        wave++;
+    end
+
+    if (rs.ok)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_duty_wavefront: passed, %0d wave(s)", wave), UVM_LOW)
+
+    rsp = rs;
+endtask
+
+`endif

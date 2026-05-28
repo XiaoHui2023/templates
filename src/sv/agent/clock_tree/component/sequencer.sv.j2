@@ -11,7 +11,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     extern function void build_phase(uvm_phase phase);
 {% if setting_defs %}
-    extern function void configure_settings({{ class_prefix }}settings settings);
+    extern function void apply_settings({{ class_prefix }}settings settings);
 {% endif %}
 endclass
 
@@ -20,10 +20,10 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
 endfunction
 
 {% if setting_defs %}
-function void {{ class_prefix }}sequencer::configure_settings({{ class_prefix }}settings settings);
+function void {{ class_prefix }}sequencer::apply_settings({{ class_prefix }}settings settings);
     if (settings == null)
-        `uvm_fatal("CLK_TREE", "configure_settings: settings is null")
-    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, on_configure_settings(settings))
+        `uvm_fatal("CLK_TREE", "apply_settings: settings is null")
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, on_apply_settings(settings))
 endfunction
 {% endif %}
 

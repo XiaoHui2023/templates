@@ -19,7 +19,7 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| `configure_settings` | 对给定 **settings** 实例触发 **on_configure_settings**；仅声明 **setting_defs** 时存在 |
+| `apply_settings` | 对给定 **settings** 实例触发 **on_apply_settings**；仅声明 **setting_defs** 时存在 |
 
 ## kit_sequencer
 
@@ -31,31 +31,36 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| `configure_tree` | 对单棵 **tree** 的 **settings** 调用 **configure_settings**；仅声明 **setting_defs** 时存在 |
-| `configure_all_trees` | 对 **trees** 队列中每棵 **tree** 依次配置；仅声明 **setting_defs** 时存在 |
-| `set_clock_gen` | 入参 **node**、**gen_en** 默认 1；启动 **set_clock_gen** 行为 |
-| `set_clock_gen_nodes` | 入参节点队列与 **gen_en**；逐节点调用上一方法 |
-| `set_clock_gen_tree` | 入参 **tree** 与 **gen_en**；对该树全部带 **vif** 的节点调用 |
-| `set_clock_gen_trees` | 入参 **trees** 队列与 **gen_en**；对每棵树调用上一方法 |
-| `gen_source_clock` | 无参；对 **trees** 中全部 **source** 节点执行 **set_clock_gen(1)** |
+| `apply_settings` | 入参 **settings**；触发 **on_apply_settings**。**settings** 为空时对 **trees** 逐棵执行各 **tree.settings**；仅声明 **setting_defs** 时存在 |
+| `set_clock_gen` | 入参 **nodes**、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **trees** 逐棵执行该树全部 **nodes** |
+| `gen_source_clock` | 无参；收集 **trees** 中全部 **source** 后调用 **set_clock_gen** |
 | `set_pll` | 入参 **pll** 节点；启动 **set_pll**，寄存器细节待补 |
-| `apply` | 入参 **tree**；启动 **apply**，**gate/div/dto/mux** 寄存器待补 |
-| `check_clk` | 入参 **tree**；检查全部 **clk** 节点频率 |
-| `check_pll` | 入参 **tree**；检查全部 **pll** 节点频率 |
-| `check_duty` | 入参 **tree**、**gen_after_check** 默认 0；检查占空比，可选检查后对该节点 **set_clock_gen(1)** |
+| `configure` | 入参 **nodes**；启动 **configure**。**nodes** 为空时对 **trees** 逐棵执行 |
+| `check_clk` | 入参 **nodes**；检查其中 **clk** 节点频率。**nodes** 为空时对 **trees** 逐棵执行 |
+| `check_pll` | 入参 **nodes**；检查其中 **pll** 节点频率。**nodes** 为空时对 **trees** 逐棵执行 |
+| `check_duty` | 入参 **nodes**；检查带 **vif** 节点占空比。**nodes** 为空时对 **trees** 逐棵执行 |
+| `test_duty_wavefront` | 入参 **nodes**；按 **source** 依赖自前向后分波：**check_duty** 后对该波 **set_clock_gen**。**nodes** 为空时对 **trees** 逐棵执行 |
 
 ## sequence · operation
 
-每种底层操作独占 **`sequence/operation/<操作名>/`**，含 **req**、**rsp** 与 **operation** 序列。**operation** 的 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台经 **kit** 填 **req** 后 **start** 该序列。
+每种底层操作独占 **`sequence/operation/<操作名>/`**，含 **req**、**rsp** 与 **operation** 序列。**operation** 的 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台通过 **kit** 填 **req** 后 **start** 该序列。
 
 | 行为目录 | 说明 |
 | --- | --- |
 | `set_clock_gen` | 按 **req.gen_en** 与节点 **frequence** 设置 **vif** 时钟发生；**gen_en** 为 0 关闭 |
 | `set_pll` | **pll** 频率与寄存器配置，主体待补 |
-| `apply` | 应用 **gate**、**div**、**dto**、**mux** 配置寄存器，主体待补 |
-| `check_clk` | 检查 **tree** 内全部 **clk** 频率 |
-| `check_pll` | 检查 **tree** 内全部 **pll** 频率 |
-| `check_duty` | 检查带 **vif** 节点占空比；**req.gen_after_check** 为真且 **frequence** 大于 0 时对该节点打开 **set_clock_gen** |
+| `configure` | 写入 **gate**、**div**、**dto**、**mux** 配置寄存器，主体待补；**req.nodes** 指定范围 |
+| `check_clk` | 检查 **req.nodes** 中 **clk** 频率 |
+| `check_pll` | 检查 **req.nodes** 中 **pll** 频率 |
+| `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
+
+## sequence · test
+
+组合测试序列放在 **`sequence/test/<测试名>/`**，含 **req**、**rsp** 与 **test** 序列；**p_sequencer** 仍为 **sequencer**，在 **body** 内 **start** 多个 **operation** 序列。
+
+| 测试目录 | 说明 |
+| --- | --- |
+| `test_duty_wavefront` | 在 **req.nodes** 上按波前顺序：**check_duty** → **set_clock_gen**，再处理下一波下游节点 |
 
 ## sequence · base
 

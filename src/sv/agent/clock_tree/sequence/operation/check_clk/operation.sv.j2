@@ -24,6 +24,7 @@ task {{ class_prefix }}check_clk_seq::body();
     real expected_hz;
     real measured_hz;
     real rel_diff;
+    int checked;
 
     meas_timeout_ns = (1_000_000_000 + {{ min_freq_hz }} - 1) / {{ min_freq_hz }};
 
@@ -31,18 +32,20 @@ task {{ class_prefix }}check_clk_seq::body();
         `uvm_fatal("CLK_TREE", "check_clk: req is null")
 
     rq = req;
-    if (rq.tree == null)
-        `uvm_fatal("CLK_TREE", "check_clk: req.tree is null")
+    if (rq.nodes.size() == 0)
+        `uvm_fatal("CLK_TREE", "check_clk: req.nodes is empty")
 
     rs = {{ class_prefix }}check_clk_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
+    checked = 0;
 
-    foreach (rq.tree.nodes[i]) begin
-        if (!$cast(clk_nd, rq.tree.nodes[i]))
+    foreach (rq.nodes[i]) begin
+        if (!$cast(clk_nd, rq.nodes[i]))
             continue;
         if (clk_nd.vif == null)
             continue;
 
+        checked++;
         clk_nd.vif.set_measure_en(1'b1);
         elapsed_ns = 0;
         while (!clk_nd.vif.meas.stable && elapsed_ns < meas_timeout_ns) begin
@@ -78,9 +81,12 @@ task {{ class_prefix }}check_clk_seq::body();
         end
     end
 
+    if (checked == 0)
+        `uvm_fatal("CLK_TREE", "check_clk: no clk node with vif in req.nodes")
+
     if (rs.ok)
         `uvm_info("CLK_TREE", $sformatf(
-            "check_clk: passed, tree %s", rq.tree.get_name()), UVM_LOW)
+            "check_clk: passed, %0d clk node(s)", checked), UVM_LOW)
 
     rsp = rs;
 endtask

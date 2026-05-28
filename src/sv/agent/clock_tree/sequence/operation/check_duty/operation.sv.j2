@@ -21,6 +21,7 @@ task {{ class_prefix }}check_duty_seq::body();
     {{ class_prefix }}node_base nd;
     int meas_timeout_ns;
     int elapsed_ns;
+    int checked;
 
     meas_timeout_ns = (1_000_000_000 + {{ min_freq_hz }} - 1) / {{ min_freq_hz }};
 
@@ -28,17 +29,21 @@ task {{ class_prefix }}check_duty_seq::body();
         `uvm_fatal("CLK_TREE", "check_duty: req is null")
 
     rq = req;
-    if (rq.tree == null)
-        `uvm_fatal("CLK_TREE", "check_duty: req.tree is null")
+    if (rq.nodes.size() == 0)
+        `uvm_fatal("CLK_TREE", "check_duty: req.nodes is empty")
 
     rs = {{ class_prefix }}check_duty_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
+    checked = 0;
 
-    foreach (rq.tree.nodes[i]) begin
-        nd = rq.tree.nodes[i];
+    foreach (rq.nodes[i]) begin
+        nd = rq.nodes[i];
+        if (nd == null)
+            continue;
         if (nd.vif == null)
             continue;
 
+        checked++;
         nd.vif.set_measure_en(1'b1);
         elapsed_ns = 0;
         while (!nd.vif.meas.stable && elapsed_ns < meas_timeout_ns) begin
@@ -62,15 +67,14 @@ task {{ class_prefix }}check_duty_seq::body();
         end
 
         nd.vif.set_measure_en(1'b0);
-
-        if (rq.gen_after_check && nd.frequence > 0)
-            nd.vif.set_clock_gen(1'b1, real'(nd.frequence));
     end
+
+    if (checked == 0)
+        `uvm_fatal("CLK_TREE", "check_duty: no node with vif in req.nodes")
 
     if (rs.ok)
         `uvm_info("CLK_TREE", $sformatf(
-            "check_duty: passed, tree %s, gen_after_check %0b",
-            rq.tree.get_name(), rq.gen_after_check), UVM_LOW)
+            "check_duty: passed, %0d node(s)", checked), UVM_LOW)
 
     rsp = rs;
 endtask

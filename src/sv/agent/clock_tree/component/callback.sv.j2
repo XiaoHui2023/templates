@@ -9,7 +9,7 @@ class {{ class_prefix }}callback extends uvm_callback;
     endfunction
 
 {% if setting_defs %}
-    virtual function void on_configure_settings({{ class_prefix }}settings settings);
+    virtual function void on_apply_settings({{ class_prefix }}settings settings);
     endfunction
 {% endif %}
 endclass
