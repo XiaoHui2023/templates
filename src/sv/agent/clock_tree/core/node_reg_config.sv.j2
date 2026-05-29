@@ -10,26 +10,26 @@ class {{ class_prefix }}node_cfg;
         rw = reg_rw;
     endfunction
 
-    extern task configure_gate({{ class_prefix }}reg_bind f_reg, input bit open);
-    extern task configure_mux({{ class_prefix }}reg_bind f_reg, input int sel);
+    extern task configure_gate({{ class_prefix }}reg_bind f_reg, bit open);
+    extern task configure_mux({{ class_prefix }}reg_bind f_reg, int sel);
     extern task configure_div(
         {{ class_prefix }}reg_bind f_rst,
         {{ class_prefix }}reg_bind f_load,
         {{ class_prefix }}reg_bind f_div,
-        input int ratio);
+        int ratio);
     extern task configure_dto(
         {{ class_prefix }}reg_bind f_rstn,
         {{ class_prefix }}reg_bind f_load,
         {{ class_prefix }}reg_bind f_bypass,
         {{ class_prefix }}reg_bind f_step,
-        input int ratio);
+        int ratio);
 endclass
 
-task {{ class_prefix }}node_cfg::configure_gate({{ class_prefix }}reg_bind f_reg, input bit open);
+task {{ class_prefix }}node_cfg::configure_gate({{ class_prefix }}reg_bind f_reg, bit open);
     rw.set_write(f_reg, open);
 endtask
 
-task {{ class_prefix }}node_cfg::configure_mux({{ class_prefix }}reg_bind f_reg, input int sel);
+task {{ class_prefix }}node_cfg::configure_mux({{ class_prefix }}reg_bind f_reg, int sel);
     rw.set_write(f_reg, sel);
 endtask
 
@@ -37,7 +37,7 @@ task {{ class_prefix }}node_cfg::configure_div(
         {{ class_prefix }}reg_bind f_rst,
         {{ class_prefix }}reg_bind f_load,
         {{ class_prefix }}reg_bind f_div,
-        input int ratio);
+        int ratio);
     int n;
     n = {{ class_prefix }}div_ratio_to_n(ratio);
     rw.set_write(f_rst, 0);
@@ -51,7 +51,7 @@ task {{ class_prefix }}node_cfg::configure_dto(
         {{ class_prefix }}reg_bind f_load,
         {{ class_prefix }}reg_bind f_bypass,
         {{ class_prefix }}reg_bind f_step,
-        input int ratio);
+        int ratio);
     {{ class_prefix }}reg_bind binds[$];
     int vals[$];
     int step;

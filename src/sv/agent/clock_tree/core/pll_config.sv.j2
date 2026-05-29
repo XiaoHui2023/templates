@@ -16,22 +16,22 @@ class {{ class_prefix }}pll_cfg;
     endfunction
 
     extern function void tci_divisors(
-        input longint out_hz,
-        input longint ref_hz,
+        longint out_hz,
+        longint ref_hz,
         output int clkr,
         output int clkf,
         output int clkod,
         output int bwadj);
     extern function void sc_divisors(
-        input longint out_hz,
-        input longint ref_hz,
+        longint out_hz,
+        longint ref_hz,
         output int fbdiv,
         output int refdiv,
         output int postdiv1,
         output int postdiv2);
     extern function void dw_divisors(
-        input longint out_hz,
-        input longint ref_hz,
+        longint out_hz,
+        longint ref_hz,
         output int fbdiv,
         output int prediv,
         output int divvcop,
@@ -46,10 +46,10 @@ class {{ class_prefix }}pll_cfg;
         {{ class_prefix }}reg_bind f_clkf,
         {{ class_prefix }}reg_bind f_clkr,
         {{ class_prefix }}reg_bind f_bwadj,
-        input int clkr,
-        input int clkf,
-        input int clkod,
-        input int bwadj);
+        int clkr,
+        int clkf,
+        int clkod,
+        int bwadj);
     extern task configure_sc(
         {{ class_prefix }}reg_bind f_vocpd,
         {{ class_prefix }}reg_bind f_postdivpd,
@@ -60,10 +60,10 @@ class {{ class_prefix }}pll_cfg;
         {{ class_prefix }}reg_bind f_postdiv2,
         {{ class_prefix }}reg_bind f_postdiv1,
         {{ class_prefix }}reg_bind f_fbdiv,
-        input int fbdiv,
-        input int refdiv,
-        input int postdiv1,
-        input int postdiv2);
+        int fbdiv,
+        int refdiv,
+        int postdiv1,
+        int postdiv2);
     extern task configure_dw(
         {{ class_prefix }}reg_bind f_fbdiv,
         {{ class_prefix }}reg_bind f_prediv,
@@ -77,12 +77,12 @@ class {{ class_prefix }}pll_cfg;
         {{ class_prefix }}reg_bind f_divvcop,
         {{ class_prefix }}reg_bind f_enr,
         {{ class_prefix }}reg_bind f_enp,
-        input int fbdiv,
-        input int prediv,
-        input int divvcop,
-        input int p,
-        input int divvcor,
-        input int r);
+        int fbdiv,
+        int prediv,
+        int divvcop,
+        int p,
+        int divvcor,
+        int r);
     extern task configure_sc_from_hz(
         {{ class_prefix }}reg_bind f_vocpd,
         {{ class_prefix }}reg_bind f_postdivpd,
@@ -93,8 +93,8 @@ class {{ class_prefix }}pll_cfg;
         {{ class_prefix }}reg_bind f_postdiv2,
         {{ class_prefix }}reg_bind f_postdiv1,
         {{ class_prefix }}reg_bind f_fbdiv,
-        input longint out_hz,
-        input longint ref_hz);
+        longint out_hz,
+        longint ref_hz);
     extern task configure_dw_from_hz(
         {{ class_prefix }}reg_bind f_fbdiv,
         {{ class_prefix }}reg_bind f_prediv,
@@ -108,14 +108,14 @@ class {{ class_prefix }}pll_cfg;
         {{ class_prefix }}reg_bind f_divvcop,
         {{ class_prefix }}reg_bind f_enr,
         {{ class_prefix }}reg_bind f_enp,
-        input longint out_hz,
-        input longint ref_hz);
-    extern task wait_lock({{ class_prefix }}reg_bind f_lock, input time timeout);
+        longint out_hz,
+        longint ref_hz);
+    extern task wait_lock({{ class_prefix }}reg_bind f_lock, time timeout);
 endclass
 
 function void {{ class_prefix }}pll_cfg::tci_divisors(
-        input longint out_hz,
-        input longint ref_hz,
+        longint out_hz,
+        longint ref_hz,
         output int clkr,
         output int clkf,
         output int clkod,
@@ -130,8 +130,8 @@ function void {{ class_prefix }}pll_cfg::tci_divisors(
 endfunction
 
 function void {{ class_prefix }}pll_cfg::sc_divisors(
-        input longint out_hz,
-        input longint ref_hz,
+        longint out_hz,
+        longint ref_hz,
         output int fbdiv,
         output int refdiv,
         output int postdiv1,
@@ -187,8 +187,8 @@ function void {{ class_prefix }}pll_cfg::sc_divisors(
 endfunction
 
 function void {{ class_prefix }}pll_cfg::dw_divisors(
-        input longint out_hz,
-        input longint ref_hz,
+        longint out_hz,
+        longint ref_hz,
         output int fbdiv,
         output int prediv,
         output int divvcop,
@@ -243,8 +243,8 @@ task {{ class_prefix }}pll_cfg::configure_sc_from_hz(
         {{ class_prefix }}reg_bind f_postdiv2,
         {{ class_prefix }}reg_bind f_postdiv1,
         {{ class_prefix }}reg_bind f_fbdiv,
-        input longint out_hz,
-        input longint ref_hz);
+        longint out_hz,
+        longint ref_hz);
     int fbdiv;
     int refdiv;
     int postdiv1;
@@ -269,8 +269,8 @@ task {{ class_prefix }}pll_cfg::configure_dw_from_hz(
         {{ class_prefix }}reg_bind f_divvcop,
         {{ class_prefix }}reg_bind f_enr,
         {{ class_prefix }}reg_bind f_enp,
-        input longint out_hz,
-        input longint ref_hz);
+        longint out_hz,
+        longint ref_hz);
     int fbdiv;
     int prediv;
     int divvcop;
@@ -292,10 +292,10 @@ task {{ class_prefix }}pll_cfg::configure_tci(
         {{ class_prefix }}reg_bind f_clkf,
         {{ class_prefix }}reg_bind f_clkr,
         {{ class_prefix }}reg_bind f_bwadj,
-        input int clkr,
-        input int clkf,
-        input int clkod,
-        input int bwadj);
+        int clkr,
+        int clkf,
+        int clkod,
+        int bwadj);
     {{ class_prefix }}reg_bind binds[$];
     int vals[$];
 
@@ -326,10 +326,10 @@ task {{ class_prefix }}pll_cfg::configure_sc(
         {{ class_prefix }}reg_bind f_postdiv2,
         {{ class_prefix }}reg_bind f_postdiv1,
         {{ class_prefix }}reg_bind f_fbdiv,
-        input int fbdiv,
-        input int refdiv,
-        input int postdiv1,
-        input int postdiv2);
+        int fbdiv,
+        int refdiv,
+        int postdiv1,
+        int postdiv2);
     {{ class_prefix }}reg_bind binds[$];
     int vals[$];
 
@@ -359,12 +359,12 @@ task {{ class_prefix }}pll_cfg::configure_dw(
         {{ class_prefix }}reg_bind f_divvcop,
         {{ class_prefix }}reg_bind f_enr,
         {{ class_prefix }}reg_bind f_enp,
-        input int fbdiv,
-        input int prediv,
-        input int divvcop,
-        input int p,
-        input int divvcor,
-        input int r);
+        int fbdiv,
+        int prediv,
+        int divvcop,
+        int p,
+        int divvcor,
+        int r);
     {{ class_prefix }}reg_bind binds[$];
     int vals[$];
 
@@ -396,23 +396,17 @@ task {{ class_prefix }}pll_cfg::configure_dw(
     rw.apply(binds, vals);
 endtask
 
-task {{ class_prefix }}pll_cfg::wait_lock({{ class_prefix }}reg_bind f_lock, input time timeout);
+task {{ class_prefix }}pll_cfg::wait_lock({{ class_prefix }}reg_bind f_lock, time timeout);
     time elapsed;
-    uvm_status_e status;
-    int rdata;
-    uvm_reg r;
+    int lock_val;
 
     if (f_lock.field == null)
         `uvm_fatal("CLK_TREE", "wait_lock: f_lock not bound")
 
     elapsed = 0;
     while (elapsed < timeout) begin
-        r = f_lock.field.get_register();
-        r.read(status, rdata);
-        if (status != UVM_IS_OK)
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "wait_lock: read %s failed", r.get_full_name()))
-        if (rw.get(f_lock) == 1)
+        rw.read(f_lock, lock_val);
+        if (lock_val == 1)
             return;
         #2us;
         elapsed += 2us;

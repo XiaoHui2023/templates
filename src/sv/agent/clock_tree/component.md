@@ -20,6 +20,7 @@
 | 成员 | 说明 |
 | --- | --- |
 | `tools` | **core_tools**：**rw**、**node**、**pll** 三类寄存器与 PLL 工具 |
+| `tools.rw` | **reg_rw**：总线 **read** / **write** / **apply** / **set_write** 为 **task**；**get** / **set** 仅改或读 RAL 镜像时为 **function** |
 
 ## kit_sequencer
 
@@ -31,12 +32,12 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| `set_clock_gen` | 入参 **nodes**、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
-| `config_reg` | 入参 **nodes**；启动 **config_reg**。**nodes** 为空时对 **tree.nodes** 执行；含 **pll** 写 RAL 与 **wait_lock** |
-| `check_clk` | 入参 **nodes**；检查其中 **clk** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
-| `check_pll` | 入参 **nodes**；检查其中 **pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
-| `check_duty` | 入参 **nodes**；检查带 **vif** 节点占空比。**nodes** 为空时对 **tree.nodes** 执行 |
-| `test_duty_wavefront` | 入参 **nodes**；按 **source** 依赖自前向后分波：**check_duty** 后对该波 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
+| `set_clock_gen` | **task**；入参 **nodes** 默认空队列、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行；**rsp.ok** 为 0 时 **fatal** |
+| `config_reg` | **task**；入参 **nodes** 默认空队列；启动 **config_reg**。**nodes** 为空时对 **tree.nodes** 执行；含 **pll** 写 RAL 与 **wait_lock**；不向调用方返回 **rsp** |
+| `check_clk` | **task**；入参 **nodes** 默认空队列；检查其中 **clk** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
+| `check_pll` | **task**；入参 **nodes** 默认空队列；检查其中 **pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
+| `check_duty` | **task**；入参 **nodes** 默认空队列；检查带 **vif** 节点占空比。**nodes** 为空时对 **tree.nodes** 执行 |
+| `test_duty_wavefront` | **task**；入参 **nodes** 默认空队列；按 **source** 依赖自前向后分波：**check_duty** 后对该波 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
 
 ## sequence · operation
 

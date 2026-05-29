@@ -5,8 +5,10 @@ class {{ class_prefix }}reg_rw;
     extern function uvm_reg parent_reg({{ class_prefix }}reg_bind rb);
     extern function int get({{ class_prefix }}reg_bind rb);
     extern function void set({{ class_prefix }}reg_bind rb, int value);
-    extern function void write_reg(uvm_reg r);
-    extern function void write({{ class_prefix }}reg_bind rb);
+    extern task read_reg(uvm_reg r, output int rdata);
+    extern task read({{ class_prefix }}reg_bind rb, output int value);
+    extern task write_reg(uvm_reg r);
+    extern task write({{ class_prefix }}reg_bind rb);
     extern task set_write({{ class_prefix }}reg_bind rb, int value);
     extern task apply(ref {{ class_prefix }}reg_bind binds[$], ref int vals[$]);
 endclass
@@ -53,7 +55,33 @@ function void {{ class_prefix }}reg_rw::set({{ class_prefix }}reg_bind rb, int v
             "set: %s set 0x%0h failed", rb.field.get_full_name(), value))
 endfunction
 
-function void {{ class_prefix }}reg_rw::write_reg(uvm_reg r);
+task {{ class_prefix }}reg_rw::read_reg(uvm_reg r, output int rdata);
+    uvm_status_e status;
+    if (r == null)
+        `uvm_fatal("CLK_TREE", "read_reg: reg is null")
+    r.read(status, rdata);
+    if (status != UVM_IS_OK)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "read_reg: read %s failed", r.get_full_name()))
+endtask
+
+task {{ class_prefix }}reg_rw::read({{ class_prefix }}reg_bind rb, output int value);
+    uvm_reg r;
+    int full;
+    int mask;
+    if (rb.field == null)
+        `uvm_fatal("CLK_TREE", "read: field is null")
+    r = parent_reg(rb);
+    read_reg(r, full);
+    if (rb.width == rb.field.get_n_bits() && rb.offset == 0)
+        value = full;
+    else begin
+        mask = (1 << rb.width) - 1;
+        value = (full >> rb.offset) & mask;
+    end
+endtask
+
+task {{ class_prefix }}reg_rw::write_reg(uvm_reg r);
     uvm_status_e status;
     int wdata;
     if (r == null)
@@ -63,11 +91,11 @@ function void {{ class_prefix }}reg_rw::write_reg(uvm_reg r);
     if (status != UVM_IS_OK)
         `uvm_fatal("CLK_TREE", $sformatf(
             "write_reg: write %s 0x%0h failed", r.get_full_name(), wdata))
-endfunction
+endtask
 
-function void {{ class_prefix }}reg_rw::write({{ class_prefix }}reg_bind rb);
+task {{ class_prefix }}reg_rw::write({{ class_prefix }}reg_bind rb);
     write_reg(parent_reg(rb));
-endfunction
+endtask
 
 task {{ class_prefix }}reg_rw::set_write({{ class_prefix }}reg_bind rb, int value);
     set(rb, value);

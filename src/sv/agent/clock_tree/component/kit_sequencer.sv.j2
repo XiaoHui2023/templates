@@ -11,21 +11,20 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     endfunction
 
 {% if any_node_path %}
-    extern function void set_clock_gen(
-        {{ class_prefix }}node_base nodes[$], bit gen_en = 1'b1);
+    extern task set_clock_gen(
+        {{ class_prefix }}node_base nodes[$] = {}, bit gen_en = 1'b1);
 {% endif %}
-    extern function {{ class_prefix }}config_reg_rsp config_reg({{ class_prefix }}node_base nodes[$]);
+    extern task config_reg({{ class_prefix }}node_base nodes[$] = {});
 {% if any_node_path %}
-    extern function {{ class_prefix }}check_clk_rsp check_clk({{ class_prefix }}node_base nodes[$]);
-    extern function {{ class_prefix }}check_pll_rsp check_pll({{ class_prefix }}node_base nodes[$]);
-    extern function {{ class_prefix }}check_duty_rsp check_duty({{ class_prefix }}node_base nodes[$]);
-    extern function {{ class_prefix }}test_duty_wavefront_rsp test_duty_wavefront(
-        {{ class_prefix }}node_base nodes[$]);
+    extern task check_clk({{ class_prefix }}node_base nodes[$] = {});
+    extern task check_pll({{ class_prefix }}node_base nodes[$] = {});
+    extern task check_duty({{ class_prefix }}node_base nodes[$] = {});
+    extern task test_duty_wavefront({{ class_prefix }}node_base nodes[$] = {});
 {% endif %}
 endclass
 
 {% if any_node_path %}
-function void {{ class_prefix }}kit_sequencer::set_clock_gen(
+task {{ class_prefix }}kit_sequencer::set_clock_gen(
         {{ class_prefix }}node_base nodes[$], bit gen_en);
     if (nodes.size() == 0) begin
         if (tree == null)
@@ -37,6 +36,7 @@ function void {{ class_prefix }}kit_sequencer::set_clock_gen(
     foreach (nodes[i]) begin
         {{ class_prefix }}set_clock_gen_req req;
         {{ class_prefix }}set_clock_gen_seq seq;
+        {{ class_prefix }}set_clock_gen_rsp seq_rsp;
 
         if (nodes[i] == null)
             continue;
@@ -50,21 +50,24 @@ function void {{ class_prefix }}kit_sequencer::set_clock_gen(
         seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
         seq.req = req;
         seq.start(this);
+        seq_rsp = seq.rsp;
+        if (seq_rsp != null && !seq_rsp.ok)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "set_clock_gen: node %s failed", nodes[i].get_name()))
     end
-endfunction
+endtask
 {% endif %}
 
-function {{ class_prefix }}config_reg_rsp {{ class_prefix }}kit_sequencer::config_reg(
-        {{ class_prefix }}node_base nodes[$]);
+task {{ class_prefix }}kit_sequencer::config_reg({{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}config_reg_req req;
-    {{ class_prefix }}config_reg_rsp rsp;
+    {{ class_prefix }}config_reg_rsp seq_rsp;
     {{ class_prefix }}config_reg_seq seq;
 
     if (nodes.size() == 0) begin
         if (tree == null)
             `uvm_fatal("CLK_TREE", "config_reg: nodes empty and tree is null")
-        rsp = config_reg(tree.nodes);
-        return rsp;
+        config_reg(tree.nodes);
+        return;
     end
 
     req = {{ class_prefix }}config_reg_req::type_id::create("req");
@@ -73,22 +76,22 @@ function {{ class_prefix }}config_reg_rsp {{ class_prefix }}kit_sequencer::confi
     seq = {{ class_prefix }}config_reg_seq::type_id::create("config_reg");
     seq.req = req;
     seq.start(this);
-    rsp = seq.rsp;
-    return rsp;
-endfunction
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "config_reg: operation failed")
+endtask
 
 {% if any_node_path %}
-function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::check_clk(
-        {{ class_prefix }}node_base nodes[$]);
+task {{ class_prefix }}kit_sequencer::check_clk({{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}check_clk_req req;
-    {{ class_prefix }}check_clk_rsp rsp;
+    {{ class_prefix }}check_clk_rsp seq_rsp;
     {{ class_prefix }}check_clk_seq seq;
 
     if (nodes.size() == 0) begin
         if (tree == null)
             `uvm_fatal("CLK_TREE", "check_clk: nodes empty and tree is null")
-        rsp = check_clk(tree.nodes);
-        return rsp;
+        check_clk(tree.nodes);
+        return;
     end
 
     req = {{ class_prefix }}check_clk_req::type_id::create("req");
@@ -97,21 +100,21 @@ function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::check_
     seq = {{ class_prefix }}check_clk_seq::type_id::create("check_clk");
     seq.req = req;
     seq.start(this);
-    rsp = seq.rsp;
-    return rsp;
-endfunction
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "check_clk: operation failed")
+endtask
 
-function {{ class_prefix }}check_pll_rsp {{ class_prefix }}kit_sequencer::check_pll(
-        {{ class_prefix }}node_base nodes[$]);
+task {{ class_prefix }}kit_sequencer::check_pll({{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}check_pll_req req;
-    {{ class_prefix }}check_pll_rsp rsp;
+    {{ class_prefix }}check_pll_rsp seq_rsp;
     {{ class_prefix }}check_pll_seq seq;
 
     if (nodes.size() == 0) begin
         if (tree == null)
             `uvm_fatal("CLK_TREE", "check_pll: nodes empty and tree is null")
-        rsp = check_pll(tree.nodes);
-        return rsp;
+        check_pll(tree.nodes);
+        return;
     end
 
     req = {{ class_prefix }}check_pll_req::type_id::create("req");
@@ -120,21 +123,21 @@ function {{ class_prefix }}check_pll_rsp {{ class_prefix }}kit_sequencer::check_
     seq = {{ class_prefix }}check_pll_seq::type_id::create("check_pll");
     seq.req = req;
     seq.start(this);
-    rsp = seq.rsp;
-    return rsp;
-endfunction
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "check_pll: operation failed")
+endtask
 
-function {{ class_prefix }}check_duty_rsp {{ class_prefix }}kit_sequencer::check_duty(
-        {{ class_prefix }}node_base nodes[$]);
+task {{ class_prefix }}kit_sequencer::check_duty({{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}check_duty_req req;
-    {{ class_prefix }}check_duty_rsp rsp;
+    {{ class_prefix }}check_duty_rsp seq_rsp;
     {{ class_prefix }}check_duty_seq seq;
 
     if (nodes.size() == 0) begin
         if (tree == null)
             `uvm_fatal("CLK_TREE", "check_duty: nodes empty and tree is null")
-        rsp = check_duty(tree.nodes);
-        return rsp;
+        check_duty(tree.nodes);
+        return;
     end
 
     req = {{ class_prefix }}check_duty_req::type_id::create("req");
@@ -143,21 +146,21 @@ function {{ class_prefix }}check_duty_rsp {{ class_prefix }}kit_sequencer::check
     seq = {{ class_prefix }}check_duty_seq::type_id::create("check_duty");
     seq.req = req;
     seq.start(this);
-    rsp = seq.rsp;
-    return rsp;
-endfunction
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "check_duty: operation failed")
+endtask
 
-function {{ class_prefix }}test_duty_wavefront_rsp {{ class_prefix }}kit_sequencer::test_duty_wavefront(
-        {{ class_prefix }}node_base nodes[$]);
+task {{ class_prefix }}kit_sequencer::test_duty_wavefront({{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}test_duty_wavefront_req req;
-    {{ class_prefix }}test_duty_wavefront_rsp rsp;
+    {{ class_prefix }}test_duty_wavefront_rsp seq_rsp;
     {{ class_prefix }}test_duty_wavefront_seq seq;
 
     if (nodes.size() == 0) begin
         if (tree == null)
             `uvm_fatal("CLK_TREE", "test_duty_wavefront: nodes empty and tree is null")
-        rsp = test_duty_wavefront(tree.nodes);
-        return rsp;
+        test_duty_wavefront(tree.nodes);
+        return;
     end
 
     req = {{ class_prefix }}test_duty_wavefront_req::type_id::create("req");
@@ -166,9 +169,10 @@ function {{ class_prefix }}test_duty_wavefront_rsp {{ class_prefix }}kit_sequenc
     seq = {{ class_prefix }}test_duty_wavefront_seq::type_id::create("test_duty_wavefront");
     seq.req = req;
     seq.start(this);
-    rsp = seq.rsp;
-    return rsp;
-endfunction
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_duty_wavefront: operation failed")
+endtask
 {% endif %}
 
 `endif
