@@ -19,7 +19,7 @@
 
 | 成员 | 说明 |
 | --- | --- |
-| `tools` | **core_tools**：**reg**、**node**、**pll** 三类寄存器与 PLL 工具 |
+| `tools` | **core_tools**：**rw**、**node**、**pll** 三类寄存器与 PLL 工具 |
 
 ## kit_sequencer
 

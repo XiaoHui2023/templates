@@ -2,14 +2,14 @@
 `define {{ (class_prefix ~ "core_tools") | upper }}
 
 class {{ class_prefix }}core_tools;
-    {{ class_prefix }}reg_rw reg;
+    {{ class_prefix }}reg_rw rw;
     {{ class_prefix }}node_cfg node;
     {{ class_prefix }}pll_cfg pll;
 
     function new();
-        reg = new;
-        node = new(reg);
-        pll = new(reg);
+        rw = new;
+        node = new(rw);
+        pll = new(rw);
     endfunction
 endclass
 

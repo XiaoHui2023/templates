@@ -7,12 +7,12 @@ class {{ class_prefix }}pll_cfg;
     localparam int DW_FBDIV_MIN = 1;
     localparam int DW_FBDIV_MAX = 1023;
 
-    {{ class_prefix }}reg_rw reg;
+    {{ class_prefix }}reg_rw rw;
 
     function new({{ class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
             `uvm_fatal("CLK_TREE", "pll_cfg: reg_rw is null")
-        reg = reg_rw;
+        rw = reg_rw;
     endfunction
 
     extern function void tci_divisors(
@@ -301,19 +301,19 @@ task {{ class_prefix }}pll_cfg::configure_tci(
 
     binds = '{f_bypass, f_pwrdn, f_reset};
     vals = '{1, 0, 1};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 
     binds = '{f_clkod, f_clkf, f_clkr, f_bwadj};
     vals = '{clkod, clkf, clkr, bwadj};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 
     binds = '{f_reset};
     vals = '{0};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 
     binds = '{f_bypass};
     vals = '{0};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 endtask
 
 task {{ class_prefix }}pll_cfg::configure_sc(
@@ -335,15 +335,15 @@ task {{ class_prefix }}pll_cfg::configure_sc(
 
     binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
     vals = '{1, 1, 1, 1, 1};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 
     binds = '{f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv};
     vals = '{refdiv, postdiv2, postdiv1, fbdiv};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 
     binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
     vals = '{0, 0, 0, 0, 0};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 endtask
 
 task {{ class_prefix }}pll_cfg::configure_dw(
@@ -370,30 +370,30 @@ task {{ class_prefix }}pll_cfg::configure_dw(
 
     binds = '{f_fbdiv, f_prediv};
     vals = '{fbdiv, prediv};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 
     binds = '{f_reset, f_pwron, f_shift, f_bypass};
     vals = '{1, 1, 1, 0};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
     #4us;
 
     binds = '{f_reset};
     vals = '{0};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
     #16us;
 
     binds = '{f_shift};
     vals = '{0};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
     #10us;
 
     binds = '{f_divvcor, f_r, f_p, f_divvcop};
     vals = '{divvcor, r, p, divvcop};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 
     binds = '{f_enr, f_enp};
     vals = '{1, 1};
-    reg.apply(binds, vals);
+    rw.apply(binds, vals);
 endtask
 
 task {{ class_prefix }}pll_cfg::wait_lock({{ class_prefix }}reg_bind f_lock, input time timeout);
@@ -412,7 +412,7 @@ task {{ class_prefix }}pll_cfg::wait_lock({{ class_prefix }}reg_bind f_lock, inp
         if (status != UVM_IS_OK)
             `uvm_fatal("CLK_TREE", $sformatf(
                 "wait_lock: read %s failed", r.get_full_name()))
-        if (reg.get(f_lock) == 1)
+        if (rw.get(f_lock) == 1)
             return;
         #2us;
         elapsed += 2us;
