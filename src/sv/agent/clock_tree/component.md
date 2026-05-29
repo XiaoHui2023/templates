@@ -40,7 +40,7 @@
 
 ## sequence · operation
 
-每种底层操作独占 **`sequence/operation/<操作名>/`**，含 **req**、**rsp** 与 **operation** 序列。**operation** 的 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台通过 **kit** 填 **req** 后 **start** 该序列。
+每种底层操作独占 **`sequence/operation/<操作名>/`**，含 **req**、**rsp** 与 **op**。**op** 内 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台通过 **kit** 填 **req** 后 **start** 该序列。
 
 | 行为目录 | 说明 |
 | --- | --- |

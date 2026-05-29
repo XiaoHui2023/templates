@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
@@ -18,6 +18,8 @@ from reg_paths import (
 
 
 class Models(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     trees: List[Tree] = Field(
         ...,
         min_length=1,
@@ -88,7 +90,9 @@ class Models(BaseModel):
             seen.add(tree.name)
         return self
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field(  # type: ignore[prop-decorator]
+        description="各 tree 所用 PLL 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
+    )
     @property
     def pll_sv_classes(self) -> List[str]:
         kinds: set[str] = set()

@@ -10,7 +10,8 @@ class {{ class_prefix }}base_pll extends {{ class_prefix }}node_base;
     pll_kind_e pll_kind;
     bit locked;
 
-    constraint cst_freq_from_src;
+    constraint cst_freq_from_src {
+    }
 
     constraint cst_pll {
         frequence > 0 -> valid == 1;

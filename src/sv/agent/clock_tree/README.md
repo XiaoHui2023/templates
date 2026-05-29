@@ -19,6 +19,7 @@ trees:
         targets: [pll0]
       pll0:
         kind: pll
+        source: osc
         targets: [clk_cpu]
         freq: 1000000000
       clk_cpu:
@@ -74,7 +75,7 @@ trees:
 | `kind` | 主要字段 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `targets` | `targets` 必填 | 时钟源节点，`targets` 写目标节点名列表。 |
-| `pll` | `targets`, `pll_kind`, `regs` | `targets`、`pll_kind` 必填 | PLL 节点；`pll_kind` 为 `tci`、`sc`、`dw` 之一，大小写不限；`regs` 为逻辑名到 RAL 路径的映射，值可带比特范围后缀，非空时键须与该 `pll_kind` 允许集合完全一致。 |
+| `pll` | `source`, `targets`, `pll_kind`, `regs` | `source`、`targets`、`pll_kind` 必填 | PLL 节点；`source` 写参考时钟前级；**config_reg** 用前级 **frequence** 算分频，无前级句柄则 **uvm_fatal**；`pll_kind` 为 `tci`、`sc`、`dw` 之一，大小写不限；`regs` 为逻辑名到 RAL 路径的映射，值可带比特范围后缀，非空时键须与该 `pll_kind` 允许集合完全一致。 |
 | `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写前级节点名。 |
 | `gate` | `source`, `target`, `reg` | `source` 与 `target` 必填 | 门控节点；`reg` 为可选 RAL 点分路径，可带比特范围后缀。 |
 | `div` | `source`, `target`, `regs` | `source` 与 `target` 必填 | 分频节点；`regs` 非空时键为 `rst`、`load`、`div`，值可带比特范围后缀。 |

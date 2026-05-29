@@ -2,11 +2,17 @@
 `define {{ (class_prefix ~ "spec") | upper }}
 
 class {{ class_prefix }}spec#(type T = uvm_object) extends T;
+    `uvm_object_param_utils({{ class_prefix }}spec#(T))
+
     typedef enum {
         PLL_TCI,
         PLL_SC,
         PLL_DW
     } pll_kind_e;
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
 endclass
 
 `endif

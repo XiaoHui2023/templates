@@ -36,7 +36,6 @@ function void {{ class_prefix }}kit_sequencer::set_clock_gen(
 
     foreach (nodes[i]) begin
         {{ class_prefix }}set_clock_gen_req req;
-        {{ class_prefix }}set_clock_gen_rsp rsp;
         {{ class_prefix }}set_clock_gen_seq seq;
 
         if (nodes[i] == null)
@@ -51,7 +50,6 @@ function void {{ class_prefix }}kit_sequencer::set_clock_gen(
         seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
         seq.req = req;
         seq.start(this);
-        void'(seq.get_response(rsp));
     end
 endfunction
 {% endif %}
@@ -75,7 +73,7 @@ function {{ class_prefix }}config_reg_rsp {{ class_prefix }}kit_sequencer::confi
     seq = {{ class_prefix }}config_reg_seq::type_id::create("config_reg");
     seq.req = req;
     seq.start(this);
-    void'(seq.get_response(rsp));
+    rsp = seq.rsp;
     return rsp;
 endfunction
 
@@ -99,7 +97,7 @@ function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::check_
     seq = {{ class_prefix }}check_clk_seq::type_id::create("check_clk");
     seq.req = req;
     seq.start(this);
-    void'(seq.get_response(rsp));
+    rsp = seq.rsp;
     return rsp;
 endfunction
 
@@ -122,7 +120,7 @@ function {{ class_prefix }}check_pll_rsp {{ class_prefix }}kit_sequencer::check_
     seq = {{ class_prefix }}check_pll_seq::type_id::create("check_pll");
     seq.req = req;
     seq.start(this);
-    void'(seq.get_response(rsp));
+    rsp = seq.rsp;
     return rsp;
 endfunction
 
@@ -145,7 +143,7 @@ function {{ class_prefix }}check_duty_rsp {{ class_prefix }}kit_sequencer::check
     seq = {{ class_prefix }}check_duty_seq::type_id::create("check_duty");
     seq.req = req;
     seq.start(this);
-    void'(seq.get_response(rsp));
+    rsp = seq.rsp;
     return rsp;
 endfunction
 
@@ -168,7 +166,7 @@ function {{ class_prefix }}test_duty_wavefront_rsp {{ class_prefix }}kit_sequenc
     seq = {{ class_prefix }}test_duty_wavefront_seq::type_id::create("test_duty_wavefront");
     seq.req = req;
     seq.start(this);
-    void'(seq.get_response(rsp));
+    rsp = seq.rsp;
     return rsp;
 endfunction
 {% endif %}

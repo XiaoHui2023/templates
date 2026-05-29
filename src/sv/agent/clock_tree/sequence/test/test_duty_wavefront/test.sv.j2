@@ -89,7 +89,7 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
         duty_seq = {{ class_prefix }}check_duty_seq::type_id::create("check_duty");
         duty_seq.req = duty_req;
         duty_seq.start(p_sequencer);
-        void'(duty_seq.get_response(duty_rsp));
+        duty_rsp = duty_seq.rsp;
         if (!duty_rsp.ok)
             rs.ok = 1'b0;
 
@@ -106,7 +106,7 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
             gen_seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
             gen_seq.req = gen_req;
             gen_seq.start(p_sequencer);
-            void'(gen_seq.get_response(gen_rsp));
+            gen_rsp = gen_seq.rsp;
             if (!gen_rsp.ok)
                 rs.ok = 1'b0;
         end

@@ -3,7 +3,17 @@ from __future__ import annotations
 import re
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    TypeAdapter,
+    ValidationInfo,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from reg_paths import (
     DIV_REG_KEYS,
@@ -37,7 +47,15 @@ class SourceRef(BaseModel):
 class NodeBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., min_length=1, description="记录标识；YAML 以 nodes 字典键为准，勿在节点内重复填写。")
+    _name: str = PrivateAttr(default="")
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="等于 Tree.nodes 字典键；YAML 体内与 model_validate 不可传入。",
+    )
+    @property
+    def name(self) -> str:
+        return self._name
+
     path: str = Field(
         "",
         description="RTL 层次路径，仅用于 connect 展开时 force 到 DUT；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
@@ -51,14 +69,30 @@ class NodeBase(BaseModel):
         ge=1,
         description="典型频率 Hz；用于 source、clk、pll 的 tree 软约束。",
     )
-    sources: List[SourceRef] = Field(
-        default_factory=list,
-        description="校验后推导的前级连线；非 mux 一项写 source，mux 多项写 to_source；配置中勿填。",
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 source 或 mux.source 推导；YAML 与 model_validate 不可传入。",
     )
-    mux_sel_inside: str = Field(
-        "",
-        description="mux 的 source 键展开为 sel inside 集合字面量，如 0, 1；非 mux 为空。",
+    @property
+    def sources(self) -> List[SourceRef]:
+        if self.kind == "mux":
+            return [
+                SourceRef(name=peer, key=int(key))
+                for key, peer in self.source.items()
+            ]
+        if self.kind == "source":
+            return []
+        return [SourceRef(name=self.source)]
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="mux 的 source 键展开为 sel inside 集合字面量；YAML 与 model_validate 不可传入。",
     )
+    @property
+    def mux_sel_inside(self) -> str:
+        if self.kind != "mux":
+            return ""
+        keys = sorted(int(k) for k in self.source.keys())
+        return ", ".join(str(k) for k in keys)
 
     @field_validator("path")
     @classmethod
@@ -90,8 +124,10 @@ class GateNode(NodeBase):
     )
 
     @model_validator(mode="after")
-    def _validate_gate_reg(self) -> GateNode:
-        validate_optional_reg(self.reg, node_name=self.name, kind="gate")
+    def _validate_gate_reg(self, info: ValidationInfo) -> GateNode:
+        validate_optional_reg(
+            self.reg, node_name=_validation_node_name(self, info), kind="gate"
+        )
         return self
 
 
@@ -105,9 +141,12 @@ class DivNode(NodeBase):
     )
 
     @model_validator(mode="after")
-    def _validate_div_regs(self) -> DivNode:
+    def _validate_div_regs(self, info: ValidationInfo) -> DivNode:
         validate_regs_exact(
-            self.regs, DIV_REG_KEYS, node_name=self.name, kind="div"
+            self.regs,
+            DIV_REG_KEYS,
+            node_name=_validation_node_name(self, info),
+            kind="div",
         )
         return self
 
@@ -122,9 +161,12 @@ class DtoNode(NodeBase):
     )
 
     @model_validator(mode="after")
-    def _validate_dto_regs(self) -> DtoNode:
+    def _validate_dto_regs(self, info: ValidationInfo) -> DtoNode:
         validate_regs_exact(
-            self.regs, DTO_REG_KEYS, node_name=self.name, kind="dto"
+            self.regs,
+            DTO_REG_KEYS,
+            node_name=_validation_node_name(self, info),
+            kind="dto",
         )
         return self
 
@@ -146,6 +188,11 @@ class ClockSourceNode(NodeBase):
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
+    source: str = Field(
+        ...,
+        min_length=1,
+        description="参考时钟前级节点名，须为本 tree nodes 的键；config_reg 用其 frequence 计算分频。",
+    )
     targets: List[str] = Field(
         ...,
         min_length=1,
@@ -162,14 +209,20 @@ class PllNode(NodeBase):
     def _normalize_pll_kind(cls, value: object) -> str:
         return normalize_pll_kind(value)
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 pll_kind 映射的 SV 模型类名片段；YAML 与 model_validate 不可传入。",
+    )
     @property
     def sv_pll_class(self) -> str:
         return PLL_KIND_TO_SV[self.pll_kind]
 
     @model_validator(mode="after")
-    def _validate_pll_regs(self) -> PllNode:
-        validate_pll_regs_exact(self.regs, self.pll_kind, node_name=self.name)
+    def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:
+        validate_pll_regs_exact(
+            self.regs,
+            self.pll_kind,
+            node_name=_validation_node_name(self, info),
+        )
         return self
 
 
@@ -191,8 +244,10 @@ class MuxNode(NodeBase):
     )
 
     @model_validator(mode="after")
-    def _validate_mux(self) -> MuxNode:
-        validate_optional_reg(self.reg, node_name=self.name, kind="mux")
+    def _validate_mux(self, info: ValidationInfo) -> MuxNode:
+        validate_optional_reg(
+            self.reg, node_name=_validation_node_name(self, info), kind="mux"
+        )
         return self
 
 
@@ -210,13 +265,26 @@ Node = Annotated[
     Field(discriminator="kind"),
 ]
 
+_node_adapter: TypeAdapter[Node] = TypeAdapter(Node)
+
+
+def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
+    key = (info.context or {}).get("node_name")
+    if isinstance(key, str) and key:
+        return key
+    if node._name:
+        return node._name
+    raise ValueError("节点须在 Tree.nodes 字典键上下文内校验")
+
 
 class Tree(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(..., min_length=1, description="时钟树名，兼作展开后 SV 类型名片段与建树函数名片段。")
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
-        description="本棵时钟树的节点表，键为节点 name，节点体内勿填 name。",
+        description="本棵时钟树的节点表，键即节点名；节点体内勿填 name。",
     )
 
     @model_validator(mode="before")
@@ -257,16 +325,32 @@ class Tree(BaseModel):
             if isinstance(item, dict):
                 if item.get("kind") == "clock":
                     item = {**item, "kind": "clk"}
-                inner_name = item.get("name")
-                if inner_name is not None and inner_name != key:
+                if "name" in item:
                     raise ValueError(
-                        f"nodes[{key!r}] 内 name {inner_name!r} 须与键一致或省略"
+                        f"nodes[{key!r}] 体内不可含 name，以字典键 {key!r} 为准"
                     )
-                item = {k: v for k, v in item.items() if k != "name"}
-                normalized[key] = {**item, "name": key}
+                normalized[key] = item
             else:
                 normalized[key] = item
         return {**data, "nodes": normalized}
+
+    @field_validator("nodes", mode="before")
+    @classmethod
+    def _build_nodes_from_keys(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        built: Dict[str, Node] = {}
+        for key, item in value.items():
+            if isinstance(item, NodeBase):
+                object.__setattr__(item, "_name", key)
+                built[key] = item
+                continue
+            node = _node_adapter.validate_python(
+                item, context={"node_name": key}
+            )
+            object.__setattr__(node, "_name", key)
+            built[key] = node
+        return built
 
     @model_validator(mode="after")
     def _validate_name(self) -> Tree:
@@ -276,69 +360,29 @@ class Tree(BaseModel):
             )
         return self
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field(  # type: ignore[prop-decorator]
+        description="nodes 值的有序列表；YAML 与 model_validate 不可传入。",
+    )
     @property
     def nodes_ordered(self) -> List[Node]:
         return list(self.nodes.values())
 
     @model_validator(mode="after")
-    def _enrich_nodes(self) -> Tree:
+    def _validate_nodes_graph(self) -> Tree:
         validate_nodes_graph(self.nodes)
-        enriched = enrich_tree_nodes(self.nodes)
-        self.nodes = enriched
         return self
 
 
 def _peer_names(node: Node) -> List[str]:
-    if node.kind in ("source", "pll"):
+    if node.kind == "source":
         return list(node.targets)
+    if node.kind == "pll":
+        return list(node.targets) + [node.source]
     if node.kind == "mux":
         return list(node.source.values())
     if node.kind in ("gate", "div", "dto", "inv", "clk"):
         return [node.source]
     return []
-
-
-def _build_sources(node: Node, known: set[str]) -> List[SourceRef]:
-    if node.kind == "mux":
-        refs = [
-            SourceRef(name=peer, key=int(key))
-            for key, peer in node.source.items()
-        ]
-        for ref in refs:
-            if ref.name not in known:
-                raise ValueError(
-                    f"mux 节点 {node.name!r} 的对端 {ref.name!r} 须为本 tree nodes 的键"
-                )
-        return refs
-    if node.kind in ("source", "pll"):
-        return []
-    peer = node.source
-    if peer not in known:
-        raise ValueError(
-            f"节点 {node.name!r} 的 source {peer!r} 须为本 tree nodes 的键"
-        )
-    return [SourceRef(name=peer)]
-
-
-def enrich_tree_nodes(
-    nodes: Dict[str, Node],
-) -> Dict[str, Node]:
-    known = set(nodes.keys())
-    enriched: Dict[str, Node] = {}
-    for key, node in nodes.items():
-        if node.name != key:
-            raise ValueError(
-                f"nodes[{key!r}] 的 name 字段 {node.name!r} 须与字典键一致"
-            )
-        updates: dict[str, Any] = {
-            "sources": _build_sources(node, known),
-        }
-        if node.kind == "mux":
-            keys = sorted(int(k) for k in node.source.keys())
-            updates["mux_sel_inside"] = ", ".join(str(k) for k in keys)
-        enriched[key] = node.model_copy(update=updates)
-    return enriched
 
 
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:

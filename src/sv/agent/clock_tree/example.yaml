@@ -14,6 +14,7 @@ trees:
 
       pll_main:
         kind: pll
+        source: xtal
         pll_kind: tci
         path: dut.pll_main_out
         targets:

@@ -62,7 +62,7 @@ classDiagram
 
 ## base_pll
 
-PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。空关断 **cst_freq_from_src**；**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
+PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。空关断 **cst_freq_from_src**（输出频率不等于参考时钟，由 **cst_pll** 与 tree 软约束约束输出）；**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
@@ -79,7 +79,9 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 | 配置 / 成员 | 类型 | 说明 |
 | --- | --- | --- |
+| source | str，必填 | 参考时钟前级节点名；**tree** 构造时写入 **source** 句柄 |
 | pll_kind | tci、sc、dw，必填，大小写不限 | 决定例化哪一类 **pll_*** |
+| targets | list[str]，必填 | 下游节点名列表 |
 | regs | dict，可选 | 键为逻辑名、值为 RAL 点分路径，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时键集合须与 pll_kind 允许表完全一致**，不得缺键或多键 |
 
 | pll_kind | regs 须包含的键 |
