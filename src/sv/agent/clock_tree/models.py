@@ -18,7 +18,11 @@ from reg_paths import (
 
 
 class Models(BaseModel):
-    tree: Tree = Field(..., description="本 agent 对应的单棵时钟树，含 nodes。")
+    trees: List[Tree] = Field(
+        ...,
+        min_length=1,
+        description="本 agent 可绑定的多棵时钟树，每项含 name 与 nodes。",
+    )
     vars: Dict[str, Any] = Field(
         default_factory=dict,
         description="用户自定义变量，模板内以 vars 引用，不做校验。",
@@ -31,7 +35,7 @@ class Models(BaseModel):
     class_regmodel: str = Field(
         ...,
         min_length=1,
-        description="RAL 根块类型名；tree 的 build 入参类型。",
+        description="RAL 根块类型名；各 {name}_tree.build 入参类型。",
     )
     min_freq_hz: int = Field(
         500,
@@ -75,10 +79,22 @@ class Models(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def _validate_tree_names_unique(self) -> Models:
+        seen: set[str] = set()
+        for tree in self.trees:
+            if tree.name in seen:
+                raise ValueError(f"trees 中 name {tree.name!r} 重复")
+            seen.add(tree.name)
+        return self
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def pll_sv_classes(self) -> List[str]:
-        return collect_pll_sv_classes(self.tree)
+        kinds: set[str] = set()
+        for tree in self.trees:
+            kinds.update(collect_pll_sv_classes(tree))
+        return sorted(kinds)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -88,27 +104,33 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def reg_bindings(self) -> List[RegBindingRow]:
-        return iter_reg_bindings(self.tree)
+        out: List[RegBindingRow] = []
+        for tree in self.trees:
+            out.extend(iter_reg_bindings(tree))
+        return out
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def any_node_path(self) -> bool:
-        return any_node_path(self.tree)
+        return any(any_node_path(tree) for tree in self.trees)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_name(self) -> Optional[str]:
-        for node in self.tree.nodes_ordered:
-            if node.kind == "clk":
-                return node.name
+        for tree in self.trees:
+            for node in tree.nodes_ordered:
+                if node.kind == "clk":
+                    return node.name
         return None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_tree_name(self) -> Optional[str]:
-        if self.first_clk_name is None:
-            return None
-        return self.tree.name
+        for tree in self.trees:
+            for node in tree.nodes_ordered:
+                if node.kind == "clk":
+                    return tree.name
+        return None
 
     @field_validator("class_regmodel")
     @classmethod

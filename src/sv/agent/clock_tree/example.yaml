@@ -3,55 +3,55 @@
 
 class_regmodel: uvm_reg_block
 
-tree:
-  name: main
-  nodes:
-    xtal:
-      kind: source
-      path: dut.xtal
-      targets:
-        - pll_main
+trees:
+  - name: main
+    nodes:
+      xtal:
+        kind: source
+        path: dut.xtal
+        targets:
+          - pll_main
 
-    pll_main:
-      kind: pll
-      pll_kind: tci
-      path: dut.pll_main_out
-      targets:
-        - gate0
-        - div0
+      pll_main:
+        kind: pll
+        pll_kind: tci
+        path: dut.pll_main_out
+        targets:
+          - gate0
+          - div0
 
-    gate0:
-      kind: gate
-      source: pll_main
-      target: w_gate0_div0
+      gate0:
+        kind: gate
+        source: pll_main
+        target: w_gate0_div0
 
-    div0:
-      kind: div
-      source: gate0
-      target: w_div0_inv0
+      div0:
+        kind: div
+        source: gate0
+        target: w_div0_inv0
 
-    inv0:
-      kind: inv
-      source: div0
-      target: w_inv0_dto0
+      inv0:
+        kind: inv
+        source: div0
+        target: w_inv0_dto0
 
-    dto0:
-      kind: dto
-      source: inv0
-      target: w_dto0_clk_sys
+      dto0:
+        kind: dto
+        source: inv0
+        target: w_dto0_clk_sys
 
-    clk_sys:
-      kind: clk
-      freq: 100
-      path: dut.clk_sys
-      source: dto0
+      clk_sys:
+        kind: clk
+        freq: 100
+        path: dut.clk_sys
+        source: dto0
 
-    mux2:
-      kind: mux
-      source:
-        "0": pll_main
-        "1": xtal
-      target: w_mux2_out
+      mux2:
+        kind: mux
+        source:
+          "0": pll_main
+          "1": xtal
+        target: w_mux2_out
 
 vars:
   dut_prefix: dut.

@@ -7,10 +7,10 @@
   + `cst_case`
 
 ```systemverilog
-constraint {{ class_prefix }}{{ tree.name }}_tree::cst_user {
+constraint {{ class_prefix }}{{ trees[0].name }}_tree::cst_user {
     ...
 }
-constraint {{ class_prefix }}{{ tree.name }}_tree::cst_case {
+constraint {{ class_prefix }}{{ trees[0].name }}_tree::cst_case {
     ...
 }
 ```
@@ -21,7 +21,7 @@ constraint {{ class_prefix }}{{ tree.name }}_tree::cst_case {
 开关时钟或改变频率，以 {{ first_clk_name }} 为例（详见 `trees.sv`）。
 
 ```systemverilog
-constraint {{ class_prefix }}{{ tree.name }}_tree::cst_user {
+constraint {{ class_prefix }}{{ first_clk_tree_name }}_tree::cst_user {
     {{ first_clk_name }}.valid; // 打开时钟
     {{ first_clk_name }}.frequence == 123456000; // 频率123.456Mhz
 }
@@ -33,7 +33,7 @@ constraint {{ class_prefix }}{{ tree.name }}_tree::cst_user {
 尽可能关闭所有时钟。
 
 ```systemverilog
-constraint {{ class_prefix }}{{ tree.name }}_tree::cst_user {
+constraint {{ class_prefix }}{{ trees[0].name }}_tree::cst_user {
     low_power; // 默认所有时钟关闭
 }
 ```

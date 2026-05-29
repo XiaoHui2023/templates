@@ -1,6 +1,7 @@
 `ifndef {{ (class_prefix ~ "trees") | upper }}
 `define {{ (class_prefix ~ "trees") | upper }}
 
+{%- for tree in trees %}
 `ifndef {{ (class_prefix ~ tree.name ~ "_tree") | upper }}
 `define {{ (class_prefix ~ tree.name ~ "_tree") | upper }}
 
@@ -51,7 +52,8 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 endclass
 
 function void {{ class_prefix }}{{ tree.name }}_tree::build({{ class_regmodel }} regmodel);
-{% for tree_name, node_name, member, path, offset, width in reg_bindings %}
+{%- for tree_name, node_name, member, path, offset, width in reg_bindings %}
+{%- if tree_name == tree.name %}
     if (regmodel != null) begin
         {{ node_name }}.{{ member }}.field = regmodel.{{ path }};
         {{ node_name }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
@@ -61,11 +63,13 @@ function void {{ class_prefix }}{{ tree.name }}_tree::build({{ class_regmodel }}
         {{ node_name }}.{{ member }}.width = {{ width }};
 {%- endif %}
     end
-{% endfor %}
+{%- endif %}
+{%- endfor %}
     if (!this.randomize())
         uvm_report_fatal("CLK_TREE", "{{ class_prefix }}{{ tree.name }}_tree build randomize failed");
 endfunction
 
 `endif
 
+{%- endfor %}
 `endif

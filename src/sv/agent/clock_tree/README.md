@@ -11,19 +11,19 @@
 ```yaml
 class_prefix: chip_clk_
 class_regmodel: chip_ral_block
-tree:
-  name: main
-  nodes:
-    osc:
-      kind: source
-      targets: [pll0]
-    pll0:
-      kind: pll
-      targets: [clk_cpu]
-      freq: 1000000000
-    clk_cpu:
-      kind: clk
-      source: pll0
+trees:
+  - name: main
+    nodes:
+      osc:
+        kind: source
+        targets: [pll0]
+      pll0:
+        kind: pll
+        targets: [clk_cpu]
+        freq: 1000000000
+      clk_cpu:
+        kind: clk
+        source: pll0
 ```
 
 ## 数据结构
@@ -31,9 +31,9 @@ tree:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。没有重名风险时可保持默认。 |
-| `tree` | `Tree` | 必填 | 本 agent 对应的单棵时钟树。 |
+| `trees` | `list[Tree]` | 必填 | 本 agent 可展开的多棵时钟树，至少一项。 |
 | `vars` | `dict[str, Any]` | `{}` | 自定义变量，未使用时留空。 |
-| `class_regmodel` | `str` | 必填 | RAL 根块类名称；**tree.build** 入参类型。 |
+| `class_regmodel` | `str` | 必填 | RAL 根块类名称；各 **{name}_tree.build** 入参类型。 |
 
 ### 寄存器路径
 

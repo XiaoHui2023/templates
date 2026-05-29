@@ -15,6 +15,7 @@
         end \
     end
 
+{%- for tree in trees %}
 {%- for node in tree.nodes_ordered %}
 {%- if node.path %}
 `{{ _mac_conn }}({{ tree.name }}_{{ node.name }}, {{ node.path }})
@@ -31,6 +32,7 @@ function automatic void {{ class_prefix }}connect_{{ tree.name }}_tree({{ class_
 {%- endfor %}
 endfunction
 
+{%- endfor %}
 `undef {{ _mac_conn }}
 
 `endif
