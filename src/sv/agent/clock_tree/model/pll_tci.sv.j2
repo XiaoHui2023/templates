@@ -3,7 +3,7 @@
 
 class {{ class_prefix }}pll_tci extends {{ class_prefix }}base_pll;
     `uvm_object_utils({{ class_prefix }}pll_tci)
-{%- for key in pll_reg_keys_by_kind['PLL_TCI'] %}
+{%- for key in pll_reg_keys_by_kind['tci'] %}
     {{ class_prefix }}reg_bind f_{{ key }};
 {%- endfor %}
 

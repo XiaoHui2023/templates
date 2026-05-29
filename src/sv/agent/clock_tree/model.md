@@ -75,20 +75,20 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 | 配置 pll_kind | 展开类型 | 说明 |
 | --- | --- | --- |
-| PLL_TCI | pll_tci | TCI 寄存器在该类 |
-| PLL_SC | pll_sc | SC 寄存器在该类 |
-| PLL_DW | pll_dw | DW 寄存器在该类 |
+| tci | pll_tci | TCI 寄存器在该类 |
+| sc | pll_sc | SC 寄存器在该类 |
+| dw | pll_dw | DW 寄存器在该类 |
 
 | 配置 / 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| pll_kind | PLL_TCI、PLL_SC、PLL_DW | 决定例化哪一类 **pll_*** |
+| pll_kind | tci、sc、dw，必填，大小写不限 | 决定例化哪一类 **pll_*** |
 | regs | dict，可选 | 键为逻辑名、值为 RAL 点分路径，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时键集合须与 pll_kind 允许表完全一致**，不得缺键或多键 |
 
 | pll_kind | regs 须包含的键 |
 | --- | --- |
-| PLL_TCI | lock、bypass、pwrdn、reset、clkod、clkf、clkr、bwadj |
-| PLL_SC | lock、vocpd、postdivpd、dsmpd、pd、bypass、refdiv、postdiv2、postdiv1、fbdiv |
-| PLL_DW | lock、fbdiv、prediv、reset、pwron、shift、bypass、divvcor、r、p、divvcop、enr、enp |
+| tci | lock、bypass、pwrdn、reset、clkod、clkf、clkr、bwadj |
+| sc | lock、vocpd、postdivpd、dsmpd、pd、bypass、refdiv、postdiv2、postdiv1、fbdiv |
+| dw | lock、fbdiv、prediv、reset、pwron、shift、bypass、divvcor、r、p、divvcop、enr、enp |
 
 ## mux
 

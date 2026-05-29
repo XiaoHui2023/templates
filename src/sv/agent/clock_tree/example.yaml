@@ -23,7 +23,7 @@ trees:
 
       pll_main:
         kind: pll
-        pll_kind: PLL_TCI
+        pll_kind: tci
         path: dut.pll_main_out
         targets:
           - gate0

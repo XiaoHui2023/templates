@@ -9,6 +9,7 @@ from reg_paths import (
     DIV_REG_KEYS,
     DTO_REG_KEYS,
     PLL_KIND_TO_SV,
+    normalize_pll_kind,
     validate_optional_reg,
     validate_pll_regs_exact,
     validate_regs_exact,
@@ -16,7 +17,7 @@ from reg_paths import (
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
-PllKind = Literal["PLL_TCI", "PLL_SC", "PLL_DW"]
+PllKind = Literal["tci", "sc", "dw"]
 
 
 class SourceRef(BaseModel):
@@ -154,11 +155,16 @@ class PllNode(NodeBase):
         min_length=1,
         description="可驱动的下游器件名列表，须为本 tree nodes 的键。",
     )
-    pll_kind: PllKind = Field("PLL_TCI", description="PLL 型号枚举名。")
+    pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw，大小写不限。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
         description="可选；非空时键须与 pll_kind 允许集合完全一致，值为 RAL 点分路径，可带 [n] 或 [msb:lsb] 后缀。",
     )
+
+    @field_validator("pll_kind", mode="before")
+    @classmethod
+    def _normalize_pll_kind(cls, value: object) -> str:
+        return normalize_pll_kind(value)
 
     @computed_field  # type: ignore[prop-decorator]
     @property

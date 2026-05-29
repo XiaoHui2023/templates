@@ -19,8 +19,10 @@ DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
 DTO_REG_KEYS = frozenset({"rstn", "load", "bypass", "step"})
 
+_PLL_KIND_CANON = frozenset({"tci", "sc", "dw"})
+
 PLL_REG_KEYS: dict[str, frozenset[str]] = {
-    "PLL_TCI": frozenset({
+    "tci": frozenset({
         "lock",
         "bypass",
         "pwrdn",
@@ -30,7 +32,7 @@ PLL_REG_KEYS: dict[str, frozenset[str]] = {
         "clkr",
         "bwadj",
     }),
-    "PLL_SC": frozenset({
+    "sc": frozenset({
         "lock",
         "vocpd",
         "postdivpd",
@@ -42,7 +44,7 @@ PLL_REG_KEYS: dict[str, frozenset[str]] = {
         "postdiv1",
         "fbdiv",
     }),
-    "PLL_DW": frozenset({
+    "dw": frozenset({
         "lock",
         "fbdiv",
         "prediv",
@@ -60,10 +62,21 @@ PLL_REG_KEYS: dict[str, frozenset[str]] = {
 }
 
 PLL_KIND_TO_SV: dict[str, str] = {
-    "PLL_TCI": "pll_tci",
-    "PLL_SC": "pll_sc",
-    "PLL_DW": "pll_dw",
+    "tci": "pll_tci",
+    "sc": "pll_sc",
+    "dw": "pll_dw",
 }
+
+
+def normalize_pll_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"pll_kind 须为字符串，得到 {type(value).__name__}")
+    canon = value.strip().lower()
+    if canon not in _PLL_KIND_CANON:
+        raise ValueError(
+            f"pll_kind 须为 tci、sc、dw 之一，大小写不限，得到 {value!r}"
+        )
+    return canon
 
 
 @dataclass(frozen=True)
