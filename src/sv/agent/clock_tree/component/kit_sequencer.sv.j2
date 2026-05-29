@@ -13,7 +13,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
 {% if any_node_path %}
     extern function void set_clock_gen(
         {{ class_prefix }}node_base nodes[$], bit gen_en = 1'b1);
-    extern function void gen_source_clock();
 {% endif %}
     extern function {{ class_prefix }}config_reg_rsp config_reg({{ class_prefix }}node_base nodes[$]);
 {% if any_node_path %}
@@ -54,20 +53,6 @@ function void {{ class_prefix }}kit_sequencer::set_clock_gen(
         seq.start(this);
         void'(seq.get_response(rsp));
     end
-endfunction
-
-function void {{ class_prefix }}kit_sequencer::gen_source_clock();
-    {{ class_prefix }}source src;
-    {{ class_prefix }}node_base src_nodes[$];
-
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "gen_source_clock: tree is null")
-
-    foreach (tree.nodes[i]) begin
-        if ($cast(src, tree.nodes[i]))
-            src_nodes.push_back(src);
-    end
-    set_clock_gen(src_nodes, 1'b1);
 endfunction
 {% endif %}
 

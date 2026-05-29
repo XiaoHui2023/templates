@@ -32,7 +32,6 @@
 | 方法 | 说明 |
 | --- | --- |
 | `set_clock_gen` | 入参 **nodes**、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
-| `gen_source_clock` | 无参；收集 **tree** 中全部 **source** 后调用 **set_clock_gen** |
 | `config_reg` | 入参 **nodes**；启动 **config_reg**。**nodes** 为空时对 **tree.nodes** 执行；含 **pll** 写 RAL 与 **wait_lock** |
 | `check_clk` | 入参 **nodes**；检查其中 **clk** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
 | `check_pll` | 入参 **nodes**；检查其中 **pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
