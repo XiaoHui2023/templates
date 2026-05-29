@@ -1,0 +1,19 @@
+`ifndef {{ (class_prefix ~ "reg_bind") | upper }}
+`define {{ (class_prefix ~ "reg_bind") | upper }}
+
+class {{ class_prefix }}reg_bind;
+    uvm_reg_field field;
+    int unsigned offset;
+    int unsigned width;
+
+    function new();
+        offset = 0;
+        width = 0;
+    endfunction
+
+    function bit is_bound();
+        return field != null;
+    endfunction
+endclass
+
+`endif

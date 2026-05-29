@@ -1,63 +1,64 @@
-`ifndef {{ (class_prefix ~ "node_reg_config") | upper }}
-`define {{ (class_prefix ~ "node_reg_config") | upper }}
+`ifndef {{ (class_prefix ~ "node_cfg") | upper }}
+`define {{ (class_prefix ~ "node_cfg") | upper }}
 
-function automatic uvm_reg_data_t {{ class_prefix }}div_ratio_to_n(input int ratio);
-    if (ratio <= 1)
-        return uvm_reg_data_t'(0);
-    if (ratio > 64)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "div_ratio_to_n: ratio %0d exceeds max 64", ratio))
-    return uvm_reg_data_t'(ratio - 1);
-endfunction
+class {{ class_prefix }}node_cfg;
+    {{ class_prefix }}reg_rw reg;
 
-function automatic uvm_reg_data_t {{ class_prefix }}div_pack_ctrl(
-        input uvm_reg_data_t n,
-        input bit load);
-    return uvm_reg_data_t'({1'b0, load, n[5:0]});
-endfunction
+    function new({{ class_prefix }}reg_rw reg_rw);
+        if (reg_rw == null)
+            `uvm_fatal("CLK_TREE", "node_cfg: reg_rw is null")
+        reg = reg_rw;
+    endfunction
 
-task automatic {{ class_prefix }}configure_gate(uvm_reg_field f_reg, input bit open);
-    {{ class_prefix }}reg_field_set(f_reg, uvm_reg_data_t'(open));
-endtask
-
-task automatic {{ class_prefix }}configure_mux(uvm_reg_field f_reg, input int sel);
-    {{ class_prefix }}reg_field_set(f_reg, uvm_reg_data_t'(sel));
-endtask
-
-task automatic {{ class_prefix }}configure_div(uvm_reg_field f_reg, input int ratio);
-    uvm_reg_data_t n;
-    n = {{ class_prefix }}div_ratio_to_n(ratio);
-    {{ class_prefix }}reg_field_set(f_reg, {{ class_prefix }}div_pack_ctrl(n, 1'b0));
-    {{ class_prefix }}reg_field_set(f_reg, {{ class_prefix }}div_pack_ctrl(n, 1'b1));
-endtask
-
-function automatic uvm_reg_data_t {{ class_prefix }}dto_ratio_to_step(input int ratio);
-    longint step_i;
-    longint max_step;
-    if (ratio <= 0)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "dto_ratio_to_step: ratio %0d must be positive", ratio))
-    max_step = longint'(1) << 25;
-    step_i = max_step / ratio;
-    if (step_i < 1 || step_i >= max_step)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "dto_ratio_to_step: ratio %0d -> step %0d out of [1,2^25-1]",
-            ratio, step_i))
-    return uvm_reg_data_t'(step_i);
-endfunction
-
-task automatic {{ class_prefix }}configure_dto(
-        uvm_reg_field f_rstn,
-        uvm_reg_field f_load,
-        uvm_reg_field f_bypass,
-        uvm_reg_field f_step,
+    extern task configure_gate({{ class_prefix }}reg_bind f_reg, input bit open);
+    extern task configure_mux({{ class_prefix }}reg_bind f_reg, input int sel);
+    extern task configure_div(
+        {{ class_prefix }}reg_bind f_rst,
+        {{ class_prefix }}reg_bind f_load,
+        {{ class_prefix }}reg_bind f_div,
         input int ratio);
-    uvm_reg_data_t step;
+    extern task configure_dto(
+        {{ class_prefix }}reg_bind f_rstn,
+        {{ class_prefix }}reg_bind f_load,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_step,
+        input int ratio);
+endclass
+
+task {{ class_prefix }}node_cfg::configure_gate({{ class_prefix }}reg_bind f_reg, input bit open);
+    reg.set_write(f_reg, open);
+endtask
+
+task {{ class_prefix }}node_cfg::configure_mux({{ class_prefix }}reg_bind f_reg, input int sel);
+    reg.set_write(f_reg, sel);
+endtask
+
+task {{ class_prefix }}node_cfg::configure_div(
+        {{ class_prefix }}reg_bind f_rst,
+        {{ class_prefix }}reg_bind f_load,
+        {{ class_prefix }}reg_bind f_div,
+        input int ratio);
+    int n;
+    n = {{ class_prefix }}div_ratio_to_n(ratio);
+    reg.set_write(f_rst, 0);
+    reg.set_write(f_div, n);
+    reg.set_write(f_load, 0);
+    reg.set_write(f_load, 1);
+endtask
+
+task {{ class_prefix }}node_cfg::configure_dto(
+        {{ class_prefix }}reg_bind f_rstn,
+        {{ class_prefix }}reg_bind f_load,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_step,
+        input int ratio);
+    {{ class_prefix }}reg_bind binds[$];
+    int vals[$];
+    int step;
     step = {{ class_prefix }}dto_ratio_to_step(ratio);
-    {{ class_prefix }}reg_field_set(f_rstn, 0);
-    {{ class_prefix }}reg_field_set(f_load, 1);
-    {{ class_prefix }}reg_field_set(f_bypass, 0);
-    {{ class_prefix }}reg_field_set(f_step, step);
+    binds = '{f_rstn, f_load, f_bypass, f_step};
+    vals = '{0, 1, 0, step};
+    reg.apply(binds, vals);
 endtask
 
 `endif

@@ -15,7 +15,11 @@
 
 ## sequencer
 
-基础 **sequencer**；**callback** 注册于此类型；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **trees**。
+基础 **sequencer**；**callback** 注册于此类型；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **trees**。**build_phase** 例化 **tools**，类型 **core_tools**，供 **configure** 等写 RAL 与 PLL 的 sequence 使用。
+
+| 成员 | 说明 |
+| --- | --- |
+| `tools` | **core_tools**：**reg**、**node**、**pll** 三类寄存器与 PLL 工具 |
 
 | 方法 | 说明 |
 | --- | --- |
@@ -48,8 +52,8 @@
 | 行为目录 | 说明 |
 | --- | --- |
 | `set_clock_gen` | 按 **req.gen_en** 与节点 **frequence** 设置 **vif** 时钟发生；**gen_en** 为 0 关闭 |
-| `set_pll` | **pll** 频率与寄存器配置，主体待补 |
-| `configure` | 对 **gate**、**mux**、**div**、**dto**、**pll** 写 RAL；**pll** 配完后依次 **wait_pll_lock** |
+| `set_pll` | **pll** 频率与寄存器配置占位；完整写寄存器走 **configure** |
+| `configure` | 对 **gate**、**mux**、**div**、**dto**、**pll** 写 RAL，经 **p_sequencer.tools**；**pll_sc** / **pll_dw** 按目标频率算分频后上电；**pll** 配完后 **wait_lock** |
 | `check_clk` | 检查 **req.nodes** 中 **clk** 频率 |
 | `check_pll` | 检查 **req.nodes** 中 **pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |

@@ -6,6 +6,7 @@ from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from reg_paths import (
+    DIV_REG_KEYS,
     DTO_REG_KEYS,
     PLL_KIND_TO_SV,
     validate_optional_reg,
@@ -88,7 +89,7 @@ class GateNode(NodeBase):
     target: str = Field(..., min_length=1, description="输出连线名。")
     reg: str = Field(
         "",
-        description="可选；RAL 点分路径，绑定到 f_reg。",
+        description="可选；RAL 点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
     )
 
     @model_validator(mode="after")
@@ -101,14 +102,16 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
     target: str = Field(..., min_length=1, description="输出连线名。")
-    reg: str = Field(
-        "",
-        description="可选；8 位分频控制寄存器 RAL 点分路径，绑定到 f_reg。",
+    regs: Dict[str, str] = Field(
+        default_factory=dict,
+        description="可选；非空时键须为 rst、load、div，值为各 field 的 RAL 点分路径，可带比特范围后缀。",
     )
 
     @model_validator(mode="after")
-    def _validate_div_reg(self) -> DivNode:
-        validate_optional_reg(self.reg, node_name=self.name, kind="div")
+    def _validate_div_regs(self) -> DivNode:
+        validate_regs_exact(
+            self.regs, DIV_REG_KEYS, node_name=self.name, kind="div"
+        )
         return self
 
 
@@ -118,7 +121,7 @@ class DtoNode(NodeBase):
     target: str = Field(..., min_length=1, description="输出连线名。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须为 rstn、load、bypass、step，值为各 field 的 RAL 点分路径。",
+        description="可选；非空时键须为 rstn、load、bypass、step，值为各 field 的 RAL 点分路径，可带比特范围后缀。",
     )
 
     @model_validator(mode="after")
@@ -154,7 +157,7 @@ class PllNode(NodeBase):
     pll_kind: PllKind = Field("PLL_TCI", description="PLL 型号枚举名。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须与 pll_kind 允许集合完全一致，值为自 RAL 根起的点分路径。",
+        description="可选；非空时键须与 pll_kind 允许集合完全一致，值为 RAL 点分路径，可带 [n] 或 [msb:lsb] 后缀。",
     )
 
     @computed_field  # type: ignore[prop-decorator]
@@ -187,7 +190,7 @@ class MuxNode(NodeBase):
     )
     reg: str = Field(
         "",
-        description="可选；RAL 点分路径，绑定到 f_reg。",
+        description="可选；RAL 点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
     )
 
     @model_validator(mode="after")

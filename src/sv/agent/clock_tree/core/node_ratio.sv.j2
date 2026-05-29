@@ -1,0 +1,28 @@
+`ifndef {{ (class_prefix ~ "node_ratio") | upper }}
+`define {{ (class_prefix ~ "node_ratio") | upper }}
+
+function automatic int {{ class_prefix }}div_ratio_to_n(input int ratio);
+    if (ratio <= 1)
+        return 0;
+    if (ratio > 64)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "div_ratio_to_n: ratio %0d exceeds max 64", ratio))
+    return ratio - 1;
+endfunction
+
+function automatic int {{ class_prefix }}dto_ratio_to_step(input int ratio);
+    longint step_i;
+    longint max_step;
+    if (ratio <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "dto_ratio_to_step: ratio %0d must be positive", ratio))
+    max_step = longint'(1) << 25;
+    step_i = max_step / ratio;
+    if (step_i < 1 || step_i >= max_step)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "dto_ratio_to_step: ratio %0d -> step %0d out of [1,2^25-1]",
+            ratio, step_i))
+    return int'(step_i);
+endfunction
+
+`endif

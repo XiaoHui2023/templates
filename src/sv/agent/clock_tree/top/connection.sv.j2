@@ -32,9 +32,16 @@ function automatic {{ class_prefix }}{{ tree.name }}_tree {{ class_prefix }}buil
     t.{{ node.name }}.vif = {{ class_prefix }}{{ tree.name }}_{{ node.name }}_if;
 {%- endif %}
 {%- endfor %}
-{% for tree_name, node_name, member, path in reg_bindings if tree_name == tree.name %}
-    if (regmodel != null)
-        t.{{ node_name }}.{{ member }} = regmodel.{{ path }};
+{% for tree_name, node_name, member, path, offset, width in reg_bindings if tree_name == tree.name %}
+    if (regmodel != null) begin
+        t.{{ node_name }}.{{ member }}.field = regmodel.{{ path }};
+        t.{{ node_name }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
+{%- if width is none %}
+        t.{{ node_name }}.{{ member }}.width = t.{{ node_name }}.{{ member }}.field.get_n_bits();
+{%- else %}
+        t.{{ node_name }}.{{ member }}.width = {{ width }};
+{%- endif %}
+    end
 {% endfor %}
     if (!t.randomize())
         uvm_report_fatal("CLK_TREE", "{{ class_prefix }}build_{{ tree.name }}_tree randomize failed");

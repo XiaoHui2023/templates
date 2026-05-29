@@ -10,6 +10,7 @@ _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 from nodes import Tree
 from reg_paths import (
     PLL_REG_KEYS,
+    RegBindingRow,
     any_reg_configured,
     collect_pll_sv_classes,
     iter_reg_bindings,
@@ -108,7 +109,7 @@ class Models(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def reg_bindings(self) -> List[tuple[str, str, str, str]]:
+    def reg_bindings(self) -> List[RegBindingRow]:
         return iter_reg_bindings(self.trees)
 
     @computed_field  # type: ignore[prop-decorator]

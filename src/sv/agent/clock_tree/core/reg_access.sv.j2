@@ -1,14 +1,101 @@
-`ifndef {{ (class_prefix ~ "reg_access") | upper }}
-`define {{ (class_prefix ~ "reg_access") | upper }}
+`ifndef {{ (class_prefix ~ "reg_rw") | upper }}
+`define {{ (class_prefix ~ "reg_rw") | upper }}
 
-function automatic void {{ class_prefix }}reg_field_set(uvm_reg_field f, uvm_reg_data_t value);
+class {{ class_prefix }}reg_rw;
+    extern function uvm_reg parent_reg({{ class_prefix }}reg_bind rb);
+    extern function int get({{ class_prefix }}reg_bind rb);
+    extern function void set({{ class_prefix }}reg_bind rb, int value);
+    extern function void write_reg(uvm_reg r);
+    extern function void write({{ class_prefix }}reg_bind rb);
+    extern task set_write({{ class_prefix }}reg_bind rb, int value);
+    extern task apply(ref {{ class_prefix }}reg_bind binds[$], ref int vals[$]);
+endclass
+
+function uvm_reg {{ class_prefix }}reg_rw::parent_reg({{ class_prefix }}reg_bind rb);
+    if (rb.field == null)
+        `uvm_fatal("CLK_TREE", "parent_reg: field is null")
+    return rb.field.get_register();
+endfunction
+
+function int {{ class_prefix }}reg_rw::get({{ class_prefix }}reg_bind rb);
+    int full;
+    int mask;
+    int slice;
+    if (rb.field == null)
+        `uvm_fatal("CLK_TREE", "get: field is null")
+    full = rb.field.get();
+    if (rb.width == rb.field.get_n_bits() && rb.offset == 0)
+        return full;
+    mask = (1 << rb.width) - 1;
+    slice = (full >> rb.offset) & mask;
+    return slice;
+endfunction
+
+function void {{ class_prefix }}reg_rw::set({{ class_prefix }}reg_bind rb, int value);
     uvm_status_e status;
-    if (f == null)
-        `uvm_fatal("CLK_TREE", "reg_field_set: field is null")
-    f.set(value, status);
+    int cur;
+    int mask;
+    int slice_mask;
+    int newval;
+    if (rb.field == null)
+        `uvm_fatal("CLK_TREE", "set: field is null")
+    slice_mask = (1 << rb.width) - 1;
+    if (rb.offset == 0 && rb.width == rb.field.get_n_bits()) begin
+        rb.field.set(value, status);
+    end else begin
+        cur = rb.field.get();
+        mask = slice_mask << rb.offset;
+        newval = (cur & ~mask) | ((value & slice_mask) << rb.offset);
+        rb.field.set(newval, status);
+    end
     if (status != UVM_IS_OK)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "reg_field_set: %s set 0x%0h failed", f.get_full_name(), value))
+            "set: %s set 0x%0h failed", rb.field.get_full_name(), value))
 endfunction
+
+function void {{ class_prefix }}reg_rw::write_reg(uvm_reg r);
+    uvm_status_e status;
+    int wdata;
+    if (r == null)
+        `uvm_fatal("CLK_TREE", "write_reg: reg is null")
+    wdata = r.get();
+    r.write(status, wdata);
+    if (status != UVM_IS_OK)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "write_reg: write %s 0x%0h failed", r.get_full_name(), wdata))
+endfunction
+
+function void {{ class_prefix }}reg_rw::write({{ class_prefix }}reg_bind rb);
+    write_reg(parent_reg(rb));
+endfunction
+
+task {{ class_prefix }}reg_rw::set_write({{ class_prefix }}reg_bind rb, int value);
+    set(rb, value);
+    write(rb);
+endtask
+
+task {{ class_prefix }}reg_rw::apply(
+        ref {{ class_prefix }}reg_bind binds[$],
+        ref int vals[$]);
+    uvm_reg regs[$];
+    if (binds.size() != vals.size())
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "apply: binds size %0d != vals size %0d", binds.size(), vals.size()))
+    for (int i = 0; i < binds.size(); i++)
+        set(binds[i], vals[i]);
+    for (int i = 0; i < binds.size(); i++) begin
+        uvm_reg r;
+        bit seen;
+        r = parent_reg(binds[i]);
+        seen = 0;
+        foreach (regs[j])
+            if (regs[j] == r)
+                seen = 1;
+        if (!seen)
+            regs.push_back(r);
+    end
+    foreach (regs[i])
+        write_reg(regs[i]);
+endtask
 
 `endif

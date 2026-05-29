@@ -1,178 +1,424 @@
-`ifndef {{ (class_prefix ~ "pll_config") | upper }}
-`define {{ (class_prefix ~ "pll_config") | upper }}
+`ifndef {{ (class_prefix ~ "pll_cfg") | upper }}
+`define {{ (class_prefix ~ "pll_cfg") | upper }}
 
-function automatic void {{ class_prefix }}pll_tci_divisors(
+class {{ class_prefix }}pll_cfg;
+    localparam int SC_FBDIV_MIN = 1;
+    localparam int SC_FBDIV_MAX = 4095;
+    localparam int DW_FBDIV_MIN = 1;
+    localparam int DW_FBDIV_MAX = 1023;
+
+    {{ class_prefix }}reg_rw reg;
+
+    function new({{ class_prefix }}reg_rw reg_rw);
+        if (reg_rw == null)
+            `uvm_fatal("CLK_TREE", "pll_cfg: reg_rw is null")
+        reg = reg_rw;
+    endfunction
+
+    extern function void tci_divisors(
         input longint out_hz,
         input longint ref_hz,
-        output uvm_reg_data_t clkr,
-        output uvm_reg_data_t clkf,
-        output uvm_reg_data_t clkod,
-        output uvm_reg_data_t bwadj);
+        output int clkr,
+        output int clkf,
+        output int clkod,
+        output int bwadj);
+    extern function void sc_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output int fbdiv,
+        output int refdiv,
+        output int postdiv1,
+        output int postdiv2);
+    extern function void dw_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output int fbdiv,
+        output int prediv,
+        output int divvcop,
+        output int p,
+        output int divvcor,
+        output int r);
+    extern task configure_tci(
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_pwrdn,
+        {{ class_prefix }}reg_bind f_reset,
+        {{ class_prefix }}reg_bind f_clkod,
+        {{ class_prefix }}reg_bind f_clkf,
+        {{ class_prefix }}reg_bind f_clkr,
+        {{ class_prefix }}reg_bind f_bwadj,
+        input int clkr,
+        input int clkf,
+        input int clkod,
+        input int bwadj);
+    extern task configure_sc(
+        {{ class_prefix }}reg_bind f_vocpd,
+        {{ class_prefix }}reg_bind f_postdivpd,
+        {{ class_prefix }}reg_bind f_dsmpd,
+        {{ class_prefix }}reg_bind f_pd,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_refdiv,
+        {{ class_prefix }}reg_bind f_postdiv2,
+        {{ class_prefix }}reg_bind f_postdiv1,
+        {{ class_prefix }}reg_bind f_fbdiv,
+        input int fbdiv,
+        input int refdiv,
+        input int postdiv1,
+        input int postdiv2);
+    extern task configure_dw(
+        {{ class_prefix }}reg_bind f_fbdiv,
+        {{ class_prefix }}reg_bind f_prediv,
+        {{ class_prefix }}reg_bind f_reset,
+        {{ class_prefix }}reg_bind f_pwron,
+        {{ class_prefix }}reg_bind f_shift,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_divvcor,
+        {{ class_prefix }}reg_bind f_r,
+        {{ class_prefix }}reg_bind f_p,
+        {{ class_prefix }}reg_bind f_divvcop,
+        {{ class_prefix }}reg_bind f_enr,
+        {{ class_prefix }}reg_bind f_enp,
+        input int fbdiv,
+        input int prediv,
+        input int divvcop,
+        input int p,
+        input int divvcor,
+        input int r);
+    extern task configure_sc_from_hz(
+        {{ class_prefix }}reg_bind f_vocpd,
+        {{ class_prefix }}reg_bind f_postdivpd,
+        {{ class_prefix }}reg_bind f_dsmpd,
+        {{ class_prefix }}reg_bind f_pd,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_refdiv,
+        {{ class_prefix }}reg_bind f_postdiv2,
+        {{ class_prefix }}reg_bind f_postdiv1,
+        {{ class_prefix }}reg_bind f_fbdiv,
+        input longint out_hz,
+        input longint ref_hz);
+    extern task configure_dw_from_hz(
+        {{ class_prefix }}reg_bind f_fbdiv,
+        {{ class_prefix }}reg_bind f_prediv,
+        {{ class_prefix }}reg_bind f_reset,
+        {{ class_prefix }}reg_bind f_pwron,
+        {{ class_prefix }}reg_bind f_shift,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_divvcor,
+        {{ class_prefix }}reg_bind f_r,
+        {{ class_prefix }}reg_bind f_p,
+        {{ class_prefix }}reg_bind f_divvcop,
+        {{ class_prefix }}reg_bind f_enr,
+        {{ class_prefix }}reg_bind f_enp,
+        input longint out_hz,
+        input longint ref_hz);
+    extern task wait_lock({{ class_prefix }}reg_bind f_lock, input time timeout);
+endclass
+
+function void {{ class_prefix }}pll_cfg::tci_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output int clkr,
+        output int clkf,
+        output int clkod,
+        output int bwadj);
     clkr = 1;
     clkod = 1;
     if (ref_hz > 0 && out_hz > 0)
-        clkf = uvm_reg_data_t'(out_hz / ref_hz);
+        clkf = out_hz / ref_hz;
     else
         clkf = 1;
     bwadj = clkf;
 endfunction
 
-function automatic void {{ class_prefix }}pll_sc_divisors(
+function void {{ class_prefix }}pll_cfg::sc_divisors(
         input longint out_hz,
         input longint ref_hz,
-        output uvm_reg_data_t fbdiv,
-        output uvm_reg_data_t refdiv,
-        output uvm_reg_data_t postdiv1,
-        output uvm_reg_data_t postdiv2);
-    refdiv = 1;
+        output int fbdiv,
+        output int refdiv,
+        output int postdiv1,
+        output int postdiv2);
+    int refdiv_try;
+    int postdiv1_try;
+    int postdiv2_try;
+    int fbdiv_i;
+    longint product;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+    int best_refdiv;
+    int best_postdiv1;
+    int best_postdiv2;
+    int best_fbdiv;
+    refdiv = 2;
     postdiv1 = 1;
     postdiv2 = 1;
-    if (ref_hz > 0 && out_hz > 0)
-        fbdiv = uvm_reg_data_t'(out_hz / ref_hz);
-    else
-        fbdiv = 1;
+    fbdiv = 1;
+    if (ref_hz <= 0 || out_hz <= 0)
+        return;
+    have_best = 0;
+    for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
+        for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
+            for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
+                product = refdiv_try * postdiv1_try * postdiv2_try;
+                fbdiv_r = real'(out_hz) * real'(product) / real'(ref_hz);
+                fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+                if (fbdiv_i < SC_FBDIV_MIN || fbdiv_i > SC_FBDIV_MAX)
+                    continue;
+                actual_hz = (ref_hz * fbdiv_i) / product;
+                err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+                if (!have_best || err < best_err) begin
+                    best_err = err;
+                    best_fbdiv = fbdiv_i;
+                    best_refdiv = refdiv_try;
+                    best_postdiv1 = postdiv1_try;
+                    best_postdiv2 = postdiv2_try;
+                    have_best = 1;
+                end
+            end
+        end
+    end
+    if (have_best) begin
+        fbdiv = best_fbdiv;
+        refdiv = best_refdiv;
+        postdiv1 = best_postdiv1;
+        postdiv2 = best_postdiv2;
+    end
 endfunction
 
-function automatic void {{ class_prefix }}pll_dw_divisors(
+function void {{ class_prefix }}pll_cfg::dw_divisors(
         input longint out_hz,
         input longint ref_hz,
-        output uvm_reg_data_t fbdiv,
-        output uvm_reg_data_t prediv,
-        output uvm_reg_data_t divvcop,
-        output uvm_reg_data_t p,
-        output uvm_reg_data_t divvcor,
-        output uvm_reg_data_t r);
-    prediv = 1;
-    divvcop = 1;
-    p = 1;
-    divvcor = 1;
-    r = 1;
-    if (ref_hz > 0 && out_hz > 0)
-        fbdiv = uvm_reg_data_t'(out_hz / ref_hz);
-    else
-        fbdiv = 1;
+        output int fbdiv,
+        output int prediv,
+        output int divvcop,
+        output int p,
+        output int divvcor,
+        output int r);
+    int p_try;
+    int fbdiv_i;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+    int best_p;
+    int best_fbdiv;
+    prediv = 0;
+    divvcop = 0;
+    divvcor = 0;
+    r = 4;
+    p = 0;
+    fbdiv = 1;
+    if (ref_hz <= 0 || out_hz <= 0)
+        return;
+    have_best = 0;
+    for (p_try = 0; p_try <= 7; p_try++) begin
+        fbdiv_r = real'(out_hz) * real'(p_try + 1) / real'(ref_hz);
+        fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+        if (fbdiv_i < DW_FBDIV_MIN || fbdiv_i > DW_FBDIV_MAX)
+            continue;
+        actual_hz = (ref_hz * fbdiv_i) / (p_try + 1);
+        err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+        if (!have_best || err < best_err) begin
+            best_err = err;
+            best_fbdiv = fbdiv_i;
+            best_p = p_try;
+            have_best = 1;
+        end
+    end
+    if (have_best) begin
+        fbdiv = best_fbdiv;
+        p = best_p;
+    end
 endfunction
 
-// TCI：先 bypass 与 reset，再写分频，最后释放 reset 并关 bypass
-task automatic {{ class_prefix }}configure_pll_tci(
-        uvm_reg_field f_bypass,
-        uvm_reg_field f_pwrdn,
-        uvm_reg_field f_reset,
-        uvm_reg_field f_clkod,
-        uvm_reg_field f_clkf,
-        uvm_reg_field f_clkr,
-        uvm_reg_field f_bwadj,
-        input uvm_reg_data_t clkr,
-        input uvm_reg_data_t clkf,
-        input uvm_reg_data_t clkod,
-        input uvm_reg_data_t bwadj);
-    {{ class_prefix }}reg_field_set(f_bypass, 1);
-    {{ class_prefix }}reg_field_set(f_pwrdn, 0);
-    {{ class_prefix }}reg_field_set(f_reset, 1);
-    {{ class_prefix }}reg_field_set(f_clkod, clkod);
-    {{ class_prefix }}reg_field_set(f_clkf, clkf);
-    {{ class_prefix }}reg_field_set(f_clkr, clkr);
-    {{ class_prefix }}reg_field_set(f_bwadj, bwadj);
-    {{ class_prefix }}reg_field_set(f_reset, 0);
-    {{ class_prefix }}reg_field_set(f_bypass, 0);
+task {{ class_prefix }}pll_cfg::configure_sc_from_hz(
+        {{ class_prefix }}reg_bind f_vocpd,
+        {{ class_prefix }}reg_bind f_postdivpd,
+        {{ class_prefix }}reg_bind f_dsmpd,
+        {{ class_prefix }}reg_bind f_pd,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_refdiv,
+        {{ class_prefix }}reg_bind f_postdiv2,
+        {{ class_prefix }}reg_bind f_postdiv1,
+        {{ class_prefix }}reg_bind f_fbdiv,
+        input longint out_hz,
+        input longint ref_hz);
+    int fbdiv;
+    int refdiv;
+    int postdiv1;
+    int postdiv2;
+    sc_divisors(out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
+    configure_sc(
+        f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
+        f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv,
+        fbdiv, refdiv, postdiv1, postdiv2);
 endtask
 
-// SC：先保持 pd 与 bypass，写分频比，再退出掉电
-task automatic {{ class_prefix }}configure_pll_sc(
-        uvm_reg_field f_vocpd,
-        uvm_reg_field f_postdivpd,
-        uvm_reg_field f_dsmpd,
-        uvm_reg_field f_pd,
-        uvm_reg_field f_bypass,
-        uvm_reg_field f_refdiv,
-        uvm_reg_field f_postdiv2,
-        uvm_reg_field f_postdiv1,
-        uvm_reg_field f_fbdiv,
-        input uvm_reg_data_t fbdiv,
-        input uvm_reg_data_t refdiv,
-        input uvm_reg_data_t postdiv1,
-        input uvm_reg_data_t postdiv2);
-    {{ class_prefix }}reg_field_set(f_vocpd, 1);
-    {{ class_prefix }}reg_field_set(f_postdivpd, 1);
-    {{ class_prefix }}reg_field_set(f_dsmpd, 1);
-    {{ class_prefix }}reg_field_set(f_pd, 1);
-    {{ class_prefix }}reg_field_set(f_bypass, 1);
-    {{ class_prefix }}reg_field_set(f_refdiv, refdiv);
-    {{ class_prefix }}reg_field_set(f_postdiv2, postdiv2);
-    {{ class_prefix }}reg_field_set(f_postdiv1, postdiv1);
-    {{ class_prefix }}reg_field_set(f_fbdiv, fbdiv);
-    {{ class_prefix }}reg_field_set(f_vocpd, 0);
-    {{ class_prefix }}reg_field_set(f_postdivpd, 0);
-    {{ class_prefix }}reg_field_set(f_dsmpd, 0);
-    {{ class_prefix }}reg_field_set(f_pd, 0);
-    {{ class_prefix }}reg_field_set(f_bypass, 0);
+task {{ class_prefix }}pll_cfg::configure_dw_from_hz(
+        {{ class_prefix }}reg_bind f_fbdiv,
+        {{ class_prefix }}reg_bind f_prediv,
+        {{ class_prefix }}reg_bind f_reset,
+        {{ class_prefix }}reg_bind f_pwron,
+        {{ class_prefix }}reg_bind f_shift,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_divvcor,
+        {{ class_prefix }}reg_bind f_r,
+        {{ class_prefix }}reg_bind f_p,
+        {{ class_prefix }}reg_bind f_divvcop,
+        {{ class_prefix }}reg_bind f_enr,
+        {{ class_prefix }}reg_bind f_enp,
+        input longint out_hz,
+        input longint ref_hz);
+    int fbdiv;
+    int prediv;
+    int divvcop;
+    int p;
+    int divvcor;
+    int r;
+    dw_divisors(out_hz, ref_hz, fbdiv, prediv, divvcop, p, divvcor, r);
+    configure_dw(
+        f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
+        f_divvcor, f_r, f_p, f_divvcop, f_enr, f_enp,
+        fbdiv, prediv, divvcop, p, divvcor, r);
 endtask
 
-// DW：分步上电、固定等待后再写 VCO 分频
-task automatic {{ class_prefix }}configure_pll_dw(
-        uvm_reg_field f_fbdiv,
-        uvm_reg_field f_prediv,
-        uvm_reg_field f_reset,
-        uvm_reg_field f_pwron,
-        uvm_reg_field f_shift,
-        uvm_reg_field f_bypass,
-        uvm_reg_field f_divvcor,
-        uvm_reg_field f_r,
-        uvm_reg_field f_p,
-        uvm_reg_field f_divvcop,
-        uvm_reg_field f_enr,
-        uvm_reg_field f_enp,
-        input uvm_reg_data_t fbdiv,
-        input uvm_reg_data_t prediv,
-        input uvm_reg_data_t divvcop,
-        input uvm_reg_data_t p,
-        input uvm_reg_data_t divvcor,
-        input uvm_reg_data_t r);
-    {{ class_prefix }}reg_field_set(f_fbdiv, fbdiv);
-    {{ class_prefix }}reg_field_set(f_prediv, prediv);
-    {{ class_prefix }}reg_field_set(f_reset, 1);
-    {{ class_prefix }}reg_field_set(f_pwron, 1);
-    {{ class_prefix }}reg_field_set(f_shift, 1);
-    {{ class_prefix }}reg_field_set(f_bypass, 0);
+task {{ class_prefix }}pll_cfg::configure_tci(
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_pwrdn,
+        {{ class_prefix }}reg_bind f_reset,
+        {{ class_prefix }}reg_bind f_clkod,
+        {{ class_prefix }}reg_bind f_clkf,
+        {{ class_prefix }}reg_bind f_clkr,
+        {{ class_prefix }}reg_bind f_bwadj,
+        input int clkr,
+        input int clkf,
+        input int clkod,
+        input int bwadj);
+    {{ class_prefix }}reg_bind binds[$];
+    int vals[$];
+
+    binds = '{f_bypass, f_pwrdn, f_reset};
+    vals = '{1, 0, 1};
+    reg.apply(binds, vals);
+
+    binds = '{f_clkod, f_clkf, f_clkr, f_bwadj};
+    vals = '{clkod, clkf, clkr, bwadj};
+    reg.apply(binds, vals);
+
+    binds = '{f_reset};
+    vals = '{0};
+    reg.apply(binds, vals);
+
+    binds = '{f_bypass};
+    vals = '{0};
+    reg.apply(binds, vals);
+endtask
+
+task {{ class_prefix }}pll_cfg::configure_sc(
+        {{ class_prefix }}reg_bind f_vocpd,
+        {{ class_prefix }}reg_bind f_postdivpd,
+        {{ class_prefix }}reg_bind f_dsmpd,
+        {{ class_prefix }}reg_bind f_pd,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_refdiv,
+        {{ class_prefix }}reg_bind f_postdiv2,
+        {{ class_prefix }}reg_bind f_postdiv1,
+        {{ class_prefix }}reg_bind f_fbdiv,
+        input int fbdiv,
+        input int refdiv,
+        input int postdiv1,
+        input int postdiv2);
+    {{ class_prefix }}reg_bind binds[$];
+    int vals[$];
+
+    binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
+    vals = '{1, 1, 1, 1, 1};
+    reg.apply(binds, vals);
+
+    binds = '{f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv};
+    vals = '{refdiv, postdiv2, postdiv1, fbdiv};
+    reg.apply(binds, vals);
+
+    binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
+    vals = '{0, 0, 0, 0, 0};
+    reg.apply(binds, vals);
+endtask
+
+task {{ class_prefix }}pll_cfg::configure_dw(
+        {{ class_prefix }}reg_bind f_fbdiv,
+        {{ class_prefix }}reg_bind f_prediv,
+        {{ class_prefix }}reg_bind f_reset,
+        {{ class_prefix }}reg_bind f_pwron,
+        {{ class_prefix }}reg_bind f_shift,
+        {{ class_prefix }}reg_bind f_bypass,
+        {{ class_prefix }}reg_bind f_divvcor,
+        {{ class_prefix }}reg_bind f_r,
+        {{ class_prefix }}reg_bind f_p,
+        {{ class_prefix }}reg_bind f_divvcop,
+        {{ class_prefix }}reg_bind f_enr,
+        {{ class_prefix }}reg_bind f_enp,
+        input int fbdiv,
+        input int prediv,
+        input int divvcop,
+        input int p,
+        input int divvcor,
+        input int r);
+    {{ class_prefix }}reg_bind binds[$];
+    int vals[$];
+
+    binds = '{f_fbdiv, f_prediv};
+    vals = '{fbdiv, prediv};
+    reg.apply(binds, vals);
+
+    binds = '{f_reset, f_pwron, f_shift, f_bypass};
+    vals = '{1, 1, 1, 0};
+    reg.apply(binds, vals);
     #4us;
-    {{ class_prefix }}reg_field_set(f_reset, 0);
+
+    binds = '{f_reset};
+    vals = '{0};
+    reg.apply(binds, vals);
     #16us;
-    {{ class_prefix }}reg_field_set(f_shift, 0);
+
+    binds = '{f_shift};
+    vals = '{0};
+    reg.apply(binds, vals);
     #10us;
-    {{ class_prefix }}reg_field_set(f_divvcor, divvcor);
-    {{ class_prefix }}reg_field_set(f_r, r);
-    {{ class_prefix }}reg_field_set(f_p, p);
-    {{ class_prefix }}reg_field_set(f_divvcop, divvcop);
-    {{ class_prefix }}reg_field_set(f_enr, 1);
-    {{ class_prefix }}reg_field_set(f_enp, 1);
+
+    binds = '{f_divvcor, f_r, f_p, f_divvcop};
+    vals = '{divvcor, r, p, divvcop};
+    reg.apply(binds, vals);
+
+    binds = '{f_enr, f_enp};
+    vals = '{1, 1};
+    reg.apply(binds, vals);
 endtask
 
-// 每 2us 读 lock，直至为 1 或超过 timeout
-task automatic {{ class_prefix }}wait_pll_lock(
-        uvm_reg_field f_lock,
-        input time timeout);
+task {{ class_prefix }}pll_cfg::wait_lock({{ class_prefix }}reg_bind f_lock, input time timeout);
     time elapsed;
     uvm_status_e status;
-    uvm_reg_data_t rdata;
+    int rdata;
     uvm_reg r;
 
-    if (f_lock == null)
-        `uvm_fatal("CLK_TREE", "wait_pll_lock: f_lock is null")
+    if (f_lock.field == null)
+        `uvm_fatal("CLK_TREE", "wait_lock: f_lock not bound")
 
     elapsed = 0;
     while (elapsed < timeout) begin
-        r = f_lock.get_register();
+        r = f_lock.field.get_register();
         r.read(status, rdata);
         if (status != UVM_IS_OK)
             `uvm_fatal("CLK_TREE", $sformatf(
-                "wait_pll_lock: read %s failed", r.get_full_name()))
-        if (f_lock.get() == 1)
+                "wait_lock: read %s failed", r.get_full_name()))
+        if (reg.get(f_lock) == 1)
             return;
         #2us;
         elapsed += 2us;
     end
     `uvm_fatal("CLK_TREE", $sformatf(
-        "wait_pll_lock: %s lock not 1 within %0t", f_lock.get_full_name(), timeout))
+        "wait_lock: %s lock not 1 within %0t", f_lock.field.get_full_name(), timeout))
 endtask
 
 `endif

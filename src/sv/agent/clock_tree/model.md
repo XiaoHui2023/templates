@@ -82,7 +82,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 配置 / 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | pll_kind | PLL_TCI、PLL_SC、PLL_DW | 决定例化哪一类 **pll_*** |
-| regs | dict，可选 | 键为逻辑名、值为 RAL 点分路径；**非空时键集合须与 pll_kind 允许表完全一致**，不得缺键或多键 |
+| regs | dict，可选 | 键为逻辑名、值为 RAL 点分路径，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时键集合须与 pll_kind 允许表完全一致**，不得缺键或多键 |
 
 | pll_kind | regs 须包含的键 |
 | --- | --- |
@@ -98,7 +98,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | --- | --- | --- |
 | sel | int，rand | 选择值；**cst_base** 中 **inside** 与软约束与配置一致 |
 | to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 在 **to_source[sel] != null** 时写入 **source** |
-| reg | string，可选 | RAL 点分路径；**configure** 写入 **sel** |
+| reg | string，可选 | RAL 点分路径，可带比特范围后缀；**configure** 写入 **sel** |
 
 **cst_clk_from_src**：**to_source[sel]** 为空则 **valid** 为 0，否则随所选前级 **valid**。
 
@@ -109,11 +109,11 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 说明 |
 | --- | --- |
 | ratio | 分频比，rand，须 1～64；1 表示不分频，大于 1 表示分频比为 **ratio** |
-| reg | string，可选 | 8 位分频控制寄存器 RAL 点分路径 |
+| regs | 映射，可选 | 非空时键为 rst、load、div，值为各 field 的 RAL 点分路径，可带比特范围后缀 |
 
 **cst_div**：**ratio** 在 1～64；**cst_freq_from_src** 为前级频率整除 **ratio**。
 
-**reg** 写入 **[7:0]**：**[5:0]** 为 N，N=0 不分频，N>0 时分频比为 N+1；**[6]** 为 load，须先写 0 再写 1；**[7]** 为 rst，固定 0。**configure** 按 **ratio** 换算 N 后连写两次。
+**configure**：**rst** 写 0；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
 
 ## dto
 
@@ -122,7 +122,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 说明 |
 | --- | --- |
 | ratio | 分频比，rand，须大于 0 且不超过 2^25；与 **step** 对应关系为 分频比 = 2^25 / **step** |
-| regs | 可选；非空时键须为 **rstn**、**load**、**bypass**、**step**，值为各 field 的 RAL 点分路径 |
+| regs | 可选；非空时键须为 **rstn**、**load**、**bypass**、**step**，值为各 field 的 RAL 点分路径，可带比特范围后缀 |
 
 **cst_freq_from_src**：前级频率整除 **ratio**。
 
@@ -135,7 +135,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
 | open | bit，rand | 为真时开放时钟通行；为假时屏蔽输出 |
-| reg | string，可选 | RAL 点分路径；**configure** 写入 **open** |
+| reg | string，可选 | RAL 点分路径，可带比特范围后缀；**configure** 写入 **open** |
 
 重载 **cst_clk_from_src**：前级有效且 **open** 为真时 **valid** 为真。
 

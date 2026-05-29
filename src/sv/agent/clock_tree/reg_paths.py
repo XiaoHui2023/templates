@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Dict, List, Union
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 if TYPE_CHECKING:
     from nodes import Tree
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+_REG_BIT_SUFFIX = re.compile(r"\[(?P<body>[^\]]+)\]$")
 
 RegPathGroup = Dict[str, str]
 RegsMap = Dict[str, Union[str, RegPathGroup]]
 
-SINGLE_REG_NODE_KINDS = frozenset({"gate", "mux", "div"})
+SINGLE_REG_NODE_KINDS = frozenset({"gate", "mux"})
+
+DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
 DTO_REG_KEYS = frozenset({"rstn", "load", "bypass", "step"})
 
@@ -62,7 +66,19 @@ PLL_KIND_TO_SV: dict[str, str] = {
 }
 
 
-def validate_reg_path(path: str, *, ctx: str) -> None:
+@dataclass(frozen=True)
+class RegPathSpec:
+    """RAL 点分路径与 field 内比特切片；width/offset 为 None 时在 SV 绑定时取整域 field。"""
+
+    path: str
+    offset: Optional[int]
+    width: Optional[int]
+
+
+RegBindingRow = tuple[str, str, str, str, Optional[int], Optional[int]]
+
+
+def _validate_dot_path(path: str, *, ctx: str) -> None:
     if not path:
         raise ValueError(f"{ctx} 寄存器路径不得为空")
     for seg in path.split("."):
@@ -70,6 +86,56 @@ def validate_reg_path(path: str, *, ctx: str) -> None:
             raise ValueError(
                 f"{ctx} 路径段 {seg!r} 须为合法 SystemVerilog 标识符，完整路径: {path!r}"
             )
+
+
+def parse_reg_path(raw: str, *, ctx: str) -> RegPathSpec:
+    raw = raw.strip()
+    if not raw:
+        raise ValueError(f"{ctx} 寄存器路径不得为空")
+
+    m = _REG_BIT_SUFFIX.search(raw)
+    if not m:
+        _validate_dot_path(raw, ctx=ctx)
+        return RegPathSpec(path=raw, offset=None, width=None)
+
+    base = raw[: m.start()]
+    _validate_dot_path(base, ctx=ctx)
+
+    body = m.group("body").strip()
+    if ":" in body:
+        parts = body.split(":", 1)
+        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+            raise ValueError(
+                f"{ctx} 比特范围 {body!r} 须为 msb:lsb 形式，完整路径: {raw!r}"
+            )
+        try:
+            msb = int(parts[0].strip(), 10)
+            lsb = int(parts[1].strip(), 10)
+        except ValueError as exc:
+            raise ValueError(
+                f"{ctx} 比特范围 {body!r} 须为十进制整数，完整路径: {raw!r}"
+            ) from exc
+        if msb < lsb:
+            raise ValueError(
+                f"{ctx} 比特范围 msb {msb} 须不小于 lsb {lsb}，完整路径: {raw!r}"
+            )
+        if lsb < 0:
+            raise ValueError(f"{ctx} lsb 须非负，完整路径: {raw!r}")
+        return RegPathSpec(path=base, offset=lsb, width=msb - lsb + 1)
+
+    try:
+        bit = int(body, 10)
+    except ValueError as exc:
+        raise ValueError(
+            f"{ctx} 单比特索引 {body!r} 须为十进制整数，完整路径: {raw!r}"
+        ) from exc
+    if bit < 0:
+        raise ValueError(f"{ctx} 单比特索引须非负，完整路径: {raw!r}")
+    return RegPathSpec(path=base, offset=bit, width=1)
+
+
+def validate_reg_path(path: str, *, ctx: str) -> None:
+    parse_reg_path(path, ctx=ctx)
 
 
 def validate_optional_reg(path: str, *, node_name: str, kind: str) -> None:
@@ -90,11 +156,6 @@ def flatten_regs(regs: RegsMap) -> dict[str, str]:
                 if not _SV_ID.match(field):
                     raise ValueError(
                         f"regs[{blk!r}] 内键 {field!r} 须为合法 SystemVerilog 标识符"
-                    )
-                if not _SV_ID.match(tail):
-                    raise ValueError(
-                        f"regs[{blk!r}][{field!r}] 尾段 {tail!r} "
-                        f"须为合法 SystemVerilog 标识符"
                     )
                 full = f"{blk}.{tail}"
                 validate_reg_path(full, ctx=f"regs[{blk!r}][{field!r}]")
@@ -141,7 +202,8 @@ def validate_pll_regs_exact(
 
 
 def reg_path_sv_expr(path: str, root: str = "regmodel") -> str:
-    return f"{root}.{path}"
+    spec = parse_reg_path(path, ctx="reg_path_sv_expr")
+    return f"{root}.{spec.path}"
 
 
 def collect_pll_sv_classes(trees: List[Tree]) -> List[str]:
@@ -169,21 +231,44 @@ def any_reg_configured(trees: List[Tree]) -> bool:
     return False
 
 
-def iter_reg_bindings(trees: List[Tree]) -> List[tuple[str, str, str, str]]:
-    out: List[tuple[str, str, str, str]] = []
+def _append_binding(
+    out: List[RegBindingRow],
+    tree_name: str,
+    node_name: str,
+    member: str,
+    raw_path: str,
+) -> None:
+    spec = parse_reg_path(
+        raw_path,
+        ctx=f"tree {tree_name!r} node {node_name!r} member {member!r}",
+    )
+    out.append((tree_name, node_name, member, spec.path, spec.offset, spec.width))
+
+
+def iter_reg_bindings(trees: List[Tree]) -> List[RegBindingRow]:
+    out: List[RegBindingRow] = []
     for tree in trees:
         for node in tree.nodes_ordered:
             if not _node_reg_configured(node):
                 continue
             if node.kind in SINGLE_REG_NODE_KINDS:
                 validate_optional_reg(node.reg, node_name=node.name, kind=node.kind)
-                out.append((tree.name, node.name, "f_reg", node.reg))
+                _append_binding(out, tree.name, node.name, "f_reg", node.reg)
             elif node.kind == "pll":
                 validate_pll_regs_exact(
                     node.regs, node.pll_kind, node_name=node.name
                 )
                 for key, path in sorted(node.regs.items()):
-                    out.append((tree.name, node.name, f"f_{key}", path))
+                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
+            elif node.kind == "div":
+                validate_regs_exact(
+                    node.regs,
+                    DIV_REG_KEYS,
+                    node_name=node.name,
+                    kind="div",
+                )
+                for key, path in sorted(node.regs.items()):
+                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
             elif node.kind == "dto":
                 validate_regs_exact(
                     node.regs,
@@ -192,9 +277,9 @@ def iter_reg_bindings(trees: List[Tree]) -> List[tuple[str, str, str, str]]:
                     kind="dto",
                 )
                 for key, path in sorted(node.regs.items()):
-                    out.append((tree.name, node.name, f"f_{key}", path))
+                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
             else:
                 flat = flatten_regs(node.regs)
                 for key, path in sorted(flat.items()):
-                    out.append((tree.name, node.name, f"f_{key}", path))
+                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
     return out
