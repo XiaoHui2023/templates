@@ -47,10 +47,10 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 {%- endfor %}
     endfunction
 
-    extern function void build({% if class_regmodel %}{{ class_regmodel }} regmodel = null{% else %}uvm_reg_block regmodel = null{% endif %});
+    extern function void build({{ class_regmodel }} regmodel = null);
 endclass
 
-function void {{ class_prefix }}{{ tree.name }}_tree::build({% if class_regmodel %}{{ class_regmodel }} regmodel{% else %}uvm_reg_block regmodel{% endif %});
+function void {{ class_prefix }}{{ tree.name }}_tree::build({{ class_regmodel }} regmodel);
 {% for tree_name, node_name, member, path, offset, width in reg_bindings %}
     if (regmodel != null) begin
         {{ node_name }}.{{ member }}.field = regmodel.{{ path }};

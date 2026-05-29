@@ -10,6 +10,7 @@
 
 ```yaml
 class_prefix: chip_clk_
+class_regmodel: chip_ral_block
 tree:
   name: main
   nodes:
@@ -32,7 +33,7 @@ tree:
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。没有重名风险时可保持默认。 |
 | `tree` | `Tree` | 必填 | 本 agent 对应的单棵时钟树。 |
 | `vars` | `dict[str, Any]` | `{}` | 自定义变量，未使用时留空。 |
-| `class_regmodel` | `str` | `""` | RAL 根块类名称，节点填写寄存器路径时需要设置。 |
+| `class_regmodel` | `str` | 必填 | RAL 根块类名称；**tree.build** 入参类型。 |
 
 ### 寄存器路径
 

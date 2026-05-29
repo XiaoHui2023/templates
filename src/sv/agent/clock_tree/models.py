@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
@@ -12,7 +12,6 @@ from reg_paths import (
     PLL_REG_KEYS,
     RegBindingRow,
     any_node_path,
-    any_reg_configured,
     collect_pll_sv_classes,
     iter_reg_bindings,
 )
@@ -30,7 +29,8 @@ class Models(BaseModel):
         description="类型名前缀，与固定后缀拼接；建议含末尾下划线。",
     )
     class_regmodel: str = Field(
-        "",
+        ...,
+        min_length=1,
         description="RAL 根块类型名；tree 的 build 入参类型。",
     )
     min_freq_hz: int = Field(
@@ -110,14 +110,11 @@ class Models(BaseModel):
             return None
         return self.tree.name
 
-    @model_validator(mode="after")
-    def _validate_regmodel(self) -> Models:
-        if any_reg_configured(self.tree) and not self.class_regmodel.strip():
+    @field_validator("class_regmodel")
+    @classmethod
+    def _validate_class_regmodel(cls, value: str) -> str:
+        if not _SV_TYPE.match(value):
             raise ValueError(
-                "节点配置了寄存器路径时 class_regmodel 须非空"
+                f"class_regmodel {value!r} 须为合法 SystemVerilog 类型名"
             )
-        if self.class_regmodel and not _SV_TYPE.match(self.class_regmodel):
-            raise ValueError(
-                f"class_regmodel {self.class_regmodel!r} 须为合法 SystemVerilog 类型名"
-            )
-        return self
+        return value
