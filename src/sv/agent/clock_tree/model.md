@@ -94,9 +94,9 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
-| sel | int，rand | 选择值；**cst_base** 中 **inside** 与软约束与配置一致 |
+| sel | int，rand | 选择值；**source** 非空时 **cst_base** 中 **inside** 与 **source** 键一致 |
 | to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 在 **to_source[sel] != null** 时写入 **source** |
-| reg | string，可选 | RAL 点分路径，可带比特范围后缀；**configure** 写入 **sel** |
+| reg | string，可选 | RAL 点分路径，可带比特范围后缀；**config_reg** 写入 **sel** |
 
 **cst_clk_from_src**：**to_source[sel]** 为空则 **valid** 为 0，否则随所选前级 **valid**。
 
@@ -111,7 +111,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_div**：**ratio** 在 1～64；**cst_freq_from_src** 为前级频率整除 **ratio**。
 
-**configure**：**rst** 写 0；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
+**config_reg**：**rst** 写 0；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
 
 ## dto
 
@@ -124,7 +124,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_freq_from_src**：前级频率整除 **ratio**。
 
-**configure** 写入：**rstn**=0，**load**=1，**bypass**=0，**step**=2^25/**ratio**（整数，须落在 1～2^25−1，故 **ratio** 不能为 1）。
+**config_reg** 写入：**rstn**=0，**load**=1，**bypass**=0，**step**=2^25/**ratio**（整数，须落在 1～2^25−1，故 **ratio** 不能为 1）。
 
 ## gate
 
@@ -133,7 +133,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
 | open | bit，rand | 为真时开放时钟通行；为假时屏蔽输出 |
-| reg | string，可选 | RAL 点分路径，可带比特范围后缀；**configure** 写入 **open** |
+| reg | string，可选 | RAL 点分路径，可带比特范围后缀；**config_reg** 写入 **open** |
 
 重载 **cst_clk_from_src**：前级有效且 **open** 为真时 **valid** 为真。
 

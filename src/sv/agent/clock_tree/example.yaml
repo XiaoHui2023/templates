@@ -50,7 +50,6 @@ tree:
         "0": pll_main
         "1": xtal
       target: w_mux2_out
-      sel: 0
 
 vars:
   dut_prefix: dut.

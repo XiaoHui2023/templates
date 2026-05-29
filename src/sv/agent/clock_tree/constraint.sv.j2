@@ -10,7 +10,6 @@ constraint {{ class_prefix }}{{ tree.name }}_tree::cst_base {
     soft {{ node.name }}.allow_bad_duty == 1;
 {%- endif %}
 {%- if node.kind == "mux" and node.mux_sel_inside %}
-    soft {{ node.name }}.sel == {{ node.sel }};
     {{ node.name }}.sel inside { {{ node.mux_sel_inside }} };
 {%- endif %}
 {%- endfor %}

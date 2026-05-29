@@ -55,13 +55,9 @@ class NodeBase(BaseModel):
         default_factory=list,
         description="校验后推导的前级连线；非 mux 一项写 source，mux 多项写 to_source；配置中勿填。",
     )
-    mux_sel_keys: List[int] = Field(
-        default_factory=list,
-        description="mux 可选 sel 键列表；非 mux 为空。",
-    )
     mux_sel_inside: str = Field(
         "",
-        description="mux sel inside 集合字面量，如 0, 1；模板直接写入 constraint。",
+        description="mux 的 source 键展开为 sel inside 集合字面量，如 0, 1；非 mux 为空。",
     )
 
     @field_validator("path")
@@ -185,15 +181,10 @@ class ClkNode(NodeBase):
 class MuxNode(NodeBase):
     kind: Literal["mux"] = "mux"
     source: Dict[str, str] = Field(
-        ...,
-        min_length=1,
-        description="多路输入：键为图上输入标签字符串，值为对端器件名。",
+        default_factory=dict,
+        description="多路输入：键为图上输入标签字符串，值为对端器件名；可省略或留空表示暂无输入。",
     )
     target: str = Field(..., min_length=1, description="输出连线名。")
-    sel: Optional[int] = Field(
-        None,
-        description="选择值；省略时为 0。",
-    )
     reg: str = Field(
         "",
         description="可选；RAL 点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
@@ -201,8 +192,6 @@ class MuxNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_mux(self) -> MuxNode:
-        if not self.source:
-            raise ValueError(f"mux 节点 {self.name!r} 的 source 不得为空")
         validate_optional_reg(self.reg, node_name=self.name, kind="mux")
         return self
 
@@ -346,10 +335,7 @@ def enrich_tree_nodes(
             "sources": _build_sources(node, known),
         }
         if node.kind == "mux":
-            if node.sel is None:
-                updates["sel"] = 0
             keys = sorted(int(k) for k in node.source.keys())
-            updates["mux_sel_keys"] = keys
             updates["mux_sel_inside"] = ", ".join(str(k) for k in keys)
         enriched[key] = node.model_copy(update=updates)
     return enriched

@@ -1,98 +1,98 @@
-`ifndef {{ (class_prefix ~ "configure_seq") | upper }}
-`define {{ (class_prefix ~ "configure_seq") | upper }}
+`ifndef {{ (class_prefix ~ "config_reg_seq") | upper }}
+`define {{ (class_prefix ~ "config_reg_seq") | upper }}
 
-class {{ class_prefix }}configure_seq extends uvm_sequence #(
-    {{ class_prefix }}configure_req,
-    {{ class_prefix }}configure_rsp
+class {{ class_prefix }}config_reg_seq extends uvm_sequence #(
+    {{ class_prefix }}config_reg_req,
+    {{ class_prefix }}config_reg_rsp
 );
-    `uvm_object_utils({{ class_prefix }}configure_seq)
+    `uvm_object_utils({{ class_prefix }}config_reg_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    function new(string name = "{{ class_prefix }}configure_seq");
+    function new(string name = "{{ class_prefix }}config_reg_seq");
         super.new(name);
     endfunction
 
     extern virtual task body();
-    extern task configure_gate_node({{ class_prefix }}gate gate_nd);
-    extern task configure_mux_node({{ class_prefix }}mux mux_nd);
-    extern task configure_div_node({{ class_prefix }}div div_nd);
-    extern task configure_dto_node({{ class_prefix }}dto dto_nd);
-    extern task configure_pll_node({{ class_prefix }}base_pll pll_nd);
-    extern task configure_pll_sc_node({{ class_prefix }}pll_sc pll_sc_nd);
-    extern task configure_pll_dw_node({{ class_prefix }}pll_dw pll_dw_nd);
+    extern task config_reg_gate_node({{ class_prefix }}gate gate_nd);
+    extern task config_reg_mux_node({{ class_prefix }}mux mux_nd);
+    extern task config_reg_div_node({{ class_prefix }}div div_nd);
+    extern task config_reg_dto_node({{ class_prefix }}dto dto_nd);
+    extern task config_reg_pll_node({{ class_prefix }}base_pll pll_nd);
+    extern task config_reg_pll_sc_node({{ class_prefix }}pll_sc pll_sc_nd);
+    extern task config_reg_pll_dw_node({{ class_prefix }}pll_dw pll_dw_nd);
     extern task wait_pll_lock_node({{ class_prefix }}base_pll pll_nd);
 endclass
 
-task {{ class_prefix }}configure_seq::configure_gate_node({{ class_prefix }}gate gate_nd);
+task {{ class_prefix }}config_reg_seq::config_reg_gate_node({{ class_prefix }}gate gate_nd);
     if (!gate_nd.f_reg.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: gate %s f_reg not bound", gate_nd.get_name()))
+            "config_reg: gate %s f_reg not bound", gate_nd.get_name()))
     p_sequencer.tools.node.configure_gate(gate_nd.f_reg, gate_nd.open);
 endtask
 
-task {{ class_prefix }}configure_seq::configure_mux_node({{ class_prefix }}mux mux_nd);
+task {{ class_prefix }}config_reg_seq::config_reg_mux_node({{ class_prefix }}mux mux_nd);
     if (!mux_nd.f_reg.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: mux %s f_reg not bound", mux_nd.get_name()))
+            "config_reg: mux %s f_reg not bound", mux_nd.get_name()))
     p_sequencer.tools.node.configure_mux(mux_nd.f_reg, mux_nd.sel);
 endtask
 
-task {{ class_prefix }}configure_seq::configure_div_node({{ class_prefix }}div div_nd);
+task {{ class_prefix }}config_reg_seq::config_reg_div_node({{ class_prefix }}div div_nd);
     if (!div_nd.f_rst.is_bound() || !div_nd.f_load.is_bound() || !div_nd.f_div.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: div %s regs not bound", div_nd.get_name()))
+            "config_reg: div %s regs not bound", div_nd.get_name()))
     p_sequencer.tools.node.configure_div(
         div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd.ratio);
 endtask
 
-task {{ class_prefix }}configure_seq::configure_dto_node({{ class_prefix }}dto dto_nd);
+task {{ class_prefix }}config_reg_seq::config_reg_dto_node({{ class_prefix }}dto dto_nd);
     if (!dto_nd.f_rstn.is_bound() || !dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
             || !dto_nd.f_step.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: dto %s regs not bound", dto_nd.get_name()))
+            "config_reg: dto %s regs not bound", dto_nd.get_name()))
     p_sequencer.tools.node.configure_dto(
         dto_nd.f_rstn, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
 endtask
 
-task {{ class_prefix }}configure_seq::configure_pll_sc_node({{ class_prefix }}pll_sc pll_sc_nd);
+task {{ class_prefix }}config_reg_seq::config_reg_pll_sc_node({{ class_prefix }}pll_sc pll_sc_nd);
     longint ref_hz;
 
     if (pll_sc_nd.source == null)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_sc %s has no source for ref frequency", pll_sc_nd.get_name()))
+            "config_reg: pll_sc %s has no source for ref frequency", pll_sc_nd.get_name()))
     if (pll_sc_nd.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_sc %s frequence must be positive", pll_sc_nd.get_name()))
+            "config_reg: pll_sc %s frequence must be positive", pll_sc_nd.get_name()))
     ref_hz = pll_sc_nd.source.frequence;
     if (ref_hz <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_sc %s source frequence must be positive", pll_sc_nd.get_name()))
+            "config_reg: pll_sc %s source frequence must be positive", pll_sc_nd.get_name()))
     if (!pll_sc_nd.f_vocpd.is_bound() || !pll_sc_nd.f_postdivpd.is_bound()
             || !pll_sc_nd.f_dsmpd.is_bound() || !pll_sc_nd.f_pd.is_bound()
             || !pll_sc_nd.f_bypass.is_bound() || !pll_sc_nd.f_refdiv.is_bound()
             || !pll_sc_nd.f_postdiv2.is_bound() || !pll_sc_nd.f_postdiv1.is_bound()
             || !pll_sc_nd.f_fbdiv.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_sc %s regs not bound", pll_sc_nd.get_name()))
+            "config_reg: pll_sc %s regs not bound", pll_sc_nd.get_name()))
     p_sequencer.tools.pll.configure_sc_from_hz(
         pll_sc_nd.f_vocpd, pll_sc_nd.f_postdivpd, pll_sc_nd.f_dsmpd, pll_sc_nd.f_pd,
         pll_sc_nd.f_bypass, pll_sc_nd.f_refdiv, pll_sc_nd.f_postdiv2, pll_sc_nd.f_postdiv1,
         pll_sc_nd.f_fbdiv, pll_sc_nd.frequence, ref_hz);
 endtask
 
-task {{ class_prefix }}configure_seq::configure_pll_dw_node({{ class_prefix }}pll_dw pll_dw_nd);
+task {{ class_prefix }}config_reg_seq::config_reg_pll_dw_node({{ class_prefix }}pll_dw pll_dw_nd);
     longint ref_hz;
 
     if (pll_dw_nd.source == null)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_dw %s has no source for ref frequency", pll_dw_nd.get_name()))
+            "config_reg: pll_dw %s has no source for ref frequency", pll_dw_nd.get_name()))
     if (pll_dw_nd.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_dw %s frequence must be positive", pll_dw_nd.get_name()))
+            "config_reg: pll_dw %s frequence must be positive", pll_dw_nd.get_name()))
     ref_hz = pll_dw_nd.source.frequence;
     if (ref_hz <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_dw %s source frequence must be positive", pll_dw_nd.get_name()))
+            "config_reg: pll_dw %s source frequence must be positive", pll_dw_nd.get_name()))
     if (!pll_dw_nd.f_fbdiv.is_bound() || !pll_dw_nd.f_prediv.is_bound()
             || !pll_dw_nd.f_reset.is_bound() || !pll_dw_nd.f_pwron.is_bound()
             || !pll_dw_nd.f_shift.is_bound() || !pll_dw_nd.f_bypass.is_bound()
@@ -100,7 +100,7 @@ task {{ class_prefix }}configure_seq::configure_pll_dw_node({{ class_prefix }}pl
             || !pll_dw_nd.f_p.is_bound() || !pll_dw_nd.f_divvcop.is_bound()
             || !pll_dw_nd.f_enr.is_bound() || !pll_dw_nd.f_enp.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll_dw %s regs not bound", pll_dw_nd.get_name()))
+            "config_reg: pll_dw %s regs not bound", pll_dw_nd.get_name()))
     p_sequencer.tools.pll.configure_dw_from_hz(
         pll_dw_nd.f_fbdiv, pll_dw_nd.f_prediv, pll_dw_nd.f_reset, pll_dw_nd.f_pwron,
         pll_dw_nd.f_shift, pll_dw_nd.f_bypass, pll_dw_nd.f_divvcor, pll_dw_nd.f_r,
@@ -108,7 +108,7 @@ task {{ class_prefix }}configure_seq::configure_pll_dw_node({{ class_prefix }}pl
         pll_dw_nd.frequence, ref_hz);
 endtask
 
-task {{ class_prefix }}configure_seq::configure_pll_node({{ class_prefix }}base_pll pll_nd);
+task {{ class_prefix }}config_reg_seq::config_reg_pll_node({{ class_prefix }}base_pll pll_nd);
     longint ref_hz;
     int clkr;
     int clkf;
@@ -119,30 +119,30 @@ task {{ class_prefix }}configure_seq::configure_pll_node({{ class_prefix }}base_
     {{ class_prefix }}pll_dw pll_dw_nd;
 
     if ($cast(pll_sc_nd, pll_nd)) begin
-        configure_pll_sc_node(pll_sc_nd);
+        config_reg_pll_sc_node(pll_sc_nd);
         return;
     end
     if ($cast(pll_dw_nd, pll_nd)) begin
-        configure_pll_dw_node(pll_dw_nd);
+        config_reg_pll_dw_node(pll_dw_nd);
         return;
     end
     if (pll_nd.source == null)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll %s has no source for ref frequency", pll_nd.get_name()))
+            "config_reg: pll %s has no source for ref frequency", pll_nd.get_name()))
     if (pll_nd.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll %s frequence must be positive", pll_nd.get_name()))
+            "config_reg: pll %s frequence must be positive", pll_nd.get_name()))
     ref_hz = pll_nd.source.frequence;
     if (ref_hz <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll %s source frequence must be positive", pll_nd.get_name()))
+            "config_reg: pll %s source frequence must be positive", pll_nd.get_name()))
     if ($cast(pll_tci_nd, pll_nd)) begin
         if (!pll_tci_nd.f_bypass.is_bound() || !pll_tci_nd.f_pwrdn.is_bound()
                 || !pll_tci_nd.f_reset.is_bound() || !pll_tci_nd.f_clkod.is_bound()
                 || !pll_tci_nd.f_clkf.is_bound() || !pll_tci_nd.f_clkr.is_bound()
                 || !pll_tci_nd.f_bwadj.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf(
-                "configure: pll_tci %s regs not bound", pll_tci_nd.get_name()))
+                "config_reg: pll_tci %s regs not bound", pll_tci_nd.get_name()))
         p_sequencer.tools.pll.tci_divisors(
             pll_tci_nd.frequence, ref_hz, clkr, clkf, clkod, bwadj);
         p_sequencer.tools.pll.configure_tci(
@@ -151,10 +151,10 @@ task {{ class_prefix }}configure_seq::configure_pll_node({{ class_prefix }}base_
             clkr, clkf, clkod, bwadj);
     end else
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll %s is not pll_tci, pll_sc, or pll_dw", pll_nd.get_name()))
+            "config_reg: pll %s is not pll_tci, pll_sc, or pll_dw", pll_nd.get_name()))
 endtask
 
-task {{ class_prefix }}configure_seq::wait_pll_lock_node({{ class_prefix }}base_pll pll_nd);
+task {{ class_prefix }}config_reg_seq::wait_pll_lock_node({{ class_prefix }}base_pll pll_nd);
     {{ class_prefix }}pll_tci pll_tci_nd;
     {{ class_prefix }}pll_sc pll_sc_nd;
     {{ class_prefix }}pll_dw pll_dw_nd;
@@ -162,27 +162,27 @@ task {{ class_prefix }}configure_seq::wait_pll_lock_node({{ class_prefix }}base_
     if ($cast(pll_tci_nd, pll_nd)) begin
         if (!pll_tci_nd.f_lock.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf(
-                "configure: pll %s f_lock not bound", pll_nd.get_name()))
+                "config_reg: pll %s f_lock not bound", pll_nd.get_name()))
         p_sequencer.tools.pll.wait_lock(pll_tci_nd.f_lock, {{ pll_lock_timeout_us }}us);
     end else if ($cast(pll_sc_nd, pll_nd)) begin
         if (!pll_sc_nd.f_lock.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf(
-                "configure: pll %s f_lock not bound", pll_nd.get_name()))
+                "config_reg: pll %s f_lock not bound", pll_nd.get_name()))
         p_sequencer.tools.pll.wait_lock(pll_sc_nd.f_lock, {{ pll_lock_timeout_us }}us);
     end else if ($cast(pll_dw_nd, pll_nd)) begin
         if (!pll_dw_nd.f_lock.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf(
-                "configure: pll %s f_lock not bound", pll_nd.get_name()))
+                "config_reg: pll %s f_lock not bound", pll_nd.get_name()))
         p_sequencer.tools.pll.wait_lock(pll_dw_nd.f_lock, {{ pll_lock_timeout_us }}us);
     end else
         `uvm_fatal("CLK_TREE", $sformatf(
-            "configure: pll %s is not pll_tci, pll_sc, or pll_dw", pll_nd.get_name()))
+            "config_reg: pll %s is not pll_tci, pll_sc, or pll_dw", pll_nd.get_name()))
     pll_nd.locked = 1'b1;
 endtask
 
-task {{ class_prefix }}configure_seq::body();
-    {{ class_prefix }}configure_req rq;
-    {{ class_prefix }}configure_rsp rs;
+task {{ class_prefix }}config_reg_seq::body();
+    {{ class_prefix }}config_reg_req rq;
+    {{ class_prefix }}config_reg_rsp rs;
     {{ class_prefix }}gate gate_nd;
     {{ class_prefix }}mux mux_nd;
     {{ class_prefix }}div div_nd;
@@ -193,30 +193,30 @@ task {{ class_prefix }}configure_seq::body();
     int n_pll;
 
     if (req == null)
-        `uvm_fatal("CLK_TREE", "configure: req is null")
+        `uvm_fatal("CLK_TREE", "config_reg: req is null")
     if (p_sequencer.tools == null)
-        `uvm_fatal("CLK_TREE", "configure: sequencer tools not built")
+        `uvm_fatal("CLK_TREE", "config_reg: sequencer tools not built")
 
     rq = req;
     if (rq.nodes.size() == 0)
-        `uvm_fatal("CLK_TREE", "configure: req.nodes is empty")
+        `uvm_fatal("CLK_TREE", "config_reg: req.nodes is empty")
 
-    rs = {{ class_prefix }}configure_rsp::type_id::create("rsp");
+    rs = {{ class_prefix }}config_reg_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
     n_nodes = rq.nodes.size();
     n_pll = 0;
 
     for (int i = 0; i < n_nodes; i++) begin
         if ($cast(gate_nd, rq.nodes[i]))
-            configure_gate_node(gate_nd);
+            config_reg_gate_node(gate_nd);
         else if ($cast(mux_nd, rq.nodes[i]))
-            configure_mux_node(mux_nd);
+            config_reg_mux_node(mux_nd);
         else if ($cast(div_nd, rq.nodes[i]))
-            configure_div_node(div_nd);
+            config_reg_div_node(div_nd);
         else if ($cast(dto_nd, rq.nodes[i]))
-            configure_dto_node(dto_nd);
+            config_reg_dto_node(dto_nd);
         else if ($cast(pll_nd, rq.nodes[i])) begin
-            configure_pll_node(pll_nd);
+            config_reg_pll_node(pll_nd);
             plls.push_back(pll_nd);
             n_pll++;
         end
@@ -226,7 +226,7 @@ task {{ class_prefix }}configure_seq::body();
         wait_pll_lock_node(plls[i]);
 
     `uvm_info("CLK_TREE", $sformatf(
-        "configure: %0d node(s), %0d pll locked, ok %0b", n_nodes, n_pll, rs.ok), UVM_HIGH)
+        "config_reg: %0d node(s), %0d pll locked, ok %0b", n_nodes, n_pll, rs.ok), UVM_HIGH)
 
     rsp = rs;
 endtask

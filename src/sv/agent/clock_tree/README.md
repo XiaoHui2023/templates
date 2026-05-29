@@ -44,7 +44,7 @@ tree:
 | `blk.field[1]` | 仅 bit 1，位宽 1 |
 | `blk.field[3:0]` | 从 lsb 0 起连续 4 位 |
 
-**configure** 只更新所列比特，field 内其余位保持不变。
+**config_reg** 只更新所列比特，field 内其余位保持不变。
 | `min_freq_hz` | `int` | `500` | 判断时钟仍在活动的最低频率。 |
 | `stable_cycles` | `int` | `3` | 连续稳定周期数。 |
 | `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
@@ -79,4 +79,4 @@ tree:
 | `div` | `source`, `target`, `regs` | `source` 与 `target` 必填 | 分频节点；`regs` 非空时键为 `rst`、`load`、`div`，值可带比特范围后缀。 |
 | `dto` | `source`, `target`, `regs` | `source` 与 `target` 必填 | DTO 节点；`regs` 非空时键为 `rstn`、`load`、`bypass`、`step`，值可带比特范围后缀。 |
 | `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写前级节点名，`target` 写输出连线名。 |
-| `mux` | `source`, `target`, `sel`, `reg` | `source` 与 `target` 必填，`sel` 省略时为 `0` | 多路选择节点；`reg` 为可选 RAL 路径，可带比特范围后缀。 |
+| `mux` | `source`, `target`, `reg` | `target` 必填；`source` 可省略或 `{}` | 多路选择节点；`source` 键为输入序号；有输入时 **cst_base** 约束 **sel inside**；`reg` 为可选 RAL 路径，可带比特范围后缀。 |

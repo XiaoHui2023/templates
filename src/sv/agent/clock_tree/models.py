@@ -64,7 +64,7 @@ class Models(BaseModel):
     pll_lock_timeout_us: int = Field(
         10_000,
         ge=1,
-        description="configure 等待各 pll lock 为 1 的最长时间，微秒。",
+        description="config_reg 等待各 pll lock 为 1 的最长时间，微秒。",
     )
 
     @model_validator(mode="after")

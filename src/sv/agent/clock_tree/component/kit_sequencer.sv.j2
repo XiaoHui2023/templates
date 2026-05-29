@@ -15,8 +15,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         {{ class_prefix }}node_base nodes[$], bit gen_en = 1'b1);
     extern function void gen_source_clock();
 {% endif %}
-    extern function {{ class_prefix }}set_pll_rsp set_pll({{ class_prefix }}base_pll node);
-    extern function {{ class_prefix }}configure_rsp configure({{ class_prefix }}node_base nodes[$]);
+    extern function {{ class_prefix }}config_reg_rsp config_reg({{ class_prefix }}node_base nodes[$]);
 {% if any_node_path %}
     extern function {{ class_prefix }}check_clk_rsp check_clk({{ class_prefix }}node_base nodes[$]);
     extern function {{ class_prefix }}check_pll_rsp check_pll({{ class_prefix }}node_base nodes[$]);
@@ -72,42 +71,23 @@ function void {{ class_prefix }}kit_sequencer::gen_source_clock();
 endfunction
 {% endif %}
 
-function {{ class_prefix }}set_pll_rsp {{ class_prefix }}kit_sequencer::set_pll(
-        {{ class_prefix }}base_pll node);
-    {{ class_prefix }}set_pll_req req;
-    {{ class_prefix }}set_pll_rsp rsp;
-    {{ class_prefix }}set_pll_seq seq;
-
-    if (node == null)
-        `uvm_fatal("CLK_TREE", "set_pll: node is null")
-
-    req = {{ class_prefix }}set_pll_req::type_id::create("req");
-    req.node = node;
-
-    seq = {{ class_prefix }}set_pll_seq::type_id::create("set_pll");
-    seq.req = req;
-    seq.start(this);
-    void'(seq.get_response(rsp));
-    return rsp;
-endfunction
-
-function {{ class_prefix }}configure_rsp {{ class_prefix }}kit_sequencer::configure(
+function {{ class_prefix }}config_reg_rsp {{ class_prefix }}kit_sequencer::config_reg(
         {{ class_prefix }}node_base nodes[$]);
-    {{ class_prefix }}configure_req req;
-    {{ class_prefix }}configure_rsp rsp;
-    {{ class_prefix }}configure_seq seq;
+    {{ class_prefix }}config_reg_req req;
+    {{ class_prefix }}config_reg_rsp rsp;
+    {{ class_prefix }}config_reg_seq seq;
 
     if (nodes.size() == 0) begin
         if (tree == null)
-            `uvm_fatal("CLK_TREE", "configure: nodes empty and tree is null")
-        rsp = configure(tree.nodes);
+            `uvm_fatal("CLK_TREE", "config_reg: nodes empty and tree is null")
+        rsp = config_reg(tree.nodes);
         return rsp;
     end
 
-    req = {{ class_prefix }}configure_req::type_id::create("req");
+    req = {{ class_prefix }}config_reg_req::type_id::create("req");
     req.nodes = nodes;
 
-    seq = {{ class_prefix }}configure_seq::type_id::create("configure");
+    seq = {{ class_prefix }}config_reg_seq::type_id::create("config_reg");
     seq.req = req;
     seq.start(this);
     void'(seq.get_response(rsp));
