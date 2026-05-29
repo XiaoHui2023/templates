@@ -1,11 +1,10 @@
 model/spec.sv
+{% if any_node_path %}
 top/generate_interface.sv
 top/measure_interface.sv
 top/interface.sv
-model/base.sv
-{% if setting_defs %}
-model/settings.sv
 {% endif %}
+model/base.sv
 model/node_base.sv
 model/reg_bind.sv
 model/source.sv
@@ -25,23 +24,27 @@ core/node_reg_config.sv
 core/pll_config.sv
 core/core_tools.sv
 model/base_tree.sv
-top/trees.sv
-top/constraint.sv
-top/connection.sv
-component/callback.sv
+trees.sv
+constraint.sv
+{% if any_node_path %}
+top/connect.sv
+{% endif %}
 component/sequencer.sv
 component/kit_sequencer.sv
 component/agent.sv
 sequence/base.sv
+{% if any_node_path %}
 sequence/operation/set_clock_gen/req.sv
 sequence/operation/set_clock_gen/rsp.sv
 sequence/operation/set_clock_gen/operation.sv
+{% endif %}
 sequence/operation/set_pll/req.sv
 sequence/operation/set_pll/rsp.sv
 sequence/operation/set_pll/operation.sv
 sequence/operation/configure/req.sv
 sequence/operation/configure/rsp.sv
 sequence/operation/configure/operation.sv
+{% if any_node_path %}
 sequence/operation/check_clk/req.sv
 sequence/operation/check_clk/rsp.sv
 sequence/operation/check_clk/operation.sv
@@ -54,3 +57,4 @@ sequence/operation/check_duty/operation.sv
 sequence/test/test_duty_wavefront/req.sv
 sequence/test/test_duty_wavefront/rsp.sv
 sequence/test/test_duty_wavefront/test.sv
+{% endif %}

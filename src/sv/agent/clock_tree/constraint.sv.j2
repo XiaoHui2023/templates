@@ -1,7 +1,6 @@
 `ifndef {{ (class_prefix ~ "constraint") | upper }}
 `define {{ (class_prefix ~ "constraint") | upper }}
 
-{%- for tree in trees %}
 constraint {{ class_prefix }}{{ tree.name }}_tree::cst_base {
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind in ["clk", "pll", "source"] and node.freq is not none %}
@@ -16,7 +15,5 @@ constraint {{ class_prefix }}{{ tree.name }}_tree::cst_base {
 {%- endif %}
 {%- endfor %}
 }
-
-{%- endfor %}
 
 `endif

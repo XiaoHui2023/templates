@@ -1,7 +1,6 @@
 `ifndef {{ (class_prefix ~ "trees") | upper }}
 `define {{ (class_prefix ~ "trees") | upper }}
 
-{%- for tree in trees %}
 `ifndef {{ (class_prefix ~ tree.name ~ "_tree") | upper }}
 `define {{ (class_prefix ~ tree.name ~ "_tree") | upper }}
 
@@ -26,12 +25,6 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 
     function new(string name="{{ class_prefix }}{{ tree.name }}_tree");
         super.new(name);
-{%- if setting_defs %}
-        settings = {{ class_prefix }}settings::type_id::create("settings");
-{%- for def in setting_defs %}
-        settings.{{ def.name }} = {{ tree.settings[def.name] }};
-{%- endfor %}
-{%- endif %}
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind == "pll" %}
         {{ node.name }} = {{ class_prefix }}{{ node.sv_pll_class }}::type_id::create("{{ node.name }}");
@@ -53,9 +46,26 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
         nodes.push_back({{ node.name }});
 {%- endfor %}
     endfunction
+
+    extern function void build({% if class_regmodel %}{{ class_regmodel }} regmodel = null{% else %}uvm_reg_block regmodel = null{% endif %});
 endclass
 
+function void {{ class_prefix }}{{ tree.name }}_tree::build({% if class_regmodel %}{{ class_regmodel }} regmodel{% else %}uvm_reg_block regmodel{% endif %});
+{% for tree_name, node_name, member, path, offset, width in reg_bindings %}
+    if (regmodel != null) begin
+        {{ node_name }}.{{ member }}.field = regmodel.{{ path }};
+        {{ node_name }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
+{%- if width is none %}
+        {{ node_name }}.{{ member }}.width = {{ node_name }}.{{ member }}.field.get_n_bits();
+{%- else %}
+        {{ node_name }}.{{ member }}.width = {{ width }};
+{%- endif %}
+    end
+{% endfor %}
+    if (!this.randomize())
+        uvm_report_fatal("CLK_TREE", "{{ class_prefix }}{{ tree.name }}_tree build randomize failed");
+endfunction
+
 `endif
-{%- endfor %}
 
 `endif

@@ -1,3 +1,4 @@
+{% if any_node_path %}
 `ifndef {{ (class_prefix ~ "interface") | upper }}
 `define {{ (class_prefix ~ "interface") | upper }}
 
@@ -33,3 +34,4 @@ interface {{ class_prefix }}interface #(
 endinterface
 
 `endif
+{% endif %}

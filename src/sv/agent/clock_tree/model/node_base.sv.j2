@@ -13,7 +13,9 @@ class {{ class_prefix }}node_base extends {{ class_prefix }}base_item;
     rand bit allow_bad_duty;
     rand longint frequence;
     rand bit valid;
+{% if any_node_path %}
     virtual {{ class_prefix }}interface vif;
+{% endif %}
     {{ class_prefix }}node_base source;
 
     constraint cst_node_base {

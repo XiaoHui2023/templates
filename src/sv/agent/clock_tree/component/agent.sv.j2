@@ -15,14 +15,14 @@ class {{ class_prefix }}agent extends uvm_agent;
 endclass
 
 function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
-    {{ class_prefix }}base_tree trees[$];
+    {{ class_prefix }}base_tree tree;
 
     super.build_phase(phase);
 
-    if (!uvm_config_db #({{ class_prefix }}base_tree)::get(this, "", "trees", trees) || trees.size() == 0)
-        `uvm_fatal("CLK_TREE", "uvm_config_db #({{ class_prefix }}base_tree) trees is required on agent")
+    if (!uvm_config_db #({{ class_prefix }}base_tree)::get(this, "", "tree", tree) || tree == null)
+        `uvm_fatal("CLK_TREE", "uvm_config_db #({{ class_prefix }}base_tree) tree is required on agent")
 
-    sqr.trees = trees;
+    sqr.tree = tree;
 endfunction
 
 `endif

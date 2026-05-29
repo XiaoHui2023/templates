@@ -1,0 +1,37 @@
+{% if any_node_path %}
+`ifndef {{ (class_prefix ~ "connect") | upper }}
+`define {{ (class_prefix ~ "connect") | upper }}
+
+{% set _mac_conn = "_" ~ (class_prefix ~ "conn_if") | replace("-", "_") | upper %}
+`define {{ _mac_conn }}(id, p) \
+    {{ class_prefix }}interface {{ class_prefix }}##id##_if ( .in(p) ); \
+    initial begin \
+        forever begin \
+            @({{ class_prefix }}##id##_if.out); \
+            if ($isunknown({{ class_prefix }}##id##_if.out)) \
+                release p; \
+            else \
+                force p = {{ class_prefix }}##id##_if.out; \
+        end \
+    end
+
+{%- for node in tree.nodes_ordered %}
+{%- if node.path %}
+`{{ _mac_conn }}({{ tree.name }}_{{ node.name }}, {{ node.path }})
+{%- endif %}
+{%- endfor %}
+
+function automatic void {{ class_prefix }}connect_{{ tree.name }}_tree({{ class_prefix }}{{ tree.name }}_tree t);
+    if (t == null)
+        uvm_report_fatal("CLK_TREE", "{{ class_prefix }}connect_{{ tree.name }}_tree: tree is null");
+{%- for node in tree.nodes_ordered %}
+{%- if node.path %}
+    t.{{ node.name }}.vif = {{ class_prefix }}{{ tree.name }}_{{ node.name }}_if;
+{%- endif %}
+{%- endfor %}
+endfunction
+
+`undef {{ _mac_conn }}
+
+`endif
+{% endif %}

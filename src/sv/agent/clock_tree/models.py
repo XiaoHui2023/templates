@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
@@ -11,29 +11,15 @@ from nodes import Tree
 from reg_paths import (
     PLL_REG_KEYS,
     RegBindingRow,
+    any_node_path,
     any_reg_configured,
     collect_pll_sv_classes,
     iter_reg_bindings,
 )
 
-SettingDefType = Literal["str", "int", "bit"]
-
-
-class SettingDef(BaseModel):
-    name: str = Field(..., min_length=1, description="设置项名，兼作 settings 与每棵 tree 的 settings 键名。")
-    type: SettingDefType = Field(
-        ...,
-        description="展开后 settings 成员类型：str、int、bit。",
-    )
-    default: Any = Field(..., description="settings.new 中的初值。")
-
 
 class Models(BaseModel):
-    setting_defs: List[SettingDef] = Field(
-        default_factory=list,
-        description="全局设置项声明列表；各 tree.settings 的键须与此一致。",
-    )
-    trees: List[Tree] = Field(..., min_length=1, description="时钟树列表，每棵含 nodes 与 settings。")
+    tree: Tree = Field(..., description="本 agent 对应的单棵时钟树，含 nodes。")
     vars: Dict[str, Any] = Field(
         default_factory=dict,
         description="用户自定义变量，模板内以 vars 引用，不做校验。",
@@ -45,7 +31,7 @@ class Models(BaseModel):
     )
     class_regmodel: str = Field(
         "",
-        description="RAL 根块类型名；connect 建树函数入参类型。",
+        description="RAL 根块类型名；tree 的 build 入参类型。",
     )
     min_freq_hz: int = Field(
         500,
@@ -89,18 +75,10 @@ class Models(BaseModel):
             )
         return self
 
-    @model_validator(mode="after")
-    def _validate_setting_defs(self) -> Models:
-        names = [d.name for d in self.setting_defs]
-        if len(names) != len(set(names)):
-            dup = {x for x in names if names.count(x) > 1}
-            raise ValueError(f"setting_defs.name 须唯一，重复: {sorted(dup)}")
-        return self
-
     @computed_field  # type: ignore[prop-decorator]
     @property
     def pll_sv_classes(self) -> List[str]:
-        return collect_pll_sv_classes(self.trees)
+        return collect_pll_sv_classes(self.tree)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -110,29 +88,31 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def reg_bindings(self) -> List[RegBindingRow]:
-        return iter_reg_bindings(self.trees)
+        return iter_reg_bindings(self.tree)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def any_node_path(self) -> bool:
+        return any_node_path(self.tree)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_name(self) -> Optional[str]:
-        for tree in self.trees:
-            for node in tree.nodes_ordered:
-                if node.kind == "clk":
-                    return node.name
+        for node in self.tree.nodes_ordered:
+            if node.kind == "clk":
+                return node.name
         return None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_tree_name(self) -> Optional[str]:
-        for tree in self.trees:
-            for node in tree.nodes_ordered:
-                if node.kind == "clk":
-                    return tree.name
-        return None
+        if self.first_clk_name is None:
+            return None
+        return self.tree.name
 
     @model_validator(mode="after")
     def _validate_regmodel(self) -> Models:
-        if any_reg_configured(self.trees) and not self.class_regmodel.strip():
+        if any_reg_configured(self.tree) and not self.class_regmodel.strip():
             raise ValueError(
                 "节点配置了寄存器路径时 class_regmodel 须非空"
             )
@@ -140,21 +120,4 @@ class Models(BaseModel):
             raise ValueError(
                 f"class_regmodel {self.class_regmodel!r} 须为合法 SystemVerilog 类型名"
             )
-        return self
-
-    @model_validator(mode="after")
-    def _validate_trees(self) -> Models:
-        tree_names = [t.name for t in self.trees]
-        if len(tree_names) != len(set(tree_names)):
-            dup = {x for x in tree_names if tree_names.count(x) > 1}
-            raise ValueError(f"trees.name 须唯一，重复: {sorted(dup)}")
-
-        expected = {d.name for d in self.setting_defs}
-        for tree in self.trees:
-            keys = set(tree.settings.keys())
-            if keys != expected:
-                raise ValueError(
-                    f"tree {tree.name!r} 的 settings 键须与 setting_defs 一致: "
-                    f"期望 {sorted(expected)}, 实际 {sorted(keys)}"
-                )
         return self

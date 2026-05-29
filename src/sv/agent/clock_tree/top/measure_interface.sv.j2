@@ -1,3 +1,4 @@
+{% if any_node_path %}
 `ifndef {{ (class_prefix ~ "measure_interface") | upper }}
 `define {{ (class_prefix ~ "measure_interface") | upper }}
 
@@ -147,3 +148,4 @@ interface {{ class_prefix }}measure_interface #(
 endinterface
 
 `endif
+{% endif %}

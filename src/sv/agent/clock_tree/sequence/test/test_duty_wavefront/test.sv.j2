@@ -1,3 +1,4 @@
+{% if any_node_path %}
 `ifndef {{ (class_prefix ~ "test_duty_wavefront_seq") | upper }}
 `define {{ (class_prefix ~ "test_duty_wavefront_seq") | upper }}
 
@@ -125,3 +126,4 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
 endtask
 
 `endif
+{% endif %}

@@ -40,7 +40,7 @@ class NodeBase(BaseModel):
     name: str = Field(..., min_length=1, description="记录标识；YAML 以 nodes 字典键为准，勿在节点内重复填写。")
     path: str = Field(
         "",
-        description="RTL 层次路径，仅用于 connection 展开时 force 到 DUT；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
+        description="RTL 层次路径，仅用于 connect 展开时 force 到 DUT；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
     )
     allow_bad_duty: bool = Field(
         False,
@@ -192,7 +192,7 @@ class MuxNode(NodeBase):
     target: str = Field(..., min_length=1, description="输出连线名。")
     sel: Optional[int] = Field(
         None,
-        description="选择值；省略时取本 tree settings 中 pll_sel，若无则为 0。",
+        description="选择值；省略时为 0。",
     )
     reg: str = Field(
         "",
@@ -228,10 +228,6 @@ class Tree(BaseModel):
         ...,
         min_length=1,
         description="本棵时钟树的节点表，键为节点 name，节点体内勿填 name。",
-    )
-    settings: dict[str, int] = Field(
-        default_factory=dict,
-        description="本树设置项取值，键须与根配置 setting_defs 中各项 name 一致。",
     )
 
     @model_validator(mode="before")
@@ -299,7 +295,7 @@ class Tree(BaseModel):
     @model_validator(mode="after")
     def _enrich_nodes(self) -> Tree:
         validate_nodes_graph(self.nodes)
-        enriched = enrich_tree_nodes(self.nodes, settings=self.settings)
+        enriched = enrich_tree_nodes(self.nodes)
         self.nodes = enriched
         return self
 
@@ -338,8 +334,6 @@ def _build_sources(node: Node, known: set[str]) -> List[SourceRef]:
 
 def enrich_tree_nodes(
     nodes: Dict[str, Node],
-    *,
-    settings: dict[str, int],
 ) -> Dict[str, Node]:
     known = set(nodes.keys())
     enriched: Dict[str, Node] = {}
@@ -353,7 +347,7 @@ def enrich_tree_nodes(
         }
         if node.kind == "mux":
             if node.sel is None:
-                updates["sel"] = settings.get("pll_sel", 0)
+                updates["sel"] = 0
             keys = sorted(int(k) for k in node.source.keys())
             updates["mux_sel_keys"] = keys
             updates["mux_sel_inside"] = ", ".join(str(k) for k in keys)

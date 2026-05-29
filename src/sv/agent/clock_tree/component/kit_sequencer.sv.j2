@@ -4,53 +4,35 @@
 class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     `uvm_component_utils({{ class_prefix }}kit_sequencer)
 
-    {{ class_prefix }}base_tree trees[$];
+    {{ class_prefix }}base_tree tree;
 
     function new(string name="{{ class_prefix }}kit_sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
-{% if setting_defs %}
-    extern function void apply_settings({{ class_prefix }}settings settings = null);
-{% endif %}
+{% if any_node_path %}
     extern function void set_clock_gen(
         {{ class_prefix }}node_base nodes[$], bit gen_en = 1'b1);
     extern function void gen_source_clock();
+{% endif %}
     extern function {{ class_prefix }}set_pll_rsp set_pll({{ class_prefix }}base_pll node);
     extern function {{ class_prefix }}configure_rsp configure({{ class_prefix }}node_base nodes[$]);
+{% if any_node_path %}
     extern function {{ class_prefix }}check_clk_rsp check_clk({{ class_prefix }}node_base nodes[$]);
     extern function {{ class_prefix }}check_pll_rsp check_pll({{ class_prefix }}node_base nodes[$]);
     extern function {{ class_prefix }}check_duty_rsp check_duty({{ class_prefix }}node_base nodes[$]);
     extern function {{ class_prefix }}test_duty_wavefront_rsp test_duty_wavefront(
         {{ class_prefix }}node_base nodes[$]);
+{% endif %}
 endclass
 
-{% if setting_defs %}
-function void {{ class_prefix }}kit_sequencer::apply_settings({{ class_prefix }}settings settings);
-    if (settings == null) begin
-        if (trees.size() == 0)
-            `uvm_fatal("CLK_TREE", "apply_settings: settings null and no trees")
-        foreach (trees[i]) begin
-            if (trees[i] == null)
-                `uvm_fatal("CLK_TREE", "apply_settings: tree is null")
-            if (trees[i].settings == null)
-                `uvm_fatal("CLK_TREE", $sformatf(
-                    "apply_settings: tree %s settings is null", trees[i].get_name()))
-            apply_settings(trees[i].settings);
-        end
-        return;
-    end
-    super.apply_settings(settings);
-endfunction
-{% endif %}
-
+{% if any_node_path %}
 function void {{ class_prefix }}kit_sequencer::set_clock_gen(
         {{ class_prefix }}node_base nodes[$], bit gen_en);
     if (nodes.size() == 0) begin
-        if (trees.size() == 0)
-            `uvm_fatal("CLK_TREE", "set_clock_gen: nodes empty and no trees")
-        foreach (trees[i])
-            set_clock_gen(trees[i].nodes, gen_en);
+        if (tree == null)
+            `uvm_fatal("CLK_TREE", "set_clock_gen: nodes empty and tree is null")
+        set_clock_gen(tree.nodes, gen_en);
         return;
     end
 
@@ -79,14 +61,16 @@ function void {{ class_prefix }}kit_sequencer::gen_source_clock();
     {{ class_prefix }}source src;
     {{ class_prefix }}node_base src_nodes[$];
 
-    foreach (trees[i]) begin
-        foreach (trees[i].nodes[j]) begin
-            if ($cast(src, trees[i].nodes[j]))
-                src_nodes.push_back(src);
-        end
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "gen_source_clock: tree is null")
+
+    foreach (tree.nodes[i]) begin
+        if ($cast(src, tree.nodes[i]))
+            src_nodes.push_back(src);
     end
     set_clock_gen(src_nodes, 1'b1);
 endfunction
+{% endif %}
 
 function {{ class_prefix }}set_pll_rsp {{ class_prefix }}kit_sequencer::set_pll(
         {{ class_prefix }}base_pll node);
@@ -114,10 +98,9 @@ function {{ class_prefix }}configure_rsp {{ class_prefix }}kit_sequencer::config
     {{ class_prefix }}configure_seq seq;
 
     if (nodes.size() == 0) begin
-        if (trees.size() == 0)
-            `uvm_fatal("CLK_TREE", "configure: nodes empty and no trees")
-        foreach (trees[i])
-            rsp = configure(trees[i].nodes);
+        if (tree == null)
+            `uvm_fatal("CLK_TREE", "configure: nodes empty and tree is null")
+        rsp = configure(tree.nodes);
         return rsp;
     end
 
@@ -131,6 +114,7 @@ function {{ class_prefix }}configure_rsp {{ class_prefix }}kit_sequencer::config
     return rsp;
 endfunction
 
+{% if any_node_path %}
 function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::check_clk(
         {{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}check_clk_req req;
@@ -138,10 +122,9 @@ function {{ class_prefix }}check_clk_rsp {{ class_prefix }}kit_sequencer::check_
     {{ class_prefix }}check_clk_seq seq;
 
     if (nodes.size() == 0) begin
-        if (trees.size() == 0)
-            `uvm_fatal("CLK_TREE", "check_clk: nodes empty and no trees")
-        foreach (trees[i])
-            rsp = check_clk(trees[i].nodes);
+        if (tree == null)
+            `uvm_fatal("CLK_TREE", "check_clk: nodes empty and tree is null")
+        rsp = check_clk(tree.nodes);
         return rsp;
     end
 
@@ -162,10 +145,9 @@ function {{ class_prefix }}check_pll_rsp {{ class_prefix }}kit_sequencer::check_
     {{ class_prefix }}check_pll_seq seq;
 
     if (nodes.size() == 0) begin
-        if (trees.size() == 0)
-            `uvm_fatal("CLK_TREE", "check_pll: nodes empty and no trees")
-        foreach (trees[i])
-            rsp = check_pll(trees[i].nodes);
+        if (tree == null)
+            `uvm_fatal("CLK_TREE", "check_pll: nodes empty and tree is null")
+        rsp = check_pll(tree.nodes);
         return rsp;
     end
 
@@ -186,10 +168,9 @@ function {{ class_prefix }}check_duty_rsp {{ class_prefix }}kit_sequencer::check
     {{ class_prefix }}check_duty_seq seq;
 
     if (nodes.size() == 0) begin
-        if (trees.size() == 0)
-            `uvm_fatal("CLK_TREE", "check_duty: nodes empty and no trees")
-        foreach (trees[i])
-            rsp = check_duty(trees[i].nodes);
+        if (tree == null)
+            `uvm_fatal("CLK_TREE", "check_duty: nodes empty and tree is null")
+        rsp = check_duty(tree.nodes);
         return rsp;
     end
 
@@ -210,10 +191,9 @@ function {{ class_prefix }}test_duty_wavefront_rsp {{ class_prefix }}kit_sequenc
     {{ class_prefix }}test_duty_wavefront_seq seq;
 
     if (nodes.size() == 0) begin
-        if (trees.size() == 0)
-            `uvm_fatal("CLK_TREE", "test_duty_wavefront: nodes empty and no trees")
-        foreach (trees[i])
-            rsp = test_duty_wavefront(trees[i].nodes);
+        if (tree == null)
+            `uvm_fatal("CLK_TREE", "test_duty_wavefront: nodes empty and tree is null")
+        rsp = test_duty_wavefront(tree.nodes);
         return rsp;
     end
 
@@ -226,5 +206,6 @@ function {{ class_prefix }}test_duty_wavefront_rsp {{ class_prefix }}kit_sequenc
     void'(seq.get_response(rsp));
     return rsp;
 endfunction
+{% endif %}
 
 `endif

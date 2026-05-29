@@ -219,13 +219,12 @@ def reg_path_sv_expr(path: str, root: str = "regmodel") -> str:
     return f"{root}.{spec.path}"
 
 
-def collect_pll_sv_classes(trees: List[Tree]) -> List[str]:
+def collect_pll_sv_classes(tree: Tree) -> List[str]:
     kinds: set[str] = set()
-    for tree in trees:
-        for node in tree.nodes_ordered:
-            if node.kind != "pll":
-                continue
-            kinds.add(PLL_KIND_TO_SV[node.pll_kind])
+    for node in tree.nodes_ordered:
+        if node.kind != "pll":
+            continue
+        kinds.add(PLL_KIND_TO_SV[node.pll_kind])
     return sorted(kinds)
 
 
@@ -236,11 +235,18 @@ def _node_reg_configured(node: object) -> bool:
     return bool(regs)
 
 
-def any_reg_configured(trees: List[Tree]) -> bool:
-    for tree in trees:
-        for node in tree.nodes_ordered:
-            if _node_reg_configured(node):
-                return True
+def any_reg_configured(tree: Tree) -> bool:
+    for node in tree.nodes_ordered:
+        if _node_reg_configured(node):
+            return True
+    return False
+
+
+def any_node_path(tree: Tree) -> bool:
+    """任一节点配置了非空 RTL path 时为真，用于决定是否展开 interface 与 connect。"""
+    for node in tree.nodes_ordered:
+        if node.path:
+            return True
     return False
 
 
@@ -258,41 +264,40 @@ def _append_binding(
     out.append((tree_name, node_name, member, spec.path, spec.offset, spec.width))
 
 
-def iter_reg_bindings(trees: List[Tree]) -> List[RegBindingRow]:
+def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
     out: List[RegBindingRow] = []
-    for tree in trees:
-        for node in tree.nodes_ordered:
-            if not _node_reg_configured(node):
-                continue
-            if node.kind in SINGLE_REG_NODE_KINDS:
-                validate_optional_reg(node.reg, node_name=node.name, kind=node.kind)
-                _append_binding(out, tree.name, node.name, "f_reg", node.reg)
-            elif node.kind == "pll":
-                validate_pll_regs_exact(
-                    node.regs, node.pll_kind, node_name=node.name
-                )
-                for key, path in sorted(node.regs.items()):
-                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
-            elif node.kind == "div":
-                validate_regs_exact(
-                    node.regs,
-                    DIV_REG_KEYS,
-                    node_name=node.name,
-                    kind="div",
-                )
-                for key, path in sorted(node.regs.items()):
-                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
-            elif node.kind == "dto":
-                validate_regs_exact(
-                    node.regs,
-                    DTO_REG_KEYS,
-                    node_name=node.name,
-                    kind="dto",
-                )
-                for key, path in sorted(node.regs.items()):
-                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
-            else:
-                flat = flatten_regs(node.regs)
-                for key, path in sorted(flat.items()):
-                    _append_binding(out, tree.name, node.name, f"f_{key}", path)
+    for node in tree.nodes_ordered:
+        if not _node_reg_configured(node):
+            continue
+        if node.kind in SINGLE_REG_NODE_KINDS:
+            validate_optional_reg(node.reg, node_name=node.name, kind=node.kind)
+            _append_binding(out, tree.name, node.name, "f_reg", node.reg)
+        elif node.kind == "pll":
+            validate_pll_regs_exact(
+                node.regs, node.pll_kind, node_name=node.name
+            )
+            for key, path in sorted(node.regs.items()):
+                _append_binding(out, tree.name, node.name, f"f_{key}", path)
+        elif node.kind == "div":
+            validate_regs_exact(
+                node.regs,
+                DIV_REG_KEYS,
+                node_name=node.name,
+                kind="div",
+            )
+            for key, path in sorted(node.regs.items()):
+                _append_binding(out, tree.name, node.name, f"f_{key}", path)
+        elif node.kind == "dto":
+            validate_regs_exact(
+                node.regs,
+                DTO_REG_KEYS,
+                node_name=node.name,
+                kind="dto",
+            )
+            for key, path in sorted(node.regs.items()):
+                _append_binding(out, tree.name, node.name, f"f_{key}", path)
+        else:
+            flat = flatten_regs(node.regs)
+            for key, path in sorted(flat.items()):
+                _append_binding(out, tree.name, node.name, f"f_{key}", path)
     return out

@@ -10,25 +10,19 @@
 
 ```yaml
 class_prefix: chip_clk_
-setting_defs:
-  - name: pll_sel
-    type: int
-    default: 0
-trees:
-  - name: main
-    settings:
-      pll_sel: 0
-    nodes:
-      osc:
-        kind: source
-        targets: [pll0]
-      pll0:
-        kind: pll
-        targets: [clk_cpu]
-        freq: 1000000000
-      clk_cpu:
-        kind: clk
-        source: pll0
+tree:
+  name: main
+  nodes:
+    osc:
+      kind: source
+      targets: [pll0]
+    pll0:
+      kind: pll
+      targets: [clk_cpu]
+      freq: 1000000000
+    clk_cpu:
+      kind: clk
+      source: pll0
 ```
 
 ## 数据结构
@@ -36,8 +30,7 @@ trees:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。没有重名风险时可保持默认。 |
-| `setting_defs` | `list[SettingDef]` | `[]` | 全局设置项声明，每棵 tree 的 `settings` 使用同一组键。 |
-| `trees` | `list[Tree]` | 必填 | 时钟树列表，至少填写一棵。 |
+| `tree` | `Tree` | 必填 | 本 agent 对应的单棵时钟树。 |
 | `vars` | `dict[str, Any]` | `{}` | 自定义变量，未使用时留空。 |
 | `class_regmodel` | `str` | `""` | RAL 根块类名称，节点填写寄存器路径时需要设置。 |
 
@@ -58,20 +51,11 @@ trees:
 | `duty_min` | `float` | `0.50` | 允许占空比下限。 |
 | `duty_max` | `float` | `0.66` | 允许占空比上限。 |
 
-### SettingDef
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `name` | `str` | 必填 | 设置项名，也是每棵 tree 的 `settings` 键名。 |
-| `type` | `str`, `int`, `bit` | 必填 | 设置项成员类型。 |
-| `default` | `Any` | 必填 | 设置项默认取值。 |
-
 ### Tree
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `name` | `str` | 必填 | 时钟树名称。 |
-| `settings` | `dict[str, int]` | `{}` | 本棵时钟树的设置项取值，键与 `setting_defs.name` 一致。 |
 | `nodes` | `dict[str, Node]` | 必填 | 本棵时钟树的节点表，键为节点 name，节点体内勿填 name。 |
 
 ### Node
@@ -82,7 +66,7 @@ trees:
 | --- | --- | --- | --- |
 | `kind` | `str` | 必填 | 节点类型。 |
 | `name` | `str` | — | 由 `nodes` 字典键注入，配置中勿填。 |
-| `path` | `str` | `""` | RTL 层次路径，仅用于 **connection** 展开；不写入节点类。留空则不生成 interface。 |
+| `path` | `str` | `""` | RTL 层次路径，仅用于 **connect** 展开；不写入节点类。留空则不生成 interface。 |
 | `allow_bad_duty` | `bool` | `false` | 为真时放宽占空比检查。 |
 | `freq` | `optional int` | `null` | 典型频率。 |
 
@@ -95,4 +79,4 @@ trees:
 | `div` | `source`, `target`, `regs` | `source` 与 `target` 必填 | 分频节点；`regs` 非空时键为 `rst`、`load`、`div`，值可带比特范围后缀。 |
 | `dto` | `source`, `target`, `regs` | `source` 与 `target` 必填 | DTO 节点；`regs` 非空时键为 `rstn`、`load`、`bypass`、`step`，值可带比特范围后缀。 |
 | `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写前级节点名，`target` 写输出连线名。 |
-| `mux` | `source`, `target`, `sel`, `reg` | `source` 与 `target` 必填，`sel` 省略时取 `settings.pll_sel`，没有该键则为 `0` | 多路选择节点；`reg` 为可选 RAL 路径，可带比特范围后缀。 |
+| `mux` | `source`, `target`, `sel`, `reg` | `source` 与 `target` 必填，`sel` 省略时为 `0` | 多路选择节点；`reg` 为可选 RAL 路径，可带比特范围后缀。 |

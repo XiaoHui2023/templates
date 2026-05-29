@@ -1,3 +1,4 @@
+{% if any_node_path %}
 `ifndef {{ (class_prefix ~ "set_clock_gen_rsp") | upper }}
 `define {{ (class_prefix ~ "set_clock_gen_rsp") | upper }}
 
@@ -14,3 +15,4 @@ class {{ class_prefix }}set_clock_gen_rsp extends uvm_sequence_item;
 endclass
 
 `endif
+{% endif %}

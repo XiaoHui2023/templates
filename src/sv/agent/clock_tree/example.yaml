@@ -1,66 +1,56 @@
 # clock_tree 配置示范
 # 字段与 models.py、nodes.py 一致；渲染模板时载入本文件即可校验。
 
-setting_defs:
-  - name: pll_sel
-    type: int
-    default: 0
-  - name: run_tree_check
-    type: bit
-    default: true
+tree:
+  name: main
+  nodes:
+    xtal:
+      kind: source
+      path: dut.xtal
+      targets:
+        - pll_main
 
-trees:
-  - name: main
-    settings:
-      pll_sel: 0
-      run_tree_check: 1
-    nodes:
-      xtal:
-        kind: source
-        path: dut.xtal
-        targets:
-          - pll_main
+    pll_main:
+      kind: pll
+      pll_kind: tci
+      path: dut.pll_main_out
+      targets:
+        - gate0
+        - div0
 
-      pll_main:
-        kind: pll
-        pll_kind: tci
-        path: dut.pll_main_out
-        targets:
-          - gate0
-          - div0
+    gate0:
+      kind: gate
+      source: pll_main
+      target: w_gate0_div0
 
-      gate0:
-        kind: gate
-        source: pll_main
-        target: w_gate0_div0
+    div0:
+      kind: div
+      source: gate0
+      target: w_div0_inv0
 
-      div0:
-        kind: div
-        source: gate0
-        target: w_div0_inv0
+    inv0:
+      kind: inv
+      source: div0
+      target: w_inv0_dto0
 
-      inv0:
-        kind: inv
-        source: div0
-        target: w_inv0_dto0
+    dto0:
+      kind: dto
+      source: inv0
+      target: w_dto0_clk_sys
 
-      dto0:
-        kind: dto
-        source: inv0
-        target: w_dto0_clk_sys
+    clk_sys:
+      kind: clk
+      freq: 100
+      path: dut.clk_sys
+      source: dto0
 
-      clk_sys:
-        kind: clk
-        freq: 100
-        path: dut.clk_sys
-        source: dto0
-
-      mux2:
-        kind: mux
-        source:
-          "0": pll_main
-          "1": xtal
-        target: w_mux2_out
+    mux2:
+      kind: mux
+      source:
+        "0": pll_main
+        "1": xtal
+      target: w_mux2_out
+      sel: 0
 
 vars:
   dut_prefix: dut.

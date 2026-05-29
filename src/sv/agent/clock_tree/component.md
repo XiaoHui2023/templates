@@ -4,46 +4,41 @@
 
 ## agent
 
-时钟树 **UVM agent**。
+时钟树 **UVM agent**；每个 **agent** 绑定单棵 **tree**。
 
 | 成员 / 配置 | 说明 |
 | --- | --- |
-| `sqr` | **kit_sequencer** 句柄；**callback** 注册、**trees** 访问、配置与 **operation** 便捷方法均在此句柄上 |
-| **config_db** | 键 **`trees`**，值为 **base_tree** 队列；环境在例化 **agent** 前设置 |
+| `sqr` | **kit_sequencer** 句柄；**tree** 访问、配置与 **operation** 便捷方法均在此句柄上 |
+| **config_db** | 键 **`tree`**，值为 **base_tree** 实例；环境在例化 **agent** 前设置 |
 
-环境先由 **connection** 建好各 **tree** 并 **randomize**，再通过 **config_db** 提供给 **agent** 后例化 **agent**。**agent** 将 **trees** 赋给 **sqr.trees**，不向基础 **sequencer** 传递。
+环境创建 **tree**、调用 **build(regmodel)**，再 **connect_{name}_tree** 挂 **vif**，**randomize** 在 **build** 内完成；通过 **config_db** 提供给 **agent** 后例化 **agent**。**agent** 将 **tree** 赋给 **sqr.tree**，不向基础 **sequencer** 传递。
 
 ## sequencer
 
-基础 **sequencer**；**callback** 注册于此类型；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **trees**。**build_phase** 例化 **tools**，类型 **core_tools**，供 **configure** 等写 RAL 与 PLL 的 sequence 使用。
+基础 **sequencer**；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **tree**。**build_phase** 例化 **tools**，类型 **core_tools**，供 **configure** 等写 RAL 与 PLL 的 sequence 使用。
 
 | 成员 | 说明 |
 | --- | --- |
 | `tools` | **core_tools**：**reg**、**node**、**pll** 三类寄存器与 PLL 工具 |
 
-| 方法 | 说明 |
-| --- | --- |
-| `apply_settings` | 对给定 **settings** 实例触发 **on_apply_settings**；仅声明 **setting_defs** 时存在 |
-
 ## kit_sequencer
 
-派生 **sequencer**；**agent.sqr** 的实际类型。持有 **trees[$]**；配置与 **sequence/operation** 的便捷入口均在本类。
+派生 **sequencer**；**agent.sqr** 的实际类型。持有 **tree**；配置与 **sequence/operation** 的便捷入口均在本类。
 
 | 成员 | 说明 |
 | --- | --- |
-| `trees` | **base_tree** 队列，由 **agent.build_phase** 赋值 |
+| `tree` | **base_tree** 实例，由 **agent.build_phase** 赋值 |
 
 | 方法 | 说明 |
 | --- | --- |
-| `apply_settings` | 入参 **settings**；触发 **on_apply_settings**。**settings** 为空时对 **trees** 逐棵执行各 **tree.settings**；仅声明 **setting_defs** 时存在 |
-| `set_clock_gen` | 入参 **nodes**、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **trees** 逐棵执行该树全部 **nodes** |
-| `gen_source_clock` | 无参；收集 **trees** 中全部 **source** 后调用 **set_clock_gen** |
+| `set_clock_gen` | 入参 **nodes**、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
+| `gen_source_clock` | 无参；收集 **tree** 中全部 **source** 后调用 **set_clock_gen** |
 | `set_pll` | 入参 **pll** 节点；启动 **set_pll**，寄存器细节待补 |
-| `configure` | 入参 **nodes**；启动 **configure**。**nodes** 为空时对 **trees** 逐棵执行 |
-| `check_clk` | 入参 **nodes**；检查其中 **clk** 节点频率。**nodes** 为空时对 **trees** 逐棵执行 |
-| `check_pll` | 入参 **nodes**；检查其中 **pll** 节点频率。**nodes** 为空时对 **trees** 逐棵执行 |
-| `check_duty` | 入参 **nodes**；检查带 **vif** 节点占空比。**nodes** 为空时对 **trees** 逐棵执行 |
-| `test_duty_wavefront` | 入参 **nodes**；按 **source** 依赖自前向后分波：**check_duty** 后对该波 **set_clock_gen**。**nodes** 为空时对 **trees** 逐棵执行 |
+| `configure` | 入参 **nodes**；启动 **configure**。**nodes** 为空时对 **tree.nodes** 执行 |
+| `check_clk` | 入参 **nodes**；检查其中 **clk** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
+| `check_pll` | 入参 **nodes**；检查其中 **pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
+| `check_duty` | 入参 **nodes**；检查带 **vif** 节点占空比。**nodes** 为空时对 **tree.nodes** 执行 |
+| `test_duty_wavefront` | 入参 **nodes**；按 **source** 依赖自前向后分波：**check_duty** 后对该波 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
 
 ## sequence · operation
 
@@ -53,7 +48,7 @@
 | --- | --- |
 | `set_clock_gen` | 按 **req.gen_en** 与节点 **frequence** 设置 **vif** 时钟发生；**gen_en** 为 0 关闭 |
 | `set_pll` | **pll** 频率与寄存器配置占位；完整写寄存器走 **configure** |
-| `configure` | 对 **gate**、**mux**、**div**、**dto**、**pll** 写 RAL，经 **p_sequencer.tools**；**pll_sc** / **pll_dw** 按目标频率算分频后上电；**pll** 配完后 **wait_lock** |
+| `configure` | 对 **gate**、**mux**、**div**、**dto**、**pll** 写 RAL，通过 **p_sequencer.tools**；**pll_sc** / **pll_dw** 按目标频率算分频后上电；**pll** 配完后 **wait_lock** |
 | `check_clk` | 检查 **req.nodes** 中 **clk** 频率 |
 | `check_pll` | 检查 **req.nodes** 中 **pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
@@ -72,4 +67,4 @@
 
 ## tree 外部约束
 
-每棵 **{name}_tree** 声明 **cst_base**、**cst_user**、**cst_case**；**cst_base** 实现在 **constraint.sv**，含频率软约束、**mux.sel** 范围等。**clk** 与 **low_power** 的 **valid** 关系在 **base_tree** 的 **cst_base_tree**。
+**{name}_tree** 声明 **cst_base**、**cst_user**、**cst_case**；**cst_base** 实现在 **constraint.sv**，含频率软约束、**mux.sel** 范围等。**clk** 与 **low_power** 的 **valid** 关系在 **base_tree** 的 **cst_base_tree**。

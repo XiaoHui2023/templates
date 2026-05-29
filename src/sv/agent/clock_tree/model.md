@@ -11,7 +11,6 @@ classDiagram
     uvm_sequence_item <|-- spec_item
     spec_item <|-- base_item
     base_item <|-- node_base
-    base_item <|-- settings
     base_item <|-- base_tree
     node_base <|-- source
     node_base <|-- clk
@@ -39,7 +38,7 @@ classDiagram
 | allow_bad_duty | bit，rand | 为真时放宽占空比检查；**node_base** 软约束默认为 0，配置为真时 **tree** 软约束为 1 |
 | frequence | longint，rand | 典型频率，单位 Hz；**cst_node_base** 软约束默认为 0 |
 | valid | bit，rand | 时钟是否有效；**cst_node_base** 软约束默认为 0 |
-| vif | virtual interface | 配置中填写 RTL 路径时由 **connection** 绑定对应 interface；未配置则为 null |
+| vif | virtual interface | 配置中填写 RTL 路径时由 **connect** 绑定对应 interface；未配置则为 null |
 | source | 节点句柄 | 前级驱动；无配置则为 null |
 | cst_clk_from_src | 约束 | 前级非空时 **valid** 与前级一致；子类可重载 |
 | cst_freq_from_src | 约束 | 前级非空时 **frequence** 与前级一致；子类可重载或空关断 |
@@ -52,7 +51,6 @@ classDiagram
 | --- | --- | --- |
 | nodes | 节点队列 | 建树后装入的全部节点句柄 |
 | low_power | bit，rand | 低功耗；软约束默认为 0。**cst_base_tree** 在 **low_power** 为 0 时将 **nodes** 中 **kind** 为 **clk** 的 **valid** 软约束为 1，为 1 时软约束为 0 |
-| settings | settings | 仅声明 **setting_defs** 时存在 |
 
 ## source
 

@@ -3,7 +3,6 @@
 
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
-    `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
 
     {{ class_prefix }}core_tools tools;
 
@@ -12,22 +11,11 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     endfunction
 
     extern function void build_phase(uvm_phase phase);
-{% if setting_defs %}
-    extern function void apply_settings({{ class_prefix }}settings settings);
-{% endif %}
 endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
     tools = new;
 endfunction
-
-{% if setting_defs %}
-function void {{ class_prefix }}sequencer::apply_settings({{ class_prefix }}settings settings);
-    if (settings == null)
-        `uvm_fatal("CLK_TREE", "apply_settings: settings is null")
-    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, on_apply_settings(settings))
-endfunction
-{% endif %}
 
 `endif
