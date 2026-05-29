@@ -15,6 +15,7 @@ class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
 
     function new(string name = "");
         super.new(name);
+        f_reg = new();
         kind = "gate";
     endfunction
 endclass

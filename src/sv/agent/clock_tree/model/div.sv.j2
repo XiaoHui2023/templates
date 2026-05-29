@@ -22,6 +22,9 @@ class {{ class_prefix }}div extends {{ class_prefix }}node_base;
 
     function new(string name = "");
         super.new(name);
+        f_rst = new();
+        f_load = new();
+        f_div = new();
         kind = "div";
     endfunction
 endclass

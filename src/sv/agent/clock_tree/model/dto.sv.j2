@@ -23,6 +23,10 @@ class {{ class_prefix }}dto extends {{ class_prefix }}node_base;
 
     function new(string name = "");
         super.new(name);
+        f_rstn = new();
+        f_load = new();
+        f_bypass = new();
+        f_step = new();
         kind = "dto";
     endfunction
 endclass
