@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Models(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     class_prefix: str = Field(
         "ral_test_",
         min_length=1,
