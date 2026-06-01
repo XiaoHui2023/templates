@@ -18,6 +18,7 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 {%- endfor %}
 
     constraint cst_base;
+    constraint cst_sys;
     constraint cst_user;
     constraint cst_case;
 

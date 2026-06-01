@@ -68,18 +68,12 @@ endtask
 
 task {{ class_prefix }}reg_rw::read({{ class_prefix }}reg_bind rb, output int value);
     uvm_reg r;
-    int full;
-    int mask;
+    int reg_rdata;
     if (rb.field == null)
         `uvm_fatal("CLK_TREE", "read: field is null")
     r = parent_reg(rb);
-    read_reg(r, full);
-    if (rb.width == rb.field.get_n_bits() && rb.offset == 0)
-        value = full;
-    else begin
-        mask = (1 << rb.width) - 1;
-        value = (full >> rb.offset) & mask;
-    end
+    read_reg(r, reg_rdata);
+    value = get(rb);
 endtask
 
 task {{ class_prefix }}reg_rw::write_reg(uvm_reg r);
