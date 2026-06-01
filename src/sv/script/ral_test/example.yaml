@@ -1,0 +1,4 @@
+# ral_test 配置示范；字段与 models.py 一致。
+
+class_prefix: ral_test_
+access: true

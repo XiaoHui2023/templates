@@ -2,10 +2,10 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class Models(BaseModel):
-    class_name: str = Field(
-        "ral_test_builtin_seq",
+    class_prefix: str = Field(
+        "ral_test_",
         min_length=1,
-        description="该 sequence 的类名。",
+        description="生成类型名所用前缀；主 sequence 为此前缀加 seq，reg_fd 辅助 sequence 的类型名亦带此前缀。",
     )
     hw_reset: bool = Field(False, description="启用 `uvm_reg_hw_reset_seq`。")
     access: bool = Field(
