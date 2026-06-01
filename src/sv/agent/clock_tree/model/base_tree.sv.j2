@@ -3,7 +3,7 @@
 
 class {{ class_prefix }}base_tree extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}base_tree)
-        `uvm_field_queue_object(nodes, UVM_ALL_ON)
+        `uvm_field_queue_object(nodes, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(low_power, UVM_ALL_ON)
     `uvm_object_utils_end
 

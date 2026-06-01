@@ -68,7 +68,7 @@ function void {{ class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %
 {%- endfor %}
 {%- endif %}
     if (!this.randomize())
-        uvm_report_fatal("CLK_TREE", "{{ class_prefix }}{{ tree.name }}_tree build randomize failed");
+        `uvm_fatal("CLK_TREE", "{{ class_prefix }}{{ tree.name }}_tree build randomize failed")
 endfunction
 
 `endif
