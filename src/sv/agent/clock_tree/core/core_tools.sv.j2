@@ -1,11 +1,11 @@
 {% if regs_enabled %}
-`ifndef {{ (class_prefix ~ "core_tools") | upper }}
-`define {{ (class_prefix ~ "core_tools") | upper }}
+`ifndef {{ (settings.class_prefix ~ "core_tools") | upper }}
+`define {{ (settings.class_prefix ~ "core_tools") | upper }}
 
-class {{ class_prefix }}core_tools;
-    {{ class_prefix }}reg_rw rw;
-    {{ class_prefix }}node_cfg node;
-    {{ class_prefix }}pll_cfg pll;
+class {{ settings.class_prefix }}core_tools;
+    {{ settings.class_prefix }}reg_rw rw;
+    {{ settings.class_prefix }}node_cfg node;
+    {{ settings.class_prefix }}pll_cfg pll;
 
     function new();
         rw = new;

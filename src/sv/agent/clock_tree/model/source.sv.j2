@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "source") | upper }}
-`define {{ (class_prefix ~ "source") | upper }}
+`ifndef {{ (settings.class_prefix ~ "source") | upper }}
+`define {{ (settings.class_prefix ~ "source") | upper }}
 
-class {{ class_prefix }}source extends {{ class_prefix }}node_base;
-    `uvm_object_utils({{ class_prefix }}source)
+class {{ settings.class_prefix }}source extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils({{ settings.class_prefix }}source)
 
     constraint cst_source {
         frequence > 0 -> valid == 1;

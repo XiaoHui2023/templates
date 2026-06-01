@@ -1,20 +1,20 @@
 {% if any_node_path %}
-`ifndef {{ (class_prefix ~ "test_duty_wavefront_seq") | upper }}
-`define {{ (class_prefix ~ "test_duty_wavefront_seq") | upper }}
+`ifndef {{ (settings.class_prefix ~ "test_duty_wavefront_seq") | upper }}
+`define {{ (settings.class_prefix ~ "test_duty_wavefront_seq") | upper }}
 
-function automatic bit {{ class_prefix }}node_in_queue(
-        {{ class_prefix }}node_base nd,
-        {{ class_prefix }}node_base q[$]);
+function automatic bit {{ settings.class_prefix }}node_in_queue(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}node_base q[$]);
     foreach (q[i])
         if (q[i] == nd)
             return 1'b1;
     return 1'b0;
 endfunction
 
-function automatic void {{ class_prefix }}remove_nodes_from_queue(
-        ref {{ class_prefix }}node_base pending[$],
-        {{ class_prefix }}node_base remove[$]);
-    {{ class_prefix }}node_base keep[$];
+function automatic void {{ settings.class_prefix }}remove_nodes_from_queue(
+        ref {{ settings.class_prefix }}node_base pending[$],
+        {{ settings.class_prefix }}node_base remove[$]);
+    {{ settings.class_prefix }}node_base keep[$];
     bit drop;
 
     keep.delete();
@@ -29,32 +29,32 @@ function automatic void {{ class_prefix }}remove_nodes_from_queue(
     pending = keep;
 endfunction
 
-class {{ class_prefix }}test_duty_wavefront_seq extends uvm_sequence #(
-    {{ class_prefix }}test_duty_wavefront_req,
-    {{ class_prefix }}test_duty_wavefront_rsp
+class {{ settings.class_prefix }}test_duty_wavefront_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}test_duty_wavefront_req,
+    {{ settings.class_prefix }}test_duty_wavefront_rsp
 );
-    `uvm_object_utils({{ class_prefix }}test_duty_wavefront_seq)
-    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+    `uvm_object_utils({{ settings.class_prefix }}test_duty_wavefront_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
-    function new(string name = "{{ class_prefix }}test_duty_wavefront_seq");
+    function new(string name = "{{ settings.class_prefix }}test_duty_wavefront_seq");
         super.new(name);
     endfunction
 
     extern virtual task body();
 endclass
 
-task {{ class_prefix }}test_duty_wavefront_seq::body();
-    {{ class_prefix }}test_duty_wavefront_req rq;
-    {{ class_prefix }}test_duty_wavefront_rsp rs;
-    {{ class_prefix }}node_base pending[$];
-    {{ class_prefix }}node_base frontier[$];
-    {{ class_prefix }}check_duty_req duty_req;
-    {{ class_prefix }}check_duty_rsp duty_rsp;
-    {{ class_prefix }}check_duty_seq duty_seq;
-    {{ class_prefix }}set_clock_gen_req gen_req;
-    {{ class_prefix }}set_clock_gen_rsp gen_rsp;
-    {{ class_prefix }}set_clock_gen_seq gen_seq;
-    {{ class_prefix }}node_base nd;
+task {{ settings.class_prefix }}test_duty_wavefront_seq::body();
+    {{ settings.class_prefix }}test_duty_wavefront_req rq;
+    {{ settings.class_prefix }}test_duty_wavefront_rsp rs;
+    {{ settings.class_prefix }}node_base pending[$];
+    {{ settings.class_prefix }}node_base frontier[$];
+    {{ settings.class_prefix }}check_duty_req duty_req;
+    {{ settings.class_prefix }}check_duty_rsp duty_rsp;
+    {{ settings.class_prefix }}check_duty_seq duty_seq;
+    {{ settings.class_prefix }}set_clock_gen_req gen_req;
+    {{ settings.class_prefix }}set_clock_gen_rsp gen_rsp;
+    {{ settings.class_prefix }}set_clock_gen_seq gen_seq;
+    {{ settings.class_prefix }}node_base nd;
     int wave;
 
     if (req == null)
@@ -64,7 +64,7 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
     if (rq.nodes.size() == 0)
         `uvm_fatal("CLK_TREE", "test_duty_wavefront: req.nodes is empty")
 
-    rs = {{ class_prefix }}test_duty_wavefront_rsp::type_id::create("rsp");
+    rs = {{ settings.class_prefix }}test_duty_wavefront_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
     pending = rq.nodes;
     wave = 0;
@@ -75,7 +75,7 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
             nd = pending[i];
             if (nd == null)
                 continue;
-            if (nd.source == null || !{{ class_prefix }}node_in_queue(nd.source, pending))
+            if (nd.source == null || !{{ settings.class_prefix }}node_in_queue(nd.source, pending))
                 frontier.push_back(nd);
         end
 
@@ -84,9 +84,9 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
                 "test_duty_wavefront: no frontier at wave %0d, %0d node(s) left",
                 wave, pending.size()))
 
-        duty_req = {{ class_prefix }}check_duty_req::type_id::create("duty_req");
+        duty_req = {{ settings.class_prefix }}check_duty_req::type_id::create("duty_req");
         duty_req.nodes = frontier;
-        duty_seq = {{ class_prefix }}check_duty_seq::type_id::create("check_duty");
+        duty_seq = {{ settings.class_prefix }}check_duty_seq::type_id::create("check_duty");
         duty_seq.req = duty_req;
         duty_seq.start(p_sequencer);
         duty_rsp = duty_seq.rsp;
@@ -100,10 +100,10 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
             if (nd.frequence <= 0)
                 continue;
 
-            gen_req = {{ class_prefix }}set_clock_gen_req::type_id::create("gen_req");
+            gen_req = {{ settings.class_prefix }}set_clock_gen_req::type_id::create("gen_req");
             gen_req.node = nd;
             gen_req.gen_en = 1'b1;
-            gen_seq = {{ class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
+            gen_seq = {{ settings.class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
             gen_seq.req = gen_req;
             gen_seq.start(p_sequencer);
             gen_rsp = gen_seq.rsp;
@@ -114,7 +114,7 @@ task {{ class_prefix }}test_duty_wavefront_seq::body();
         `uvm_info("CLK_TREE", $sformatf(
             "test_duty_wavefront: wave %0d, %0d node(s)", wave, frontier.size()), UVM_LOW)
 
-        {{ class_prefix }}remove_nodes_from_queue(pending, frontier);
+        {{ settings.class_prefix }}remove_nodes_from_queue(pending, frontier);
         wave++;
     end
 

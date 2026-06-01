@@ -1,9 +1,9 @@
-`ifndef {{ (class_prefix ~ "trees") | upper }}
-`define {{ (class_prefix ~ "trees") | upper }}
+`ifndef {{ (settings.class_prefix ~ "trees") | upper }}
+`define {{ (settings.class_prefix ~ "trees") | upper }}
 
 {%- for tree in trees %}
-class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree;
-    `uvm_object_utils_begin({{ class_prefix }}{{ tree.name }}_tree)
+class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_prefix }}base_tree;
+    `uvm_object_utils_begin({{ settings.class_prefix }}{{ tree.name }}_tree)
 {%- for node in tree.nodes_ordered %}
         `uvm_field_object({{ node.name }}, UVM_ALL_ON)
 {%- endfor %}
@@ -11,9 +11,9 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind == "pll" %}
-    rand {{ class_prefix }}{{ node.sv_pll_class }} {{ node.name }};
+    rand {{ settings.class_prefix }}{{ node.sv_pll_class }} {{ node.name }};
 {%- else %}
-    rand {{ class_prefix }}{{ node.kind }} {{ node.name }};
+    rand {{ settings.class_prefix }}{{ node.kind }} {{ node.name }};
 {%- endif %}
 {%- endfor %}
 
@@ -22,13 +22,13 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
     constraint cst_user;
     constraint cst_case;
 
-    function new(string name="{{ class_prefix }}{{ tree.name }}_tree");
+    function new(string name="{{ settings.class_prefix }}{{ tree.name }}_tree");
         super.new(name);
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind == "pll" %}
-        {{ node.name }} = {{ class_prefix }}{{ node.sv_pll_class }}::type_id::create("{{ node.name }}");
+        {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_pll_class }}::type_id::create("{{ node.name }}");
 {%- else %}
-        {{ node.name }} = {{ class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
+        {{ node.name }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
 {%- endif %}
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
@@ -46,10 +46,10 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 {%- endfor %}
     endfunction
 
-    extern function void build({% if regs_enabled %}{{ class_regmodel }} regmodel = null{% endif %});
+    extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
 endclass
 
-function void {{ class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %}{{ class_regmodel }} regmodel{% endif %});
+function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
 {%- if regs_enabled %}
 {%- for tree_name, node_name, member, path, offset, width in reg_bindings %}
 {%- if tree_name == tree.name %}
@@ -66,7 +66,7 @@ function void {{ class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %
 {%- endfor %}
 {%- endif %}
     if (!this.randomize())
-        `uvm_fatal("CLK_TREE", "{{ class_prefix }}{{ tree.name }}_tree build randomize failed")
+        `uvm_fatal("CLK_TREE", "{{ settings.class_prefix }}{{ tree.name }}_tree build randomize failed")
 endfunction
 
 {%- endfor %}

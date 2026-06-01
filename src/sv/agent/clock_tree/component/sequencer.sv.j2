@@ -1,14 +1,14 @@
-`ifndef {{ (class_prefix ~ "sequencer") | upper }}
-`define {{ (class_prefix ~ "sequencer") | upper }}
+`ifndef {{ (settings.class_prefix ~ "sequencer") | upper }}
+`define {{ (settings.class_prefix ~ "sequencer") | upper }}
 
-class {{ class_prefix }}sequencer extends uvm_sequencer;
-    `uvm_component_utils({{ class_prefix }}sequencer)
+class {{ settings.class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ settings.class_prefix }}sequencer)
 
 {% if regs_enabled %}
-    {{ class_prefix }}core_tools tools;
+    {{ settings.class_prefix }}core_tools tools;
 {% endif %}
 
-    function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
+    function new(string name="{{ settings.class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
@@ -18,7 +18,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 endclass
 
 {% if regs_enabled %}
-function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
+function void {{ settings.class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
     tools = new;
 endfunction

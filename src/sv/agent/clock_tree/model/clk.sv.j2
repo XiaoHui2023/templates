@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "clk") | upper }}
-`define {{ (class_prefix ~ "clk") | upper }}
+`ifndef {{ (settings.class_prefix ~ "clk") | upper }}
+`define {{ (settings.class_prefix ~ "clk") | upper }}
 
-class {{ class_prefix }}clk extends {{ class_prefix }}node_base;
-    `uvm_object_utils({{ class_prefix }}clk)
+class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils({{ settings.class_prefix }}clk)
 
     function new(string name = "");
         super.new(name);

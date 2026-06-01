@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "inv") | upper }}
-`define {{ (class_prefix ~ "inv") | upper }}
+`ifndef {{ (settings.class_prefix ~ "inv") | upper }}
+`define {{ (settings.class_prefix ~ "inv") | upper }}
 
-class {{ class_prefix }}inv extends {{ class_prefix }}node_base;
-    `uvm_object_utils({{ class_prefix }}inv)
+class {{ settings.class_prefix }}inv extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils({{ settings.class_prefix }}inv)
 
     function new(string name = "");
         super.new(name);

@@ -1,16 +1,16 @@
-`ifndef {{ (class_prefix ~ "div") | upper }}
-`define {{ (class_prefix ~ "div") | upper }}
+`ifndef {{ (settings.class_prefix ~ "div") | upper }}
+`define {{ (settings.class_prefix ~ "div") | upper }}
 
-class {{ class_prefix }}div extends {{ class_prefix }}node_base;
-    `uvm_object_utils_begin({{ class_prefix }}div)
+class {{ settings.class_prefix }}div extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}div)
         `uvm_field_int(ratio, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand int ratio;
 {% if regs_enabled %}
-    {{ class_prefix }}reg_bind f_rst;
-    {{ class_prefix }}reg_bind f_load;
-    {{ class_prefix }}reg_bind f_div;
+    {{ settings.class_prefix }}reg_bind f_rst;
+    {{ settings.class_prefix }}reg_bind f_load;
+    {{ settings.class_prefix }}reg_bind f_div;
 {% endif %}
 
     constraint cst_div {

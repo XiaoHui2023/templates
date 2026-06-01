@@ -1,14 +1,14 @@
-`ifndef {{ (class_prefix ~ "gate") | upper }}
-`define {{ (class_prefix ~ "gate") | upper }}
+`ifndef {{ (settings.class_prefix ~ "gate") | upper }}
+`define {{ (settings.class_prefix ~ "gate") | upper }}
 
-class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
-    `uvm_object_utils_begin({{ class_prefix }}gate)
+class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}gate)
         `uvm_field_int(open, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand bit open;
 {% if regs_enabled %}
-    {{ class_prefix }}reg_bind f_reg;
+    {{ settings.class_prefix }}reg_bind f_reg;
 {% endif %}
 
     constraint cst_clk_from_src {

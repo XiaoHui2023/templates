@@ -1,17 +1,17 @@
 {% if any_node_path %}
-`ifndef {{ (class_prefix ~ "connect") | upper }}
-`define {{ (class_prefix ~ "connect") | upper }}
+`ifndef {{ (settings.class_prefix ~ "connect") | upper }}
+`define {{ (settings.class_prefix ~ "connect") | upper }}
 
-{% set _mac_conn = "_" ~ (class_prefix ~ "conn_if") | replace("-", "_") | upper %}
+{% set _mac_conn = "_" ~ (settings.class_prefix ~ "conn_if") | replace("-", "_") | upper %}
 `define {{ _mac_conn }}(id, p) \
-    {{ class_prefix }}interface {{ class_prefix }}##id##_if ( .in(p) ); \
+    {{ settings.class_prefix }}interface {{ settings.class_prefix }}##id##_if ( .in(p) ); \
     initial begin \
         forever begin \
-            @({{ class_prefix }}##id##_if.out); \
-            if ($isunknown({{ class_prefix }}##id##_if.out)) \
+            @({{ settings.class_prefix }}##id##_if.out); \
+            if ($isunknown({{ settings.class_prefix }}##id##_if.out)) \
                 release p; \
             else \
-                force p = {{ class_prefix }}##id##_if.out; \
+                force p = {{ settings.class_prefix }}##id##_if.out; \
         end \
     end
 
@@ -22,12 +22,12 @@
 {%- endif %}
 {%- endfor %}
 
-function automatic void {{ class_prefix }}connect_{{ tree.name }}_tree({{ class_prefix }}{{ tree.name }}_tree t);
+function automatic void {{ settings.class_prefix }}connect_{{ tree.name }}_tree({{ settings.class_prefix }}{{ tree.name }}_tree t);
     if (t == null)
-        uvm_report_fatal("CLK_TREE", "{{ class_prefix }}connect_{{ tree.name }}_tree: tree is null");
+        uvm_report_fatal("CLK_TREE", "{{ settings.class_prefix }}connect_{{ tree.name }}_tree: tree is null");
 {%- for node in tree.nodes_ordered %}
 {%- if node.path %}
-    t.{{ node.name }}.vif = {{ class_prefix }}{{ tree.name }}_{{ node.name }}_if;
+    t.{{ node.name }}.vif = {{ settings.class_prefix }}{{ tree.name }}_{{ node.name }}_if;
 {%- endif %}
 {%- endfor %}
 endfunction

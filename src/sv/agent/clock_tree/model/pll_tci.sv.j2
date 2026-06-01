@@ -1,11 +1,11 @@
-`ifndef {{ (class_prefix ~ "pll_tci") | upper }}
-`define {{ (class_prefix ~ "pll_tci") | upper }}
+`ifndef {{ (settings.class_prefix ~ "pll_tci") | upper }}
+`define {{ (settings.class_prefix ~ "pll_tci") | upper }}
 
-class {{ class_prefix }}pll_tci extends {{ class_prefix }}base_pll;
-    `uvm_object_utils({{ class_prefix }}pll_tci)
+class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}base_pll;
+    `uvm_object_utils({{ settings.class_prefix }}pll_tci)
 {%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['tci'] %}
-    {{ class_prefix }}reg_bind f_{{ key }};
+    {{ settings.class_prefix }}reg_bind f_{{ key }};
 {%- endfor %}
 {%- endif %}
 

@@ -1,8 +1,8 @@
 {% if any_node_path %}
-`ifndef {{ (class_prefix ~ "generate_interface") | upper }}
-`define {{ (class_prefix ~ "generate_interface") | upper }}
+`ifndef {{ (settings.class_prefix ~ "generate_interface") | upper }}
+`define {{ (settings.class_prefix ~ "generate_interface") | upper }}
 
-interface {{ class_prefix }}generate_interface (
+interface {{ settings.class_prefix }}generate_interface (
     output wire out
 );
     timeunit 1ns;

@@ -1,16 +1,16 @@
 {% if regs_enabled %}
-`ifndef {{ (class_prefix ~ "pll_cfg") | upper }}
-`define {{ (class_prefix ~ "pll_cfg") | upper }}
+`ifndef {{ (settings.class_prefix ~ "pll_cfg") | upper }}
+`define {{ (settings.class_prefix ~ "pll_cfg") | upper }}
 
-class {{ class_prefix }}pll_cfg;
+class {{ settings.class_prefix }}pll_cfg;
     localparam int SC_FBDIV_MIN = 1;
     localparam int SC_FBDIV_MAX = 4095;
     localparam int DW_FBDIV_MIN = 1;
     localparam int DW_FBDIV_MAX = 1023;
 
-    {{ class_prefix }}reg_rw rw;
+    {{ settings.class_prefix }}reg_rw rw;
 
-    function new({{ class_prefix }}reg_rw reg_rw);
+    function new({{ settings.class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
             `uvm_fatal("CLK_TREE", "pll_cfg: reg_rw is null")
         rw = reg_rw;
@@ -40,44 +40,44 @@ class {{ class_prefix }}pll_cfg;
         output int divvcor,
         output int r);
     extern task configure_tci(
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_pwrdn,
-        {{ class_prefix }}reg_bind f_reset,
-        {{ class_prefix }}reg_bind f_clkod,
-        {{ class_prefix }}reg_bind f_clkf,
-        {{ class_prefix }}reg_bind f_clkr,
-        {{ class_prefix }}reg_bind f_bwadj,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_pwrdn,
+        {{ settings.class_prefix }}reg_bind f_reset,
+        {{ settings.class_prefix }}reg_bind f_clkod,
+        {{ settings.class_prefix }}reg_bind f_clkf,
+        {{ settings.class_prefix }}reg_bind f_clkr,
+        {{ settings.class_prefix }}reg_bind f_bwadj,
         int clkr,
         int clkf,
         int clkod,
         int bwadj);
     extern task configure_sc(
-        {{ class_prefix }}reg_bind f_vocpd,
-        {{ class_prefix }}reg_bind f_postdivpd,
-        {{ class_prefix }}reg_bind f_dsmpd,
-        {{ class_prefix }}reg_bind f_pd,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_refdiv,
-        {{ class_prefix }}reg_bind f_postdiv2,
-        {{ class_prefix }}reg_bind f_postdiv1,
-        {{ class_prefix }}reg_bind f_fbdiv,
+        {{ settings.class_prefix }}reg_bind f_vocpd,
+        {{ settings.class_prefix }}reg_bind f_postdivpd,
+        {{ settings.class_prefix }}reg_bind f_dsmpd,
+        {{ settings.class_prefix }}reg_bind f_pd,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_refdiv,
+        {{ settings.class_prefix }}reg_bind f_postdiv2,
+        {{ settings.class_prefix }}reg_bind f_postdiv1,
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
         int fbdiv,
         int refdiv,
         int postdiv1,
         int postdiv2);
     extern task configure_dw(
-        {{ class_prefix }}reg_bind f_fbdiv,
-        {{ class_prefix }}reg_bind f_prediv,
-        {{ class_prefix }}reg_bind f_reset,
-        {{ class_prefix }}reg_bind f_pwron,
-        {{ class_prefix }}reg_bind f_shift,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_divvcor,
-        {{ class_prefix }}reg_bind f_r,
-        {{ class_prefix }}reg_bind f_p,
-        {{ class_prefix }}reg_bind f_divvcop,
-        {{ class_prefix }}reg_bind f_enr,
-        {{ class_prefix }}reg_bind f_enp,
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
+        {{ settings.class_prefix }}reg_bind f_prediv,
+        {{ settings.class_prefix }}reg_bind f_reset,
+        {{ settings.class_prefix }}reg_bind f_pwron,
+        {{ settings.class_prefix }}reg_bind f_shift,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_divvcor,
+        {{ settings.class_prefix }}reg_bind f_r,
+        {{ settings.class_prefix }}reg_bind f_p,
+        {{ settings.class_prefix }}reg_bind f_divvcop,
+        {{ settings.class_prefix }}reg_bind f_enr,
+        {{ settings.class_prefix }}reg_bind f_enp,
         int fbdiv,
         int prediv,
         int divvcop,
@@ -85,36 +85,36 @@ class {{ class_prefix }}pll_cfg;
         int divvcor,
         int r);
     extern task configure_sc_from_hz(
-        {{ class_prefix }}reg_bind f_vocpd,
-        {{ class_prefix }}reg_bind f_postdivpd,
-        {{ class_prefix }}reg_bind f_dsmpd,
-        {{ class_prefix }}reg_bind f_pd,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_refdiv,
-        {{ class_prefix }}reg_bind f_postdiv2,
-        {{ class_prefix }}reg_bind f_postdiv1,
-        {{ class_prefix }}reg_bind f_fbdiv,
+        {{ settings.class_prefix }}reg_bind f_vocpd,
+        {{ settings.class_prefix }}reg_bind f_postdivpd,
+        {{ settings.class_prefix }}reg_bind f_dsmpd,
+        {{ settings.class_prefix }}reg_bind f_pd,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_refdiv,
+        {{ settings.class_prefix }}reg_bind f_postdiv2,
+        {{ settings.class_prefix }}reg_bind f_postdiv1,
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
         longint out_hz,
         longint ref_hz);
     extern task configure_dw_from_hz(
-        {{ class_prefix }}reg_bind f_fbdiv,
-        {{ class_prefix }}reg_bind f_prediv,
-        {{ class_prefix }}reg_bind f_reset,
-        {{ class_prefix }}reg_bind f_pwron,
-        {{ class_prefix }}reg_bind f_shift,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_divvcor,
-        {{ class_prefix }}reg_bind f_r,
-        {{ class_prefix }}reg_bind f_p,
-        {{ class_prefix }}reg_bind f_divvcop,
-        {{ class_prefix }}reg_bind f_enr,
-        {{ class_prefix }}reg_bind f_enp,
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
+        {{ settings.class_prefix }}reg_bind f_prediv,
+        {{ settings.class_prefix }}reg_bind f_reset,
+        {{ settings.class_prefix }}reg_bind f_pwron,
+        {{ settings.class_prefix }}reg_bind f_shift,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_divvcor,
+        {{ settings.class_prefix }}reg_bind f_r,
+        {{ settings.class_prefix }}reg_bind f_p,
+        {{ settings.class_prefix }}reg_bind f_divvcop,
+        {{ settings.class_prefix }}reg_bind f_enr,
+        {{ settings.class_prefix }}reg_bind f_enp,
         longint out_hz,
         longint ref_hz);
-    extern task wait_lock({{ class_prefix }}reg_bind f_lock, time timeout);
+    extern task wait_lock({{ settings.class_prefix }}reg_bind f_lock, time timeout);
 endclass
 
-function void {{ class_prefix }}pll_cfg::tci_divisors(
+function void {{ settings.class_prefix }}pll_cfg::tci_divisors(
         longint out_hz,
         longint ref_hz,
         output int clkr,
@@ -130,7 +130,7 @@ function void {{ class_prefix }}pll_cfg::tci_divisors(
     bwadj = clkf;
 endfunction
 
-function void {{ class_prefix }}pll_cfg::sc_divisors(
+function void {{ settings.class_prefix }}pll_cfg::sc_divisors(
         longint out_hz,
         longint ref_hz,
         output int fbdiv,
@@ -187,7 +187,7 @@ function void {{ class_prefix }}pll_cfg::sc_divisors(
     end
 endfunction
 
-function void {{ class_prefix }}pll_cfg::dw_divisors(
+function void {{ settings.class_prefix }}pll_cfg::dw_divisors(
         longint out_hz,
         longint ref_hz,
         output int fbdiv,
@@ -234,16 +234,16 @@ function void {{ class_prefix }}pll_cfg::dw_divisors(
     end
 endfunction
 
-task {{ class_prefix }}pll_cfg::configure_sc_from_hz(
-        {{ class_prefix }}reg_bind f_vocpd,
-        {{ class_prefix }}reg_bind f_postdivpd,
-        {{ class_prefix }}reg_bind f_dsmpd,
-        {{ class_prefix }}reg_bind f_pd,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_refdiv,
-        {{ class_prefix }}reg_bind f_postdiv2,
-        {{ class_prefix }}reg_bind f_postdiv1,
-        {{ class_prefix }}reg_bind f_fbdiv,
+task {{ settings.class_prefix }}pll_cfg::configure_sc_from_hz(
+        {{ settings.class_prefix }}reg_bind f_vocpd,
+        {{ settings.class_prefix }}reg_bind f_postdivpd,
+        {{ settings.class_prefix }}reg_bind f_dsmpd,
+        {{ settings.class_prefix }}reg_bind f_pd,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_refdiv,
+        {{ settings.class_prefix }}reg_bind f_postdiv2,
+        {{ settings.class_prefix }}reg_bind f_postdiv1,
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
         longint out_hz,
         longint ref_hz);
     int fbdiv;
@@ -257,19 +257,19 @@ task {{ class_prefix }}pll_cfg::configure_sc_from_hz(
         fbdiv, refdiv, postdiv1, postdiv2);
 endtask
 
-task {{ class_prefix }}pll_cfg::configure_dw_from_hz(
-        {{ class_prefix }}reg_bind f_fbdiv,
-        {{ class_prefix }}reg_bind f_prediv,
-        {{ class_prefix }}reg_bind f_reset,
-        {{ class_prefix }}reg_bind f_pwron,
-        {{ class_prefix }}reg_bind f_shift,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_divvcor,
-        {{ class_prefix }}reg_bind f_r,
-        {{ class_prefix }}reg_bind f_p,
-        {{ class_prefix }}reg_bind f_divvcop,
-        {{ class_prefix }}reg_bind f_enr,
-        {{ class_prefix }}reg_bind f_enp,
+task {{ settings.class_prefix }}pll_cfg::configure_dw_from_hz(
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
+        {{ settings.class_prefix }}reg_bind f_prediv,
+        {{ settings.class_prefix }}reg_bind f_reset,
+        {{ settings.class_prefix }}reg_bind f_pwron,
+        {{ settings.class_prefix }}reg_bind f_shift,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_divvcor,
+        {{ settings.class_prefix }}reg_bind f_r,
+        {{ settings.class_prefix }}reg_bind f_p,
+        {{ settings.class_prefix }}reg_bind f_divvcop,
+        {{ settings.class_prefix }}reg_bind f_enr,
+        {{ settings.class_prefix }}reg_bind f_enp,
         longint out_hz,
         longint ref_hz);
     int fbdiv;
@@ -285,19 +285,19 @@ task {{ class_prefix }}pll_cfg::configure_dw_from_hz(
         fbdiv, prediv, divvcop, p, divvcor, r);
 endtask
 
-task {{ class_prefix }}pll_cfg::configure_tci(
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_pwrdn,
-        {{ class_prefix }}reg_bind f_reset,
-        {{ class_prefix }}reg_bind f_clkod,
-        {{ class_prefix }}reg_bind f_clkf,
-        {{ class_prefix }}reg_bind f_clkr,
-        {{ class_prefix }}reg_bind f_bwadj,
+task {{ settings.class_prefix }}pll_cfg::configure_tci(
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_pwrdn,
+        {{ settings.class_prefix }}reg_bind f_reset,
+        {{ settings.class_prefix }}reg_bind f_clkod,
+        {{ settings.class_prefix }}reg_bind f_clkf,
+        {{ settings.class_prefix }}reg_bind f_clkr,
+        {{ settings.class_prefix }}reg_bind f_bwadj,
         int clkr,
         int clkf,
         int clkod,
         int bwadj);
-    {{ class_prefix }}reg_bind binds[$];
+    {{ settings.class_prefix }}reg_bind binds[$];
     int vals[$];
 
     binds = '{f_bypass, f_pwrdn, f_reset};
@@ -317,21 +317,21 @@ task {{ class_prefix }}pll_cfg::configure_tci(
     rw.apply(binds, vals);
 endtask
 
-task {{ class_prefix }}pll_cfg::configure_sc(
-        {{ class_prefix }}reg_bind f_vocpd,
-        {{ class_prefix }}reg_bind f_postdivpd,
-        {{ class_prefix }}reg_bind f_dsmpd,
-        {{ class_prefix }}reg_bind f_pd,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_refdiv,
-        {{ class_prefix }}reg_bind f_postdiv2,
-        {{ class_prefix }}reg_bind f_postdiv1,
-        {{ class_prefix }}reg_bind f_fbdiv,
+task {{ settings.class_prefix }}pll_cfg::configure_sc(
+        {{ settings.class_prefix }}reg_bind f_vocpd,
+        {{ settings.class_prefix }}reg_bind f_postdivpd,
+        {{ settings.class_prefix }}reg_bind f_dsmpd,
+        {{ settings.class_prefix }}reg_bind f_pd,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_refdiv,
+        {{ settings.class_prefix }}reg_bind f_postdiv2,
+        {{ settings.class_prefix }}reg_bind f_postdiv1,
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
         int fbdiv,
         int refdiv,
         int postdiv1,
         int postdiv2);
-    {{ class_prefix }}reg_bind binds[$];
+    {{ settings.class_prefix }}reg_bind binds[$];
     int vals[$];
 
     binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
@@ -347,26 +347,26 @@ task {{ class_prefix }}pll_cfg::configure_sc(
     rw.apply(binds, vals);
 endtask
 
-task {{ class_prefix }}pll_cfg::configure_dw(
-        {{ class_prefix }}reg_bind f_fbdiv,
-        {{ class_prefix }}reg_bind f_prediv,
-        {{ class_prefix }}reg_bind f_reset,
-        {{ class_prefix }}reg_bind f_pwron,
-        {{ class_prefix }}reg_bind f_shift,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_divvcor,
-        {{ class_prefix }}reg_bind f_r,
-        {{ class_prefix }}reg_bind f_p,
-        {{ class_prefix }}reg_bind f_divvcop,
-        {{ class_prefix }}reg_bind f_enr,
-        {{ class_prefix }}reg_bind f_enp,
+task {{ settings.class_prefix }}pll_cfg::configure_dw(
+        {{ settings.class_prefix }}reg_bind f_fbdiv,
+        {{ settings.class_prefix }}reg_bind f_prediv,
+        {{ settings.class_prefix }}reg_bind f_reset,
+        {{ settings.class_prefix }}reg_bind f_pwron,
+        {{ settings.class_prefix }}reg_bind f_shift,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_divvcor,
+        {{ settings.class_prefix }}reg_bind f_r,
+        {{ settings.class_prefix }}reg_bind f_p,
+        {{ settings.class_prefix }}reg_bind f_divvcop,
+        {{ settings.class_prefix }}reg_bind f_enr,
+        {{ settings.class_prefix }}reg_bind f_enp,
         int fbdiv,
         int prediv,
         int divvcop,
         int p,
         int divvcor,
         int r);
-    {{ class_prefix }}reg_bind binds[$];
+    {{ settings.class_prefix }}reg_bind binds[$];
     int vals[$];
 
     binds = '{f_fbdiv, f_prediv};
@@ -397,7 +397,7 @@ task {{ class_prefix }}pll_cfg::configure_dw(
     rw.apply(binds, vals);
 endtask
 
-task {{ class_prefix }}pll_cfg::wait_lock({{ class_prefix }}reg_bind f_lock, time timeout);
+task {{ settings.class_prefix }}pll_cfg::wait_lock({{ settings.class_prefix }}reg_bind f_lock, time timeout);
     time elapsed;
     int lock_val;
 

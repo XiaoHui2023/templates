@@ -1,15 +1,15 @@
 {% if any_node_path %}
-`ifndef {{ (class_prefix ~ "check_pll_req") | upper }}
-`define {{ (class_prefix ~ "check_pll_req") | upper }}
+`ifndef {{ (settings.class_prefix ~ "check_pll_req") | upper }}
+`define {{ (settings.class_prefix ~ "check_pll_req") | upper }}
 
-class {{ class_prefix }}check_pll_req extends uvm_sequence_item;
-    `uvm_object_utils_begin({{ class_prefix }}check_pll_req)
+class {{ settings.class_prefix }}check_pll_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}check_pll_req)
         `uvm_field_queue_object(nodes, UVM_ALL_ON | UVM_NOPRINT)
     `uvm_object_utils_end
 
-    {{ class_prefix }}node_base nodes[$];
+    {{ settings.class_prefix }}node_base nodes[$];
 
-    function new(string name = "{{ class_prefix }}check_pll_req");
+    function new(string name = "{{ settings.class_prefix }}check_pll_req");
         super.new(name);
     endfunction
 endclass

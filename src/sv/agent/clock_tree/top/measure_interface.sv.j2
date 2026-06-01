@@ -1,13 +1,13 @@
 {% if any_node_path %}
-`ifndef {{ (class_prefix ~ "measure_interface") | upper }}
-`define {{ (class_prefix ~ "measure_interface") | upper }}
+`ifndef {{ (settings.class_prefix ~ "measure_interface") | upper }}
+`define {{ (settings.class_prefix ~ "measure_interface") | upper }}
 
-interface {{ class_prefix }}measure_interface #(
-    parameter int MIN_FREQ_HZ = {{ min_freq_hz }},
-    parameter int STABLE_CYCLES = {{ stable_cycles }},
-    parameter real PERIOD_TOL = {{ period_tolerance }},
-    parameter real DUTY_MIN = {{ duty_min }},
-    parameter real DUTY_MAX = {{ duty_max }}
+interface {{ settings.class_prefix }}measure_interface #(
+    parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},
+    parameter int STABLE_CYCLES = {{ settings.stable_cycles }},
+    parameter real PERIOD_TOL = {{ settings.period_tolerance }},
+    parameter real DUTY_MIN = {{ settings.duty_min }},
+    parameter real DUTY_MAX = {{ settings.duty_max }}
 ) (
     input wire in
 );

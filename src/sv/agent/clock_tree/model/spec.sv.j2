@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "spec") | upper }}
-`define {{ (class_prefix ~ "spec") | upper }}
+`ifndef {{ (settings.class_prefix ~ "spec") | upper }}
+`define {{ (settings.class_prefix ~ "spec") | upper }}
 
-class {{ class_prefix }}spec#(type T = uvm_object) extends T;
-    `uvm_object_param_utils({{ class_prefix }}spec#(T))
+class {{ settings.class_prefix }}spec#(type T = uvm_object) extends T;
+    `uvm_object_param_utils({{ settings.class_prefix }}spec#(T))
 
     typedef enum {
         PLL_TCI,

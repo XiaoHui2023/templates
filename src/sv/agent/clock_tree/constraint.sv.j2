@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "cst_base") | upper }}
-`define {{ (class_prefix ~ "cst_base") | upper }}
+`ifndef {{ (settings.class_prefix ~ "cst_base") | upper }}
+`define {{ (settings.class_prefix ~ "cst_base") | upper }}
 
 {%- for tree in trees %}
-constraint {{ class_prefix }}{{ tree.name }}_tree::cst_base {
+constraint {{ settings.class_prefix }}{{ tree.name }}_tree::cst_base {
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind in ["clk", "pll", "source"] and node.freq is not none %}
     soft {{ node.name }}.frequence == {{ node.freq }};

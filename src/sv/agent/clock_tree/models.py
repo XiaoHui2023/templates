@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
@@ -18,18 +18,9 @@ from reg_paths import (
 )
 
 
-class Models(BaseModel):
+class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    trees: List[Tree] = Field(
-        ...,
-        min_length=1,
-        description="本 agent 可绑定的多棵时钟树，每项含 name 与 nodes。",
-    )
-    vars: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="用户自定义变量，模板内以 vars 引用，不做校验。",
-    )
     class_prefix: str = Field(
         "clk_tree_",
         min_length=1,
@@ -74,18 +65,43 @@ class Models(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _validate_duty_range(self) -> Models:
+    def _validate_duty_range(self) -> Settings:
         if self.duty_min >= self.duty_max:
             raise ValueError(
                 f"duty_min ({self.duty_min}) 须小于 duty_max ({self.duty_max})"
             )
         return self
 
+    @field_validator("class_regmodel")
+    @classmethod
+    def _validate_class_regmodel(cls, value: str) -> str:
+        if not value:
+            return value
+        if not _SV_TYPE.match(value):
+            raise ValueError(
+                f"class_regmodel {value!r} 须为合法 SystemVerilog 类型名"
+            )
+        return value
+
+
+class Models(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    trees: List[Tree] = Field(
+        ...,
+        min_length=1,
+        description="本 agent 可绑定的多棵时钟树，每项含 name 与 nodes。",
+    )
+    settings: Settings = Field(
+        default_factory=Settings,
+        description="命名前缀、测量容差、RAL 根类型等套件级选项。",
+    )
+
     @model_validator(mode="after")
     def _validate_regmodel_when_nodes_have_regs(self) -> Models:
-        if self.any_regs_configured and not self.class_regmodel:
+        if self.any_regs_configured and not self.settings.class_regmodel:
             raise ValueError(
-                "任意节点配置了 reg 或 regs 时须填写 class_regmodel"
+                "任意节点配置了 reg 或 regs 时须在 settings 中填写 class_regmodel"
             )
         return self
 
@@ -121,7 +137,7 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def regs_enabled(self) -> bool:
-        return bool(self.class_regmodel) and self.any_regs_configured
+        return bool(self.settings.class_regmodel) and self.any_regs_configured
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -153,14 +169,3 @@ class Models(BaseModel):
                 if node.kind == "clk":
                     return tree.name
         return None
-
-    @field_validator("class_regmodel")
-    @classmethod
-    def _validate_class_regmodel(cls, value: str) -> str:
-        if not value:
-            return value
-        if not _SV_TYPE.match(value):
-            raise ValueError(
-                f"class_regmodel {value!r} 须为合法 SystemVerilog 类型名"
-            )
-        return value

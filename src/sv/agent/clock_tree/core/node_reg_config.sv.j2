@@ -1,62 +1,62 @@
 {% if regs_enabled %}
-`ifndef {{ (class_prefix ~ "node_cfg") | upper }}
-`define {{ (class_prefix ~ "node_cfg") | upper }}
+`ifndef {{ (settings.class_prefix ~ "node_cfg") | upper }}
+`define {{ (settings.class_prefix ~ "node_cfg") | upper }}
 
-class {{ class_prefix }}node_cfg;
-    {{ class_prefix }}reg_rw rw;
+class {{ settings.class_prefix }}node_cfg;
+    {{ settings.class_prefix }}reg_rw rw;
 
-    function new({{ class_prefix }}reg_rw reg_rw);
+    function new({{ settings.class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
             `uvm_fatal("CLK_TREE", "node_cfg: reg_rw is null")
         rw = reg_rw;
     endfunction
 
-    extern task configure_gate({{ class_prefix }}reg_bind f_reg, bit open);
-    extern task configure_mux({{ class_prefix }}reg_bind f_reg, int sel);
+    extern task configure_gate({{ settings.class_prefix }}reg_bind f_reg, bit open);
+    extern task configure_mux({{ settings.class_prefix }}reg_bind f_reg, int sel);
     extern task configure_div(
-        {{ class_prefix }}reg_bind f_rst,
-        {{ class_prefix }}reg_bind f_load,
-        {{ class_prefix }}reg_bind f_div,
+        {{ settings.class_prefix }}reg_bind f_rst,
+        {{ settings.class_prefix }}reg_bind f_load,
+        {{ settings.class_prefix }}reg_bind f_div,
         int ratio);
     extern task configure_dto(
-        {{ class_prefix }}reg_bind f_rstn,
-        {{ class_prefix }}reg_bind f_load,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_step,
+        {{ settings.class_prefix }}reg_bind f_rstn,
+        {{ settings.class_prefix }}reg_bind f_load,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_step,
         int ratio);
 endclass
 
-task {{ class_prefix }}node_cfg::configure_gate({{ class_prefix }}reg_bind f_reg, bit open);
+task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg_bind f_reg, bit open);
     rw.set_write(f_reg, open);
 endtask
 
-task {{ class_prefix }}node_cfg::configure_mux({{ class_prefix }}reg_bind f_reg, int sel);
+task {{ settings.class_prefix }}node_cfg::configure_mux({{ settings.class_prefix }}reg_bind f_reg, int sel);
     rw.set_write(f_reg, sel);
 endtask
 
-task {{ class_prefix }}node_cfg::configure_div(
-        {{ class_prefix }}reg_bind f_rst,
-        {{ class_prefix }}reg_bind f_load,
-        {{ class_prefix }}reg_bind f_div,
+task {{ settings.class_prefix }}node_cfg::configure_div(
+        {{ settings.class_prefix }}reg_bind f_rst,
+        {{ settings.class_prefix }}reg_bind f_load,
+        {{ settings.class_prefix }}reg_bind f_div,
         int ratio);
     int n;
-    n = {{ class_prefix }}div_ratio_to_n(ratio);
+    n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
     rw.set_write(f_rst, 0);
     rw.set_write(f_div, n);
     rw.set_write(f_load, 0);
     rw.set_write(f_load, 1);
 endtask
 
-task {{ class_prefix }}node_cfg::configure_dto(
-        {{ class_prefix }}reg_bind f_rstn,
-        {{ class_prefix }}reg_bind f_load,
-        {{ class_prefix }}reg_bind f_bypass,
-        {{ class_prefix }}reg_bind f_step,
+task {{ settings.class_prefix }}node_cfg::configure_dto(
+        {{ settings.class_prefix }}reg_bind f_rstn,
+        {{ settings.class_prefix }}reg_bind f_load,
+        {{ settings.class_prefix }}reg_bind f_bypass,
+        {{ settings.class_prefix }}reg_bind f_step,
         int ratio);
-    {{ class_prefix }}reg_bind binds[$];
+    {{ settings.class_prefix }}reg_bind binds[$];
     int vals[$];
     int step;
-    step = {{ class_prefix }}dto_ratio_to_step(ratio);
+    step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);
     binds = '{f_rstn, f_load, f_bypass, f_step};
     vals = '{0, 1, 0, step};
     rw.apply(binds, vals);

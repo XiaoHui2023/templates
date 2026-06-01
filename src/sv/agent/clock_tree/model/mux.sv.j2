@@ -1,15 +1,15 @@
-`ifndef {{ (class_prefix ~ "mux") | upper }}
-`define {{ (class_prefix ~ "mux") | upper }}
+`ifndef {{ (settings.class_prefix ~ "mux") | upper }}
+`define {{ (settings.class_prefix ~ "mux") | upper }}
 
-class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
-    `uvm_object_utils_begin({{ class_prefix }}mux)
+class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}mux)
         `uvm_field_int(sel, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand int sel;
-    {{ class_prefix }}node_base to_source[int];
+    {{ settings.class_prefix }}node_base to_source[int];
 {% if regs_enabled %}
-    {{ class_prefix }}reg_bind f_reg;
+    {{ settings.class_prefix }}reg_bind f_reg;
 {% endif %}
 
     constraint cst_clk_from_src {

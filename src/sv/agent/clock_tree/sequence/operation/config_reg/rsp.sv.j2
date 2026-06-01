@@ -1,15 +1,15 @@
 {% if regs_enabled %}
-`ifndef {{ (class_prefix ~ "config_reg_rsp") | upper }}
-`define {{ (class_prefix ~ "config_reg_rsp") | upper }}
+`ifndef {{ (settings.class_prefix ~ "config_reg_rsp") | upper }}
+`define {{ (settings.class_prefix ~ "config_reg_rsp") | upper }}
 
-class {{ class_prefix }}config_reg_rsp extends uvm_sequence_item;
-    `uvm_object_utils_begin({{ class_prefix }}config_reg_rsp)
+class {{ settings.class_prefix }}config_reg_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}config_reg_rsp)
         `uvm_field_int(ok, UVM_ALL_ON)
     `uvm_object_utils_end
 
     bit ok;
 
-    function new(string name = "{{ class_prefix }}config_reg_rsp");
+    function new(string name = "{{ settings.class_prefix }}config_reg_rsp");
         super.new(name);
     endfunction
 endclass

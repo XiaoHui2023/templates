@@ -1,17 +1,17 @@
-`ifndef {{ (class_prefix ~ "dto") | upper }}
-`define {{ (class_prefix ~ "dto") | upper }}
+`ifndef {{ (settings.class_prefix ~ "dto") | upper }}
+`define {{ (settings.class_prefix ~ "dto") | upper }}
 
-class {{ class_prefix }}dto extends {{ class_prefix }}node_base;
-    `uvm_object_utils_begin({{ class_prefix }}dto)
+class {{ settings.class_prefix }}dto extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}dto)
         `uvm_field_int(ratio, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand int ratio;
 {% if regs_enabled %}
-    {{ class_prefix }}reg_bind f_rstn;
-    {{ class_prefix }}reg_bind f_load;
-    {{ class_prefix }}reg_bind f_bypass;
-    {{ class_prefix }}reg_bind f_step;
+    {{ settings.class_prefix }}reg_bind f_rstn;
+    {{ settings.class_prefix }}reg_bind f_load;
+    {{ settings.class_prefix }}reg_bind f_bypass;
+    {{ settings.class_prefix }}reg_bind f_step;
 {% endif %}
 
     constraint cst_dto {

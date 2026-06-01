@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "base_item") | upper }}
-`define {{ (class_prefix ~ "base_item") | upper }}
+`ifndef {{ (settings.class_prefix ~ "base_item") | upper }}
+`define {{ (settings.class_prefix ~ "base_item") | upper }}
 
-class {{ class_prefix }}base_item extends {{ class_prefix }}spec#(uvm_sequence_item);
-    `uvm_object_utils({{ class_prefix }}base_item)
+class {{ settings.class_prefix }}base_item extends {{ settings.class_prefix }}spec#(uvm_sequence_item);
+    `uvm_object_utils({{ settings.class_prefix }}base_item)
 
     function new(string name = "");
         super.new(name);

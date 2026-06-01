@@ -11,7 +11,6 @@
 ## 示例
 
 ```yaml
-class_prefix: chip_clk_
 trees:
   - name: main
     nodes:
@@ -26,20 +25,33 @@ trees:
       clk_cpu:
         kind: clk
         source: pll0
+settings:
+  class_prefix: chip_clk_
 ```
 
 ## 数据结构
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `class_prefix` | `str` | `clk_tree_` | 命名前缀。没有重名风险时可保持默认。 |
 | `trees` | `list[Tree]` | 必填 | 本 agent 可展开的多棵时钟树，至少一项。 |
-| `vars` | `dict[str, Any]` | `{}` | 自定义变量，未使用时留空。 |
-| `class_regmodel` | `str` | 空 | RAL 根块类名；须与至少一处节点 `reg` 或 `regs` 同时填写，才生成寄存器访问与 **config_reg**。 |
+| `settings` | `Settings` | 见下表 | 命名前缀、测量容差、RAL 根类型等套件级选项。 |
+
+### Settings
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `class_prefix` | `str` | `clk_tree_` | 命名前缀。没有重名风险时可保持默认。 |
+| `class_regmodel` | `str` | 空 | RAL 根块类型名；须与至少一处节点 `reg` 或 `regs` 同时填写，才生成寄存器访问与 **config_reg**。 |
+| `min_freq_hz` | `int` | `500` | 判断时钟仍在活动的最低频率。 |
+| `stable_cycles` | `int` | `3` | 连续稳定周期数。 |
+| `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
+| `duty_min` | `float` | `0.50` | 允许占空比下限。 |
+| `duty_max` | `float` | `0.66` | 允许占空比上限。 |
+| `pll_lock_timeout_us` | `int` | `1000` | **config_reg** 等待各 PLL lock 的最长时间，微秒。 |
 
 ### 寄存器路径
 
-填写 `class_regmodel` 且节点配置了 `reg` 或 `regs` 时，下列路径写法生效：
+在 `settings` 中填写 `class_regmodel` 且节点配置了 `reg` 或 `regs` 时，下列路径写法生效：
 
 `reg` 与 `regs` 的值为自 RAL 根起的点分路径，可在末尾指定 field 内比特范围：
 
@@ -50,11 +62,6 @@ trees:
 | `blk.field[3:0]` | 从 lsb 0 起连续 4 位 |
 
 **config_reg** 只更新所列比特，field 内其余位保持不变。
-| `min_freq_hz` | `int` | `500` | 判断时钟仍在活动的最低频率。 |
-| `stable_cycles` | `int` | `3` | 连续稳定周期数。 |
-| `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
-| `duty_min` | `float` | `0.50` | 允许占空比下限。 |
-| `duty_max` | `float` | `0.66` | 允许占空比上限。 |
 
 ### Tree
 

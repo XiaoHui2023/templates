@@ -1,8 +1,8 @@
 {% if regs_enabled %}
-`ifndef {{ (class_prefix ~ "reg_bind") | upper }}
-`define {{ (class_prefix ~ "reg_bind") | upper }}
+`ifndef {{ (settings.class_prefix ~ "reg_bind") | upper }}
+`define {{ (settings.class_prefix ~ "reg_bind") | upper }}
 
-class {{ class_prefix }}reg_bind;
+class {{ settings.class_prefix }}reg_bind;
     uvm_reg_field field;
     int unsigned offset;
     int unsigned width;

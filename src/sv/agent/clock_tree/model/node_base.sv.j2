@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "node_base") | upper }}
-`define {{ (class_prefix ~ "node_base") | upper }}
+`ifndef {{ (settings.class_prefix ~ "node_base") | upper }}
+`define {{ (settings.class_prefix ~ "node_base") | upper }}
 
-class {{ class_prefix }}node_base extends {{ class_prefix }}base_item;
-    `uvm_object_utils_begin({{ class_prefix }}node_base)
+class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
         `uvm_field_string(kind, UVM_ALL_ON)
         `uvm_field_int(allow_bad_duty, UVM_ALL_ON)
         `uvm_field_int(frequence, UVM_ALL_ON)
@@ -14,9 +14,9 @@ class {{ class_prefix }}node_base extends {{ class_prefix }}base_item;
     rand longint frequence;
     rand bit valid;
 {% if any_node_path %}
-    virtual {{ class_prefix }}interface vif;
+    virtual {{ settings.class_prefix }}interface vif;
 {% endif %}
-    {{ class_prefix }}node_base source;
+    {{ settings.class_prefix }}node_base source;
 
     constraint cst_node_base {
         soft allow_bad_duty == 0;

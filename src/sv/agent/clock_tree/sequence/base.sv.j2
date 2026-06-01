@@ -1,11 +1,11 @@
-`ifndef {{ (class_prefix ~ "base_seq") | upper }}
-`define {{ (class_prefix ~ "base_seq") | upper }}
+`ifndef {{ (settings.class_prefix ~ "base_seq") | upper }}
+`define {{ (settings.class_prefix ~ "base_seq") | upper }}
 
-class {{ class_prefix }}base_seq extends {{ class_prefix }}spec#(uvm_sequence);
-    `uvm_object_utils({{ class_prefix }}base_seq)
-    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+class {{ settings.class_prefix }}base_seq extends {{ settings.class_prefix }}spec#(uvm_sequence);
+    `uvm_object_utils({{ settings.class_prefix }}base_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
-    function new(string name="{{ class_prefix }}base_seq");
+    function new(string name="{{ settings.class_prefix }}base_seq");
         super.new(name);
     endfunction
 endclass
