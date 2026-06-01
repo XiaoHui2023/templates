@@ -6,6 +6,8 @@
 
 [节点 interface](interface.md)
 
+[频率关系](formulas.md)
+
 ## 示例
 
 ```yaml
