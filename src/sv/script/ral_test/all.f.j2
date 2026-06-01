@@ -1,3 +1,7 @@
+{%- if reset | default(false) %}
+reg_fd_single_reset_seq.sv
+reg_fd_reset_seq.sv
+{% endif %}
 {%- if access | default(false) %}
 reg_fd_single_seq.sv
 reg_fd_access_seq.sv

@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "seq") | upper }}
 `define {{ (class_prefix ~ "seq") | upper }}
 
-{%- set _hw = hw_reset | default(false) %}
+{%- set _rst = reset | default(false) %}
 {%- set _acc = access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
@@ -19,8 +19,8 @@ class {{ class_prefix }}seq extends uvm_sequence;
     endfunction
 
     task body();
-{%- if _hw %}
-        uvm_reg_hw_reset_seq hw_reset_seq;
+{%- if _rst %}
+        {{ class_prefix }}reg_fd_reset_seq reg_fd_reset_seq;
 {%- endif %}
 {%- if _acc %}
         {{ class_prefix }}reg_fd_access_seq reg_fd_access_seq;
@@ -40,11 +40,11 @@ class {{ class_prefix }}seq extends uvm_sequence;
                 uvm_resource_db#(bit)::set({"REG::", no_test_regs[i].get_full_name()},
                     "NO_REG_TESTS", 1);
         end
-{%- if _hw %}
+{%- if _rst %}
 
-        hw_reset_seq = uvm_reg_hw_reset_seq::type_id::create({get_name(), ".hw_reset"});
-        hw_reset_seq.model = regmodel;
-        hw_reset_seq.start(p_sequencer);
+        reg_fd_reset_seq = {{ class_prefix }}reg_fd_reset_seq::type_id::create({get_name(), ".reg_fd_reset"});
+        reg_fd_reset_seq.model = regmodel;
+        reg_fd_reset_seq.start(p_sequencer);
 {%- endif %}
 {%- if _acc %}
 

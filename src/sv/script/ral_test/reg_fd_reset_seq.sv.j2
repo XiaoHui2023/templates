@@ -1,0 +1,67 @@
+{%- set _rst = reset | default(false) %}
+{%- if _rst %}
+`ifndef {{ (class_prefix ~ "reg_fd_reset_seq") | upper }}
+`define {{ (class_prefix ~ "reg_fd_reset_seq") | upper }}
+
+class {{ class_prefix }}reg_fd_reset_seq extends uvm_reg_hw_reset_seq;
+    `uvm_object_utils({{ class_prefix }}reg_fd_reset_seq)
+
+    {{ class_prefix }}single_reg_fd_reset_seq reg_seq;
+
+    function new(string name = "{{ class_prefix }}reg_fd_reset_seq");
+        super.new(name);
+    endfunction
+
+    virtual task body();
+        if (model == null) begin
+            `uvm_error("RAL_TEST/REG_FD", "No register model specified to run sequence on")
+            return;
+        end
+
+        uvm_report_info("RAL_TEST/REG_FD",
+            {"\n\nStarting ", get_name(), " (frontdoor-only reset value check) ...\n"}, UVM_LOW);
+
+        reg_seq = {{ class_prefix }}single_reg_fd_reset_seq::type_id::create("single_reg_fd_reset_seq");
+
+        this.reset_blk(model);
+        model.reset();
+
+        do_block(model);
+    endtask
+
+    protected virtual task do_block(uvm_reg_block blk);
+        uvm_reg regs[$];
+
+        if (uvm_resource_db#(bit)::get_by_name({"REG::", blk.get_full_name()},
+                "NO_REG_TESTS", 0) != null ||
+                uvm_resource_db#(bit)::get_by_name({"REG::", blk.get_full_name()},
+                "NO_REG_HW_RESET_TEST", 0) != null) begin
+            return;
+        end
+
+        blk.get_registers(regs, UVM_NO_HIER);
+        foreach (regs[i]) begin
+            if (uvm_resource_db#(bit)::get_by_name({"REG::", regs[i].get_full_name()},
+                    "NO_REG_TESTS", 0) != null ||
+                    uvm_resource_db#(bit)::get_by_name({"REG::", regs[i].get_full_name()},
+                    "NO_REG_HW_RESET_TEST", 0) != null) begin
+                continue;
+            end
+
+            reg_seq.rg = regs[i];
+            reg_seq.start(null, this);
+        end
+
+        begin
+            uvm_reg_block blks[$];
+
+            blk.get_blocks(blks, UVM_NO_HIER);
+            foreach (blks[i]) begin
+                do_block(blks[i]);
+            end
+        end
+    endtask
+endclass
+
+`endif
+{%- endif %}
