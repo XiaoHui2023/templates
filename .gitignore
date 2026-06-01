@@ -2,4 +2,5 @@
 __pycache__/
 *.pyc
 .cursor/
-**/.jinja-build-out/
+**/.jinja-build-out*/
+**/.jinja-build-*.yaml
