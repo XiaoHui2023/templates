@@ -1,3 +1,4 @@
+{% if regs_enabled %}
 `ifndef {{ (class_prefix ~ "config_reg_seq") | upper }}
 `define {{ (class_prefix ~ "config_reg_seq") | upper }}
 
@@ -232,3 +233,4 @@ task {{ class_prefix }}config_reg_seq::body();
 endtask
 
 `endif
+{% endif %}

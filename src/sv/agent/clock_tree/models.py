@@ -12,6 +12,7 @@ from reg_paths import (
     PLL_REG_KEYS,
     RegBindingRow,
     any_node_path,
+    any_reg_configured as tree_has_node_regs,
     collect_pll_sv_classes,
     iter_reg_bindings,
 )
@@ -35,9 +36,8 @@ class Models(BaseModel):
         description="类型名前缀，与固定后缀拼接；建议含末尾下划线。",
     )
     class_regmodel: str = Field(
-        ...,
-        min_length=1,
-        description="RAL 根块类型名；各 {name}_tree.build 入参类型。",
+        "",
+        description="RAL 根块类型名；与节点 reg 或 regs 同时配置时各 {name}_tree.build 入参类型。",
     )
     min_freq_hz: int = Field(
         500,
@@ -82,6 +82,14 @@ class Models(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _validate_regmodel_when_nodes_have_regs(self) -> Models:
+        if self.any_regs_configured and not self.class_regmodel:
+            raise ValueError(
+                "任意节点配置了 reg 或 regs 时须填写 class_regmodel"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _validate_tree_names_unique(self) -> Models:
         seen: set[str] = set()
         for tree in self.trees:
@@ -104,6 +112,16 @@ class Models(BaseModel):
     @property
     def pll_reg_keys_by_kind(self) -> Dict[str, List[str]]:
         return {kind: sorted(keys) for kind, keys in PLL_REG_KEYS.items()}
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def any_regs_configured(self) -> bool:
+        return any(tree_has_node_regs(tree) for tree in self.trees)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def regs_enabled(self) -> bool:
+        return bool(self.class_regmodel) and self.any_regs_configured
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -139,6 +157,8 @@ class Models(BaseModel):
     @field_validator("class_regmodel")
     @classmethod
     def _validate_class_regmodel(cls, value: str) -> str:
+        if not value:
+            return value
         if not _SV_TYPE.match(value):
             raise ValueError(
                 f"class_regmodel {value!r} 须为合法 SystemVerilog 类型名"

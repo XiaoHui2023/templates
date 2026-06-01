@@ -7,7 +7,9 @@ class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
     `uvm_object_utils_end
 
     rand bit open;
+{% if regs_enabled %}
     {{ class_prefix }}reg_bind f_reg;
+{% endif %}
 
     constraint cst_clk_from_src {
         source != null -> valid == (source.valid && open);
@@ -15,7 +17,9 @@ class {{ class_prefix }}gate extends {{ class_prefix }}node_base;
 
     function new(string name = "");
         super.new(name);
+{% if regs_enabled %}
         f_reg = new();
+{% endif %}
         kind = "gate";
     endfunction
 endclass

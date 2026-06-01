@@ -8,7 +8,9 @@ class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
 
     rand int sel;
     {{ class_prefix }}node_base to_source[int];
+{% if regs_enabled %}
     {{ class_prefix }}reg_bind f_reg;
+{% endif %}
 
     constraint cst_clk_from_src {
         to_source[sel] == null -> valid == 0;
@@ -21,7 +23,9 @@ class {{ class_prefix }}mux extends {{ class_prefix }}node_base;
 
     function new(string name = "");
         super.new(name);
+{% if regs_enabled %}
         f_reg = new();
+{% endif %}
         kind = "mux";
     endfunction
 

@@ -14,7 +14,9 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task set_clock_gen(
         {{ class_prefix }}node_base nodes[$] = {}, bit gen_en = 1'b1);
 {% endif %}
+{% if regs_enabled %}
     extern task config_reg({{ class_prefix }}node_base nodes[$] = {});
+{% endif %}
 {% if any_node_path %}
     extern task check_clk({{ class_prefix }}node_base nodes[$] = {});
     extern task check_pll({{ class_prefix }}node_base nodes[$] = {});
@@ -58,6 +60,7 @@ task {{ class_prefix }}kit_sequencer::set_clock_gen(
 endtask
 {% endif %}
 
+{% if regs_enabled %}
 task {{ class_prefix }}kit_sequencer::config_reg({{ class_prefix }}node_base nodes[$]);
     {{ class_prefix }}config_reg_req req;
     {{ class_prefix }}config_reg_rsp seq_rsp;
@@ -80,6 +83,7 @@ task {{ class_prefix }}kit_sequencer::config_reg({{ class_prefix }}node_base nod
     if (seq_rsp != null && !seq_rsp.ok)
         `uvm_fatal("CLK_TREE", "config_reg: operation failed")
 endtask
+{% endif %}
 
 {% if any_node_path %}
 task {{ class_prefix }}kit_sequencer::check_clk({{ class_prefix }}node_base nodes[$]);

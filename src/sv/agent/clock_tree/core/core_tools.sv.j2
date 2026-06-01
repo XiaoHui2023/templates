@@ -1,3 +1,4 @@
+{% if regs_enabled %}
 `ifndef {{ (class_prefix ~ "core_tools") | upper }}
 `define {{ (class_prefix ~ "core_tools") | upper }}
 
@@ -14,3 +15,4 @@ class {{ class_prefix }}core_tools;
 endclass
 
 `endif
+{% endif %}

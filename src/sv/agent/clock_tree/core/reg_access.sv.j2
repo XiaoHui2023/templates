@@ -1,3 +1,4 @@
+{% if regs_enabled %}
 `ifndef {{ (class_prefix ~ "reg_rw") | upper }}
 `define {{ (class_prefix ~ "reg_rw") | upper }}
 
@@ -127,3 +128,4 @@ task {{ class_prefix }}reg_rw::apply(
 endtask
 
 `endif
+{% endif %}

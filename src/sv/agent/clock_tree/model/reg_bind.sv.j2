@@ -1,3 +1,4 @@
+{% if regs_enabled %}
 `ifndef {{ (class_prefix ~ "reg_bind") | upper }}
 `define {{ (class_prefix ~ "reg_bind") | upper }}
 
@@ -17,3 +18,4 @@ class {{ class_prefix }}reg_bind;
 endclass
 
 `endif
+{% endif %}

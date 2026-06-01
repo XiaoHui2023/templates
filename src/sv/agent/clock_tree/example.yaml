@@ -1,8 +1,6 @@
 # clock_tree 配置示范
 # 字段与 models.py、nodes.py 一致；渲染模板时载入本文件即可校验。
 
-class_regmodel: uvm_reg_block
-
 trees:
   - name: main
     nodes:

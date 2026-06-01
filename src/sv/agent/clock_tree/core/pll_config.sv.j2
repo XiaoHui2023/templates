@@ -1,3 +1,4 @@
+{% if regs_enabled %}
 `ifndef {{ (class_prefix ~ "pll_cfg") | upper }}
 `define {{ (class_prefix ~ "pll_cfg") | upper }}
 
@@ -416,3 +417,4 @@ task {{ class_prefix }}pll_cfg::wait_lock({{ class_prefix }}reg_bind f_lock, tim
 endtask
 
 `endif
+{% endif %}

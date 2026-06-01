@@ -48,10 +48,11 @@ class {{ class_prefix }}{{ tree.name }}_tree extends {{ class_prefix }}base_tree
 {%- endfor %}
     endfunction
 
-    extern function void build({{ class_regmodel }} regmodel = null);
+    extern function void build({% if regs_enabled %}{{ class_regmodel }} regmodel = null{% endif %});
 endclass
 
-function void {{ class_prefix }}{{ tree.name }}_tree::build({{ class_regmodel }} regmodel);
+function void {{ class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %}{{ class_regmodel }} regmodel{% endif %});
+{%- if regs_enabled %}
 {%- for tree_name, node_name, member, path, offset, width in reg_bindings %}
 {%- if tree_name == tree.name %}
     if (regmodel != null) begin
@@ -65,6 +66,7 @@ function void {{ class_prefix }}{{ tree.name }}_tree::build({{ class_regmodel }}
     end
 {%- endif %}
 {%- endfor %}
+{%- endif %}
     if (!this.randomize())
         uvm_report_fatal("CLK_TREE", "{{ class_prefix }}{{ tree.name }}_tree build randomize failed");
 endfunction

@@ -6,7 +6,9 @@ top/interface.sv
 {% endif %}
 model/base.sv
 model/node_base.sv
+{% if regs_enabled %}
 model/reg_bind.sv
+{% endif %}
 model/source.sv
 model/clk.sv
 model/div.sv
@@ -18,11 +20,13 @@ model/base_pll.sv
 model/pll_tci.sv
 model/pll_sc.sv
 model/pll_dw.sv
+{% if regs_enabled %}
 core/reg_access.sv
-core/node_ratio.sv
 core/node_reg_config.sv
 core/pll_config.sv
 core/core_tools.sv
+{% endif %}
+core/node_ratio.sv
 model/base_tree.sv
 trees.sv
 constraint.sv
@@ -36,9 +40,11 @@ sequence/operation/set_clock_gen/req.sv
 sequence/operation/set_clock_gen/rsp.sv
 sequence/operation/set_clock_gen/op.sv
 {% endif %}
+{% if regs_enabled %}
 sequence/operation/config_reg/req.sv
 sequence/operation/config_reg/rsp.sv
 sequence/operation/config_reg/op.sv
+{% endif %}
 {% if any_node_path %}
 sequence/operation/check_clk/req.sv
 sequence/operation/check_clk/rsp.sv

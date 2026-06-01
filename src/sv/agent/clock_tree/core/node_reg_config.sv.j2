@@ -1,3 +1,4 @@
+{% if regs_enabled %}
 `ifndef {{ (class_prefix ~ "node_cfg") | upper }}
 `define {{ (class_prefix ~ "node_cfg") | upper }}
 
@@ -62,3 +63,4 @@ task {{ class_prefix }}node_cfg::configure_dto(
 endtask
 
 `endif
+{% endif %}
