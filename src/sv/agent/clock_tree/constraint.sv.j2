@@ -1,5 +1,5 @@
-`ifndef {{ (class_prefix ~ "constraint") | upper }}
-`define {{ (class_prefix ~ "constraint") | upper }}
+`ifndef {{ (class_prefix ~ "cst_base") | upper }}
+`define {{ (class_prefix ~ "cst_base") | upper }}
 
 {%- for tree in trees %}
 constraint {{ class_prefix }}{{ tree.name }}_tree::cst_base {
