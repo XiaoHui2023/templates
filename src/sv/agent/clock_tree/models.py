@@ -68,7 +68,7 @@ class Models(BaseModel):
         description="允许占空比上限，份额 0～1，默认 0.66。",
     )
     pll_lock_timeout_us: int = Field(
-        10_000,
+        1_000,
         ge=1,
         description="config_reg 等待各 pll lock 为 1 的最长时间，微秒。",
     )
