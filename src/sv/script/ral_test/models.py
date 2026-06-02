@@ -25,7 +25,8 @@ class Models(BaseModel):
         False,
         description=(
             "为真时，对仍含可写字段的寄存器，在 map 上访问类型为 RO 的 field "
-            "写入 uvm_resource_db 的 NO_FIELD_TESTS，且前门 access 自测写数据时仅翻转 RW 位。"
+            "写入 uvm_resource_db 的 NO_FIELD_TESTS；前门 reset 与 access 自测均不核对被标记 "
+            "field，且 access 写数据时仅翻转 RW 位。"
         ),
     )
 

@@ -12,6 +12,29 @@ class {{ class_prefix }}single_reg_fd_reset_seq extends uvm_sequence;
         super.new(name);
     endfunction
 
+    protected function bit field_is_skipped(uvm_reg_field fld);
+        return uvm_resource_db#(bit)::get_by_name({"FIELD::", fld.get_full_name()},
+            "NO_FIELD_TESTS", 0) != null;
+    endfunction
+
+    protected function uvm_reg_data_t reset_check_mask(uvm_reg rg);
+        uvm_reg_field fields[$];
+        uvm_reg_data_t mask;
+        int lsb;
+        int n_bits;
+
+        mask = 0;
+        rg.get_fields(fields);
+        foreach (fields[i]) begin
+            if (field_is_skipped(fields[i]))
+                continue;
+            lsb = fields[i].get_lsb_pos();
+            n_bits = fields[i].get_n_bits();
+            mask |= (uvm_reg_data_t'((1) << n_bits) - 1) << lsb;
+        end
+        return mask;
+    endfunction
+
     virtual task body();
         uvm_reg_map maps[$];
 
@@ -31,7 +54,11 @@ class {{ class_prefix }}single_reg_fd_reset_seq extends uvm_sequence;
 
         foreach (maps[j]) begin
             uvm_status_e status;
-            uvm_reg_data_t rdata, exp;
+            uvm_reg_data_t rdata, exp, mask;
+
+            mask = reset_check_mask(rg);
+            if (mask == 0)
+                continue;
 
             `uvm_info("RAL_TEST/REG_FD", {"Verifying reset value of register '",
                 rg.get_full_name(), "' in map '", maps[j].get_full_name(),
@@ -45,11 +72,11 @@ class {{ class_prefix }}single_reg_fd_reset_seq extends uvm_sequence;
                     rg.get_full_name(), "' through map '",
                     maps[j].get_full_name(), "'"})
             end
-            else if (rdata != exp) begin
+            else if ((rdata & mask) != (exp & mask)) begin
                 `uvm_error("RAL_TEST/REG_FD", {"Reset value mismatch on register '",
                     rg.get_full_name(), "' in map '", maps[j].get_full_name(),
-                    "': read 0x", $sformatf("%0h", rdata), ", expected 0x",
-                    $sformatf("%0h", exp), "'"})
+                    "': read 0x", $sformatf("%0h", rdata & mask), ", expected 0x",
+                    $sformatf("%0h", exp & mask), "'"})
             end
         end
     endtask

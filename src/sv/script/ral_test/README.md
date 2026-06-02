@@ -20,6 +20,6 @@ access: true
 | access | bool | false | 寄存器前门写读自测 |
 | mem_hdl_paths | bool | false | 启用 uvm_reg_mem_hdl_paths_seq |
 | bit_bash | bool | false | 启用 uvm_reg_bit_bash_seq |
-| ignore_partial_ro_fields | bool | false | 为真时，对仍含可写字段的寄存器，在 map 上为 RO field 设置 NO_FIELD_TESTS，且 access 自测仅翻转 RW 位 |
+| ignore_partial_ro_fields | bool | false | 为真时，对仍含可写字段的寄存器，在 map 上为 RO field 设置 NO_FIELD_TESTS；reset 与 access 自测均不核对被标记 field，且 access 仅翻转 RW 位 |
 
 须至少启用 reset、access、mem_hdl_paths、bit_bash 之一。
