@@ -18,8 +18,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     extern task config_reg({{ settings.class_prefix }}node_base nodes[$] = {});
 {% endif %}
 {% if any_node_path %}
-    extern task check_clk({{ settings.class_prefix }}node_base nodes[$] = {});
-    extern task check_pll({{ settings.class_prefix }}node_base nodes[$] = {});
+    extern task check_freq({{ settings.class_prefix }}node_base nodes[$] = {});
     extern task check_duty({{ settings.class_prefix }}node_base nodes[$] = {});
     extern task test_duty_wavefront({{ settings.class_prefix }}node_base nodes[$] = {});
 {% endif %}
@@ -86,50 +85,27 @@ endtask
 {% endif %}
 
 {% if any_node_path %}
-task {{ settings.class_prefix }}kit_sequencer::check_clk({{ settings.class_prefix }}node_base nodes[$]);
-    {{ settings.class_prefix }}check_clk_req req;
-    {{ settings.class_prefix }}check_clk_rsp seq_rsp;
-    {{ settings.class_prefix }}check_clk_seq seq;
+task {{ settings.class_prefix }}kit_sequencer::check_freq({{ settings.class_prefix }}node_base nodes[$]);
+    {{ settings.class_prefix }}check_freq_req req;
+    {{ settings.class_prefix }}check_freq_rsp seq_rsp;
+    {{ settings.class_prefix }}check_freq_seq seq;
 
     if (nodes.size() == 0) begin
         if (tree == null)
-            `uvm_fatal("CLK_TREE", "check_clk: nodes empty and tree is null")
-        check_clk(tree.nodes);
+            `uvm_fatal("CLK_TREE", "check_freq: nodes empty and tree is null")
+        check_freq(tree.nodes);
         return;
     end
 
-    req = {{ settings.class_prefix }}check_clk_req::type_id::create("req");
+    req = {{ settings.class_prefix }}check_freq_req::type_id::create("req");
     req.nodes = nodes;
 
-    seq = {{ settings.class_prefix }}check_clk_seq::type_id::create("check_clk");
+    seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
     seq.req = req;
     seq.start(this);
     seq_rsp = seq.rsp;
     if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "check_clk: operation failed")
-endtask
-
-task {{ settings.class_prefix }}kit_sequencer::check_pll({{ settings.class_prefix }}node_base nodes[$]);
-    {{ settings.class_prefix }}check_pll_req req;
-    {{ settings.class_prefix }}check_pll_rsp seq_rsp;
-    {{ settings.class_prefix }}check_pll_seq seq;
-
-    if (nodes.size() == 0) begin
-        if (tree == null)
-            `uvm_fatal("CLK_TREE", "check_pll: nodes empty and tree is null")
-        check_pll(tree.nodes);
-        return;
-    end
-
-    req = {{ settings.class_prefix }}check_pll_req::type_id::create("req");
-    req.nodes = nodes;
-
-    seq = {{ settings.class_prefix }}check_pll_seq::type_id::create("check_pll");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "check_pll: operation failed")
+        `uvm_fatal("CLK_TREE", "check_freq: operation failed")
 endtask
 
 task {{ settings.class_prefix }}kit_sequencer::check_duty({{ settings.class_prefix }}node_base nodes[$]);

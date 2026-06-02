@@ -11,7 +11,7 @@
 | **set_clock_gen** | **kit** 对每个带 **vif** 的节点各 **start** 一次底层序列 |
 | 其余操作 | 一次 **start**，**req.nodes** 携带整批节点 |
 
-至少一处节点配置了 **path** 才会生成 **set_clock_gen** 与三项 **check_***。配置 **class_regmodel** 且节点绑定了 **regs** 时才会生成 **config_reg**。
+至少一处节点配置了 **path** 才会生成 **set_clock_gen**、**check_freq** 与 **check_duty**。配置 **class_regmodel** 且节点绑定了 **regs** 时才会生成 **config_reg**。
 
 ## 操作一览
 
@@ -19,8 +19,7 @@
 | --- | --- |
 | **set_clock_gen** | 按节点 **frequence** 打开或关闭 **vif** 上的时钟发生器 |
 | **config_reg** | 把 **gate**、**mux**、**div**、**dto**、**pll** 的目标值写入 RAL |
-| **check_clk** | 测量 **clk** 波形频率，与节点 **frequence** 比较 |
-| **check_pll** | 测量 **pll** 波形频率，与节点 **frequence** 比较 |
+| **check_freq** | 测量 **source**、**clk**、**pll** 波形频率，与节点 **frequence** 比较 |
 | **check_duty** | 测量带 **vif** 节点的占空比，与 **duty_min**、**duty_max** 比较 |
 
 容差与占空比上下限在 **settings** 的 **period_tolerance**、**duty_min**、**duty_max**；PLL 等锁超时为 **pll_lock_timeout_us**。
@@ -43,13 +42,9 @@
 
 **pll** 分频用 **source.frequence** 与节点 **frequence**；缺 **source** 或频率非法则 **fatal**。
 
-## check_clk
+## check_freq
 
-只处理 **req.nodes** 里类型为 **clk** 且已挂 **vif** 的项。开启测量、等待 **stable**，再比较测得频率与 **frequence**；超出 **period_tolerance** 则报错。
-
-## check_pll
-
-与 **check_clk** 相同，对象改为 **pll** 节点。
+只处理 **req.nodes** 里 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。开启测量、等待 **stable**，再比较测得频率与 **frequence**；超出 **period_tolerance** 则报错。
 
 ## check_duty
 

@@ -34,8 +34,7 @@
 | --- | --- |
 | `set_clock_gen` | **task**；入参 **nodes** 默认空队列、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行；**rsp.ok** 为 0 时 **fatal** |
 | `config_reg` | **task**；入参 **nodes** 默认空队列；启动 **config_reg**。**nodes** 为空时对 **tree.nodes** 执行；不向测试平台返回 **rsp** |
-| `check_clk` | **task**；入参 **nodes** 默认空队列；检查其中 **clk** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
-| `check_pll` | **task**；入参 **nodes** 默认空队列；检查其中 **pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
+| `check_freq` | **task**；入参 **nodes** 默认空队列；检查其中 **source**、**clk**、**pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
 | `check_duty` | **task**；入参 **nodes** 默认空队列；检查带 **vif** 节点占空比。**nodes** 为空时对 **tree.nodes** 执行 |
 | `test_duty_wavefront` | **task**；入参 **nodes** 默认空队列；按 **source** 依赖自前向后分波：**check_duty** 后对该波 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
 
@@ -47,8 +46,7 @@
 | --- | --- |
 | `set_clock_gen` | 按 **req.gen_en** 与节点 **frequence** 设置 **vif** 时钟发生；**gen_en** 为 0 关闭 |
 | `config_reg` | 对 **req.nodes** 写 RAL，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
-| `check_clk` | 检查 **req.nodes** 中 **clk** 频率 |
-| `check_pll` | 检查 **req.nodes** 中 **pll** 频率 |
+| `check_freq` | 检查 **req.nodes** 中 **source**、**clk**、**pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
 
 ## sequence · test
