@@ -10,6 +10,35 @@ class {{ class_prefix }}single_reg_fd_access_seq extends uvm_reg_single_access_s
         super.new(name);
     endfunction
 
+    protected function bit field_is_skipped(uvm_reg_field fld);
+        return uvm_resource_db#(bit)::get_by_name({"FIELD::", fld.get_full_name()},
+            "NO_FIELD_TESTS", 0) != null;
+    endfunction
+
+    protected function uvm_reg_data_t access_toggle_data(
+        uvm_reg rg,
+        uvm_reg_map map,
+        uvm_reg_data_t cur
+    );
+        uvm_reg_field fields[$];
+        uvm_reg_data_t wdata;
+        int lsb;
+        int n_bits;
+        uvm_reg_data_t mask;
+
+        wdata = cur;
+        rg.get_fields(fields);
+        foreach (fields[i]) begin
+            if (field_is_skipped(fields[i]))
+                continue;
+            lsb = fields[i].get_lsb_pos();
+            n_bits = fields[i].get_n_bits();
+            mask = (uvm_reg_data_t'((1) << n_bits) - 1) << lsb;
+            wdata = (wdata & ~mask) | ((~cur) & mask);
+        end
+        return wdata;
+    endfunction
+
     virtual task body();
         uvm_reg_map maps[$];
 
@@ -33,9 +62,14 @@ class {{ class_prefix }}single_reg_fd_access_seq extends uvm_reg_single_access_s
             rg.get_fields(fields);
             foreach (maps[k]) begin
                 int ro;
+                int active;
 
                 ro = 0;
+                active = 0;
                 foreach (fields[j]) begin
+                    if (field_is_skipped(fields[j]))
+                        continue;
+                    active++;
                     if (fields[j].get_access(maps[k]) == "RO") begin
                         ro++;
                     end
@@ -46,7 +80,7 @@ class {{ class_prefix }}single_reg_fd_access_seq extends uvm_reg_single_access_s
                         return;
                     end
                 end
-                if (ro == fields.size()) begin
+                if (active > 0 && ro == active) begin
                     `uvm_warning("RAL_TEST/REG_FD", {"Register '",
                         rg.get_full_name(), "' has only RO fields in map ", maps[k].get_full_name(), ", skipping"})
                     return;
@@ -56,15 +90,16 @@ class {{ class_prefix }}single_reg_fd_access_seq extends uvm_reg_single_access_s
 
         foreach (maps[j]) begin
             uvm_status_e status;
-            uvm_reg_data_t v;
+            uvm_reg_data_t v, wdata;
 
             `uvm_info("RAL_TEST/REG_FD", {"Verifying frontdoor access of register '",
                 rg.get_full_name(), "' in map '", maps[j].get_full_name(),
                 "' ..."}, UVM_LOW)
 
             v = rg.get();
+            wdata = access_toggle_data(rg, maps[j], v);
 
-            rg.write(status, ~v, UVM_FRONTDOOR, maps[j], this);
+            rg.write(status, wdata, UVM_FRONTDOOR, maps[j], this);
 
             if (status != UVM_IS_OK) begin
                 `uvm_error("RAL_TEST/REG_FD", {"Status was '", status.name(),

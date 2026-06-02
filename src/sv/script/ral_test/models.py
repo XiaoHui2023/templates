@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Models(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     class_prefix: str = Field(
         "ral_test_",
@@ -21,6 +21,13 @@ class Models(BaseModel):
         False, description="启用 `uvm_reg_mem_hdl_paths_seq`。"
     )
     bit_bash: bool = Field(False, description="启用 `uvm_reg_bit_bash_seq`。")
+    ignore_partial_ro_fields: bool = Field(
+        False,
+        description=(
+            "为真时，对仍含可写字段的寄存器，在 map 上访问类型为 RO 的 field "
+            "写入 uvm_resource_db 的 NO_FIELD_TESTS，且前门 access 自测写数据时仅翻转 RW 位。"
+        ),
+    )
 
     @model_validator(mode="after")
     def at_least_one_test(self):

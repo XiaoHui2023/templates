@@ -5,6 +5,7 @@
 {%- set _acc = access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
+{%- set _ignore_pro = ignore_partial_ro_fields | default(false) %}
 class {{ class_prefix }}seq extends uvm_sequence;
     `uvm_object_utils({{ class_prefix }}seq)
     `uvm_declare_p_sequencer(uvm_sequencer #(uvm_reg_item))
@@ -13,9 +14,63 @@ class {{ class_prefix }}seq extends uvm_sequence;
     uvm_reg_block regmodel;
     // 跳过内建测试的寄存器；空队列表示不排除
     uvm_reg no_test_regs[$];
+    // 跳过内建测试的 field；空队列表示不排除
+    uvm_reg_field no_test_fields[$];
 
     function new(string name = "{{ class_prefix }}seq");
         super.new(name);
+    endfunction
+
+    protected function void mark_no_test_fields();
+        foreach (no_test_fields[i]) begin
+            if (no_test_fields[i] != null)
+                uvm_resource_db#(bit)::set({"FIELD::", no_test_fields[i].get_full_name()},
+                    "NO_FIELD_TESTS", 1);
+        end
+    endfunction
+
+    protected function void mark_partial_ro_fields(uvm_reg_block blk);
+        uvm_reg regs[$];
+        uvm_reg_block blks[$];
+
+        if (uvm_resource_db#(bit)::get_by_name({"REG::", blk.get_full_name()},
+                "NO_REG_TESTS", 0) != null)
+            return;
+
+        blk.get_registers(regs, UVM_NO_HIER);
+        foreach (regs[i]) begin
+            uvm_reg_map maps[$];
+
+            if (uvm_resource_db#(bit)::get_by_name({"REG::", regs[i].get_full_name()},
+                    "NO_REG_TESTS", 0) != null)
+                continue;
+
+            regs[i].get_maps(maps);
+            foreach (maps[k]) begin
+                uvm_reg_field fields[$];
+                int ro_count;
+                int j;
+
+                regs[i].get_fields(fields);
+                ro_count = 0;
+                foreach (fields[j]) begin
+                    if (fields[j].get_access(maps[k]) == "RO")
+                        ro_count++;
+                end
+                if (ro_count == 0 || ro_count == fields.size())
+                    continue;
+
+                foreach (fields[j]) begin
+                    if (fields[j].get_access(maps[k]) == "RO")
+                        uvm_resource_db#(bit)::set({"FIELD::", fields[j].get_full_name()},
+                            "NO_FIELD_TESTS", 1);
+                end
+            end
+        end
+
+        blk.get_blocks(blks, UVM_NO_HIER);
+        foreach (blks[i])
+            mark_partial_ro_fields(blks[i]);
     endfunction
 
     task body();
@@ -40,6 +95,11 @@ class {{ class_prefix }}seq extends uvm_sequence;
                 uvm_resource_db#(bit)::set({"REG::", no_test_regs[i].get_full_name()},
                     "NO_REG_TESTS", 1);
         end
+
+        mark_no_test_fields();
+{%- if _ignore_pro %}
+        mark_partial_ro_fields(regmodel);
+{%- endif %}
 {%- if _rst %}
 
         reg_fd_reset_seq = {{ class_prefix }}reg_fd_reset_seq::type_id::create({get_name(), ".reg_fd_reset"});
