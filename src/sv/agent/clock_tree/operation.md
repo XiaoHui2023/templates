@@ -48,4 +48,4 @@
 
 ## check_duty
 
-处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。等待 **stable** 后根据 **vif.meas.duty_ok** 判定；范围由 **duty_min**、**duty_max** 决定。
+处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。等待 **stable** 后根据 **vif.meas.duty_ok** 判定；范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。

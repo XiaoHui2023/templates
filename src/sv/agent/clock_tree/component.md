@@ -36,7 +36,7 @@
 | `config_reg` | **task**；入参 **nodes** 默认空队列；启动 **config_reg**。**nodes** 为空时对 **tree.nodes** 执行；不向测试平台返回 **rsp** |
 | `check_freq` | **task**；入参 **nodes** 默认空队列；检查其中 **source**、**clk**、**pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
 | `check_duty` | **task**；入参 **nodes** 默认空队列；检查带 **vif** 节点占空比。**nodes** 为空时对 **tree.nodes** 执行 |
-| `test_duty_wavefront` | **task**；入参 **nodes** 默认空队列；按 **source** 依赖自前向后分波：**check_duty** 后对该波 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
+| `test_duty_wavefront` | **task**；入参 **nodes** 默认空队列；按 **source** 依赖自前向后分波：**check_duty** 后仅对占空比未通过的节点 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
 
 ## sequence · operation
 
@@ -55,7 +55,7 @@
 
 | 测试目录 | 说明 |
 | --- | --- |
-| `test_duty_wavefront` | 在 **req.nodes** 上按波前顺序：**check_duty** → **set_clock_gen**，再处理下一波下游节点 |
+| `test_duty_wavefront` | 在 **req.nodes** 上按波前顺序：**check_duty**；仅 **failed_nodes** 上 **set_clock_gen**，再处理下一波下游节点 |
 
 ## sequence · base
 

@@ -93,8 +93,8 @@ task {{ settings.class_prefix }}test_duty_wavefront_seq::body();
         if (!duty_rsp.ok)
             rs.ok = 1'b0;
 
-        foreach (frontier[i]) begin
-            nd = frontier[i];
+        foreach (duty_rsp.failed_nodes[i]) begin
+            nd = duty_rsp.failed_nodes[i];
             if (nd == null || nd.vif == null)
                 continue;
             if (nd.frequence <= 0)

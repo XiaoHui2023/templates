@@ -65,6 +65,7 @@ task {{ settings.class_prefix }}check_duty_seq::body();
                 "check_duty: node %s duty %0.4f out of range [%0.2f,%0.2f]",
                 nd.get_name(), nd.vif.meas.duty, {{ settings.duty_min }}, {{ settings.duty_max }}))
             rs.ok = 1'b0;
+            rs.failed_nodes.push_back(nd);
         end
 
         nd.vif.set_measure_en(1'b0);
