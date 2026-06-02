@@ -87,7 +87,7 @@ endtask
 添加连线文件到模块顶层
 
 ```systemverilog
-module your_top;
+module your-top-module;
     ...
     `include "path-to-clock-tree/top/tree_connection.sv"
     ...
@@ -99,7 +99,7 @@ endmodule
 ```systemverilog
 function void build_phase(uvm_phase phase);
     ...
-    {{ settings.class_prefix }}connect_{{ trees[0].name }}_tree(tree);
+    your-top-module.{{ settings.class_prefix }}connect_{{ trees[0].name }}_tree(tree);
 endfunction
 ```
 
