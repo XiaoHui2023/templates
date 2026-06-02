@@ -80,7 +80,7 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | 必填 | 节点类型。 |
 | `name` | `str` | — | 由 `nodes` 字典键注入，配置中勿填。 |
-| `path` | `str` | `""` | RTL 层次路径，仅用于 **connect** 展开；不写入节点类。留空则不生成 interface。 |
+| `path` | `str` | `""` | RTL 层次路径，用于 **tree_connection** 与 interface 展开；不写入节点类。留空则不生成 interface。 |
 | `allow_bad_duty` | `bool` | `false` | 为真时放宽占空比检查。 |
 | `freq` | `optional int` | `null` | 典型频率。 |
 

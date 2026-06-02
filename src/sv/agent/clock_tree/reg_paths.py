@@ -243,7 +243,7 @@ def any_reg_configured(tree: Tree) -> bool:
 
 
 def any_node_path(tree: Tree) -> bool:
-    """任一节点配置了非空 RTL path 时为真，用于决定是否展开 interface 与 connect。"""
+    """任一节点配置了非空 RTL path 时为真，用于决定是否展开 interface 与 tree_connection。"""
     for node in tree.nodes_ordered:
         if node.path:
             return True

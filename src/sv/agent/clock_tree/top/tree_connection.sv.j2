@@ -1,6 +1,6 @@
 {% if any_node_path %}
-`ifndef {{ (settings.class_prefix ~ "connect") | upper }}
-`define {{ (settings.class_prefix ~ "connect") | upper }}
+`ifndef {{ (settings.class_prefix ~ "tree_connection") | upper }}
+`define {{ (settings.class_prefix ~ "tree_connection") | upper }}
 
 {% set _mac_conn = "_" ~ (settings.class_prefix ~ "conn_if") | replace("-", "_") | upper %}
 `define {{ _mac_conn }}(id, p) \

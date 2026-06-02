@@ -41,3 +41,66 @@ constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_user {
     low_power; // 默认所有时钟关闭
 }
 ```
+
+## 建立与使用
+
+在平台中建立 `{{ settings.class_prefix }}agent`，放入构建后的 `{{ settings.class_prefix }}{{ trees[0].name }}_tree`
+
+```systemverilog
+{{ settings.class_prefix }}agent clk_agt;
+{{ settings.class_prefix }}kit_sequencer clk_sqr;
+{{ settings.class_prefix }}{{ trees[0].name }}_tree tree;
+
+function void build_phase(uvm_phase phase);
+    ...
+    clk_agt = {{ settings.class_prefix }}agent::type_id::create("clk_agt", this);
+    tree = {{ settings.class_prefix }}{{ trees[0].name }}_tree::type_id::create("tree");
+{%- if regs_enabled %}
+    tree.build(your_regmodel);
+{%- else %}
+    tree.build();
+{%- endif %}
+    $cast(clk_sqr, clk_agt.sqr); // 取出工具方便使用
+    uvm_config_db#({{ settings.class_prefix }}base_tree)::set(this, "clk_agt", "tree", tree);
+endfunction
+```
+
+使用快捷函数
+
+```systemverilog
+task main_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    ...
+{%- if regs_enabled %}
+    clk_sqr.config_reg();
+{%- endif %}
+{%- if any_node_path %}
+    clk_sqr.check_freq();
+{%- endif %}
+    ...
+endtask
+```
+
+{% if any_node_path %}
+## 顶层连线
+
+添加连线文件到模块顶层
+
+```systemverilog
+module your_top;
+    ...
+    `include "top/tree_connection.sv"
+    ...
+endmodule
+```
+
+在平台中连接 tree 与 interface
+
+```systemverilog
+function void build_phase(uvm_phase phase);
+    ...
+    {{ settings.class_prefix }}connect_{{ trees[0].name }}_tree(tree);
+endfunction
+```
+
+{% endif %}

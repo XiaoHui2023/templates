@@ -58,7 +58,7 @@ class NodeBase(BaseModel):
 
     path: str = Field(
         "",
-        description="RTL 层次路径，仅用于 connect 展开时 force 到 DUT；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
+        description="RTL 层次路径，仅用于 tree_connection 展开时 force 到 DUT；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
     )
     allow_bad_duty: bool = Field(
         False,

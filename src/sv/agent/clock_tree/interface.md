@@ -4,7 +4,7 @@
 
 ## interface
 
-配置中为该节点填写 RTL 路径时，**connect** 例化一个 **interface** 并 force 到 DUT；时间单位为 **1ns**、精度 **1fs**。
+配置中为该节点填写 RTL 路径时，**tree_connection** 例化 **interface** 并 force 到 DUT；时间单位为 **1ns**、精度 **1fs**。接线步骤见 **README** **顶层连线**。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
