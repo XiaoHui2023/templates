@@ -232,23 +232,32 @@ task {{ settings.class_prefix }}config_reg_seq::body();
     rs = {{ settings.class_prefix }}config_reg_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
-    for (int i = 0; i < rq.nodes.size(); i++) begin
-        if ($cast(gate_nd, rq.nodes[i]))
-            config_reg_gate_node(gate_nd);
-        else if ($cast(mux_nd, rq.nodes[i]))
-            config_reg_mux_node(mux_nd);
-        else if ($cast(div_nd, rq.nodes[i]))
-            config_reg_div_node(div_nd);
-        else if ($cast(dto_nd, rq.nodes[i]))
-            config_reg_dto_node(dto_nd);
-        else if ($cast(pll_nd, rq.nodes[i])) begin
+    for (int i = 0; i < rq.nodes.size(); i++)
+        if ($cast(pll_nd, rq.nodes[i])) begin
             config_reg_pll_node(pll_nd);
             plls.push_back(pll_nd);
         end
-    end
-
     for (int i = 0; i < plls.size(); i++)
         wait_pll_lock_node(plls[i]);
+
+    for (int i = 0; i < rq.nodes.size(); i++) begin
+        if ($cast(div_nd, rq.nodes[i]))
+            config_reg_div_node(div_nd);
+        else if ($cast(dto_nd, rq.nodes[i]))
+            config_reg_dto_node(dto_nd);
+    end
+
+    for (int i = 0; i < rq.nodes.size(); i++)
+        if ($cast(gate_nd, rq.nodes[i]) && gate_nd.open)
+            config_reg_gate_node(gate_nd);
+
+    for (int i = 0; i < rq.nodes.size(); i++)
+        if ($cast(mux_nd, rq.nodes[i]))
+            config_reg_mux_node(mux_nd);
+
+    for (int i = 0; i < rq.nodes.size(); i++)
+        if ($cast(gate_nd, rq.nodes[i]) && !gate_nd.open)
+            config_reg_gate_node(gate_nd);
 
     rsp = rs;
 endtask
