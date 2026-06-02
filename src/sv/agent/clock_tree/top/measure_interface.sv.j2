@@ -99,36 +99,50 @@ interface {{ settings.class_prefix }}measure_interface #(
             reset_measure();
     endfunction
 
+    task automatic watch_posedge();
+        realtime now_s;
+        realtime prev_pos_s;
+
+        forever begin
+            @(posedge in);
+            if (!meas_en)
+                continue;
+
+            now_s = $realtime;
+            last_edge_s = now_s;
+            active = 1'b1;
+
+            prev_pos_s = last_posedge_s;
+            last_posedge_s = now_s;
+
+            if (prev_pos_s > 0.0)
+                sample_period(now_s, prev_pos_s);
+        end
+    endtask
+
+    task automatic watch_negedge();
+        forever begin
+            @(negedge in);
+            if (!meas_en)
+                continue;
+
+            last_edge_s = $realtime;
+            active = 1'b1;
+            high_end_s = last_edge_s;
+        end
+    endtask
+
     initial begin
         meas_en = 1'b0;
         reset_measure();
     end
 
-    always @(posedge in) begin
-        realtime now_s;
-        realtime prev_pos_s;
-
-        if (!meas_en)
-            return;
-
-        now_s = $realtime;
-        last_edge_s = now_s;
-        active = 1'b1;
-
-        prev_pos_s = last_posedge_s;
-        last_posedge_s = now_s;
-
-        if (prev_pos_s > 0.0)
-            sample_period(now_s, prev_pos_s);
+    initial begin
+        watch_posedge();
     end
 
-    always @(negedge in) begin
-        if (!meas_en)
-            return;
-
-        last_edge_s = $realtime;
-        active = 1'b1;
-        high_end_s = last_edge_s;
+    initial begin
+        watch_negedge();
     end
 
     initial begin : meas_timeout_loop

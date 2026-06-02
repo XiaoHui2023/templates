@@ -57,9 +57,7 @@ interface {{ settings.class_prefix }}generate_interface (
         gen_en = 1'b0;
         gen_hz = 0.0;
         gen_clk = 1'b0;
-        fork
-            drive_gen_clock();
-        join_none
+        drive_gen_clock();
     end
 endinterface
 
