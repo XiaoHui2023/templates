@@ -67,13 +67,13 @@ class Settings(BaseModel):
         16,
         ge=1,
         le=4095,
-        description="config_reg 对 pll_sc 算 fbdiv 时优先落在此值及以上；无法满足时仍可能写出寄存器并 uvm_error。",
+        description="允许 PLL SC FBDIV 下限。",
     )
     pll_sc_fbdiv_max: int = Field(
         84,
         ge=1,
         le=4095,
-        description="config_reg 对 pll_sc 算 fbdiv 时优先落在该值及以下；无法满足时仍可能写出寄存器并 uvm_error。",
+        description="允许 PLL SC FBDIV 上限。",
     )
 
     @model_validator(mode="after")
@@ -115,7 +115,7 @@ class Models(BaseModel):
     )
     settings: Settings = Field(
         default_factory=Settings,
-        description="全局选项，与单棵树或单个节点无关。",
+        description="全局选项。",
     )
 
     @model_validator(mode="after")

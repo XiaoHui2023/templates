@@ -26,7 +26,7 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `trees` | `list[Tree]` | 必填 | 时钟树。 |
-| `settings` | `Settings` | 见下表 | 全局选项，与单棵树或单个节点无关。 |
+| `settings` | `Settings` | 见下表 | 全局选项。 |
 
 ### Settings
 
@@ -40,8 +40,8 @@ settings:
 | `duty_min` | `float` | `0.50` | 允许占空比下限。 |
 | `duty_max` | `float` | `0.66` | 允许占空比上限。 |
 | `pll_lock_timeout_us` | `int` | `1000` | **config_reg** 等待各 PLL lock 的最长时间，微秒。 |
-| `pll_sc_fbdiv_min` | `int` | `16` | **config_reg** 对 **pll_sc** 算 **fbdiv** 时优先落在此值及以上。 |
-| `pll_sc_fbdiv_max` | `int` | `84` | **config_reg** 对 **pll_sc** 算 **fbdiv** 时优先落在该值及以下。 |
+| `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
+| `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
 
 无法在优先区间内配准时仍写出寄存器，并 `uvm_error`。
 
