@@ -45,6 +45,9 @@ task {{ settings.class_prefix }}check_duty_seq::body();
             continue;
 
         checked++;
+        `uvm_info("CLK_TREE", $sformatf(
+            "check_duty: node %s kind %s",
+            nd.get_name(), nd.kind), UVM_MEDIUM)
         nd.vif.set_measure_en(1'b1);
         elapsed_ns = 0;
         while (!nd.vif.meas.stable && elapsed_ns < meas_timeout_ns) begin
