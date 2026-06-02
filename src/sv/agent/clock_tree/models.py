@@ -24,11 +24,11 @@ class Settings(BaseModel):
     class_prefix: str = Field(
         "clk_tree_",
         min_length=1,
-        description="类型名前缀，与固定后缀拼接；建议含末尾下划线。",
+        description="类型名前缀。",
     )
     class_regmodel: str = Field(
         "",
-        description="RAL 根块类型名；与节点 reg 或 regs 同时配置时各 {name}_tree.build 入参类型。",
+        description="寄存器模型类型名。",
     )
     min_freq_hz: int = Field(
         500,
@@ -63,12 +63,33 @@ class Settings(BaseModel):
         ge=1,
         description="config_reg 等待各 pll lock 为 1 的最长时间，微秒。",
     )
+    pll_sc_fbdiv_min: int = Field(
+        16,
+        ge=1,
+        le=4095,
+        description="config_reg 对 pll_sc 算 fbdiv 时优先落在此值及以上；无法满足时仍可能写出寄存器并 uvm_error。",
+    )
+    pll_sc_fbdiv_max: int = Field(
+        84,
+        ge=1,
+        le=4095,
+        description="config_reg 对 pll_sc 算 fbdiv 时优先落在该值及以下；无法满足时仍可能写出寄存器并 uvm_error。",
+    )
 
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:
         if self.duty_min >= self.duty_max:
             raise ValueError(
                 f"duty_min ({self.duty_min}) 须小于 duty_max ({self.duty_max})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_pll_sc_fbdiv_range(self) -> Settings:
+        if self.pll_sc_fbdiv_min > self.pll_sc_fbdiv_max:
+            raise ValueError(
+                f"pll_sc_fbdiv_min ({self.pll_sc_fbdiv_min}) 须不大于 "
+                f"pll_sc_fbdiv_max ({self.pll_sc_fbdiv_max})"
             )
         return self
 
@@ -90,11 +111,11 @@ class Models(BaseModel):
     trees: List[Tree] = Field(
         ...,
         min_length=1,
-        description="本 agent 可绑定的多棵时钟树，每项含 name 与 nodes。",
+        description="时钟树。",
     )
     settings: Settings = Field(
         default_factory=Settings,
-        description="命名前缀、测量容差、RAL 根类型等套件级选项。",
+        description="全局选项，与单棵树或单个节点无关。",
     )
 
     @model_validator(mode="after")

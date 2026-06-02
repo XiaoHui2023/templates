@@ -15,12 +15,12 @@
 
 ## sequencer
 
-基础 **sequencer**；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **tree**。**build_phase** 例化 **tools**，类型 **core_tools**，供 **config_reg** 等写 RAL 与 PLL 的 sequence 使用。
+基础 **sequencer**；**sequence** 的 **`p_sequencer`** 仅声明为此类型。不持有 **tree**。**build_phase** 例化 **tools**，类型 **core_tools**，供 **config_reg** 等写寄存器模型与 PLL 的 sequence 使用。
 
 | 成员 | 说明 |
 | --- | --- |
 | `tools` | **core_tools**：**rw**、**node**、**pll** 三类寄存器与 PLL 工具 |
-| `tools.rw` | **reg_rw**：总线 **read** / **write** / **apply** / **set_write** 为 **task**；**get** / **set** 仅改或读 RAL 镜像时为 **function** |
+| `tools.rw` | **reg_rw**：总线 **read** / **write** / **apply** / **set_write** 为 **task**；**get** / **set** 仅改或读寄存器模型镜像时为 **function** |
 
 ## kit_sequencer
 
@@ -45,7 +45,7 @@
 | 行为目录 | 说明 |
 | --- | --- |
 | `set_clock_gen` | 按 **req.gen_en** 与节点 **frequence** 设置 **vif** 时钟发生；**gen_en** 为 0 关闭 |
-| `config_reg` | 对 **req.nodes** 写 RAL，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
+| `config_reg` | 对 **req.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
 | `check_freq` | 检查 **req.nodes** 中 **source**、**clk**、**pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
 

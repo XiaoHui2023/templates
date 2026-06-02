@@ -3,8 +3,10 @@
 `define {{ (settings.class_prefix ~ "pll_cfg") | upper }}
 
 class {{ settings.class_prefix }}pll_cfg;
-    localparam int SC_FBDIV_MIN = 1;
-    localparam int SC_FBDIV_MAX = 4095;
+    localparam int SC_FBDIV_HW_MIN = 1;
+    localparam int SC_FBDIV_HW_MAX = 4095;
+    localparam int SC_FBDIV_PREF_MIN = {{ settings.pll_sc_fbdiv_min }};
+    localparam int SC_FBDIV_PREF_MAX = {{ settings.pll_sc_fbdiv_max }};
     localparam int DW_FBDIV_MIN = 1;
     localparam int DW_FBDIV_MAX = 1023;
 
@@ -151,6 +153,7 @@ function void {{ settings.class_prefix }}pll_cfg::sc_divisors(
     int best_postdiv1;
     int best_postdiv2;
     int best_fbdiv;
+    bit pref_only;
     refdiv = 2;
     postdiv1 = 1;
     postdiv2 = 1;
@@ -158,13 +161,16 @@ function void {{ settings.class_prefix }}pll_cfg::sc_divisors(
     if (ref_hz <= 0 || out_hz <= 0)
         return;
     have_best = 0;
+    pref_only = 1;
     for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
         for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
             for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
                 product = refdiv_try * postdiv1_try * postdiv2_try;
                 fbdiv_r = real'(out_hz) * real'(product) / real'(ref_hz);
                 fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
-                if (fbdiv_i < SC_FBDIV_MIN || fbdiv_i > SC_FBDIV_MAX)
+                if (fbdiv_i < SC_FBDIV_HW_MIN || fbdiv_i > SC_FBDIV_HW_MAX)
+                    continue;
+                if (pref_only && (fbdiv_i < SC_FBDIV_PREF_MIN || fbdiv_i > SC_FBDIV_PREF_MAX))
                     continue;
                 actual_hz = (ref_hz * fbdiv_i) / product;
                 err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
@@ -175,6 +181,30 @@ function void {{ settings.class_prefix }}pll_cfg::sc_divisors(
                     best_postdiv1 = postdiv1_try;
                     best_postdiv2 = postdiv2_try;
                     have_best = 1;
+                end
+            end
+        end
+    end
+    if (!have_best && pref_only) begin
+        pref_only = 0;
+        for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
+            for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
+                for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
+                    product = refdiv_try * postdiv1_try * postdiv2_try;
+                    fbdiv_r = real'(out_hz) * real'(product) / real'(ref_hz);
+                    fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+                    if (fbdiv_i < SC_FBDIV_HW_MIN || fbdiv_i > SC_FBDIV_HW_MAX)
+                        continue;
+                    actual_hz = (ref_hz * fbdiv_i) / product;
+                    err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+                    if (!have_best || err < best_err) begin
+                        best_err = err;
+                        best_fbdiv = fbdiv_i;
+                        best_refdiv = refdiv_try;
+                        best_postdiv1 = postdiv1_try;
+                        best_postdiv2 = postdiv2_try;
+                        have_best = 1;
+                    end
                 end
             end
         end
@@ -251,6 +281,10 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc_from_hz(
     int postdiv1;
     int postdiv2;
     sc_divisors(out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
+    if (fbdiv < SC_FBDIV_PREF_MIN || fbdiv > SC_FBDIV_PREF_MAX)
+        `uvm_error("CLK_TREE", $sformatf(
+            "pll_sc fbdiv %0d outside preferred [%0d:%0d] for out %0d Hz ref %0d Hz",
+            fbdiv, SC_FBDIV_PREF_MIN, SC_FBDIV_PREF_MAX, out_hz, ref_hz))
     configure_sc(
         f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
         f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv,

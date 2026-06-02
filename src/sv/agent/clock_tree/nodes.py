@@ -120,7 +120,7 @@ class GateNode(NodeBase):
     target: str = Field(..., min_length=1, description="输出连线名。")
     reg: str = Field(
         "",
-        description="可选；RAL 点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
+        description="可选；寄存器模型点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
     )
 
     @model_validator(mode="after")
@@ -137,7 +137,7 @@ class DivNode(NodeBase):
     target: str = Field(..., min_length=1, description="输出连线名。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须为 rst、load、div，值为各 field 的 RAL 点分路径，可带比特范围后缀。",
+        description="可选；非空时键须为 rst、load、div，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
     )
 
     @model_validator(mode="after")
@@ -157,7 +157,7 @@ class DtoNode(NodeBase):
     target: str = Field(..., min_length=1, description="输出连线名。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须为 rstn、load、bypass、step，值为各 field 的 RAL 点分路径，可带比特范围后缀。",
+        description="可选；非空时键须为 rstn、load、bypass、step，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
     )
 
     @model_validator(mode="after")
@@ -201,7 +201,7 @@ class PllNode(NodeBase):
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw，大小写不限。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须与 pll_kind 允许集合完全一致，值为 RAL 点分路径，可带 [n] 或 [msb:lsb] 后缀。",
+        description="可选；非空时键须与 pll_kind 允许集合完全一致，值为 寄存器模型点分路径，可带 [n] 或 [msb:lsb] 后缀。",
     )
 
     @field_validator("pll_kind", mode="before")
@@ -240,7 +240,7 @@ class MuxNode(NodeBase):
     target: str = Field(..., min_length=1, description="输出连线名。")
     reg: str = Field(
         "",
-        description="可选；RAL 点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
+        description="可选；寄存器模型点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
     )
 
     @model_validator(mode="after")

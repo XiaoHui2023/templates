@@ -18,7 +18,7 @@
 | 名称 | 作用 |
 | --- | --- |
 | **set_clock_gen** | 按节点 **frequence** 打开或关闭 **vif** 上的时钟发生器 |
-| **config_reg** | 把 **gate**、**mux**、**div**、**dto**、**pll** 的目标值写入 RAL |
+| **config_reg** | 把 **gate**、**mux**、**div**、**dto**、**pll** 的目标值写入寄存器模型 |
 | **check_freq** | 测量 **source**、**clk**、**pll** 波形频率，与节点 **frequence** 比较 |
 | **check_duty** | 测量带 **vif** 节点的占空比，与 **duty_min**、**duty_max** 比较 |
 
@@ -30,7 +30,7 @@
 
 ## config_reg
 
-通过 **sequencer.tools** 写 RAL，只更新约定 field，field 内其余位保持不变。
+通过 **sequencer.tools** 写寄存器模型，只更新约定 field，field 内其余位保持不变。
 
 写入分五段，与 **req.nodes** 下标无关：
 

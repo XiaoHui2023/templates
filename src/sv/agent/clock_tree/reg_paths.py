@@ -81,7 +81,7 @@ def normalize_pll_kind(value: object) -> str:
 
 @dataclass(frozen=True)
 class RegPathSpec:
-    """RAL 点分路径与 field 内比特切片；width/offset 为 None 时在 SV 绑定时取整域 field。"""
+    """寄存器模型点分路径与 field 内比特切片；width/offset 为 None 时在 SV 绑定时取整域 field。"""
 
     path: str
     offset: Optional[int]

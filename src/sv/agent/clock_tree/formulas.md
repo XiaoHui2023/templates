@@ -49,7 +49,7 @@ clkf = f / f_ref
 
 ### sc
 
-在 **refdiv** 为 1～63、**postdiv1** 与 **postdiv2** 为 1～7、**fbdiv** 为 1～4095 范围内搜索，使
+在 **refdiv** 为 1～63、**postdiv1** 与 **postdiv2** 为 1～7、寄存器 **fbdiv** 为 1～4095 的硬件范围内搜索。先在 **settings** 的 **pll_sc_fbdiv_min** 与 **pll_sc_fbdiv_max** 内找绝对误差最小的组合；若无解再放宽到全硬件范围，最终 **fbdiv** 仍超出优先区间时 **uvm_error**。公式
 
 ```
 f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
