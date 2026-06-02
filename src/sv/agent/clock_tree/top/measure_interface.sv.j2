@@ -14,9 +14,11 @@ interface {{ settings.class_prefix }}measure_interface #(
     timeunit 1ns;
     timeprecision 1fs;
 
+    // $realtime and realtime deltas: timeunit (ns). timeprecision 1fs resolves 2GHz half-period 0.5ns.
+    localparam real RT_PER_SEC = 1.0e9;
     localparam int MEAS_TIMEOUT_NS = (1_000_000_000 + MIN_FREQ_HZ - 1) / MIN_FREQ_HZ;
     localparam time MEAS_TIMEOUT = MEAS_TIMEOUT_NS * 1ns;
-    localparam real MAX_EDGE_PERIOD_SEC = 1.0 / MIN_FREQ_HZ;
+    localparam real MAX_EDGE_PERIOD = RT_PER_SEC / MIN_FREQ_HZ;
 
     bit meas_en;
 
@@ -26,10 +28,10 @@ interface {{ settings.class_prefix }}measure_interface #(
     logic duty_ok;
     logic stable;
 
-    realtime last_edge_s;
-    realtime last_posedge_s;
-    realtime last_period_s;
-    realtime high_end_s;
+    realtime last_edge_t;
+    realtime last_posedge_t;
+    realtime last_period_t;
+    realtime high_end_t;
     int stable_match_cnt;
 
     function automatic void reset_measure();
@@ -38,10 +40,10 @@ interface {{ settings.class_prefix }}measure_interface #(
         freq_hz = 0.0;
         duty = 0.0;
         duty_ok = 1'b0;
-        last_edge_s = 0.0;
-        last_posedge_s = 0.0;
-        last_period_s = 0.0;
-        high_end_s = 0.0;
+        last_edge_t = 0.0;
+        last_posedge_t = 0.0;
+        last_period_t = 0.0;
+        high_end_t = 0.0;
         stable_match_cnt = 0;
     endfunction
 
@@ -54,23 +56,23 @@ interface {{ settings.class_prefix }}measure_interface #(
         stable_match_cnt = 0;
     endfunction
 
-    function automatic void sample_period(realtime pos_s, realtime prev_pos_s);
-        realtime period_s;
-        realtime high_s;
+    function automatic void sample_period(realtime pos_t, realtime prev_pos_t);
+        realtime period_t;
+        realtime high_t;
         real rel_diff;
 
-        period_s = pos_s - prev_pos_s;
-        if (period_s <= 0.0)
+        period_t = pos_t - prev_pos_t;
+        if (period_t <= 0.0)
             return;
 
-        if (period_s > MAX_EDGE_PERIOD_SEC)
+        if (period_t > MAX_EDGE_PERIOD)
             return;
 
-        freq_hz = 1.0 / period_s;
+        freq_hz = RT_PER_SEC / period_t;
 
-        if (high_end_s > prev_pos_s && high_end_s <= pos_s) begin
-            high_s = high_end_s - prev_pos_s;
-            duty = high_s / period_s;
+        if (high_end_t > prev_pos_t && high_end_t <= pos_t) begin
+            high_t = high_end_t - prev_pos_t;
+            duty = high_t / period_t;
             if (duty < 0.0)
                 duty = 0.0;
             else if (duty > 1.0)
@@ -78,10 +80,10 @@ interface {{ settings.class_prefix }}measure_interface #(
             duty_ok = (duty >= DUTY_MIN) && (duty <= DUTY_MAX);
         end
 
-        if (last_period_s > 0.0) begin
-            rel_diff = (period_s > last_period_s) ?
-                (period_s - last_period_s) / last_period_s :
-                (last_period_s - period_s) / last_period_s;
+        if (last_period_t > 0.0) begin
+            rel_diff = (period_t > last_period_t) ?
+                (period_t - last_period_t) / last_period_t :
+                (last_period_t - period_t) / last_period_t;
             if (rel_diff <= PERIOD_TOL)
                 stable_match_cnt++;
             else
@@ -90,7 +92,7 @@ interface {{ settings.class_prefix }}measure_interface #(
                 stable = 1'b1;
         end
 
-        last_period_s = period_s;
+        last_period_t = period_t;
     endfunction
 
     function automatic void set_measure_en(bit en);
@@ -100,23 +102,23 @@ interface {{ settings.class_prefix }}measure_interface #(
     endfunction
 
     task automatic watch_posedge();
-        realtime now_s;
-        realtime prev_pos_s;
+        realtime now_t;
+        realtime prev_pos_t;
 
         forever begin
             @(posedge in);
             if (!meas_en)
                 continue;
 
-            now_s = $realtime;
-            last_edge_s = now_s;
+            now_t = $realtime;
+            last_edge_t = now_t;
             active = 1'b1;
 
-            prev_pos_s = last_posedge_s;
-            last_posedge_s = now_s;
+            prev_pos_t = last_posedge_t;
+            last_posedge_t = now_t;
 
-            if (prev_pos_s > 0.0)
-                sample_period(now_s, prev_pos_s);
+            if (prev_pos_t > 0.0)
+                sample_period(now_t, prev_pos_t);
         end
     endtask
 
@@ -126,9 +128,9 @@ interface {{ settings.class_prefix }}measure_interface #(
             if (!meas_en)
                 continue;
 
-            last_edge_s = $realtime;
+            last_edge_t = $realtime;
             active = 1'b1;
-            high_end_s = last_edge_s;
+            high_end_t = last_edge_t;
         end
     endtask
 
@@ -152,8 +154,8 @@ interface {{ settings.class_prefix }}measure_interface #(
                 #MEAS_TIMEOUT;
                 if (!meas_en)
                     break;
-                if (last_edge_s > 0.0 &&
-                        ($realtime - last_edge_s) >= MAX_EDGE_PERIOD_SEC)
+                if (last_edge_t > 0.0 &&
+                        ($realtime - last_edge_t) >= MAX_EDGE_PERIOD)
                     mark_timeout();
             end
             reset_measure();
