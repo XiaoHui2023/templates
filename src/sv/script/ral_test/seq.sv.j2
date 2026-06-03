@@ -14,6 +14,8 @@ class {{ class_prefix }}seq extends uvm_sequence;
     uvm_reg_block regmodel;
     // 跳过内建测试的寄存器；空队列表示不排除
     uvm_reg no_test_regs[$];
+    // 跳过内建测试的 reg block 及其子层次；空队列表示不排除
+    uvm_reg_block no_test_blocks[$];
     // 跳过内建测试的 field；空队列表示不排除
     uvm_reg_field no_test_fields[$];
 
@@ -93,6 +95,12 @@ class {{ class_prefix }}seq extends uvm_sequence;
         foreach (no_test_regs[i]) begin
             if (no_test_regs[i] != null)
                 uvm_resource_db#(bit)::set({"REG::", no_test_regs[i].get_full_name()},
+                    "NO_REG_TESTS", 1);
+        end
+
+        foreach (no_test_blocks[i]) begin
+            if (no_test_blocks[i] != null)
+                uvm_resource_db#(bit)::set({"REG::", no_test_blocks[i].get_full_name()},
                     "NO_REG_TESTS", 1);
         end
 
