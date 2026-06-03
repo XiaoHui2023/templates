@@ -35,7 +35,7 @@ classDiagram
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | kind | string | 器件类型；各派生类在 **new** 中设为配置 **kind** 字面量 |
-| allow_bad_duty | bit，rand | 为真时放宽占空比检查；**node_base** 软约束默认为 0，配置为真时 **tree** 软约束为 1 |
+| allow_bad_duty | bit，rand | 至少一处节点配置 path 时生成；为真时 **check_duty** 不因占空比越界报错；**cst_node_base** 软约束默认为 0，配置为真时 **cst_base** 软约束为 1 |
 | frequence | longint，rand | 典型频率，单位 Hz；**cst_node_base** 软约束默认为 0 |
 | valid | bit，rand | 时钟是否有效；**cst_node_base** 软约束默认为 0 |
 | vif | virtual interface | 配置中填写 RTL 路径时由 **tree_connection** 绑定对应 interface；未配置则为 null |
@@ -135,7 +135,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
 | open | bit，rand | 为真时开放时钟通行；为假时屏蔽输出 |
-| reg | string，可选 | 寄存器模型点分路径，可带比特范围后缀；**config_reg** 写入 **open** |
+| reg | string，可选 | 寄存器模型点分路径，可带比特范围后缀；**config_reg** 写入门控位，是否与 **open** 同向由 **settings** 的 **gate_reg_value_means_open** 决定 |
 
 重载 **cst_clk_from_src**：前级有效且 **open** 为真时 **valid** 为真。
 

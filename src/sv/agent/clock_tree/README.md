@@ -37,11 +37,12 @@ settings:
 | `min_freq_hz` | `int` | `500` | 判断时钟仍在活动的最低频率。 |
 | `stable_cycles` | `int` | `3` | 连续稳定周期数。 |
 | `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
-| `duty_min` | `float` | `0.50` | 允许占空比下限。 |
-| `duty_max` | `float` | `0.66` | 允许占空比上限。 |
+| `duty_min` | `float` | `0.50` | 允许占空比下限；至少一处节点填写 `path` 时供 **check_duty** 使用。 |
+| `duty_max` | `float` | `0.66` | 允许占空比上限；至少一处节点填写 `path` 时供 **check_duty** 使用。 |
 | `pll_lock_timeout_us` | `int` | `1000` | **config_reg** 等待各 PLL lock 的最长时间，微秒。 |
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
+| `gate_reg_value_means_open` | `bool` | `true` | 为真时 **config_reg** 写入门控寄存器的值与节点 **open** 一致，1 表示打开；为假时取反后写入，1 表示关闭。节点 **open** 仍为仿真门开闭语义。 |
 
 无法在优先区间内配准时仍写出寄存器，并 `uvm_error`。
 
@@ -77,7 +78,7 @@ settings:
 | `kind` | `str` | 必填 | 节点类型。 |
 | `name` | `str` | — | 由 `nodes` 字典键注入，配置中勿填。 |
 | `path` | `str` | `""` | RTL 层次路径，用于 **tree_connection** 与 interface 展开；不写入节点类。留空则不生成 interface。 |
-| `allow_bad_duty` | `bool` | `false` | 为真时放宽占空比检查。 |
+| `allow_bad_duty` | `bool` | `false` | 为真时 **check_duty** 不因占空比越界报错；至少一处节点填写 `path` 时才生成该字段与 **check_duty**。 |
 | `freq` | `optional int` | `null` | 典型频率。 |
 
 | `kind` | 主要字段 | 默认值 | 说明 |

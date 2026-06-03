@@ -27,7 +27,11 @@ class {{ settings.class_prefix }}node_cfg;
 endclass
 
 task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg_bind f_reg, bit open);
+{%- if settings.gate_reg_value_means_open %}
     rw.set_write(f_reg, open);
+{%- else %}
+    rw.set_write(f_reg, !open);
+{%- endif %}
 endtask
 
 task {{ settings.class_prefix }}node_cfg::configure_mux({{ settings.class_prefix }}reg_bind f_reg, int sel);

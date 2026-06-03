@@ -62,7 +62,7 @@ class NodeBase(BaseModel):
     )
     allow_bad_duty: bool = Field(
         False,
-        description="为真时放宽占空比检查。",
+        description="为真时 check_duty 不因占空比越界报错；须至少一处节点填写 path 才会生成 check_duty 与该字段。",
     )
     freq: Optional[int] = Field(
         None,

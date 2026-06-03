@@ -75,6 +75,11 @@ class Settings(BaseModel):
         le=4095,
         description="允许 PLL SC FBDIV 上限。",
     )
+    gate_reg_value_means_open: bool = Field(
+        True,
+        description="为真时 config_reg 写入寄存器的数值与节点 open 一致，寄存器 1 表示打开；"
+        "为假时按位取反后写入，寄存器 1 表示关闭。",
+    )
 
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:
@@ -133,6 +138,19 @@ class Models(BaseModel):
             if tree.name in seen:
                 raise ValueError(f"trees 中 name {tree.name!r} 重复")
             seen.add(tree.name)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_allow_bad_duty_requires_check_duty(self) -> Models:
+        if self.any_node_path:
+            return self
+        for tree in self.trees:
+            for key, node in tree.nodes.items():
+                if node.allow_bad_duty:
+                    raise ValueError(
+                        f"节点 {key!r} 配置了 allow_bad_duty，"
+                        "须至少一处节点填写 path 才会生成 check_duty"
+                    )
         return self
 
     @computed_field(  # type: ignore[prop-decorator]
