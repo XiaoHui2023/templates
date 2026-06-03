@@ -58,7 +58,7 @@ classDiagram
 
 ## clk
 
-观测用时钟节点；**valid** 可随机，有前级时随 **cst_clk_from_src** 与前级一致。
+观测用时钟节点；有前级时 **valid** 随 **cst_clk_from_src** 与前级一致。**cst_clk**：**frequence** 大于 0 时 **valid** 为 1。
 
 ## base_pll
 

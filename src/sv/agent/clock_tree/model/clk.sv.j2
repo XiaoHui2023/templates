@@ -4,6 +4,10 @@
 class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils({{ settings.class_prefix }}clk)
 
+    constraint cst_clk {
+        frequence > 0 -> valid == 1;
+    }
+
     function new(string name = "");
         super.new(name);
         kind = "clk";
