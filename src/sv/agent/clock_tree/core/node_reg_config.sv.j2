@@ -27,7 +27,7 @@ class {{ settings.class_prefix }}node_cfg;
 endclass
 
 task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg_bind f_reg, bit open);
-{%- if settings.gate_reg_value_means_open %}
+{%- if settings.gate_reg_high_means_open %}
     rw.set_write(f_reg, open);
 {%- else %}
     rw.set_write(f_reg, !open);
@@ -45,7 +45,11 @@ task {{ settings.class_prefix }}node_cfg::configure_div(
         int ratio);
     int n;
     n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+{%- if settings.div_reg_high_means_reset %}
+    rw.set_write(f_rst, 1);
+{%- else %}
     rw.set_write(f_rst, 0);
+{%- endif %}
     rw.set_write(f_div, n);
     rw.set_write(f_load, 0);
     rw.set_write(f_load, 1);

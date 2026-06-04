@@ -113,7 +113,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_div**：**ratio** 在 1～64；**cst_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：**rst** 写 0；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
+**config_reg**：**rst** 写复位有效值，写 1 还是 0 表示复位由 **settings** 的 **div_reg_high_means_reset** 决定，默认写 0 表示复位；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
 
 ## dto
 
@@ -135,7 +135,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
 | open | bit，rand | 为真时开放时钟通行；为假时屏蔽输出 |
-| reg | string，可选 | 寄存器模型点分路径，可带比特范围后缀；**config_reg** 写入门控位，是否与 **open** 同向由 **settings** 的 **gate_reg_value_means_open** 决定 |
+| reg | string，可选 | 寄存器模型点分路径，可带比特范围后缀；**config_reg** 写入门控位，写 1 是否表示打开由 **settings** 的 **gate_reg_high_means_open** 决定 |
 
 重载 **cst_clk_from_src**：前级有效且 **open** 为真时 **valid** 为真。
 

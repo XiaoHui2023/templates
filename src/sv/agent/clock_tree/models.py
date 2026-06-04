@@ -75,10 +75,15 @@ class Settings(BaseModel):
         le=4095,
         description="允许 PLL SC FBDIV 上限。",
     )
-    gate_reg_value_means_open: bool = Field(
-        True,
-        description="为真时 config_reg 写入寄存器的数值与节点 open 一致，寄存器 1 表示打开；"
-        "为假时按位取反后写入，寄存器 1 表示关闭。",
+    gate_reg_high_means_open: bool = Field(
+        False,
+        description="为真时门控寄存器写 1 表示打开，config_reg 写入值与节点 open 一致；"
+        "为假时写 1 表示关闭，按位取反后写入。",
+    )
+    div_reg_high_means_reset: bool = Field(
+        False,
+        description="为真时 div 的 rst 写 1 表示复位，config_reg 写入 1；"
+        "为假时写 0 表示复位，config_reg 写入 0。",
     )
 
     @model_validator(mode="after")

@@ -42,7 +42,8 @@ settings:
 | `pll_lock_timeout_us` | `int` | `1000` | **config_reg** 等待各 PLL lock 的最长时间，微秒。 |
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
-| `gate_reg_value_means_open` | `bool` | `true` | 为真时 **config_reg** 写入门控寄存器的值与节点 **open** 一致，1 表示打开；为假时取反后写入，1 表示关闭。节点 **open** 仍为仿真门开闭语义。 |
+| `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器写 1 表示打开，**config_reg** 写入值与节点 **open** 一致；为假时写 1 表示关闭，按位取反后写入。节点 **open** 仍为仿真门开闭语义。 |
+| `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 写 1 表示复位；为假时写 0 表示复位。 |
 
 无法在优先区间内配准时仍写出寄存器，并 `uvm_error`。
 
