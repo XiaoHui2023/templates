@@ -15,7 +15,10 @@ class Models(BaseModel):
     )
     access: bool = Field(
         False,
-        description="启用寄存器访问自测：前门写读与镜像核对，不依赖后门或 HDL 路径。",
+        description=(
+            "启用寄存器访问自测：按 field 翻转可写位、前门写读与镜像核对；"
+            "每个 field 测完立刻写回测前读到的整寄存器值，再测下一个 field；不依赖后门或 HDL 路径。"
+        ),
     )
     mem_hdl_paths: bool = Field(
         False, description="启用 `uvm_reg_mem_hdl_paths_seq`。"
@@ -26,7 +29,7 @@ class Models(BaseModel):
         description=(
             "为真时，对仍含可写字段的寄存器，在 map 上访问类型为 RO 的 field "
             "写入 uvm_resource_db 的 NO_FIELD_TESTS；前门 reset 与 access 自测均不核对被标记 "
-            "field，且 access 写数据时仅翻转 RW 位。"
+            "field，且 access 每次只翻转当前 field 的可写位。"
         ),
     )
 
