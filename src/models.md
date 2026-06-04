@@ -2,9 +2,9 @@
 
 每个模板单元目录里的 `models.py` 描述输入配置的字段与类型，并供模板使用。加载时会把该目录加入模块搜索路径，再导入此文件。
 
-## 入口类放在最后
+## Models 写在最后
 
-文件中**最后一个** `class` 是入口类，一般命名为 `Models`。配置 dict 用 `Models(**data)` 实例化。
+文件中**最后一个** `class` 一般为 `Models`。配置 dict 用 `Models(**data)` 实例化。
 
 此文件里**更靠前的** `class` 会注册为模板**全局类型名**，例如 `Settings`、`Tree`，在 `.j2` 里可按类型名引用，不必实例化。
 
@@ -45,7 +45,7 @@ from nodes import Tree, ItemBase
 ## 函数与 property
 
 - **模块级函数**：解析、共用计算，供多个类或校验器调用。
-- **实例方法**：若以非 `_` 开头，主入口类上的方法还可注册为模板**过滤器**，管道写法 `{{ '' | method_name }}`。
+- **实例方法**：若以非 `_` 开头，`Models` 上的方法还可注册为模板**过滤器**，管道写法 `{{ '' | method_name }}`。
 - **`@property` / `computed_field`**：由代码算出的只读字段会进入模板上下文，与配置文件里填写的字段一样用 `{{ name }}` 读取。
 
 ```python
@@ -60,7 +60,7 @@ class Models(BaseModel):
 
 ## 模板里看到什么
 
-入口类实例化后，字段与 property 成为模板的**根部变量**；嵌套对象按属性继续访问。
+`Models` 实例化后，字段与 property 成为模板的**根部变量**；嵌套对象按属性继续访问。
 
 ```jinja
 {{ settings.class_prefix }}
@@ -77,4 +77,4 @@ class Models(BaseModel):
 配置文件 --> Models 实例 --> 整理为 dict --> {{ 字段名 }}、…
 ```
 
-各单元的字段表写在对应目录 `README.md`，不在此重复。
+各单元目录内单独列出字段表，不在此重复。
