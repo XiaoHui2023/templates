@@ -18,7 +18,3 @@
 | `regmodel` | `uvm_reg_block` | 基寄存器块（必填）；默认 `uvm_reg_map` 用于地址与回调 |
 | `init_file` | `string` | 非空时在 main_phase 按序加载并写寄存器 |
 | `dump_file` | `string` | 非空时将回调捕获的写操作在仿真结束时写成 CSV |
-
-# 相关文档
-
-- [Sequencer 对外接口](api.md)
