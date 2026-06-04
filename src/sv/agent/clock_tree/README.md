@@ -43,7 +43,7 @@ settings:
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
 | `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器写 1 表示打开，**config_reg** 写入值与节点 **open** 一致；为假时写 1 表示关闭，按位取反后写入。节点 **open** 仍为仿真门开闭语义。 |
-| `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 写 1 表示复位；为假时写 0 表示复位。 |
+| `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 写 1 表示复位、写 0 不复位；为假时写 0 表示复位、写 1 不复位。**config_reg** 在 **rst** 上写不复位电平。 |
 
 无法在优先区间内配准时仍写出寄存器，并 `uvm_error`。
 

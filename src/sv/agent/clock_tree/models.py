@@ -82,8 +82,9 @@ class Settings(BaseModel):
     )
     div_reg_high_means_reset: bool = Field(
         False,
-        description="为真时 div 的 rst 写 1 表示复位，config_reg 写入 1；"
-        "为假时写 0 表示复位，config_reg 写入 0。",
+        description="为真时 div 的 rst 写 1 表示复位、写 0 表示不复位；"
+        "为假时写 0 表示复位、写 1 表示不复位。"
+        "config_reg 在 rst 上写入不复位电平。",
     )
 
     @model_validator(mode="after")

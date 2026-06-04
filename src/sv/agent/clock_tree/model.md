@@ -113,7 +113,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_div**：**ratio** 在 1～64；**cst_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：**rst** 写复位有效值，写 1 还是 0 表示复位由 **settings** 的 **div_reg_high_means_reset** 决定，默认写 0 表示复位；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
+**config_reg**：**rst** 写不复位电平，使分频器退出复位；为真时 **div_reg_high_means_reset** 则写 0，为假则写 1；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
 
 ## dto
 
