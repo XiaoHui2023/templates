@@ -44,8 +44,8 @@
 
 ## check_freq
 
-只处理 **req.nodes** 里 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。各节点同时开启测量、各自等待 **stable**，再比较测得频率与 **frequence**；超出 **period_tolerance** 则报错。
+只处理 **req.nodes** 里 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。先对全部待测节点 **start_measure**，再统一轮询 **stable** 直至全部稳定或达到与 **min_freq_hz** 对应的超时，然后 **stop_measure** 并逐节点比较频率与 **frequence**；超出 **period_tolerance** 则报错。等待阶段仿真时长约等于最慢节点所需时间。
 
 ## check_duty
 
-处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。等待 **stable** 后根据 **vif.meas.duty_ok** 判定；范围由 **duty_min**、**duty_max** 决定。未通过占空比且 **allow_bad_duty** 为假的节点记入 **rsp.failed_nodes**。
+处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。与 **check_freq** 相同：先全部 **start_measure**，再统一等待 **stable**，**stop_measure** 后根据 **vif.meas.duty_ok** 判定；范围由 **duty_min**、**duty_max** 决定。未通过占空比且 **allow_bad_duty** 为假的节点记入 **rsp.failed_nodes**。

@@ -101,6 +101,28 @@ interface {{ settings.class_prefix }}measure_interface #(
             reset_measure();
     endfunction
 
+    function automatic void start_measure();
+        reset_measure();
+        meas_en = 1'b1;
+    endfunction
+
+    function automatic void stop_measure();
+        set_measure_en(1'b0);
+    endfunction
+
+    // 轮询 stable，最长 MEAS_TIMEOUT_NS；ok 为真表示在时限内稳定
+    task automatic wait_measure_stable(output bit ok);
+        int elapsed_ns;
+
+        elapsed_ns = 0;
+        ok = 1'b0;
+        while (!stable && elapsed_ns < MEAS_TIMEOUT_NS) begin
+            #1ns;
+            elapsed_ns++;
+        end
+        ok = stable;
+    endtask
+
     task automatic watch_posedge();
         realtime now_t;
         realtime prev_pos_t;

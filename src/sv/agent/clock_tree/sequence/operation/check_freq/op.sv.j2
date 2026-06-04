@@ -14,56 +14,44 @@ class {{ settings.class_prefix }}check_freq_seq extends uvm_sequence #(
     endfunction
 
     extern virtual task body();
-    extern task check_one_node(
+    extern task evaluate_one_node(
         {{ settings.class_prefix }}node_base nd,
-        int meas_timeout_ns,
         {{ settings.class_prefix }}check_freq_rsp rs
     );
 endclass
 
-task {{ settings.class_prefix }}check_freq_seq::check_one_node(
+task {{ settings.class_prefix }}check_freq_seq::evaluate_one_node(
     {{ settings.class_prefix }}node_base nd,
-    int meas_timeout_ns,
     {{ settings.class_prefix }}check_freq_rsp rs
 );
-    int elapsed_ns;
     real expected_hz;
     real measured_hz;
     real rel_diff;
-
-    `uvm_info("CLK_TREE", $sformatf(
-        "check_freq: node %s kind %s expected %0d Hz",
-        nd.get_name(), nd.kind, nd.frequence), UVM_MEDIUM)
-    nd.vif.set_measure_en(1'b1);
-    elapsed_ns = 0;
-    while (!nd.vif.meas.stable && elapsed_ns < meas_timeout_ns) begin
-        #1ns;
-        elapsed_ns++;
-    end
-    nd.vif.set_measure_en(1'b0);
 
     if (!nd.vif.meas.stable) begin
         `uvm_error("CLK_TREE", $sformatf(
             "check_freq: node %s did not stabilize", nd.get_name()))
         rs.ok = 1'b0;
-    end else begin
-        expected_hz = real'(nd.frequence);
-        measured_hz = nd.vif.meas.freq_hz;
-        if (expected_hz <= 0.0) begin
-            `uvm_error("CLK_TREE", $sformatf(
-                "check_freq: node %s frequence must be positive", nd.get_name()))
-            rs.ok = 1'b0;
-        end else begin
-            rel_diff = (measured_hz > expected_hz) ?
-                (measured_hz - expected_hz) / expected_hz :
-                (expected_hz - measured_hz) / expected_hz;
-            if (rel_diff > {{ settings.period_tolerance }}) begin
-                `uvm_error("CLK_TREE", $sformatf(
-                    "check_freq: node %s freq expected %0.0f Hz measured %0.2f Hz rel %0.4f",
-                    nd.get_name(), expected_hz, measured_hz, rel_diff))
-                rs.ok = 1'b0;
-            end
-        end
+        return;
+    end
+
+    expected_hz = real'(nd.frequence);
+    measured_hz = nd.vif.meas.freq_hz;
+    if (expected_hz <= 0.0) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_freq: node %s frequence must be positive", nd.get_name()))
+        rs.ok = 1'b0;
+        return;
+    end
+
+    rel_diff = (measured_hz > expected_hz) ?
+        (measured_hz - expected_hz) / expected_hz :
+        (expected_hz - measured_hz) / expected_hz;
+    if (rel_diff > {{ settings.period_tolerance }}) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_freq: node %s freq expected %0.0f Hz measured %0.2f Hz rel %0.4f",
+            nd.get_name(), expected_hz, measured_hz, rel_diff))
+        rs.ok = 1'b0;
     end
 endtask
 
@@ -73,9 +61,9 @@ task {{ settings.class_prefix }}check_freq_seq::body();
     {{ settings.class_prefix }}node_base nodes_to_check[$];
     {{ settings.class_prefix }}node_base nd;
     int meas_timeout_ns;
-    int total;
-    int done_cnt;
+    int elapsed_ns;
     int checked;
+    bit all_stable;
 
     meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }};
 
@@ -105,20 +93,33 @@ task {{ settings.class_prefix }}check_freq_seq::body();
     rs = {{ settings.class_prefix }}check_freq_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
-    total = checked;
-    done_cnt = 0;
     foreach (nodes_to_check[i]) begin
-        fork
-            begin
-                int idx;
-
-                idx = i;
-                check_one_node(nodes_to_check[idx], meas_timeout_ns, rs);
-                done_cnt++;
-            end
-        join_none
+        nd = nodes_to_check[i];
+        `uvm_info("CLK_TREE", $sformatf(
+            "check_freq: node %s kind %s expected %0d Hz",
+            nd.get_name(), nd.kind, nd.frequence), UVM_MEDIUM)
+        nd.vif.start_measure();
     end
-    wait (done_cnt == total);
+
+    all_stable = 1'b0;
+    elapsed_ns = 0;
+    while (!all_stable && elapsed_ns < meas_timeout_ns) begin
+        all_stable = 1'b1;
+        foreach (nodes_to_check[i]) begin
+            if (!nodes_to_check[i].vif.meas.stable)
+                all_stable = 1'b0;
+        end
+        if (!all_stable) begin
+            #1ns;
+            elapsed_ns++;
+        end
+    end
+
+    foreach (nodes_to_check[i])
+        nodes_to_check[i].vif.stop_measure();
+
+    foreach (nodes_to_check[i])
+        evaluate_one_node(nodes_to_check[i], rs);
 
     if (rs.ok)
         `uvm_info("CLK_TREE", $sformatf(

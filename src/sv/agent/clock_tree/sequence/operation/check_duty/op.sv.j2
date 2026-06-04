@@ -19,10 +19,12 @@ endclass
 task {{ settings.class_prefix }}check_duty_seq::body();
     {{ settings.class_prefix }}check_duty_req rq;
     {{ settings.class_prefix }}check_duty_rsp rs;
+    {{ settings.class_prefix }}node_base nodes_to_check[$];
     {{ settings.class_prefix }}node_base nd;
     int meas_timeout_ns;
     int elapsed_ns;
     int checked;
+    bit all_stable;
 
     meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }};
 
@@ -33,30 +35,51 @@ task {{ settings.class_prefix }}check_duty_seq::body();
     if (rq.nodes.size() == 0)
         `uvm_fatal("CLK_TREE", "check_duty: req.nodes is empty")
 
-    rs = {{ settings.class_prefix }}check_duty_rsp::type_id::create("rsp");
-    rs.ok = 1'b1;
-    checked = 0;
-
     foreach (rq.nodes[i]) begin
         nd = rq.nodes[i];
         if (nd == null)
             continue;
         if (nd.vif == null)
             continue;
+        nodes_to_check.push_back(nd);
+    end
 
-        checked++;
+    checked = nodes_to_check.size();
+    if (checked == 0)
+        `uvm_fatal("CLK_TREE", "check_duty: no node with vif in req.nodes")
+
+    rs = {{ settings.class_prefix }}check_duty_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    foreach (nodes_to_check[i]) begin
+        nd = nodes_to_check[i];
         `uvm_info("CLK_TREE", $sformatf(
             "check_duty: node %s kind %s",
             nd.get_name(), nd.kind), UVM_MEDIUM)
-        nd.vif.set_measure_en(1'b1);
-        elapsed_ns = 0;
-        while (!nd.vif.meas.stable && elapsed_ns < meas_timeout_ns) begin
+        nd.vif.start_measure();
+    end
+
+    all_stable = 1'b0;
+    elapsed_ns = 0;
+    while (!all_stable && elapsed_ns < meas_timeout_ns) begin
+        all_stable = 1'b1;
+        foreach (nodes_to_check[i]) begin
+            if (!nodes_to_check[i].vif.meas.stable)
+                all_stable = 1'b0;
+        end
+        if (!all_stable) begin
             #1ns;
             elapsed_ns++;
         end
+    end
+
+    foreach (nodes_to_check[i])
+        nodes_to_check[i].vif.stop_measure();
+
+    foreach (nodes_to_check[i]) begin
+        nd = nodes_to_check[i];
 
         if (!nd.vif.meas.stable) begin
-            nd.vif.set_measure_en(1'b0);
             `uvm_error("CLK_TREE", $sformatf(
                 "check_duty: node %s did not stabilize", nd.get_name()))
             rs.ok = 1'b0;
@@ -78,12 +101,7 @@ task {{ settings.class_prefix }}check_duty_seq::body();
                 rs.failed_nodes.push_back(nd);
             end
         end
-
-        nd.vif.set_measure_en(1'b0);
     end
-
-    if (checked == 0)
-        `uvm_fatal("CLK_TREE", "check_duty: no node with vif in req.nodes")
 
     if (rs.ok)
         `uvm_info("CLK_TREE", $sformatf(

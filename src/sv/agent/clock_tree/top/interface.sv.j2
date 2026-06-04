@@ -31,6 +31,18 @@ interface {{ settings.class_prefix }}interface #(
     function automatic void set_measure_en(bit en);
         meas.set_measure_en(en);
     endfunction
+
+    function automatic void start_measure();
+        meas.start_measure();
+    endfunction
+
+    function automatic void stop_measure();
+        meas.stop_measure();
+    endfunction
+
+    task automatic wait_measure_stable(output bit ok);
+        meas.wait_measure_stable(ok);
+    endtask
 endinterface
 
 `endif
