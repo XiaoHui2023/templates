@@ -63,7 +63,8 @@ task {{ settings.class_prefix }}check_freq_seq::body();
     int meas_timeout_ns;
     int elapsed_ns;
     int checked;
-    bit all_stable;
+    int pending;
+    bit node_done[];
 
     meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }};
 
@@ -93,6 +94,9 @@ task {{ settings.class_prefix }}check_freq_seq::body();
     rs = {{ settings.class_prefix }}check_freq_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
+    node_done = new[nodes_to_check.size()];
+    pending = nodes_to_check.size();
+
     foreach (nodes_to_check[i]) begin
         nd = nodes_to_check[i];
         `uvm_info("CLK_TREE", $sformatf(
@@ -101,25 +105,30 @@ task {{ settings.class_prefix }}check_freq_seq::body();
         nd.vif.start_measure();
     end
 
-    all_stable = 1'b0;
     elapsed_ns = 0;
-    while (!all_stable && elapsed_ns < meas_timeout_ns) begin
-        all_stable = 1'b1;
+    while (pending > 0 && elapsed_ns < meas_timeout_ns) begin
         foreach (nodes_to_check[i]) begin
+            if (node_done[i])
+                continue;
             if (!nodes_to_check[i].vif.meas.stable)
-                all_stable = 1'b0;
+                continue;
+            evaluate_one_node(nodes_to_check[i], rs);
+            nodes_to_check[i].vif.stop_measure();
+            node_done[i] = 1'b1;
+            pending--;
         end
-        if (!all_stable) begin
+        if (pending > 0) begin
             #1ns;
             elapsed_ns++;
         end
     end
 
-    foreach (nodes_to_check[i])
-        nodes_to_check[i].vif.stop_measure();
-
-    foreach (nodes_to_check[i])
+    foreach (nodes_to_check[i]) begin
+        if (node_done[i])
+            continue;
         evaluate_one_node(nodes_to_check[i], rs);
+        nodes_to_check[i].vif.stop_measure();
+    end
 
     if (rs.ok)
         `uvm_info("CLK_TREE", $sformatf(
