@@ -10,54 +10,17 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         super.new(name, parent);
     endfunction
 
-{% if any_node_path %}
-    extern task set_clock_gen(
-        {{ settings.class_prefix }}node_base nodes[$] = {}, bit gen_en = 1'b1);
-{% endif %}
 {% if regs_enabled %}
     extern task config_reg({{ settings.class_prefix }}node_base nodes[$] = {});
 {% endif %}
 {% if any_node_path %}
     extern task check_freq({{ settings.class_prefix }}node_base nodes[$] = {});
     extern task check_duty({{ settings.class_prefix }}node_base nodes[$] = {});
-    extern task test_duty_wavefront({{ settings.class_prefix }}node_base nodes[$] = {});
+{% endif %}
+{% if route_test_enabled %}
+    extern task test_route({{ settings.class_prefix }}base_tree tree = null);
 {% endif %}
 endclass
-
-{% if any_node_path %}
-task {{ settings.class_prefix }}kit_sequencer::set_clock_gen(
-        {{ settings.class_prefix }}node_base nodes[$], bit gen_en);
-    if (nodes.size() == 0) begin
-        if (tree == null)
-            `uvm_fatal("CLK_TREE", "set_clock_gen: nodes empty and tree is null")
-        set_clock_gen(tree.nodes, gen_en);
-        return;
-    end
-
-    foreach (nodes[i]) begin
-        {{ settings.class_prefix }}set_clock_gen_req req;
-        {{ settings.class_prefix }}set_clock_gen_seq seq;
-        {{ settings.class_prefix }}set_clock_gen_rsp seq_rsp;
-
-        if (nodes[i] == null)
-            continue;
-        if (nodes[i].vif == null)
-            continue;
-
-        req = {{ settings.class_prefix }}set_clock_gen_req::type_id::create("req");
-        req.node = nodes[i];
-        req.gen_en = gen_en;
-
-        seq = {{ settings.class_prefix }}set_clock_gen_seq::type_id::create("set_clock_gen");
-        seq.req = req;
-        seq.start(this);
-        seq_rsp = seq.rsp;
-        if (seq_rsp != null && !seq_rsp.ok)
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "set_clock_gen: node %s failed", nodes[i].get_name()))
-    end
-endtask
-{% endif %}
 
 {% if regs_enabled %}
 task {{ settings.class_prefix }}kit_sequencer::config_reg({{ settings.class_prefix }}node_base nodes[$]);
@@ -130,28 +93,29 @@ task {{ settings.class_prefix }}kit_sequencer::check_duty({{ settings.class_pref
     if (seq_rsp != null && !seq_rsp.ok)
         `uvm_fatal("CLK_TREE", "check_duty: operation failed")
 endtask
+{% endif %}
 
-task {{ settings.class_prefix }}kit_sequencer::test_duty_wavefront({{ settings.class_prefix }}node_base nodes[$]);
-    {{ settings.class_prefix }}test_duty_wavefront_req req;
-    {{ settings.class_prefix }}test_duty_wavefront_rsp seq_rsp;
-    {{ settings.class_prefix }}test_duty_wavefront_seq seq;
+{% if route_test_enabled %}
+task {{ settings.class_prefix }}kit_sequencer::test_route(
+        {{ settings.class_prefix }}base_tree tree);
+    {{ settings.class_prefix }}test_route_req req;
+    {{ settings.class_prefix }}test_route_rsp seq_rsp;
+    {{ settings.class_prefix }}test_route_seq seq;
 
-    if (nodes.size() == 0) begin
-        if (tree == null)
-            `uvm_fatal("CLK_TREE", "test_duty_wavefront: nodes empty and tree is null")
-        test_duty_wavefront(tree.nodes);
-        return;
-    end
+    req = {{ settings.class_prefix }}test_route_req::type_id::create("req");
+    req.tree = tree;
+    if (req.tree == null)
+        req.tree = this.tree;
+    if (req.tree == null)
+        `uvm_fatal("CLK_TREE", "test_route: tree is null")
 
-    req = {{ settings.class_prefix }}test_duty_wavefront_req::type_id::create("req");
-    req.nodes = nodes;
-
-    seq = {{ settings.class_prefix }}test_duty_wavefront_seq::type_id::create("test_duty_wavefront");
+    seq = {{ settings.class_prefix }}test_route_seq::type_id::create(
+        "test_route");
     seq.req = req;
     seq.start(this);
     seq_rsp = seq.rsp;
     if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "test_duty_wavefront: operation failed")
+        `uvm_fatal("CLK_TREE", "test_route: operation failed")
 endtask
 {% endif %}
 

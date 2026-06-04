@@ -9,13 +9,11 @@ interface {{ settings.class_prefix }}interface #(
     parameter real DUTY_MIN = {{ settings.duty_min }},
     parameter real DUTY_MAX = {{ settings.duty_max }}
 ) (
-    input wire in,
-    output wire out
+    input wire in
 );
     timeunit 1ns;
     timeprecision 1fs;
 
-    {{ settings.class_prefix }}generate_interface gen(.out(out));
     {{ settings.class_prefix }}measure_interface #(
         .MIN_FREQ_HZ(MIN_FREQ_HZ),
         .STABLE_CYCLES(STABLE_CYCLES),
@@ -23,10 +21,6 @@ interface {{ settings.class_prefix }}interface #(
         .DUTY_MIN(DUTY_MIN),
         .DUTY_MAX(DUTY_MAX)
     ) meas(.in(in));
-
-    function automatic void set_clock_gen(bit en, real hz);
-        gen.set_clock_gen(en, hz);
-    endfunction
 
     function automatic void set_measure_en(bit en);
         meas.set_measure_en(en);

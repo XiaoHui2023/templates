@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="720" height="320" viewBox="0 0 720 320" xml:lang="zh-CN">
+  <rect width="720" height="320" fill="#f8f9fc"/>
+  <text x="360" y="28" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="15" font-weight="bold" fill="#1a1a2e">树状：门控只接到多路选择器的一路</text>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1a1a2e"/></marker>
+  <marker id="arrow-dash" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#c0392b"/></marker></defs>
+  <rect x="24" y="56" width="72" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/><text x="60" y="82" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">振荡源</text>
+  <rect x="140" y="56" width="72" height="40" rx="6" fill="#fef9e7" stroke="#d4ac0d" stroke-width="1.5"/><text x="176" y="82" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">门控</text>
+  <rect x="280" y="48" width="88" height="88" rx="6" fill="#eafaf1" stroke="#27ae60" stroke-width="1.5"/><text x="324" y="78" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">多路选择</text><text x="324" y="98" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" fill="#555">sel 唯一</text>
+  <rect x="420" y="56" width="72" height="40" rx="6" fill="#f5eef8" stroke="#8e44ad" stroke-width="1.5"/><text x="456" y="82" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">分频</text>
+  <rect x="536" y="56" width="72" height="40" rx="6" fill="#fdedec" stroke="#c0392b" stroke-width="1.5"/><text x="572" y="82" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">观测时钟</text>
+  <line x1="96" y1="76" x2="140" y2="76" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arrow)"/><line x1="212" y1="76" x2="280" y2="76" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arrow)"/><line x1="368" y1="76" x2="420" y2="76" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arrow)"/><line x1="492" y1="76" x2="536" y2="76" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="280" y="168" width="72" height="36" rx="6" fill="#eee" stroke="#999" stroke-width="1" stroke-dasharray="4 3"/><text x="316" y="190" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#888">备用输入</text>
+  <line x1="176" y1="96" x2="176" y2="140" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="6 4"/><line x1="176" y1="140" x2="316" y2="168" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow-dash)"/>
+  <text x="360" y="248" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#c0392b">网状多扇出：测试不建模</text>
+  <text x="360" y="272" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#1a1a2e">实线连接：配置图里一条父到子边</text>
+</svg>

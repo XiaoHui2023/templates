@@ -4,19 +4,35 @@
 class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}gate)
         `uvm_field_int(open, UVM_ALL_ON)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_open, UVM_DEFAULT)
+        `uvm_field_int(fix_close, UVM_DEFAULT)
+{%- endif %}
     `uvm_object_utils_end
 
     rand bit open;
+{%- if enable_node_fix %}
+    bit fix_open;
+    bit fix_close;
+{%- endif %}
 {% if regs_enabled %}
-    {{ settings.class_prefix }}reg_bind f_reg;
+    {{ settings.class_prefix }}reg f_reg;
 {% endif %}
 
     constraint cst_clk_from_src {
         source != null -> valid == (source.valid && open);
+{%- if enable_node_fix %}
+        fix_open -> open;
+        fix_close -> !open;
+{%- endif %}
     }
 
     function new(string name = "");
         super.new(name);
+{%- if enable_node_fix %}
+        fix_open = 0;
+        fix_close = 0;
+{%- endif %}
 {% if regs_enabled %}
         f_reg = new();
 {% endif %}

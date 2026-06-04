@@ -1,5 +1,4 @@
-# clock_tree 配置示范
-# 字段与 models.py、nodes.py 一致；渲染模板时载入本文件即可校验。
+# clock_tree 全功能示范：各 kind、三种 pll_kind、path 与 reg/regs、test_route 条件均覆盖
 
 trees:
   - name: main
@@ -7,52 +6,116 @@ trees:
       xtal:
         kind: source
         path: dut.xtal
-        targets:
-          - pll_main
+        freq: 24000000
 
-      pll_main:
+      pll_tci:
         kind: pll
         source: xtal
         pll_kind: tci
-        path: dut.pll_main_out
-        targets:
-          - gate0
-          - div0
+        path: dut.pll_tci
+        freq: 48000000
+        regs:
+          lock: blk_pll_tci.lock
+          bypass: blk_pll_tci.bypass
+          pwrdn: blk_pll_tci.pwrdn
+          reset: blk_pll_tci.reset
+          clkod: blk_pll_tci.clkod
+          clkf: blk_pll_tci.clkf
+          clkr: blk_pll_tci.clkr
+          bwadj: blk_pll_tci.bwadj
+
+      pll_sc:
+        kind: pll
+        source: xtal
+        pll_kind: sc
+        path: dut.pll_sc
+        freq: 60000000
+        regs:
+          lock: blk_pll_sc.lock
+          vocpd: blk_pll_sc.vocpd
+          postdivpd: blk_pll_sc.postdivpd
+          dsmpd: blk_pll_sc.dsmpd
+          pd: blk_pll_sc.pd
+          bypass: blk_pll_sc.bypass
+          refdiv: blk_pll_sc.refdiv
+          postdiv2: blk_pll_sc.postdiv2
+          postdiv1: blk_pll_sc.postdiv1
+          fbdiv: blk_pll_sc.fbdiv
+
+      pll_dw:
+        kind: pll
+        source: xtal
+        pll_kind: dw
+        path: dut.pll_dw
+        freq: 72000000
+        regs:
+          lock: blk_pll_dw.lock
+          fbdiv: blk_pll_dw.fbdiv
+          prediv: blk_pll_dw.prediv
+          reset: blk_pll_dw.reset
+          pwron: blk_pll_dw.pwron
+          shift: blk_pll_dw.shift
+          bypass: blk_pll_dw.bypass
+          divvcor: blk_pll_dw.divvcor
+          r: blk_pll_dw.r
+          p: blk_pll_dw.p
+          divvcop: blk_pll_dw.divvcop
+          enr: blk_pll_dw.enr
+          enp: blk_pll_dw.enp
+
+      mux_pll:
+        kind: mux
+        path: dut.mux_pll
+        source:
+          "0": pll_tci
+          "1": pll_sc
+        reg: blk_mux_pll.sel
+
+      mux_ref:
+        kind: mux
+        path: dut.mux_ref
+        source:
+          "0": mux_pll
+          "1": xtal
+        reg: blk_mux_ref.sel
 
       gate0:
         kind: gate
-        source: pll_main
-        target: w_gate0_div0
+        source: mux_ref
+        path: dut.gate0
+        reg: blk_gate0.en
 
       div0:
         kind: div
         source: gate0
-        target: w_div0_inv0
+        path: dut.div0
+        regs:
+          rst: blk_div0.rst
+          load: blk_div0.load
+          div: blk_div0.div
 
       inv0:
         kind: inv
         source: div0
-        target: w_inv0_dto0
 
       dto0:
         kind: dto
         source: inv0
-        target: w_dto0_clk_sys
+        path: dut.dto0
+        regs:
+          rstn: blk_dto0.rstn
+          load: blk_dto0.load
+          bypass: blk_dto0.bypass
+          step: blk_dto0.step
 
-      clk_sys:
+      clk_out:
         kind: clk
-        freq: 100
-        path: dut.clk_sys
+        freq: 100000000
+        path: dut.clk_out
         source: dto0
 
-      mux2:
-        kind: mux
-        source:
-          "0": pll_main
-          "1": xtal
-        target: w_mux2_out
-
 settings:
+  class_regmodel: regmodel_t
   min_freq_hz: 500
   duty_min: 0.50
   duty_max: 0.66

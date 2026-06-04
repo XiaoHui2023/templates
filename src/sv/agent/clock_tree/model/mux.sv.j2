@@ -4,17 +4,26 @@
 class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}mux)
         `uvm_field_int(sel, UVM_ALL_ON)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_sel, UVM_DEFAULT)
+{%- endif %}
     `uvm_object_utils_end
 
     rand int sel;
+{%- if enable_node_fix %}
+    int fix_sel;
+{%- endif %}
     {{ settings.class_prefix }}node_base to_source[int];
 {% if regs_enabled %}
-    {{ settings.class_prefix }}reg_bind f_reg;
+    {{ settings.class_prefix }}reg f_reg;
 {% endif %}
 
     constraint cst_clk_from_src {
         to_source[sel] == null -> valid == 0;
         to_source[sel] != null -> valid == to_source[sel].valid;
+{%- if enable_node_fix %}
+        fix_sel >= 0 -> sel == fix_sel;
+{%- endif %}
     }
 
     constraint cst_freq_from_src {
@@ -23,6 +32,9 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
 
     function new(string name = "");
         super.new(name);
+{%- if enable_node_fix %}
+        fix_sel = -1;
+{%- endif %}
 {% if regs_enabled %}
         f_reg = new();
 {% endif %}

@@ -53,9 +53,10 @@ task {{ settings.class_prefix }}check_duty_seq::body();
 
     foreach (nodes_to_check[i]) begin
         nd = nodes_to_check[i];
-        `uvm_info("CLK_TREE", $sformatf(
-            "check_duty: node %s kind %s",
-            nd.get_name(), nd.kind), UVM_MEDIUM)
+        if (!rq.quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "check_duty: node %s kind %s",
+                nd.get_name(), nd.kind), UVM_MEDIUM)
         nd.vif.start_measure();
     end
 
@@ -87,23 +88,16 @@ task {{ settings.class_prefix }}check_duty_seq::body();
         end
 
         if (!nd.vif.meas.duty_ok) begin
-            if (nd.allow_bad_duty) begin
-                `uvm_info("CLK_TREE", $sformatf(
-                    "check_duty: node %s duty %0.4f out of range [%0.2f,%0.2f], allow_bad_duty",
-                    nd.get_name(), nd.vif.meas.duty,
-                    {{ settings.duty_min }}, {{ settings.duty_max }}), UVM_MEDIUM)
-            end else begin
-                `uvm_error("CLK_TREE", $sformatf(
-                    "check_duty: node %s duty %0.4f out of range [%0.2f,%0.2f]",
-                    nd.get_name(), nd.vif.meas.duty,
-                    {{ settings.duty_min }}, {{ settings.duty_max }}))
-                rs.ok = 1'b0;
-                rs.failed_nodes.push_back(nd);
-            end
+            `uvm_error("CLK_TREE", $sformatf(
+                "check_duty: node %s duty %0.4f out of range [%0.2f,%0.2f]",
+                nd.get_name(), nd.vif.meas.duty,
+                {{ settings.duty_min }}, {{ settings.duty_max }}))
+            rs.ok = 1'b0;
+            rs.failed_nodes.push_back(nd);
         end
     end
 
-    if (rs.ok)
+    if (rs.ok && !rq.quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "check_duty: passed, %0d node(s)", checked), UVM_LOW)
 

@@ -8,25 +8,19 @@
 | --- | --- |
 | 入口 | **kit_sequencer** 上与操作同名的 **task** |
 | **nodes** | 空队列时对 **tree.nodes** 整棵执行；非空时只处理列表中的节点 |
-| **set_clock_gen** | **kit** 对每个带 **vif** 的节点各 **start** 一次底层序列 |
-| 其余操作 | 一次 **start**，**req.nodes** 携带整批节点 |
+| 各操作 | 一次 **start**，**req.nodes** 携带整批节点 |
 
-至少一处节点配置了 **path** 才会生成 **set_clock_gen**、**check_freq** 与 **check_duty**。配置 **class_regmodel** 且节点绑定了 **regs** 时才会生成 **config_reg**。
+至少一处节点配置了 **path** 才会生成 **check_freq** 与 **check_duty**。配置 **class_regmodel** 且节点绑定了 **regs** 时才会生成 **config_reg**。
 
 ## 操作一览
 
 | 名称 | 作用 |
 | --- | --- |
-| **set_clock_gen** | 按节点 **frequence** 打开或关闭 **vif** 上的时钟发生器 |
 | **config_reg** | 把 **gate**、**mux**、**div**、**dto**、**pll** 的目标值写入寄存器模型 |
 | **check_freq** | 测量 **source**、**clk**、**pll** 波形频率，与节点 **frequence** 比较 |
 | **check_duty** | 测量带 **vif** 节点的占空比，与 **duty_min**、**duty_max** 比较 |
 
 容差与占空比上下限在 **settings** 的 **period_tolerance**、**duty_min**、**duty_max**；PLL 等锁超时为 **pll_lock_timeout_us**。
-
-## set_clock_gen
-
-**gen_en** 为 1 时要求 **frequence** 为正，并向 **vif** 写入该频率；为 0 时关闭发生器。
 
 ## config_reg
 
@@ -48,4 +42,4 @@
 
 ## check_duty
 
-处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。与 **check_freq** 相同：先全部 **start_measure**，再统一等待 **stable**，**stop_measure** 后根据 **vif.meas.duty_ok** 判定；范围由 **duty_min**、**duty_max** 决定。未通过占空比且 **allow_bad_duty** 为假的节点记入 **rsp.failed_nodes**。
+处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。与 **check_freq** 相同：先全部 **start_measure**，再统一等待 **stable**，**stop_measure** 后根据 **vif.meas.duty_ok** 判定；范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。

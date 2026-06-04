@@ -58,11 +58,7 @@ class NodeBase(BaseModel):
 
     path: str = Field(
         "",
-        description="RTL 层次路径，仅用于 tree_connection 展开时 force 到 DUT；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
-    )
-    allow_bad_duty: bool = Field(
-        False,
-        description="为真时 check_duty 不因占空比越界报错；须至少一处节点填写 path 才会生成 check_duty 与该字段。",
+        description="RTL 层次路径，供 tree_connection 例化 interface 的 in 端口；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
     )
     freq: Optional[int] = Field(
         None,
@@ -117,7 +113,6 @@ class NodeBase(BaseModel):
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
-    target: str = Field(..., min_length=1, description="输出连线名。")
     reg: str = Field(
         "",
         description="可选；寄存器模型点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
@@ -134,7 +129,6 @@ class GateNode(NodeBase):
 class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
-    target: str = Field(..., min_length=1, description="输出连线名。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
         description="可选；非空时键须为 rst、load、div，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
@@ -154,7 +148,6 @@ class DivNode(NodeBase):
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
-    target: str = Field(..., min_length=1, description="输出连线名。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
         description="可选；非空时键须为 rstn、load、bypass、step，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
@@ -174,16 +167,10 @@ class DtoNode(NodeBase):
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
     source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
-    target: str = Field(..., min_length=1, description="输出连线名。")
 
 
 class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
-    targets: List[str] = Field(
-        ...,
-        min_length=1,
-        description="可驱动的下游器件名列表，须为本 tree nodes 的键。",
-    )
 
 
 class PllNode(NodeBase):
@@ -192,11 +179,6 @@ class PllNode(NodeBase):
         ...,
         min_length=1,
         description="参考时钟前级节点名，须为本 tree nodes 的键；config_reg 用其 frequence 计算分频。",
-    )
-    targets: List[str] = Field(
-        ...,
-        min_length=1,
-        description="可驱动的下游器件名列表，须为本 tree nodes 的键。",
     )
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw，大小写不限。")
     regs: Dict[str, str] = Field(
@@ -237,7 +219,6 @@ class MuxNode(NodeBase):
         default_factory=dict,
         description="多路输入：键为图上输入标签字符串，值为对端器件名；可省略或留空表示暂无输入。",
     )
-    target: str = Field(..., min_length=1, description="输出连线名。")
     reg: str = Field(
         "",
         description="可选；寄存器模型点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
@@ -367,26 +348,39 @@ class Tree(BaseModel):
     def nodes_ordered(self) -> List[Node]:
         return list(self.nodes.values())
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由各节点 source 反查；键为节点名，值为以其为前级的子节点名列表；YAML 不可传入。",
+    )
+    @property
+    def children_by_node(self) -> Dict[str, List[str]]:
+        return build_children_map(self.nodes)
+
     @model_validator(mode="after")
     def _validate_nodes_graph(self) -> Tree:
         validate_nodes_graph(self.nodes)
         return self
 
 
-def _peer_names(node: Node) -> List[str]:
-    if node.kind == "source":
-        return list(node.targets)
-    if node.kind == "pll":
-        return list(node.targets) + [node.source]
+def upstream_peer_names(node: Node) -> List[str]:
     if node.kind == "mux":
         return list(node.source.values())
-    if node.kind in ("gate", "div", "dto", "inv", "clk"):
+    if node.kind in ("gate", "div", "dto", "inv", "clk", "pll"):
         return [node.source]
     return []
 
 
+def build_children_map(nodes: Dict[str, Node]) -> Dict[str, List[str]]:
+    children: Dict[str, List[str]] = {key: [] for key in nodes}
+    for child_name, node in nodes.items():
+        for parent_name in upstream_peer_names(node):
+            children[parent_name].append(child_name)
+    for key in children:
+        children[key].sort()
+    return children
+
+
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
-    """校验 targets、source、mux.source 等对端节点名引用。
+    """校验 source、mux.source 等对端节点名引用。
 
     Raises:
         ValueError: 对端节点名不在 nodes 键集合中时。
@@ -397,7 +391,7 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
             raise ValueError(
                 f"nodes[{key!r}] 的 name 字段 {node.name!r} 须与字典键一致"
             )
-        for peer in _peer_names(node):
+        for peer in upstream_peer_names(node):
             if peer not in known:
                 raise ValueError(
                     f"节点 {node.name!r} 引用对端节点名 {peer!r} "

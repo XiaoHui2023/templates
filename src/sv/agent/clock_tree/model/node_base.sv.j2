@@ -4,17 +4,11 @@
 class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
         `uvm_field_string(kind, UVM_ALL_ON)
-{%- if any_node_path %}
-        `uvm_field_int(allow_bad_duty, UVM_ALL_ON)
-{%- endif %}
         `uvm_field_int(frequence, UVM_ALL_ON)
         `uvm_field_int(valid, UVM_ALL_ON)
     `uvm_object_utils_end
 
     string kind;
-{%- if any_node_path %}
-    rand bit allow_bad_duty;
-{%- endif %}
     rand longint frequence;
     rand bit valid;
 {% if any_node_path %}
@@ -23,9 +17,6 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     {{ settings.class_prefix }}node_base source;
 
     constraint cst_node_base {
-{%- if any_node_path %}
-        soft allow_bad_duty == 0;
-{%- endif %}
         soft frequence == 0;
         soft valid == 0;
     }

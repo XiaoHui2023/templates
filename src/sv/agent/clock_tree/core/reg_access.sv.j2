@@ -3,24 +3,25 @@
 `define {{ (settings.class_prefix ~ "reg_rw") | upper }}
 
 class {{ settings.class_prefix }}reg_rw;
-    extern function uvm_reg parent_reg({{ settings.class_prefix }}reg_bind rb);
-    extern function int get({{ settings.class_prefix }}reg_bind rb);
-    extern function void set({{ settings.class_prefix }}reg_bind rb, int value);
+    extern function uvm_reg parent_reg({{ settings.class_prefix }}reg rb);
+    extern function int get({{ settings.class_prefix }}reg rb);
+    extern function void set({{ settings.class_prefix }}reg rb, int value);
+    extern task ensure_read({{ settings.class_prefix }}reg rb);
     extern task read_reg(uvm_reg r, output int rdata);
-    extern task read({{ settings.class_prefix }}reg_bind rb, output int value);
+    extern task read({{ settings.class_prefix }}reg rb, output int value);
     extern task write_reg(uvm_reg r);
-    extern task write({{ settings.class_prefix }}reg_bind rb);
-    extern task set_write({{ settings.class_prefix }}reg_bind rb, int value);
-    extern task apply(ref {{ settings.class_prefix }}reg_bind binds[$], ref int vals[$]);
+    extern task write({{ settings.class_prefix }}reg rb);
+    extern task set_write({{ settings.class_prefix }}reg rb, int value);
+    extern task apply(ref {{ settings.class_prefix }}reg binds[$], ref int vals[$]);
 endclass
 
-function uvm_reg {{ settings.class_prefix }}reg_rw::parent_reg({{ settings.class_prefix }}reg_bind rb);
+function uvm_reg {{ settings.class_prefix }}reg_rw::parent_reg({{ settings.class_prefix }}reg rb);
     if (rb.field == null)
         `uvm_fatal("CLK_TREE", "parent_reg: field is null")
     return rb.field.get_register();
 endfunction
 
-function int {{ settings.class_prefix }}reg_rw::get({{ settings.class_prefix }}reg_bind rb);
+function int {{ settings.class_prefix }}reg_rw::get({{ settings.class_prefix }}reg rb);
     int full;
     int mask;
     int slice;
@@ -34,7 +35,7 @@ function int {{ settings.class_prefix }}reg_rw::get({{ settings.class_prefix }}r
     return slice;
 endfunction
 
-function void {{ settings.class_prefix }}reg_rw::set({{ settings.class_prefix }}reg_bind rb, int value);
+function void {{ settings.class_prefix }}reg_rw::set({{ settings.class_prefix }}reg rb, int value);
     uvm_status_e status;
     int cur;
     int mask;
@@ -66,13 +67,20 @@ task {{ settings.class_prefix }}reg_rw::read_reg(uvm_reg r, output int rdata);
             "read_reg: read %s failed", r.get_full_name()))
 endtask
 
-task {{ settings.class_prefix }}reg_rw::read({{ settings.class_prefix }}reg_bind rb, output int value);
+task {{ settings.class_prefix }}reg_rw::ensure_read({{ settings.class_prefix }}reg rb);
+    int dummy;
+    if (!rb.has_read)
+        read(rb, dummy);
+endtask
+
+task {{ settings.class_prefix }}reg_rw::read({{ settings.class_prefix }}reg rb, output int value);
     uvm_reg r;
     int reg_rdata;
     if (rb.field == null)
         `uvm_fatal("CLK_TREE", "read: field is null")
     r = parent_reg(rb);
     read_reg(r, reg_rdata);
+    rb.has_read = 1'b1;
     value = get(rb);
 endtask
 
@@ -88,27 +96,37 @@ task {{ settings.class_prefix }}reg_rw::write_reg(uvm_reg r);
             "write_reg: write %s 0x%0h failed", r.get_full_name(), wdata))
 endtask
 
-task {{ settings.class_prefix }}reg_rw::write({{ settings.class_prefix }}reg_bind rb);
+task {{ settings.class_prefix }}reg_rw::write({{ settings.class_prefix }}reg rb);
+    ensure_read(rb);
     write_reg(parent_reg(rb));
 endtask
 
-task {{ settings.class_prefix }}reg_rw::set_write({{ settings.class_prefix }}reg_bind rb, int value);
+task {{ settings.class_prefix }}reg_rw::set_write({{ settings.class_prefix }}reg rb, int value);
+    int cur;
+    ensure_read(rb);
+    cur = get(rb);
+    if (cur == value)
+        return;
     set(rb, value);
-    write(rb);
+    write_reg(parent_reg(rb));
 endtask
 
 task {{ settings.class_prefix }}reg_rw::apply(
-        ref {{ settings.class_prefix }}reg_bind binds[$],
+        ref {{ settings.class_prefix }}reg binds[$],
         ref int vals[$]);
     uvm_reg regs[$];
     if (binds.size() != vals.size())
         `uvm_fatal("CLK_TREE", $sformatf(
             "apply: binds size %0d != vals size %0d", binds.size(), vals.size()))
-    for (int i = 0; i < binds.size(); i++)
-        set(binds[i], vals[i]);
     for (int i = 0; i < binds.size(); i++) begin
+        int cur;
         uvm_reg r;
         bit seen;
+        ensure_read(binds[i]);
+        cur = get(binds[i]);
+        if (cur == vals[i])
+            continue;
+        set(binds[i], vals[i]);
         r = parent_reg(binds[i]);
         seen = 0;
         foreach (regs[j])

@@ -4,18 +4,27 @@
 class {{ settings.class_prefix }}div extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}div)
         `uvm_field_int(ratio, UVM_ALL_ON)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_ratio, UVM_DEFAULT)
+{%- endif %}
     `uvm_object_utils_end
 
     rand int ratio;
+{%- if enable_node_fix %}
+    int fix_ratio;
+{%- endif %}
 {% if regs_enabled %}
-    {{ settings.class_prefix }}reg_bind f_rst;
-    {{ settings.class_prefix }}reg_bind f_load;
-    {{ settings.class_prefix }}reg_bind f_div;
+    {{ settings.class_prefix }}reg f_rst;
+    {{ settings.class_prefix }}reg f_load;
+    {{ settings.class_prefix }}reg f_div;
 {% endif %}
 
     constraint cst_div {
         ratio > 0;
         ratio <= 64;
+{%- if enable_node_fix %}
+        fix_ratio > 0 -> ratio == fix_ratio;
+{%- endif %}
     }
 
     constraint cst_freq_from_src {
@@ -24,6 +33,9 @@ class {{ settings.class_prefix }}div extends {{ settings.class_prefix }}node_bas
 
     function new(string name = "");
         super.new(name);
+{%- if enable_node_fix %}
+        fix_ratio = 0;
+{%- endif %}
 {% if regs_enabled %}
         f_rst = new();
         f_load = new();

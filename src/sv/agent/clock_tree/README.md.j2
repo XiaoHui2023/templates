@@ -76,6 +76,7 @@ task main_phase(uvm_phase phase);
 {%- endif %}
 {%- if any_node_path %}
     clk_sqr.check_freq();
+    clk_sqr.check_duty();
 {%- endif %}
     ...
 endtask

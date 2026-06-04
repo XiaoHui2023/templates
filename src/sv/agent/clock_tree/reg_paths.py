@@ -250,6 +250,21 @@ def any_node_path(tree: Tree) -> bool:
     return False
 
 
+def node_has_path_and_reg(node: object) -> bool:
+    """节点同时配置了非空 path 与 reg 或 regs 时为真。"""
+    if not getattr(node, "path", ""):
+        return False
+    return _node_reg_configured(node)
+
+
+def any_node_path_and_reg(tree: Tree) -> bool:
+    """任一节点同时配置 path 与 reg(regs) 时为真，用于 enable_node_fix。"""
+    for node in tree.nodes_ordered:
+        if node_has_path_and_reg(node):
+            return True
+    return False
+
+
 def _append_binding(
     out: List[RegBindingRow],
     tree_name: str,

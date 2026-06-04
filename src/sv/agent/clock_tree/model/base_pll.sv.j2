@@ -5,12 +5,21 @@ class {{ settings.class_prefix }}base_pll extends {{ settings.class_prefix }}nod
     `uvm_object_utils_begin({{ settings.class_prefix }}base_pll)
         `uvm_field_enum(pll_kind_e, pll_kind, UVM_ALL_ON)
         `uvm_field_int(locked, UVM_ALL_ON)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_mul, UVM_DEFAULT)
+{%- endif %}
     `uvm_object_utils_end
 
     pll_kind_e pll_kind;
     bit locked;
+{%- if enable_node_fix %}
+    int fix_mul;
+{%- endif %}
 
     constraint cst_freq_from_src {
+{%- if enable_node_fix %}
+        fix_mul > 0 && source != null -> frequence == source.frequence * fix_mul;
+{%- endif %}
     }
 
     constraint cst_pll {
@@ -19,6 +28,9 @@ class {{ settings.class_prefix }}base_pll extends {{ settings.class_prefix }}nod
 
     function new(string name = "");
         super.new(name);
+{%- if enable_node_fix %}
+        fix_mul = 0;
+{%- endif %}
         kind = "pll";
     endfunction
 endclass

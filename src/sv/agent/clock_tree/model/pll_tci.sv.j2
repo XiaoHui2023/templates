@@ -5,7 +5,7 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}base
     `uvm_object_utils({{ settings.class_prefix }}pll_tci)
 {%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['tci'] %}
-    {{ settings.class_prefix }}reg_bind f_{{ key }};
+    {{ settings.class_prefix }}reg f_{{ key }};
 {%- endfor %}
 {%- endif %}
 

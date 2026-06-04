@@ -1,0 +1,218 @@
+{% if route_test_enabled %}
+`ifndef {{ (settings.class_prefix ~ "test_route_seq") | upper }}
+`define {{ (settings.class_prefix ~ "test_route_seq") | upper }}
+
+class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}test_route_req,
+    {{ settings.class_prefix }}test_route_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}test_route_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name = "{{ settings.class_prefix }}test_route_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+    extern task run_check_freq_quiet({{ settings.class_prefix }}base_tree tree);
+    extern task run_config_reg_nodes(
+        {{ settings.class_prefix }}node_base nodes[$], bit quiet);
+    extern task save_ctrl_baseline(
+        {{ settings.class_prefix }}node_base nodes[$],
+        output {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
+    extern task restore_ctrl_baseline(
+        {{ settings.class_prefix }}node_base nodes[$],
+        {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
+    extern task verify_one_direction(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base subject,
+        bit upstream,
+        {{ settings.class_prefix }}node_base baseline_nodes[$],
+        {{ settings.class_prefix }}route_ctrl_snap_t baseline_snaps[$]);
+endclass
+
+task {{ settings.class_prefix }}test_route_seq::run_check_freq_quiet(
+        {{ settings.class_prefix }}base_tree tree);
+    {{ settings.class_prefix }}check_freq_req freq_req;
+    {{ settings.class_prefix }}check_freq_rsp freq_rsp;
+    {{ settings.class_prefix }}check_freq_seq freq_seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_route: tree is null for check_freq")
+    freq_req = {{ settings.class_prefix }}check_freq_req::type_id::create("freq_req");
+    freq_req.nodes = tree.nodes;
+    freq_req.quiet = 1'b1;
+    freq_seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
+    freq_seq.req = freq_req;
+    freq_seq.start(p_sequencer);
+    freq_rsp = freq_seq.rsp;
+    if (freq_rsp == null || !freq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_route: check_freq failed")
+endtask
+
+task {{ settings.class_prefix }}test_route_seq::run_config_reg_nodes(
+        {{ settings.class_prefix }}node_base nodes[$], bit quiet);
+    {{ settings.class_prefix }}config_reg_req cfg_req;
+    {{ settings.class_prefix }}config_reg_seq cfg_seq;
+
+    if (nodes.size() == 0)
+        return;
+    cfg_req = {{ settings.class_prefix }}config_reg_req::type_id::create("cfg_req");
+    cfg_req.nodes = nodes;
+    cfg_req.quiet = quiet;
+    cfg_seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
+    cfg_seq.req = cfg_req;
+    cfg_seq.start(p_sequencer);
+    if (cfg_seq.rsp == null || !cfg_seq.rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_route: config_reg failed")
+endtask
+
+task {{ settings.class_prefix }}test_route_seq::save_ctrl_baseline(
+        {{ settings.class_prefix }}node_base nodes[$],
+        output {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
+    {{ settings.class_prefix }}route_ctrl_snap_t one_snap;
+    snaps.delete();
+    foreach (nodes[i]) begin
+        {{ settings.class_prefix }}route_structure_save_ctrl(nodes[i], one_snap);
+        snaps.push_back(one_snap);
+    end
+endtask
+
+task {{ settings.class_prefix }}test_route_seq::restore_ctrl_baseline(
+        {{ settings.class_prefix }}node_base nodes[$],
+        {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
+    foreach (nodes[i])
+        {{ settings.class_prefix }}route_structure_apply_ctrl(nodes[i], snaps[i], 1'b0);
+    endtask
+
+task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base subject,
+        bit upstream,
+        {{ settings.class_prefix }}node_base baseline_nodes[$],
+        {{ settings.class_prefix }}route_ctrl_snap_t baseline_snaps[$]);
+    {{ settings.class_prefix }}node_base line[$];
+    {{ settings.class_prefix }}node_base line_snaps_nodes[$];
+    {{ settings.class_prefix }}route_ctrl_snap_t line_snaps[$];
+    {{ settings.class_prefix }}node_base cfg_nodes[$];
+    int n_sub;
+    int n_combo;
+    int sv;
+    int c;
+    string dir_label;
+
+    if (upstream) begin
+        {{ settings.class_prefix }}route_structure_collect_upstream_line(tree, subject, line);
+        dir_label = "upstream";
+    end else begin
+        {{ settings.class_prefix }}route_structure_collect_downstream_line(tree, subject, line);
+        dir_label = "downstream";
+    end
+
+    line_snaps_nodes = line;
+    save_ctrl_baseline(line_snaps_nodes, line_snaps);
+
+    n_sub = {{ settings.class_prefix }}route_structure_variant_count(subject);
+    if (n_sub <= 0)
+        return;
+
+    n_combo = {{ settings.class_prefix }}route_structure_line_combo_count(line);
+    if (n_combo <= 0)
+        n_combo = 1;
+
+    for (sv = 0; sv < n_sub; sv++) begin
+        restore_ctrl_baseline(baseline_nodes, baseline_snaps);
+        {{ settings.class_prefix }}route_structure_apply_variant_index(subject, sv, 1'b1);
+        {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+
+        cfg_nodes.delete();
+        {{ settings.class_prefix }}append_unique_node(cfg_nodes, subject);
+        run_config_reg_nodes(cfg_nodes, 1'b1);
+
+        for (c = 0; c < n_combo; c++) begin
+            restore_ctrl_baseline(line_snaps_nodes, line_snaps);
+            if (line.size() > 0)
+                {{ settings.class_prefix }}route_structure_apply_line_combo_index(
+                    line, c, 1'b1);
+            {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+
+            cfg_nodes.delete();
+            {{ settings.class_prefix }}append_unique_node(cfg_nodes, subject);
+            foreach (line[i])
+                {{ settings.class_prefix }}append_unique_node(cfg_nodes, line[i]);
+            run_config_reg_nodes(cfg_nodes, 1'b1);
+            run_check_freq_quiet(tree);
+        end
+    end
+
+    restore_ctrl_baseline(baseline_nodes, baseline_snaps);
+    {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+    run_config_reg_nodes(baseline_nodes, 1'b1);
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_route: %s %s done, %0d self x %0d line combo(s)",
+        subject.get_name(), dir_label, n_sub, n_combo), UVM_LOW)
+endtask
+
+task {{ settings.class_prefix }}test_route_seq::body();
+    {{ settings.class_prefix }}test_route_req rq;
+    {{ settings.class_prefix }}test_route_rsp rs;
+    {{ settings.class_prefix }}kit_sequencer kit_sqr;
+    {{ settings.class_prefix }}base_tree tree;
+    {{ settings.class_prefix }}node_base subjects[$];
+    {{ settings.class_prefix }}node_base baseline_nodes[$];
+    {{ settings.class_prefix }}route_ctrl_snap_t baseline_snaps[$];
+    int i;
+
+    if (req == null)
+        `uvm_fatal("CLK_TREE", "test_route: req is null")
+    if (!$cast(kit_sqr, p_sequencer))
+        `uvm_fatal("CLK_TREE", "test_route: p_sequencer is not kit_sequencer")
+
+    rq = req;
+    tree = rq.tree;
+    if (tree == null)
+        tree = kit_sqr.tree;
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_route: tree is null")
+
+    rs = {{ settings.class_prefix }}test_route_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    {{ settings.class_prefix }}route_structure_apply_baseline_fixes(tree);
+    if (!tree.randomize())
+        `uvm_fatal("CLK_TREE", "test_route: tree randomize failed")
+    {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+
+    run_config_reg_nodes(tree.nodes, 1'b0);
+    run_check_freq_quiet(tree);
+
+    if (!{{ settings.class_prefix }}route_structure_all_clocks_valid(tree))
+        `uvm_fatal("CLK_TREE",
+            "test_route: not all clk nodes are valid after baseline")
+
+    {{ settings.class_prefix }}route_structure_collect_probe_subjects(tree, subjects);
+    if (subjects.size() == 0)
+        `uvm_fatal("CLK_TREE",
+            "test_route: no gate/mux/div/dto nodes with bound regs")
+
+    baseline_nodes = tree.nodes;
+    save_ctrl_baseline(baseline_nodes, baseline_snaps);
+
+    for (i = 0; i < subjects.size(); i++) begin
+        verify_one_direction(tree, subjects[i], 1'b1, baseline_nodes, baseline_snaps);
+        verify_one_direction(tree, subjects[i], 1'b0, baseline_nodes, baseline_snaps);
+    end
+
+    restore_ctrl_baseline(baseline_nodes, baseline_snaps);
+    {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+    run_config_reg_nodes(baseline_nodes, 1'b0);
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_route: passed, %0d subject node(s)", subjects.size()), UVM_LOW)
+
+    rsp = rs;
+endtask
+
+`endif
+{% endif %}

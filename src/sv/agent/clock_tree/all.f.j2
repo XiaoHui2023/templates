@@ -1,13 +1,12 @@
 model/spec.sv
 {% if any_node_path %}
-top/generate_interface.sv
 top/measure_interface.sv
 top/interface.sv
 {% endif %}
 model/base.sv
 model/node_base.sv
 {% if regs_enabled %}
-model/reg_bind.sv
+model/reg.sv
 {% endif %}
 model/source.sv
 model/clk.sv
@@ -28,15 +27,14 @@ core/core_tools.sv
 {% endif %}
 core/node_ratio.sv
 model/base_tree.sv
+core/tree_nodes.sv
+{% if route_test_enabled %}
+core/route_structure.sv
+{% endif %}
 trees.sv
 constraint.sv
 component/sequencer.sv
 sequence/base.sv
-{% if any_node_path %}
-sequence/operation/set_clock_gen/req.sv
-sequence/operation/set_clock_gen/rsp.sv
-sequence/operation/set_clock_gen/op.sv
-{% endif %}
 {% if regs_enabled %}
 sequence/operation/config_reg/req.sv
 sequence/operation/config_reg/rsp.sv
@@ -49,9 +47,11 @@ sequence/operation/check_freq/op.sv
 sequence/operation/check_duty/req.sv
 sequence/operation/check_duty/rsp.sv
 sequence/operation/check_duty/op.sv
-sequence/test/test_duty_wavefront/req.sv
-sequence/test/test_duty_wavefront/rsp.sv
-sequence/test/test_duty_wavefront/test.sv
+{% if route_test_enabled %}
+sequence/test/test_route/req.sv
+sequence/test/test_route/rsp.sv
+sequence/test/test_route/test.sv
+{% endif %}
 {% endif %}
 component/kit_sequencer.sv
 component/agent.sv

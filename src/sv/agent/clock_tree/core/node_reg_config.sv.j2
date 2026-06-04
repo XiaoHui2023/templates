@@ -11,22 +11,22 @@ class {{ settings.class_prefix }}node_cfg;
         rw = reg_rw;
     endfunction
 
-    extern task configure_gate({{ settings.class_prefix }}reg_bind f_reg, bit open);
-    extern task configure_mux({{ settings.class_prefix }}reg_bind f_reg, int sel);
+    extern task configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
+    extern task configure_mux({{ settings.class_prefix }}reg f_reg, int sel);
     extern task configure_div(
-        {{ settings.class_prefix }}reg_bind f_rst,
-        {{ settings.class_prefix }}reg_bind f_load,
-        {{ settings.class_prefix }}reg_bind f_div,
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
         int ratio);
     extern task configure_dto(
-        {{ settings.class_prefix }}reg_bind f_rstn,
-        {{ settings.class_prefix }}reg_bind f_load,
-        {{ settings.class_prefix }}reg_bind f_bypass,
-        {{ settings.class_prefix }}reg_bind f_step,
+        {{ settings.class_prefix }}reg f_rstn,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
         int ratio);
 endclass
 
-task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg_bind f_reg, bit open);
+task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
 {%- if settings.gate_reg_high_means_open %}
     rw.set_write(f_reg, open);
 {%- else %}
@@ -34,14 +34,14 @@ task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefi
 {%- endif %}
 endtask
 
-task {{ settings.class_prefix }}node_cfg::configure_mux({{ settings.class_prefix }}reg_bind f_reg, int sel);
+task {{ settings.class_prefix }}node_cfg::configure_mux({{ settings.class_prefix }}reg f_reg, int sel);
     rw.set_write(f_reg, sel);
 endtask
 
 task {{ settings.class_prefix }}node_cfg::configure_div(
-        {{ settings.class_prefix }}reg_bind f_rst,
-        {{ settings.class_prefix }}reg_bind f_load,
-        {{ settings.class_prefix }}reg_bind f_div,
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
         int ratio);
     int n;
     n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
@@ -56,12 +56,12 @@ task {{ settings.class_prefix }}node_cfg::configure_div(
 endtask
 
 task {{ settings.class_prefix }}node_cfg::configure_dto(
-        {{ settings.class_prefix }}reg_bind f_rstn,
-        {{ settings.class_prefix }}reg_bind f_load,
-        {{ settings.class_prefix }}reg_bind f_bypass,
-        {{ settings.class_prefix }}reg_bind f_step,
+        {{ settings.class_prefix }}reg f_rstn,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
         int ratio);
-    {{ settings.class_prefix }}reg_bind binds[$];
+    {{ settings.class_prefix }}reg binds[$];
     int vals[$];
     int step;
     step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);

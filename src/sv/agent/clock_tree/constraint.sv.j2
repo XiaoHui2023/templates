@@ -7,9 +7,6 @@ constraint {{ settings.class_prefix }}{{ tree.name }}_tree::cst_base {
 {%- if node.kind in ["clk", "pll", "source"] and node.freq is not none %}
     soft {{ node.name }}.frequence == {{ node.freq }};
 {%- endif %}
-{%- if any_node_path and node.allow_bad_duty %}
-    soft {{ node.name }}.allow_bad_duty == 1;
-{%- endif %}
 {%- if node.kind == "mux" and node.mux_sel_inside %}
     {{ node.name }}.sel inside { {{ node.mux_sel_inside }} };
 {%- endif %}

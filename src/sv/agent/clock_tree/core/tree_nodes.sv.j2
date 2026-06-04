@@ -1,0 +1,299 @@
+`ifndef {{ (settings.class_prefix ~ "tree_nodes") | upper }}
+`define {{ (settings.class_prefix ~ "tree_nodes") | upper }}
+
+function automatic bit {{ settings.class_prefix }}node_in_queue(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}node_base q[$]);
+    foreach (q[i])
+        if (q[i] == nd)
+            return 1'b1;
+    return 1'b0;
+endfunction
+
+function automatic void {{ settings.class_prefix }}append_unique_node(
+        ref {{ settings.class_prefix }}node_base dest[$],
+        {{ settings.class_prefix }}node_base nd);
+    if (nd == null)
+        return;
+    if ({{ settings.class_prefix }}node_in_queue(nd, dest))
+        return;
+    dest.push_back(nd);
+endfunction
+
+function automatic bit {{ settings.class_prefix }}node_in_tree(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd);
+    if (tree == null || nd == null)
+        return 1'b0;
+    foreach (tree.nodes[i])
+        if (tree.nodes[i] == nd)
+            return 1'b1;
+    return 1'b0;
+endfunction
+
+function automatic void {{ settings.class_prefix }}filter_nodes_by_kind(
+        {{ settings.class_prefix }}node_base nodes[$],
+        string kind,
+        output {{ settings.class_prefix }}node_base filtered[$]);
+    filtered.delete();
+    if (kind == "")
+        filtered = nodes;
+    else
+        foreach (nodes[i])
+            if (nodes[i] != null && nodes[i].kind == kind)
+                filtered.push_back(nodes[i]);
+endfunction
+
+function automatic void {{ settings.class_prefix }}tree_upstream_peers(
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base peers[$]);
+    {{ settings.class_prefix }}mux mux_nd;
+    peers.delete();
+    if (nd == null)
+        return;
+    if ($cast(mux_nd, nd)) begin
+        foreach (mux_nd.to_source[k])
+            if (mux_nd.to_source[k] != null)
+                {{ settings.class_prefix }}append_unique_node(peers, mux_nd.to_source[k]);
+    end else if (nd.source != null)
+        peers.push_back(nd.source);
+endfunction
+
+function automatic void {{ settings.class_prefix }}tree_downstream_peers(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base peers[$]);
+    {{ settings.class_prefix }}mux mux_nd;
+    peers.delete();
+    if (tree == null || nd == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (tree.nodes[i] == null)
+            continue;
+        if ($cast(mux_nd, tree.nodes[i])) begin
+            foreach (mux_nd.to_source[k])
+                if (mux_nd.to_source[k] == nd)
+                    {{ settings.class_prefix }}append_unique_node(peers, tree.nodes[i]);
+        end else if (tree.nodes[i].source == nd)
+            {{ settings.class_prefix }}append_unique_node(peers, tree.nodes[i]);
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}collect_tree_nodes_before(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base collected[$]);
+    {{ settings.class_prefix }}node_base seen[$];
+    {{ settings.class_prefix }}node_base wave[$];
+    {{ settings.class_prefix }}node_base peers[$];
+    int w;
+    collected.delete();
+    if (tree == null || nd == null)
+        return;
+    {{ settings.class_prefix }}tree_upstream_peers(nd, peers);
+    foreach (peers[i]) begin
+        {{ settings.class_prefix }}append_unique_node(seen, peers[i]);
+        {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
+    end
+    w = 0;
+    while (w < wave.size()) begin
+        {{ settings.class_prefix }}node_base cur;
+        cur = wave[w];
+        w++;
+        {{ settings.class_prefix }}append_unique_node(collected, cur);
+        {{ settings.class_prefix }}tree_upstream_peers(cur, peers);
+        foreach (peers[j]) begin
+            if (!{{ settings.class_prefix }}node_in_queue(peers[j], seen)) begin
+                {{ settings.class_prefix }}append_unique_node(seen, peers[j]);
+                {{ settings.class_prefix }}append_unique_node(wave, peers[j]);
+            end
+        end
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}collect_tree_nodes_after(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base collected[$]);
+    {{ settings.class_prefix }}node_base seen[$];
+    {{ settings.class_prefix }}node_base wave[$];
+    {{ settings.class_prefix }}node_base peers[$];
+    int w;
+    collected.delete();
+    if (tree == null || nd == null)
+        return;
+    {{ settings.class_prefix }}tree_downstream_peers(tree, nd, peers);
+    foreach (peers[i]) begin
+        {{ settings.class_prefix }}append_unique_node(seen, peers[i]);
+        {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
+    end
+    w = 0;
+    while (w < wave.size()) begin
+        {{ settings.class_prefix }}node_base cur;
+        cur = wave[w];
+        w++;
+        {{ settings.class_prefix }}append_unique_node(collected, cur);
+        {{ settings.class_prefix }}tree_downstream_peers(tree, cur, peers);
+        foreach (peers[j]) begin
+            if (!{{ settings.class_prefix }}node_in_queue(peers[j], seen)) begin
+                {{ settings.class_prefix }}append_unique_node(seen, peers[j]);
+                {{ settings.class_prefix }}append_unique_node(wave, peers[j]);
+            end
+        end
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_nodes_before(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base result[$],
+        input string kind = "");
+    {{ settings.class_prefix }}node_base raw[$];
+    if (!{{ settings.class_prefix }}node_in_tree(tree, nd))
+        `uvm_fatal("CLK_TREE", "get_nodes_before: node not in tree.nodes")
+    {{ settings.class_prefix }}collect_tree_nodes_before(tree, nd, raw);
+    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_nodes_after(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base result[$],
+        input string kind = "");
+    {{ settings.class_prefix }}node_base raw[$];
+    if (!{{ settings.class_prefix }}node_in_tree(tree, nd))
+        `uvm_fatal("CLK_TREE", "get_nodes_after: node not in tree.nodes")
+    {{ settings.class_prefix }}collect_tree_nodes_after(tree, nd, raw);
+    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
+endfunction
+
+function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}node_base scope[$]);
+    {{ settings.class_prefix }}node_base peers[$];
+    if (nd == null)
+        return 1'b0;
+    {{ settings.class_prefix }}tree_upstream_peers(nd, peers);
+    foreach (peers[i])
+        if ({{ settings.class_prefix }}node_in_queue(peers[i], scope))
+            return 1'b1;
+    return 1'b0;
+endfunction
+
+function automatic bit {{ settings.class_prefix }}node_has_downstream_in_scope(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}node_base scope[$]);
+    {{ settings.class_prefix }}node_base peers[$];
+    if (tree == null || nd == null)
+        return 1'b0;
+    {{ settings.class_prefix }}tree_downstream_peers(tree, nd, peers);
+    foreach (peers[i])
+        if ({{ settings.class_prefix }}node_in_queue(peers[i], scope))
+            return 1'b1;
+    return 1'b0;
+endfunction
+
+function automatic void {{ settings.class_prefix }}collect_subgraph_head_nodes(
+        {{ settings.class_prefix }}node_base scope[$],
+        output {{ settings.class_prefix }}node_base collected[$]);
+    collected.delete();
+    foreach (scope[i]) begin
+        if (scope[i] == null)
+            continue;
+        if (!{{ settings.class_prefix }}node_has_upstream_in_scope(scope[i], scope))
+            {{ settings.class_prefix }}append_unique_node(collected, scope[i]);
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}collect_subgraph_tail_nodes(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base scope[$],
+        output {{ settings.class_prefix }}node_base collected[$]);
+    collected.delete();
+    if (tree == null)
+        return;
+    foreach (scope[i]) begin
+        if (scope[i] == null)
+            continue;
+        if (!{{ settings.class_prefix }}node_has_downstream_in_scope(tree, scope[i], scope))
+            {{ settings.class_prefix }}append_unique_node(collected, scope[i]);
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_tree_head_nodes(
+        {{ settings.class_prefix }}base_tree tree,
+        output {{ settings.class_prefix }}node_base result[$],
+        input string kind = "");
+    {{ settings.class_prefix }}node_base raw[$];
+    result.delete();
+    if (tree == null)
+        return;
+    {{ settings.class_prefix }}collect_subgraph_head_nodes(tree.nodes, raw);
+    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_tree_tail_nodes(
+        {{ settings.class_prefix }}base_tree tree,
+        output {{ settings.class_prefix }}node_base result[$],
+        input string kind = "");
+    {{ settings.class_prefix }}node_base raw[$];
+    result.delete();
+    if (tree == null)
+        return;
+    {{ settings.class_prefix }}collect_subgraph_tail_nodes(tree, tree.nodes, raw);
+    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_subgraph_tail_nodes(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base scope[$],
+        output {{ settings.class_prefix }}node_base result[$],
+        input string kind = "");
+    {{ settings.class_prefix }}node_base raw[$];
+    result.delete();
+    if (tree == null)
+        return;
+    {{ settings.class_prefix }}collect_subgraph_tail_nodes(tree, scope, raw);
+    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
+endfunction
+
+{%- set graph_kind_plurals = [
+    ("source", "sources"),
+    ("clk", "clks"),
+    ("pll", "plls"),
+    ("mux", "muxs"),
+    ("gate", "gates"),
+    ("div", "divs"),
+    ("dto", "dtos"),
+    ("inv", "invs"),
+] %}
+{%- for k, plural in graph_kind_plurals %}
+function automatic void {{ settings.class_prefix }}get_{{ plural }}_before(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base result[$]);
+    {{ settings.class_prefix }}get_nodes_before(tree, nd, result, "{{ k }}");
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_{{ plural }}_after(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base result[$]);
+    {{ settings.class_prefix }}get_nodes_after(tree, nd, result, "{{ k }}");
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_head(
+        {{ settings.class_prefix }}base_tree tree,
+        output {{ settings.class_prefix }}node_base result[$]);
+    {{ settings.class_prefix }}get_tree_head_nodes(tree, result, "{{ k }}");
+endfunction
+
+function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_tail(
+        {{ settings.class_prefix }}base_tree tree,
+        output {{ settings.class_prefix }}node_base result[$]);
+    {{ settings.class_prefix }}get_tree_tail_nodes(tree, result, "{{ k }}");
+endfunction
+{%- endfor %}
+
+`endif

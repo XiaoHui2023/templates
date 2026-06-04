@@ -8,11 +8,10 @@ trees:
     nodes:
       osc:
         kind: source
-        targets: [pll0]
       pll0:
         kind: pll
         source: osc
-        targets: [clk_cpu]
+        pll_kind: tci
         freq: 1000000000
       clk_cpu:
         kind: clk
@@ -27,6 +26,7 @@ settings:
 | --- | --- | --- | --- |
 | `trees` | `list[Tree]` | 必填 | 时钟树。 |
 | `settings` | `Settings` | 见下表 | 全局选项。 |
+| `enable_node_fix` | `bool` | — | 推导字段，不可传入；任一节点同时填写 `path` 与 `reg` 或 `regs` 时为真，为真时生成各节点 **fix_*** 成员。 |
 
 ### Settings
 
@@ -44,7 +44,6 @@ settings:
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
 | `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器写 1 表示打开，**config_reg** 写入值与节点 **open** 一致；为假时写 1 表示关闭，按位取反后写入。节点 **open** 仍为仿真门开闭语义。 |
 | `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 写 1 表示复位、写 0 不复位；为假时写 0 表示复位、写 1 不复位。**config_reg** 在 **rst** 上写不复位电平。 |
-
 无法在优先区间内配准时仍写出寄存器，并 `uvm_error`。
 
 ### 寄存器路径
@@ -79,16 +78,15 @@ settings:
 | `kind` | `str` | 必填 | 节点类型。 |
 | `name` | `str` | — | 由 `nodes` 字典键注入，配置中勿填。 |
 | `path` | `str` | `""` | RTL 层次路径，用于 **tree_connection** 与 interface 展开；不写入节点类。留空则不生成 interface。 |
-| `allow_bad_duty` | `bool` | `false` | 为真时 **check_duty** 不因占空比越界报错；至少一处节点填写 `path` 时才生成该字段与 **check_duty**。 |
 | `freq` | `optional int` | `null` | 典型频率。 |
 
 | `kind` | 主要字段 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `targets` | `targets` 必填 | 时钟源节点，`targets` 写目标节点名列表。 |
-| `pll` | `source`, `targets`, `pll_kind`, `regs` | `source`、`targets`、`pll_kind` 必填 | PLL 节点；`source` 写参考时钟前级；**config_reg** 用前级 **frequence** 算分频，无前级句柄则 **uvm_fatal**；`pll_kind` 为 `tci`、`sc`、`dw` 之一，大小写不限；`regs` 为逻辑名到寄存器模型路径的映射，值可带比特范围后缀，非空时键须与该 `pll_kind` 允许集合完全一致。 |
+| `source` | — | — | 时钟源节点，无 `source` 字段；下游由各节点 `source` 指回本节点名推导。 |
+| `pll` | `source`, `pll_kind`, `regs` | `source`、`pll_kind` 必填 | PLL 节点；`source` 写参考时钟前级；**config_reg** 用前级 **frequence** 算分频，无前级句柄则 **uvm_fatal**；`pll_kind` 为 `tci`、`sc`、`dw` 之一，大小写不限；`regs` 为逻辑名到寄存器模型路径的映射，值可带比特范围后缀，非空时键须与该 `pll_kind` 允许集合完全一致。 |
 | `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写前级节点名。 |
-| `gate` | `source`, `target`, `reg` | `source` 与 `target` 必填 | 门控节点；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |
-| `div` | `source`, `target`, `regs` | `source` 与 `target` 必填 | 分频节点；`regs` 非空时键为 `rst`、`load`、`div`，值可带比特范围后缀。 |
-| `dto` | `source`, `target`, `regs` | `source` 与 `target` 必填 | DTO 节点；`regs` 非空时键为 `rstn`、`load`、`bypass`、`step`，值可带比特范围后缀。 |
-| `inv` | `source`, `target` | `source` 与 `target` 必填 | 反相节点，`source` 写前级节点名，`target` 写输出连线名。 |
-| `mux` | `source`, `target`, `reg` | `target` 必填；`source` 可省略或 `{}` | 多路选择节点；`source` 键为输入序号；有输入时 **cst_base** 约束 **sel inside**；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |
+| `gate` | `source`, `reg` | `source` 必填 | 门控节点；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |
+| `div` | `source`, `regs` | `source` 必填 | 分频节点；`regs` 非空时键为 `rst`、`load`、`div`，值可带比特范围后缀。 |
+| `dto` | `source`, `regs` | `source` 必填 | DTO 节点；`regs` 非空时键为 `rstn`、`load`、`bypass`、`step`，值可带比特范围后缀。 |
+| `inv` | `source` | `source` 必填 | 反相节点，`source` 写前级节点名。 |
+| `mux` | `source`, `reg` | `source` 可省略或 `{}` | 多路选择节点；`source` 键为输入序号；有输入时 **cst_base** 约束 **sel inside**；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |

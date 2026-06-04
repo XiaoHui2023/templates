@@ -12,6 +12,7 @@ from reg_paths import (
     PLL_REG_KEYS,
     RegBindingRow,
     any_node_path,
+    any_node_path_and_reg,
     any_reg_configured as tree_has_node_regs,
     collect_pll_sv_classes,
     iter_reg_bindings,
@@ -86,7 +87,6 @@ class Settings(BaseModel):
         "为假时写 0 表示复位、写 1 表示不复位。"
         "config_reg 在 rst 上写入不复位电平。",
     )
-
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:
         if self.duty_min >= self.duty_max:
@@ -146,19 +146,6 @@ class Models(BaseModel):
             seen.add(tree.name)
         return self
 
-    @model_validator(mode="after")
-    def _validate_allow_bad_duty_requires_check_duty(self) -> Models:
-        if self.any_node_path:
-            return self
-        for tree in self.trees:
-            for key, node in tree.nodes.items():
-                if node.allow_bad_duty:
-                    raise ValueError(
-                        f"节点 {key!r} 配置了 allow_bad_duty，"
-                        "须至少一处节点填写 path 才会生成 check_duty"
-                    )
-        return self
-
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 PLL 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
     )
@@ -179,10 +166,28 @@ class Models(BaseModel):
     def any_regs_configured(self) -> bool:
         return any(tree_has_node_regs(tree) for tree in self.trees)
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="任一节点同时配置 path 与 reg(regs) 时为真；YAML 与 model_validate 不可传入。",
+    )
+    @property
+    def enable_node_fix(self) -> bool:
+        return any(any_node_path_and_reg(tree) for tree in self.trees)
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def regs_enabled(self) -> bool:
         return bool(self.settings.class_regmodel) and self.any_regs_configured
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="enable_node_fix、regs_enabled、any_node_path 均为真时生成 test_route；不可传入。",
+    )
+    @property
+    def route_test_enabled(self) -> bool:
+        return (
+            self.enable_node_fix
+            and self.regs_enabled
+            and self.any_node_path
+        )
 
     @computed_field  # type: ignore[prop-decorator]
     @property

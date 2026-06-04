@@ -4,16 +4,7 @@
 
 {% set _mac_conn = "_" ~ (settings.class_prefix ~ "conn_if") | replace("-", "_") | upper %}
 `define {{ _mac_conn }}(id, p) \
-    {{ settings.class_prefix }}interface {{ settings.class_prefix }}``id``_if ( .in(p) ); \
-    initial begin \
-        forever begin \
-            @({{ settings.class_prefix }}``id``_if.out); \
-            if ($isunknown({{ settings.class_prefix }}``id``_if.out)) \
-                release p; \
-            else \
-                force p = {{ settings.class_prefix }}``id``_if.out; \
-        end \
-    end
+    {{ settings.class_prefix }}interface {{ settings.class_prefix }}``id``_if ( .in(p) );
 
 {%- for tree in trees %}
 {%- for node in tree.nodes_ordered %}

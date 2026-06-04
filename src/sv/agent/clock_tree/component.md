@@ -20,7 +20,7 @@
 | 成员 | 说明 |
 | --- | --- |
 | `tools` | **core_tools**：**rw**、**node**、**pll** 三类寄存器与 PLL 工具 |
-| `tools.rw` | **reg_rw**：总线 **read** / **write** / **apply** / **set_write** 为 **task**；**get** / **set** 仅改或读寄存器模型镜像时为 **function** |
+| `tools.rw` | **reg_rw**：**set_write** / **apply** / **write** 写总线前调用 **ensure_read** 刷新镜像，**has_read** 置位；目标值与 **get** 相同则跳过总线写；**get** / **set** 仅访问镜像时为 **function** |
 
 ## kit_sequencer
 
@@ -32,19 +32,17 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| `set_clock_gen` | **task**；入参 **nodes** 默认空队列、**gen_en** 默认 1；对带 **vif** 的节点启动 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行；**rsp.ok** 为 0 时 **fatal** |
 | `config_reg` | **task**；入参 **nodes** 默认空队列；启动 **config_reg**。**nodes** 为空时对 **tree.nodes** 执行；不向测试平台返回 **rsp** |
 | `check_freq` | **task**；入参 **nodes** 默认空队列；检查其中 **source**、**clk**、**pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
 | `check_duty` | **task**；入参 **nodes** 默认空队列；检查带 **vif** 节点占空比。**nodes** 为空时对 **tree.nodes** 执行 |
-| `test_duty_wavefront` | **task**；入参 **nodes** 默认空队列；按 **source** 依赖自前向后分波：**check_duty** 后仅对占空比未通过的节点 **set_clock_gen**。**nodes** 为空时对 **tree.nodes** 执行 |
+| `test_route` | **task**；入参 **tree** 默认空；依赖 **fix_*** 与 **config_reg**、**check_freq**，按节点验证上下游通路结构。**tree** 为空时用 **kit** 上 **tree** |
 
 ## sequence · operation
 
-每种底层操作独占 **`sequence/operation/<操作名>/`**，含 **req**、**rsp** 与 **op**。**op** 内 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台通过 **kit** 填 **req** 后 **start** 该序列。
+每种底层操作独占 **`sequence/operation/<操作名>/`**，含 **req**、**rsp** 与 **op**。**op** 内 **`p_sequencer`** 类型为 **sequencer**，不得引用 **kit_sequencer** 或调用 kit 便捷方法。测试平台通过 **kit** 填 **req** 后 **start** 该序列。**req.quiet** 为 1 时不打印 **uvm_info** 进度行，供 **test** 等上层封装时减少重复日志；**uvm_error** / **uvm_fatal** 不受影响。
 
 | 行为目录 | 说明 |
 | --- | --- |
-| `set_clock_gen` | 按 **req.gen_en** 与节点 **frequence** 设置 **vif** 时钟发生；**gen_en** 为 0 关闭 |
 | `config_reg` | 对 **req.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
 | `check_freq` | 检查 **req.nodes** 中 **source**、**clk**、**pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
@@ -55,7 +53,7 @@
 
 | 测试目录 | 说明 |
 | --- | --- |
-| `test_duty_wavefront` | 在 **req.nodes** 上按波前顺序：**check_duty**；仅 **failed_nodes** 上 **set_clock_gen**，再处理下一波下游节点 |
+| `test_route` | 基线 **fix_*** 后 **randomize**、**config_reg**、**check_freq**；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测 |
 
 ## sequence · base
 

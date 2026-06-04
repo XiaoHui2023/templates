@@ -1,0 +1,527 @@
+{% if route_test_enabled %}
+`ifndef {{ (settings.class_prefix ~ "route_structure") | upper }}
+`define {{ (settings.class_prefix ~ "route_structure") | upper }}
+
+typedef struct {
+    bit     gate_open;
+    int     mux_sel;
+    int     ratio;
+{%- if enable_node_fix %}
+    bit     fix_open;
+    bit     fix_close;
+    int     fix_sel;
+    int     fix_ratio;
+{%- endif %}
+} {{ settings.class_prefix }}route_ctrl_snap_t;
+
+function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
+        {{ settings.class_prefix }}node_base nd);
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}dto dto_nd;
+
+    if (nd == null)
+        return 1'b0;
+    if ($cast(gate_nd, nd))
+        return gate_nd.f_reg.is_bound();
+    if ($cast(mux_nd, nd))
+        return mux_nd.f_reg.is_bound();
+    if ($cast(div_nd, nd))
+        return div_nd.f_rst.is_bound() && div_nd.f_load.is_bound()
+            && div_nd.f_div.is_bound();
+    if ($cast(dto_nd, nd))
+        return dto_nd.f_rstn.is_bound() && dto_nd.f_load.is_bound()
+            && dto_nd.f_bypass.is_bound() && dto_nd.f_step.is_bound();
+    return 1'b0;
+endfunction
+
+function automatic bit {{ settings.class_prefix }}route_structure_is_probe_kind(
+        {{ settings.class_prefix }}node_base nd);
+    if (nd == null)
+        return 1'b0;
+    return nd.kind == "gate" || nd.kind == "mux" || nd.kind == "div"
+        || nd.kind == "dto";
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}route_ctrl_snap_t snap);
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}dto dto_nd;
+
+    snap.gate_open = 1'b0;
+    snap.mux_sel = 0;
+    snap.ratio = 1;
+{%- if enable_node_fix %}
+    snap.fix_open = 0;
+    snap.fix_close = 0;
+    snap.fix_sel = -1;
+    snap.fix_ratio = 0;
+{%- endif %}
+    if ($cast(gate_nd, nd)) begin
+        snap.gate_open = gate_nd.open;
+{%- if enable_node_fix %}
+        snap.fix_open = gate_nd.fix_open;
+        snap.fix_close = gate_nd.fix_close;
+{%- endif %}
+    end else if ($cast(mux_nd, nd)) begin
+        snap.mux_sel = mux_nd.sel;
+{%- if enable_node_fix %}
+        snap.fix_sel = mux_nd.fix_sel;
+{%- endif %}
+    end else if ($cast(div_nd, nd)) begin
+        snap.ratio = div_nd.ratio;
+{%- if enable_node_fix %}
+        snap.fix_ratio = div_nd.fix_ratio;
+{%- endif %}
+    end else if ($cast(dto_nd, nd)) begin
+        snap.ratio = dto_nd.ratio;
+{%- if enable_node_fix %}
+        snap.fix_ratio = dto_nd.fix_ratio;
+{%- endif %}
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}route_ctrl_snap_t snap,
+        bit clear_fix);
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}dto dto_nd;
+
+    if ($cast(gate_nd, nd)) begin
+        gate_nd.open = snap.gate_open;
+{%- if enable_node_fix %}
+        if (clear_fix) begin
+            gate_nd.fix_open = 0;
+            gate_nd.fix_close = 0;
+        end else begin
+            gate_nd.fix_open = snap.fix_open;
+            gate_nd.fix_close = snap.fix_close;
+        end
+{%- endif %}
+    end else if ($cast(mux_nd, nd)) begin
+        mux_nd.sel = snap.mux_sel;
+{%- if enable_node_fix %}
+        if (clear_fix)
+            mux_nd.fix_sel = -1;
+        else
+            mux_nd.fix_sel = snap.fix_sel;
+{%- endif %}
+        mux_nd.post_randomize();
+    end else if ($cast(div_nd, nd)) begin
+        div_nd.ratio = snap.ratio;
+{%- if enable_node_fix %}
+        if (clear_fix)
+            div_nd.fix_ratio = 0;
+        else
+            div_nd.fix_ratio = snap.fix_ratio;
+{%- endif %}
+    end else if ($cast(dto_nd, nd)) begin
+        dto_nd.ratio = snap.ratio;
+{%- if enable_node_fix %}
+        if (clear_fix)
+            dto_nd.fix_ratio = 0;
+        else
+            dto_nd.fix_ratio = snap.fix_ratio;
+{%- endif %}
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_set_gate_open(
+        {{ settings.class_prefix }}gate gate_nd, bit open_val, bit clear_fix);
+    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    if (gate_nd == null)
+        return;
+    {{ settings.class_prefix }}route_structure_save_ctrl(gate_nd, snap);
+    snap.gate_open = open_val;
+    {{ settings.class_prefix }}route_structure_apply_ctrl(gate_nd, snap, clear_fix);
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_set_mux_sel(
+        {{ settings.class_prefix }}mux mux_nd, int sel_val, bit clear_fix);
+    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    if (mux_nd == null)
+        return;
+    {{ settings.class_prefix }}route_structure_save_ctrl(mux_nd, snap);
+    snap.mux_sel = sel_val;
+    {{ settings.class_prefix }}route_structure_apply_ctrl(mux_nd, snap, clear_fix);
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_set_ratio(
+        {{ settings.class_prefix }}node_base nd, int ratio_val, bit clear_fix);
+    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    if (nd == null)
+        return;
+    {{ settings.class_prefix }}route_structure_save_ctrl(nd, snap);
+    snap.ratio = ratio_val;
+    {{ settings.class_prefix }}route_structure_apply_ctrl(nd, snap, clear_fix);
+endfunction
+
+function automatic bit {{ settings.class_prefix }}route_structure_is_ancestor_of(
+        {{ settings.class_prefix }}node_base ancestor,
+        {{ settings.class_prefix }}node_base desc);
+    {{ settings.class_prefix }}node_base cur;
+
+    if (ancestor == null || desc == null)
+        return 1'b0;
+    cur = desc;
+    while (cur != null) begin
+        if (cur == ancestor)
+            return 1'b1;
+        cur = cur.source;
+    end
+    return 1'b0;
+endfunction
+
+function automatic int {{ settings.class_prefix }}route_structure_mux_sel_toward(
+        {{ settings.class_prefix }}mux mux_nd,
+        {{ settings.class_prefix }}node_base target);
+    int keys[$];
+    if (mux_nd == null || tree == null || target == null)
+        return -1;
+    foreach (mux_nd.to_source[k])
+        keys.push_back(k);
+    keys.sort();
+    foreach (keys[i]) begin
+        if (mux_nd.to_source[keys[i]] != null
+                && {{ settings.class_prefix }}route_structure_is_ancestor_of(
+                    mux_nd.to_source[keys[i]], target))
+            return keys[i];
+    end
+    if (keys.size() > 0)
+        return keys[0];
+    return -1;
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(
+        {{ settings.class_prefix }}base_tree tree);
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}node_base clk_nd;
+    int sel_pick;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(mux_nd, tree.nodes[i]))
+            continue;
+        sel_pick = -1;
+        foreach (tree.nodes[j]) begin
+            if (tree.nodes[j] == null || tree.nodes[j].kind != "clk")
+                continue;
+            clk_nd = tree.nodes[j];
+            sel_pick = {{ settings.class_prefix }}route_structure_mux_sel_toward(
+                mux_nd, clk_nd);
+            if (sel_pick >= 0)
+                break;
+        end
+        if (sel_pick < 0)
+            continue;
+{%- if enable_node_fix %}
+        mux_nd.fix_sel = sel_pick;
+{%- endif %}
+        {{ settings.class_prefix }}route_structure_set_mux_sel(mux_nd, sel_pick, 1'b0);
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_apply_baseline_fixes(
+        {{ settings.class_prefix }}base_tree tree);
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}base_pll pll_nd;
+    int pll_mul;
+    if (tree == null)
+        return;
+    pll_mul = 2;
+    foreach (tree.nodes[i]) begin
+        if ($cast(gate_nd, tree.nodes[i])) begin
+{%- if enable_node_fix %}
+            gate_nd.fix_open = 1'b1;
+            gate_nd.fix_close = 1'b0;
+{%- endif %}
+            gate_nd.open = 1'b1;
+        end else if ($cast(div_nd, tree.nodes[i])) begin
+{%- if enable_node_fix %}
+            div_nd.fix_ratio = 1;
+{%- endif %}
+            div_nd.ratio = 1;
+        end else if ($cast(dto_nd, tree.nodes[i])) begin
+{%- if enable_node_fix %}
+            dto_nd.fix_ratio = 1;
+{%- endif %}
+            dto_nd.ratio = 1;
+        end else if ($cast(pll_nd, tree.nodes[i])) begin
+{%- if enable_node_fix %}
+            pll_nd.fix_mul = pll_mul;
+{%- endif %}
+            pll_mul++;
+        end
+    end
+    {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(tree);
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_propagate_tree(
+        {{ settings.class_prefix }}base_tree tree);
+    {{ settings.class_prefix }}node_base nd;
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}inv inv_nd;
+    int max_pass;
+    bit changed;
+    longint new_freq;
+    bit new_valid;
+
+    if (tree == null)
+        return;
+    max_pass = tree.nodes.size() + 2;
+    for (int pass = 0; pass < max_pass; pass++) begin
+        changed = 1'b0;
+        foreach (tree.nodes[i]) begin
+            nd = tree.nodes[i];
+            if (nd == null)
+                continue;
+            if (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll")
+                continue;
+            if ($cast(gate_nd, nd)) begin
+                if (gate_nd.source == null) begin
+                    new_valid = 1'b0;
+                    new_freq = 0;
+                end else begin
+                    new_valid = gate_nd.source.valid && gate_nd.open;
+                    new_freq = gate_nd.source.frequence;
+                end
+                if (new_valid != gate_nd.valid || new_freq != gate_nd.frequence) begin
+                    gate_nd.valid = new_valid;
+                    gate_nd.frequence = new_freq;
+                    changed = 1'b1;
+                end
+            end else if ($cast(mux_nd, nd)) begin
+                mux_nd.post_randomize();
+                if (mux_nd.to_source[mux_nd.sel] == null) begin
+                    new_valid = 1'b0;
+                    new_freq = 0;
+                end else begin
+                    new_valid = mux_nd.to_source[mux_nd.sel].valid;
+                    new_freq = mux_nd.to_source[mux_nd.sel].frequence;
+                end
+                if (new_valid != mux_nd.valid || new_freq != mux_nd.frequence) begin
+                    mux_nd.valid = new_valid;
+                    mux_nd.frequence = new_freq;
+                    changed = 1'b1;
+                end
+            end else if ($cast(div_nd, nd)) begin
+                if (div_nd.source == null || div_nd.ratio <= 0) begin
+                    new_valid = 1'b0;
+                    new_freq = 0;
+                end else begin
+                    new_valid = div_nd.source.valid;
+                    new_freq = div_nd.source.frequence / div_nd.ratio;
+                end
+                if (new_valid != div_nd.valid || new_freq != div_nd.frequence) begin
+                    div_nd.valid = new_valid;
+                    div_nd.frequence = new_freq;
+                    changed = 1'b1;
+                end
+            end else if ($cast(dto_nd, nd)) begin
+                if (dto_nd.source == null || dto_nd.ratio <= 0) begin
+                    new_valid = 1'b0;
+                    new_freq = 0;
+                end else begin
+                    new_valid = dto_nd.source.valid;
+                    new_freq = dto_nd.source.frequence / dto_nd.ratio;
+                end
+                if (new_valid != dto_nd.valid || new_freq != dto_nd.frequence) begin
+                    dto_nd.valid = new_valid;
+                    dto_nd.frequence = new_freq;
+                    changed = 1'b1;
+                end
+            end else if ($cast(inv_nd, nd)) begin
+                if (inv_nd.source == null) begin
+                    new_valid = 1'b0;
+                    new_freq = 0;
+                end else begin
+                    new_valid = inv_nd.source.valid;
+                    new_freq = inv_nd.source.frequence;
+                end
+                if (new_valid != inv_nd.valid || new_freq != inv_nd.frequence) begin
+                    inv_nd.valid = new_valid;
+                    inv_nd.frequence = new_freq;
+                    changed = 1'b1;
+                end
+            end
+        end
+        if (!changed)
+            break;
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_filter_line_regs(
+        {{ settings.class_prefix }}node_base line[$],
+        output {{ settings.class_prefix }}node_base filtered[$]);
+    filtered.delete();
+    foreach (line[i])
+        if ({{ settings.class_prefix }}route_structure_regs_ready(line[i]))
+            filtered.push_back(line[i]);
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_collect_upstream_line(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base subject,
+        output {{ settings.class_prefix }}node_base line[$]);
+    {{ settings.class_prefix }}node_base raw[$];
+    line.delete();
+    if (tree == null || subject == null)
+        return;
+    {{ settings.class_prefix }}get_nodes_before(tree, subject, raw);
+    foreach (raw[i]) begin
+        if (raw[i] == subject)
+            continue;
+        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i]))
+            line.push_back(raw[i]);
+    end
+    begin
+        {{ settings.class_prefix }}node_base filtered[$];
+        {{ settings.class_prefix }}route_structure_filter_line_regs(line, filtered);
+        line = filtered;
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_collect_downstream_line(
+        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}node_base subject,
+        output {{ settings.class_prefix }}node_base line[$]);
+    {{ settings.class_prefix }}node_base raw[$];
+    line.delete();
+    if (tree == null || subject == null)
+        return;
+    {{ settings.class_prefix }}get_nodes_after(tree, subject, raw);
+    foreach (raw[i]) begin
+        if (raw[i] == subject)
+            continue;
+        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i]))
+            line.push_back(raw[i]);
+    end
+    begin
+        {{ settings.class_prefix }}node_base filtered[$];
+        {{ settings.class_prefix }}route_structure_filter_line_regs(line, filtered);
+        line = filtered;
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_collect_probe_subjects(
+        {{ settings.class_prefix }}base_tree tree,
+        output {{ settings.class_prefix }}node_base subjects[$]);
+    subjects.delete();
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (!{{ settings.class_prefix }}route_structure_is_probe_kind(tree.nodes[i]))
+            continue;
+        if (!{{ settings.class_prefix }}route_structure_regs_ready(tree.nodes[i]))
+            continue;
+        {{ settings.class_prefix }}append_unique_node(subjects, tree.nodes[i]);
+    end
+endfunction
+
+function automatic int {{ settings.class_prefix }}route_structure_variant_count(
+        {{ settings.class_prefix }}node_base nd);
+    {{ settings.class_prefix }}mux mux_nd;
+    int n;
+    int keys[$];
+    if (nd == null)
+        return 0;
+    if (nd.kind == "gate")
+        return 2;
+    if (nd.kind == "div" || nd.kind == "dto")
+        return 2;
+    if ($cast(mux_nd, nd)) begin
+        foreach (mux_nd.to_source[k])
+            keys.push_back(k);
+        return keys.size();
+    end
+    return 0;
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_apply_variant_index(
+        {{ settings.class_prefix }}node_base nd, int idx, bit clear_fix);
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    int keys[$];
+    if (nd == null)
+        return;
+    if ($cast(gate_nd, nd))
+        {{ settings.class_prefix }}route_structure_set_gate_open(
+            gate_nd, idx != 0, clear_fix);
+    else if (nd.kind == "div" || nd.kind == "dto")
+        {{ settings.class_prefix }}route_structure_set_ratio(
+            nd, idx == 0 ? 1 : 2, clear_fix);
+    else if ($cast(mux_nd, nd)) begin
+        foreach (mux_nd.to_source[k])
+            keys.push_back(k);
+        keys.sort();
+        if (idx < 0 || idx >= keys.size())
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "route_structure: mux %s variant idx %0d out of range",
+                mux_nd.get_name(), idx))
+        {{ settings.class_prefix }}route_structure_set_mux_sel(
+            mux_nd, keys[idx], clear_fix);
+    end
+endfunction
+
+function automatic int {{ settings.class_prefix }}route_structure_line_combo_count(
+        {{ settings.class_prefix }}node_base line[$]);
+    int total;
+    int n;
+    total = 1;
+    foreach (line[i]) begin
+        n = {{ settings.class_prefix }}route_structure_variant_count(line[i]);
+        if (n <= 0)
+            continue;
+        total *= n;
+    end
+    return total;
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_apply_line_combo_index(
+        {{ settings.class_prefix }}node_base line[$],
+        int combo_idx,
+        bit clear_fix);
+    int n;
+    int pick;
+    int rem;
+    rem = combo_idx;
+    foreach (line[i]) begin
+        n = {{ settings.class_prefix }}route_structure_variant_count(line[i]);
+        if (n <= 0)
+            continue;
+        pick = rem % n;
+        rem = rem / n;
+        {{ settings.class_prefix }}route_structure_apply_variant_index(
+            line[i], pick, clear_fix);
+    end
+endfunction
+
+function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_valid(
+        {{ settings.class_prefix }}base_tree tree);
+    if (tree == null)
+        return 1'b0;
+    foreach (tree.nodes[i]) begin
+        if (tree.nodes[i] == null)
+            continue;
+        if (tree.nodes[i].kind != "clk")
+            continue;
+        if (!tree.nodes[i].valid)
+            return 1'b0;
+    end
+    return 1'b1;
+endfunction
+
+`endif
+{% endif %}
