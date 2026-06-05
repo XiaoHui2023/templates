@@ -115,6 +115,7 @@ task {{ settings.class_prefix }}reg_rw::apply(
         ref {{ settings.class_prefix }}reg binds[$],
         ref int vals[$]);
     uvm_reg regs[$];
+    uvm_reg read_regs[$];
     if (binds.size() != vals.size())
         `uvm_fatal("CLK_TREE", $sformatf(
             "apply: binds size %0d != vals size %0d", binds.size(), vals.size()))
@@ -122,12 +123,22 @@ task {{ settings.class_prefix }}reg_rw::apply(
         int cur;
         uvm_reg r;
         bit seen;
-        ensure_read(binds[i]);
+        bit reg_read;
+        r = parent_reg(binds[i]);
+        reg_read = 0;
+        foreach (read_regs[j])
+            if (read_regs[j] == r)
+                reg_read = 1;
+        if (!reg_read) begin
+            int dummy;
+            read_reg(r, dummy);
+            read_regs.push_back(r);
+        end
+        binds[i].has_read = 1'b1;
         cur = get(binds[i]);
         if (cur == vals[i])
             continue;
         set(binds[i], vals[i]);
-        r = parent_reg(binds[i]);
         seen = 0;
         foreach (regs[j])
             if (regs[j] == r)

@@ -20,7 +20,7 @@
 | 成员 | 说明 |
 | --- | --- |
 | `tools` | **core_tools**：**rw**、**node**、**pll** 三类寄存器与 PLL 工具 |
-| `tools.rw` | **reg_rw**：**set_write** / **apply** / **write** 写总线前调用 **ensure_read** 刷新镜像，**has_read** 置位；目标值与 **get** 相同则跳过总线写；**get** / **set** 仅访问镜像时为 **function** |
+| `tools.rw` | **reg_rw**：**set_write** / **write** 写总线前 **ensure_read** 刷新镜像；**apply** 对同一 **uvm_reg** 只读一次再合并各 field **set**；**has_read** 置位；目标值与 **get** 相同则跳过总线写；**get** / **set** 仅访问镜像时为 **function** |
 
 ## kit_sequencer
 
