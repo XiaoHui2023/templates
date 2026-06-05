@@ -430,6 +430,36 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_probe
     end
 endfunction
 
+function automatic void {{ settings.class_prefix }}route_structure_collect_flip_subjects(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base filter[$],
+        output {{ settings.class_prefix }}node_base subjects[$]);
+    subjects.delete();
+    if (filter.size() > 0) begin
+        foreach (filter[i]) begin
+            if (filter[i] == null)
+                continue;
+            if (filter[i].kind != "div" && filter[i].kind != "dto")
+                continue;
+            if (!{{ settings.class_prefix }}route_structure_regs_ready(filter[i]))
+                continue;
+            {{ settings.class_prefix }}append_unique_node(subjects, filter[i]);
+        end
+        return;
+    end
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (tree.nodes[i] == null)
+            continue;
+        if (tree.nodes[i].kind != "div" && tree.nodes[i].kind != "dto")
+            continue;
+        if (!{{ settings.class_prefix }}route_structure_regs_ready(tree.nodes[i]))
+            continue;
+        {{ settings.class_prefix }}append_unique_node(subjects, tree.nodes[i]);
+    end
+endfunction
+
 function automatic int {{ settings.class_prefix }}route_structure_variant_count(
         {{ settings.class_prefix }}node_base nd);
     {{ settings.class_prefix }}mux mux_nd;

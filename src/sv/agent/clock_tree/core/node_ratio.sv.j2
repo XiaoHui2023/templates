@@ -25,4 +25,55 @@ function automatic int {{ settings.class_prefix }}dto_ratio_to_step(int ratio);
     return int'(step_i);
 endfunction
 
+{% if route_test_enabled %}
+function automatic int {{ settings.class_prefix }}reg_field_width(
+        {{ settings.class_prefix }}reg rb);
+    if (!rb.is_bound())
+        `uvm_fatal("CLK_TREE", "reg_field_width: reg not bound")
+    if (rb.width > 0)
+        return rb.width;
+    return rb.field.get_n_bits();
+endfunction
+
+function automatic int {{ settings.class_prefix }}div_ratio_for_reg_msb(
+        {{ settings.class_prefix }}reg f_div);
+    int width;
+    int reg_msb;
+    int ratio;
+    width = {{ settings.class_prefix }}reg_field_width(f_div);
+    if (width <= 0)
+        `uvm_fatal("CLK_TREE", "div_ratio_for_reg_msb: field width must be positive")
+    reg_msb = 1 << (width - 1);
+    ratio = reg_msb + 1;
+    if (ratio > 64)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "div_ratio_for_reg_msb: msb-only ratio %0d exceeds max 64, width %0d",
+            ratio, width))
+    return ratio;
+endfunction
+
+function automatic int {{ settings.class_prefix }}dto_ratio_for_reg_msb(
+        {{ settings.class_prefix }}reg f_step);
+    longint max_step;
+    longint reg_msb;
+    longint ratio_l;
+    int width;
+    width = {{ settings.class_prefix }}reg_field_width(f_step);
+    if (width <= 0)
+        `uvm_fatal("CLK_TREE", "dto_ratio_for_reg_msb: field width must be positive")
+    max_step = longint'(1) << 25;
+    reg_msb = longint'(1) << (width - 1);
+    if (reg_msb < 1 || reg_msb >= max_step)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "dto_ratio_for_reg_msb: msb-only step %0d out of range, width %0d",
+            reg_msb, width))
+    ratio_l = max_step / reg_msb;
+    if (ratio_l < 1 || ratio_l >= max_step)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "dto_ratio_for_reg_msb: ratio %0d out of range for width %0d",
+            ratio_l, width))
+    return int'(ratio_l);
+endfunction
+{% endif %}
+
 `endif

@@ -18,6 +18,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     extern task check_duty({{ settings.class_prefix }}node_base nodes[$] = {});
 {% endif %}
 {% if route_test_enabled %}
+    extern task check_flip({{ settings.class_prefix }}node_base nodes[$] = {});
     extern task test_route({{ settings.class_prefix }}tree_base tree = null);
 {% endif %}
 endclass
@@ -96,6 +97,27 @@ endtask
 {% endif %}
 
 {% if route_test_enabled %}
+task {{ settings.class_prefix }}kit_sequencer::check_flip(
+        {{ settings.class_prefix }}node_base nodes[$]);
+    {{ settings.class_prefix }}check_flip_req req;
+    {{ settings.class_prefix }}check_flip_rsp seq_rsp;
+    {{ settings.class_prefix }}check_flip_seq seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "check_flip: tree is null")
+
+    req = {{ settings.class_prefix }}check_flip_req::type_id::create("req");
+    req.nodes = nodes;
+    req.tree = tree;
+
+    seq = {{ settings.class_prefix }}check_flip_seq::type_id::create("check_flip");
+    seq.req = req;
+    seq.start(this);
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "check_flip: operation failed")
+endtask
+
 task {{ settings.class_prefix }}kit_sequencer::test_route(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}test_route_req req;
