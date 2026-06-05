@@ -2,9 +2,14 @@
 `define {{ (settings.class_prefix ~ "clk") | upper }}
 
 class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_base;
-    `uvm_object_utils({{ settings.class_prefix }}clk)
+    `uvm_object_utils_begin({{ settings.class_prefix }}clk)
+        `uvm_field_int(classic_frequence, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    longint classic_frequence;
 
     constraint cst_clk {
+        soft frequence == classic_frequence;
         frequence > 0 -> valid == 1;
     }
 

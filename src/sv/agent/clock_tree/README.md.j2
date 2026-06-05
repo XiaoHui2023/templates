@@ -3,12 +3,12 @@
 ## 外部约束
 
 + 你可以使用以下外部约束：
-  + `cst_sys`
+  + `cst_base`
   + `cst_user`
   + `cst_case`
 
 ```systemverilog
-constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_sys {
+constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_base {
     ...
 }
 constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_user {

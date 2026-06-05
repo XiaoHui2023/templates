@@ -28,7 +28,6 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endfor %}
 
     constraint cst_base;
-    constraint cst_sys;
     constraint cst_user;
     constraint cst_case;
 
@@ -72,6 +71,22 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
         {{ node.name }}.source = {{ peer_access }};
 {%- endif %}
 {%- endfor %}
+{%- endfor %}
+{%- for node in tree.nodes_ordered %}
+{%- if node.freq is not none %}
+{%- if node.kind in ["clk", "pll", "source"] %}
+{%- if node.sv_is_array %}
+{%- for i in range(node.output_count) %}
+        {{ node.name }}[{{ i }}].classic_frequence = {{ node.freq }};
+{%- endfor %}
+{%- else %}
+        {{ node.name }}.classic_frequence = {{ node.freq }};
+{%- endif %}
+{%- endif %}
+{%- endif %}
+{%- if node.kind == "mux" %}
+        {{ node.name }}.max_sel = {{ node.mux_max_sel }};
+{%- endif %}
 {%- endfor %}
         nodes.delete();
 {%- for slot in tree.sv_slots %}

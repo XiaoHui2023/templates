@@ -68,15 +68,15 @@ classDiagram
 
 ## source
 
-配置 **kind: source** 的时钟根节点；无前级时 **cst_freq_from_src** 不施加频率等式，频率由 **tree** 软约束或随机。**cst_source**：**frequence** 大于 0 时 **valid** 为 1。
+配置 **kind: source** 的时钟根节点；无前级时 **cst_freq_from_src** 不施加频率等式。**classic_frequence** 由建树 **new** 从 YAML **freq** 写入；**cst_source** 硬约束 **frequence** 等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
 
 ## clk
 
-观测用时钟节点；有前级时 **valid** 随 **cst_clk_from_src** 与前级一致。**cst_clk**：**frequence** 大于 0 时 **valid** 为 1。
+观测用时钟节点；有前级时 **valid** 随 **cst_clk_from_src** 与前级一致。**classic_frequence** 由建树 **new** 写入；**cst_clk** 软约束 **frequence** 默认等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
 
 ## pll_base
 
-PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**cst_freq_from_src** 在 **enable_node_fix** 且 **fix_mul** 大于 0 时约束输出频率为参考 **source** 频率乘以系数；否则不随参考直通，由 **cst_pll** 与 tree 软约束约束输出。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时跳过寄存器更新。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
+PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 软约束 **frequence** 默认等于 **classic_frequence**。**cst_freq_from_src** 在 **enable_node_fix** 且 **fix_mul** 大于 0 时约束输出频率为参考 **source** 频率乘以系数；否则不随参考直通。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时跳过寄存器更新。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
@@ -110,7 +110,8 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
-| sel | int，rand | 选择值；**source** 非空时 **cst_base** 中 **inside** 与 **source** 键一致 |
+| sel | int，rand | 选择值；**cst_mux** 约束 **sel** 在 0 至 **max_sel** |
+| max_sel | int | 建树时由 **mux.source** 键最大值写入 |
 | fix_sel | int | **enable_node_fix** 为真时生成；默认 **-1** 表示不固定 **sel**；**≥ 0** 时在 **cst_clk_from_src** 中约束 **sel** 等于该值 |
 | to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 在 **to_source[sel] != null** 时写入 **source** |
 | reg | string，可选 | 寄存器模型点分路径，可带比特范围后缀；**config_reg** 写入 **sel** |

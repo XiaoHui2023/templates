@@ -5,6 +5,7 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
     `uvm_object_utils_begin({{ settings.class_prefix }}pll_base)
         `uvm_field_enum(pll_kind_e, pll_kind, UVM_ALL_ON)
         `uvm_field_int(locked, UVM_ALL_ON)
+        `uvm_field_int(classic_frequence, UVM_ALL_ON)
 {%- if enable_node_fix %}
         `uvm_field_int(fix_mul, UVM_DEFAULT)
 {%- endif %}
@@ -12,6 +13,7 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
 
     pll_kind_e pll_kind;
     bit locked;
+    longint classic_frequence;
 {%- if enable_node_fix %}
     int fix_mul;
 {%- endif %}
@@ -23,6 +25,7 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
     }
 
     constraint cst_pll {
+        soft frequence == classic_frequence;
         frequence > 0 -> valid == 1;
     }
 

@@ -108,7 +108,7 @@ class NodeBase(BaseModel):
     freq: Optional[int] = Field(
         None,
         ge=1,
-        description="典型频率 Hz；用于 source、clk、pll 的 tree 软约束。",
+        description="典型频率 Hz；建树时在对应节点写入 classic_frequence。",
     )
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -128,14 +128,13 @@ class NodeBase(BaseModel):
         return [SourceRef(name=device, out_idx=out_idx)]
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="mux 的 source 键展开为 sel inside 集合字面量；YAML 与 model_validate 不可传入。",
+        description="mux 的 source 键最大值，供 SV max_sel；YAML 与 model_validate 不可传入。",
     )
     @property
-    def mux_sel_inside(self) -> str:
-        if self.kind != "mux":
-            return ""
-        keys = sorted(int(k) for k in self.source.keys())
-        return ", ".join(str(k) for k in keys)
+    def mux_max_sel(self) -> int:
+        if self.kind != "mux" or not self.source:
+            return 0
+        return max(int(k) for k in self.source.keys())
 
     @field_validator("path")
     @classmethod

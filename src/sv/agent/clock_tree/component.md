@@ -63,4 +63,4 @@
 
 ## tree 外部约束
 
-**{name}_tree** 声明 **cst_base**、**cst_sys**、**cst_user**、**cst_case**；**cst_base** 实现在 **constraint.sv**，含频率软约束；**mux** 配置了 **source** 时生成 **sel inside**。**clk** 与 **low_power** 的 **valid** 关系在 **tree_base** 的 **cst_tree_base**。
+**{name}_tree** 声明 **cst_base**、**cst_user**、**cst_case**；频率与 **mux.sel** 默认规则在节点类与 **new** 赋值，**cst_base** 仅作外部约束口供用例扩展。**new** 中为 **clk**、**pll**、**source** 写入 **classic_frequence**，为 **mux** 写入 **max_sel**。**clk** 与 **low_power** 的 **valid** 关系在 **tree_base** 的 **cst_tree_base**。

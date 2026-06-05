@@ -4,11 +4,13 @@
 class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}mux)
         `uvm_field_int(sel, UVM_ALL_ON)
+        `uvm_field_int(max_sel, UVM_ALL_ON)
 {%- if enable_node_fix %}
         `uvm_field_int(fix_sel, UVM_DEFAULT)
 {%- endif %}
     `uvm_object_utils_end
 
+    int max_sel;
     rand int sel;
 {%- if enable_node_fix %}
     int fix_sel;
@@ -17,6 +19,10 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
 {% if regs_enabled %}
     {{ settings.class_prefix }}reg f_reg;
 {% endif %}
+
+    constraint cst_mux {
+        sel inside {[0:max_sel]};
+    }
 
     constraint cst_clk_from_src {
         to_source[sel] == null -> valid == 0;

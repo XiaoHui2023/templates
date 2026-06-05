@@ -91,4 +91,4 @@ settings:
 | `div` | `source`, `regs` | `source` 必填 | 分频节点；`regs` 非空时键为 `rst`、`load`、`div`，值可带比特范围后缀。 |
 | `dto` | `source`, `regs` | `source` 必填 | DTO 节点；`regs` 非空时键为 `rst`、`load`、`bypass`、`step`，值可带比特范围后缀。 |
 | `inv` | `source` | `source` 必填 | 反相节点，`source` 写前级节点名。 |
-| `mux` | `source`, `reg` | `source` 可省略或 `{}` | 多路选择节点；`source` 键为输入序号；有输入时 **cst_base** 约束 **sel inside**；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |
+| `mux` | `source`, `reg` | `source` 可省略或 `{}` | 多路选择节点；`source` 键为输入序号；建树时 **max_sel** 取键最大值，**sel** 约束在 0 至 **max_sel**；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |

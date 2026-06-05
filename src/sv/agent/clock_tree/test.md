@@ -159,7 +159,7 @@
 | --- | --- |
 | 使用者按设计图配置 | **YAML** 建树 + **randomize**；**config_reg** 写 **open**、**sel**、分频 |
 | 忽略串联门控顺序 | **config_reg** 两段 **gate** 不改变 **open** 乘积语义 |
-| 树状、**mux.sel** 唯一 | **cst_base** 约束 **sel** |
+| 树状、**mux.sel** 在合法范围 | **cst_mux** 与 **max_sel** |
 | 频率正确 | **check_freq** 与 **div** / **dto** / **pll** 换算及约束同源 |
 | 占空比 | **check_duty** 对带 **vif** 节点一次批量测量 |
 
