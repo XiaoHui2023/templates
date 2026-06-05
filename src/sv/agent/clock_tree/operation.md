@@ -48,4 +48,4 @@
 
 ## check_duty
 
-处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。与 **check_freq** 相同：先全部 **start_measure**，再统一等待 **stable**，**stop_measure** 后根据 **vif.meas.duty_ok** 判定；范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。
+处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。先对全部待测节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即根据 **vif.meas.duty_ok** 判定并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。

@@ -14,7 +14,32 @@ class {{ settings.class_prefix }}check_duty_seq extends uvm_sequence #(
     endfunction
 
     extern virtual task body();
+    extern task evaluate_one_node(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}check_duty_rsp rs
+    );
 endclass
+
+task {{ settings.class_prefix }}check_duty_seq::evaluate_one_node(
+    {{ settings.class_prefix }}node_base nd,
+    {{ settings.class_prefix }}check_duty_rsp rs
+);
+    if (!nd.vif.meas.stable) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_duty: node %s did not stabilize", nd.get_name()))
+        rs.ok = 1'b0;
+        return;
+    end
+
+    if (!nd.vif.meas.duty_ok) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_duty: node %s duty %0.4f out of range [%0.2f,%0.2f]",
+            nd.get_name(), nd.vif.meas.duty,
+            {{ settings.duty_min }}, {{ settings.duty_max }}))
+        rs.ok = 1'b0;
+        rs.failed_nodes.push_back(nd);
+    end
+endtask
 
 task {{ settings.class_prefix }}check_duty_seq::body();
     {{ settings.class_prefix }}check_duty_req rq;
@@ -24,7 +49,8 @@ task {{ settings.class_prefix }}check_duty_seq::body();
     int meas_timeout_ns;
     int elapsed_ns;
     int checked;
-    bit all_stable;
+    int pending;
+    bit node_done[];
 
     meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }};
 
@@ -51,6 +77,9 @@ task {{ settings.class_prefix }}check_duty_seq::body();
     rs = {{ settings.class_prefix }}check_duty_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
+    node_done = new[nodes_to_check.size()];
+    pending = nodes_to_check.size();
+
     foreach (nodes_to_check[i]) begin
         nd = nodes_to_check[i];
         if (!rq.quiet)
@@ -60,41 +89,29 @@ task {{ settings.class_prefix }}check_duty_seq::body();
         nd.vif.start_measure();
     end
 
-    all_stable = 1'b0;
     elapsed_ns = 0;
-    while (!all_stable && elapsed_ns < meas_timeout_ns) begin
-        all_stable = 1'b1;
+    while (pending > 0 && elapsed_ns < meas_timeout_ns) begin
         foreach (nodes_to_check[i]) begin
+            if (node_done[i])
+                continue;
             if (!nodes_to_check[i].vif.meas.stable)
-                all_stable = 1'b0;
+                continue;
+            evaluate_one_node(nodes_to_check[i], rs);
+            nodes_to_check[i].vif.stop_measure();
+            node_done[i] = 1'b1;
+            pending--;
         end
-        if (!all_stable) begin
+        if (pending > 0) begin
             #1ns;
             elapsed_ns++;
         end
     end
 
-    foreach (nodes_to_check[i])
-        nodes_to_check[i].vif.stop_measure();
-
     foreach (nodes_to_check[i]) begin
-        nd = nodes_to_check[i];
-
-        if (!nd.vif.meas.stable) begin
-            `uvm_error("CLK_TREE", $sformatf(
-                "check_duty: node %s did not stabilize", nd.get_name()))
-            rs.ok = 1'b0;
+        if (node_done[i])
             continue;
-        end
-
-        if (!nd.vif.meas.duty_ok) begin
-            `uvm_error("CLK_TREE", $sformatf(
-                "check_duty: node %s duty %0.4f out of range [%0.2f,%0.2f]",
-                nd.get_name(), nd.vif.meas.duty,
-                {{ settings.duty_min }}, {{ settings.duty_max }}))
-            rs.ok = 1'b0;
-            rs.failed_nodes.push_back(nd);
-        end
+        evaluate_one_node(nodes_to_check[i], rs);
+        nodes_to_check[i].vif.stop_measure();
     end
 
     if (rs.ok && !rq.quiet)
