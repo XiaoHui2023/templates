@@ -157,7 +157,6 @@ endtask
 task {{ settings.class_prefix }}test_route_seq::body();
     {{ settings.class_prefix }}test_route_req rq;
     {{ settings.class_prefix }}test_route_rsp rs;
-    {{ settings.class_prefix }}kit_sequencer kit_sqr;
     {{ settings.class_prefix }}tree_base tree;
     {{ settings.class_prefix }}node_base subjects[$];
     {{ settings.class_prefix }}node_base baseline_nodes[$];
@@ -166,13 +165,9 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     if (req == null)
         `uvm_fatal("CLK_TREE", "test_route: req is null")
-    if (!$cast(kit_sqr, p_sequencer))
-        `uvm_fatal("CLK_TREE", "test_route: p_sequencer is not kit_sequencer")
 
     rq = req;
     tree = rq.tree;
-    if (tree == null)
-        tree = kit_sqr.tree;
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_route: tree is null")
 

@@ -51,7 +51,7 @@
 
 ## sequence · test
 
-组合测试序列放在 **`sequence/test/<测试名>/`**，含 **req**、**rsp** 与 **test** 序列；**p_sequencer** 仍为 **sequencer**，在 **body** 内 **start** 多个 **operation** 序列。
+组合测试序列放在 **`sequence/test/<测试名>/`**，含 **req**、**rsp** 与 **test** 序列；**p_sequencer** 仍为 **sequencer**，在 **body** 内 **start** 多个 **operation** 序列。须 **tree** 等上下文时写入 **req**，由 **kit** 在 **start** 前补全默认值；**test** 序列内不得 **`$cast`** 到 **kit_sequencer** 或调用 **kit** 便捷方法。
 
 | 测试目录 | 说明 |
 | --- | --- |
