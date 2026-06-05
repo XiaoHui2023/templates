@@ -1,0 +1,88 @@
+#include "pll_mini.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
+typedef struct {
+    uint32_t lsb;
+    uint32_t width;
+    uint32_t value;
+} pll_mini_field_part_t;
+
+typedef enum {
+    PLL_MINI_STEP_WRITE = 0,
+    PLL_MINI_STEP_WAIT_LOCK = 1,
+} pll_mini_step_kind_t;
+
+typedef struct {
+    pll_mini_step_kind_t kind;
+    uint32_t addr;
+    const pll_mini_field_part_t *parts;
+    size_t part_count;
+    uint32_t reg_word;
+    uint32_t lock_mask;
+    uint32_t timeout_us;
+} pll_mini_step_t;
+
+{% for step in config_steps -%}
+{%- if step.kind == "write" %}
+/* {{ step.reg.path }} @ {{ step.addr_macro }} — {{ step.comment }} */
+static const pll_mini_field_part_t {{ step.parts_array_name }}[] = {
+{%- for part in step.parts %}
+    /* {{ part.part_label }} — lsb {{ part.lsb }} width {{ part.width }}; {{ part.comment }} */
+    { {{ part.lsb }}u, {{ part.width }}u, {{ part.value }}u },
+{%- endfor %}
+};
+
+{%- endif %}
+{% endfor -%}
+static const pll_mini_step_t pll_mini_steps[] = {
+{% for step in config_steps -%}
+{%- if step.kind == "write" %}
+    /* {{ step.comment }} */
+    { PLL_MINI_STEP_WRITE, {{ step.addr_macro }}, {{ step.parts_array_name }},
+      sizeof({{ step.parts_array_name }}) / sizeof({{ step.parts_array_name }}[0]),
+      {{ step.value_hex }}, 0u, 0u },
+{%- elif step.kind == "wait_lock" %}
+    /* {{ step.comment }} */
+    { PLL_MINI_STEP_WAIT_LOCK, {{ step.addr_macro }}, NULL, 0u, 0u,
+      {{ step.lock_mask_hex }}, {{ step.timeout_us }}u },
+{%- endif %}
+{% endfor -%}
+};
+
+static void {{ settings.reg_write_fn }}(uint32_t addr, uint32_t value)
+{
+    *(volatile uint32_t *)(uintptr_t)addr = value;
+}
+
+static uint32_t pll_mini_reg_read(uint32_t addr)
+{
+    return *(volatile uint32_t *)(uintptr_t)addr;
+}
+
+static int pll_mini_wait_lock(uint32_t addr, uint32_t lock_mask, uint32_t timeout_us)
+{
+    uint32_t elapsed;
+
+    for (elapsed = 0u; elapsed < timeout_us; elapsed++) {
+        if ((pll_mini_reg_read(addr) & lock_mask) != 0u)
+            return 0;
+    }
+    return -1;
+}
+
+void {{ settings.main_fn }}(void)
+{
+    size_t i;
+
+    for (i = 0u; i < sizeof(pll_mini_steps) / sizeof(pll_mini_steps[0]); i++) {
+        const pll_mini_step_t *step = &pll_mini_steps[i];
+
+        if (step->kind == PLL_MINI_STEP_WRITE) {
+            {{ settings.reg_write_fn }}(step->addr, step->reg_word);
+        } else {
+            (void)pll_mini_wait_lock(step->addr, step->lock_mask, step->timeout_us);
+        }
+    }
+}

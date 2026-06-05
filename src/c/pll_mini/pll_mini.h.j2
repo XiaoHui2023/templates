@@ -1,0 +1,17 @@
+#ifndef {{ settings.header_guard }}
+#define {{ settings.header_guard }}
+
+#include <stdint.h>
+
+{% for reg in regmodel -%}
+#define {{ reg.addr_macro }} {{ reg.address_hex }}
+{% for field in reg.fields -%}
+#define REG_{{ reg.macro_prefix }}_{{ field.name | upper }}_LSB ({{ field.lsb }}u)
+#define REG_{{ reg.macro_prefix }}_{{ field.name | upper }}_WIDTH ({{ field.width }}u)
+#define REG_{{ reg.macro_prefix }}_{{ field.name | upper }}_MASK ({{ field.mask_hex }})
+{% endfor -%}
+{% endfor -%}
+
+void {{ settings.main_fn }}(void);
+
+#endif
