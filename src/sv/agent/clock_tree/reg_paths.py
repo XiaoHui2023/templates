@@ -7,6 +7,18 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 if TYPE_CHECKING:
     from nodes import Tree
 
+
+def node_output_count(node: object) -> int:
+    if getattr(node, "kind", None) == "pll":
+        return int(getattr(node, "output_count", 1))
+    return 1
+
+
+def sv_node_access(node_key: str, group_id: int, output_count: int) -> str:
+    if output_count <= 1:
+        return node_key
+    return f"{node_key}[{group_id}]"
+
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _REG_BIT_SUFFIX = re.compile(r"\[(?P<body>[^\]]+)\]$")
 
@@ -17,9 +29,11 @@ SINGLE_REG_NODE_KINDS = frozenset({"gate", "mux"})
 
 DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
-DTO_REG_KEYS = frozenset({"rstn", "load", "bypass", "step"})
+DTO_REG_KEYS = frozenset({"rst", "load", "bypass", "step"})
 
-_PLL_KIND_CANON = frozenset({"tci", "sc", "dw"})
+_PLL_KIND_CANON = frozenset({"tci", "sc", "dw", "inno"})
+
+INNO_PLL_SHARED_REG_KEYS = frozenset({"lock", "pd", "refdiv", "fbdiv"})
 
 PLL_REG_KEYS: dict[str, frozenset[str]] = {
     "tci": frozenset({
@@ -59,13 +73,40 @@ PLL_REG_KEYS: dict[str, frozenset[str]] = {
         "enr",
         "enp",
     }),
+    "inno": frozenset({
+        "lock",
+        "pd",
+        "postdiv1",
+        "refdiv",
+        "postdiv2",
+        "fbdiv",
+    }),
 }
 
 PLL_KIND_TO_SV: dict[str, str] = {
     "tci": "pll_tci",
     "sc": "pll_sc",
     "dw": "pll_dw",
+    "inno": "pll_inno",
 }
+
+
+def inno_pll_reg_keys(output_count: int) -> frozenset[str]:
+    keys = set(INNO_PLL_SHARED_REG_KEYS)
+    for idx in range(output_count):
+        if idx == 0:
+            keys.add("postdiv1")
+            keys.add("postdiv2")
+        else:
+            keys.add(f"postdiv1_{idx}")
+            keys.add(f"postdiv2_{idx}")
+    return frozenset(keys)
+
+
+def inno_postdiv_reg_keys(group_id: int) -> tuple[str, str]:
+    if group_id == 0:
+        return "postdiv1", "postdiv2"
+    return f"postdiv1_{group_id}", f"postdiv2_{group_id}"
 
 
 def normalize_pll_kind(value: object) -> str:
@@ -74,7 +115,7 @@ def normalize_pll_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _PLL_KIND_CANON:
         raise ValueError(
-            f"pll_kind 须为 tci、sc、dw 之一，大小写不限，得到 {value!r}"
+            f"pll_kind 须为 tci、sc、dw、inno 之一，大小写不限，得到 {value!r}"
         )
     return canon
 
@@ -207,8 +248,16 @@ def validate_pll_regs_exact(
     pll_kind: str,
     *,
     node_name: str,
+    output_count: int = 1,
 ) -> None:
-    allowed = PLL_REG_KEYS.get(pll_kind)
+    if pll_kind == "inno" and output_count > 1:
+        allowed = inno_pll_reg_keys(output_count)
+    else:
+        allowed = PLL_REG_KEYS.get(pll_kind)
+        if output_count > 1:
+            raise ValueError(
+                f"pll 节点 {node_name!r} output_count 为 {output_count} 时 pll_kind 须为 inno"
+            )
     if allowed is None:
         raise ValueError(f"pll 节点 {node_name!r} 未知 pll_kind {pll_kind!r}")
     validate_regs_exact(regs, allowed, node_name=node_name, kind=f"pll({pll_kind})")
@@ -268,15 +317,49 @@ def any_node_path_and_reg(tree: Tree) -> bool:
 def _append_binding(
     out: List[RegBindingRow],
     tree_name: str,
-    node_name: str,
+    sv_access: str,
     member: str,
     raw_path: str,
 ) -> None:
     spec = parse_reg_path(
         raw_path,
-        ctx=f"tree {tree_name!r} node {node_name!r} member {member!r}",
+        ctx=f"tree {tree_name!r} access {sv_access!r} member {member!r}",
     )
-    out.append((tree_name, node_name, member, spec.path, spec.offset, spec.width))
+    out.append((tree_name, sv_access, member, spec.path, spec.offset, spec.width))
+
+
+def _pll_reg_bindings(
+    out: List[RegBindingRow],
+    tree: Tree,
+    node: object,
+) -> None:
+    assert node.kind == "pll"
+    count = node_output_count(node)
+    regs: dict[str, str] = node.regs
+    validate_pll_regs_exact(
+        regs,
+        node.pll_kind,
+        node_name=node.name,
+        output_count=count,
+    )
+    if node.pll_kind == "inno" and count > 1:
+        for group_id in range(count):
+            access = sv_node_access(node.name, group_id, count)
+            for key in sorted(INNO_PLL_SHARED_REG_KEYS):
+                _append_binding(
+                    out, tree.name, access, f"f_{key}", regs[key]
+                )
+            p1_key, p2_key = inno_postdiv_reg_keys(group_id)
+            _append_binding(
+                out, tree.name, access, "f_postdiv1", regs[p1_key]
+            )
+            _append_binding(
+                out, tree.name, access, "f_postdiv2", regs[p2_key]
+            )
+        return
+    access = sv_node_access(node.name, 0, count)
+    for key, path in sorted(regs.items()):
+        _append_binding(out, tree.name, access, f"f_{key}", path)
 
 
 def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
@@ -286,13 +369,10 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
             continue
         if node.kind in SINGLE_REG_NODE_KINDS:
             validate_optional_reg(node.reg, node_name=node.name, kind=node.kind)
-            _append_binding(out, tree.name, node.name, "f_reg", node.reg)
+            access = sv_node_access(node.name, 0, node_output_count(node))
+            _append_binding(out, tree.name, access, "f_reg", node.reg)
         elif node.kind == "pll":
-            validate_pll_regs_exact(
-                node.regs, node.pll_kind, node_name=node.name
-            )
-            for key, path in sorted(node.regs.items()):
-                _append_binding(out, tree.name, node.name, f"f_{key}", path)
+            _pll_reg_bindings(out, tree, node)
         elif node.kind == "div":
             validate_regs_exact(
                 node.regs,
@@ -300,8 +380,9 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
                 node_name=node.name,
                 kind="div",
             )
+            access = sv_node_access(node.name, 0, node_output_count(node))
             for key, path in sorted(node.regs.items()):
-                _append_binding(out, tree.name, node.name, f"f_{key}", path)
+                _append_binding(out, tree.name, access, f"f_{key}", path)
         elif node.kind == "dto":
             validate_regs_exact(
                 node.regs,
@@ -309,10 +390,12 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
                 node_name=node.name,
                 kind="dto",
             )
+            access = sv_node_access(node.name, 0, node_output_count(node))
             for key, path in sorted(node.regs.items()):
-                _append_binding(out, tree.name, node.name, f"f_{key}", path)
+                _append_binding(out, tree.name, access, f"f_{key}", path)
         else:
             flat = flatten_regs(node.regs)
+            access = sv_node_access(node.name, 0, node_output_count(node))
             for key, path in sorted(flat.items()):
-                _append_binding(out, tree.name, node.name, f"f_{key}", path)
+                _append_binding(out, tree.name, access, f"f_{key}", path)
     return out

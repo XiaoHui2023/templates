@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import (
@@ -20,14 +21,46 @@ from reg_paths import (
     DTO_REG_KEYS,
     PLL_KIND_TO_SV,
     normalize_pll_kind,
+    sv_node_access,
     validate_optional_reg,
     validate_pll_regs_exact,
     validate_regs_exact,
 )
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+_SOURCE_ENDPOINT = re.compile(
+    r"^(?P<device>[A-Za-z_][A-Za-z0-9_$]*)(?:\[(?P<idx>\d+)\])?$"
+)
 
-PllKind = Literal["tci", "sc", "dw"]
+PllKind = Literal["tci", "sc", "dw", "inno"]
+
+
+def parse_source_endpoint(raw: str, *, ctx: str) -> tuple[str, int]:
+    text = raw.strip()
+    match = _SOURCE_ENDPOINT.match(text)
+    if not match:
+        raise ValueError(
+            f"{ctx} 前级引用 {raw!r} 须为器件名或 器件名[输出序号] 形式"
+        )
+    device = match.group("device")
+    idx_text = match.group("idx")
+    out_idx = int(idx_text) if idx_text is not None else 0
+    return device, out_idx
+
+
+def node_output_count(node: Node) -> int:
+    if node.kind == "pll":
+        return node.output_count
+    return 1
+
+
+@dataclass(frozen=True)
+class SvNodeSlot:
+    """展开到 SV 的单个节点实例槽位。"""
+
+    node_key: str
+    group_id: int
+    access: str
 
 
 class SourceRef(BaseModel):
@@ -36,7 +69,12 @@ class SourceRef(BaseModel):
     name: str = Field(
         ...,
         min_length=1,
-        description="前级节点名，与 tree 成员名一致；模板展开为 SV 句柄赋值右端。",
+        description="前级器件名，与 tree.nodes 字典键一致。",
+    )
+    out_idx: int = Field(
+        0,
+        ge=0,
+        description="前级器件输出序号；省略方括号时等价于 0。",
     )
     key: Optional[int] = Field(
         None,
@@ -56,6 +94,13 @@ class NodeBase(BaseModel):
     def name(self) -> str:
         return self._name
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="SV 侧是否为多路输出静态数组；YAML 不可传入。",
+    )
+    @property
+    def sv_is_array(self) -> bool:
+        return node_output_count(self) > 1  # type: ignore[arg-type]
+
     path: str = Field(
         "",
         description="RTL 层次路径，供 tree_connection 例化 interface 的 in 端口；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
@@ -72,13 +117,15 @@ class NodeBase(BaseModel):
     @property
     def sources(self) -> List[SourceRef]:
         if self.kind == "mux":
-            return [
-                SourceRef(name=peer, key=int(key))
-                for key, peer in self.source.items()
-            ]
+            refs: List[SourceRef] = []
+            for key, peer in self.source.items():
+                device, out_idx = parse_source_endpoint(peer, ctx="mux.source")
+                refs.append(SourceRef(name=device, out_idx=out_idx, key=int(key)))
+            return refs
         if self.kind == "source":
             return []
-        return [SourceRef(name=self.source)]
+        device, out_idx = parse_source_endpoint(self.source, ctx="source")
+        return [SourceRef(name=device, out_idx=out_idx)]
 
     @computed_field(  # type: ignore[prop-decorator]
         description="mux 的 source 键展开为 sel inside 集合字面量；YAML 与 model_validate 不可传入。",
@@ -112,7 +159,7 @@ class NodeBase(BaseModel):
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
-    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
+    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
     reg: str = Field(
         "",
         description="可选；寄存器模型点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
@@ -128,7 +175,7 @@ class GateNode(NodeBase):
 
 class DivNode(NodeBase):
     kind: Literal["div"] = "div"
-    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
+    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
         description="可选；非空时键须为 rst、load、div，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
@@ -147,10 +194,10 @@ class DivNode(NodeBase):
 
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
-    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
+    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须为 rstn、load、bypass、step，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
+        description="可选；非空时键须为 rst、load、bypass、step，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
     )
 
     @model_validator(mode="after")
@@ -166,7 +213,7 @@ class DtoNode(NodeBase):
 
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
-    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
+    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
 
 
 class ClockSourceNode(NodeBase):
@@ -178,12 +225,17 @@ class PllNode(NodeBase):
     source: str = Field(
         ...,
         min_length=1,
-        description="参考时钟前级节点名，须为本 tree nodes 的键；config_reg 用其 frequence 计算分频。",
+        description="参考时钟前级引用，可为器件名或 器件名[输出序号]；config_reg 用其 frequence 计算分频。",
     )
-    pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw，大小写不限。")
+    pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno，大小写不限。")
+    output_count: int = Field(
+        1,
+        ge=1,
+        description="PLL 输出路数；默认 1。大于 1 时仅允许 pll_kind 为 inno。",
+    )
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须与 pll_kind 允许集合完全一致，值为 寄存器模型点分路径，可带 [n] 或 [msb:lsb] 后缀。",
+        description="可选；非空时键须与 pll_kind、output_count 允许集合完全一致，值为 寄存器模型点分路径，可带 [n] 或 [msb:lsb] 后缀。",
     )
 
     @field_validator("pll_kind", mode="before")
@@ -200,24 +252,30 @@ class PllNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:
+        if self.output_count > 1 and self.pll_kind != "inno":
+            raise ValueError(
+                f"pll 节点 {self.name!r} output_count 为 {self.output_count} 时 "
+                f"pll_kind 须为 inno，得到 {self.pll_kind!r}"
+            )
         validate_pll_regs_exact(
             self.regs,
             self.pll_kind,
             node_name=_validation_node_name(self, info),
+            output_count=self.output_count,
         )
         return self
 
 
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
-    source: str = Field(..., min_length=1, description="前级节点名，须为本 tree nodes 的键。")
+    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
 
 
 class MuxNode(NodeBase):
     kind: Literal["mux"] = "mux"
     source: Dict[str, str] = Field(
         default_factory=dict,
-        description="多路输入：键为图上输入标签字符串，值为对端器件名；可省略或留空表示暂无输入。",
+        description="多路输入：键为图上输入标签字符串，值为对端引用，可写 器件名[输出序号]；可省略或留空表示暂无输入。",
     )
     reg: str = Field(
         "",
@@ -349,7 +407,29 @@ class Tree(BaseModel):
         return list(self.nodes.values())
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="由各节点 source 反查；键为节点名，值为以其为前级的子节点名列表；YAML 不可传入。",
+        description="展开到 SV 的节点实例槽位；多路输出器件按路展开；YAML 不可传入。",
+    )
+    @property
+    def sv_slots(self) -> List[SvNodeSlot]:
+        slots: List[SvNodeSlot] = []
+        for key, node in self.nodes.items():
+            count = node_output_count(node)
+            for group_id in range(count):
+                slots.append(
+                    SvNodeSlot(
+                        node_key=key,
+                        group_id=group_id,
+                        access=sv_node_access(key, group_id, count),
+                    )
+                )
+        return slots
+
+    def source_sv_access(self, ref: SourceRef) -> str:
+        peer = self.nodes[ref.name]
+        return sv_node_access(ref.name, ref.out_idx, node_output_count(peer))
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由各节点 source 反查；键为器件名，值为以其为前级的子节点名列表；YAML 不可传入。",
     )
     @property
     def children_by_node(self) -> Dict[str, List[str]]:
@@ -363,9 +443,13 @@ class Tree(BaseModel):
 
 def upstream_peer_names(node: Node) -> List[str]:
     if node.kind == "mux":
-        return list(node.source.values())
+        return [
+            parse_source_endpoint(peer, ctx="mux.source")[0]
+            for peer in node.source.values()
+        ]
     if node.kind in ("gate", "div", "dto", "inv", "clk", "pll"):
-        return [node.source]
+        device, _out_idx = parse_source_endpoint(node.source, ctx="source")
+        return [device]
     return []
 
 
@@ -379,21 +463,51 @@ def build_children_map(nodes: Dict[str, Node]) -> Dict[str, List[str]]:
     return children
 
 
+def _validate_source_ref(
+    raw: str,
+    nodes: Dict[str, Node],
+    *,
+    ctx: str,
+) -> None:
+    device, out_idx = parse_source_endpoint(raw, ctx=ctx)
+    if device not in nodes:
+        raise ValueError(
+            f"{ctx} 引用器件 {device!r} 不在 nodes 的键集合中"
+        )
+    peer = nodes[device]
+    count = node_output_count(peer)
+    if count <= 1 and out_idx != 0:
+        raise ValueError(
+            f"{ctx} 引用 {raw!r}：器件 {device!r} 仅单路输出，不可使用 [{out_idx}]"
+        )
+    if out_idx >= count:
+        raise ValueError(
+            f"{ctx} 引用 {raw!r}：输出序号 {out_idx} 超出器件 {device!r} "
+            f"的 output_count {count}"
+        )
+
+
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
-    """校验 source、mux.source 等对端节点名引用。
+    """校验 source、mux.source 等对端引用与输出序号。
 
     Raises:
-        ValueError: 对端节点名不在 nodes 键集合中时。
+        ValueError: 对端不存在或输出序号非法时。
     """
-    known = set(nodes.keys())
     for key, node in nodes.items():
         if node.name != key:
             raise ValueError(
                 f"nodes[{key!r}] 的 name 字段 {node.name!r} 须与字典键一致"
             )
-        for peer in upstream_peer_names(node):
-            if peer not in known:
-                raise ValueError(
-                    f"节点 {node.name!r} 引用对端节点名 {peer!r} "
-                    f"不在 nodes 的键集合中"
+        if node.kind == "mux":
+            for mux_key, peer in node.source.items():
+                _validate_source_ref(
+                    peer,
+                    nodes,
+                    ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
                 )
+        elif node.kind in ("gate", "div", "dto", "inv", "clk", "pll"):
+            _validate_source_ref(
+                node.source,
+                nodes,
+                ctx=f"节点 {node.name!r} source",
+            )

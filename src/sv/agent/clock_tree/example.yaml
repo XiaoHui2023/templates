@@ -63,12 +63,29 @@ trees:
           enr: blk_pll_dw.enr
           enp: blk_pll_dw.enp
 
+      pll_inno:
+        kind: pll
+        source: xtal
+        pll_kind: inno
+        output_count: 2
+        path: dut.pll_inno
+        freq: 48000000
+        regs:
+          lock: blk_pll_inno.lock
+          pd: blk_pll_inno.pd
+          refdiv: blk_pll_inno.refdiv
+          fbdiv: blk_pll_inno.fbdiv
+          postdiv1: blk_pll_inno.postdiv1_0
+          postdiv2: blk_pll_inno.postdiv2_0
+          postdiv1_1: blk_pll_inno.postdiv1_1
+          postdiv2_1: blk_pll_inno.postdiv2_1
+
       mux_pll:
         kind: mux
         path: dut.mux_pll
         source:
-          "0": pll_tci
-          "1": pll_sc
+          "0": pll_inno[0]
+          "1": pll_inno[1]
         reg: blk_mux_pll.sel
 
       mux_ref:
@@ -103,7 +120,7 @@ trees:
         source: inv0
         path: dut.dto0
         regs:
-          rstn: blk_dto0.rstn
+          rst: blk_dto0.rst
           load: blk_dto0.load
           bypass: blk_dto0.bypass
           step: blk_dto0.step

@@ -2,16 +2,26 @@
 `define {{ (settings.class_prefix ~ "trees") | upper }}
 
 {%- for tree in trees %}
-class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_prefix }}base_tree;
+class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_prefix }}tree_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}{{ tree.name }}_tree)
 {%- for node in tree.nodes_ordered %}
+{%- if node.sv_is_array %}
+        `uvm_field_sarray_object({{ node.name }}, UVM_ALL_ON)
+{%- else %}
         `uvm_field_object({{ node.name }}, UVM_ALL_ON)
+{%- endif %}
 {%- endfor %}
     `uvm_object_utils_end
 
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind == "pll" %}
+{%- if node.sv_is_array %}
+    rand {{ settings.class_prefix }}{{ node.sv_pll_class }} {{ node.name }}[{{ node.output_count }}];
+{%- else %}
     rand {{ settings.class_prefix }}{{ node.sv_pll_class }} {{ node.name }};
+{%- endif %}
+{%- elif node.sv_is_array %}
+    rand {{ settings.class_prefix }}{{ node.kind }} {{ node.name }}[{{ node.output_count }}];
 {%- else %}
     rand {{ settings.class_prefix }}{{ node.kind }} {{ node.name }};
 {%- endif %}
@@ -25,7 +35,19 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
     function new(string name="{{ settings.class_prefix }}{{ tree.name }}_tree");
         super.new(name);
 {%- for node in tree.nodes_ordered %}
-{%- if node.kind == "pll" %}
+{%- if node.sv_is_array %}
+{%- for i in range(node.output_count) %}
+        {{ node.name }}[{{ i }}] = {{ settings.class_prefix }}{% if node.kind == "pll" %}{{ node.sv_pll_class }}{% else %}{{ node.kind }}{% endif %}::type_id::create($sformatf("{{ node.name }}[%0d]", {{ i }}));
+        {{ node.name }}[{{ i }}].group_id = {{ i }};
+{%- endfor %}
+{%- for i in range(node.output_count) %}
+{%- for j in range(node.output_count) %}
+{%- if i != j %}
+        {{ node.name }}[{{ i }}].to_group[{{ j }}] = {{ node.name }}[{{ j }}];
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
+{%- elif node.kind == "pll" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_pll_class }}::type_id::create("{{ node.name }}");
 {%- else %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
@@ -33,16 +55,27 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
 {%- for src in node.sources %}
-{%- if node.kind == "mux" %}
-        {{ node.name }}.to_source[{{ src.key }}] = {{ src.name }};
+{%- set peer = tree.nodes[src.name] %}
+{%- set peer_oc = peer.output_count if peer.kind == "pll" else 1 %}
+{%- if peer_oc > 1 %}
+{%- set peer_access = src.name ~ '[' ~ src.out_idx ~ ']' %}
 {%- else %}
-        {{ node.name }}.source = {{ src.name }};
+{%- set peer_access = src.name %}
+{%- endif %}
+{%- if node.sv_is_array %}
+{%- for i in range(node.output_count) %}
+        {{ node.name }}[{{ i }}].source = {{ peer_access }};
+{%- endfor %}
+{%- elif node.kind == "mux" %}
+        {{ node.name }}.to_source[{{ src.key }}] = {{ peer_access }};
+{%- else %}
+        {{ node.name }}.source = {{ peer_access }};
 {%- endif %}
 {%- endfor %}
 {%- endfor %}
         nodes.delete();
-{%- for node in tree.nodes_ordered %}
-        nodes.push_back({{ node.name }});
+{%- for slot in tree.sv_slots %}
+        nodes.push_back({{ slot.access }});
 {%- endfor %}
     endfunction
 
@@ -51,15 +84,15 @@ endclass
 
 function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
 {%- if regs_enabled %}
-{%- for tree_name, node_name, member, path, offset, width in reg_bindings %}
+{%- for tree_name, sv_access, member, path, offset, width in reg_bindings %}
 {%- if tree_name == tree.name %}
     if (regmodel != null) begin
-        {{ node_name }}.{{ member }}.field = regmodel.{{ path }};
-        {{ node_name }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
+        {{ sv_access }}.{{ member }}.field = regmodel.{{ path }};
+        {{ sv_access }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
 {%- if width is none %}
-        {{ node_name }}.{{ member }}.width = {{ node_name }}.{{ member }}.field.get_n_bits();
+        {{ sv_access }}.{{ member }}.width = {{ sv_access }}.{{ member }}.field.get_n_bits();
 {%- else %}
-        {{ node_name }}.{{ member }}.width = {{ width }};
+        {{ sv_access }}.{{ member }}.width = {{ width }};
 {%- endif %}
     end
 {%- endif %}

@@ -85,7 +85,13 @@ class Settings(BaseModel):
         False,
         description="为真时 div 的 rst 写 1 表示复位、写 0 表示不复位；"
         "为假时写 0 表示复位、写 1 表示不复位。"
-        "config_reg 在 rst 上写入不复位电平。",
+        "config_reg 在 rst 上先写复位电平再写不复位电平。",
+    )
+    dto_reg_high_means_reset: bool = Field(
+        False,
+        description="为真时 dto 的 rst 写 1 表示复位、写 0 表示不复位；"
+        "为假时写 0 表示复位、写 1 表示不复位。"
+        "config_reg 在 rst 上先写复位电平再写不复位电平。",
     )
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:

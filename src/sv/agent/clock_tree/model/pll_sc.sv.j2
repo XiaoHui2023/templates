@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "pll_sc") | upper }}
 `define {{ (settings.class_prefix ~ "pll_sc") | upper }}
 
-class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}base_pll;
+class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}pll_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_sc)
 {%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['sc'] %}

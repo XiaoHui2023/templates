@@ -14,7 +14,7 @@ class {{ settings.class_prefix }}dto extends {{ settings.class_prefix }}node_bas
     int fix_ratio;
 {%- endif %}
 {% if regs_enabled %}
-    {{ settings.class_prefix }}reg f_rstn;
+    {{ settings.class_prefix }}reg f_rst;
     {{ settings.class_prefix }}reg f_load;
     {{ settings.class_prefix }}reg f_bypass;
     {{ settings.class_prefix }}reg f_step;
@@ -38,7 +38,7 @@ class {{ settings.class_prefix }}dto extends {{ settings.class_prefix }}node_bas
         fix_ratio = 0;
 {%- endif %}
 {% if regs_enabled %}
-        f_rstn = new();
+        f_rst = new();
         f_load = new();
         f_bypass = new();
         f_step = new();

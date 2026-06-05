@@ -31,7 +31,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
         return div_nd.f_rst.is_bound() && div_nd.f_load.is_bound()
             && div_nd.f_div.is_bound();
     if ($cast(dto_nd, nd))
-        return dto_nd.f_rstn.is_bound() && dto_nd.f_load.is_bound()
+        return dto_nd.f_rst.is_bound() && dto_nd.f_load.is_bound()
             && dto_nd.f_bypass.is_bound() && dto_nd.f_step.is_bound();
     return 1'b0;
 endfunction
@@ -200,7 +200,7 @@ function automatic int {{ settings.class_prefix }}route_structure_mux_sel_toward
 endfunction
 
 function automatic void {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(
-        {{ settings.class_prefix }}base_tree tree);
+        {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}node_base clk_nd;
     int sel_pick;
@@ -229,11 +229,11 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_mux_tow
 endfunction
 
 function automatic void {{ settings.class_prefix }}route_structure_apply_baseline_fixes(
-        {{ settings.class_prefix }}base_tree tree);
+        {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}div div_nd;
     {{ settings.class_prefix }}dto dto_nd;
-    {{ settings.class_prefix }}base_pll pll_nd;
+    {{ settings.class_prefix }}pll_base pll_nd;
     int pll_mul;
     if (tree == null)
         return;
@@ -266,7 +266,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_baselin
 endfunction
 
 function automatic void {{ settings.class_prefix }}route_structure_propagate_tree(
-        {{ settings.class_prefix }}base_tree tree);
+        {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}node_base nd;
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
@@ -372,7 +372,7 @@ function automatic void {{ settings.class_prefix }}route_structure_filter_line_r
 endfunction
 
 function automatic void {{ settings.class_prefix }}route_structure_collect_upstream_line(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base subject,
         output {{ settings.class_prefix }}node_base line[$]);
     {{ settings.class_prefix }}node_base raw[$];
@@ -394,7 +394,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_upstr
 endfunction
 
 function automatic void {{ settings.class_prefix }}route_structure_collect_downstream_line(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base subject,
         output {{ settings.class_prefix }}node_base line[$]);
     {{ settings.class_prefix }}node_base raw[$];
@@ -416,7 +416,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_downs
 endfunction
 
 function automatic void {{ settings.class_prefix }}route_structure_collect_probe_subjects(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base subjects[$]);
     subjects.delete();
     if (tree == null)
@@ -509,7 +509,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
 endfunction
 
 function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_valid(
-        {{ settings.class_prefix }}base_tree tree);
+        {{ settings.class_prefix }}tree_base tree);
     if (tree == null)
         return 1'b0;
     foreach (tree.nodes[i]) begin

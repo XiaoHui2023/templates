@@ -14,7 +14,7 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
     endfunction
 
     extern virtual task body();
-    extern task run_check_freq_quiet({{ settings.class_prefix }}base_tree tree);
+    extern task run_check_freq_quiet({{ settings.class_prefix }}tree_base tree);
     extern task run_config_reg_nodes(
         {{ settings.class_prefix }}node_base nodes[$], bit quiet);
     extern task save_ctrl_baseline(
@@ -24,7 +24,7 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
         {{ settings.class_prefix }}node_base nodes[$],
         {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
     extern task verify_one_direction(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base subject,
         bit upstream,
         {{ settings.class_prefix }}node_base baseline_nodes[$],
@@ -32,7 +32,7 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
 endclass
 
 task {{ settings.class_prefix }}test_route_seq::run_check_freq_quiet(
-        {{ settings.class_prefix }}base_tree tree);
+        {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}check_freq_req freq_req;
     {{ settings.class_prefix }}check_freq_rsp freq_rsp;
     {{ settings.class_prefix }}check_freq_seq freq_seq;
@@ -86,7 +86,7 @@ task {{ settings.class_prefix }}test_route_seq::restore_ctrl_baseline(
     endtask
 
 task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base subject,
         bit upstream,
         {{ settings.class_prefix }}node_base baseline_nodes[$],
@@ -158,7 +158,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     {{ settings.class_prefix }}test_route_req rq;
     {{ settings.class_prefix }}test_route_rsp rs;
     {{ settings.class_prefix }}kit_sequencer kit_sqr;
-    {{ settings.class_prefix }}base_tree tree;
+    {{ settings.class_prefix }}tree_base tree;
     {{ settings.class_prefix }}node_base subjects[$];
     {{ settings.class_prefix }}node_base baseline_nodes[$];
     {{ settings.class_prefix }}route_ctrl_snap_t baseline_snaps[$];

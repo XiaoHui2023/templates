@@ -11,6 +11,8 @@ class {{ settings.class_prefix }}pll_cfg;
     localparam int DW_FBDIV_MAX = 1023;
 
     {{ settings.class_prefix }}reg_rw rw;
+    protected longint cfg_ref_hz[string];
+    protected longint cfg_out_hz[string];
 
     function new({{ settings.class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
@@ -41,6 +43,18 @@ class {{ settings.class_prefix }}pll_cfg;
         output int p,
         output int divvcor,
         output int r);
+    extern function void inno_shared_divisors(
+        longint out_hz,
+        longint ref_hz,
+        output int fbdiv,
+        output int refdiv);
+    extern function void inno_postdivisors(
+        longint out_hz,
+        longint ref_hz,
+        int fbdiv,
+        int refdiv,
+        output int postdiv1,
+        output int postdiv2);
     extern task configure_tci(
         {{ settings.class_prefix }}reg f_bypass,
         {{ settings.class_prefix }}reg f_pwrdn,
@@ -113,7 +127,29 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_enp,
         longint out_hz,
         longint ref_hz);
+    extern task configure_inno_shared(
+        {{ settings.class_prefix }}reg f_pd,
+        {{ settings.class_prefix }}reg f_refdiv,
+        {{ settings.class_prefix }}reg f_fbdiv,
+        int fbdiv,
+        int refdiv);
+    extern task configure_inno_postdiv(
+        {{ settings.class_prefix }}reg f_postdiv1,
+        {{ settings.class_prefix }}reg f_postdiv2,
+        int postdiv1,
+        int postdiv2);
+    extern task configure_inno_from_hz(
+        {{ settings.class_prefix }}reg f_pd,
+        {{ settings.class_prefix }}reg f_refdiv,
+        {{ settings.class_prefix }}reg f_fbdiv,
+        {{ settings.class_prefix }}reg f_postdiv1,
+        {{ settings.class_prefix }}reg f_postdiv2,
+        longint out_hz,
+        longint ref_hz,
+        bit write_shared);
     extern task wait_lock({{ settings.class_prefix }}reg f_lock, time timeout);
+    extern function bit freq_cfg_unchanged(string node_name, longint ref_hz, longint out_hz);
+    extern function void note_freq_cfg(string node_name, longint ref_hz, longint out_hz);
 endclass
 
 function void {{ settings.class_prefix }}pll_cfg::tci_divisors(
@@ -291,6 +327,147 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc_from_hz(
         fbdiv, refdiv, postdiv1, postdiv2);
 endtask
 
+function void {{ settings.class_prefix }}pll_cfg::inno_shared_divisors(
+        longint out_hz,
+        longint ref_hz,
+        output int fbdiv,
+        output int refdiv);
+    int refdiv_try;
+    int fbdiv_i;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+    int best_refdiv;
+    int best_fbdiv;
+    refdiv = 1;
+    fbdiv = 1;
+    if (ref_hz <= 0 || out_hz <= 0)
+        return;
+    have_best = 0;
+    for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
+        fbdiv_r = real'(out_hz) * real'(refdiv_try) / real'(ref_hz);
+        fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+        if (fbdiv_i < 1 || fbdiv_i > 4095)
+            continue;
+        actual_hz = (ref_hz * fbdiv_i) / refdiv_try;
+        err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+        if (!have_best || err < best_err) begin
+            best_err = err;
+            best_fbdiv = fbdiv_i;
+            best_refdiv = refdiv_try;
+            have_best = 1;
+        end
+    end
+    if (have_best) begin
+        fbdiv = best_fbdiv;
+        refdiv = best_refdiv;
+    end
+endfunction
+
+function void {{ settings.class_prefix }}pll_cfg::inno_postdivisors(
+        longint out_hz,
+        longint ref_hz,
+        int fbdiv,
+        int refdiv,
+        output int postdiv1,
+        output int postdiv2);
+    int postdiv1_try;
+    int postdiv2_try;
+    longint product;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    bit have_best;
+    int best_postdiv1;
+    int best_postdiv2;
+    postdiv1 = 1;
+    postdiv2 = 1;
+    if (ref_hz <= 0 || out_hz <= 0 || fbdiv < 1 || refdiv < 1)
+        return;
+    have_best = 0;
+    for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
+        for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
+            product = refdiv * postdiv1_try * postdiv2_try;
+            if (product < 1)
+                continue;
+            actual_hz = (ref_hz * fbdiv) / product;
+            err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+            if (!have_best || err < best_err) begin
+                best_err = err;
+                best_postdiv1 = postdiv1_try;
+                best_postdiv2 = postdiv2_try;
+                have_best = 1;
+            end
+        end
+    end
+    if (have_best) begin
+        postdiv1 = best_postdiv1;
+        postdiv2 = best_postdiv2;
+    end
+endfunction
+
+task {{ settings.class_prefix }}pll_cfg::configure_inno_shared(
+        {{ settings.class_prefix }}reg f_pd,
+        {{ settings.class_prefix }}reg f_refdiv,
+        {{ settings.class_prefix }}reg f_fbdiv,
+        int fbdiv,
+        int refdiv);
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
+
+    binds = '{f_pd};
+    vals = '{1};
+    rw.apply(binds, vals);
+
+    binds = '{f_refdiv, f_fbdiv};
+    vals = '{refdiv, fbdiv};
+    rw.apply(binds, vals);
+
+    binds = '{f_pd};
+    vals = '{0};
+    rw.apply(binds, vals);
+endtask
+
+task {{ settings.class_prefix }}pll_cfg::configure_inno_postdiv(
+        {{ settings.class_prefix }}reg f_postdiv1,
+        {{ settings.class_prefix }}reg f_postdiv2,
+        int postdiv1,
+        int postdiv2);
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
+
+    binds = '{f_postdiv1, f_postdiv2};
+    vals = '{postdiv1, postdiv2};
+    rw.apply(binds, vals);
+endtask
+
+task {{ settings.class_prefix }}pll_cfg::configure_inno_from_hz(
+        {{ settings.class_prefix }}reg f_pd,
+        {{ settings.class_prefix }}reg f_refdiv,
+        {{ settings.class_prefix }}reg f_fbdiv,
+        {{ settings.class_prefix }}reg f_postdiv1,
+        {{ settings.class_prefix }}reg f_postdiv2,
+        longint out_hz,
+        longint ref_hz,
+        bit write_shared);
+    int fbdiv;
+    int refdiv;
+    int postdiv1;
+    int postdiv2;
+    if (write_shared)
+        inno_shared_divisors(out_hz, ref_hz, fbdiv, refdiv);
+    else begin
+        rw.read(f_fbdiv, fbdiv);
+        rw.read(f_refdiv, refdiv);
+    end
+    inno_postdivisors(out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
+    if (write_shared)
+        configure_inno_shared(f_pd, f_refdiv, f_fbdiv, fbdiv, refdiv);
+    configure_inno_postdiv(f_postdiv1, f_postdiv2, postdiv1, postdiv2);
+endtask
+
 task {{ settings.class_prefix }}pll_cfg::configure_dw_from_hz(
         {{ settings.class_prefix }}reg f_fbdiv,
         {{ settings.class_prefix }}reg f_prediv,
@@ -430,6 +607,19 @@ task {{ settings.class_prefix }}pll_cfg::configure_dw(
     vals = '{1, 1};
     rw.apply(binds, vals);
 endtask
+
+function bit {{ settings.class_prefix }}pll_cfg::freq_cfg_unchanged(
+        string node_name, longint ref_hz, longint out_hz);
+    if (!cfg_ref_hz.exists(node_name))
+        return 1'b0;
+    return cfg_ref_hz[node_name] == ref_hz && cfg_out_hz[node_name] == out_hz;
+endfunction
+
+function void {{ settings.class_prefix }}pll_cfg::note_freq_cfg(
+        string node_name, longint ref_hz, longint out_hz);
+    cfg_ref_hz[node_name] = ref_hz;
+    cfg_out_hz[node_name] = out_hz;
+endfunction
 
 task {{ settings.class_prefix }}pll_cfg::wait_lock({{ settings.class_prefix }}reg f_lock, time timeout);
     time elapsed;

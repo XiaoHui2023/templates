@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "pll_dw") | upper }}
 `define {{ (settings.class_prefix ~ "pll_dw") | upper }}
 
-class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}base_pll;
+class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}pll_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_dw)
 {%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['dw'] %}

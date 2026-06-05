@@ -9,7 +9,7 @@
 | 成员 / 配置 | 说明 |
 | --- | --- |
 | `sqr` | **kit_sequencer** 句柄；**tree** 访问、配置与 **operation** 便捷方法均在此句柄上 |
-| **config_db** | 键 **`tree`**，值为 **base_tree** 实例；环境在例化 **agent** 前设置 |
+| **config_db** | 键 **`tree`**，值为 **tree_base** 实例；环境在例化 **agent** 前设置 |
 
 环境创建 **tree**、调用 **build(regmodel)**，再 **connect_{name}_tree** 挂 **vif**，**randomize** 在 **build** 内完成；通过 **config_db** 提供给 **agent** 后例化 **agent**。**agent** 将 **tree** 赋给 **sqr.tree**，不向基础 **sequencer** 传递。
 
@@ -28,7 +28,7 @@
 
 | 成员 | 说明 |
 | --- | --- |
-| `tree` | **base_tree** 实例，由 **agent.build_phase** 赋值 |
+| `tree` | **tree_base** 实例，由 **agent.build_phase** 赋值 |
 
 | 方法 | 说明 |
 | --- | --- |
@@ -43,7 +43,7 @@
 
 | 行为目录 | 说明 |
 | --- | --- |
-| `config_reg` | 对 **req.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
+| `config_reg` | 对 **req.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll** 参考与输出频率均未变时跳过写寄存器与 **wait_lock**；**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
 | `check_freq` | 检查 **req.nodes** 中 **source**、**clk**、**pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
 
@@ -61,4 +61,4 @@
 
 ## tree 外部约束
 
-**{name}_tree** 声明 **cst_base**、**cst_sys**、**cst_user**、**cst_case**；**cst_base** 实现在 **constraint.sv**，含频率软约束；**mux** 配置了 **source** 时生成 **sel inside**。**clk** 与 **low_power** 的 **valid** 关系在 **base_tree** 的 **cst_base_tree**。
+**{name}_tree** 声明 **cst_base**、**cst_sys**、**cst_user**、**cst_case**；**cst_base** 实现在 **constraint.sv**，含频率软约束；**mux** 配置了 **source** 时生成 **sel inside**。**clk** 与 **low_power** 的 **valid** 关系在 **tree_base** 的 **cst_tree_base**。

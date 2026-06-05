@@ -1,8 +1,8 @@
-`ifndef {{ (settings.class_prefix ~ "base_tree") | upper }}
-`define {{ (settings.class_prefix ~ "base_tree") | upper }}
+`ifndef {{ (settings.class_prefix ~ "tree_base") | upper }}
+`define {{ (settings.class_prefix ~ "tree_base") | upper }}
 
-class {{ settings.class_prefix }}base_tree extends {{ settings.class_prefix }}base_item;
-    `uvm_object_utils_begin({{ settings.class_prefix }}base_tree)
+class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}base_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}tree_base)
         `uvm_field_queue_object(nodes, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(low_power, UVM_ALL_ON)
     `uvm_object_utils_end
@@ -10,7 +10,7 @@ class {{ settings.class_prefix }}base_tree extends {{ settings.class_prefix }}ba
     {{ settings.class_prefix }}node_base nodes[$];
     rand bit low_power;
 
-    constraint cst_base_tree {
+    constraint cst_tree_base {
         soft !low_power;
         foreach (nodes[i]) {
             nodes[i].kind == "clk" -> {
@@ -20,7 +20,7 @@ class {{ settings.class_prefix }}base_tree extends {{ settings.class_prefix }}ba
         }
     }
 
-    function new(string name = "{{ settings.class_prefix }}base_tree");
+    function new(string name = "{{ settings.class_prefix }}tree_base");
         super.new(name);
     endfunction
 endclass

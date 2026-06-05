@@ -21,7 +21,7 @@ function automatic void {{ settings.class_prefix }}append_unique_node(
 endfunction
 
 function automatic bit {{ settings.class_prefix }}node_in_tree(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd);
     if (tree == null || nd == null)
         return 1'b0;
@@ -60,7 +60,7 @@ function automatic void {{ settings.class_prefix }}tree_upstream_peers(
 endfunction
 
 function automatic void {{ settings.class_prefix }}tree_downstream_peers(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base peers[$]);
     {{ settings.class_prefix }}mux mux_nd;
@@ -80,7 +80,7 @@ function automatic void {{ settings.class_prefix }}tree_downstream_peers(
 endfunction
 
 function automatic void {{ settings.class_prefix }}collect_tree_nodes_before(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base collected[$]);
     {{ settings.class_prefix }}node_base seen[$];
@@ -112,7 +112,7 @@ function automatic void {{ settings.class_prefix }}collect_tree_nodes_before(
 endfunction
 
 function automatic void {{ settings.class_prefix }}collect_tree_nodes_after(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base collected[$]);
     {{ settings.class_prefix }}node_base seen[$];
@@ -144,7 +144,7 @@ function automatic void {{ settings.class_prefix }}collect_tree_nodes_after(
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_nodes_before(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base result[$],
         input string kind = "");
@@ -156,7 +156,7 @@ function automatic void {{ settings.class_prefix }}get_nodes_before(
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_nodes_after(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base result[$],
         input string kind = "");
@@ -181,7 +181,7 @@ function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
 endfunction
 
 function automatic bit {{ settings.class_prefix }}node_has_downstream_in_scope(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         {{ settings.class_prefix }}node_base scope[$]);
     {{ settings.class_prefix }}node_base peers[$];
@@ -207,7 +207,7 @@ function automatic void {{ settings.class_prefix }}collect_subgraph_head_nodes(
 endfunction
 
 function automatic void {{ settings.class_prefix }}collect_subgraph_tail_nodes(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base scope[$],
         output {{ settings.class_prefix }}node_base collected[$]);
     collected.delete();
@@ -222,7 +222,7 @@ function automatic void {{ settings.class_prefix }}collect_subgraph_tail_nodes(
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_tree_head_nodes(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$],
         input string kind = "");
     {{ settings.class_prefix }}node_base raw[$];
@@ -234,7 +234,7 @@ function automatic void {{ settings.class_prefix }}get_tree_head_nodes(
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_tree_tail_nodes(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$],
         input string kind = "");
     {{ settings.class_prefix }}node_base raw[$];
@@ -246,7 +246,7 @@ function automatic void {{ settings.class_prefix }}get_tree_tail_nodes(
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_subgraph_tail_nodes(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base scope[$],
         output {{ settings.class_prefix }}node_base result[$],
         input string kind = "");
@@ -270,27 +270,27 @@ endfunction
 ] %}
 {%- for k, plural in graph_kind_plurals %}
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_before(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base result[$]);
     {{ settings.class_prefix }}get_nodes_before(tree, nd, result, "{{ k }}");
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_after(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base result[$]);
     {{ settings.class_prefix }}get_nodes_after(tree, nd, result, "{{ k }}");
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_head(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$]);
     {{ settings.class_prefix }}get_tree_head_nodes(tree, result, "{{ k }}");
 endfunction
 
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_tail(
-        {{ settings.class_prefix }}base_tree tree,
+        {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$]);
     {{ settings.class_prefix }}get_tree_tail_nodes(tree, result, "{{ k }}");
 endfunction

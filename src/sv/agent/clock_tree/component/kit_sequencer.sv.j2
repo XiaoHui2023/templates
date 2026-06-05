@@ -4,7 +4,7 @@
 class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix }}sequencer;
     `uvm_component_utils({{ settings.class_prefix }}kit_sequencer)
 
-    {{ settings.class_prefix }}base_tree tree;
+    {{ settings.class_prefix }}tree_base tree;
 
     function new(string name="{{ settings.class_prefix }}kit_sequencer", uvm_component parent=null);
         super.new(name, parent);
@@ -18,7 +18,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     extern task check_duty({{ settings.class_prefix }}node_base nodes[$] = {});
 {% endif %}
 {% if route_test_enabled %}
-    extern task test_route({{ settings.class_prefix }}base_tree tree = null);
+    extern task test_route({{ settings.class_prefix }}tree_base tree = null);
 {% endif %}
 endclass
 
@@ -97,7 +97,7 @@ endtask
 
 {% if route_test_enabled %}
 task {{ settings.class_prefix }}kit_sequencer::test_route(
-        {{ settings.class_prefix }}base_tree tree);
+        {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}test_route_req req;
     {{ settings.class_prefix }}test_route_rsp seq_rsp;
     {{ settings.class_prefix }}test_route_seq seq;

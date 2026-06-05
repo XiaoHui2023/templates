@@ -43,7 +43,8 @@ settings:
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
 | `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器写 1 表示打开，**config_reg** 写入值与节点 **open** 一致；为假时写 1 表示关闭，按位取反后写入。节点 **open** 仍为仿真门开闭语义。 |
-| `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 写 1 表示复位、写 0 不复位；为假时写 0 表示复位、写 1 不复位。**config_reg** 在 **rst** 上写不复位电平。 |
+| `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 写 1 表示复位、写 0 不复位；为假时写 0 表示复位、写 1 不复位。**config_reg** 在 **rst** 上先写复位电平再写不复位电平。 |
+| `dto_reg_high_means_reset` | `bool` | `false` | 为真时 dto **rst** 写 1 表示复位、写 0 不复位；为假时写 0 表示复位、写 1 不复位。**config_reg** 在 **rst** 上先写复位电平再写不复位电平。 |
 无法在优先区间内配准时仍写出寄存器，并 `uvm_error`。
 
 ### 寄存器路径
@@ -59,6 +60,8 @@ settings:
 | `blk.field[3:0]` | 从 lsb 0 起连续 4 位 |
 
 **config_reg** 只更新所列比特，field 内其余位保持不变。
+
+对 **req.nodes** 内节点按固定五段写寄存器，与同段内列表下标无关：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**open** 为真的 **gate**；全部 **mux**；**open** 为假的 **gate**。参考频率与输出 **frequence** 均与上次写入相同时，该 **pll** 跳过寄存器更新且不再 **wait_lock**。
 
 ### Tree
 
@@ -87,6 +90,6 @@ settings:
 | `clk` | `source` | `source` 必填 | 时钟输出节点，`source` 写前级节点名。 |
 | `gate` | `source`, `reg` | `source` 必填 | 门控节点；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |
 | `div` | `source`, `regs` | `source` 必填 | 分频节点；`regs` 非空时键为 `rst`、`load`、`div`，值可带比特范围后缀。 |
-| `dto` | `source`, `regs` | `source` 必填 | DTO 节点；`regs` 非空时键为 `rstn`、`load`、`bypass`、`step`，值可带比特范围后缀。 |
+| `dto` | `source`, `regs` | `source` 必填 | DTO 节点；`regs` 非空时键为 `rst`、`load`、`bypass`、`step`，值可带比特范围后缀。 |
 | `inv` | `source` | `source` 必填 | 反相节点，`source` 写前级节点名。 |
 | `mux` | `source`, `reg` | `source` 可省略或 `{}` | 多路选择节点；`source` 键为输入序号；有输入时 **cst_base** 约束 **sel inside**；`reg` 为可选寄存器模型点分路径，可带比特范围后缀。 |

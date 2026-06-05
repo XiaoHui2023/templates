@@ -1,0 +1,23 @@
+`ifndef {{ (settings.class_prefix ~ "pll_inno") | upper }}
+`define {{ (settings.class_prefix ~ "pll_inno") | upper }}
+
+class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll_base;
+    `uvm_object_utils({{ settings.class_prefix }}pll_inno)
+{%- if regs_enabled %}
+{%- for key in pll_reg_keys_by_kind['inno'] %}
+    {{ settings.class_prefix }}reg f_{{ key }};
+{%- endfor %}
+{%- endif %}
+
+    function new(string name = "");
+        super.new(name);
+{%- if regs_enabled %}
+{%- for key in pll_reg_keys_by_kind['inno'] %}
+        f_{{ key }} = new();
+{%- endfor %}
+{%- endif %}
+        pll_kind = PLL_INNO;
+    endfunction
+endclass
+
+`endif

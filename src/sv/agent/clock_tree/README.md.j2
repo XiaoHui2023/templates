@@ -61,7 +61,7 @@ function void build_phase(uvm_phase phase);
     tree.build();
 {%- endif %}
     $cast(clk_sqr, clk_agt.sqr); // 取出工具方便使用
-    uvm_config_db#({{ settings.class_prefix }}base_tree)::set(this, "clk_agt", "tree", tree);
+    uvm_config_db#({{ settings.class_prefix }}tree_base)::set(this, "clk_agt", "tree", tree);
 endfunction
 ```
 

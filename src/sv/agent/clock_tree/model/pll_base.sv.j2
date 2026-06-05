@@ -1,8 +1,8 @@
-`ifndef {{ (settings.class_prefix ~ "base_pll") | upper }}
-`define {{ (settings.class_prefix ~ "base_pll") | upper }}
+`ifndef {{ (settings.class_prefix ~ "pll_base") | upper }}
+`define {{ (settings.class_prefix ~ "pll_base") | upper }}
 
-class {{ settings.class_prefix }}base_pll extends {{ settings.class_prefix }}node_base;
-    `uvm_object_utils_begin({{ settings.class_prefix }}base_pll)
+class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}pll_base)
         `uvm_field_enum(pll_kind_e, pll_kind, UVM_ALL_ON)
         `uvm_field_int(locked, UVM_ALL_ON)
 {%- if enable_node_fix %}

@@ -6,15 +6,18 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         `uvm_field_string(kind, UVM_ALL_ON)
         `uvm_field_int(frequence, UVM_ALL_ON)
         `uvm_field_int(valid, UVM_ALL_ON)
+        `uvm_field_int(group_id, UVM_DEFAULT)
     `uvm_object_utils_end
 
     string kind;
     rand longint frequence;
     rand bit valid;
+    int group_id;
+    {{ settings.class_prefix }}node_base source;
+    {{ settings.class_prefix }}node_base to_group[int];
 {% if any_node_path %}
     virtual {{ settings.class_prefix }}interface vif;
 {% endif %}
-    {{ settings.class_prefix }}node_base source;
 
     constraint cst_node_base {
         soft frequence == 0;
@@ -31,6 +34,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
 
     function new(string name = "");
         super.new(name);
+        group_id = 0;
     endfunction
 endclass
 

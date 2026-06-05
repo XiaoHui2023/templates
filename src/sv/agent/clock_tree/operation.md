@@ -16,7 +16,7 @@
 
 | 名称 | 作用 |
 | --- | --- |
-| **config_reg** | 把 **gate**、**mux**、**div**、**dto**、**pll** 的目标值写入寄存器模型 |
+| **config_reg** | 把节点目标值写入寄存器模型；顺序为 **pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate**，见下节 |
 | **check_freq** | 测量 **source**、**clk**、**pll** 波形频率，与节点 **frequence** 比较 |
 | **check_duty** | 测量带 **vif** 节点的占空比，与 **duty_min**、**duty_max** 比较 |
 
@@ -34,7 +34,7 @@
 4. 全部 **mux**
 5. **open** 为假的 **gate**
 
-**pll** 分频用 **source.frequence** 与节点 **frequence**；缺 **source** 或频率非法则 **fatal**。
+**pll** 分频用 **source.frequence** 与节点 **frequence**；缺 **source** 或频率非法则 **fatal**。参考频率与输出 **frequence** 均与 **sequencer.tools.pll** 中按节点名记录的上次写入相同时跳过寄存器更新，且不再 **wait_lock**。
 
 ## check_freq
 

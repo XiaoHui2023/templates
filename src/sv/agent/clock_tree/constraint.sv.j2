@@ -3,10 +3,13 @@
 
 {%- for tree in trees %}
 constraint {{ settings.class_prefix }}{{ tree.name }}_tree::cst_base {
-{%- for node in tree.nodes_ordered %}
+{%- for slot in tree.sv_slots %}
+{%- set node = tree.nodes[slot.node_key] %}
 {%- if node.kind in ["clk", "pll", "source"] and node.freq is not none %}
-    soft {{ node.name }}.frequence == {{ node.freq }};
+    soft {{ slot.access }}.frequence == {{ node.freq }};
 {%- endif %}
+{%- endfor %}
+{%- for node in tree.nodes_ordered %}
 {%- if node.kind == "mux" and node.mux_sel_inside %}
     {{ node.name }}.sel inside { {{ node.mux_sel_inside }} };
 {%- endif %}

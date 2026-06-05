@@ -7,7 +7,8 @@ class {{ settings.class_prefix }}spec#(type T = uvm_object) extends T;
     typedef enum {
         PLL_TCI,
         PLL_SC,
-        PLL_DW
+        PLL_DW,
+        PLL_INNO
     } pll_kind_e;
 
     function new(string name = "");
