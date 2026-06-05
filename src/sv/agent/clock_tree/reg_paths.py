@@ -299,19 +299,9 @@ def any_node_path(tree: Tree) -> bool:
     return False
 
 
-def node_has_path_and_reg(node: object) -> bool:
-    """节点同时配置了非空 path 与 reg 或 regs 时为真。"""
-    if not getattr(node, "path", ""):
-        return False
-    return _node_reg_configured(node)
-
-
-def any_node_path_and_reg(tree: Tree) -> bool:
-    """任一节点同时配置 path 与 reg(regs) 时为真，用于 enable_node_fix。"""
-    for node in tree.nodes_ordered:
-        if node_has_path_and_reg(node):
-            return True
-    return False
+def tree_has_path_and_reg(tree: Tree) -> bool:
+    """树内分别存在带 path 的节点与带 reg 或 regs 的节点时为真，用于 enable_node_fix。"""
+    return any_node_path(tree) and any_reg_configured(tree)
 
 
 def _append_binding(

@@ -119,7 +119,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 ## enable_node_fix
 
-**Models** 推导字段：任一节点同时配置非空 **path** 与 **reg** 或 **regs** 时为真。为真时在 **gate**、**mux**、**pll_base**、**div**、**dto** 模型类中生成 **fix_*** 成员；YAML 不可写入 **settings**。
+**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**pll_base**、**div**、**dto** 模型类中生成 **fix_*** 成员；YAML 不可写入 **settings**。
 
 ## div
 

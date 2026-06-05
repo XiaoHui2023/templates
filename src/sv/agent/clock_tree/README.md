@@ -26,7 +26,7 @@ settings:
 | --- | --- | --- | --- |
 | `trees` | `list[Tree]` | 必填 | 时钟树。 |
 | `settings` | `Settings` | 见下表 | 全局选项。 |
-| `enable_node_fix` | `bool` | — | 推导字段，不可传入；任一节点同时填写 `path` 与 `reg` 或 `regs` 时为真，为真时生成各节点 **fix_*** 成员。 |
+| `enable_node_fix` | `bool` | — | 推导字段，不可传入；分别存在填写 `path` 的节点与填写 `reg` 或 `regs` 的节点时为真，为真时生成各节点 **fix_*** 成员。 |
 
 ### Settings
 

@@ -149,7 +149,7 @@
 | **check_freq** | **source** / **clk** / **pll** 频率对 **frequence** | 端到端用例在 **check_duty** 之前调用 |
 | **check_duty** | 占空比对 **duty_min** / **duty_max** | 环境在 **kit** 上直接调用 |
 
-环境对 **{name}_tree** 做 **randomize** 时，软约束覆盖**使用者按图可能填写的合法组合**；任一节点同时配置 **path** 与 **reg** 或 **regs** 时模型生成 **fix_*** 成员，固定场景由序列或环境在 **randomize** 前对 **fix_open**、**fix_sel**、**fix_mul**、**fix_ratio** 等赋值，YAML 不提供对应字段。
+环境对 **{name}_tree** 做 **randomize** 时，软约束覆盖**使用者按图可能填写的合法组合**；分别存在 **path** 节点与 **reg** 或 **regs** 节点时模型生成 **fix_*** 成员，固定场景由序列或环境在 **randomize** 前对 **fix_open**、**fix_sel**、**fix_mul**、**fix_ratio** 等赋值，YAML 不提供对应字段。
 
 ## 正确性论证
 
@@ -181,8 +181,8 @@
 
 | 场景 | 配置要点 | 调用 |
 | --- | --- | --- |
-| 单树端到端 | `example.yaml` 各 **kind** 至少一个，关键节点带 **path** 与 **regs** | **config_reg** → **check_freq** → **check_duty** |
-| 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 同时带 **path** 与寄存器 | **test_route** |
+| 单树端到端 | `example.yaml` 各 **kind** 至少一个，部分节点带 **path**、部分节点带 **reg** 或 **regs** | **config_reg** → **check_freq** → **check_duty** |
+| 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **test_route** |
 | 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **config_reg** 后 **check_freq** 只看 **pll** |
 | 门控全关 | 多个 **gate** 串联，**open** 随机 | **config_reg** 后 **check_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
 | 固定 mux | 节点 **path** + **reg**，**fix_sel** | 随机后 **sel** 不变，**check_freq** 只应看到选定前级频率 |

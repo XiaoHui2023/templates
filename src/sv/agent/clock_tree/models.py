@@ -12,7 +12,7 @@ from reg_paths import (
     PLL_REG_KEYS,
     RegBindingRow,
     any_node_path,
-    any_node_path_and_reg,
+    tree_has_path_and_reg,
     any_reg_configured as tree_has_node_regs,
     collect_pll_sv_classes,
     iter_reg_bindings,
@@ -173,11 +173,11 @@ class Models(BaseModel):
         return any(tree_has_node_regs(tree) for tree in self.trees)
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="任一节点同时配置 path 与 reg(regs) 时为真；YAML 与 model_validate 不可传入。",
+        description="分别存在带 path 的节点与带 reg(regs) 的节点时为真；YAML 与 model_validate 不可传入。",
     )
     @property
     def enable_node_fix(self) -> bool:
-        return any(any_node_path_and_reg(tree) for tree in self.trees)
+        return any(tree_has_path_and_reg(tree) for tree in self.trees)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
