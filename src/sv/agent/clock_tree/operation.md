@@ -36,6 +36,12 @@
 
 **pll** 分频用 **source.frequence** 与节点 **frequence**；缺 **source** 或频率非法则 **fatal**。参考频率与输出 **frequence** 均与 **sequencer.tools.pll** 中按节点名记录的上次写入相同时跳过寄存器更新，且不再 **wait_lock**。
 
+### 注意
+
++ 器件上 **div** 常默认处于复位态，分频输出不工作；**mux** 若先切到该支路，选中路径上可能长时间无有效时钟或频率不对。
++ **config_reg** 固定把 **div**、**dto** 写在 **mux** 之前，让分频在 **mux** 选中该支路前就绪。只把部分节点放进 **req.nodes**、或平台自行分批写寄存器时，仍应先配好路径上的 **div**、**dto**，再改 **mux** **sel**。
++ **dto** 同样有 **rst** 释放流程，与 **div** 同属第 2 段，理由相同。
+
 ## check_freq
 
 只处理 **req.nodes** 里 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。先对全部待测节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即比较 **freq_hz** 与 **frequence** 并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。超出 **period_tolerance** 则报错。
