@@ -62,7 +62,7 @@ class Settings(BaseModel):
     pll_lock_timeout_us: int = Field(
         1_000,
         ge=1,
-        description="config_reg 等待各 pll lock 为 1 的最长时间，微秒。",
+        description="等待各 PLL lock 为 1 的最长时间，微秒。",
     )
     pll_sc_fbdiv_min: int = Field(
         16,
@@ -78,20 +78,17 @@ class Settings(BaseModel):
     )
     gate_reg_high_means_open: bool = Field(
         False,
-        description="为真时门控寄存器写 1 表示打开，config_reg 写入值与节点 open 一致；"
-        "为假时写 1 表示关闭，按位取反后写入。",
+        description="为真时门控寄存器写 1 表示打开；为假时写 1 表示关闭。节点 open 表示仿真门开闭。",
     )
     div_reg_high_means_reset: bool = Field(
         False,
         description="为真时 div 的 rst 写 1 表示复位、写 0 表示不复位；"
-        "为假时写 0 表示复位、写 1 表示不复位。"
-        "config_reg 在 rst 上先写复位电平再写不复位电平。",
+        "为假时写 0 表示复位、写 1 表示不复位。",
     )
     dto_reg_high_means_reset: bool = Field(
         False,
         description="为真时 dto 的 rst 写 1 表示复位、写 0 表示不复位；"
-        "为假时写 0 表示复位、写 1 表示不复位。"
-        "config_reg 在 rst 上先写复位电平再写不复位电平。",
+        "为假时写 0 表示复位、写 1 表示不复位。",
     )
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:

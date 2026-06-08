@@ -5,12 +5,14 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
         `uvm_field_string(kind, UVM_ALL_ON)
         `uvm_field_int(frequence, UVM_ALL_ON)
+        `uvm_field_int(classic_frequence, UVM_ALL_ON)
         `uvm_field_int(valid, UVM_ALL_ON)
         `uvm_field_int(group_id, UVM_DEFAULT)
     `uvm_object_utils_end
 
     string kind;
     rand longint frequence;
+    longint classic_frequence;
     rand bit valid;
     int group_id;
     {{ settings.class_prefix }}node_base source;

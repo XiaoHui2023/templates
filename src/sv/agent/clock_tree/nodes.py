@@ -103,7 +103,7 @@ class NodeBase(BaseModel):
 
     path: str = Field(
         "",
-        description="RTL 层次路径，供 tree_connection 例化 interface 的 in 端口；不写入节点类成员。留空则不生成 interface、节点 vif 为 null。",
+        description="RTL 层次路径。",
     )
     freq: Optional[int] = Field(
         None,
@@ -224,7 +224,7 @@ class PllNode(NodeBase):
     source: str = Field(
         ...,
         min_length=1,
-        description="参考时钟前级引用，可为器件名或 器件名[输出序号]；config_reg 用其 frequence 计算分频。",
+        description="参考时钟前级引用，可为器件名或 器件名[输出序号]。",
     )
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno，大小写不限。")
     output_count: int = Field(

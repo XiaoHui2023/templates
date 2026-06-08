@@ -183,7 +183,7 @@ function automatic int {{ settings.class_prefix }}route_structure_mux_sel_toward
         {{ settings.class_prefix }}mux mux_nd,
         {{ settings.class_prefix }}node_base target);
     int keys[$];
-    if (mux_nd == null || tree == null || target == null)
+    if (mux_nd == null || target == null)
         return -1;
     foreach (mux_nd.to_source[k])
         keys.push_back(k);
