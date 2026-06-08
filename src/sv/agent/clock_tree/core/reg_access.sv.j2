@@ -3,15 +3,26 @@
 `define {{ (settings.class_prefix ~ "reg_rw") | upper }}
 
 class {{ settings.class_prefix }}reg_rw;
+    // 取 field 所属 uvm_reg
     extern function uvm_reg parent_reg({{ settings.class_prefix }}reg rb);
+    // 按 offset/width 读出 field 切片
     extern function int get({{ settings.class_prefix }}reg rb);
+    // 按 offset/width 合并写入 field，其余位不变
     extern function void set({{ settings.class_prefix }}reg rb, int value);
+    // 若尚未总线读则先 read
     extern task ensure_read({{ settings.class_prefix }}reg rb);
+    // 前门读整寄存器
     extern task read_reg(uvm_reg r, output int rdata);
+    // 前门读父寄存器并解析 field 切片
     extern task read({{ settings.class_prefix }}reg rb, output int value);
+    // 将 field 镜像写回总线
     extern task write_reg(uvm_reg r);
+    // ensure_read 后写父寄存器
     extern task write({{ settings.class_prefix }}reg rb);
+    // 值未变则跳过；否则 set 后写父寄存器
     extern task set_write({{ settings.class_prefix }}reg rb, int value);
+    // binds — field 绑定队列
+    // vals — 与 binds 同下标的写入值
     extern task apply(ref {{ settings.class_prefix }}reg binds[$], ref int vals[$]);
 endclass
 

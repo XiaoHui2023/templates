@@ -7,6 +7,7 @@ class {{ settings.class_prefix }}core_tools;
     {{ settings.class_prefix }}node_cfg node;
     {{ settings.class_prefix }}pll_cfg pll;
 
+    // 构造 reg_rw、node_cfg、pll_cfg
     function new();
         rw = new;
         node = new(rw);

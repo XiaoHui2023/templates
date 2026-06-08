@@ -1,6 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "tree_nodes") | upper }}
 `define {{ (settings.class_prefix ~ "tree_nodes") | upper }}
 
+// 判断节点是否已在队列中
 function automatic bit {{ settings.class_prefix }}node_in_queue(
         {{ settings.class_prefix }}node_base nd,
         {{ settings.class_prefix }}node_base q[$]);
@@ -10,6 +11,7 @@ function automatic bit {{ settings.class_prefix }}node_in_queue(
     return 1'b0;
 endfunction
 
+// 去重后追加到 dest
 function automatic void {{ settings.class_prefix }}append_unique_node(
         ref {{ settings.class_prefix }}node_base dest[$],
         {{ settings.class_prefix }}node_base nd);
@@ -20,6 +22,7 @@ function automatic void {{ settings.class_prefix }}append_unique_node(
     dest.push_back(nd);
 endfunction
 
+// 判断节点是否在 tree.nodes 内
 function automatic bit {{ settings.class_prefix }}node_in_tree(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd);
@@ -31,6 +34,7 @@ function automatic bit {{ settings.class_prefix }}node_in_tree(
     return 1'b0;
 endfunction
 
+// kind 为空则原样拷贝，否则按 kind 过滤
 function automatic void {{ settings.class_prefix }}filter_nodes_by_kind(
         {{ settings.class_prefix }}node_base nodes[$],
         string kind,
@@ -44,6 +48,7 @@ function automatic void {{ settings.class_prefix }}filter_nodes_by_kind(
                 filtered.push_back(nodes[i]);
 endfunction
 
+// 直接前级：mux 为各输入，其余为 source
 function automatic void {{ settings.class_prefix }}tree_upstream_peers(
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base peers[$]);
@@ -59,6 +64,7 @@ function automatic void {{ settings.class_prefix }}tree_upstream_peers(
         peers.push_back(nd.source);
 endfunction
 
+// 直接后级：引用 nd 为 source 或 mux 输入的节点
 function automatic void {{ settings.class_prefix }}tree_downstream_peers(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -79,6 +85,7 @@ function automatic void {{ settings.class_prefix }}tree_downstream_peers(
     end
 endfunction
 
+// 沿上游 BFS 收集 nd 之前的全部节点
 function automatic void {{ settings.class_prefix }}collect_tree_nodes_before(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -111,6 +118,7 @@ function automatic void {{ settings.class_prefix }}collect_tree_nodes_before(
     end
 endfunction
 
+// 沿下游 BFS 收集 nd 之后的全部节点
 function automatic void {{ settings.class_prefix }}collect_tree_nodes_after(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -143,6 +151,7 @@ function automatic void {{ settings.class_prefix }}collect_tree_nodes_after(
     end
 endfunction
 
+// nd 上游节点，可选按 kind 过滤
 function automatic void {{ settings.class_prefix }}get_nodes_before(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -155,6 +164,7 @@ function automatic void {{ settings.class_prefix }}get_nodes_before(
     {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
 endfunction
 
+// nd 下游节点，可选按 kind 过滤
 function automatic void {{ settings.class_prefix }}get_nodes_after(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -167,6 +177,7 @@ function automatic void {{ settings.class_prefix }}get_nodes_after(
     {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
 endfunction
 
+// scope 内是否存在 nd 的直接前级
 function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
         {{ settings.class_prefix }}node_base nd,
         {{ settings.class_prefix }}node_base scope[$]);
@@ -180,6 +191,7 @@ function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
     return 1'b0;
 endfunction
 
+// scope 内是否存在 nd 的直接后级
 function automatic bit {{ settings.class_prefix }}node_has_downstream_in_scope(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -194,6 +206,7 @@ function automatic bit {{ settings.class_prefix }}node_has_downstream_in_scope(
     return 1'b0;
 endfunction
 
+// scope 内无上游的节点作为子图头
 function automatic void {{ settings.class_prefix }}collect_subgraph_head_nodes(
         {{ settings.class_prefix }}node_base scope[$],
         output {{ settings.class_prefix }}node_base collected[$]);
@@ -206,6 +219,7 @@ function automatic void {{ settings.class_prefix }}collect_subgraph_head_nodes(
     end
 endfunction
 
+// scope 内无下游的节点作为子图尾
 function automatic void {{ settings.class_prefix }}collect_subgraph_tail_nodes(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base scope[$],
@@ -221,6 +235,7 @@ function automatic void {{ settings.class_prefix }}collect_subgraph_tail_nodes(
     end
 endfunction
 
+// 整树子图头，可选按 kind 过滤
 function automatic void {{ settings.class_prefix }}get_tree_head_nodes(
         {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$],
@@ -233,6 +248,7 @@ function automatic void {{ settings.class_prefix }}get_tree_head_nodes(
     {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
 endfunction
 
+// 整树子图尾，可选按 kind 过滤
 function automatic void {{ settings.class_prefix }}get_tree_tail_nodes(
         {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$],
@@ -245,6 +261,7 @@ function automatic void {{ settings.class_prefix }}get_tree_tail_nodes(
     {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
 endfunction
 
+// scope 子图尾，可选按 kind 过滤
 function automatic void {{ settings.class_prefix }}get_subgraph_tail_nodes(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base scope[$],
@@ -269,6 +286,7 @@ endfunction
     ("inv", "invs"),
 ] %}
 {%- for k, plural in graph_kind_plurals %}
+// nd 上游 kind={{ k }} 节点
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_before(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -276,6 +294,7 @@ function automatic void {{ settings.class_prefix }}get_{{ plural }}_before(
     {{ settings.class_prefix }}get_nodes_before(tree, nd, result, "{{ k }}");
 endfunction
 
+// nd 下游 kind={{ k }} 节点
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_after(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
@@ -283,12 +302,14 @@ function automatic void {{ settings.class_prefix }}get_{{ plural }}_after(
     {{ settings.class_prefix }}get_nodes_after(tree, nd, result, "{{ k }}");
 endfunction
 
+// 整树子图头 kind={{ k }} 节点
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_head(
         {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$]);
     {{ settings.class_prefix }}get_tree_head_nodes(tree, result, "{{ k }}");
 endfunction
 
+// 整树子图尾 kind={{ k }} 节点
 function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_tail(
         {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base result[$]);

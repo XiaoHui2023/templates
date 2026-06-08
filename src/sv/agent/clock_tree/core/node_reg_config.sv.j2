@@ -11,13 +11,17 @@ class {{ settings.class_prefix }}node_cfg;
         rw = reg_rw;
     endfunction
 
+    // open — 仿真门开闭，按极性写入 f_reg
     extern task configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
+    // sel — mux 选择值
     extern task configure_mux({{ settings.class_prefix }}reg f_reg, int sel);
+    // ratio — 分频比 N，寄存器编码为 N-1
     extern task configure_div(
         {{ settings.class_prefix }}reg f_rst,
         {{ settings.class_prefix }}reg f_load,
         {{ settings.class_prefix }}reg f_div,
         int ratio);
+    // ratio — DTO 目标比，转为 step 写入
     extern task configure_dto(
         {{ settings.class_prefix }}reg f_rst,
         {{ settings.class_prefix }}reg f_load,

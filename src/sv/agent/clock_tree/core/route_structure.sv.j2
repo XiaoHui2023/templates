@@ -14,6 +14,7 @@ typedef struct {
 {%- endif %}
 } {{ settings.class_prefix }}route_ctrl_snap_t;
 
+// gate/mux/div/dto 所需 field 均已绑定
 function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
         {{ settings.class_prefix }}node_base nd);
     {{ settings.class_prefix }}gate gate_nd;
@@ -36,6 +37,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
     return 1'b0;
 endfunction
 
+// kind 是否为 gate、mux、div、dto
 function automatic bit {{ settings.class_prefix }}route_structure_is_probe_kind(
         {{ settings.class_prefix }}node_base nd);
     if (nd == null)
@@ -44,6 +46,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_is_probe_kind(
         || nd.kind == "dto";
 endfunction
 
+// 读出节点当前 open/sel/ratio 等到 snap
 function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}route_ctrl_snap_t snap);
@@ -85,6 +88,7 @@ function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
     end
 endfunction
 
+// clear_fix — 为真时清除 fix 约束字段
 function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         {{ settings.class_prefix }}node_base nd,
         {{ settings.class_prefix }}route_ctrl_snap_t snap,
@@ -133,6 +137,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
     end
 endfunction
 
+// 设 gate open 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_gate_open(
         {{ settings.class_prefix }}gate gate_nd, bit open_val, bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap_t snap;
@@ -143,6 +148,7 @@ function automatic void {{ settings.class_prefix }}route_structure_set_gate_open
     {{ settings.class_prefix }}route_structure_apply_ctrl(gate_nd, snap, clear_fix);
 endfunction
 
+// 设 mux sel 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_mux_sel(
         {{ settings.class_prefix }}mux mux_nd, int sel_val, bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap_t snap;
@@ -153,6 +159,7 @@ function automatic void {{ settings.class_prefix }}route_structure_set_mux_sel(
     {{ settings.class_prefix }}route_structure_apply_ctrl(mux_nd, snap, clear_fix);
 endfunction
 
+// 设 div/dto ratio 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_ratio(
         {{ settings.class_prefix }}node_base nd, int ratio_val, bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap_t snap;
@@ -163,6 +170,7 @@ function automatic void {{ settings.class_prefix }}route_structure_set_ratio(
     {{ settings.class_prefix }}route_structure_apply_ctrl(nd, snap, clear_fix);
 endfunction
 
+// 沿 source 链判断 ancestor 是否为 desc 前级
 function automatic bit {{ settings.class_prefix }}route_structure_is_ancestor_of(
         {{ settings.class_prefix }}node_base ancestor,
         {{ settings.class_prefix }}node_base desc);
@@ -179,6 +187,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_is_ancestor_of
     return 1'b0;
 endfunction
 
+// 选能到达 target 的 mux 输入键，无则取最小键
 function automatic int {{ settings.class_prefix }}route_structure_mux_sel_toward(
         {{ settings.class_prefix }}mux mux_nd,
         {{ settings.class_prefix }}node_base target);
@@ -199,6 +208,7 @@ function automatic int {{ settings.class_prefix }}route_structure_mux_sel_toward
     return -1;
 endfunction
 
+// 各 mux 选向任一 clk 节点的输入
 function automatic void {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}mux mux_nd;
@@ -228,6 +238,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_mux_tow
     end
 endfunction
 
+// 设 gate/div/dto/pll 基线 fix 与初值，再设 mux 通向 clk
 function automatic void {{ settings.class_prefix }}route_structure_apply_baseline_fixes(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}gate gate_nd;
@@ -265,6 +276,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_baselin
     {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(tree);
 endfunction
 
+// 多轮传播 gate/mux/div/dto/inv 的 valid 与 frequence
 function automatic void {{ settings.class_prefix }}route_structure_propagate_tree(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}node_base nd;
@@ -362,6 +374,7 @@ function automatic void {{ settings.class_prefix }}route_structure_propagate_tre
     end
 endfunction
 
+// 仅保留寄存器已绑定的 line 节点
 function automatic void {{ settings.class_prefix }}route_structure_filter_line_regs(
         {{ settings.class_prefix }}node_base line[$],
         output {{ settings.class_prefix }}node_base filtered[$]);
@@ -371,6 +384,7 @@ function automatic void {{ settings.class_prefix }}route_structure_filter_line_r
             filtered.push_back(line[i]);
 endfunction
 
+// subject 上游 gate/mux/div/dto，仅保留寄存器已绑定
 function automatic void {{ settings.class_prefix }}route_structure_collect_upstream_line(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base subject,
@@ -393,6 +407,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_upstr
     end
 endfunction
 
+// subject 下游 gate/mux/div/dto，仅保留寄存器已绑定
 function automatic void {{ settings.class_prefix }}route_structure_collect_downstream_line(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base subject,
@@ -415,6 +430,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_downs
     end
 endfunction
 
+// 全树寄存器就绪的 gate/mux/div/dto
 function automatic void {{ settings.class_prefix }}route_structure_collect_probe_subjects(
         {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base subjects[$]);
@@ -430,6 +446,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_probe
     end
 endfunction
 
+// filter 非空时从中取 div/dto，否则扫全树
 function automatic void {{ settings.class_prefix }}route_structure_collect_flip_subjects(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base filter[$],
@@ -460,6 +477,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_flip_
     end
 endfunction
 
+// 单节点路由变体数：gate/div/dto 为 2，mux 为输入数
 function automatic int {{ settings.class_prefix }}route_structure_variant_count(
         {{ settings.class_prefix }}node_base nd);
     {{ settings.class_prefix }}mux mux_nd;
@@ -479,6 +497,7 @@ function automatic int {{ settings.class_prefix }}route_structure_variant_count(
     return 0;
 endfunction
 
+// 按 idx 应用 gate/mux/div/dto 变体
 function automatic void {{ settings.class_prefix }}route_structure_apply_variant_index(
         {{ settings.class_prefix }}node_base nd, int idx, bit clear_fix);
     {{ settings.class_prefix }}gate gate_nd;
@@ -505,6 +524,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_variant
     end
 endfunction
 
+// line 上各节点变体数的乘积
 function automatic int {{ settings.class_prefix }}route_structure_line_combo_count(
         {{ settings.class_prefix }}node_base line[$]);
     int total;
@@ -519,6 +539,7 @@ function automatic int {{ settings.class_prefix }}route_structure_line_combo_cou
     return total;
 endfunction
 
+// combo_idx — line 组合变体的线性下标
 function automatic void {{ settings.class_prefix }}route_structure_apply_line_combo_index(
         {{ settings.class_prefix }}node_base line[$],
         int combo_idx,
@@ -538,6 +559,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
     end
 endfunction
 
+// 全部 clk 节点 valid 为真
 function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_valid(
         {{ settings.class_prefix }}tree_base tree);
     if (tree == null)

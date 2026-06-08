@@ -20,6 +20,7 @@ class {{ settings.class_prefix }}pll_cfg;
         rw = reg_rw;
     endfunction
 
+    // 由 out_hz、ref_hz 算 TCI 分频系数
     extern function void tci_divisors(
         longint out_hz,
         longint ref_hz,
@@ -27,6 +28,7 @@ class {{ settings.class_prefix }}pll_cfg;
         output int clkf,
         output int clkod,
         output int bwadj);
+    // 由 out_hz、ref_hz 搜 SC 分频，优先 fbdiv 配置区间
     extern function void sc_divisors(
         longint out_hz,
         longint ref_hz,
@@ -34,6 +36,7 @@ class {{ settings.class_prefix }}pll_cfg;
         output int refdiv,
         output int postdiv1,
         output int postdiv2);
+    // 由 out_hz、ref_hz 搜 DW 分频
     extern function void dw_divisors(
         longint out_hz,
         longint ref_hz,
@@ -43,11 +46,13 @@ class {{ settings.class_prefix }}pll_cfg;
         output int p,
         output int divvcor,
         output int r);
+    // Inno 共享级 fbdiv、refdiv
     extern function void inno_shared_divisors(
         longint out_hz,
         longint ref_hz,
         output int fbdiv,
         output int refdiv);
+    // 已知 fbdiv、refdiv 时搜 postdiv
     extern function void inno_postdivisors(
         longint out_hz,
         longint ref_hz,
@@ -55,6 +60,7 @@ class {{ settings.class_prefix }}pll_cfg;
         int refdiv,
         output int postdiv1,
         output int postdiv2);
+    // 按给定 TCI 系数写寄存器序列
     extern task configure_tci(
         {{ settings.class_prefix }}reg f_bypass,
         {{ settings.class_prefix }}reg f_pwrdn,
@@ -67,6 +73,7 @@ class {{ settings.class_prefix }}pll_cfg;
         int clkf,
         int clkod,
         int bwadj);
+    // 按给定 SC 系数写寄存器序列
     extern task configure_sc(
         {{ settings.class_prefix }}reg f_vocpd,
         {{ settings.class_prefix }}reg f_postdivpd,
@@ -81,6 +88,7 @@ class {{ settings.class_prefix }}pll_cfg;
         int refdiv,
         int postdiv1,
         int postdiv2);
+    // 按给定 DW 系数写寄存器序列
     extern task configure_dw(
         {{ settings.class_prefix }}reg f_fbdiv,
         {{ settings.class_prefix }}reg f_prediv,
@@ -100,6 +108,7 @@ class {{ settings.class_prefix }}pll_cfg;
         int p,
         int divvcor,
         int r);
+    // 由 Hz 算 SC 系数并 configure_sc
     extern task configure_sc_from_hz(
         {{ settings.class_prefix }}reg f_vocpd,
         {{ settings.class_prefix }}reg f_postdivpd,
@@ -112,6 +121,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_fbdiv,
         longint out_hz,
         longint ref_hz);
+    // 由 Hz 算 DW 系数并 configure_dw
     extern task configure_dw_from_hz(
         {{ settings.class_prefix }}reg f_fbdiv,
         {{ settings.class_prefix }}reg f_prediv,
@@ -127,17 +137,20 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_enp,
         longint out_hz,
         longint ref_hz);
+    // 写 Inno 共享级 pd、refdiv、fbdiv
     extern task configure_inno_shared(
         {{ settings.class_prefix }}reg f_pd,
         {{ settings.class_prefix }}reg f_refdiv,
         {{ settings.class_prefix }}reg f_fbdiv,
         int fbdiv,
         int refdiv);
+    // 写 Inno postdiv1、postdiv2
     extern task configure_inno_postdiv(
         {{ settings.class_prefix }}reg f_postdiv1,
         {{ settings.class_prefix }}reg f_postdiv2,
         int postdiv1,
         int postdiv2);
+    // write_shared — 为真时重算共享级，否则读回 fbdiv/refdiv
     extern task configure_inno_from_hz(
         {{ settings.class_prefix }}reg f_pd,
         {{ settings.class_prefix }}reg f_refdiv,
@@ -147,8 +160,11 @@ class {{ settings.class_prefix }}pll_cfg;
         longint out_hz,
         longint ref_hz,
         bit write_shared);
+    // timeout — 轮询 f_lock 为 1 的最长等待
     extern task wait_lock({{ settings.class_prefix }}reg f_lock, time timeout);
+    // 与 note_freq_cfg 记录比对 ref/out 是否均未变
     extern function bit freq_cfg_unchanged(string node_name, longint ref_hz, longint out_hz);
+    // 记录节点上次配置的 ref_hz、out_hz
     extern function void note_freq_cfg(string node_name, longint ref_hz, longint out_hz);
 endclass
 
