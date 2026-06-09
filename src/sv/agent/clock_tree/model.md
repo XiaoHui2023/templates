@@ -39,8 +39,8 @@ classDiagram
 | valid | bit，rand | 时钟是否有效；**cst_node_base** 软约束默认为 0 |
 | vif | virtual interface | 配置中填写 RTL 路径时由 **tree_connection** 绑定对应 interface；未配置则为 null |
 | source | 节点句柄 | 前级驱动；无配置则为 null |
-| cst_clk_from_src | 约束 | 前级非空时 **valid** 与前级一致；子类可重载 |
-| cst_freq_from_src | 约束 | 前级非空时 **frequence** 与前级一致；子类可重载或空关断 |
+| cst_resolve_active_from_src | 约束 | 前级非空时 **valid** 与前级一致；子类可重载 |
+| cst_resolve_freq_from_src | 约束 | 前级非空时 **frequence** 与前级一致；子类可重载或空关断 |
 
 ## tree_base
 
@@ -68,21 +68,21 @@ classDiagram
 
 ## source
 
-配置 **kind: source** 的时钟根节点；无前级时 **cst_freq_from_src** 不施加频率等式。**classic_frequence** 由建树 **new** 从 YAML **freq** 写入；**cst_source** 硬约束 **frequence** 等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
+配置 **kind: source** 的时钟根节点；无前级时 **cst_resolve_freq_from_src** 不施加频率等式。**classic_frequence** 由建树 **new** 从 YAML **freq** 写入；**cst_source** 硬约束 **frequence** 等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
 
 ## clk
 
-观测用时钟节点；有前级时 **valid** 随 **cst_clk_from_src** 与前级一致。**classic_frequence** 由建树 **new** 写入；**cst_clk** 软约束 **frequence** 默认等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
+观测用时钟节点；有前级时 **valid** 随 **cst_resolve_active_from_src** 与前级一致。**classic_frequence** 由建树 **new** 写入；**cst_clk** 软约束 **frequence** 默认等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
 
 ## pll_base
 
-PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 软约束 **frequence** 默认等于 **classic_frequence**。**cst_freq_from_src** 在 **enable_node_fix** 且 **fix_mul** 大于 0 时约束输出频率为参考 **source** 频率乘以系数；否则不随参考直通。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时跳过寄存器更新。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
+PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 软约束 **frequence** 默认等于 **classic_frequence**。**cst_resolve_freq_from_src** 在 **enable_node_fix** 且 **fix_mul** 大于 0 时约束输出频率为参考 **source** 频率乘以系数；否则不随参考直通。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；**valid** 为 0 时跳过寄存器更新与 **wait_lock**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时亦跳过寄存器更新。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | pll_kind | pll_kind_e | 各 **pll_*** 子类在 **new** 中赋固定枚举值 |
 | locked | bit | 锁定指示 |
-| fix_mul | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定倍频；**> 0** 时在 **cst_freq_from_src** 中约束 **frequence** 等于 **source.frequence** 与倍频系数的乘积；由序列或环境在 **randomize** 前赋值，不可经 YAML 配置 |
+| fix_mul | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定倍频；**> 0** 时在 **cst_resolve_freq_from_src** 中约束 **frequence** 等于 **source.frequence** 与倍频系数的乘积；由序列或环境在 **randomize** 前赋值，不可经 YAML 配置 |
 
 YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** 中的哪一类，并与 **regs** 允许键校验一致；展开后 **pll_kind** 成员与之类型一致。
 
@@ -96,7 +96,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | --- | --- | --- |
 | source | str，必填 | 参考时钟前级节点名；**tree** 构造时写入 **source** 句柄 |
 | pll_kind | tci、sc、dw，必填，大小写不限 | 决定例化哪一类 **pll_*** |
-| regs | dict，可选 | 键为逻辑名、值为 寄存器模型点分路径，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时键集合须与 pll_kind 允许表完全一致**，不得缺键或多键 |
+| regs | dict，可选 | 键为逻辑名、值为 寄存器模型路径，按 `.` 分隔，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时键集合须与 pll_kind 允许表完全一致**，不得缺键或多键 |
 
 | pll_kind | regs 须包含的键 |
 | --- | --- |
@@ -112,11 +112,11 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | --- | --- | --- |
 | sel | int，rand | 选择值；**cst_mux** 约束 **sel** 在 0 至 **max_sel** |
 | max_sel | int | 建树时由 **mux.source** 键最大值写入 |
-| fix_sel | int | **enable_node_fix** 为真时生成；默认 **-1** 表示不固定 **sel**；**≥ 0** 时在 **cst_clk_from_src** 中约束 **sel** 等于该值 |
+| fix_sel | int | **enable_node_fix** 为真时生成；默认 **-1** 表示不固定 **sel**；**≥ 0** 时在 **cst_resolve_active_from_src** 中约束 **sel** 等于该值 |
 | to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 在 **to_source[sel] != null** 时写入 **source** |
-| reg | string，可选 | 寄存器模型点分路径，可带比特范围后缀；**config_reg** 写入 **sel** |
+| reg | string，可选 | 寄存器模型路径，按 `.` 分隔，可带比特范围后缀；**config_reg** 写入 **sel** |
 
-**cst_clk_from_src**：**to_source[sel]** 为空则 **valid** 为 0，否则随所选前级 **valid**。
+**cst_resolve_active_from_src**：**to_source[sel]** 为空则 **valid** 为 0，否则随所选前级 **valid**。
 
 ## enable_node_fix
 
@@ -130,9 +130,9 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | --- | --- |
 | ratio | 分频比，rand，须 1～64；1 表示不分频，大于 1 表示分频比为 **ratio** |
 | fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_div** 中约束 **ratio**；由序列或环境在 **randomize** 前赋值，不可经 YAML 配置 |
-| regs | 映射，可选 | 非空时键为 rst、load、div，值为各 field 的 寄存器模型点分路径，可带比特范围后缀 |
+| regs | 映射，可选 | 非空时键为 rst、load、div，值为各 field 的 寄存器模型路径，按 `.` 分隔，可带比特范围后缀 |
 
-**cst_div**：**ratio** 在 1～64；**cst_freq_from_src** 为前级频率整除 **ratio**。
+**cst_div**：**ratio** 在 1～64；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
 **config_reg**：**rst** 先写复位电平再写不复位电平；为真时 **div_reg_high_means_reset** 依次为 1、0，为假则依次为 0、1；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
 
@@ -144,9 +144,9 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | --- | --- |
 | ratio | 分频比，rand，须大于 0 且不超过 2^25；与 **step** 对应关系为 分频比 = 2^25 / **step** |
 | fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_dto** 中约束 **ratio**；由序列或环境在 **randomize** 前赋值，不可经 YAML 配置 |
-| regs | 可选；非空时键须为 **rst**、**load**、**bypass**、**step**，值为各 field 的 寄存器模型点分路径，可带比特范围后缀 |
+| regs | 可选；非空时键须为 **rst**、**load**、**bypass**、**step**，值为各 field 的 寄存器模型路径，按 `.` 分隔，可带比特范围后缀 |
 
-**cst_dto**：**ratio** 大于 0 且不超过 2^25；**cst_freq_from_src** 为前级频率整除 **ratio**。
+**cst_dto**：**ratio** 大于 0 且不超过 2^25；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
 **config_reg**：**rst** 先写复位电平再写不复位电平；为真时 **dto_reg_high_means_reset** 依次为 1、0，为假则依次为 0、1；**load**=1，**bypass**=0，**step**=2^25/**ratio**（整数，须落在 1～2^25−1，故 **ratio** 不能为 1）。
 
@@ -157,11 +157,11 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 类型 | 说明 |
 | --- | --- | --- |
 | open | bit，rand | 为真时开放时钟通行；为假时屏蔽输出 |
-| fix_open | bit | **enable_node_fix** 为真时生成；为 1 时在 **cst_clk_from_src** 中约束 **open** 为 1 |
-| fix_close | bit | **enable_node_fix** 为真时生成；为 1 时在 **cst_clk_from_src** 中约束 **open** 为 0 |
-| reg | string，可选 | 寄存器模型点分路径，可带比特范围后缀；**config_reg** 写入门控位，写 1 是否表示打开由 **settings** 的 **gate_reg_high_means_open** 决定 |
+| fix_open | bit | **enable_node_fix** 为真时生成；为 1 时在 **cst_resolve_active_from_src** 中约束 **open** 为 1 |
+| fix_close | bit | **enable_node_fix** 为真时生成；为 1 时在 **cst_resolve_active_from_src** 中约束 **open** 为 0 |
+| reg | string，可选 | 寄存器模型路径，按 `.` 分隔，可带比特范围后缀；**config_reg** 写入门控位，写 1 是否表示打开由 **settings** 的 **gate_reg_high_means_open** 决定 |
 
-重载 **cst_clk_from_src**：前级有效且 **open** 为真时 **valid** 为真。
+重载 **cst_resolve_active_from_src**：前级有效且 **open** 为真时 **valid** 为真。
 
 ## inv
 

@@ -44,7 +44,7 @@
 
 | 行为目录 | 说明 |
 | --- | --- |
-| `config_reg` | 对 **req.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll** 参考与输出频率均未变时跳过写寄存器与 **wait_lock**；**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
+| `config_reg` | 对 **req.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll** **valid** 为 0 时跳过写寄存器与 **wait_lock**；参考与输出频率均未变时亦跳过；**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
 | `check_freq` | 检查 **req.nodes** 中 **source**、**clk**、**pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
 | `check_flip` | 对 **req.nodes** 或 **tree** 内 **div**、**dto** 用 **fix_ratio** 固定分频比为寄存器 field 仅最高位为 1 时的值，**config_reg** 后 **check_freq**，再恢复 |
@@ -55,7 +55,7 @@
 
 | 测试目录 | 说明 |
 | --- | --- |
-| `test_route` | 基线 **fix_*** 后 **randomize**、**config_reg**、**check_freq**；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测 |
+| `test_route` | 初始 **fix_*** 后 **randomize**、**config_reg**、**check_freq**；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测 |
 
 ## sequence · base
 
