@@ -86,7 +86,7 @@
 1. **初始固定**：全部 **gate** 的 **fix_open** 为 1；全部 **div**、**dto** 的 **fix_ratio** 为 1；各 **mux** 的 **fix_sel** 指向可达任一 **clk** 的前级支路。**config_reg** 写整树寄存器前对 **tree** 执行一次 **randomize**。
 2. **check_freq**：**quiet** 为 1；失败则 **fatal** 结束。
 3. **clk** 有效性：**always_active_clk_nodes** 非空时，所列 **clk** 的 **valid** 须均为真；为空时 **tree.nodes** 中全部 **clk** 均须为真，否则 **fatal**。
-4. **结构探测**：**always_active_clk_nodes** 非空时，未列入的 **clk** 设 **unfix_frequence**、**unfix_enabled** 为 1，所列 **clk** 保持二者为 0；**always_active_clk_nodes** 为空时全部 **clk** 二者为 0。对每个已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
+4. **结构探测**：全部 **clk** 的 **unfix_frequence** 为 1；**unfix_enabled** 为 0 仅当该 **clk** 在 **always_active_clk_nodes** 中，或 **always_active_clk_nodes** 为空时作用于全部 **clk**。作为必启 **clk** 前级的 **gate**、**mux** 不作为 **subject** 探测。对其余已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
    1. 用 **get_nodes_before** / **get_nodes_after** 收集该节点在对应方向上的 **gate**、**mux**、**div**、**dto** 线列表，不含自身。
    2. 遍历**自身**可选状态：门控开与关、多路选择各 **sel**、分频比 1 与 2；探测时暂时放开 **fix_***，结束后恢复。
    3. 对每个自身状态，对线上其它节点做排列组合，**config_reg** 整树、**quiet** 为 1，再 **check_freq** 全树；**always_active_clk_nodes** 非空且当前组合会使所列 **clk** 失活时跳过该组合，不 **check_freq**；其余失败则 **fatal**。
@@ -104,7 +104,7 @@
 | **[1/4]** | 初始 **fix_*** |
 | **[2/4]** | 基线 **config_reg**、**check_freq** |
 | **[3/4]** | **clk** 有效性结论 |
-| **[4/4]** | **subject** 节点名单；对每个节点分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
+| **[4/4]** | 过滤必启 **clk** 通路上的 **gate** / **mux** **subject**；对其余 **subject** 分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
 | 结尾 | 清除全部 **clk** **unfix_frequence** 与 **unfix_enabled**、恢复控制量、**config_reg**、通过汇总 |
 
 探测循环内 **config_reg** 恒 **quiet** 为 1，避免与上层进度行重复；基线与收尾 **config_reg** 跟随 **req.quiet**。
@@ -126,6 +126,7 @@
 | --- | --- | --- |
 | 串联门控顺序 | 同开同关的门控先后不影响频率 | 不单独验证顺序；线上组合只改变开闭与分频、**sel** |
 | 非必启时钟关断 | **always_active_clk_nodes** 未列入的 **clk** 可被门控或 **mux** 关断 | 步骤 4 跳过会使必启 **clk** 失活的组合 |
+| 必启通路上的门控与多路选择 | 改变该 **gate** / **mux** 可能关断必启 **clk** | 步骤 4 不作为 **subject** 探测 |
 | 反相器 | 只改相位 | 不在线列表中，不参与组合 |
 
 #### 本 test 范围外

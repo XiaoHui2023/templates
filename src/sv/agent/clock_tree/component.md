@@ -55,7 +55,7 @@
 
 | 测试目录 | 说明 |
 | --- | --- |
-| `test_route` | 初始 **fix_*** 后 **config_reg**、**check_freq**；**req.always_active_clk_nodes** 非空时只校验所列 **clk** 并保持活动，探测时跳过会关断它们的组合；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测；**req.quiet** 为 0 时按四段主流程与探测细目打印 **uvm_info** |
+| `test_route` | 初始 **fix_*** 后 **config_reg**、**check_freq**；**req.always_active_clk_nodes** 非空时只校验所列 **clk** 并保持活动，探测时全部 **clk** **unfix_frequence** 为 1，仅所列 **clk** **unfix_enabled** 为 0；跳过必启 **clk** 通路上的 **gate** / **mux** **subject** 及会关断必启 **clk** 的组合；对其余带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测；**req.quiet** 为 0 时按四段主流程与探测细目打印 **uvm_info** |
 
 ## sequence · base
 

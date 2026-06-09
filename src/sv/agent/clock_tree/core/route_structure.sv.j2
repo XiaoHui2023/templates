@@ -532,27 +532,47 @@ function automatic bit {{ settings.class_prefix }}route_structure_clk_is_always_
     return 1'b0;
 endfunction
 
-// always_active_clk_nodes 非空时：所列 clk 保持约束，其余 clk 设 unfix_frequence 与 unfix_enabled；为空则全部保持约束
+// 结构探测前：全部 clk 放开频率；仅按 always_active_clk_nodes 固定 enabled
 function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
-    bit unfix_val;
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
+        clk_nd.unfix_frequence = 1'b1;
         if (always_active_clk_nodes.size() > 0)
-            unfix_val = !{{ settings.class_prefix }}route_structure_clk_is_always_active(
+            clk_nd.unfix_enabled = !{{ settings.class_prefix }}route_structure_clk_is_always_active(
                 clk_nd, always_active_clk_nodes);
         else
-            unfix_val = 1'b0;
-        clk_nd.unfix_frequence = unfix_val;
-        clk_nd.unfix_enabled = unfix_val;
+            clk_nd.unfix_enabled = 1'b0;
     end
 {%- endif %}
+endfunction
+
+// always_active_clk_nodes 非空时，gate/mux 为所列 clk 前级则不作为 subject 探测
+function automatic bit {{ settings.class_prefix }}route_structure_probe_subject_skipped_for_always_active(
+        {{ settings.class_prefix }}node_base subject,
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
+    if (always_active_clk_nodes.size() == 0)
+        return 1'b0;
+    if (subject == null)
+        return 1'b0;
+    if (subject.kind != "gate" && subject.kind != "mux")
+        return 1'b0;
+    foreach (always_active_clk_nodes[i]) begin
+        if (always_active_clk_nodes[i] == null)
+            continue;
+        if (always_active_clk_nodes[i].kind != "clk")
+            continue;
+        if ({{ settings.class_prefix }}route_structure_is_ancestor_of(
+                subject, always_active_clk_nodes[i]))
+            return 1'b1;
+    end
+    return 1'b0;
 endfunction
 
 // 全部 clk 设同一 unfix_frequence 值
