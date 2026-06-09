@@ -5,10 +5,11 @@
 class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_prefix }}tree_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}{{ tree.name }}_tree)
 {%- for node in tree.nodes_ordered %}
+{%- set field_flags = "UVM_ALL_ON" if node.kind in ["clk", "pll", "source"] else "UVM_ALL_ON | UVM_NOPRINT" %}
 {%- if node.sv_is_array %}
-        `uvm_field_sarray_object({{ node.name }}, UVM_ALL_ON)
+        `uvm_field_sarray_object({{ node.name }}, {{ field_flags }})
 {%- else %}
-        `uvm_field_object({{ node.name }}, UVM_ALL_ON)
+        `uvm_field_object({{ node.name }}, {{ field_flags }})
 {%- endif %}
 {%- endfor %}
     `uvm_object_utils_end
@@ -31,6 +32,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
     constraint cst_user;
     constraint cst_case;
 
+    // Create node objects, connect sources, and populate tree queues.
     function new(string name="{{ settings.class_prefix }}{{ tree.name }}_tree");
         super.new(name);
 {%- for node in tree.nodes_ordered %}
@@ -106,6 +108,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
         end
     endfunction
 
+    // Bind node register fields when a register model is provided.
     extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
 endclass
 

@@ -36,7 +36,7 @@
 | `check_freq` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；检查 **tree.nodes** 中 **source**、**clk**、**pll** 节点频率 |
 | `check_duty` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；检查 **tree.nodes** 中带 **vif** 节点占空比 |
 | `check_flip` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；全部 **clk** **unfix** 为 1 后对带绑定寄存器的 **div**、**dto** 分频寄存器 field 最高位写 1 其余写 0，**config_reg** 后 **check_freq**，再恢复并撤销 **fix_ratio**；结束时清除 **unfix** |
-| `test_route` | **task**；入参 **tree** 默认空、**required_clock_notes** 默认空队列；非空时按 **get_name** 解析为 **req.required_clk_nodes**；依赖 **fix_*** 与 **config_reg**、**check_freq**，按节点验证上下游通路结构。**tree** 为空时用 **kit** 上 **tree** |
+| `test_route` | **task**；入参 **tree** 默认空、**always_active_clk_nodes** 为须全程保持活动的 **clk** 句柄队列，默认空；依赖 **fix_*** 与 **config_reg**、**check_freq**，按节点验证上下游通路结构。**tree** 为空时用 **kit** 上 **tree** |
 
 ## sequence · operation
 
@@ -55,7 +55,7 @@
 
 | 测试目录 | 说明 |
 | --- | --- |
-| `test_route` | 初始 **fix_*** 后 **config_reg**、**check_freq**；**req.required_clk_nodes** 非空时只校验所列 **clk** 并保持活动，探测时跳过会关断它们的组合；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测；**req.quiet** 为 0 时按四段主流程与探测细目打印 **uvm_info** |
+| `test_route` | 初始 **fix_*** 后 **config_reg**、**check_freq**；**req.always_active_clk_nodes** 非空时只校验所列 **clk** 并保持活动，探测时跳过会关断它们的组合；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测；**req.quiet** 为 0 时按四段主流程与探测细目打印 **uvm_info** |
 
 ## sequence · base
 

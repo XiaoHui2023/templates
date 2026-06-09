@@ -11,18 +11,24 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     endfunction
 
 {% if regs_enabled %}
+    // 按树节点写寄存器
     extern task config_reg({{ settings.class_prefix }}tree_base tree = null);
 {% endif %}
 {% if any_node_path %}
+    // 校验各 clk 频率
     extern task check_freq({{ settings.class_prefix }}tree_base tree = null);
+    // 校验各 clk 占空比
     extern task check_duty({{ settings.class_prefix }}tree_base tree = null);
 {% endif %}
 {% if route_test_enabled %}
+    // 校验 div/dto 复位翻转
     extern task check_flip({{ settings.class_prefix }}tree_base tree = null);
-    // tree — 待测树，空则用 kit.tree；required_clock_notes — 必启 clk 的 get_name，空则不限定必启列表
+    // 配置寄存器并遍历路由组合
+    // tree — 时钟树句柄，空则用 kit.tree
+    // always_active_clk_nodes — 须全程保持活动的 clk 句柄，空则要求全部 clk 活动
     extern task test_route(
         {{ settings.class_prefix }}tree_base tree = null,
-        string required_clock_notes[$] = '{}');
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$] = '{}');
 {% endif %}
 endclass
 
@@ -121,7 +127,7 @@ endtask
 
 task {{ settings.class_prefix }}kit_sequencer::test_route(
         {{ settings.class_prefix }}tree_base tree,
-        string required_clock_notes[$]);
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
     {{ settings.class_prefix }}test_route_req req;
     {{ settings.class_prefix }}test_route_rsp seq_rsp;
     {{ settings.class_prefix }}test_route_seq seq;
@@ -132,9 +138,7 @@ task {{ settings.class_prefix }}kit_sequencer::test_route(
         req.tree = this.tree;
     if (req.tree == null)
         `uvm_fatal("CLK_TREE", "test_route: tree is null")
-    if (required_clock_notes.size() > 0)
-        {{ settings.class_prefix }}route_structure_resolve_required_clk_notes(
-            req.tree, required_clock_notes, req.required_clk_nodes);
+    req.always_active_clk_nodes = always_active_clk_nodes;
 
     seq = {{ settings.class_prefix }}test_route_seq::type_id::create(
         "test_route");

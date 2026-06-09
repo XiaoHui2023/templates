@@ -65,7 +65,7 @@
 
 | 名称 | 目录 | **kit** **task** | **req** 要点 | **rsp** 要点 |
 | --- | --- | --- | --- | --- |
-| **test_route** | `sequence/test/test_route/` | **test_route**；**tree** 默认空则用 **kit** 上 **tree**；**required_clock_notes** 为必启 **clk** 的 **get_name** 队列，非空时解析为 **req.required_clk_nodes** | **tree** 句柄，可空；**required_clk_nodes** 为须全程保持活动的 **clk** 节点队列，空则要求全部 **clk** 活动；**quiet** 为 1 时不打进度 **uvm_info** | **ok** 汇总 |
+| **test_route** | `sequence/test/test_route/` | **test_route**；**tree** 默认空则用 **kit** 上 **tree**；**always_active_clk_nodes** 为须全程保持活动的 **clk** 句柄队列，默认空 | **tree** 句柄，可空；**always_active_clk_nodes** 为须全程保持活动的 **clk** 节点队列，空则要求全部 **clk** 活动；**quiet** 为 1 时不打进度 **uvm_info** | **ok** 汇总 |
 
 ## test_route
 
@@ -77,7 +77,7 @@
 
 在**树状拓扑**前提下，验证某一节点位置时，应先把**所有门控打开**、**所有下游多路选择**选通穿过该节点的支路，使下游时钟有效。再以**该节点自身视角**只看穿过它的支路，分别核对上游与下游结构：对侧方向上的多路选择与门控单独切换，若一条线上有多个此类节点则做排列组合；观测频率或关断变化即可反证结构。各节点局部结构均正确时，整棵树的前后级关系有唯一解。
 
-![待测节点视角：强调穿过待测节点的支路](images/test_route.drawio.svg)
+![subject 节点视角：强调穿过 subject 节点的支路](images/test_route.drawio.svg)
 
 为避免多路选择切换后频率不变、无法区分支路，起步须令各 **div**、**dto** 分频比为 1，各 **PLL** 在 YAML 中配置不同 **frequence**，且与晶振频率不同。
 
@@ -85,11 +85,11 @@
 
 1. **初始固定**：全部 **gate** 的 **fix_open** 为 1；全部 **div**、**dto** 的 **fix_ratio** 为 1；各 **mux** 的 **fix_sel** 指向可达任一 **clk** 的前级支路。**config_reg** 写整树寄存器前对 **tree** 执行一次 **randomize**。
 2. **check_freq**：**quiet** 为 1；失败则 **fatal** 结束。
-3. **clk** 有效性：**required_clk_nodes** 非空时，所列 **clk** 的 **valid** 须均为真；为空时 **tree.nodes** 中全部 **clk** 均须为真，否则 **fatal**。
-4. **结构探测**：**required_clk_nodes** 非空时，未列入的 **clk** 设 **unfix** 为 1，所列 **clk** 保持 **unfix** 为 0；**required_clk_nodes** 为空时全部 **clk** **unfix** 为 0。对每个已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
+3. **clk** 有效性：**always_active_clk_nodes** 非空时，所列 **clk** 的 **valid** 须均为真；为空时 **tree.nodes** 中全部 **clk** 均须为真，否则 **fatal**。
+4. **结构探测**：**always_active_clk_nodes** 非空时，未列入的 **clk** 设 **unfix** 为 1，所列 **clk** 保持 **unfix** 为 0；**always_active_clk_nodes** 为空时全部 **clk** **unfix** 为 0。对每个已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
    1. 用 **get_nodes_before** / **get_nodes_after** 收集该节点在对应方向上的 **gate**、**mux**、**div**、**dto** 线列表，不含自身。
    2. 遍历**自身**可选状态：门控开与关、多路选择各 **sel**、分频比 1 与 2；探测时暂时放开 **fix_***，结束后恢复。
-   3. 对每个自身状态，对线上其它节点做排列组合，**config_reg** 整树、**quiet** 为 1，再 **check_freq** 全树；**required_clk_nodes** 非空且当前组合会使所列 **clk** 失活时跳过该组合，不 **check_freq**；其余失败则 **fatal**。
+   3. 对每个自身状态，对线上其它节点做排列组合，**config_reg** 整树、**quiet** 为 1，再 **check_freq** 全树；**always_active_clk_nodes** 非空且当前组合会使所列 **clk** 失活时跳过该组合，不 **check_freq**；其余失败则 **fatal**。
    4. 该方向完成后从已存控制量快照恢复并写回寄存器，再测下一节点。
 
 核心辅助函数在 **core/route_structure.sv**。
@@ -100,11 +100,11 @@
 
 | 阶段 | 内容 |
 | --- | --- |
-| 开头 | **tree** 名字、**required_clk_nodes** 名单或「全部 **clk** 须活动」 |
+| 开头 | **tree** 名字、**always_active_clk_nodes** 名单或「全部 **clk** 须活动」 |
 | **[1/4]** | 初始 **fix_*** |
 | **[2/4]** | 基线 **config_reg**、**check_freq** |
 | **[3/4]** | **clk** 有效性结论 |
-| **[4/4]** | 待测节点名单；对每个节点分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
+| **[4/4]** | **subject** 节点名单；对每个节点分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
 | 结尾 | 清除全部 **clk** **unfix**、恢复控制量、**config_reg**、通过汇总 |
 
 探测循环内 **config_reg** 恒 **quiet** 为 1，避免与上层进度行重复；基线与收尾 **config_reg** 跟随 **req.quiet**。
@@ -116,7 +116,7 @@
 | 错误点 | 使用者可见现象 | 覆盖方式 |
 | --- | --- | --- |
 | 初始频率不符 | **check_freq** 在步骤 2 失败 | **fatal**，不进入结构探测 |
-| 必启时钟无效 | **required_clk_nodes** 所列或全部 **clk** 的 **valid** 为 0 | 步骤 3 **fatal** |
+| 必启时钟无效 | **always_active_clk_nodes** 所列或全部 **clk** 的 **valid** 为 0 | 步骤 3 **fatal** |
 | 上下游结构错误 | 切换线节点后频率与模型不一致 | 步骤 4 **check_freq** 失败 → **fatal** |
 | 寄存器未写入 | **config_reg** 失败 | **fatal** |
 
@@ -125,7 +125,7 @@
 | 允许点 | 含义或配置 | 测试行为 |
 | --- | --- | --- |
 | 串联门控顺序 | 同开同关的门控先后不影响频率 | 不单独验证顺序；线上组合只改变开闭与分频、**sel** |
-| 非必启时钟关断 | **required_clk_nodes** 未列入的 **clk** 可被门控或 **mux** 关断 | 步骤 4 跳过会使必启 **clk** 失活的组合 |
+| 非必启时钟关断 | **always_active_clk_nodes** 未列入的 **clk** 可被门控或 **mux** 关断 | 步骤 4 跳过会使必启 **clk** 失活的组合 |
 | 反相器 | 只改相位 | 不在线列表中，不参与组合 |
 
 #### 本 test 范围外

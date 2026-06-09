@@ -29,7 +29,7 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
         bit upstream,
         {{ settings.class_prefix }}node_base stored_nodes[$],
         {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$],
-        {{ settings.class_prefix }}node_base required_clk_nodes[$],
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
         bit quiet,
         int subject_idx,
         int subject_total);
@@ -95,7 +95,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
         bit upstream,
         {{ settings.class_prefix }}node_base stored_nodes[$],
         {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$],
-        {{ settings.class_prefix }}node_base required_clk_nodes[$],
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
         bit quiet,
         int subject_idx,
         int subject_total);
@@ -154,13 +154,13 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                 {{ settings.class_prefix }}route_structure_variant_label(subject, sv)),
                 UVM_MEDIUM)
         run_config_reg(tree, 1'b1);
-        if (required_clk_nodes.size() > 0
-                && !{{ settings.class_prefix }}route_structure_required_clocks_active(
-                    required_clk_nodes)) begin
+        if (always_active_clk_nodes.size() > 0
+                && !{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
+                    always_active_clk_nodes)) begin
             n_skip_sub++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
-                    "test_route:     skip self variant — required clk inactive"),
+                    "test_route:     skip self variant — always_active clk inactive"),
                     UVM_MEDIUM)
             continue;
         end
@@ -177,13 +177,13 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                     "test_route:     %s line [%0d/%0d] %s — config_reg",
                     dir_label, c + 1, n_combo, combo_summary), UVM_MEDIUM)
             run_config_reg(tree, 1'b1);
-            if (required_clk_nodes.size() > 0
-                    && !{{ settings.class_prefix }}route_structure_required_clocks_active(
-                        required_clk_nodes)) begin
+            if (always_active_clk_nodes.size() > 0
+                    && !{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
+                        always_active_clk_nodes)) begin
                 n_skip_combo++;
                 if (!quiet)
                     `uvm_info("CLK_TREE", $sformatf(
-                        "test_route:       skip line combo — required clk inactive"),
+                        "test_route:       skip line combo — always_active clk inactive"),
                         UVM_MEDIUM)
                 continue;
             end
@@ -233,16 +233,16 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     if (!rq.quiet) begin
         req_clk_names = {{ settings.class_prefix }}route_structure_format_node_names(
-            rq.required_clk_nodes);
+            rq.always_active_clk_nodes);
         `uvm_info("CLK_TREE", $sformatf(
             "test_route: begin tree %s", tree.get_name()), UVM_LOW)
-        if (rq.required_clk_nodes.size() > 0)
+        if (rq.always_active_clk_nodes.size() > 0)
             `uvm_info("CLK_TREE", $sformatf(
-                "test_route: required clk (%0d): %s",
-                rq.required_clk_nodes.size(), req_clk_names), UVM_LOW)
+                "test_route: always_active clk (%0d): %s",
+                rq.always_active_clk_nodes.size(), req_clk_names), UVM_LOW)
         else
             `uvm_info("CLK_TREE",
-                "test_route: required clk unset — all clk nodes must stay active",
+                "test_route: always_active clk unset — all clk nodes must stay active",
                 UVM_LOW)
     end
 
@@ -258,14 +258,14 @@ task {{ settings.class_prefix }}test_route_seq::body();
     run_config_reg(tree, rq.quiet);
     run_check_freq_quiet(tree);
 
-    if (rq.required_clk_nodes.size() > 0) begin
-        if (!{{ settings.class_prefix }}route_structure_required_clocks_active(
-                rq.required_clk_nodes))
+    if (rq.always_active_clk_nodes.size() > 0) begin
+        if (!{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
+                rq.always_active_clk_nodes))
             `uvm_fatal("CLK_TREE",
-                "test_route: required clk nodes not active after initial config_reg")
+                "test_route: always_active clk nodes not active after initial config_reg")
         if (!rq.quiet)
             `uvm_info("CLK_TREE", $sformatf(
-                "test_route: [3/4] required clk active — %s", req_clk_names), UVM_LOW)
+                "test_route: [3/4] always_active clk active — %s", req_clk_names), UVM_LOW)
     end else begin
         if (!{{ settings.class_prefix }}route_structure_all_clocks_valid(tree))
             `uvm_fatal("CLK_TREE",
@@ -292,13 +292,13 @@ task {{ settings.class_prefix }}test_route_seq::body();
     save_ctrl_snap(stored_nodes, stored_snaps);
 
     {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
-        tree, rq.required_clk_nodes);
+        tree, rq.always_active_clk_nodes);
 
     for (i = 0; i < subjects.size(); i++) begin
         verify_one_direction(tree, subjects[i], 1'b1, stored_nodes, stored_snaps,
-            rq.required_clk_nodes, rq.quiet, i, subjects.size());
+            rq.always_active_clk_nodes, rq.quiet, i, subjects.size());
         verify_one_direction(tree, subjects[i], 1'b0, stored_nodes, stored_snaps,
-            rq.required_clk_nodes, rq.quiet, i, subjects.size());
+            rq.always_active_clk_nodes, rq.quiet, i, subjects.size());
     end
 
     if (!rq.quiet)

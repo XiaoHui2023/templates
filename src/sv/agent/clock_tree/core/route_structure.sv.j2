@@ -517,57 +517,25 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
     end
 endfunction
 
-// required_clock_notes 各名字解析为 tree 上 clk 句柄
-function automatic void {{ settings.class_prefix }}route_structure_resolve_required_clk_notes(
-        {{ settings.class_prefix }}tree_base tree,
-        string notes[$],
-        output {{ settings.class_prefix }}node_base resolved[$]);
-    resolved.delete();
-    if (tree == null)
-        `uvm_fatal("CLK_TREE",
-            "route_structure: tree is null for required_clock_notes")
-    foreach (notes[i]) begin
-        bit found;
-        found = 1'b0;
-        foreach (tree.nodes[j]) begin
-            if (tree.nodes[j] == null)
-                continue;
-            if (tree.nodes[j].get_name() != notes[i])
-                continue;
-            if (tree.nodes[j].kind != "clk")
-                `uvm_fatal("CLK_TREE", $sformatf(
-                    "route_structure: required_clock_notes %s is not clk",
-                    notes[i]))
-            resolved.push_back(tree.nodes[j]);
-            found = 1'b1;
-            break;
-        end
-        if (!found)
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "route_structure: required_clock_notes %s not in tree.nodes",
-                notes[i]))
-    end
-endfunction
-
-// required 队列是否含该 clk 句柄
-function automatic bit {{ settings.class_prefix }}route_structure_clk_is_required(
+// always_active_clk_nodes 队列是否含该 clk 句柄
+function automatic bit {{ settings.class_prefix }}route_structure_clk_is_always_active(
         {{ settings.class_prefix }}clk clk_nd,
-        {{ settings.class_prefix }}node_base required[$]);
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
     if (clk_nd == null)
         return 1'b0;
-    foreach (required[i]) begin
-        if (required[i] == null)
+    foreach (always_active_clk_nodes[i]) begin
+        if (always_active_clk_nodes[i] == null)
             continue;
-        if (required[i] == clk_nd)
+        if (always_active_clk_nodes[i] == clk_nd)
             return 1'b1;
     end
     return 1'b0;
 endfunction
 
-// required 非空时：所列 clk 保持约束，其余 clk 设 unfix；required 为空则全部保持约束
+// always_active_clk_nodes 非空时：所列 clk 保持约束，其余 clk 设 unfix；为空则全部保持约束
 function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base required[$]);
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
     if (tree == null)
@@ -575,9 +543,9 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unf
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
-        if (required.size() > 0)
-            clk_nd.unfix = !{{ settings.class_prefix }}route_structure_clk_is_required(
-                clk_nd, required);
+        if (always_active_clk_nodes.size() > 0)
+            clk_nd.unfix = !{{ settings.class_prefix }}route_structure_clk_is_always_active(
+                clk_nd, always_active_clk_nodes);
         else
             clk_nd.unfix = 1'b0;
     end
@@ -621,15 +589,15 @@ function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_val
     return 1'b1;
 endfunction
 
-// required 所列 clk 节点 _resolved_active 均为真
-function automatic bit {{ settings.class_prefix }}route_structure_required_clocks_active(
-        {{ settings.class_prefix }}node_base required[$]);
-    foreach (required[i]) begin
-        if (required[i] == null)
+// always_active_clk_nodes 所列 clk 节点 _resolved_active 均为真
+function automatic bit {{ settings.class_prefix }}route_structure_always_active_clocks_valid(
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
+    foreach (always_active_clk_nodes[i]) begin
+        if (always_active_clk_nodes[i] == null)
             continue;
-        if (required[i].kind != "clk")
+        if (always_active_clk_nodes[i].kind != "clk")
             continue;
-        if (!required[i]._resolved_active)
+        if (!always_active_clk_nodes[i]._resolved_active)
             return 1'b0;
     end
     return 1'b1;

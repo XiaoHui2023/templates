@@ -114,7 +114,8 @@ interface {{ settings.class_prefix }}measure_interface #(
         set_measure_en(1'b0);
     endfunction
 
-    // 轮询 stable，最长 MEAS_TIMEOUT_NS；ok 为真表示在时限内稳定
+    // 轮询 stable，最长 MEAS_TIMEOUT_NS
+    // ok — 为真表示在时限内稳定
     task automatic wait_measure_stable(output bit ok);
         int elapsed_ns;
 
