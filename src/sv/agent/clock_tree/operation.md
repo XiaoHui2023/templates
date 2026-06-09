@@ -35,6 +35,8 @@
 
 **pll** 分频用 **source.frequence** 与节点 **frequence**；缺 **source** 或频率非法则 **fatal**。参考频率与输出 **frequence** 均与 **sequencer.tools.pll** 中按节点名记录的上次写入相同时跳过寄存器更新，且不再 **wait_lock**。
 
+**div**、**dto** 在 **sequencer.tools.node** 中按节点名记录是否已走过 **rst** 释放。每个节点**首次** **config_reg** 走完整 **rst** 流程；之后同一 **sequencer** 生命周期内再次 **config_reg** 只更新分频 field 与 **load** 脉冲，不再拉 **rst**。
+
 ### 注意
 
 + 器件上 **div** 常默认处于复位态，分频输出不工作；**mux** 若先切到该支路，选中路径上可能长时间无有效时钟或频率不对。
@@ -43,8 +45,12 @@
 
 ## check_freq
 
+已配置寄存器模型且 **req.skip_config_reg** 为 0 时，量测前先 **config_reg** 整树。**check_flip**、**test_route** 等内部嵌套调用须置 **skip_config_reg** 为 1，避免覆盖刚写入的路由或分频 field。
+
 遍历 **req.tree.nodes**，只处理 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。先对全部目标节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即比较 **freq_hz** 与 **frequence** 并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。超出 **period_tolerance** 则报错。
 
 ## check_duty
+
+已配置寄存器模型且 **req.skip_config_reg** 为 0 时，量测前先 **config_reg** 整树。
 
 遍历 **req.tree.nodes**，处理已挂 **vif** 的节点，不限 **kind**。先对全部目标节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即根据 **vif.meas.duty_ok** 判定并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。

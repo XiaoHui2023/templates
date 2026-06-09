@@ -4,6 +4,8 @@
 
 class {{ settings.class_prefix }}node_cfg;
     {{ settings.class_prefix }}reg_rw rw;
+    protected bit div_rst_released[string];
+    protected bit dto_rst_released[string];
 
     function new({{ settings.class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
@@ -21,6 +23,11 @@ class {{ settings.class_prefix }}node_cfg;
         {{ settings.class_prefix }}reg f_load,
         {{ settings.class_prefix }}reg f_div,
         int ratio);
+    // ratio — 已释放复位后仅更新 div 与 load 脉冲
+    extern task configure_div_ratio(
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio);
     // ratio — DTO 目标比，转为 step 写入
     extern task configure_dto(
         {{ settings.class_prefix }}reg f_rst,
@@ -28,6 +35,20 @@ class {{ settings.class_prefix }}node_cfg;
         {{ settings.class_prefix }}reg f_bypass,
         {{ settings.class_prefix }}reg f_step,
         int ratio);
+    // ratio — 已释放复位后仅更新 step 与 load 脉冲
+    extern task configure_dto_ratio(
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio);
+    // node_name — 该 div 是否已在 config_reg 中走过 rst 释放
+    extern function bit div_rst_was_released(string node_name);
+    // node_name — 记录 div 已完成 rst 释放
+    extern function void note_div_rst_released(string node_name);
+    // node_name — 该 dto 是否已在 config_reg 中走过 rst 释放
+    extern function bit dto_rst_was_released(string node_name);
+    // node_name — 记录 dto 已完成 rst 释放
+    extern function void note_dto_rst_released(string node_name);
 endclass
 
 task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
@@ -51,11 +72,25 @@ task {{ settings.class_prefix }}node_cfg::configure_div(
     n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
 {%- if settings.div_reg_high_means_reset %}
     rw.set_write(f_rst, 1);
-    rw.set_write(f_rst, 0);
 {%- else %}
     rw.set_write(f_rst, 0);
+{%- endif %}
+    rw.set_write(f_div, n);
+    rw.set_write(f_load, 0);
+    rw.set_write(f_load, 1);
+{%- if settings.div_reg_high_means_reset %}
+    rw.set_write(f_rst, 0);
+{%- else %}
     rw.set_write(f_rst, 1);
 {%- endif %}
+endtask
+
+task {{ settings.class_prefix }}node_cfg::configure_div_ratio(
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio);
+    int n;
+    n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
     rw.set_write(f_div, n);
     rw.set_write(f_load, 0);
     rw.set_write(f_load, 1);
@@ -73,15 +108,48 @@ task {{ settings.class_prefix }}node_cfg::configure_dto(
     step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);
 {%- if settings.dto_reg_high_means_reset %}
     rw.set_write(f_rst, 1);
-    rw.set_write(f_rst, 0);
 {%- else %}
     rw.set_write(f_rst, 0);
-    rw.set_write(f_rst, 1);
 {%- endif %}
     binds = '{f_load, f_bypass, f_step};
     vals = '{1, 0, step};
     rw.apply(binds, vals);
+{%- if settings.dto_reg_high_means_reset %}
+    rw.set_write(f_rst, 0);
+{%- else %}
+    rw.set_write(f_rst, 1);
+{%- endif %}
 endtask
+
+task {{ settings.class_prefix }}node_cfg::configure_dto_ratio(
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio);
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
+    int step;
+    step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);
+    binds = '{f_load, f_bypass, f_step};
+    vals = '{1, 0, step};
+    rw.apply(binds, vals);
+endtask
+
+function bit {{ settings.class_prefix }}node_cfg::div_rst_was_released(string node_name);
+    return div_rst_released.exists(node_name);
+endfunction
+
+function void {{ settings.class_prefix }}node_cfg::note_div_rst_released(string node_name);
+    div_rst_released[node_name] = 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}node_cfg::dto_rst_was_released(string node_name);
+    return dto_rst_released.exists(node_name);
+endfunction
+
+function void {{ settings.class_prefix }}node_cfg::note_dto_rst_released(string node_name);
+    dto_rst_released[node_name] = 1'b1;
+endfunction
 
 `endif
 {% endif %}

@@ -140,7 +140,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_div**：**ratio** 在 1～64；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：**rst** 先写复位电平再写不复位电平；为真时 **div_reg_high_means_reset** 依次为 1、0，为假则依次为 0、1；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。
+**config_reg**：节点**首次**配置时 **rst** 写复位电平；**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1；**rst** 写不复位电平。为真时 **div_reg_high_means_reset** 复位为 1、不复位为 0；为假则复位为 0、不复位为 1。同一 **sequencer** 上该节点已释放过 **rst** 后，**config_reg** 与 **configure_div_ratio** 相同，只改 **div** 与 **load**。
 
 ## dto
 
@@ -154,7 +154,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_dto**：**ratio** 大于 0 且不超过 2^25；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：**rst** 先写复位电平再写不复位电平；为真时 **dto_reg_high_means_reset** 依次为 1、0，为假则依次为 0、1；**load**=1，**bypass**=0，**step**=2^25/**ratio**（整数，须落在 1～2^25−1，故 **ratio** 不能为 1）。
+**config_reg**：节点**首次**配置时 **rst** 写复位电平；**load**=1，**bypass**=0，**step**=2^25/**ratio**（整数，须落在 1～2^25−1，故 **ratio** 不能为 1）；**rst** 写不复位电平。为真时 **dto_reg_high_means_reset** 复位为 1、不复位为 0；为假则复位为 0、不复位为 1。同一 **sequencer** 上该节点已释放过 **rst** 后，**config_reg** 与 **configure_dto_ratio** 相同，只改 **step**、**load**、**bypass**。
 
 ## gate
 

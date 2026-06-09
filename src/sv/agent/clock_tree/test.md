@@ -162,9 +162,9 @@
 
 | operation | 作用 | 与 **test** 关系 |
 | --- | --- | --- |
-| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 端到端用例先写寄存器 |
-| **check_freq** | **source** / **clk** / **pll** 频率对 **frequence** | 端到端用例在 **check_duty** 之前调用 |
-| **check_duty** | 占空比对 **duty_min** / **duty_max** | 环境在 **kit** 上直接调用 |
+| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 单独写寄存器；**check_freq**、**check_duty**、**check_flip**、**test_route** 开头亦会调用 |
+| **check_freq** | 已配置寄存器模型时先 **config_reg**，再量 **source** / **clk** / **pll** 频率对 **frequence** | 端到端用例在 **check_duty** 之前调用 |
+| **check_duty** | 已配置寄存器模型时先 **config_reg**，再量占空比对 **duty_min** / **duty_max** | 环境在 **kit** 上直接调用 |
 
 **config_reg** 写寄存器前对 **tree** 执行 **randomize**，软约束覆盖使用者按图可能填写的合法组合；分别存在 **path** 节点与 **reg** 或 **regs** 节点时模型生成 **fix_*** 成员，固定场景由序列或环境在 **config_reg** 调用前对 **fix_open**、**fix_sel**、**fix_ratio** 等赋值，YAML 不提供对应字段。
 
@@ -184,7 +184,7 @@
 
 在**上述前提**内，端到端充分检查建议包含：
 
-1. **config_reg** 覆盖所有带 **regs** / **reg** 的 **pll**、**div**、**dto**、**gate**、**mux**。
+1. **check_freq** 或 **check_duty** 开头的 **config_reg** 覆盖所有带 **regs** / **reg** 的 **pll**、**div**、**dto**、**gate**、**mux**。
 2. **check_freq** 覆盖 **source**、**clk**、**pll** 观测点。
 3. **check_duty** 覆盖所有带 **path** 的 **vif** 节点。
 
@@ -198,11 +198,11 @@
 
 | 场景 | 配置要点 | 调用 |
 | --- | --- | --- |
-| 单树端到端 | `example.yaml` 各 **kind** 至少一个，部分节点带 **path**、部分节点带 **reg** 或 **regs** | **config_reg** → **check_freq** → **check_duty** |
+| 单树端到端 | `example.yaml` 各 **kind** 至少一个，部分节点带 **path**、部分节点带 **reg** 或 **regs** | **check_freq** → **check_duty** |
 | 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **test_route** |
-| 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **config_reg** 后 **check_freq** 只看 **pll** |
-| 门控全关 | 多个 **gate** 串联，**open** 随机 | **config_reg** 后 **check_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
-| 固定 mux | 节点 **path** + **reg**，**fix_sel** | **config_reg** 后 **sel** 不变，**check_freq** 只应看到选定前级频率 |
-| 固定 div 分频 | 节点 **path** + **regs**；**config_reg** 前设 **fix_ratio** | **config_reg** 后 **ratio** 不变，**check_freq** 按该分频比换算 |
+| 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **check_freq** 只看 **pll** |
+| 门控全关 | 多个 **gate** 串联，**open** 随机 | **check_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
+| 固定 mux | 节点 **path** + **reg**，**fix_sel** | **check_freq** 前 **sel** 不变，只应看到选定前级频率 |
+| 固定 div 分频 | 节点 **path** + **regs**；**check_freq** 前设 **fix_ratio** | **ratio** 不变，**check_freq** 按该分频比换算 |
 
-长时随机回归可在环境中循环调用 **config_reg**，每轮 **kit** 上执行上表第一行组合。
+长时随机回归可在环境中循环调用 **check_freq**，每轮量测前由序列内 **config_reg** 写寄存器。
