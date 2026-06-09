@@ -487,10 +487,10 @@ def _validate_source_ref(
 
 
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
-    """校验 source、mux.source 等对端引用与输出序号。
+    """校验 source、mux.source 等前级引用与输出序号。
 
     Raises:
-        ValueError: 对端不存在或输出序号非法时。
+        ValueError: 引用节点不存在或输出序号非法时。
     """
     for key, node in nodes.items():
         if node.name != key:

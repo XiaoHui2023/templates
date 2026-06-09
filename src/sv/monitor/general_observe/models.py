@@ -9,7 +9,7 @@ class Models(BaseModel):
 
     # Usage
 
-    - 在环境中例化本 monitor，用 `uvm_config_db` 设置与 DUT 绑定的 `virtual` 接口（见下表键名 `if`）。
+    - 在环境中例化本 monitor，用 `uvm_config_db` 设置与 DUT 绑定的 `virtual` 接口（见下表字段 `if`）。
     - 将输出分析端口连到下游的 `uvm_subscriber` 或 `uvm_analysis_export` 等；若重命名输出端口，请与 `output_ap_name` 一致并完成连接。
     - 载荷为 **写事务**（`UVM_TLM_WRITE_COMMAND`），数据域为小端字节序（与模板原行为一致：先按位流打包再 `reverse`）。
     - 开启 `address_increment` 时，监视器内部维护累加的字节偏移，作为各次 `set_address` 的地址，前后包在地址上连续、不重叠；关闭时地址恒为 0。

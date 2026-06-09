@@ -209,7 +209,7 @@ class MuxNode(NodeBase):
     kind: Literal["mux"] = "mux"
     source: Dict[str, str] = Field(
         default_factory=dict,
-        description="多路输入：键为输入标签，值为对端引用。",
+        description="多路输入：键为输入标签，值为前级引用。",
     )
     reg: str = Field(..., min_length=1, description="寄存器模型点分路径。")
     sel: int = Field(..., ge=0, description="固化选择值。")
@@ -388,10 +388,10 @@ def _validate_source_ref(
 
 
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
-    """校验 source、mux.source 等对端引用与输出序号。
+    """校验 source、mux.source 等前级引用与输出序号。
 
     Raises:
-        ValueError: 对端不存在或输出序号非法时。
+        ValueError: 引用节点不存在或输出序号非法时。
     """
     for key, node in nodes.items():
         if node.name != key:
