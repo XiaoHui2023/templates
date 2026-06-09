@@ -35,7 +35,7 @@
 | `config_reg` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；写 **tree.nodes** 全部寄存器前对 **tree** 执行一次 **randomize**；不向测试平台返回 **rsp** |
 | `check_freq` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；检查 **tree.nodes** 中 **source**、**clk**、**pll** 节点频率 |
 | `check_duty` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；检查 **tree.nodes** 中带 **vif** 节点占空比 |
-| `check_flip` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；对 **tree** 中带绑定寄存器的 **div**、**dto** 分频寄存器 field 最高位写 1 其余写 0，**config_reg** 后 **check_freq**，再恢复并撤销 **fix_ratio** |
+| `check_flip` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；全部 **clk** **unfix** 为 1 后对带绑定寄存器的 **div**、**dto** 分频寄存器 field 最高位写 1 其余写 0，**config_reg** 后 **check_freq**，再恢复并撤销 **fix_ratio**；结束时清除 **unfix** |
 | `test_route` | **task**；入参 **tree** 默认空；依赖 **fix_*** 与 **config_reg**、**check_freq**，按节点验证上下游通路结构。**tree** 为空时用 **kit** 上 **tree** |
 
 ## sequence · operation
@@ -47,7 +47,7 @@
 | `config_reg` | 对 **req.tree** 执行一次 **randomize** 后，遍历 **tree.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll** **valid** 为 0 时跳过写寄存器与 **wait_lock**；参考与输出频率均未变时亦跳过；**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
 | `check_freq` | 遍历 **req.tree.nodes**，检查 **source**、**clk**、**pll** 频率 |
 | `check_duty` | 遍历 **req.tree.nodes**，检查带 **vif** 节点占空比 |
-| `check_flip` | 对 **req.tree** 内带绑定寄存器的 **div**、**dto** 用 **fix_ratio** 固定分频比为寄存器 field 仅最高位为 1 时的值，**config_reg** 后 **check_freq**，再恢复 |
+| `check_flip` | 全部 **clk** **unfix** 为 1；对 **req.tree** 内带绑定寄存器的 **div**、**dto** 用 **fix_ratio** 固定分频比为寄存器 field 仅最高位为 1 时的值，**config_reg** 后 **check_freq**，再恢复；结束时清除 **unfix** |
 
 ## sequence · test
 

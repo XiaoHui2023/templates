@@ -72,7 +72,13 @@ classDiagram
 
 ## clk
 
-观测用时钟节点；有前级时 **valid** 随 **cst_resolve_active_from_src** 与前级一致。**classic_frequence** 由建树 **new** 写入；**cst_clk** 软约束 **frequence** 默认等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
+观测用时钟节点。**cst_clk** 将 **frequence**、**enabled** 分别与 **_resolved_freq**、**_resolved_active** 绑定。
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| frequence | longint | 频率，单位 Hz |
+| enabled | bit，rand | 是否活动 |
+| unfix | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不施加上述绑定；由序列或环境赋值，不可经 YAML 配置 |
 
 ## pll_base
 
@@ -95,7 +101,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | --- | --- | --- |
 | source | str，必填 | 参考时钟前级节点名；**tree** 构造时写入 **source** 句柄 |
 | pll_kind | tci、sc、dw，必填，大小写不限 | 决定例化哪一类 **pll_*** |
-| regs | dict，可选 | 键为逻辑名、值为 寄存器模型路径，按 `.` 分隔，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时键集合须与 pll_kind 允许表完全一致**，不得缺键或多键 |
+| regs | dict，可选 | 键为逻辑名、值为 寄存器模型路径，按 `.` 分隔，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时须与 pll_kind 允许名字完全一致**，不得缺键或多键 |
 
 | pll_kind | regs 须包含的键 |
 | --- | --- |
@@ -119,7 +125,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 ## enable_node_fix
 
-**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**div**、**dto** 模型类中生成 **fix_*** 成员；YAML 不可写入 **settings**。
+**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**div**、**dto** 模型类中生成 **fix_*** 成员，在 **clk** 中生成 **unfix**；YAML 不可写入 **settings**。
 
 ## div
 

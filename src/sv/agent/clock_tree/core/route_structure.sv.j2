@@ -517,6 +517,62 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
     end
 endfunction
 
+// required 队列是否含该 clk 句柄
+function automatic bit {{ settings.class_prefix }}route_structure_clk_is_required(
+        {{ settings.class_prefix }}clk clk_nd,
+        {{ settings.class_prefix }}node_base required[$]);
+    if (clk_nd == null)
+        return 1'b0;
+    foreach (required[i]) begin
+        if (required[i] == null)
+            continue;
+        if (required[i] == clk_nd)
+            return 1'b1;
+    end
+    return 1'b0;
+endfunction
+
+// required 非空时：所列 clk 保持约束，其余 clk 设 unfix；required 为空则全部保持约束
+function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base required[$]);
+{%- if enable_node_fix %}
+    {{ settings.class_prefix }}clk clk_nd;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(clk_nd, tree.nodes[i]))
+            continue;
+        if (required.size() > 0)
+            clk_nd.unfix = !{{ settings.class_prefix }}route_structure_clk_is_required(
+                clk_nd, required);
+        else
+            clk_nd.unfix = 1'b0;
+    end
+{%- endif %}
+endfunction
+
+// 全部 clk 设同一 unfix 值
+function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_unfix(
+        {{ settings.class_prefix }}tree_base tree,
+        bit unfix_val);
+{%- if enable_node_fix %}
+    {{ settings.class_prefix }}clk clk_nd;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if ($cast(clk_nd, tree.nodes[i]))
+            clk_nd.unfix = unfix_val;
+    end
+{%- endif %}
+endfunction
+
+// 全部 clk 清除 unfix
+function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unfix(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}route_structure_set_all_clk_unfix(tree, 1'b0);
+endfunction
+
 // 全部 clk 节点 _resolved_active 为真
 function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_valid(
         {{ settings.class_prefix }}tree_base tree);

@@ -166,6 +166,8 @@ task {{ settings.class_prefix }}check_flip_seq::body();
         `uvm_fatal("CLK_TREE",
             "check_flip: no div or dto node with bound regs in scope")
 
+    {{ settings.class_prefix }}route_structure_set_all_clk_unfix(tree, 1'b1);
+
     for (i = 0; i < subjects.size(); i++) begin
         if ($cast(div_nd, subjects[i]))
             verify_div_msb(tree, div_nd, rq.quiet);
@@ -175,6 +177,8 @@ task {{ settings.class_prefix }}check_flip_seq::body();
             `uvm_fatal("CLK_TREE", $sformatf(
                 "check_flip: subject %s is not div or dto", subjects[i].get_name()))
     end
+
+    {{ settings.class_prefix }}route_structure_clear_clk_unfix(tree);
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE", $sformatf(
