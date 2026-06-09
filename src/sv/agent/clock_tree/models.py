@@ -34,35 +34,35 @@ class Settings(BaseModel):
     min_freq_hz: int = Field(
         500,
         ge=500,
-        description="可判定为仍活动的最低频率 Hz，非最高时钟；用于超时与最长可测周期 1/min_freq_hz 秒。",
+        description="仍活动的最低频率，单位 Hz。",
     )
     stable_cycles: int = Field(
         3,
         ge=2,
-        description="连续多少个周期落在容差内则置 stable。",
+        description="连续稳定所需周期数。",
     )
     period_tolerance: float = Field(
         0.05,
         gt=0.0,
         lt=1.0,
-        description="判定 stable 时相邻周期相对偏差上限。",
+        description="相邻周期相对偏差上限。",
     )
     duty_min: float = Field(
         0.50,
         ge=0.0,
         le=1.0,
-        description="允许占空比下限，份额 0～1，默认 0.50。",
+        description="允许占空比下限。",
     )
     duty_max: float = Field(
         0.66,
         ge=0.0,
         le=1.0,
-        description="允许占空比上限，份额 0～1，默认 0.66。",
+        description="允许占空比上限。",
     )
     pll_lock_timeout_us: int = Field(
         1_000,
         ge=1,
-        description="等待各 PLL lock 为 1 的最长时间，微秒。",
+        description="PLL lock 等待上限，微秒。",
     )
     pll_sc_fbdiv_min: int = Field(
         16,
@@ -78,17 +78,17 @@ class Settings(BaseModel):
     )
     gate_reg_high_means_open: bool = Field(
         False,
-        description="为真时门控寄存器写 1 表示打开；为假时写 1 表示关闭。节点 open 表示仿真门开闭。",
+        description="为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。",
     )
     div_reg_high_means_reset: bool = Field(
         False,
-        description="为真时 div 的 rst 写 1 表示复位、写 0 表示不复位；"
-        "为假时写 0 表示复位、写 1 表示不复位。",
+        description="为真时 div 的 rst 位 1 表示复位、0 不复位；"
+        "为假时 0 表示复位、1 不复位。",
     )
     dto_reg_high_means_reset: bool = Field(
         False,
-        description="为真时 dto 的 rst 写 1 表示复位、写 0 表示不复位；"
-        "为假时写 0 表示复位、写 1 表示不复位。",
+        description="为真时 dto 的 rst 位 1 表示复位、0 不复位；"
+        "为假时 0 表示复位、1 不复位。",
     )
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:

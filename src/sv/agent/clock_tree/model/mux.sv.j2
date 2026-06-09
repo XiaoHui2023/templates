@@ -4,10 +4,6 @@
 class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}mux)
         `uvm_field_int(sel, UVM_ALL_ON)
-        `uvm_field_int(max_sel, UVM_ALL_ON)
-{%- if enable_node_fix %}
-        `uvm_field_int(fix_sel, UVM_DEFAULT)
-{%- endif %}
     `uvm_object_utils_end
 
     int max_sel;
@@ -22,18 +18,18 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
 
     constraint cst_mux {
         sel inside {[0:max_sel]};
-    }
-
-    constraint cst_clk_from_src {
-        to_source[sel] == null -> valid == 0;
-        to_source[sel] != null -> valid == to_source[sel].valid;
 {%- if enable_node_fix %}
         fix_sel >= 0 -> sel == fix_sel;
 {%- endif %}
     }
 
-    constraint cst_freq_from_src {
-        to_source[sel] != null -> frequence == to_source[sel].frequence;
+    constraint cst_resolve_active_from_src {
+        to_source[sel] == null -> _resolved_active == 0;
+        to_source[sel] != null -> _resolved_active == to_source[sel]._resolved_active;
+    }
+
+    constraint cst_resolve_freq_from_src {
+        to_source[sel] != null -> _resolved_freq == to_source[sel]._resolved_freq;
     }
 
     function new(string name = "");

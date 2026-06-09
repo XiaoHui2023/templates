@@ -122,7 +122,7 @@ def normalize_pll_kind(value: object) -> str:
 
 @dataclass(frozen=True)
 class RegPathSpec:
-    """寄存器模型点分路径与 field 内比特切片；width/offset 为 None 时在 SV 绑定时取整域 field。"""
+    """寄存器模型路径，按 `.` 分隔，与 field 内比特切片；width/offset 为 None 时在 SV 绑定时取整域 field。"""
 
     path: str
     offset: Optional[int]
@@ -138,7 +138,7 @@ def _validate_dot_path(path: str, *, ctx: str) -> None:
     for seg in path.split("."):
         if not _SV_ID.match(seg):
             raise ValueError(
-                f"{ctx} 路径段 {seg!r} 须为合法 SystemVerilog 标识符，完整路径: {path!r}"
+                f"{ctx} 路径段 {seg!r} 须为合法 SystemVerilog 名字，完整路径: {path!r}"
             )
 
 
@@ -201,7 +201,7 @@ def flatten_regs(regs: RegsMap) -> dict[str, str]:
     flat: dict[str, str] = {}
     for blk, val in regs.items():
         if not _SV_ID.match(blk):
-            raise ValueError(f"regs 键 {blk!r} 须为合法 SystemVerilog 标识符")
+            raise ValueError(f"regs 键 {blk!r} 须为合法 SystemVerilog 名字")
         if isinstance(val, str):
             validate_reg_path(val, ctx=f"regs[{blk!r}]")
             flat[blk] = val
@@ -209,7 +209,7 @@ def flatten_regs(regs: RegsMap) -> dict[str, str]:
             for field, tail in val.items():
                 if not _SV_ID.match(field):
                     raise ValueError(
-                        f"regs[{blk!r}] 内键 {field!r} 须为合法 SystemVerilog 标识符"
+                        f"regs[{blk!r}] 内键 {field!r} 须为合法 SystemVerilog 名字"
                     )
                 full = f"{blk}.{tail}"
                 validate_reg_path(full, ctx=f"regs[{blk!r}][{field!r}]")

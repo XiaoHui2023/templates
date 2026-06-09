@@ -86,7 +86,8 @@ task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
 
     div_nd.fix_ratio = msb_ratio;
     div_nd.ratio = msb_ratio;
-    {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+    if (!tree.randomize())
+        `uvm_fatal("CLK_TREE", "check_flip: tree randomize failed")
 
     cfg_nodes = '{div_nd};
     if (!quiet)
@@ -97,7 +98,8 @@ task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
     run_check_freq_quiet(tree);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(div_nd, snap, 1'b1);
-    {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+    if (!tree.randomize())
+        `uvm_fatal("CLK_TREE", "check_flip: tree randomize failed")
     run_config_reg_nodes(cfg_nodes, quiet);
 
     if (!quiet)
@@ -128,7 +130,8 @@ task {{ settings.class_prefix }}check_flip_seq::verify_dto_msb(
 
     dto_nd.fix_ratio = msb_ratio;
     dto_nd.ratio = msb_ratio;
-    {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+    if (!tree.randomize())
+        `uvm_fatal("CLK_TREE", "check_flip: tree randomize failed")
 
     cfg_nodes = '{dto_nd};
     if (!quiet)
@@ -139,7 +142,8 @@ task {{ settings.class_prefix }}check_flip_seq::verify_dto_msb(
     run_check_freq_quiet(tree);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(dto_nd, snap, 1'b1);
-    {{ settings.class_prefix }}route_structure_propagate_tree(tree);
+    if (!tree.randomize())
+        `uvm_fatal("CLK_TREE", "check_flip: tree randomize failed")
     run_config_reg_nodes(cfg_nodes, quiet);
 
     if (!quiet)

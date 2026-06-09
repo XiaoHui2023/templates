@@ -4,9 +4,6 @@
 class {{ settings.class_prefix }}dto extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}dto)
         `uvm_field_int(ratio, UVM_ALL_ON)
-{%- if enable_node_fix %}
-        `uvm_field_int(fix_ratio, UVM_DEFAULT)
-{%- endif %}
     `uvm_object_utils_end
 
     rand int ratio;
@@ -28,8 +25,8 @@ class {{ settings.class_prefix }}dto extends {{ settings.class_prefix }}node_bas
 {%- endif %}
     }
 
-    constraint cst_freq_from_src {
-        source != null -> frequence == source.frequence / ratio;
+    constraint cst_resolve_freq_from_src {
+        source != null -> _resolved_freq == source._resolved_freq / ratio;
     }
 
     function new(string name = "");

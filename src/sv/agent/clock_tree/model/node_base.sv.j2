@@ -3,18 +3,14 @@
 
 class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
-        `uvm_field_string(kind, UVM_ALL_ON)
-        `uvm_field_int(frequence, UVM_ALL_ON)
-        `uvm_field_int(classic_frequence, UVM_ALL_ON)
-        `uvm_field_int(valid, UVM_ALL_ON)
-        `uvm_field_int(group_id, UVM_DEFAULT)
+        `uvm_field_int(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
     `uvm_object_utils_end
 
     string kind;
-    rand longint frequence;
-    longint classic_frequence;
-    rand bit valid;
+    rand longint _resolved_freq;
+    rand bit _resolved_active;
     int group_id;
+    protected bit _print_group_id;
     {{ settings.class_prefix }}node_base source;
     {{ settings.class_prefix }}node_base to_group[int];
 {% if any_node_path %}
@@ -22,21 +18,23 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
 {% endif %}
 
     constraint cst_node_base {
-        soft frequence == 0;
-        soft valid == 0;
+        soft _resolved_freq == 0;
+        soft _resolved_active == 0;
+        (_resolved_freq > 0) == _resolved_active;
     }
 
-    constraint cst_clk_from_src {
-        source != null -> valid == source.valid;
+    constraint cst_resolve_active_from_src {
+        source != null -> _resolved_active == source._resolved_active;
     }
 
-    constraint cst_freq_from_src {
-        source != null -> frequence == source.frequence;
+    constraint cst_resolve_freq_from_src {
+        source != null -> _resolved_freq == source._resolved_freq;
     }
 
     function new(string name = "");
         super.new(name);
         group_id = 0;
+        _print_group_id = 0;
     endfunction
 endclass
 

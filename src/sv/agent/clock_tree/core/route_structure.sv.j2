@@ -102,8 +102,8 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         gate_nd.open = snap.gate_open;
 {%- if enable_node_fix %}
         if (clear_fix) begin
-            gate_nd.fix_open = 0;
-            gate_nd.fix_close = 0;
+            gate_nd.fix_open = snap.gate_open;
+            gate_nd.fix_close = !snap.gate_open;
         end else begin
             gate_nd.fix_open = snap.fix_open;
             gate_nd.fix_close = snap.fix_close;
@@ -113,7 +113,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         mux_nd.sel = snap.mux_sel;
 {%- if enable_node_fix %}
         if (clear_fix)
-            mux_nd.fix_sel = -1;
+            mux_nd.fix_sel = snap.mux_sel;
         else
             mux_nd.fix_sel = snap.fix_sel;
 {%- endif %}
@@ -122,7 +122,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         div_nd.ratio = snap.ratio;
 {%- if enable_node_fix %}
         if (clear_fix)
-            div_nd.fix_ratio = 0;
+            div_nd.fix_ratio = snap.ratio;
         else
             div_nd.fix_ratio = snap.fix_ratio;
 {%- endif %}
@@ -130,7 +130,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         dto_nd.ratio = snap.ratio;
 {%- if enable_node_fix %}
         if (clear_fix)
-            dto_nd.fix_ratio = 0;
+            dto_nd.fix_ratio = snap.ratio;
         else
             dto_nd.fix_ratio = snap.fix_ratio;
 {%- endif %}
@@ -238,17 +238,14 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_mux_tow
     end
 endfunction
 
-// 设 gate/div/dto/pll 基线 fix 与初值，再设 mux 通向 clk
-function automatic void {{ settings.class_prefix }}route_structure_apply_baseline_fixes(
+// 设 gate/div/dto 初始 fix 与初值，再设 mux 通向 clk
+function automatic void {{ settings.class_prefix }}route_structure_apply_initial_fixes(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}div div_nd;
     {{ settings.class_prefix }}dto dto_nd;
-    {{ settings.class_prefix }}pll_base pll_nd;
-    int pll_mul;
     if (tree == null)
         return;
-    pll_mul = 2;
     foreach (tree.nodes[i]) begin
         if ($cast(gate_nd, tree.nodes[i])) begin
 {%- if enable_node_fix %}
@@ -266,112 +263,9 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_baselin
             dto_nd.fix_ratio = 1;
 {%- endif %}
             dto_nd.ratio = 1;
-        end else if ($cast(pll_nd, tree.nodes[i])) begin
-{%- if enable_node_fix %}
-            pll_nd.fix_mul = pll_mul;
-{%- endif %}
-            pll_mul++;
         end
     end
     {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(tree);
-endfunction
-
-// 多轮传播 gate/mux/div/dto/inv 的 valid 与 frequence
-function automatic void {{ settings.class_prefix }}route_structure_propagate_tree(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}node_base nd;
-    {{ settings.class_prefix }}gate gate_nd;
-    {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
-    {{ settings.class_prefix }}inv inv_nd;
-    int max_pass;
-    bit changed;
-    longint new_freq;
-    bit new_valid;
-
-    if (tree == null)
-        return;
-    max_pass = tree.nodes.size() + 2;
-    for (int pass = 0; pass < max_pass; pass++) begin
-        changed = 1'b0;
-        foreach (tree.nodes[i]) begin
-            nd = tree.nodes[i];
-            if (nd == null)
-                continue;
-            if (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll")
-                continue;
-            if ($cast(gate_nd, nd)) begin
-                if (gate_nd.source == null) begin
-                    new_valid = 1'b0;
-                    new_freq = 0;
-                end else begin
-                    new_valid = gate_nd.source.valid && gate_nd.open;
-                    new_freq = gate_nd.source.frequence;
-                end
-                if (new_valid != gate_nd.valid || new_freq != gate_nd.frequence) begin
-                    gate_nd.valid = new_valid;
-                    gate_nd.frequence = new_freq;
-                    changed = 1'b1;
-                end
-            end else if ($cast(mux_nd, nd)) begin
-                mux_nd.post_randomize();
-                if (mux_nd.to_source[mux_nd.sel] == null) begin
-                    new_valid = 1'b0;
-                    new_freq = 0;
-                end else begin
-                    new_valid = mux_nd.to_source[mux_nd.sel].valid;
-                    new_freq = mux_nd.to_source[mux_nd.sel].frequence;
-                end
-                if (new_valid != mux_nd.valid || new_freq != mux_nd.frequence) begin
-                    mux_nd.valid = new_valid;
-                    mux_nd.frequence = new_freq;
-                    changed = 1'b1;
-                end
-            end else if ($cast(div_nd, nd)) begin
-                if (div_nd.source == null || div_nd.ratio <= 0) begin
-                    new_valid = 1'b0;
-                    new_freq = 0;
-                end else begin
-                    new_valid = div_nd.source.valid;
-                    new_freq = div_nd.source.frequence / div_nd.ratio;
-                end
-                if (new_valid != div_nd.valid || new_freq != div_nd.frequence) begin
-                    div_nd.valid = new_valid;
-                    div_nd.frequence = new_freq;
-                    changed = 1'b1;
-                end
-            end else if ($cast(dto_nd, nd)) begin
-                if (dto_nd.source == null || dto_nd.ratio <= 0) begin
-                    new_valid = 1'b0;
-                    new_freq = 0;
-                end else begin
-                    new_valid = dto_nd.source.valid;
-                    new_freq = dto_nd.source.frequence / dto_nd.ratio;
-                end
-                if (new_valid != dto_nd.valid || new_freq != dto_nd.frequence) begin
-                    dto_nd.valid = new_valid;
-                    dto_nd.frequence = new_freq;
-                    changed = 1'b1;
-                end
-            end else if ($cast(inv_nd, nd)) begin
-                if (inv_nd.source == null) begin
-                    new_valid = 1'b0;
-                    new_freq = 0;
-                end else begin
-                    new_valid = inv_nd.source.valid;
-                    new_freq = inv_nd.source.frequence;
-                end
-                if (new_valid != inv_nd.valid || new_freq != inv_nd.frequence) begin
-                    inv_nd.valid = new_valid;
-                    inv_nd.frequence = new_freq;
-                    changed = 1'b1;
-                end
-            end
-        end
-        if (!changed)
-            break;
-    end
 endfunction
 
 // 仅保留寄存器已绑定的 line 节点
@@ -559,7 +453,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
     end
 endfunction
 
-// 全部 clk 节点 valid 为真
+// 全部 clk 节点 _resolved_active 为真
 function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_valid(
         {{ settings.class_prefix }}tree_base tree);
     if (tree == null)
@@ -569,7 +463,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_val
             continue;
         if (tree.nodes[i].kind != "clk")
             continue;
-        if (!tree.nodes[i].valid)
+        if (!tree.nodes[i]._resolved_active)
             return 1'b0;
     end
     return 1'b1;

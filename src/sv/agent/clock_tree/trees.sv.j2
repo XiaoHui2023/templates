@@ -77,10 +77,16 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- if node.kind in ["clk", "pll", "source"] %}
 {%- if node.sv_is_array %}
 {%- for i in range(node.output_count) %}
-        {{ node.name }}[{{ i }}].classic_frequence = {{ node.freq }};
+        {{ node.name }}[{{ i }}].frequence = {{ node.freq }};
+{%- if node.kind == "clk" %}
+        {{ node.name }}[{{ i }}].enabled = ({{ node.freq }} > 0);
+{%- endif %}
 {%- endfor %}
 {%- else %}
-        {{ node.name }}.classic_frequence = {{ node.freq }};
+        {{ node.name }}.frequence = {{ node.freq }};
+{%- if node.kind == "clk" %}
+        {{ node.name }}.enabled = ({{ node.freq }} > 0);
+{%- endif %}
 {%- endif %}
 {%- endif %}
 {%- endif %}
@@ -92,6 +98,12 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- for slot in tree.sv_slots %}
         nodes.push_back({{ slot.access }});
 {%- endfor %}
+        clock_nodes.delete();
+        foreach (nodes[i]) begin
+            {{ settings.class_prefix }}clk clk_nd;
+            if ($cast(clk_nd, nodes[i]))
+                clock_nodes.push_back(clk_nd);
+        end
     endfunction
 
     extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});

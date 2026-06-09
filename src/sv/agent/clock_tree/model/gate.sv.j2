@@ -4,10 +4,6 @@
 class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}gate)
         `uvm_field_int(open, UVM_ALL_ON)
-{%- if enable_node_fix %}
-        `uvm_field_int(fix_open, UVM_DEFAULT)
-        `uvm_field_int(fix_close, UVM_DEFAULT)
-{%- endif %}
     `uvm_object_utils_end
 
     rand bit open;
@@ -19,8 +15,8 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     {{ settings.class_prefix }}reg f_reg;
 {% endif %}
 
-    constraint cst_clk_from_src {
-        source != null -> valid == (source.valid && open);
+    constraint cst_gate {
+        !open -> !_resolved_active;
 {%- if enable_node_fix %}
         fix_open -> open;
         fix_close -> !open;

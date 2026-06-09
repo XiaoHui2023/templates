@@ -80,7 +80,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_sc_node({{ settin
     if (pll_sc_nd.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll_sc %s frequence must be positive", pll_sc_nd.get_name()))
-    ref_hz = pll_sc_nd.source.frequence;
+    ref_hz = pll_sc_nd.source._resolved_freq;
     if (ref_hz <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll_sc %s source %s frequence must be positive",
@@ -124,7 +124,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_dw_node({{ settin
     if (pll_dw_nd.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll_dw %s frequence must be positive", pll_dw_nd.get_name()))
-    ref_hz = pll_dw_nd.source.frequence;
+    ref_hz = pll_dw_nd.source._resolved_freq;
     if (ref_hz <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll_dw %s source %s frequence must be positive",
@@ -171,7 +171,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_inno_node({{ sett
     if (pll_inno_nd.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll_inno %s frequence must be positive", pll_inno_nd.get_name()))
-    ref_hz = pll_inno_nd.source.frequence;
+    ref_hz = pll_inno_nd.source._resolved_freq;
     if (ref_hz <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll_inno %s source %s frequence must be positive",
@@ -216,6 +216,12 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_node({{ settings.
     {{ settings.class_prefix }}pll_inno pll_inno_nd;
 
     configured = 1'b0;
+    if (!pll_nd._resolved_active) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s skip not valid", pll_nd.get_name()), UVM_MEDIUM)
+        return;
+    end
     if ($cast(pll_inno_nd, pll_nd)) begin
         config_reg_pll_inno_node(pll_inno_nd, configured);
         return;
@@ -234,7 +240,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_node({{ settings.
     if (pll_nd.frequence <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll %s frequence must be positive", pll_nd.get_name()))
-    ref_hz = pll_nd.source.frequence;
+    ref_hz = pll_nd.source._resolved_freq;
     if (ref_hz <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll %s source %s frequence must be positive",

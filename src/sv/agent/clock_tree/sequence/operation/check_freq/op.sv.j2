@@ -35,7 +35,7 @@ task {{ settings.class_prefix }}check_freq_seq::evaluate_one_node(
         return;
     end
 
-    expected_hz = real'(nd.frequence);
+    expected_hz = real'(nd._resolved_freq);
     measured_hz = nd.vif.meas.freq_hz;
     if (expected_hz <= 0.0) begin
         `uvm_error("CLK_TREE", $sformatf(
@@ -102,7 +102,7 @@ task {{ settings.class_prefix }}check_freq_seq::body();
         if (!rq.quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "check_freq: node %s kind %s expected %0d Hz",
-                nd.get_name(), nd.kind, nd.frequence), UVM_MEDIUM)
+                nd.get_name(), nd.kind, nd._resolved_freq), UVM_MEDIUM)
         nd.vif.start_measure();
     end
 

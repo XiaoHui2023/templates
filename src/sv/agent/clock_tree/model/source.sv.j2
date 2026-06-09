@@ -2,15 +2,19 @@
 `define {{ (settings.class_prefix ~ "source") | upper }}
 
 class {{ settings.class_prefix }}source extends {{ settings.class_prefix }}node_base;
-    `uvm_object_utils({{ settings.class_prefix }}source)
+    `uvm_object_utils_begin({{ settings.class_prefix }}source)
+        `uvm_field_int(frequence, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    longint frequence;
 
     constraint cst_source {
-        frequence == classic_frequence;
-        (frequence > 0) == valid;
+        _resolved_freq == frequence;
     }
 
     function new(string name = "");
         super.new(name);
+        frequence = 0;
         kind = "source";
     endfunction
 endclass

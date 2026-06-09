@@ -103,12 +103,12 @@ class NodeBase(BaseModel):
 
     path: str = Field(
         "",
-        description="RTL 层次路径。",
+        description="RTL 层次路径，按 `.` 分隔。",
     )
     freq: Optional[int] = Field(
         None,
         ge=1,
-        description="典型频率 Hz；建树时在对应节点写入 classic_frequence。",
+        description="典型频率，单位 Hz。",
     )
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -144,7 +144,7 @@ class NodeBase(BaseModel):
         for seg in value.split("."):
             if not _SV_ID.match(seg):
                 raise ValueError(
-                    f"path 段 {seg!r} 须为合法 SystemVerilog 标识符，完整 path: {value!r}"
+                    f"path 段 {seg!r} 须为合法 SystemVerilog 名字，完整 path: {value!r}"
                 )
         return value
 
@@ -158,10 +158,10 @@ class NodeBase(BaseModel):
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
-    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
+    source: str = Field(..., min_length=1, description="前级引用。")
     reg: str = Field(
         "",
-        description="可选；寄存器模型点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
+        description="寄存器模型路径。",
     )
 
     @model_validator(mode="after")
@@ -174,10 +174,10 @@ class GateNode(NodeBase):
 
 class DivNode(NodeBase):
     kind: Literal["div"] = "div"
-    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
+    source: str = Field(..., min_length=1, description="前级引用。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须为 rst、load、div，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
+        description="非空时键为 rst、load、div，值为寄存器模型路径。",
     )
 
     @model_validator(mode="after")
@@ -193,10 +193,10 @@ class DivNode(NodeBase):
 
 class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
-    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
+    source: str = Field(..., min_length=1, description="前级引用。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须为 rst、load、bypass、step，值为各 field 的 寄存器模型点分路径，可带比特范围后缀。",
+        description="非空时键为 rst、load、bypass、step，值为寄存器模型路径。",
     )
 
     @model_validator(mode="after")
@@ -212,7 +212,7 @@ class DtoNode(NodeBase):
 
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
-    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
+    source: str = Field(..., min_length=1, description="前级引用。")
 
 
 class ClockSourceNode(NodeBase):
@@ -224,17 +224,17 @@ class PllNode(NodeBase):
     source: str = Field(
         ...,
         min_length=1,
-        description="参考时钟前级引用，可为器件名或 器件名[输出序号]。",
+        description="参考时钟前级引用。",
     )
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno，大小写不限。")
     output_count: int = Field(
         1,
         ge=1,
-        description="PLL 输出路数；默认 1。大于 1 时仅允许 pll_kind 为 inno。",
+        description="PLL 输出路数。大于 1 时 pll_kind 须为 inno。",
     )
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="可选；非空时键须与 pll_kind、output_count 允许集合完全一致，值为 寄存器模型点分路径，可带 [n] 或 [msb:lsb] 后缀。",
+        description="逻辑名到寄存器模型路径；非空时键须与 pll_kind、output_count 允许集合一致。",
     )
 
     @field_validator("pll_kind", mode="before")
@@ -267,18 +267,18 @@ class PllNode(NodeBase):
 
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
-    source: str = Field(..., min_length=1, description="前级引用，可为器件名或 器件名[输出序号]。")
+    source: str = Field(..., min_length=1, description="前级引用。")
 
 
 class MuxNode(NodeBase):
     kind: Literal["mux"] = "mux"
     source: Dict[str, str] = Field(
         default_factory=dict,
-        description="多路输入：键为图上输入标签字符串，值为对端引用，可写 器件名[输出序号]；可省略或留空表示暂无输入。",
+        description="输入标签到前级引用的映射。",
     )
     reg: str = Field(
         "",
-        description="可选；寄存器模型点分路径，绑定到 f_reg；可带 [n] 或 [msb:lsb] 指定 field 内比特切片。",
+        description="寄存器模型路径。",
     )
 
     @model_validator(mode="after")
@@ -318,11 +318,11 @@ def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
 class Tree(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., min_length=1, description="时钟树名，兼作展开后 SV 类型名片段与建树函数名片段。")
+    name: str = Field(..., min_length=1, description="时钟树名称。")
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
-        description="本棵时钟树的节点表，键即节点名；节点体内勿填 name。",
+        description="节点表，键为节点名。",
     )
 
     @model_validator(mode="before")
@@ -358,7 +358,7 @@ class Tree(BaseModel):
         for key, item in nodes.items():
             if not _SV_ID.match(key):
                 raise ValueError(
-                    f"nodes 键 {key!r} 须为合法 SystemVerilog 标识符"
+                    f"nodes 键 {key!r} 须为合法 SystemVerilog 名字"
                 )
             if isinstance(item, dict):
                 if item.get("kind") == "clock":
@@ -394,7 +394,7 @@ class Tree(BaseModel):
     def _validate_name(self) -> Tree:
         if not _SV_ID.match(self.name):
             raise ValueError(
-                f"tree.name {self.name!r} 须为合法 SystemVerilog 标识符片段"
+                f"tree.name {self.name!r} 须为合法 SystemVerilog 类型名片段"
             )
         return self
 
