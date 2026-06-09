@@ -517,6 +517,38 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
     end
 endfunction
 
+// required_clock_notes 各名字解析为 tree 上 clk 句柄
+function automatic void {{ settings.class_prefix }}route_structure_resolve_required_clk_notes(
+        {{ settings.class_prefix }}tree_base tree,
+        string notes[$],
+        output {{ settings.class_prefix }}node_base resolved[$]);
+    resolved.delete();
+    if (tree == null)
+        `uvm_fatal("CLK_TREE",
+            "route_structure: tree is null for required_clock_notes")
+    foreach (notes[i]) begin
+        bit found;
+        found = 1'b0;
+        foreach (tree.nodes[j]) begin
+            if (tree.nodes[j] == null)
+                continue;
+            if (tree.nodes[j].get_name() != notes[i])
+                continue;
+            if (tree.nodes[j].kind != "clk")
+                `uvm_fatal("CLK_TREE", $sformatf(
+                    "route_structure: required_clock_notes %s is not clk",
+                    notes[i]))
+            resolved.push_back(tree.nodes[j]);
+            found = 1'b1;
+            break;
+        end
+        if (!found)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "route_structure: required_clock_notes %s not in tree.nodes",
+                notes[i]))
+    end
+endfunction
+
 // required 队列是否含该 clk 句柄
 function automatic bit {{ settings.class_prefix }}route_structure_clk_is_required(
         {{ settings.class_prefix }}clk clk_nd,

@@ -19,7 +19,10 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
 {% endif %}
 {% if route_test_enabled %}
     extern task check_flip({{ settings.class_prefix }}tree_base tree = null);
-    extern task test_route({{ settings.class_prefix }}tree_base tree = null);
+    // tree — 待测树，空则用 kit.tree；required_clock_notes — 必启 clk 的 get_name，空则不限定必启列表
+    extern task test_route(
+        {{ settings.class_prefix }}tree_base tree = null,
+        string required_clock_notes[$] = '{}');
 {% endif %}
 endclass
 
@@ -117,7 +120,8 @@ task {{ settings.class_prefix }}kit_sequencer::check_flip(
 endtask
 
 task {{ settings.class_prefix }}kit_sequencer::test_route(
-        {{ settings.class_prefix }}tree_base tree);
+        {{ settings.class_prefix }}tree_base tree,
+        string required_clock_notes[$]);
     {{ settings.class_prefix }}test_route_req req;
     {{ settings.class_prefix }}test_route_rsp seq_rsp;
     {{ settings.class_prefix }}test_route_seq seq;
@@ -128,6 +132,9 @@ task {{ settings.class_prefix }}kit_sequencer::test_route(
         req.tree = this.tree;
     if (req.tree == null)
         `uvm_fatal("CLK_TREE", "test_route: tree is null")
+    if (required_clock_notes.size() > 0)
+        {{ settings.class_prefix }}route_structure_resolve_required_clk_notes(
+            req.tree, required_clock_notes, req.required_clk_nodes);
 
     seq = {{ settings.class_prefix }}test_route_seq::type_id::create(
         "test_route");

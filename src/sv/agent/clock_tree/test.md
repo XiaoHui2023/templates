@@ -65,7 +65,7 @@
 
 | 名称 | 目录 | **kit** **task** | **req** 要点 | **rsp** 要点 |
 | --- | --- | --- | --- | --- |
-| **test_route** | `sequence/test/test_route/` | **test_route**；**tree** 默认空则用 **kit** 上 **tree** | **tree** 句柄，可空；**required_clk_nodes** 为须全程保持活动的 **clk** 节点队列，空则要求全部 **clk** 活动；**quiet** 为 1 时不打进度 **uvm_info** | **ok** 汇总 |
+| **test_route** | `sequence/test/test_route/` | **test_route**；**tree** 默认空则用 **kit** 上 **tree**；**required_clock_notes** 为必启 **clk** 的 **get_name** 队列，非空时解析为 **req.required_clk_nodes** | **tree** 句柄，可空；**required_clk_nodes** 为须全程保持活动的 **clk** 节点队列，空则要求全部 **clk** 活动；**quiet** 为 1 时不打进度 **uvm_info** | **ok** 汇总 |
 
 ## test_route
 
