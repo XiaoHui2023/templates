@@ -28,7 +28,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     // always_active_clk_nodes — 须全程保持活动的 clk 句柄，空则要求全部 clk 活动
     extern task test_route(
         {{ settings.class_prefix }}tree_base tree = null,
-        {{ settings.class_prefix }}node_base always_active_clk_nodes[$] = '{}');
+        {{ settings.class_prefix }}node_base always_active_clk_nodes[$] = {});
 {% endif %}
 endclass
 
