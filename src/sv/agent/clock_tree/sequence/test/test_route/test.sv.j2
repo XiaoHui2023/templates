@@ -40,7 +40,7 @@ task {{ settings.class_prefix }}test_route_seq::run_check_freq_quiet(
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_route: tree is null for check_freq")
     freq_req = {{ settings.class_prefix }}check_freq_req::type_id::create("freq_req");
-    freq_req.nodes = tree.nodes;
+    freq_req.tree = tree;
     freq_req.quiet = 1'b1;
     freq_seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
     freq_seq.req = freq_req;

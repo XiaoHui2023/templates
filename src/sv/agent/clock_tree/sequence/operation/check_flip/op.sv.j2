@@ -37,7 +37,7 @@ task {{ settings.class_prefix }}check_flip_seq::run_check_freq_quiet(
     if (tree == null)
         `uvm_fatal("CLK_TREE", "check_flip: tree is null for check_freq")
     freq_req = {{ settings.class_prefix }}check_freq_req::type_id::create("freq_req");
-    freq_req.nodes = tree.nodes;
+    freq_req.tree = tree;
     freq_req.quiet = 1'b1;
     freq_seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
     freq_seq.req = freq_req;
@@ -161,7 +161,7 @@ task {{ settings.class_prefix }}check_flip_seq::body();
     rs.ok = 1'b1;
 
     {{ settings.class_prefix }}route_structure_collect_flip_subjects(
-        tree, rq.nodes, subjects);
+        tree, {}, subjects);
     if (subjects.size() == 0)
         `uvm_fatal("CLK_TREE",
             "check_flip: no div or dto node with bound regs in scope")

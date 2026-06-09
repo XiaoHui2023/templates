@@ -1,15 +1,13 @@
 # operation
 
-时钟树 **agent** 在 **kit_sequencer** 上提供与 **sequence/operation** 目录同名的 **task**。测试平台在 **agent.sqr** 上调用；**nodes** 默认为空队列时表示对该 **tree** 的全部节点生效。
+时钟树 **agent** 在 **kit_sequencer** 上提供与 **sequence/operation** 目录同名的 **task**。测试平台在 **agent.sqr** 上调用；**tree** 入参默认空时用 **kit** 上绑定的 **tree**。
 
 ## 调用约定
 
 | 项 | 说明 |
 | --- | --- |
 | 入口 | **kit_sequencer** 上与操作同名的 **task** |
-| **nodes** | 空队列时对 **tree.nodes** 整棵执行；非空时只处理列表中的节点 |
-| **config_reg** | 一次 **start**，**req.tree** 指定待配置整棵树 |
-| 其它操作 | 一次 **start**，**req.nodes** 携带整批节点 |
+| **tree** | 默认空时用 **kit** 上 **tree**；一次 **start**，**req.tree** 指定待处理整棵树 |
 
 至少一处节点配置了 **path** 才会生成 **check_freq** 与 **check_duty**。配置 **class_regmodel** 且节点绑定了 **regs** 时才会生成 **config_reg**。
 
@@ -45,8 +43,8 @@
 
 ## check_freq
 
-只处理 **req.nodes** 里 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。先对全部待测节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即比较 **freq_hz** 与 **frequence** 并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。超出 **period_tolerance** 则报错。
+遍历 **req.tree.nodes**，只处理 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。先对全部待测节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即比较 **freq_hz** 与 **frequence** 并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。超出 **period_tolerance** 则报错。
 
 ## check_duty
 
-处理 **req.nodes** 里已挂 **vif** 的节点，不限 **kind**。先对全部待测节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即根据 **vif.meas.duty_ok** 判定并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。
+遍历 **req.tree.nodes**，处理已挂 **vif** 的节点，不限 **kind**。先对全部待测节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即根据 **vif.meas.duty_ok** 判定并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。

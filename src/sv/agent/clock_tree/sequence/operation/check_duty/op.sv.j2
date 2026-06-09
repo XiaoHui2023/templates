@@ -58,11 +58,11 @@ task {{ settings.class_prefix }}check_duty_seq::body();
         `uvm_fatal("CLK_TREE", "check_duty: req is null")
 
     rq = req;
-    if (rq.nodes.size() == 0)
-        `uvm_fatal("CLK_TREE", "check_duty: req.nodes is empty")
+    if (rq.tree == null)
+        `uvm_fatal("CLK_TREE", "check_duty: tree is null")
 
-    foreach (rq.nodes[i]) begin
-        nd = rq.nodes[i];
+    foreach (rq.tree.nodes[i]) begin
+        nd = rq.tree.nodes[i];
         if (nd == null)
             continue;
         if (nd.vif == null)
@@ -72,7 +72,7 @@ task {{ settings.class_prefix }}check_duty_seq::body();
 
     checked = nodes_to_check.size();
     if (checked == 0)
-        `uvm_fatal("CLK_TREE", "check_duty: no node with vif in req.nodes")
+        `uvm_fatal("CLK_TREE", "check_duty: no node with vif in tree")
 
     rs = {{ settings.class_prefix }}check_duty_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
