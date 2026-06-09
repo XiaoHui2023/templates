@@ -33,8 +33,8 @@ task {{ settings.class_prefix }}check_duty_seq::evaluate_one_node(
 
     if (!nd.vif.meas.duty_ok) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_duty: node %s duty %0.4f out of range [%0.2f,%0.2f]",
-            nd.get_name(), nd.vif.meas.duty,
+            "check_duty: node %s duty %0.2f%% out of range [%0.2f,%0.2f]",
+            nd.get_name(), nd.vif.meas.duty * 100.0,
             {{ settings.duty_min }}, {{ settings.duty_max }}))
         rs.ok = 1'b0;
         rs.failed_nodes.push_back(nd);

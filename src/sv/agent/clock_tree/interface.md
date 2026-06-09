@@ -23,8 +23,8 @@
 | meas_en | bit | 测量开关 |
 | active | logic | 已采到有效边沿 |
 | freq_hz | real | 测得频率，单位 Hz；边沿间隔按 **timeunit 1ns** 与 **$realtime** 一致 |
-| duty | real | 占空比 |
-| duty_ok | logic | 占空比在容差内 |
+| duty | real | 占空比，0～1 小数；日志按百分数展示 |
+| duty_ok | logic | 占空比在 **duty_min**～**duty_max** 闭区间内 |
 | stable | logic | 连续稳定 |
 | set_measure_en | function | 写 **meas_en**；关时清零测量结果 |
 | start_measure | function | 清零后开启 **meas_en** |

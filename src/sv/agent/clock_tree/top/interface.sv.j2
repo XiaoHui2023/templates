@@ -6,8 +6,8 @@ interface {{ settings.class_prefix }}interface #(
     parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},
     parameter int STABLE_CYCLES = {{ settings.stable_cycles }},
     parameter real PERIOD_TOL = {{ settings.period_tolerance }},
-    parameter real DUTY_MIN = {{ settings.duty_min }},
-    parameter real DUTY_MAX = {{ settings.duty_max }}
+    parameter real DUTY_MIN_PCT = {{ settings.duty_min }},
+    parameter real DUTY_MAX_PCT = {{ settings.duty_max }}
 ) (
     input wire in
 );
@@ -18,8 +18,8 @@ interface {{ settings.class_prefix }}interface #(
         .MIN_FREQ_HZ(MIN_FREQ_HZ),
         .STABLE_CYCLES(STABLE_CYCLES),
         .PERIOD_TOL(PERIOD_TOL),
-        .DUTY_MIN(DUTY_MIN),
-        .DUTY_MAX(DUTY_MAX)
+        .DUTY_MIN_PCT(DUTY_MIN_PCT),
+        .DUTY_MAX_PCT(DUTY_MAX_PCT)
     ) meas(.in(in));
 
     function automatic void set_measure_en(bit en);

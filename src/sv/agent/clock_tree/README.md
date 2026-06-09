@@ -36,8 +36,8 @@ settings:
 | `min_freq_hz` | `int` | `500` | 仍活动的最低频率，单位 Hz。 |
 | `stable_cycles` | `int` | `3` | 连续稳定所需周期数。 |
 | `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
-| `duty_min` | `float` | `0.50` | 允许占空比下限。 |
-| `duty_max` | `float` | `0.66` | 允许占空比上限。 |
+| `duty_min` | `float` | `33` | 允许占空比下限，百分数；闭区间端点计入合格。 |
+| `duty_max` | `float` | `66` | 允许占空比上限，百分数；闭区间端点计入合格。 |
 | `pll_lock_timeout_us` | `int` | `1000` | PLL lock 等待上限，微秒。 |
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |

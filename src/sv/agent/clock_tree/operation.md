@@ -17,9 +17,9 @@
 | --- | --- |
 | **config_reg** | 把节点目标值写入寄存器模型；顺序为 **pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate**，见下节 |
 | **check_freq** | 测量 **source**、**clk**、**pll** 波形频率，与节点 **frequence** 比较 |
-| **check_duty** | 测量带 **vif** 节点的占空比，与 **duty_min**、**duty_max** 比较 |
+| **check_duty** | 测量带 **vif** 节点的占空比，与 **duty_min**、**duty_max** 闭区间比较，端点计入合格 |
 
-容差与占空比上下限在 **settings** 的 **period_tolerance**、**duty_min**、**duty_max**；PLL 等锁超时为 **pll_lock_timeout_us**。
+容差与占空比上下限在 **settings** 的 **period_tolerance**、**duty_min**、**duty_max**；**duty_min**、**duty_max** 为百分数；PLL 等锁超时为 **pll_lock_timeout_us**。
 
 ## config_reg
 

@@ -48,16 +48,16 @@ class Settings(BaseModel):
         description="相邻周期相对偏差上限。",
     )
     duty_min: float = Field(
-        0.50,
+        33.0,
         ge=0.0,
-        le=1.0,
-        description="允许占空比下限。",
+        le=100.0,
+        description="允许占空比下限，百分数；闭区间端点计入合格。",
     )
     duty_max: float = Field(
-        0.66,
+        66.0,
         ge=0.0,
-        le=1.0,
-        description="允许占空比上限。",
+        le=100.0,
+        description="允许占空比上限，百分数；闭区间端点计入合格。",
     )
     pll_lock_timeout_us: int = Field(
         1_000,
@@ -90,11 +90,18 @@ class Settings(BaseModel):
         description="为真时 dto 的 rst 位 1 表示复位、0 不复位；"
         "为假时 0 表示复位、1 不复位。",
     )
+    @field_validator("duty_min", "duty_max", mode="before")
+    @classmethod
+    def _duty_as_percent(cls, v: object) -> object:
+        if isinstance(v, (int, float)) and 0.0 < float(v) <= 1.0:
+            return float(v) * 100.0
+        return v
+
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:
-        if self.duty_min >= self.duty_max:
+        if self.duty_min > self.duty_max:
             raise ValueError(
-                f"duty_min ({self.duty_min}) 须小于 duty_max ({self.duty_max})"
+                f"duty_min ({self.duty_min}) 须不大于 duty_max ({self.duty_max})"
             )
         return self
 

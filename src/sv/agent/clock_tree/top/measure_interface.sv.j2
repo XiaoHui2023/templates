@@ -6,8 +6,8 @@ interface {{ settings.class_prefix }}measure_interface #(
     parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},
     parameter int STABLE_CYCLES = {{ settings.stable_cycles }},
     parameter real PERIOD_TOL = {{ settings.period_tolerance }},
-    parameter real DUTY_MIN = {{ settings.duty_min }},
-    parameter real DUTY_MAX = {{ settings.duty_max }}
+    parameter real DUTY_MIN_PCT = {{ settings.duty_min }},
+    parameter real DUTY_MAX_PCT = {{ settings.duty_max }}
 ) (
     input wire in
 );
@@ -15,6 +15,9 @@ interface {{ settings.class_prefix }}measure_interface #(
     timeprecision 1fs;
 
     // $realtime and realtime deltas: timeunit (ns). timeprecision 1fs resolves 2GHz half-period 0.5ns.
+    localparam real DUTY_MIN = DUTY_MIN_PCT / 100.0;
+    localparam real DUTY_MAX = DUTY_MAX_PCT / 100.0;
+    localparam real DUTY_BOUND_EPS = 1.0e-9;
     localparam real RT_PER_SEC = 1.0e9;
     localparam int MEAS_TIMEOUT_NS = (1_000_000_000 + MIN_FREQ_HZ - 1) / MIN_FREQ_HZ;
     localparam time MEAS_TIMEOUT = MEAS_TIMEOUT_NS * 1ns;
@@ -77,7 +80,8 @@ interface {{ settings.class_prefix }}measure_interface #(
                 duty = 0.0;
             else if (duty > 1.0)
                 duty = 1.0;
-            duty_ok = (duty >= DUTY_MIN) && (duty <= DUTY_MAX);
+            duty_ok = (duty + DUTY_BOUND_EPS >= DUTY_MIN)
+                && (duty <= DUTY_MAX + DUTY_BOUND_EPS);
         end
 
         if (last_period_t > 0.0) begin
