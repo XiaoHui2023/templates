@@ -93,20 +93,20 @@ PLL_KIND_TO_SV: dict[str, str] = {
 
 def inno_pll_reg_keys(output_count: int) -> frozenset[str]:
     keys = set(INNO_PLL_SHARED_REG_KEYS)
+    if output_count <= 1:
+        keys.add("postdiv1")
+        keys.add("postdiv2")
+        return frozenset(keys)
     for idx in range(output_count):
-        if idx == 0:
-            keys.add("postdiv1")
-            keys.add("postdiv2")
-        else:
-            keys.add(f"postdiv1_{idx}")
-            keys.add(f"postdiv2_{idx}")
+        keys.add(f"postdiv1[{idx}]")
+        keys.add(f"postdiv2[{idx}]")
     return frozenset(keys)
 
 
-def inno_postdiv_reg_keys(group_id: int) -> tuple[str, str]:
-    if group_id == 0:
+def inno_postdiv_reg_keys(group_id: int, output_count: int) -> tuple[str, str]:
+    if output_count <= 1:
         return "postdiv1", "postdiv2"
-    return f"postdiv1_{group_id}", f"postdiv2_{group_id}"
+    return f"postdiv1[{group_id}]", f"postdiv2[{group_id}]"
 
 
 def normalize_pll_kind(value: object) -> str:
@@ -339,7 +339,7 @@ def _pll_reg_bindings(
                 _append_binding(
                     out, tree.name, access, f"f_{key}", regs[key]
                 )
-            p1_key, p2_key = inno_postdiv_reg_keys(group_id)
+            p1_key, p2_key = inno_postdiv_reg_keys(group_id, count)
             _append_binding(
                 out, tree.name, access, "f_postdiv1", regs[p1_key]
             )

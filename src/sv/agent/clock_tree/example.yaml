@@ -75,10 +75,10 @@ trees:
           pd: blk_pll_inno.pd
           refdiv: blk_pll_inno.refdiv
           fbdiv: blk_pll_inno.fbdiv
-          postdiv1: blk_pll_inno.postdiv1_0
-          postdiv2: blk_pll_inno.postdiv2_0
-          postdiv1_1: blk_pll_inno.postdiv1_1
-          postdiv2_1: blk_pll_inno.postdiv2_1
+          postdiv1[0]: blk_pll_inno.postdiv1_0
+          postdiv2[0]: blk_pll_inno.postdiv2_0
+          postdiv1[1]: blk_pll_inno.postdiv1_1
+          postdiv2[1]: blk_pll_inno.postdiv2_1
 
       mux_pll:
         kind: mux

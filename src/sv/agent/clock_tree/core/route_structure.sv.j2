@@ -371,6 +371,70 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_flip_
     end
 endfunction
 
+// 变体下标对应 gate/mux/div/dto 控制量摘要
+function automatic string {{ settings.class_prefix }}route_structure_variant_label(
+        {{ settings.class_prefix }}node_base nd, int idx);
+    {{ settings.class_prefix }}mux mux_nd;
+    int keys[$];
+    if (nd == null)
+        return "?";
+    if (nd.kind == "gate")
+        return $sformatf("open=%0b", idx != 0);
+    if (nd.kind == "div" || nd.kind == "dto")
+        return $sformatf("ratio=%0d", idx == 0 ? 1 : 2);
+    if ($cast(mux_nd, nd)) begin
+        foreach (mux_nd.to_source[k])
+            keys.push_back(k);
+        keys.sort();
+        if (idx >= 0 && idx < keys.size())
+            return $sformatf("sel=%0d", keys[idx]);
+        return $sformatf("sel_idx=%0d", idx);
+    end
+    return $sformatf("variant=%0d", idx);
+endfunction
+
+// line 组合下标对应的各节点控制量摘要
+function automatic string {{ settings.class_prefix }}route_structure_line_combo_summary(
+        {{ settings.class_prefix }}node_base line[$], int combo_idx);
+    int n;
+    int pick;
+    int rem;
+    string s;
+    rem = combo_idx;
+    s = "";
+    foreach (line[i]) begin
+        n = {{ settings.class_prefix }}route_structure_variant_count(line[i]);
+        if (n <= 0)
+            continue;
+        pick = rem % n;
+        rem = rem / n;
+        if (s.len() > 0)
+            s = {s, ", "};
+        s = {s, line[i].get_name(), " ",
+            {{ settings.class_prefix }}route_structure_variant_label(line[i], pick)};
+    end
+    if (s == "")
+        s = "default";
+    return s;
+endfunction
+
+// 节点队列名字与 kind，逗号分隔
+function automatic string {{ settings.class_prefix }}route_structure_format_node_names(
+        {{ settings.class_prefix }}node_base nodes[$]);
+    string s;
+    s = "";
+    foreach (nodes[i]) begin
+        if (nodes[i] == null)
+            continue;
+        if (s.len() > 0)
+            s = {s, ", "};
+        s = {s, nodes[i].get_name(), " (", nodes[i].kind, ")"};
+    end
+    if (s == "")
+        s = "none";
+    return s;
+endfunction
+
 // 单节点路由变体数：gate/div/dto 为 2，mux 为输入数
 function automatic int {{ settings.class_prefix }}route_structure_variant_count(
         {{ settings.class_prefix }}node_base nd);
@@ -464,6 +528,20 @@ function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_val
         if (tree.nodes[i].kind != "clk")
             continue;
         if (!tree.nodes[i]._resolved_active)
+            return 1'b0;
+    end
+    return 1'b1;
+endfunction
+
+// required 所列 clk 节点 _resolved_active 均为真
+function automatic bit {{ settings.class_prefix }}route_structure_required_clocks_active(
+        {{ settings.class_prefix }}node_base required[$]);
+    foreach (required[i]) begin
+        if (required[i] == null)
+            continue;
+        if (required[i].kind != "clk")
+            continue;
+        if (!required[i]._resolved_active)
             return 1'b0;
     end
     return 1'b1;

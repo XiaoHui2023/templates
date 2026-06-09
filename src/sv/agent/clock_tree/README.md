@@ -24,15 +24,15 @@ settings:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `trees` | `list[Tree]` | 必填 | 时钟树。 |
-| `settings` | `Settings` | 见下表 | 全局选项。 |
+| `trees` | `list[Tree]` | | 时钟树。 |
+| `settings` | `Settings` | | 全局选项。 |
 
 ### Settings
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
-| `class_regmodel` | `str` | 空 | 寄存器模型类型名。 |
+| `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
 | `min_freq_hz` | `int` | `500` | 仍活动的最低频率，单位 Hz。 |
 | `stable_cycles` | `int` | `3` | 连续稳定所需周期数。 |
 | `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
@@ -47,7 +47,9 @@ settings:
 
 ### 寄存器模型路径
 
-节点 **reg**、**regs** 的值为寄存器模型路径，按 `.` 分隔，首段为顶层块名；可在末尾指定 field 内比特范围：
+- **reg** — gate、mux
+  - 按 `.` 分隔，首段为顶层块名
+  - 可在末尾指定 field 内比特范围
 
 | 写法 | 含义 |
 | --- | --- |
@@ -55,35 +57,109 @@ settings:
 | `blk.field[1]` | 仅 bit 1 |
 | `blk.field[3:0]` | 从 bit 0 起连续 4 位 |
 
+### regs
+
+- **regs** — pll、div、dto
+  - 逻辑名到寄存器模型路径的映射
+  - 默认 `{}`
+  - 各键的值为寄存器模型路径
+  - 非空时键须与允许集合完全一致
+- **pll**
+  - 键集随 **pll_kind**、**output_count** 而定
+  - **tci**
+    - `lock`：PLL lock 状态位
+    - `bypass`：bypass 开关
+    - `pwrdn`：掉电控制
+    - `reset`：复位控制
+    - `clkod`：输出分频系数
+    - `clkf`：反馈倍频系数
+    - `clkr`：参考分频系数
+    - `bwadj`：环路带宽调节
+  - **sc**
+    - `lock`：PLL lock 状态位
+    - `vocpd`：VCO 掉电
+    - `postdivpd`：后级分频掉电
+    - `dsmpd`：ΔΣ 调制掉电
+    - `pd`：掉电控制
+    - `bypass`：bypass 开关
+    - `refdiv`：参考分频系数
+    - `postdiv2`：后级分频 2 系数
+    - `postdiv1`：后级分频 1 系数
+    - `fbdiv`：反馈分频系数
+  - **dw**
+    - `lock`：PLL lock 状态位
+    - `fbdiv`：反馈分频系数
+    - `prediv`：前级分频系数
+    - `reset`：复位控制
+    - `pwron`：上电控制
+    - `shift`：频点偏移
+    - `bypass`：bypass 开关
+    - `divvcor`：VCO 分频系数
+    - `r`：R 分频系数
+    - `p`：P 分频系数
+    - `divvcop`：VCO 后级分频系数
+    - `enr`：R 通道使能
+    - `enp`：P 通道使能
+  - **inno**，**output_count** 为 1
+    - `lock`：PLL lock 状态位
+    - `pd`：掉电控制
+    - `refdiv`：参考分频系数
+    - `fbdiv`：反馈分频系数
+    - `postdiv1`：后级分频 1 系数
+    - `postdiv2`：后级分频 2 系数
+  - **inno**，**output_count** 大于 1
+    - `lock`：PLL lock 状态位
+    - `pd`：掉电控制
+    - `refdiv`：参考分频系数
+    - `fbdiv`：反馈分频系数
+    - `postdiv1[0]`：第 0 路后级分频 1 系数
+    - `postdiv2[0]`：第 0 路后级分频 2 系数
+    - `postdiv1[1]`：第 1 路后级分频 1 系数
+    - `postdiv2[1]`：第 1 路后级分频 2 系数
+    - 更多输出路时序号递增，如 `postdiv1[2]`、`postdiv2[2]`
+- **div**
+  - `rst`：复位位
+  - `load`：加载位
+  - `div`：分频系数
+- **dto**
+  - `rst`：复位位
+  - `load`：加载位
+  - `bypass`：bypass 位
+  - `step`：步进控制
+
 ### 前级引用
 
-节点 **source** 与 **mux** 的 **source** 映射值，写 **nodes** 字典中的节点名字；多路输出时在方括号内写输出序号：
+- **source** — clk、gate、div、dto、inv、pll
+  - 写 **nodes** 字典中的节点名
+  - 通常只写节点名、不写方括号序号
+  - 前级为多路输出时须写明第几路
+- **mux** 的 **source** 各键的值
+  - 键为输入标签
+  - 取值规则与 **source** 相同
 
 | 写法 | 含义 |
 | --- | --- |
-| `pll0` | 取该节点第 0 路输出 |
-| `pll0[1]` | 取第 1 路输出 |
-
-**mux** 的 **source** 为字典：键为输入标签，值为上表字符串。
+| `osc` | 通常写法，单路输出前级 |
+| `pll0` | 单路输出前级 |
+| `pll0[0]` | 多路输出前级，第 0 路 |
+| `pll0[1]` | 多路输出前级，第 1 路 |
 
 ### Tree
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `name` | `str` | 必填 | 时钟树名称。 |
-| `nodes` | `dict[str, Node]` | 必填 | 节点表，键为节点名。 |
+| `name` | `str` | | 时钟树名称。 |
+| `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
 
 ### Node
-
-`kind` 选定下列之一；各节点另含 **公共字段** 与对应 **kind** 字段。
 
 #### 公共字段
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `kind` | `str` | 必填 | 节点类型。 |
+| `kind` | `str` | | 节点类型。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `freq` | `optional int` | `null` | 典型频率，单位 Hz。 |
+| `freq` | `optional int` | | 典型频率，单位 Hz。 |
 
 #### source
 
@@ -93,43 +169,43 @@ settings:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `str` | 必填 | 参考时钟前级引用。 |
-| `pll_kind` | `str` | 必填 | 取 `tci`、`sc`、`dw`、`inno`。 |
+| `source` | `str` | | 参考时钟前级引用。 |
+| `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。 |
 | `output_count` | `int` | `1` | 输出路数；大于 1 时 `pll_kind` 须为 `inno`。 |
-| `regs` | `dict[str, str]` | `{}` | 逻辑名到寄存器模型路径的映射；非空时键须与 `pll_kind`、`output_count` 允许集合一致。 |
+| `regs` | `dict[str, str]` | `{}` | regs |
 
 #### clk
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `str` | 必填 | 前级引用。 |
+| `source` | `str` | | 前级引用。 |
 
 #### gate
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `str` | 必填 | 前级引用。 |
+| `source` | `str` | | 前级引用。 |
 | `reg` | `str` | `""` | 寄存器模型路径。 |
 
 #### div
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `str` | 必填 | 前级引用。 |
-| `regs` | `dict[str, str]` | `{}` | 非空时键为 `rst`、`load`、`div`，值为寄存器模型路径。 |
+| `source` | `str` | | 前级引用。 |
+| `regs` | `dict[str, str]` | `{}` | regs |
 
 #### dto
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `str` | 必填 | 前级引用。 |
-| `regs` | `dict[str, str]` | `{}` | 非空时键为 `rst`、`load`、`bypass`、`step`，值为寄存器模型路径。 |
+| `source` | `str` | | 前级引用。 |
+| `regs` | `dict[str, str]` | `{}` | regs |
 
 #### inv
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `str` | 必填 | 前级引用。 |
+| `source` | `str` | | 前级引用。 |
 
 #### mux
 

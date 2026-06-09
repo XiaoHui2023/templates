@@ -22,13 +22,17 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
         output {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
     extern task restore_ctrl_snap(
         {{ settings.class_prefix }}node_base nodes[$],
-        {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
+        {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$]);
     extern task verify_one_direction(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base subject,
         bit upstream,
         {{ settings.class_prefix }}node_base stored_nodes[$],
-        {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$]);
+        {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$],
+        {{ settings.class_prefix }}node_base required_clk_nodes[$],
+        bit quiet,
+        int subject_idx,
+        int subject_total);
 endclass
 
 task {{ settings.class_prefix }}test_route_seq::run_check_freq_quiet(
@@ -80,9 +84,9 @@ endtask
 
 task {{ settings.class_prefix }}test_route_seq::restore_ctrl_snap(
         {{ settings.class_prefix }}node_base nodes[$],
-        {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
+        {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$]);
     foreach (nodes[i])
-        {{ settings.class_prefix }}route_structure_apply_ctrl(nodes[i], snaps[i], 1'b0);
+        {{ settings.class_prefix }}route_structure_apply_ctrl(nodes[i], stored_snaps[i], 1'b0);
     endtask
 
 task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
@@ -90,7 +94,11 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
         {{ settings.class_prefix }}node_base subject,
         bit upstream,
         {{ settings.class_prefix }}node_base stored_nodes[$],
-        {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$]);
+        {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$],
+        {{ settings.class_prefix }}node_base required_clk_nodes[$],
+        bit quiet,
+        int subject_idx,
+        int subject_total);
     {{ settings.class_prefix }}node_base line[$];
     {{ settings.class_prefix }}node_base line_snaps_nodes[$];
     {{ settings.class_prefix }}route_ctrl_snap_t line_snaps[$];
@@ -98,7 +106,16 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     int n_combo;
     int sv;
     int c;
+    int n_run;
+    int n_skip_sub;
+    int n_skip_combo;
     string dir_label;
+    string line_names;
+    string combo_summary;
+
+    n_run = 0;
+    n_skip_sub = 0;
+    n_skip_combo = 0;
 
     if (upstream) begin
         {{ settings.class_prefix }}route_structure_collect_upstream_line(tree, subject, line);
@@ -119,27 +136,77 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     if (n_combo <= 0)
         n_combo = 1;
 
+    if (!quiet) begin
+        line_names = {{ settings.class_prefix }}route_structure_format_node_names(line);
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_route: subject [%0d/%0d] %s %s — line %s, %0d self x %0d combo(s)",
+            subject_idx + 1, subject_total, subject.get_name(), dir_label,
+            line_names, n_sub, n_combo), UVM_LOW)
+    end
+
     for (sv = 0; sv < n_sub; sv++) begin
         restore_ctrl_snap(stored_nodes, stored_snaps);
         {{ settings.class_prefix }}route_structure_apply_variant_index(subject, sv, 1'b1);
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_route:   %s self [%0d/%0d] %s %s — config_reg",
+                dir_label, sv + 1, n_sub, subject.get_name(),
+                {{ settings.class_prefix }}route_structure_variant_label(subject, sv)),
+                UVM_MEDIUM)
         run_config_reg(tree, 1'b1);
+        if (required_clk_nodes.size() > 0
+                && !{{ settings.class_prefix }}route_structure_required_clocks_active(
+                    required_clk_nodes)) begin
+            n_skip_sub++;
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_route:     skip self variant — required clk inactive"),
+                    UVM_MEDIUM)
+            continue;
+        end
 
         for (c = 0; c < n_combo; c++) begin
             restore_ctrl_snap(line_snaps_nodes, line_snaps);
             if (line.size() > 0)
                 {{ settings.class_prefix }}route_structure_apply_line_combo_index(
                     line, c, 1'b1);
+            combo_summary = {{ settings.class_prefix }}route_structure_line_combo_summary(
+                line, c);
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_route:     %s line [%0d/%0d] %s — config_reg",
+                    dir_label, c + 1, n_combo, combo_summary), UVM_MEDIUM)
             run_config_reg(tree, 1'b1);
+            if (required_clk_nodes.size() > 0
+                    && !{{ settings.class_prefix }}route_structure_required_clocks_active(
+                        required_clk_nodes)) begin
+                n_skip_combo++;
+                if (!quiet)
+                    `uvm_info("CLK_TREE", $sformatf(
+                        "test_route:       skip line combo — required clk inactive"),
+                        UVM_MEDIUM)
+                continue;
+            end
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_route:       check_freq"), UVM_MEDIUM)
             run_check_freq_quiet(tree);
+            n_run++;
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_route:       check_freq OK"), UVM_MEDIUM)
         end
     end
 
     restore_ctrl_snap(stored_nodes, stored_snaps);
     run_config_reg(tree, 1'b1);
 
-    `uvm_info("CLK_TREE", $sformatf(
-        "test_route: %s %s done, %0d self x %0d line combo(s)",
-        subject.get_name(), dir_label, n_sub, n_combo), UVM_LOW)
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_route: subject %s %s done — %0d check_freq run(s), "
+            + "%0d self variant skip(s), %0d line combo skip(s)",
+            subject.get_name(), dir_label, n_run, n_skip_sub, n_skip_combo),
+            UVM_LOW)
 endtask
 
 task {{ settings.class_prefix }}test_route_seq::body();
@@ -149,6 +216,8 @@ task {{ settings.class_prefix }}test_route_seq::body();
     {{ settings.class_prefix }}node_base subjects[$];
     {{ settings.class_prefix }}node_base stored_nodes[$];
     {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$];
+    string req_clk_names;
+    string subject_names;
     int i;
 
     if (req == null)
@@ -162,32 +231,83 @@ task {{ settings.class_prefix }}test_route_seq::body();
     rs = {{ settings.class_prefix }}test_route_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
+    if (!rq.quiet) begin
+        req_clk_names = {{ settings.class_prefix }}route_structure_format_node_names(
+            rq.required_clk_nodes);
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_route: begin tree %s", tree.get_name()), UVM_LOW)
+        if (rq.required_clk_nodes.size() > 0)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_route: required clk (%0d): %s",
+                rq.required_clk_nodes.size(), req_clk_names), UVM_LOW)
+        else
+            `uvm_info("CLK_TREE",
+                "test_route: required clk unset — all clk nodes must stay active",
+                UVM_LOW)
+    end
+
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE",
+            "test_route: [1/4] initial fixes — gates open, div/dto ratio 1, mux toward clk",
+            UVM_LOW)
     {{ settings.class_prefix }}route_structure_apply_initial_fixes(tree);
-    run_config_reg(tree, 1'b0);
+
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE",
+            "test_route: [2/4] baseline config_reg + check_freq", UVM_LOW)
+    run_config_reg(tree, rq.quiet);
     run_check_freq_quiet(tree);
 
-    if (!{{ settings.class_prefix }}route_structure_all_clocks_valid(tree))
-        `uvm_fatal("CLK_TREE",
-            "test_route: not all clk nodes are active after initial config_reg")
+    if (rq.required_clk_nodes.size() > 0) begin
+        if (!{{ settings.class_prefix }}route_structure_required_clocks_active(
+                rq.required_clk_nodes))
+            `uvm_fatal("CLK_TREE",
+                "test_route: required clk nodes not active after initial config_reg")
+        if (!rq.quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_route: [3/4] required clk active — %s", req_clk_names), UVM_LOW)
+    end else begin
+        if (!{{ settings.class_prefix }}route_structure_all_clocks_valid(tree))
+            `uvm_fatal("CLK_TREE",
+                "test_route: not all clk nodes are active after initial config_reg")
+        if (!rq.quiet)
+            `uvm_info("CLK_TREE",
+                "test_route: [3/4] all clk nodes active", UVM_LOW)
+    end
 
     {{ settings.class_prefix }}route_structure_collect_probe_subjects(tree, subjects);
     if (subjects.size() == 0)
         `uvm_fatal("CLK_TREE",
             "test_route: no gate/mux/div/dto nodes with bound regs")
 
+    if (!rq.quiet) begin
+        subject_names = {{ settings.class_prefix }}route_structure_format_node_names(
+            subjects);
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_route: [4/4] structure probe — %0d subject(s): %s",
+            subjects.size(), subject_names), UVM_LOW)
+    end
+
     stored_nodes = tree.nodes;
     save_ctrl_snap(stored_nodes, stored_snaps);
 
     for (i = 0; i < subjects.size(); i++) begin
-        verify_one_direction(tree, subjects[i], 1'b1, stored_nodes, stored_snaps);
-        verify_one_direction(tree, subjects[i], 1'b0, stored_nodes, stored_snaps);
+        verify_one_direction(tree, subjects[i], 1'b1, stored_nodes, stored_snaps,
+            rq.required_clk_nodes, rq.quiet, i, subjects.size());
+        verify_one_direction(tree, subjects[i], 1'b0, stored_nodes, stored_snaps,
+            rq.required_clk_nodes, rq.quiet, i, subjects.size());
     end
 
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE",
+            "test_route: restore tree control + config_reg", UVM_LOW)
     restore_ctrl_snap(stored_nodes, stored_snaps);
-    run_config_reg(tree, 1'b0);
+    run_config_reg(tree, rq.quiet);
 
-    `uvm_info("CLK_TREE", $sformatf(
-        "test_route: passed, %0d subject node(s)", subjects.size()), UVM_LOW)
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_route: passed — %0d subject(s), upstream + downstream each",
+            subjects.size()), UVM_LOW)
 
     rsp = rs;
 endtask
