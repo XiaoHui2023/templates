@@ -13,6 +13,14 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
     function new(string name = "{{ settings.class_prefix }}tree_base");
         super.new(name);
     endfunction
+
+    // 将全部 clock_nodes 的 enabled 置 0
+    extern function void low_power();
 endclass
+
+function void {{ settings.class_prefix }}tree_base::low_power();
+    foreach (clock_nodes[i])
+        clock_nodes[i].enabled = 1'b0;
+endfunction
 
 `endif

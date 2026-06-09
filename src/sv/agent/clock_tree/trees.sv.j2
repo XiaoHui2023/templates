@@ -79,13 +79,13 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- for i in range(node.output_count) %}
         {{ node.name }}[{{ i }}].frequence = {{ node.freq }};
 {%- if node.kind == "clk" %}
-        {{ node.name }}[{{ i }}].enabled = ({{ node.freq }} > 0);
+        {{ node.name }}[{{ i }}].enabled = {{ 1 if node.freq > 0 else 0 }};
 {%- endif %}
 {%- endfor %}
 {%- else %}
         {{ node.name }}.frequence = {{ node.freq }};
 {%- if node.kind == "clk" %}
-        {{ node.name }}.enabled = ({{ node.freq }} > 0);
+        {{ node.name }}.enabled = {{ 1 if node.freq > 0 else 0 }};
 {%- endif %}
 {%- endif %}
 {%- endif %}
@@ -111,9 +111,9 @@ endclass
 
 function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
 {%- if regs_enabled %}
+    if (regmodel != null) begin
 {%- for tree_name, sv_access, member, path, offset, width in reg_bindings %}
 {%- if tree_name == tree.name %}
-    if (regmodel != null) begin
         {{ sv_access }}.{{ member }}.field = regmodel.{{ path }};
         {{ sv_access }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
 {%- if width is none %}
@@ -121,9 +121,9 @@ function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_
 {%- else %}
         {{ sv_access }}.{{ member }}.width = {{ width }};
 {%- endif %}
-    end
 {%- endif %}
 {%- endfor %}
+    end
 {%- endif %}
     if (!this.randomize())
         `uvm_fatal("CLK_TREE", "{{ settings.class_prefix }}{{ tree.name }}_tree build randomize failed")

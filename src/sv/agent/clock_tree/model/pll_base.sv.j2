@@ -10,8 +10,8 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
     pll_kind_e pll_kind;
     bit locked;
 
-    constraint cst_resolve_freq_from_src {
-        soft _resolved_freq == frequence;
+    constraint cst_pll {
+        _resolved_freq == frequence;
     }
 
     function new(string name = "");
