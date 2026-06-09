@@ -23,13 +23,13 @@ model/pll_inno.sv
 model/tree_base.sv
 {% if regs_enabled %}
 core/reg_access.sv
+core/node_ratio.sv
 core/node_reg_config.sv
 core/pll_config.sv
 core/core_tools.sv
 {% endif %}
-core/node_ratio.sv
-core/tree_nodes.sv
 {% if route_test_enabled %}
+core/tree_nodes.sv
 core/route_structure.sv
 {% endif %}
 trees.sv
