@@ -74,7 +74,7 @@ class SourceRef(BaseModel):
     out_idx: int = Field(
         0,
         ge=0,
-        description="前级器件输出序号；省略方括号时等价于 0。",
+        description="前级器件输出序号；省略 `[序号]` 时等价于 0。",
     )
     key: Optional[int] = Field(
         None,
@@ -230,7 +230,7 @@ class PllNode(NodeBase):
     output_count: int = Field(
         1,
         ge=1,
-        description="PLL 输出路数。大于 1 时 pll_kind 须为 inno。",
+        description="有几路输出。仅 inno 可用。",
     )
     regs: Dict[str, str] = Field(
         default_factory=dict,
@@ -471,7 +471,7 @@ def _validate_source_ref(
     device, out_idx = parse_source_endpoint(raw, ctx=ctx)
     if device not in nodes:
         raise ValueError(
-            f"{ctx} 引用器件 {device!r} 不在 nodes 的键集合中"
+            f"{ctx} 引用器件 {device!r} 不在 nodes 中"
         )
     peer = nodes[device]
     count = node_output_count(peer)

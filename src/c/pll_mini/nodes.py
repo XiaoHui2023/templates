@@ -372,7 +372,7 @@ def _validate_source_ref(
     device, out_idx = parse_source_endpoint(raw, ctx=ctx)
     if device not in nodes:
         raise ValueError(
-            f"{ctx} 引用器件 {device!r} 不在 nodes 的键集合中"
+            f"{ctx} 引用器件 {device!r} 不在 nodes 中"
         )
     peer = nodes[device]
     count = node_output_count(peer)

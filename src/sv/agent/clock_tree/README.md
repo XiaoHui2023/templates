@@ -47,9 +47,7 @@ settings:
 
 ### 寄存器模型路径
 
-- **reg** — gate、mux
-  - 按 `.` 分隔，首段为顶层块名
-  - 可在末尾指定 field 内比特范围
+寄存器路径按 `.` 分隔，可指定比特范围。
 
 | 写法 | 含义 |
 | --- | --- |
@@ -57,15 +55,9 @@ settings:
 | `blk.field[1]` | 仅 bit 1 |
 | `blk.field[3:0]` | 从 bit 0 起连续 4 位 |
 
-### regs
-
-- **regs** — pll、div、dto
-  - 逻辑名到寄存器模型路径的映射
-  - 默认 `{}`
-  - 各键的值为寄存器模型路径
-  - 非空时键须与允许集合完全一致
+- **gate**
+- **mux**
 - **pll**
-  - 键集随 **pll_kind**、**output_count** 而定
   - **tci**
     - `lock`：PLL lock 状态位
     - `bypass`：bypass 开关
@@ -100,14 +92,14 @@ settings:
     - `divvcop`：VCO 后级分频系数
     - `enr`：R 通道使能
     - `enp`：P 通道使能
-  - **inno**，**output_count** 为 1
+  - **inno**（**output_count** 为 1）
     - `lock`：PLL lock 状态位
     - `pd`：掉电控制
     - `refdiv`：参考分频系数
     - `fbdiv`：反馈分频系数
     - `postdiv1`：后级分频 1 系数
     - `postdiv2`：后级分频 2 系数
-  - **inno**，**output_count** 大于 1
+  - **inno**（**output_count** 大于 1）
     - `lock`：PLL lock 状态位
     - `pd`：掉电控制
     - `refdiv`：参考分频系数
@@ -129,13 +121,7 @@ settings:
 
 ### 前级引用
 
-- **source** — clk、gate、div、dto、inv、pll
-  - 写 **nodes** 字典中的节点名
-  - 通常只写节点名、不写方括号序号
-  - 前级为多路输出时须写明第几路
-- **mux** 的 **source** 各键的值
-  - 键为输入标签
-  - 取值规则与 **source** 相同
+写 **nodes** 中的节点名；多路输出加 `[序号]`。
 
 | 写法 | 含义 |
 | --- | --- |
@@ -163,7 +149,7 @@ settings:
 
 #### source
 
-除公共字段外无额外键；`kind` 为 `source`。
+除公共字段外无额外键。
 
 #### pll
 
@@ -171,8 +157,8 @@ settings:
 | --- | --- | --- | --- |
 | `source` | `str` | | 参考时钟前级引用。 |
 | `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。 |
-| `output_count` | `int` | `1` | 输出路数；大于 1 时 `pll_kind` 须为 `inno`。 |
-| `regs` | `dict[str, str]` | `{}` | regs |
+| `output_count` | `int` | `1` | 有几路输出。仅 `inno` 可用。 |
+| `regs` | `dict[str, str]` | `{}` | 寄存器模型路径。 |
 
 #### clk
 
@@ -192,14 +178,14 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `str` | | 前级引用。 |
-| `regs` | `dict[str, str]` | `{}` | regs |
+| `regs` | `dict[str, str]` | `{}` | 寄存器模型路径。 |
 
 #### dto
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `str` | | 前级引用。 |
-| `regs` | `dict[str, str]` | `{}` | regs |
+| `regs` | `dict[str, str]` | `{}` | 寄存器模型路径。 |
 
 #### inv
 
