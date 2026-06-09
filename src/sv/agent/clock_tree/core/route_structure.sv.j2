@@ -532,28 +532,31 @@ function automatic bit {{ settings.class_prefix }}route_structure_clk_is_always_
     return 1'b0;
 endfunction
 
-// always_active_clk_nodes 非空时：所列 clk 保持约束，其余 clk 设 unfix；为空则全部保持约束
+// always_active_clk_nodes 非空时：所列 clk 保持约束，其余 clk 设 unfix_frequence 与 unfix_enabled；为空则全部保持约束
 function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
+    bit unfix_val;
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
         if (always_active_clk_nodes.size() > 0)
-            clk_nd.unfix = !{{ settings.class_prefix }}route_structure_clk_is_always_active(
+            unfix_val = !{{ settings.class_prefix }}route_structure_clk_is_always_active(
                 clk_nd, always_active_clk_nodes);
         else
-            clk_nd.unfix = 1'b0;
+            unfix_val = 1'b0;
+        clk_nd.unfix_frequence = unfix_val;
+        clk_nd.unfix_enabled = unfix_val;
     end
 {%- endif %}
 endfunction
 
-// 全部 clk 设同一 unfix 值
-function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_unfix(
+// 全部 clk 设同一 unfix_frequence 值
+function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_unfix_frequence(
         {{ settings.class_prefix }}tree_base tree,
         bit unfix_val);
 {%- if enable_node_fix %}
@@ -562,15 +565,43 @@ function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_u
         return;
     foreach (tree.nodes[i]) begin
         if ($cast(clk_nd, tree.nodes[i]))
-            clk_nd.unfix = unfix_val;
+            clk_nd.unfix_frequence = unfix_val;
     end
 {%- endif %}
 endfunction
 
-// 全部 clk 清除 unfix
+// 全部 clk 设同一 unfix_enabled 值
+function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_unfix_enabled(
+        {{ settings.class_prefix }}tree_base tree,
+        bit unfix_val);
+{%- if enable_node_fix %}
+    {{ settings.class_prefix }}clk clk_nd;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if ($cast(clk_nd, tree.nodes[i]))
+            clk_nd.unfix_enabled = unfix_val;
+    end
+{%- endif %}
+endfunction
+
+// 全部 clk 清除 unfix_frequence
+function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unfix_frequence(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}route_structure_set_all_clk_unfix_frequence(tree, 1'b0);
+endfunction
+
+// 全部 clk 清除 unfix_enabled
+function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unfix_enabled(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}route_structure_set_all_clk_unfix_enabled(tree, 1'b0);
+endfunction
+
+// 全部 clk 清除 unfix_frequence 与 unfix_enabled
 function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unfix(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}route_structure_set_all_clk_unfix(tree, 1'b0);
+    {{ settings.class_prefix }}route_structure_clear_clk_unfix_frequence(tree);
+    {{ settings.class_prefix }}route_structure_clear_clk_unfix_enabled(tree);
 endfunction
 
 // 全部 clk 节点 _resolved_active 为真

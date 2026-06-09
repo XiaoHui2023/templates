@@ -72,13 +72,14 @@ classDiagram
 
 ## clk
 
-观测用时钟节点。**cst_clk** 将 **frequence**、**enabled** 分别与 **_resolved_freq**、**_resolved_active** 绑定。
+观测用时钟节点。**cst_clk** 将 **frequence**、**enabled** 分别与 **_resolved_freq**、**_resolved_active** 绑定；**unfix_frequence**、**unfix_enabled** 为 1 时对应等式不施加。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | frequence | longint | 频率，单位 Hz |
 | enabled | bit，rand | 是否活动 |
-| unfix | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不施加上述绑定；由序列或环境赋值，不可经 YAML 配置 |
+| unfix_frequence | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **frequence**；由序列或环境赋值，不可经 YAML 配置 |
+| unfix_enabled | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **enabled**；由序列或环境赋值，不可经 YAML 配置 |
 
 ## pll_base
 
@@ -125,7 +126,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 ## enable_node_fix
 
-**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**div**、**dto** 模型类中生成 **fix_*** 成员，在 **clk** 中生成 **unfix**；YAML 不可写入 **settings**。
+**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**div**、**dto** 模型类中生成 **fix_*** 成员，在 **clk** 中生成 **unfix_frequence**、**unfix_enabled**；YAML 不可写入 **settings**。
 
 ## div
 

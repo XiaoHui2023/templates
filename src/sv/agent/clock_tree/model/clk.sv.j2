@@ -10,13 +10,14 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     longint frequence;
     rand bit enabled;
 {%- if enable_node_fix %}
-    bit unfix;
+    bit unfix_frequence;
+    bit unfix_enabled;
 {%- endif %}
 
     constraint cst_clk {
 {%- if enable_node_fix %}
-        !unfix -> frequence == _resolved_freq;
-        !unfix -> enabled == _resolved_active;
+        !unfix_frequence -> frequence == _resolved_freq;
+        !unfix_enabled -> enabled == _resolved_active;
 {%- else %}
         frequence == _resolved_freq;
         enabled == _resolved_active;
@@ -27,7 +28,8 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         super.new(name);
         frequence = 0;
 {%- if enable_node_fix %}
-        unfix = 0;
+        unfix_frequence = 0;
+        unfix_enabled = 0;
 {%- endif %}
         kind = "clk";
     endfunction

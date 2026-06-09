@@ -86,7 +86,7 @@
 1. **初始固定**：全部 **gate** 的 **fix_open** 为 1；全部 **div**、**dto** 的 **fix_ratio** 为 1；各 **mux** 的 **fix_sel** 指向可达任一 **clk** 的前级支路。**config_reg** 写整树寄存器前对 **tree** 执行一次 **randomize**。
 2. **check_freq**：**quiet** 为 1；失败则 **fatal** 结束。
 3. **clk** 有效性：**always_active_clk_nodes** 非空时，所列 **clk** 的 **valid** 须均为真；为空时 **tree.nodes** 中全部 **clk** 均须为真，否则 **fatal**。
-4. **结构探测**：**always_active_clk_nodes** 非空时，未列入的 **clk** 设 **unfix** 为 1，所列 **clk** 保持 **unfix** 为 0；**always_active_clk_nodes** 为空时全部 **clk** **unfix** 为 0。对每个已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
+4. **结构探测**：**always_active_clk_nodes** 非空时，未列入的 **clk** 设 **unfix_frequence**、**unfix_enabled** 为 1，所列 **clk** 保持二者为 0；**always_active_clk_nodes** 为空时全部 **clk** 二者为 0。对每个已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
    1. 用 **get_nodes_before** / **get_nodes_after** 收集该节点在对应方向上的 **gate**、**mux**、**div**、**dto** 线列表，不含自身。
    2. 遍历**自身**可选状态：门控开与关、多路选择各 **sel**、分频比 1 与 2；探测时暂时放开 **fix_***，结束后恢复。
    3. 对每个自身状态，对线上其它节点做排列组合，**config_reg** 整树、**quiet** 为 1，再 **check_freq** 全树；**always_active_clk_nodes** 非空且当前组合会使所列 **clk** 失活时跳过该组合，不 **check_freq**；其余失败则 **fatal**。
@@ -105,7 +105,7 @@
 | **[2/4]** | 基线 **config_reg**、**check_freq** |
 | **[3/4]** | **clk** 有效性结论 |
 | **[4/4]** | **subject** 节点名单；对每个节点分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
-| 结尾 | 清除全部 **clk** **unfix**、恢复控制量、**config_reg**、通过汇总 |
+| 结尾 | 清除全部 **clk** **unfix_frequence** 与 **unfix_enabled**、恢复控制量、**config_reg**、通过汇总 |
 
 探测循环内 **config_reg** 恒 **quiet** 为 1，避免与上层进度行重复；基线与收尾 **config_reg** 跟随 **req.quiet**。
 
