@@ -76,13 +76,12 @@ classDiagram
 
 ## pll_base
 
-PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 软约束 **frequence** 默认等于 **classic_frequence**。**cst_resolve_freq_from_src** 在 **enable_node_fix** 且 **fix_mul** 大于 0 时约束输出频率为参考 **source** 频率乘以系数；否则不随参考直通。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；**valid** 为 0 时跳过寄存器更新与 **wait_lock**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时亦跳过寄存器更新。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
+PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 约束 **frequence** 等于 **_resolved_freq**；**cst_resolve_freq_from_src** 空关断，输出频率由 **frequence** 直接给定，须按前级换算时由序列或环境先读前级频率再写入 **frequence**。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；**valid** 为 0 时跳过寄存器更新与 **wait_lock**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时亦跳过寄存器更新。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | pll_kind | pll_kind_e | 各 **pll_*** 子类在 **new** 中赋固定枚举值 |
 | locked | bit | 锁定指示 |
-| fix_mul | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定倍频；**> 0** 时在 **cst_resolve_freq_from_src** 中约束 **frequence** 等于 **source.frequence** 与倍频系数的乘积；由序列或环境在 **randomize** 前赋值，不可经 YAML 配置 |
 
 YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** 中的哪一类，并与 **regs** 允许键校验一致；展开后 **pll_kind** 成员与之类型一致。
 
@@ -120,7 +119,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 ## enable_node_fix
 
-**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**pll_base**、**div**、**dto** 模型类中生成 **fix_*** 成员；YAML 不可写入 **settings**。
+**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**div**、**dto** 模型类中生成 **fix_*** 成员；YAML 不可写入 **settings**。
 
 ## div
 
@@ -129,7 +128,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 说明 |
 | --- | --- |
 | ratio | 分频比，rand，须 1～64；1 表示不分频，大于 1 表示分频比为 **ratio** |
-| fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_div** 中约束 **ratio**；由序列或环境在 **randomize** 前赋值，不可经 YAML 配置 |
+| fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_div** 中约束 **ratio**；由序列或环境在 **config_reg** 调用前赋值，不可经 YAML 配置 |
 | regs | 映射，可选 | 非空时键为 rst、load、div，值为各 field 的 寄存器模型路径，按 `.` 分隔，可带比特范围后缀 |
 
 **cst_div**：**ratio** 在 1～64；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
@@ -143,7 +142,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | 成员 / 配置 | 说明 |
 | --- | --- |
 | ratio | 分频比，rand，须大于 0 且不超过 2^25；与 **step** 对应关系为 分频比 = 2^25 / **step** |
-| fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_dto** 中约束 **ratio**；由序列或环境在 **randomize** 前赋值，不可经 YAML 配置 |
+| fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_dto** 中约束 **ratio**；由序列或环境在 **config_reg** 调用前赋值，不可经 YAML 配置 |
 | regs | 可选；非空时键须为 **rst**、**load**、**bypass**、**step**，值为各 field 的 寄存器模型路径，按 `.` 分隔，可带比特范围后缀 |
 
 **cst_dto**：**ratio** 大于 0 且不超过 2^25；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。

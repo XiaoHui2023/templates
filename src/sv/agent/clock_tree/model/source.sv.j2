@@ -12,6 +12,9 @@ class {{ settings.class_prefix }}source extends {{ settings.class_prefix }}node_
         _resolved_freq == frequence;
     }
 
+    constraint cst_resolve_freq_from_src {
+    }
+
     function new(string name = "");
         super.new(name);
         frequence = 0;

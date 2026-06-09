@@ -125,8 +125,6 @@ function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_
 {%- endfor %}
     end
 {%- endif %}
-    if (!this.randomize())
-        `uvm_fatal("CLK_TREE", "{{ settings.class_prefix }}{{ tree.name }}_tree build randomize failed")
 endfunction
 
 {%- endfor %}

@@ -328,6 +328,7 @@ endtask
 task {{ settings.class_prefix }}config_reg_seq::body();
     {{ settings.class_prefix }}config_reg_req rq;
     {{ settings.class_prefix }}config_reg_rsp rs;
+    {{ settings.class_prefix }}tree_base tree;
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}div div_nd;
@@ -342,15 +343,18 @@ task {{ settings.class_prefix }}config_reg_seq::body();
         `uvm_fatal("CLK_TREE", "config_reg: sequencer tools not built")
 
     rq = req;
-    if (rq.nodes.size() == 0)
-        `uvm_fatal("CLK_TREE", "config_reg: req.nodes is empty")
+    tree = rq.tree;
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "config_reg: req.tree is null")
+    if (!tree.randomize())
+        `uvm_fatal("CLK_TREE", "config_reg: tree randomize failed")
 
     quiet = rq.quiet;
     rs = {{ settings.class_prefix }}config_reg_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
-    for (int i = 0; i < rq.nodes.size(); i++)
-        if ($cast(pll_nd, rq.nodes[i])) begin
+    for (int i = 0; i < tree.nodes.size(); i++)
+        if ($cast(pll_nd, tree.nodes[i])) begin
             {{ settings.class_prefix }}pll_inno pll_inno_nd;
             config_reg_pll_node(pll_nd, pll_cfg);
             if (pll_cfg) begin
@@ -362,23 +366,23 @@ task {{ settings.class_prefix }}config_reg_seq::body();
     for (int i = 0; i < plls.size(); i++)
         wait_pll_lock_node(plls[i]);
 
-    for (int i = 0; i < rq.nodes.size(); i++) begin
-        if ($cast(div_nd, rq.nodes[i]))
+    for (int i = 0; i < tree.nodes.size(); i++) begin
+        if ($cast(div_nd, tree.nodes[i]))
             config_reg_div_node(div_nd);
-        else if ($cast(dto_nd, rq.nodes[i]))
+        else if ($cast(dto_nd, tree.nodes[i]))
             config_reg_dto_node(dto_nd);
     end
 
-    for (int i = 0; i < rq.nodes.size(); i++)
-        if ($cast(gate_nd, rq.nodes[i]) && gate_nd.open)
+    for (int i = 0; i < tree.nodes.size(); i++)
+        if ($cast(gate_nd, tree.nodes[i]) && gate_nd.open)
             config_reg_gate_node(gate_nd);
 
-    for (int i = 0; i < rq.nodes.size(); i++)
-        if ($cast(mux_nd, rq.nodes[i]))
+    for (int i = 0; i < tree.nodes.size(); i++)
+        if ($cast(mux_nd, tree.nodes[i]))
             config_reg_mux_node(mux_nd);
 
-    for (int i = 0; i < rq.nodes.size(); i++)
-        if ($cast(gate_nd, rq.nodes[i]) && !gate_nd.open)
+    for (int i = 0; i < tree.nodes.size(); i++)
+        if ($cast(gate_nd, tree.nodes[i]) && !gate_nd.open)
             config_reg_gate_node(gate_nd);
 
     rsp = rs;

@@ -4,11 +4,11 @@
 
 class {{ settings.class_prefix }}config_reg_req extends uvm_sequence_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}config_reg_req)
-        `uvm_field_queue_object(nodes, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_object(tree, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(quiet, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    {{ settings.class_prefix }}node_base nodes[$];
+    {{ settings.class_prefix }}tree_base tree;
     bit quiet;
 
     function new(string name = "{{ settings.class_prefix }}config_reg_req");

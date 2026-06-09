@@ -8,7 +8,8 @@
 | --- | --- |
 | 入口 | **kit_sequencer** 上与操作同名的 **task** |
 | **nodes** | 空队列时对 **tree.nodes** 整棵执行；非空时只处理列表中的节点 |
-| 各操作 | 一次 **start**，**req.nodes** 携带整批节点 |
+| **config_reg** | 一次 **start**，**req.tree** 指定待配置整棵树 |
+| 其它操作 | 一次 **start**，**req.nodes** 携带整批节点 |
 
 至少一处节点配置了 **path** 才会生成 **check_freq** 与 **check_duty**。配置 **class_regmodel** 且节点绑定了 **regs** 时才会生成 **config_reg**。
 
@@ -26,7 +27,7 @@
 
 通过 **sequencer.tools** 写寄存器模型，只更新约定 field，field 内其余位保持不变。
 
-写入分五段，与 **req.nodes** 下标无关：
+写入分五段，遍历 **tree.nodes**：
 
 1. 全部 **pll** 寄存器，再对本轮全部 **pll** **wait_lock**
 2. 全部 **div**、**dto**
@@ -39,7 +40,7 @@
 ### 注意
 
 + 器件上 **div** 常默认处于复位态，分频输出不工作；**mux** 若先切到该支路，选中路径上可能长时间无有效时钟或频率不对。
-+ **config_reg** 固定把 **div**、**dto** 写在 **mux** 之前，让分频在 **mux** 选中该支路前就绪。只把部分节点放进 **req.nodes**、或平台自行分批写寄存器时，仍应先配好路径上的 **div**、**dto**，再改 **mux** **sel**。
++ **config_reg** 固定把 **div**、**dto** 写在 **mux** 之前，让分频在 **mux** 选中该支路前就绪。
 + **dto** 同样有 **rst** 释放流程，与 **div** 同属第 2 段，理由相同。
 
 ## check_freq

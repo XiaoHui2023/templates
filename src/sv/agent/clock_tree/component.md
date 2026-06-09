@@ -11,7 +11,7 @@
 | `sqr` | **kit_sequencer** 句柄；**tree** 访问、配置与 **operation** 便捷方法均在此句柄上 |
 | **config_db** | 键 **`tree`**，值为 **tree_base** 实例；环境在例化 **agent** 前设置 |
 
-环境创建 **tree**、调用 **build(regmodel)**，再 **connect_{name}_tree** 挂 **vif**，**randomize** 在 **build** 内完成；通过 **config_db** 提供给 **agent** 后例化 **agent**。**agent** 将 **tree** 赋给 **sqr.tree**，不向基础 **sequencer** 传递。
+环境创建 **tree**、调用 **build(regmodel)**，再 **connect_{name}_tree** 挂 **vif**；通过 **config_db** 提供给 **agent** 后例化 **agent**。**agent** 将 **tree** 赋给 **sqr.tree**，不向基础 **sequencer** 传递。**randomize** 仅在 **config_reg** 写寄存器前对 **req.tree** 执行一次。
 
 ## sequencer
 
@@ -32,7 +32,7 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| `config_reg` | **task**；入参 **nodes** 默认空队列；启动 **config_reg**。**nodes** 为空时对 **tree.nodes** 执行；不向测试平台返回 **rsp** |
+| `config_reg` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；写 **tree.nodes** 全部寄存器前对 **tree** 执行一次 **randomize**；不向测试平台返回 **rsp** |
 | `check_freq` | **task**；入参 **nodes** 默认空队列；检查其中 **source**、**clk**、**pll** 节点频率。**nodes** 为空时对 **tree.nodes** 执行 |
 | `check_duty` | **task**；入参 **nodes** 默认空队列；检查带 **vif** 节点占空比。**nodes** 为空时对 **tree.nodes** 执行 |
 | `check_flip` | **task**；入参 **nodes** 默认空队列；对 **div**、**dto** 分频寄存器 field 最高位写 1 其余写 0，**config_reg** 后 **check_freq**，再恢复并撤销 **fix_ratio**。**nodes** 为空时对整棵 **tree** 中带绑定寄存器的 **div**、**dto** 执行 |
@@ -44,7 +44,7 @@
 
 | 行为目录 | 说明 |
 | --- | --- |
-| `config_reg` | 对 **req.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll** **valid** 为 0 时跳过写寄存器与 **wait_lock**；参考与输出频率均未变时亦跳过；**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
+| `config_reg` | 对 **req.tree** 执行一次 **randomize** 后，遍历 **tree.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll** **valid** 为 0 时跳过写寄存器与 **wait_lock**；参考与输出频率均未变时亦跳过；**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
 | `check_freq` | 检查 **req.nodes** 中 **source**、**clk**、**pll** 频率 |
 | `check_duty` | 检查 **req.nodes** 中带 **vif** 节点占空比 |
 | `check_flip` | 对 **req.nodes** 或 **tree** 内 **div**、**dto** 用 **fix_ratio** 固定分频比为寄存器 field 仅最高位为 1 时的值，**config_reg** 后 **check_freq**，再恢复 |
@@ -55,7 +55,7 @@
 
 | 测试目录 | 说明 |
 | --- | --- |
-| `test_route` | 初始 **fix_*** 后 **randomize**、**config_reg**、**check_freq**；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测 |
+| `test_route` | 初始 **fix_*** 后 **config_reg**、**check_freq**；再对每个带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测 |
 
 ## sequence · base
 

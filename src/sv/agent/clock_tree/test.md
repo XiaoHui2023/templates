@@ -83,13 +83,13 @@
 
 ### 具体方法
 
-1. **初始固定**：全部 **gate** 的 **fix_open** 为 1；全部 **div**、**dto** 的 **fix_ratio** 为 1；各 **mux** 的 **fix_sel** 指向可达任一 **clk** 的前级支路。对 **tree** 执行一次 **randomize**，再 **config_reg** 写整树寄存器。
+1. **初始固定**：全部 **gate** 的 **fix_open** 为 1；全部 **div**、**dto** 的 **fix_ratio** 为 1；各 **mux** 的 **fix_sel** 指向可达任一 **clk** 的前级支路。**config_reg** 写整树寄存器前对 **tree** 执行一次 **randomize**。
 2. **check_freq**：**quiet** 为 1；失败则 **fatal** 结束。
 3. **clk** 有效性：遍历 **tree.nodes** 中 **kind** 为 **clk** 的节点，**valid** 须均为真，否则 **fatal**。
 4. **结构探测**：对每个已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
    1. 用 **get_nodes_before** / **get_nodes_after** 收集该节点在对应方向上的 **gate**、**mux**、**div**、**dto** 线列表，不含自身。
    2. 遍历**自身**可选状态：门控开与关、多路选择各 **sel**、分频比 1 与 2；探测时暂时放开 **fix_***，结束后恢复。
-   3. 对每个自身状态，对线上其它节点做排列组合，仅 **config_reg** 变化的节点，**quiet** 为 1，再 **check_freq** 全树；失败则 **fatal**。
+   3. 对每个自身状态，对线上其它节点做排列组合，**config_reg** 整树、**quiet** 为 1，再 **check_freq** 全树；失败则 **fatal**。
    4. 该方向完成后从已存控制量快照恢复并写回寄存器，再测下一节点。
 
 核心辅助函数在 **core/route_structure.sv**。
@@ -123,7 +123,7 @@
 
 | operation | 在本 **test** 中的角色 |
 | --- | --- |
-| **config_reg** | 首轮整树写寄存器；探测时只写变化的节点 |
+| **config_reg** | 每次对整棵 **tree** 写寄存器；**pll** 等未变配置可跳过重复写 |
 | **check_freq** | 每次探测后核对 **source**、**clk**、**pll** 频率 |
 
 ### 判定与失败
@@ -131,7 +131,7 @@
 | 条件 | 行为 |
 | --- | --- |
 | **tree** 为空 | **fatal** |
-| **randomize** 失败 | **fatal** |
+| **config_reg** 内 **randomize** 失败 | **fatal** |
 | 无带寄存器的 **gate** / **mux** / **div** / **dto** | **fatal** |
 | 任一步 **check_freq** 或 **config_reg** 失败 | **fatal** |
 
@@ -149,7 +149,7 @@
 | **check_freq** | **source** / **clk** / **pll** 频率对 **frequence** | 端到端用例在 **check_duty** 之前调用 |
 | **check_duty** | 占空比对 **duty_min** / **duty_max** | 环境在 **kit** 上直接调用 |
 
-环境对 **{name}_tree** 做 **randomize** 时，软约束覆盖**使用者按图可能填写的合法组合**；分别存在 **path** 节点与 **reg** 或 **regs** 节点时模型生成 **fix_*** 成员，固定场景由序列或环境在 **randomize** 前对 **fix_open**、**fix_sel**、**fix_mul**、**fix_ratio** 等赋值，YAML 不提供对应字段。
+**config_reg** 写寄存器前对 **tree** 执行 **randomize**，软约束覆盖使用者按图可能填写的合法组合；分别存在 **path** 节点与 **reg** 或 **regs** 节点时模型生成 **fix_*** 成员，固定场景由序列或环境在 **config_reg** 调用前对 **fix_open**、**fix_sel**、**fix_ratio** 等赋值，YAML 不提供对应字段。
 
 ## 正确性论证
 
@@ -157,7 +157,7 @@
 
 | 前提 | 测试如何保证 |
 | --- | --- |
-| 使用者按设计图配置 | **YAML** 建树 + **randomize**；**config_reg** 写 **open**、**sel**、分频 |
+| 使用者按设计图配置 | **YAML** 建树；**config_reg** 内 **randomize** 后写 **open**、**sel**、分频 |
 | 忽略串联门控顺序 | **config_reg** 两段 **gate** 不改变 **open** 乘积语义 |
 | 树状、**mux.sel** 在合法范围 | **cst_mux** 与 **max_sel** |
 | 频率正确 | **check_freq** 与 **div** / **dto** / **pll** 换算及约束同源 |
@@ -185,8 +185,7 @@
 | 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **test_route** |
 | 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **config_reg** 后 **check_freq** 只看 **pll** |
 | 门控全关 | 多个 **gate** 串联，**open** 随机 | **config_reg** 后 **check_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
-| 固定 mux | 节点 **path** + **reg**，**fix_sel** | 随机后 **sel** 不变，**check_freq** 只应看到选定前级频率 |
-| 固定 PLL 倍频 | 节点 **path** + **regs**；**randomize** 前设 **fix_mul** | 随机后 **frequence** 为参考 **source** 频率乘以系数 |
-| 固定 div 分频 | 节点 **path** + **regs**；**randomize** 前设 **fix_ratio** | 随机后 **ratio** 不变，**check_freq** 按该分频比换算 |
+| 固定 mux | 节点 **path** + **reg**，**fix_sel** | **config_reg** 后 **sel** 不变，**check_freq** 只应看到选定前级频率 |
+| 固定 div 分频 | 节点 **path** + **regs**；**config_reg** 前设 **fix_ratio** | **config_reg** 后 **ratio** 不变，**check_freq** 按该分频比换算 |
 
-长时随机回归可在环境中对 **tree.randomize** 循环，每轮 **kit** 上执行上表第一行组合。
+长时随机回归可在环境中循环调用 **config_reg**，每轮 **kit** 上执行上表第一行组合。

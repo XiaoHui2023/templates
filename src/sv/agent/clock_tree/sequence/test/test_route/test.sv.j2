@@ -15,8 +15,8 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
 
     extern virtual task body();
     extern task run_check_freq_quiet({{ settings.class_prefix }}tree_base tree);
-    extern task run_config_reg_nodes(
-        {{ settings.class_prefix }}node_base nodes[$], bit quiet);
+    extern task run_config_reg(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
     extern task save_ctrl_snap(
         {{ settings.class_prefix }}node_base nodes[$],
         output {{ settings.class_prefix }}route_ctrl_snap_t snaps[$]);
@@ -50,15 +50,15 @@ task {{ settings.class_prefix }}test_route_seq::run_check_freq_quiet(
         `uvm_fatal("CLK_TREE", "test_route: check_freq failed")
 endtask
 
-task {{ settings.class_prefix }}test_route_seq::run_config_reg_nodes(
-        {{ settings.class_prefix }}node_base nodes[$], bit quiet);
+task {{ settings.class_prefix }}test_route_seq::run_config_reg(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
     {{ settings.class_prefix }}config_reg_req cfg_req;
     {{ settings.class_prefix }}config_reg_seq cfg_seq;
 
-    if (nodes.size() == 0)
-        return;
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_route: tree is null for config_reg")
     cfg_req = {{ settings.class_prefix }}config_reg_req::type_id::create("cfg_req");
-    cfg_req.nodes = nodes;
+    cfg_req.tree = tree;
     cfg_req.quiet = quiet;
     cfg_seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
     cfg_seq.req = cfg_req;
@@ -94,7 +94,6 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     {{ settings.class_prefix }}node_base line[$];
     {{ settings.class_prefix }}node_base line_snaps_nodes[$];
     {{ settings.class_prefix }}route_ctrl_snap_t line_snaps[$];
-    {{ settings.class_prefix }}node_base cfg_nodes[$];
     int n_sub;
     int n_combo;
     int sv;
@@ -123,34 +122,20 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     for (sv = 0; sv < n_sub; sv++) begin
         restore_ctrl_snap(stored_nodes, stored_snaps);
         {{ settings.class_prefix }}route_structure_apply_variant_index(subject, sv, 1'b1);
-        if (!tree.randomize())
-            `uvm_fatal("CLK_TREE", "test_route: tree randomize failed in probe")
-
-        cfg_nodes.delete();
-        {{ settings.class_prefix }}append_unique_node(cfg_nodes, subject);
-        run_config_reg_nodes(cfg_nodes, 1'b1);
+        run_config_reg(tree, 1'b1);
 
         for (c = 0; c < n_combo; c++) begin
             restore_ctrl_snap(line_snaps_nodes, line_snaps);
             if (line.size() > 0)
                 {{ settings.class_prefix }}route_structure_apply_line_combo_index(
                     line, c, 1'b1);
-            if (!tree.randomize())
-                `uvm_fatal("CLK_TREE", "test_route: tree randomize failed in probe")
-
-            cfg_nodes.delete();
-            {{ settings.class_prefix }}append_unique_node(cfg_nodes, subject);
-            foreach (line[i])
-                {{ settings.class_prefix }}append_unique_node(cfg_nodes, line[i]);
-            run_config_reg_nodes(cfg_nodes, 1'b1);
+            run_config_reg(tree, 1'b1);
             run_check_freq_quiet(tree);
         end
     end
 
     restore_ctrl_snap(stored_nodes, stored_snaps);
-    if (!tree.randomize())
-        `uvm_fatal("CLK_TREE", "test_route: tree randomize failed after probe")
-    run_config_reg_nodes(stored_nodes, 1'b1);
+    run_config_reg(tree, 1'b1);
 
     `uvm_info("CLK_TREE", $sformatf(
         "test_route: %s %s done, %0d self x %0d line combo(s)",
@@ -178,14 +163,12 @@ task {{ settings.class_prefix }}test_route_seq::body();
     rs.ok = 1'b1;
 
     {{ settings.class_prefix }}route_structure_apply_initial_fixes(tree);
-    if (!tree.randomize())
-        `uvm_fatal("CLK_TREE", "test_route: tree randomize failed")
-    run_config_reg_nodes(tree.nodes, 1'b0);
+    run_config_reg(tree, 1'b0);
     run_check_freq_quiet(tree);
 
     if (!{{ settings.class_prefix }}route_structure_all_clocks_valid(tree))
         `uvm_fatal("CLK_TREE",
-            "test_route: not all clk nodes are active after initial randomize")
+            "test_route: not all clk nodes are active after initial config_reg")
 
     {{ settings.class_prefix }}route_structure_collect_probe_subjects(tree, subjects);
     if (subjects.size() == 0)
@@ -201,9 +184,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     end
 
     restore_ctrl_snap(stored_nodes, stored_snaps);
-    if (!tree.randomize())
-        `uvm_fatal("CLK_TREE", "test_route: tree randomize failed at end")
-    run_config_reg_nodes(stored_nodes, 1'b0);
+    run_config_reg(tree, 1'b0);
 
     `uvm_info("CLK_TREE", $sformatf(
         "test_route: passed, %0d subject node(s)", subjects.size()), UVM_LOW)

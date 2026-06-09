@@ -11,7 +11,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     endfunction
 
 {% if regs_enabled %}
-    extern task config_reg({{ settings.class_prefix }}node_base nodes[$] = {});
+    extern task config_reg({{ settings.class_prefix }}tree_base tree = null);
 {% endif %}
 {% if any_node_path %}
     extern task check_freq({{ settings.class_prefix }}node_base nodes[$] = {});
@@ -24,20 +24,19 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
 endclass
 
 {% if regs_enabled %}
-task {{ settings.class_prefix }}kit_sequencer::config_reg({{ settings.class_prefix }}node_base nodes[$]);
+task {{ settings.class_prefix }}kit_sequencer::config_reg(
+        {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}config_reg_req req;
     {{ settings.class_prefix }}config_reg_rsp seq_rsp;
     {{ settings.class_prefix }}config_reg_seq seq;
 
-    if (nodes.size() == 0) begin
-        if (tree == null)
-            `uvm_fatal("CLK_TREE", "config_reg: nodes empty and tree is null")
-        config_reg(tree.nodes);
-        return;
-    end
+    if (tree == null)
+        tree = this.tree;
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "config_reg: tree is null")
 
     req = {{ settings.class_prefix }}config_reg_req::type_id::create("req");
-    req.nodes = nodes;
+    req.tree = tree;
 
     seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
     seq.req = req;
