@@ -15,13 +15,20 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     {{ settings.class_prefix }}reg f_reg;
 {% endif %}
 
-    constraint cst_gate {
+    constraint cst_resolve_active_from_src {
         !open -> !_resolved_active;
+        open -> {
+            source -> _resolved_active == source._resolved_active;
+            !source -> !_resolved_active;
+        }
+    }
 {%- if enable_node_fix %}
+
+    constraint cst_gate {
         fix_open -> open;
         fix_close -> !open;
-{%- endif %}
     }
+{%- endif %}
 
     function new(string name = "");
         super.new(name);
