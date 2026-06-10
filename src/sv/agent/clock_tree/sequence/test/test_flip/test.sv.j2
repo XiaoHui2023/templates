@@ -161,6 +161,11 @@ task {{ settings.class_prefix }}test_flip_seq::body();
 
     run_config_reg(tree, rq.quiet);
 
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE",
+            "test_flip: fix gate/mux after baseline config_reg", UVM_LOW)
+    {{ settings.class_prefix }}route_structure_fix_all_gate_mux(tree);
+
     rs = {{ settings.class_prefix }}test_flip_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 

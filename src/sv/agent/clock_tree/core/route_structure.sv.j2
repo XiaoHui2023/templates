@@ -543,6 +543,28 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unf
     {{ settings.class_prefix }}route_structure_clear_clk_unfix_enabled(tree);
 endfunction
 
+// 按当前 open、sel 锁定整树 gate 与 mux
+function automatic void {{ settings.class_prefix }}route_structure_fix_all_gate_mux(
+        {{ settings.class_prefix }}tree_base tree);
+{%- if enable_node_fix %}
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if ($cast(gate_nd, tree.nodes[i])) begin
+            {{ settings.class_prefix }}route_structure_save_ctrl(gate_nd, snap);
+            {{ settings.class_prefix }}route_structure_apply_ctrl(gate_nd, snap, 1'b1);
+        end else if ($cast(mux_nd, tree.nodes[i])) begin
+            {{ settings.class_prefix }}route_structure_save_ctrl(mux_nd, snap);
+            {{ settings.class_prefix }}route_structure_apply_ctrl(mux_nd, snap, 1'b1);
+        end
+    end
+{%- endif %}
+endfunction
+
 // 清除整树 fix_* 与 clk unfix_*，恢复自然约束求解
 function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix(
         {{ settings.class_prefix }}tree_base tree);

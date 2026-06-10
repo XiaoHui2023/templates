@@ -70,6 +70,37 @@
 | **test_flip** | `sequence/test/test_flip/` | **test_flip**；**tree** 默认空则用 **kit** 上 **tree** | 同 **test_freq** | **ok** 汇总 |
 | **test_route** | `sequence/test/test_route/` | **test_route**；**tree** 默认空则用 **kit** 上 **tree**；**always_active_clk_nodes** 为须全程保持活动的 **clk** 句柄队列，默认空 | **tree** 句柄，可空；**always_active_clk_nodes** 为须全程保持活动的 **clk** 节点队列，空则要求全部 **clk** 活动；**quiet** 为 1 时不打进度 **uvm_info** | **ok** 汇总 |
 
+## test_flip
+
+**生成条件**：与 **test_route** 相同，**route_test_enabled** 为真。
+
+### 理论
+
+对 **div**、**dto** 分频寄存器 field 的最高有效位单独置 1 时，输出频率应对应特定分频比。探测循环里只改 **fix_ratio** 再 **config_reg**；若 **gate**、**mux** 在 **randomize** 中改选路线，可能切到晶振等不经 **div** 的支路，频率检查失去意义。
+
+### 具体方法
+
+1. **config_reg** 建立基线配置。
+2. 对整树 **gate**、**mux** 按当前 **open**、**sel** 设 **fix_open**、**fix_close**、**fix_sel**，锁定路线。
+3. 全部 **clk** **unfix_frequence** 为 1。
+4. 对每个寄存器已绑定的 **div**、**dto**：保存控制量快照；**fix_ratio** 设为 field MSB 对应分频比；**config_reg**、**check_freq**；恢复快照并 **config_reg**。
+5. **route_structure_clear_all_fix** 清除全部 **fix_*** 与 **clk** **unfix_***，再 **config_reg**；**clk** 的 **frequence**、**enabled** 重新受 **cst_clk** 约束，**gate** / **mux** / **div** / **dto** 控制量不要求回到基线。
+
+### 依赖的 operation
+
+| operation | 在本 **test** 中的角色 |
+| --- | --- |
+| **config_reg** | 基线写寄存器；每个 **subject** 翻转前后各一次；收尾恢复 |
+| **check_freq** | MSB 分频比写入后核对频率 |
+
+### 判定与失败
+
+| 条件 | 行为 |
+| --- | --- |
+| **tree** 为空 | **fatal** |
+| 无寄存器已绑定的 **div** 或 **dto** | **fatal** |
+| **config_reg** 或 **check_freq** 失败 | **fatal** |
+
 ## test_route
 
 **生成条件**：**enable_node_fix**、**regs_enabled**、**any_node_path** 均为真。
@@ -103,7 +134,7 @@
 | --- | --- |
 | 开头 | **tree** 名字、**always_active_clk_nodes** 名单或「全部 **clk** 须活动」 |
 | 探测 | 过滤必启 **clk** 通路上的 **gate** / **mux** **subject**；对其余 **subject** 分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
-| 结尾 | 清除全部 **clk** **unfix_frequence** 与 **unfix_enabled**、恢复控制量、**config_reg**、通过汇总 |
+| 结尾 | **route_structure_clear_all_fix** 后 **config_reg**；**clk** 的 **frequence**、**enabled** 重新受 **cst_clk** 约束，通过汇总 |
 
 探测循环内 **config_reg** 恒 **quiet** 为 1，避免与上层进度行重复；收尾 **config_reg** 跟随 **req.quiet**。
 
@@ -158,7 +189,7 @@
 
 | operation | 作用 | 与 **test** 关系 |
 | --- | --- | --- |
-| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 单独写寄存器；**test_freq**、**test_duty**、**test_flip** 开头调用；**test_route** 在探测循环与收尾调用 |
+| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 单独写寄存器；**test_freq**、**test_duty**、**test_flip** 开头调用；**test_flip** 在锁定 **gate** / **mux** 后于 MSB 探测循环内再调用；**test_route** 在探测循环与收尾调用 |
 | **check_freq** | 量 **source** / **clk** / **pll** 频率对 **frequence** | **test_freq**、**test_route**、**test_flip** 内部组合 |
 | **check_duty** | 量占空比对 **duty_min** / **duty_max** | **test_duty** 组合 |
 
