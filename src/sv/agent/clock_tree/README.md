@@ -47,7 +47,9 @@ settings:
 | `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 | `dto_reg_high_means_reset` | `bool` | `false` | 为真时 dto **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 
-### 寄存器模型路径
+### 配置值写法
+
+#### 寄存器模型路径
 
 寄存器路径按 `.` 分隔，可指定比特范围。
 
@@ -57,71 +59,7 @@ settings:
 | `blk.field[1]` | 仅 bit 1 |
 | `blk.field[3:0]` | 从 bit 0 起连续 4 位 |
 
-- **gate**
-- **mux**
-- **pll**
-  - **tci**
-    - `lock`：PLL lock 状态位
-    - `bypass`：bypass 开关
-    - `pwrdn`：掉电控制
-    - `reset`：复位控制
-    - `clkod`：输出分频系数
-    - `clkf`：反馈倍频系数
-    - `clkr`：参考分频系数
-    - `bwadj`：环路带宽调节
-  - **sc**
-    - `lock`：PLL lock 状态位
-    - `vocpd`：VCO 掉电
-    - `postdivpd`：后级分频掉电
-    - `dsmpd`：ΔΣ 调制掉电
-    - `pd`：掉电控制
-    - `bypass`：bypass 开关
-    - `refdiv`：参考分频系数
-    - `postdiv2`：后级分频 2 系数
-    - `postdiv1`：后级分频 1 系数
-    - `fbdiv`：反馈分频系数
-  - **dw**
-    - `lock`：PLL lock 状态位
-    - `fbdiv`：反馈分频系数
-    - `prediv`：前级分频系数
-    - `reset`：复位控制
-    - `pwron`：上电控制
-    - `shift`：频点偏移
-    - `bypass`：bypass 开关
-    - `divvcor`：VCO 分频系数
-    - `r`：R 分频系数
-    - `p`：P 分频系数
-    - `divvcop`：VCO 后级分频系数
-    - `enr`：R 通道使能
-    - `enp`：P 通道使能
-  - **inno**（**output_count** 为 1）
-    - `lock`：PLL lock 状态位
-    - `pd`：掉电控制
-    - `refdiv`：参考分频系数
-    - `fbdiv`：反馈分频系数
-    - `postdiv1`：后级分频 1 系数
-    - `postdiv2`：后级分频 2 系数
-  - **inno**（**output_count** 大于 1）
-    - `lock`：PLL lock 状态位
-    - `pd`：掉电控制
-    - `refdiv`：参考分频系数
-    - `fbdiv`：反馈分频系数
-    - `postdiv1[0]`：第 0 路后级分频 1 系数
-    - `postdiv2[0]`：第 0 路后级分频 2 系数
-    - `postdiv1[1]`：第 1 路后级分频 1 系数
-    - `postdiv2[1]`：第 1 路后级分频 2 系数
-    - 更多输出路时序号递增，如 `postdiv1[2]`、`postdiv2[2]`
-- **div**
-  - `rst`：复位位
-  - `load`：加载位
-  - `div`：分频系数
-- **dto**
-  - `rst`：复位位
-  - `load`：加载位
-  - `bypass`：bypass 位
-  - `step`：步进控制
-
-### 前级引用
+#### 前级引用
 
 写 **nodes** 中的节点名；多路输出加 `[序号]`。
 
@@ -139,68 +77,153 @@ settings:
 | `name` | `str` | | 时钟树名称。 |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
 
-### Node
-
-#### 公共字段
+### Node - source
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `kind` | `str` | | 节点类型。 |
+| `kind` | `str` | `source` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-
-#### source
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 
-#### pll
+### Node - pll
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `kind` | `str` | `pll` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 参考时钟前级引用。 |
 | `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。 |
 | `output_count` | `int` | `1` | 有几路输出。仅 `inno` 可用。 |
-| `regs` | `dict[str, str]` | `{}` | 寄存器模型路径。 |
 
-#### clk
+#### tci
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.bypass` | `str` | | bypass 开关。 |
+| `regs.pwrdn` | `str` | | 掉电控制。 |
+| `regs.reset` | `str` | | 复位控制。 |
+| `regs.clkod` | `str` | | 输出分频系数。 |
+| `regs.clkf` | `str` | | 反馈倍频系数。 |
+| `regs.clkr` | `str` | | 参考分频系数。 |
+| `regs.bwadj` | `str` | | 环路带宽调节。 |
+
+#### sc
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.vocpd` | `str` | | VCO 掉电。 |
+| `regs.postdivpd` | `str` | | 后级分频掉电。 |
+| `regs.dsmpd` | `str` | | ΔΣ 调制掉电。 |
+| `regs.pd` | `str` | | 掉电控制。 |
+| `regs.bypass` | `str` | | bypass 开关。 |
+| `regs.refdiv` | `str` | | 参考分频系数。 |
+| `regs.postdiv2` | `str` | | 后级分频 2 系数。 |
+| `regs.postdiv1` | `str` | | 后级分频 1 系数。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
+
+#### dw
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
+| `regs.prediv` | `str` | | 前级分频系数。 |
+| `regs.reset` | `str` | | 复位控制。 |
+| `regs.pwron` | `str` | | 上电控制。 |
+| `regs.shift` | `str` | | 频点偏移。 |
+| `regs.bypass` | `str` | | bypass 开关。 |
+| `regs.divvcor` | `str` | | VCO 分频系数。 |
+| `regs.r` | `str` | | R 分频系数。 |
+| `regs.p` | `str` | | P 分频系数。 |
+| `regs.divvcop` | `str` | | VCO 后级分频系数。 |
+| `regs.enr` | `str` | | R 通道使能。 |
+| `regs.enp` | `str` | | P 通道使能。 |
+
+#### inno
+
+**output_count** 为 1：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.pd` | `str` | | 掉电控制。 |
+| `regs.refdiv` | `str` | | 参考分频系数。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
+| `regs.postdiv1` | `str` | | 后级分频 1 系数。 |
+| `regs.postdiv2` | `str` | | 后级分频 2 系数。 |
+
+**output_count** 大于 1：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.pd` | `str` | | 掉电控制。 |
+| `regs.refdiv` | `str` | | 参考分频系数。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
+| `regs.postdiv1[0]` | `str` | | 第 0 路后级分频 1 系数。 |
+| `regs.postdiv2[0]` | `str` | | 第 0 路后级分频 2 系数。 |
+| `regs.postdiv1[1]` | `str` | | 第 1 路后级分频 1 系数。 |
+| `regs.postdiv2[1]` | `str` | | 第 1 路后级分频 2 系数。 |
+
+更多输出路时 **regs** 内名字序号递增，如 `postdiv1[2]`、`postdiv2[2]`。
+
+### Node - clk
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `clk` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 前级引用。 |
 
-#### gate
+### Node - gate
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `kind` | `str` | `gate` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
-| `reg` | `str` | `""` | 寄存器模型路径。 |
+| `reg` | `str` | `""` | 门控寄存器模型路径。 |
 
-#### div
+### Node - div
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `kind` | `str` | `div` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
-| `regs` | `dict[str, str]` | `{}` | 寄存器模型路径。 |
+| `regs.rst` | `str` | | 复位位。 |
+| `regs.load` | `str` | | 加载位。 |
+| `regs.div` | `str` | | 分频系数。 |
 
-#### dto
+### Node - dto
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `kind` | `str` | `dto` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
-| `regs` | `dict[str, str]` | `{}` | 寄存器模型路径。 |
+| `regs.rst` | `str` | | 复位位。 |
+| `regs.load` | `str` | | 加载位。 |
+| `regs.bypass` | `str` | | bypass 位。 |
+| `regs.step` | `str` | | 步进控制。 |
 
-#### inv
+### Node - inv
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `kind` | `str` | `inv` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
 
-#### mux
+### Node - mux
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `kind` | `str` | `mux` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
-| `reg` | `str` | `""` | 寄存器模型路径。 |
+| `reg` | `str` | `""` | 选择寄存器模型路径。 |
