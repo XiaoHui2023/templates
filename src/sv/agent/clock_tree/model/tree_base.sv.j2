@@ -9,9 +9,17 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
 
     {{ settings.class_prefix }}node_base nodes[$];
     {{ settings.class_prefix }}clk clock_nodes[$];
+    bit _print_mux;
+    bit _print_div;
+    bit _print_dto;
+    bit _print_gate;
 
     function new(string name = "{{ settings.class_prefix }}tree_base");
         super.new(name);
+        _print_mux = 0;
+        _print_div = 0;
+        _print_dto = 0;
+        _print_gate = 0;
     endfunction
 
     // 将全部 clock_nodes 的 enabled 置 0

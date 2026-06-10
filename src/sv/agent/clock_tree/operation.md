@@ -45,7 +45,7 @@
 
 ## check_freq
 
-已配置寄存器模型且 **req.skip_config_reg** 为 0 时，量测前先 **config_reg** 整树。**check_flip**、**test_route** 等内部嵌套调用须置 **skip_config_reg** 为 1，避免覆盖刚写入的路由或分频 field。
+已配置寄存器模型且 **req.skip_config_reg** 为 0 时，量测前先 **config_reg** 整树。**check_flip**、**test_route** 等内部嵌套 **check_freq** 须置 **skip_config_reg** 为 1，避免量频前再跑一整遍 **config_reg**。
 
 遍历 **req.tree.nodes**，只处理 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。先对全部目标节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即比较 **freq_hz** 与 **frequence** 并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。超出 **period_tolerance** 则报错。
 

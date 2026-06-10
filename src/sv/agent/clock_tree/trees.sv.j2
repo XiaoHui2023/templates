@@ -5,7 +5,19 @@
 class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_prefix }}tree_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}{{ tree.name }}_tree)
 {%- for node in tree.nodes_ordered %}
-{%- set field_flags = "UVM_ALL_ON" if node.kind in ["clk", "pll", "source"] else "UVM_ALL_ON | UVM_NOPRINT" %}
+{%- if node.kind in ["clk", "pll", "source"] %}
+{%- set field_flags = "UVM_ALL_ON" %}
+{%- elif node.kind == "mux" %}
+{%- set field_flags = "UVM_ALL_ON | (_print_mux ? 0 : UVM_NOPRINT)" %}
+{%- elif node.kind == "div" %}
+{%- set field_flags = "UVM_ALL_ON | (_print_div ? 0 : UVM_NOPRINT)" %}
+{%- elif node.kind == "dto" %}
+{%- set field_flags = "UVM_ALL_ON | (_print_dto ? 0 : UVM_NOPRINT)" %}
+{%- elif node.kind == "gate" %}
+{%- set field_flags = "UVM_ALL_ON | (_print_gate ? 0 : UVM_NOPRINT)" %}
+{%- else %}
+{%- set field_flags = "UVM_ALL_ON | UVM_NOPRINT" %}
+{%- endif %}
 {%- if node.sv_is_array %}
         `uvm_field_sarray_object({{ node.name }}, {{ field_flags }})
 {%- else %}

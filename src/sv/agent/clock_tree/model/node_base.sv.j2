@@ -3,6 +3,8 @@
 
 class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
+        `uvm_field_int(_resolved_freq, UVM_DEFAULT|(_print_resolve?0:UVM_NOPRINT))
+        `uvm_field_int(_resolved_active, UVM_DEFAULT|(_print_resolve?0:UVM_NOPRINT))
         `uvm_field_int(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
     `uvm_object_utils_end
 
@@ -10,7 +12,8 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     rand longint _resolved_freq;
     rand bit _resolved_active;
     int group_id;
-    protected bit _print_group_id;
+    bit _print_resolve;
+    bit _print_group_id;
     {{ settings.class_prefix }}node_base source;
     {{ settings.class_prefix }}node_base to_group[int];
 {% if any_node_path %}
@@ -34,6 +37,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     function new(string name = "");
         super.new(name);
         group_id = 0;
+        _print_resolve = 0;
         _print_group_id = 0;
     endfunction
 endclass

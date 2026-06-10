@@ -18,14 +18,6 @@ class {{ settings.class_prefix }}check_flip_seq extends uvm_sequence #(
         {{ settings.class_prefix }}tree_base tree);
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
-    extern task apply_div_ratio_reg(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div div_nd,
-        bit quiet);
-    extern task apply_dto_ratio_reg(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}dto dto_nd,
-        bit quiet);
     extern task verify_div_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div div_nd,
@@ -73,51 +65,6 @@ task {{ settings.class_prefix }}check_flip_seq::run_config_reg(
         `uvm_fatal("CLK_TREE", "check_flip: config_reg failed")
 endtask
 
-task {{ settings.class_prefix }}check_flip_seq::apply_div_ratio_reg(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div div_nd,
-        bit quiet);
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_flip: tree is null for div ratio reg")
-    if (div_nd == null)
-        `uvm_fatal("CLK_TREE", "check_flip: div is null for ratio reg")
-    if (p_sequencer.tools == null)
-        `uvm_fatal("CLK_TREE", "check_flip: sequencer tools not built")
-    if (!div_nd.f_load.is_bound() || !div_nd.f_div.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "check_flip: div %s regs not bound", div_nd.get_name()))
-    if (!tree.randomize())
-        `uvm_fatal("CLK_TREE", "check_flip: tree randomize failed")
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "check_flip: div %s ratio %0d", div_nd.get_name(), div_nd.ratio), UVM_MEDIUM)
-    p_sequencer.tools.node.configure_div_ratio(
-        div_nd.f_load, div_nd.f_div, div_nd.ratio);
-endtask
-
-task {{ settings.class_prefix }}check_flip_seq::apply_dto_ratio_reg(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}dto dto_nd,
-        bit quiet);
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_flip: tree is null for dto ratio reg")
-    if (dto_nd == null)
-        `uvm_fatal("CLK_TREE", "check_flip: dto is null for ratio reg")
-    if (p_sequencer.tools == null)
-        `uvm_fatal("CLK_TREE", "check_flip: sequencer tools not built")
-    if (!dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
-            || !dto_nd.f_step.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "check_flip: dto %s regs not bound", dto_nd.get_name()))
-    if (!tree.randomize())
-        `uvm_fatal("CLK_TREE", "check_flip: tree randomize failed")
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "check_flip: dto %s ratio %0d", dto_nd.get_name(), dto_nd.ratio), UVM_MEDIUM)
-    p_sequencer.tools.node.configure_dto_ratio(
-        dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
-endtask
-
 task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div div_nd,
@@ -138,17 +85,16 @@ task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
     {{ settings.class_prefix }}route_structure_save_ctrl(div_nd, snap);
 
     div_nd.fix_ratio = msb_ratio;
-    div_nd.ratio = msb_ratio;
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "check_flip: div %s reg msb 0x%0h fix_ratio %0d",
             div_nd.get_name(), reg_msb, msb_ratio), UVM_MEDIUM)
-    apply_div_ratio_reg(tree, div_nd, quiet);
+    run_config_reg(tree, quiet);
     run_check_freq_quiet(tree);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(div_nd, snap, 1'b1);
-    apply_div_ratio_reg(tree, div_nd, quiet);
+    run_config_reg(tree, quiet);
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
@@ -176,17 +122,16 @@ task {{ settings.class_prefix }}check_flip_seq::verify_dto_msb(
     {{ settings.class_prefix }}route_structure_save_ctrl(dto_nd, snap);
 
     dto_nd.fix_ratio = msb_ratio;
-    dto_nd.ratio = msb_ratio;
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "check_flip: dto %s reg msb 0x%0h fix_ratio %0d",
             dto_nd.get_name(), reg_msb, msb_ratio), UVM_MEDIUM)
-    apply_dto_ratio_reg(tree, dto_nd, quiet);
+    run_config_reg(tree, quiet);
     run_check_freq_quiet(tree);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(dto_nd, snap, 1'b1);
-    apply_dto_ratio_reg(tree, dto_nd, quiet);
+    run_config_reg(tree, quiet);
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
