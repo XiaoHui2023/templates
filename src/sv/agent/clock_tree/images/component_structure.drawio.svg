@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="620px" height="300px" viewBox="0 0 620 300" content="&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;templates&quot; version=&quot;24.0.0&quot;&gt;
   &lt;diagram id=&quot;component-structure&quot; name=&quot;Page-1&quot;&gt;
-    &lt;mxGraphModel dx=&quot;1100&quot; dy=&quot;700&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;827&quot; pageHeight=&quot;1169&quot; math=&quot;0&quot; shadow=&quot;0&quot;&gt;
+    &lt;mxGraphModel dx=&quot;1100&quot; dy=&quot;700&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;827&quot; pageHeight=&quot;1169&quot; math=&quot;0&quot; shadow=&quot;0&quot; background=&quot;none&quot;&gt;
       &lt;root&gt;
         &lt;mxCell id=&quot;0&quot;/&gt;
         &lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;
@@ -51,8 +51,7 @@
     &lt;/mxGraphModel&gt;
   &lt;/diagram&gt;
 &lt;/mxfile&gt;
-" style="background-color: rgb(248, 249, 252);">
-  <rect width="620" height="300" fill="#f8f9fc"/>
+" style="background-color: transparent; background-color: transparent;">
   <defs>
     <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#1a1a2e"/>
