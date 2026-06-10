@@ -167,7 +167,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | fix_close | bit | **enable_node_fix** 为真时生成；为 1 时在 **cst_gate** 中约束 **open** 为 0 |
 | reg | string，可选 | 寄存器模型路径，按 `.` 分隔，可带比特范围后缀；**config_reg** 写入门控位，写 1 是否表示打开由 **settings** 的 **gate_reg_high_means_open** 决定 |
 
-重载 **cst_resolve_active_from_src**：**open** 为假时 **valid** 为 0；**open** 为真且前级非空时 **valid** 与前级一致；**open** 为真且无前级时 **valid** 为 0。
+重载 **cst_resolve_active_from_src**：**open** 为假时 **valid** 为 0；**open** 为真且前级非空时 **valid** 与前级一致；**open** 为真且无前级时 **valid** 为 0。重载 **cst_resolve_freq_from_src**：**open** 为假时 **frequence** 为 0；**open** 为真且前级非空时 **frequence** 与前级一致；**open** 为真且无前级时 **frequence** 为 0。
 
 ## inv
 

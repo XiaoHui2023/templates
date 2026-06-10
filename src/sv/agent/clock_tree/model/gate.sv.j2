@@ -22,6 +22,14 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
             !source -> !_resolved_active;
         }
     }
+
+    constraint cst_resolve_freq_from_src {
+        !open -> _resolved_freq == 0;
+        open -> {
+            source -> _resolved_freq == source._resolved_freq;
+            !source -> _resolved_freq == 0;
+        }
+    }
 {%- if enable_node_fix %}
 
     constraint cst_gate {

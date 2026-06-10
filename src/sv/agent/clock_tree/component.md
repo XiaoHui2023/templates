@@ -1,34 +1,23 @@
 # UVM 组件
 
-## agent
+![agent 与 kit_sequencer 结构](images/component_structure.drawio.svg)
 
-每 **agent** 绑定单棵 **tree**。
+## config_db
 
-| 成员 / 配置 | 说明 |
-| --- | --- |
-| `sqr` | **kit_sequencer** 句柄 |
-| **config_db** | 键 **`tree`**，值为 **tree_base** 实例；例化 **agent** 前由测试平台设置 |
+| 键 | 类型 | 设置时机 | 说明 |
+| --- | --- | --- | --- |
+| `tree` | **tree_base** | 例化 **agent** 前 | 测试平台创建 **tree**、**build** 绑定寄存器模型、**connect_{name}_tree** 挂 **vif** 后写入；**build_phase** 赋给 **sqr.tree** |
 
-测试平台创建 **tree**、**build** 绑定寄存器模型，再 **connect_{name}_tree** 挂 **vif**。
+## 快捷函数
 
-## sequencer
+在 **agent.sqr** 上调用；**tree** 入参默认空时用 **sqr.tree**。
 
-**sequence** 的 **`p_sequencer`** 为本类型；不持有 **tree**。
-
-| 成员 | 说明 |
-| --- | --- |
-| `tools` | **core_tools**：**rw**、**node**、**pll** |
-
-## kit_sequencer
-
-**agent.sqr** 类型；持有 **tree**，**agent.build_phase** 赋值。
-
-## sequence
-
-**base_seq** 派生 **spec**，类型实参 **uvm_sequence**；**p_sequencer** 为 **sequencer**。
-
-**operation**、**test** 序列不得 **`$cast`** 到 **kit_sequencer**，不得调用 kit 便捷 **task**。**kit** 填 **req** 后 **start**，或由 kit 同名 **task** 代填。**req.quiet** 为 1 时不打印 **uvm_info** 进度行；**uvm_error** / **uvm_fatal** 照常。
-
-## tree 随机约束
-
-**{name}_tree** 声明 **cst_base**、**cst_user**、**cst_case**；用例写在 **cst_user**、**cst_case**。
+| 名称 | 入参 | 说明 | 生成条件 |
+| --- | --- | --- | --- |
+| **config_reg** | **tree** | 按树节点写寄存器 | 配置 **class_regmodel** 且节点绑定了 **regs** |
+| **check_freq** | **tree** | 量 **source**、**clk**、**pll** 频率 | 至少一处节点配置 **path** |
+| **check_duty** | **tree** | 量带 **vif** 节点占空比 | 至少一处节点配置 **path** |
+| **test_freq** | **tree** | **config_reg** 后 **check_freq** | **path** 与 **regs** 均配置 |
+| **test_duty** | **tree** | **config_reg** 后 **check_duty** | **path** 与 **regs** 均配置 |
+| **test_flip** | **tree** | 分频比翻转探测 | **route_test_enabled** 为真 |
+| **test_route** | **tree**、**always_active_clk_nodes** | 结构探测；**always_active_clk_nodes** 为须全程保持活动的 **clk** 队列，默认空则要求全部 **clk** 活动 | **route_test_enabled** 为真 |
