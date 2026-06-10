@@ -629,6 +629,28 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix
 {%- endif %}
 endfunction
 
+// test_route 路由变体下可出现的最低输出频率：最慢 source 除以最大分频比 2
+function automatic int {{ settings.class_prefix }}route_structure_theoretical_min_freq_hz(
+        {{ settings.class_prefix }}tree_base tree,
+        int default_hz);
+    {{ settings.class_prefix }}source src_nd;
+    longint min_src_hz;
+    min_src_hz = 0;
+    if (tree == null)
+        return default_hz;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(src_nd, tree.nodes[i]))
+            continue;
+        if (src_nd.frequence <= 0)
+            continue;
+        if (min_src_hz == 0 || src_nd.frequence < min_src_hz)
+            min_src_hz = src_nd.frequence;
+    end
+    if (min_src_hz <= 0)
+        return default_hz;
+    return int'(min_src_hz / 2);
+endfunction
+
 // always_active_clk_nodes 所列 clk 节点 _resolved_active 均为真
 function automatic bit {{ settings.class_prefix }}route_structure_always_active_clocks_valid(
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);

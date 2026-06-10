@@ -1,68 +1,99 @@
-# 频率关系
+# 计算公式
 
-**div**、**dto**、**pll** 三类节点的频率计算与寄存器换算。符号：**f** 为本节点 **frequence**，**f_ref** 为参考前级 **source.frequence**，单位均为 Hz。
+- **f** — 本节点输出频率
+- **f_ref** — 前级节点频率
+- 单位 — Hz
 
 ## div
 
-**ratio** 取值 1～64。有前级时
+| 参数 | 说明 |
+| --- | --- |
+| **f** | 本节点输出频率 |
+| **f_ref** | 前级节点频率 |
+| **ratio** | 分频比，允许 1～64 |
+| **N** | **div** 寄存器写入值 |
 
 ```
 f = f_ref / ratio
 ```
 
-整数除法，与 SystemVerilog 约束一致。
+整数除法。
 
-**config_reg** 写 **div** 寄存器：**N** 为 0 表示 **ratio** 为 1；**N** 大于 0 时 **ratio** 为 **N + 1**。换算函数 **div_ratio_to_n**：**ratio** 不大于 1 时 **N** 为 0，否则 **N** 为 **ratio − 1**。
+**N** 与 **ratio**：**N** 为 0 时 **ratio** 为 1；**N** 大于 0 时 **ratio** 为 **N + 1**。反之 **ratio** 不大于 1 时 **N** 为 0，否则 **N** 为 **ratio − 1**。
 
 ## dto
 
-**ratio** 须大于 0 且不超过 2^25；**ratio** 为 1 时无法写出合法 **step**，随机与写寄存器均应避免。
-
-有前级时
+| 参数 | 说明 |
+| --- | --- |
+| **f** | 本节点输出频率 |
+| **f_ref** | 前级节点频率 |
+| **ratio** | 分频比，大于 0 且不超过 2^25 |
+| **step** | **step** 寄存器写入值，1～2^25−1 |
 
 ```
 f = f_ref / ratio
 ```
-
-**step** 与 **ratio** 满足
 
 ```
 step = 2^25 / ratio
 ratio = 2^25 / step
 ```
 
-**step** 须为 1～2^25−1 的整数。**config_reg** 写 **step** 时用 **dto_ratio_to_step** 按上式由 **ratio** 算出 **step**。
+**ratio** 为 1 时 **step** 无合法取值。
 
 ## pll
 
-输出 **f** 由 YAML **freq** 写入 **frequence**。**config_reg** 以参考节点 **f_ref** 与目标 **f** 反算各型号分频系数。
+| 参数 | 说明 |
+| --- | --- |
+| **f** | 目标输出频率 |
+| **f_ref** | 参考前级节点频率 |
+
+由 **f_ref** 与 **f** 反算下列分频系数。
 
 ### tci
 
-**clkr**、**clkod** 固定为 1。**clkf** 为整数除法
+| 参数 | 说明 |
+| --- | --- |
+| **clkf** | 反馈分频，整数 |
+| **clkr** | 参考分频，固定 1 |
+| **clkod** | 输出分频，固定 1 |
+| **bwadj** | 带宽调节，等于 **clkf** |
 
 ```
 clkf = f / f_ref
 ```
 
-理想输出近似 **f_ref × clkf**，与目标 **f** 可能因整除有偏差。**bwadj** 与 **clkf** 相同。
+输出近似 **f_ref × clkf**。
 
 ### sc
 
-在 **refdiv** 为 1～63、**postdiv1** 与 **postdiv2** 为 1～7、寄存器 **fbdiv** 为 1～4095 的硬件范围内搜索。先在 **settings** 的 **pll_sc_fbdiv_min** 与 **pll_sc_fbdiv_max** 内找绝对误差最小的组合；若无解再放宽到全硬件范围，最终 **fbdiv** 仍超出优先区间时 **uvm_error**。公式
+| 参数 | 说明 |
+| --- | --- |
+| **f_actual** | 由系数算出的输出频率 |
+| **fbdiv** | 反馈分频，1～4095，四舍五入取整 |
+| **refdiv** | 参考分频，1～63 |
+| **postdiv1** | 后分频 1，1～7 |
+| **postdiv2** | 后分频 2，1～7 |
+| **fbdiv_min** | 优先选取的 **fbdiv** 下限 |
+| **fbdiv_max** | 优先选取的 **fbdiv** 上限 |
 
 ```
 f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 ```
 
-与目标 **f** 的绝对误差最小；**fbdiv** 四舍五入取整。
+在合法组合中使 **f_actual** 与 **f** 绝对误差最小；先在 **fbdiv_min**～**fbdiv_max** 内搜，无解再搜全硬件范围。
 
 ### dw
 
-在 **p** 为 0～7 范围内搜索，分母为 **p + 1**，使
+| 参数 | 说明 |
+| --- | --- |
+| **f_actual** | 由系数算出的输出频率 |
+| **fbdiv** | 反馈分频，1～1023，四舍五入取整 |
+| **p** | 后分频索引，0～7 |
+| **postdiv** | **p + 1** |
 
 ```
 f_actual = f_ref × fbdiv / postdiv
 ```
 
-其中 **postdiv** 为 **p + 1**。与目标 **f** 的绝对误差最小；**fbdiv** 四舍五入取整，范围为 1～1023。
+在 **p** 为 0～7 范围内搜索，使 **f_actual** 与 **f** 绝对误差最小。

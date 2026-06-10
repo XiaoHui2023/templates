@@ -34,6 +34,11 @@ interface {{ settings.class_prefix }}interface #(
         meas.stop_measure();
     endfunction
 
+    // hz — 可量测的最低频率，单位 Hz
+    function automatic void set_min_freq_hz(int hz);
+        meas.set_min_freq_hz(hz);
+    endfunction
+
     task automatic wait_measure_stable(output bit ok);
         meas.wait_measure_stable(ok);
     endtask

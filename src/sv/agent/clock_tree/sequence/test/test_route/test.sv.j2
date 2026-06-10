@@ -47,6 +47,8 @@ task {{ settings.class_prefix }}test_route_seq::run_check_freq_quiet(
     freq_req = {{ settings.class_prefix }}check_freq_req::type_id::create("freq_req");
     freq_req.tree = tree;
     freq_req.quiet = 1'b1;
+    freq_req.min_freq_hz = {{ settings.class_prefix }}route_structure_theoretical_min_freq_hz(
+        tree, {{ settings.min_freq_hz }});
     freq_seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
     freq_seq.req = freq_req;
     freq_seq.start(p_sequencer);

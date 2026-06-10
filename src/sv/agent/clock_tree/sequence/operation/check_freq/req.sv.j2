@@ -6,13 +6,16 @@ class {{ settings.class_prefix }}check_freq_req extends uvm_sequence_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}check_freq_req)
         `uvm_field_object(tree, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(quiet, UVM_ALL_ON)
+        `uvm_field_int(min_freq_hz, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
 
     {{ settings.class_prefix }}tree_base tree;
     bit quiet;
+    int min_freq_hz;
 
     function new(string name = "{{ settings.class_prefix }}check_freq_req");
         super.new(name);
+        min_freq_hz = 0;
     endfunction
 endclass
 

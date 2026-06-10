@@ -24,6 +24,7 @@ task {{ settings.class_prefix }}check_freq_seq::evaluate_one_node(
     {{ settings.class_prefix }}node_base nd,
     {{ settings.class_prefix }}check_freq_rsp rs
 );
+    bit expect_active;
     real expected_hz;
     real measured_hz;
     real rel_diff;
@@ -35,15 +36,28 @@ task {{ settings.class_prefix }}check_freq_seq::evaluate_one_node(
         return;
     end
 
+    expect_active = nd._resolved_active;
     expected_hz = real'(nd._resolved_freq);
-    measured_hz = nd.vif.meas.freq_hz;
-    if (expected_hz <= 0.0) begin
+
+    if (!expect_active || expected_hz <= 0.0) begin
+        if (nd.vif.meas.active) begin
+            `uvm_error("CLK_TREE", $sformatf(
+                "check_freq: node %s expected inactive measured %0.2f Hz",
+                nd.get_name(), nd.vif.meas.freq_hz))
+            rs.ok = 1'b0;
+        end
+        return;
+    end
+
+    if (!nd.vif.meas.active) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_freq: node %s frequence must be positive", nd.get_name()))
+            "check_freq: node %s expected %0.0f Hz no activity",
+            nd.get_name(), expected_hz))
         rs.ok = 1'b0;
         return;
     end
 
+    measured_hz = nd.vif.meas.freq_hz;
     rel_diff = (measured_hz > expected_hz) ?
         (measured_hz - expected_hz) / expected_hz :
         (expected_hz - measured_hz) / expected_hz;
@@ -60,13 +74,12 @@ task {{ settings.class_prefix }}check_freq_seq::body();
     {{ settings.class_prefix }}check_freq_rsp rs;
     {{ settings.class_prefix }}node_base nodes_to_check[$];
     {{ settings.class_prefix }}node_base nd;
+    int meas_min_freq_hz;
     int meas_timeout_ns;
     int elapsed_ns;
     int checked;
     int pending;
     bit node_done[];
-
-    meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }};
 
     if (req == null)
         `uvm_fatal("CLK_TREE", "check_freq: req is null")
@@ -74,6 +87,9 @@ task {{ settings.class_prefix }}check_freq_seq::body();
     rq = req;
     if (rq.tree == null)
         `uvm_fatal("CLK_TREE", "check_freq: tree is null")
+
+    meas_min_freq_hz = rq.min_freq_hz > 0 ? rq.min_freq_hz : {{ settings.min_freq_hz }};
+    meas_timeout_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz;
 
     foreach (rq.tree.nodes[i]) begin
         nd = rq.tree.nodes[i];
@@ -101,8 +117,10 @@ task {{ settings.class_prefix }}check_freq_seq::body();
         nd = nodes_to_check[i];
         if (!rq.quiet)
             `uvm_info("CLK_TREE", $sformatf(
-                "check_freq: node %s kind %s expected %0d Hz",
-                nd.get_name(), nd.kind, nd._resolved_freq), UVM_MEDIUM)
+                "check_freq: node %s kind %s expected %0d Hz active %0b",
+                nd.get_name(), nd.kind, nd._resolved_freq, nd._resolved_active),
+                UVM_MEDIUM)
+        nd.vif.set_min_freq_hz(meas_min_freq_hz);
         nd.vif.start_measure();
     end
 

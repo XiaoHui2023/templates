@@ -19,9 +19,6 @@ interface {{ settings.class_prefix }}measure_interface #(
     localparam real DUTY_MAX = DUTY_MAX_PCT / 100.0;
     localparam real DUTY_BOUND_EPS = 1.0e-9;
     localparam real RT_PER_SEC = 1.0e9;
-    localparam int MEAS_TIMEOUT_NS = (1_000_000_000 + MIN_FREQ_HZ - 1) / MIN_FREQ_HZ;
-    localparam time MEAS_TIMEOUT = MEAS_TIMEOUT_NS * 1ns;
-    localparam real MAX_EDGE_PERIOD = RT_PER_SEC / MIN_FREQ_HZ;
 
     bit meas_en;
 
@@ -36,6 +33,17 @@ interface {{ settings.class_prefix }}measure_interface #(
     realtime last_period_t;
     realtime high_end_t;
     int stable_match_cnt;
+    int min_freq_hz_rt;
+    int meas_timeout_ns_rt;
+    real max_edge_period_rt;
+
+    function automatic void update_meas_timing_from_min_freq(int hz);
+        if (hz < MIN_FREQ_HZ)
+            hz = MIN_FREQ_HZ;
+        min_freq_hz_rt = hz;
+        meas_timeout_ns_rt = (1_000_000_000 + hz - 1) / hz;
+        max_edge_period_rt = RT_PER_SEC / hz;
+    endfunction
 
     function automatic void reset_measure();
         active = 1'b0;
@@ -50,9 +58,10 @@ interface {{ settings.class_prefix }}measure_interface #(
         stable_match_cnt = 0;
     endfunction
 
+    // 超时表示量测结束且无有效边沿
     function automatic void mark_timeout();
         active = 1'b0;
-        stable = 1'b0;
+        stable = 1'b1;
         freq_hz = 0.0;
         duty = 0.0;
         duty_ok = 1'b0;
@@ -68,7 +77,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         if (period_t <= 0.0)
             return;
 
-        if (period_t > MAX_EDGE_PERIOD)
+        if (period_t > max_edge_period_rt)
             return;
 
         freq_hz = RT_PER_SEC / period_t;
@@ -99,6 +108,11 @@ interface {{ settings.class_prefix }}measure_interface #(
         last_period_t = period_t;
     endfunction
 
+    // hz — 可量测的最低频率，单位 Hz
+    function automatic void set_min_freq_hz(int hz);
+        update_meas_timing_from_min_freq(hz);
+    endfunction
+
     function automatic void set_measure_en(bit en);
         meas_en = en;
         if (!en)
@@ -114,14 +128,14 @@ interface {{ settings.class_prefix }}measure_interface #(
         set_measure_en(1'b0);
     endfunction
 
-    // 轮询 stable，最长 MEAS_TIMEOUT_NS
-    // ok — 为真表示在时限内稳定
+    // 轮询 stable，最长 meas_timeout_ns_rt
+    // ok — 为真表示在时限内达到稳定
     task automatic wait_measure_stable(output bit ok);
         int elapsed_ns;
 
         elapsed_ns = 0;
         ok = 1'b0;
-        while (!stable && elapsed_ns < MEAS_TIMEOUT_NS) begin
+        while (!stable && elapsed_ns < meas_timeout_ns_rt) begin
             #1ns;
             elapsed_ns++;
         end
@@ -163,6 +177,7 @@ interface {{ settings.class_prefix }}measure_interface #(
 
     initial begin
         meas_en = 1'b0;
+        update_meas_timing_from_min_freq(MIN_FREQ_HZ);
         reset_measure();
     end
 
@@ -178,11 +193,12 @@ interface {{ settings.class_prefix }}measure_interface #(
         forever begin
             wait (meas_en === 1'b1);
             forever begin
-                #MEAS_TIMEOUT;
+                #(meas_timeout_ns_rt * 1ns);
                 if (!meas_en)
                     break;
-                if (last_edge_t > 0.0 &&
-                        ($realtime - last_edge_t) >= MAX_EDGE_PERIOD)
+                if (last_edge_t <= 0.0)
+                    mark_timeout();
+                else if (($realtime - last_edge_t) >= max_edge_period_rt)
                     mark_timeout();
             end
             reset_measure();
