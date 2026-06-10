@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Literal
 
+from formulas import dto_ratio_to_step
 from nodes import DivNode, DtoNode, GateNode, MuxNode, PllNode, Tree
+from resolve import ResolvedNode, TreeResolve
 from regmodel import (
     FieldRef,
     Reg,
@@ -78,6 +80,68 @@ class WaitLockStep:
 
 
 ConfigStep = RegWriteStep | WaitLockStep
+
+
+@dataclass(frozen=True)
+class PllRegWrite:
+    node_name: str
+    addr_macro: str
+    value_hex: str
+    comment: str
+
+
+@dataclass(frozen=True)
+class PllWaitLock:
+    node_name: str
+    addr_macro: str
+    lock_mask_hex: str
+    timeout_us: int
+    comment: str
+
+
+@dataclass(frozen=True)
+class DivDevStep:
+    dev_kind: Literal["div"] = "div"
+    node_name: str
+    addr_macro: str
+    word_rst_assert_hex: str
+    word_program_hex: str
+    word_load_assert_hex: str
+    comment: str
+
+
+@dataclass(frozen=True)
+class DtoDevStep:
+    dev_kind: Literal["dto"] = "dto"
+    node_name: str
+    writes: tuple[tuple[str, str], ...]
+    comment: str
+
+
+@dataclass(frozen=True)
+class GateDevStep:
+    node_name: str
+    addr_macro: str
+    value_hex: str
+    comment: str
+
+
+@dataclass(frozen=True)
+class MuxDevStep:
+    node_name: str
+    addr_macro: str
+    value_hex: str
+    comment: str
+
+
+DevStep = DivDevStep | DtoDevStep | GateDevStep | MuxDevStep
+
+
+@dataclass(frozen=True)
+class ConfigPlan:
+    pll_writes: tuple[PllRegWrite, ...]
+    pll_wait_locks: tuple[PllWaitLock, ...]
+    dev_steps: tuple[DevStep, ...]
 
 
 @dataclass
@@ -276,7 +340,11 @@ def _load_pulse_patches(
     ]
 
 
-def _expand_pll_sc(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
+def _expand_pll_sc(
+    index: RegModelIndex,
+    node: PllNode,
+    cfg: dict[str, int],
+) -> List[_FieldPatch]:
     patches: List[_FieldPatch] = []
     pd_down = f"{node.name} power-down"
     for key in PLL_SC_PD_KEYS:
@@ -290,8 +358,8 @@ def _expand_pll_sc(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
             )
         )
     div_note = (
-        f"{node.name} fbdiv={node.cfg['fbdiv']} refdiv={node.cfg['refdiv']} "
-        f"postdiv1={node.cfg['postdiv1']} postdiv2={node.cfg['postdiv2']}"
+        f"{node.name} fbdiv={cfg['fbdiv']} refdiv={cfg['refdiv']} "
+        f"postdiv1={cfg['postdiv1']} postdiv2={cfg['postdiv2']}"
     )
     for key in PLL_SC_DIV_KEYS:
         patches.append(
@@ -299,7 +367,7 @@ def _expand_pll_sc(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
                 index,
                 node_name=node.name,
                 raw_path=node.regs[key],
-                value=node.cfg[key],
+                value=cfg[key],
                 note=div_note if key == PLL_SC_DIV_KEYS[0] else "",
             )
         )
@@ -310,32 +378,37 @@ def _expand_pll_sc(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
                 index,
                 node_name=node.name,
                 raw_path=node.regs[key],
-                value=node.cfg[key],
+                value=cfg[key],
                 note=en_note if key == PLL_SC_PD_KEYS[0] else "",
             )
         )
     return patches
 
 
-def _expand_pll_tci(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
+def _expand_pll_tci(
+    index: RegModelIndex,
+    node: PllNode,
+    cfg: dict[str, int],
+) -> List[_FieldPatch]:
     patches: List[_FieldPatch] = []
     ctrl_note = (
-        f"{node.name} bypass={node.cfg['bypass']} pwrdn={node.cfg['pwrdn']} "
-        f"reset={node.cfg['reset']}"
+        f"{node.name} bypass=1 pwrdn=0 reset=1"
     )
-    for key in PLL_TCI_CTRL_KEYS:
+    for key, val in zip(
+        PLL_TCI_CTRL_KEYS, (1, 0, 1), strict=True
+    ):
         patches.append(
             _patch(
                 index,
                 node_name=node.name,
                 raw_path=node.regs[key],
-                value=node.cfg[key],
+                value=val,
                 note=ctrl_note if key == PLL_TCI_CTRL_KEYS[0] else "",
             )
         )
     div_note = (
-        f"{node.name} clkod={node.cfg['clkod']} clkf={node.cfg['clkf']} "
-        f"clkr={node.cfg['clkr']} bwadj={node.cfg['bwadj']}"
+        f"{node.name} clkod={cfg['clkod']} clkf={cfg['clkf']} "
+        f"clkr={cfg['clkr']} bwadj={cfg['bwadj']}"
     )
     for key in PLL_TCI_DIV_KEYS:
         patches.append(
@@ -343,50 +416,93 @@ def _expand_pll_tci(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
                 index,
                 node_name=node.name,
                 raw_path=node.regs[key],
-                value=node.cfg[key],
+                value=cfg[key],
                 note=div_note if key == PLL_TCI_DIV_KEYS[0] else "",
             )
         )
+    patches.append(
+        _patch(
+            index,
+            node_name=node.name,
+            raw_path=node.regs["reset"],
+            value=0,
+            note=f"{node.name} reset release",
+        )
+    )
+    patches.append(
+        _patch(
+            index,
+            node_name=node.name,
+            raw_path=node.regs["bypass"],
+            value=0,
+            note=f"{node.name} bypass off",
+        )
+    )
     return patches
 
 
-def _expand_pll_dw(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
+def _expand_pll_dw(
+    index: RegModelIndex,
+    node: PllNode,
+    cfg: dict[str, int],
+) -> List[_FieldPatch]:
     note = (
-        f"{node.name} fbdiv={node.cfg['fbdiv']} prediv={node.cfg['prediv']} "
-        f"divvcop={node.cfg['divvcop']}"
+        f"{node.name} fbdiv={cfg['fbdiv']} prediv={cfg['prediv']} "
+        f"divvcop={cfg['divvcop']}"
     )
     return [
         _patch(
             index,
             node_name=node.name,
             raw_path=node.regs[key],
-            value=node.cfg[key],
+            value=cfg[key],
             note=note if key == PLL_DW_ORDER[0] else "",
         )
         for key in PLL_DW_ORDER
     ]
 
 
-def _expand_pll_inno(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
+def _expand_pll_inno(
+    index: RegModelIndex,
+    node: PllNode,
+    cfg: dict[str, int],
+) -> List[_FieldPatch]:
     patches: List[_FieldPatch] = []
-    shared = (
-        f"{node.name} refdiv={node.cfg['refdiv']} fbdiv={node.cfg['fbdiv']} "
-        f"pd={node.cfg['pd']}"
+    patches.append(
+        _patch(
+            index,
+            node_name=node.name,
+            raw_path=node.regs["pd"],
+            value=1,
+            note=f"{node.name} pd assert",
+        )
     )
-    for key in PLL_INNO_SHARED_KEYS:
+    shared = (
+        f"{node.name} refdiv={cfg['refdiv']} fbdiv={cfg['fbdiv']}"
+    )
+    for key in ("refdiv", "fbdiv"):
         patches.append(
             _patch(
                 index,
                 node_name=node.name,
                 raw_path=node.regs[key],
-                value=node.cfg[key],
-                note=shared if key == PLL_INNO_SHARED_KEYS[0] else "",
+                value=cfg[key],
+                note=shared if key == "refdiv" else "",
             )
         )
+    patches.append(
+        _patch(
+            index,
+            node_name=node.name,
+            raw_path=node.regs["pd"],
+            value=0,
+            note=f"{node.name} pd release",
+        )
+    )
     if node.output_count <= 1:
         post = (
-            f"{node.name} postdiv1={node.cfg['postdiv1']} "
-            f"postdiv2={node.cfg['postdiv2']}"
+            f"{node.name} postdiv1={cfg['postdiv1']} "
+            f"postdiv2={cfg['postdiv2']}"
         )
         for key in ("postdiv1", "postdiv2"):
             patches.append(
@@ -394,7 +510,7 @@ def _expand_pll_inno(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
                     index,
                     node_name=node.name,
                     raw_path=node.regs[key],
-                    value=node.cfg[key],
+                    value=cfg[key],
                     note=post if key == "postdiv1" else "",
                 )
             )
@@ -402,15 +518,15 @@ def _expand_pll_inno(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
     for group_id in range(node.output_count):
         p1_key, p2_key = inno_postdiv_reg_keys(group_id)
         post = (
-            f"{node.name} out{group_id} postdiv1={node.cfg[p1_key]} "
-            f"postdiv2={node.cfg[p2_key]}"
+            f"{node.name} out{group_id} postdiv1={cfg[p1_key]} "
+            f"postdiv2={cfg[p2_key]}"
         )
         patches.append(
             _patch(
                 index,
                 node_name=node.name,
                 raw_path=node.regs[p1_key],
-                value=node.cfg[p1_key],
+                value=cfg[p1_key],
                 note=post,
             )
         )
@@ -419,22 +535,27 @@ def _expand_pll_inno(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
                 index,
                 node_name=node.name,
                 raw_path=node.regs[p2_key],
-                value=node.cfg[p2_key],
+                value=cfg[p2_key],
                 note="",
             )
         )
     return patches
 
 
-def expand_pll_patches(index: RegModelIndex, node: PllNode) -> List[_FieldPatch]:
+def expand_pll_patches(
+    index: RegModelIndex,
+    node: PllNode,
+    resolved: ResolvedNode,
+) -> List[_FieldPatch]:
+    cfg = resolved.pll_cfg
     if node.pll_kind == "sc":
-        return _expand_pll_sc(index, node)
+        return _expand_pll_sc(index, node, cfg)
     if node.pll_kind == "tci":
-        return _expand_pll_tci(index, node)
+        return _expand_pll_tci(index, node, cfg)
     if node.pll_kind == "dw":
-        return _expand_pll_dw(index, node)
+        return _expand_pll_dw(index, node, cfg)
     if node.pll_kind == "inno":
-        return _expand_pll_inno(index, node)
+        return _expand_pll_inno(index, node, cfg)
     raise ValueError(f"未知 pll_kind {node.pll_kind!r}")
 
 
@@ -442,19 +563,23 @@ def expand_div_patches(
     index: RegModelIndex,
     node: DivNode,
     settings: SettingsView,
+    resolved: ResolvedNode,
 ) -> List[_FieldPatch]:
+    from formulas import div_ratio_to_n
+
     patches = _rst_pulse_patches(
         index,
         node,
         high_means_reset=settings.div_reg_high_means_reset,
     )
+    div_n = div_ratio_to_n(resolved.ratio)
     patches.append(
         _patch(
             index,
             node_name=node.name,
             raw_path=node.regs["div"],
-            value=node.cfg["div"],
-            note=f"{node.name} div={node.cfg['div']}",
+            value=div_n,
+            note=f"{node.name} ratio={resolved.ratio} div={div_n}",
         )
     )
     patches.extend(_load_pulse_patches(index, node))
@@ -465,23 +590,26 @@ def expand_dto_patches(
     index: RegModelIndex,
     node: DtoNode,
     settings: SettingsView,
+    resolved: ResolvedNode,
 ) -> List[_FieldPatch]:
+    step = dto_ratio_to_step(resolved.ratio)
     patches = _rst_pulse_patches(
         index,
         node,
         high_means_reset=settings.dto_reg_high_means_reset,
     )
     dto_note = (
-        f"{node.name} load={node.cfg['load']} bypass={node.cfg['bypass']} "
-        f"step={node.cfg['step']}"
+        f"{node.name} ratio={resolved.ratio} load=1 bypass=0 step={step}"
     )
-    for key in ("load", "bypass", "step"):
+    for key, val in zip(
+        ("load", "bypass", "step"), (1, 0, step), strict=True
+    ):
         patches.append(
             _patch(
                 index,
                 node_name=node.name,
                 raw_path=node.regs[key],
-                value=node.cfg[key],
+                value=val,
                 note=dto_note if key == "load" else "",
             )
         )
@@ -492,12 +620,13 @@ def expand_gate_patch(
     index: RegModelIndex,
     node: GateNode,
     settings: SettingsView,
+    resolved: ResolvedNode,
 ) -> _FieldPatch:
     if settings.gate_reg_high_means_open:
-        value = 1 if node.open else 0
+        value = 1 if resolved.gate_open else 0
     else:
-        value = 0 if node.open else 1
-    state = "open" if node.open else "close"
+        value = 0 if resolved.gate_open else 1
+    state = "open" if resolved.gate_open else "close"
     return _patch(
         index,
         node_name=node.name,
@@ -507,13 +636,17 @@ def expand_gate_patch(
     )
 
 
-def expand_mux_patch(index: RegModelIndex, node: MuxNode) -> _FieldPatch:
+def expand_mux_patch(
+    index: RegModelIndex,
+    node: MuxNode,
+    resolved: ResolvedNode,
+) -> _FieldPatch:
     return _patch(
         index,
         node_name=node.name,
         raw_path=node.reg,
-        value=node.sel,
-        note=f"{node.name} mux sel={node.sel}",
+        value=resolved.mux_sel,
+        note=f"{node.name} mux sel={resolved.mux_sel}",
     )
 
 
@@ -535,71 +668,154 @@ def wait_lock_step(
     )
 
 
+def _reg_writes_to_pll_views(
+    writes: List[RegWriteStep],
+) -> tuple[PllRegWrite, ...]:
+    return tuple(
+        PllRegWrite(
+            node_name=w.node_name,
+            addr_macro=w.addr_macro,
+            value_hex=w.value_hex,
+            comment=w.comment,
+        )
+        for w in writes
+    )
+
+
+def _div_dev_step(writes: List[RegWriteStep], node_name: str) -> DivDevStep:
+    if len(writes) != 3:
+        raise ValueError(
+            f"div 节点 {node_name!r} 须产生 3 次寄存器写，得到 {len(writes)}"
+        )
+    addr = writes[0].addr_macro
+    for w in writes[1:]:
+        if w.addr_macro != addr:
+            raise ValueError(
+                f"div 节点 {node_name!r} 的 rst/load/div 须映射到同一寄存器地址"
+            )
+    return DivDevStep(
+        node_name=node_name,
+        addr_macro=addr,
+        word_rst_assert_hex=writes[0].value_hex,
+        word_program_hex=writes[1].value_hex,
+        word_load_assert_hex=writes[2].value_hex,
+        comment=writes[-1].comment,
+    )
+
+
+def _dto_dev_step(writes: List[RegWriteStep], node_name: str) -> DtoDevStep:
+    pairs = tuple((w.addr_macro, w.value_hex) for w in writes)
+    return DtoDevStep(
+        node_name=node_name,
+        writes=pairs,
+        comment=writes[-1].comment if writes else node_name,
+    )
+
+
+def _gate_dev_step(write: RegWriteStep) -> GateDevStep:
+    return GateDevStep(
+        node_name=write.node_name,
+        addr_macro=write.addr_macro,
+        value_hex=write.value_hex,
+        comment=write.comment,
+    )
+
+
+def _mux_dev_step(write: RegWriteStep) -> MuxDevStep:
+    return MuxDevStep(
+        node_name=write.node_name,
+        addr_macro=write.addr_macro,
+        value_hex=write.value_hex,
+        comment=write.comment,
+    )
+
+
 def build_config_plan(
     tree: Tree,
     index: RegModelIndex,
     settings: SettingsView,
-) -> List[ConfigStep]:
-    """按 config_reg 五段顺序生成整 reg 写入与 lock 轮询步骤。"""
-    steps: List[ConfigStep] = []
-    pll_nodes: List[PllNode] = []
+    resolved: TreeResolve,
+) -> ConfigPlan:
+    """按 config_reg 五段顺序生成 PLL 固化写与器件步骤表。"""
+    pll_writes: List[PllRegWrite] = []
+    pll_wait_locks: List[PllWaitLock] = []
+    dev_steps: List[DevStep] = []
     pll_patches: List[_FieldPatch] = []
 
     for node in tree.nodes_ordered:
-        if isinstance(node, PllNode):
-            pll_nodes.append(node)
-            pll_patches.extend(expand_pll_patches(index, node))
-    steps.extend(merge_field_patches(pll_patches))
-
-    for pll in pll_nodes:
-        if pll.pll_kind == "inno" and pll.output_count > 1:
+        if not isinstance(node, PllNode) or not node.regs:
             continue
-        steps.append(wait_lock_step(index, pll, settings))
+        state = resolved.by_name[node.name]
+        if not state.active:
+            continue
+        pll_patches.extend(expand_pll_patches(index, node, state))
+    pll_writes.extend(
+        _reg_writes_to_pll_views(merge_field_patches(pll_patches))
+    )
 
     for node in tree.nodes_ordered:
-        if isinstance(node, DivNode):
-            steps.extend(merge_field_patches(expand_div_patches(index, node, settings)))
-        elif isinstance(node, DtoNode):
-            steps.extend(merge_field_patches(expand_dto_patches(index, node, settings)))
-
-    gate_open_patches: List[_FieldPatch] = []
-    for node in tree.nodes_ordered:
-        if isinstance(node, GateNode) and node.open:
-            gate_open_patches.append(expand_gate_patch(index, node, settings))
-    steps.extend(merge_field_patches(gate_open_patches))
-
-    mux_patches: List[_FieldPatch] = []
-    for node in tree.nodes_ordered:
-        if isinstance(node, MuxNode):
-            mux_patches.append(expand_mux_patch(index, node))
-    steps.extend(merge_field_patches(mux_patches))
-
-    gate_close_patches: List[_FieldPatch] = []
-    for node in tree.nodes_ordered:
-        if isinstance(node, GateNode) and not node.open:
-            gate_close_patches.append(expand_gate_patch(index, node, settings))
-    steps.extend(merge_field_patches(gate_close_patches))
-
-    return _assign_write_step_indices(steps)
-
-
-def _assign_write_step_indices(steps: List[ConfigStep]) -> List[ConfigStep]:
-    out: List[ConfigStep] = []
-    write_idx = 0
-    for step in steps:
-        if isinstance(step, RegWriteStep):
-            out.append(
-                RegWriteStep(
-                    kind=step.kind,
-                    node_name=step.node_name,
-                    reg=step.reg,
-                    value=step.value,
-                    comment=step.comment,
-                    parts=step.parts,
-                    step_index=write_idx,
-                )
+        if not isinstance(node, PllNode) or not node.regs:
+            continue
+        state = resolved.by_name[node.name]
+        if not state.active:
+            continue
+        if node.pll_kind == "inno" and node.output_count > 1:
+            continue
+        lock = wait_lock_step(index, node, settings)
+        pll_wait_locks.append(
+            PllWaitLock(
+                node_name=lock.node_name,
+                addr_macro=lock.addr_macro,
+                lock_mask_hex=lock.lock_mask_hex,
+                timeout_us=lock.timeout_us,
+                comment=lock.comment,
             )
-            write_idx += 1
-        else:
-            out.append(step)
-    return out
+        )
+
+    for node in tree.nodes_ordered:
+        state = resolved.by_name[node.name]
+        if not state.active:
+            continue
+        if isinstance(node, DivNode) and node.regs:
+            writes = merge_field_patches(
+                expand_div_patches(index, node, settings, state)
+            )
+            dev_steps.append(_div_dev_step(writes, node.name))
+        elif isinstance(node, DtoNode) and node.regs:
+            writes = merge_field_patches(
+                expand_dto_patches(index, node, settings, state)
+            )
+            dev_steps.append(_dto_dev_step(writes, node.name))
+
+    for node in tree.nodes_ordered:
+        if isinstance(node, GateNode) and node.reg:
+            state = resolved.by_name[node.name]
+            if state.gate_open:
+                writes = merge_field_patches(
+                    [expand_gate_patch(index, node, settings, state)]
+                )
+                dev_steps.append(_gate_dev_step(writes[0]))
+
+    for node in tree.nodes_ordered:
+        if isinstance(node, MuxNode) and node.reg:
+            state = resolved.by_name[node.name]
+            if state.active:
+                writes = merge_field_patches(
+                    [expand_mux_patch(index, node, state)]
+                )
+                dev_steps.append(_mux_dev_step(writes[0]))
+
+    for node in tree.nodes_ordered:
+        if isinstance(node, GateNode) and node.reg:
+            state = resolved.by_name[node.name]
+            if not state.gate_open:
+                writes = merge_field_patches(
+                    [expand_gate_patch(index, node, settings, state)]
+                )
+                dev_steps.append(_gate_dev_step(writes[0]))
+
+    return ConfigPlan(
+        pll_writes=tuple(pll_writes),
+        pll_wait_locks=tuple(pll_wait_locks),
+        dev_steps=tuple(dev_steps),
+    )

@@ -1,4 +1,4 @@
-# pll_mini 示范：单路 PLL SC + div + mux + gate
+# pll_mini 示范：单路 PLL SC + div + mux + gate，频率与 clock_tree 同形
 
 regmodel:
   - path: blk_pll_sc.pd
@@ -70,11 +70,13 @@ tree:
   nodes:
     xtal:
       kind: source
+      freq: 24000000
 
     pll_sc:
       kind: pll
       source: xtal
       pll_kind: sc
+      freq: 60000000
       regs:
         lock: blk_pll_sc.stat.lock
         vocpd: blk_pll_sc.pd.vocpd
@@ -86,17 +88,6 @@ tree:
         postdiv2: blk_pll_sc.div.postdiv2
         postdiv1: blk_pll_sc.div.postdiv1
         fbdiv: blk_pll_sc.div.fbdiv
-      cfg:
-        lock: 0
-        vocpd: 0
-        postdivpd: 0
-        dsmpd: 0
-        pd: 0
-        bypass: 0
-        refdiv: 1
-        postdiv2: 1
-        postdiv1: 1
-        fbdiv: 40
 
     div0:
       kind: div
@@ -105,22 +96,23 @@ tree:
         rst: blk_div0.ctrl.rst
         load: blk_div0.ctrl.load
         div: blk_div0.ctrl.div
-      cfg:
-        div: 2
 
     mux_ref:
       kind: mux
       source:
-        "0": pll_sc
+        "0": div0
         "1": xtal
       reg: blk_mux_ref.sel.sel
-      sel: 0
 
     gate0:
       kind: gate
       source: mux_ref
       reg: blk_gate0.en.en
-      open: true
+
+    clk_out:
+      kind: clk
+      source: gate0
+      freq: 30000000
 
 settings:
   main_fn: chip_pll_config

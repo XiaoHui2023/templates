@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
+from typing import Annotated, Any, Dict, List, Literal, Union
 
 from pydantic import (
     BaseModel,
@@ -32,6 +32,12 @@ _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _SOURCE_ENDPOINT = re.compile(
     r"^(?P<device>[A-Za-z_][A-Za-z0-9_$]*)(?:\[(?P<idx>\d+)\])?$"
 )
+
+
+def _coerce_required_freq(value: Any) -> int:
+    if value is None or value == "":
+        raise ValueError("须填写 freq")
+    return int(value)
 
 
 def parse_source_endpoint(raw: str, *, ctx: str) -> tuple[str, int]:
@@ -69,8 +75,10 @@ class NodeBase(BaseModel):
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
     source: str = Field(..., min_length=1, description="前级引用。")
-    reg: str = Field(..., min_length=1, description="寄存器模型点分路径。")
-    open: bool = Field(..., description="门开闭；为真表示打开。")
+    reg: str = Field(
+        "",
+        description="门控寄存器模型点分路径；空则生成时跳过写寄存器。",
+    )
 
     @model_validator(mode="after")
     def _validate_gate_reg(self, info: ValidationInfo) -> GateNode:
@@ -84,26 +92,18 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     source: str = Field(..., min_length=1, description="前级引用。")
     regs: Dict[str, str] = Field(
-        ...,
-        description="键须为 rst、load、div，值为各 field 的寄存器模型点分路径。",
-    )
-    cfg: Dict[str, int] = Field(
-        ...,
-        description="固化 field 值；须含 div；rst 与 load 由配置顺序自动产生脉冲。",
+        default_factory=dict,
+        description="非空时键为 rst、load、div，值为各 field 的寄存器模型点分路径。",
     )
 
     @model_validator(mode="after")
-    def _validate_div(self, info: ValidationInfo) -> DivNode:
+    def _validate_div_regs(self, info: ValidationInfo) -> DivNode:
         validate_regs_exact(
             self.regs,
             DIV_REG_KEYS,
             node_name=_validation_node_name(self, info),
             kind="div",
         )
-        if "div" not in self.cfg:
-            raise ValueError(
-                f"div 节点 {_validation_node_name(self, info)!r} 的 cfg 须含 div"
-            )
         return self
 
 
@@ -111,28 +111,18 @@ class DtoNode(NodeBase):
     kind: Literal["dto"] = "dto"
     source: str = Field(..., min_length=1, description="前级引用。")
     regs: Dict[str, str] = Field(
-        ...,
-        description="键须为 rst、load、bypass、step，值为各 field 的寄存器模型点分路径。",
-    )
-    cfg: Dict[str, int] = Field(
-        ...,
-        description="固化 field 值；须含 load、bypass、step；rst 由配置顺序自动产生脉冲。",
+        default_factory=dict,
+        description="非空时键为 rst、load、bypass、step，值为各 field 的寄存器模型点分路径。",
     )
 
     @model_validator(mode="after")
-    def _validate_dto(self, info: ValidationInfo) -> DtoNode:
+    def _validate_dto_regs(self, info: ValidationInfo) -> DtoNode:
         validate_regs_exact(
             self.regs,
             DTO_REG_KEYS,
             node_name=_validation_node_name(self, info),
             kind="dto",
         )
-        missing = {"load", "bypass", "step"} - set(self.cfg.keys())
-        if missing:
-            raise ValueError(
-                f"dto 节点 {_validation_node_name(self, info)!r} 的 cfg 须含 "
-                f"{sorted(missing)}"
-            )
         return self
 
 
@@ -143,10 +133,17 @@ class InvNode(NodeBase):
 
 class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
+    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_freq(cls, value: Any) -> Any:
+        return _coerce_required_freq(value)
 
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
+    freq: int = Field(..., ge=1, description="目标输出频率，单位 Hz。")
     source: str = Field(..., min_length=1, description="参考时钟前级引用。")
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno。")
     output_count: int = Field(
@@ -155,13 +152,14 @@ class PllNode(NodeBase):
         description="PLL 输出路数；大于 1 时仅允许 pll_kind 为 inno。",
     )
     regs: Dict[str, str] = Field(
-        ...,
-        description="键须与 pll_kind、output_count 允许集合完全一致。",
+        default_factory=dict,
+        description="非空时键须与 pll_kind、output_count 允许集合完全一致。",
     )
-    cfg: Dict[str, int] = Field(
-        ...,
-        description="固化各 reg 键对应的 field 写入值。",
-    )
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_freq(cls, value: Any) -> Any:
+        return _coerce_required_freq(value)
 
     @field_validator("pll_kind", mode="before")
     @classmethod
@@ -169,7 +167,7 @@ class PllNode(NodeBase):
         return normalize_pll_kind(value)
 
     @model_validator(mode="after")
-    def _validate_pll(self, info: ValidationInfo) -> PllNode:
+    def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:
         node_name = _validation_node_name(self, info)
         if self.output_count > 1 and self.pll_kind != "inno":
             raise ValueError(
@@ -182,27 +180,18 @@ class PllNode(NodeBase):
             node_name=node_name,
             output_count=self.output_count,
         )
-        allowed = (
-            inno_pll_reg_keys(self.output_count)
-            if self.pll_kind == "inno" and self.output_count > 1
-            else PLL_REG_KEYS[self.pll_kind]
-        )
-        missing = allowed - set(self.cfg.keys())
-        if missing:
-            raise ValueError(
-                f"pll 节点 {node_name!r} 的 cfg 缺少键 {sorted(missing)}"
-            )
-        extra = set(self.cfg.keys()) - allowed
-        if extra:
-            raise ValueError(
-                f"pll 节点 {node_name!r} 的 cfg 多余键 {sorted(extra)}"
-            )
         return self
 
 
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
+    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
     source: str = Field(..., min_length=1, description="前级引用。")
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_freq(cls, value: Any) -> Any:
+        return _coerce_required_freq(value)
 
 
 class MuxNode(NodeBase):
@@ -211,8 +200,10 @@ class MuxNode(NodeBase):
         default_factory=dict,
         description="多路输入：键为输入标签，值为前级引用。",
     )
-    reg: str = Field(..., min_length=1, description="寄存器模型点分路径。")
-    sel: int = Field(..., ge=0, description="固化选择值。")
+    reg: str = Field(
+        "",
+        description="mux 选择寄存器模型点分路径；空则生成时跳过写寄存器。",
+    )
 
     @model_validator(mode="after")
     def _validate_mux(self, info: ValidationInfo) -> MuxNode:
@@ -334,6 +325,13 @@ class Tree(BaseModel):
     @property
     def nodes_ordered(self) -> List[Node]:
         return list(self.nodes.values())
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由各节点 source 反查；键为器件名，值为以其为前级的子节点名列表。",
+    )
+    @property
+    def children_by_node(self) -> Dict[str, List[str]]:
+        return build_children_map(self.nodes)
 
     @model_validator(mode="after")
     def _validate_nodes_graph(self) -> Tree:
