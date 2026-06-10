@@ -3,50 +3,56 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct {
-    uint32_t lsb;
-    uint32_t width;
-    uint32_t value;
-} pll_mini_field_part_t;
-
 typedef enum {
-    PLL_MINI_STEP_WRITE = 0,
-    PLL_MINI_STEP_WAIT_LOCK = 1,
-} pll_mini_step_kind_t;
+    PLL_MINI_DEV_DIV = 0,
+    PLL_MINI_DEV_DTO = 1,
+    PLL_MINI_DEV_GATE = 2,
+    PLL_MINI_DEV_MUX = 3,
+} pll_mini_dev_kind_t;
 
 typedef struct {
-    pll_mini_step_kind_t kind;
     uint32_t addr;
-    const pll_mini_field_part_t *parts;
-    size_t part_count;
-    uint32_t reg_word;
-    uint32_t lock_mask;
-    uint32_t timeout_us;
-} pll_mini_step_t;
+    uint32_t value;
+} pll_mini_reg_pair_t;
 
-{% for step in config_steps -%}
-{%- if step.kind == "write" %}
-/* {{ step.reg.path }} @ {{ step.addr_macro }} — {{ step.comment }} */
-static const pll_mini_field_part_t {{ step.parts_array_name }}[] = {
-{%- for part in step.parts %}
-    /* {{ part.part_label }} — lsb {{ part.lsb }} width {{ part.width }}; {{ part.comment }} */
-    { {{ part.lsb }}u, {{ part.width }}u, {{ part.value }}u },
+typedef struct {
+    pll_mini_dev_kind_t kind;
+    uint32_t addr;
+    uint32_t word0;
+    uint32_t word1;
+    uint32_t word2;
+    uint8_t dto_count;
+    pll_mini_reg_pair_t dto_pairs[4];
+} pll_mini_dev_step_t;
+
+static const pll_mini_dev_step_t pll_mini_dev_steps[] = {
+{% for step in config_plan.dev_steps -%}
+{%- if step.dev_kind == "div" %}
+    /* {{ step.comment }} */
+    { PLL_MINI_DEV_DIV, {{ step.addr_macro }}, {{ step.word_rst_assert_hex }},
+      {{ step.word_program_hex }}, {{ step.word_load_assert_hex }}, 0u,
+      { { 0u, 0u }, { 0u, 0u }, { 0u, 0u }, { 0u, 0u } } },
+{%- elif step.dev_kind == "gate" %}
+    /* {{ step.comment }} */
+    { PLL_MINI_DEV_GATE, {{ step.addr_macro }}, {{ step.value_hex }},
+      0u, 0u, 0u,
+      { { 0u, 0u }, { 0u, 0u }, { 0u, 0u }, { 0u, 0u } } },
+{%- elif step.dev_kind == "mux" %}
+    /* {{ step.comment }} */
+    { PLL_MINI_DEV_MUX, {{ step.addr_macro }}, {{ step.value_hex }},
+      0u, 0u, 0u,
+      { { 0u, 0u }, { 0u, 0u }, { 0u, 0u }, { 0u, 0u } } },
+{%- elif step.dev_kind == "dto" %}
+    /* {{ step.comment }} */
+    { PLL_MINI_DEV_DTO, 0u, 0u, 0u, 0u, {{ step.writes | length }}u, {
+{%- for addr_macro, value_hex in step.writes %}
+        { {{ addr_macro }}, {{ value_hex }} },
 {%- endfor %}
-};
-
-{%- endif %}
-{% endfor -%}
-static const pll_mini_step_t pll_mini_steps[] = {
-{% for step in config_steps -%}
-{%- if step.kind == "write" %}
-    /* {{ step.comment }} */
-    { PLL_MINI_STEP_WRITE, {{ step.addr_macro }}, {{ step.parts_array_name }},
-      sizeof({{ step.parts_array_name }}) / sizeof({{ step.parts_array_name }}[0]),
-      {{ step.value_hex }}, 0u, 0u },
-{%- elif step.kind == "wait_lock" %}
-    /* {{ step.comment }} */
-    { PLL_MINI_STEP_WAIT_LOCK, {{ step.addr_macro }}, NULL, 0u, 0u,
-      {{ step.lock_mask_hex }}, {{ step.timeout_us }}u },
+{%- set pad = 4 - step.writes | length %}
+{%- for _ in range(pad) %}
+        { 0u, 0u },
+{%- endfor %}
+    } },
 {%- endif %}
 {% endfor -%}
 };
@@ -72,17 +78,74 @@ static int pll_mini_wait_lock(uint32_t addr, uint32_t lock_mask, uint32_t timeou
     return -1;
 }
 
+static void pll_mini_config_div(
+    uint32_t addr_ctrl,
+    uint32_t word_rst_assert,
+    uint32_t word_program,
+    uint32_t word_load_assert)
+{
+    {{ settings.reg_write_fn }}(addr_ctrl, word_rst_assert);
+    {{ settings.reg_write_fn }}(addr_ctrl, word_program);
+    {{ settings.reg_write_fn }}(addr_ctrl, word_load_assert);
+}
+
+static void pll_mini_config_dto(
+    const pll_mini_reg_pair_t *pairs,
+    size_t pair_count)
+{
+    size_t i;
+
+    for (i = 0u; i < pair_count; i++)
+        {{ settings.reg_write_fn }}(pairs[i].addr, pairs[i].value);
+}
+
+static void pll_mini_config_gate(uint32_t addr, uint32_t value)
+{
+    {{ settings.reg_write_fn }}(addr, value);
+}
+
+static void pll_mini_config_mux(uint32_t addr, uint32_t sel)
+{
+    {{ settings.reg_write_fn }}(addr, sel);
+}
+
+static void pll_mini_config_pll(void)
+{
+{% for w in config_plan.pll_writes -%}
+    /* {{ w.comment }} */
+    {{ settings.reg_write_fn }}({{ w.addr_macro }}, {{ w.value_hex }});
+{% endfor -%}
+{% for w in config_plan.pll_wait_locks -%}
+    /* {{ w.comment }} */
+    (void)pll_mini_wait_lock({{ w.addr_macro }}, {{ w.lock_mask_hex }}, {{ w.timeout_us }}u);
+{% endfor -%}
+}
+
 void {{ settings.main_fn }}(void)
 {
     size_t i;
 
-    for (i = 0u; i < sizeof(pll_mini_steps) / sizeof(pll_mini_steps[0]); i++) {
-        const pll_mini_step_t *step = &pll_mini_steps[i];
+    pll_mini_config_pll();
 
-        if (step->kind == PLL_MINI_STEP_WRITE) {
-            {{ settings.reg_write_fn }}(step->addr, step->reg_word);
-        } else {
-            (void)pll_mini_wait_lock(step->addr, step->lock_mask, step->timeout_us);
+    for (i = 0u; i < sizeof(pll_mini_dev_steps) / sizeof(pll_mini_dev_steps[0]); i++) {
+        const pll_mini_dev_step_t *step = &pll_mini_dev_steps[i];
+
+        switch (step->kind) {
+        case PLL_MINI_DEV_DIV:
+            pll_mini_config_div(
+                step->addr, step->word0, step->word1, step->word2);
+            break;
+        case PLL_MINI_DEV_DTO:
+            pll_mini_config_dto(step->dto_pairs, step->dto_count);
+            break;
+        case PLL_MINI_DEV_GATE:
+            pll_mini_config_gate(step->addr, step->word0);
+            break;
+        case PLL_MINI_DEV_MUX:
+            pll_mini_config_mux(step->addr, step->word0);
+            break;
+        default:
+            break;
         }
     }
 }

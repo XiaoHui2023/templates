@@ -101,7 +101,6 @@ class PllWaitLock:
 
 @dataclass(frozen=True)
 class DivDevStep:
-    dev_kind: Literal["div"] = "div"
     node_name: str
     addr_macro: str
     word_rst_assert_hex: str
@@ -109,13 +108,20 @@ class DivDevStep:
     word_load_assert_hex: str
     comment: str
 
+    @property
+    def dev_kind(self) -> Literal["div"]:
+        return "div"
+
 
 @dataclass(frozen=True)
 class DtoDevStep:
-    dev_kind: Literal["dto"] = "dto"
     node_name: str
     writes: tuple[tuple[str, str], ...]
     comment: str
+
+    @property
+    def dev_kind(self) -> Literal["dto"]:
+        return "dto"
 
 
 @dataclass(frozen=True)
@@ -125,6 +131,10 @@ class GateDevStep:
     value_hex: str
     comment: str
 
+    @property
+    def dev_kind(self) -> Literal["gate"]:
+        return "gate"
+
 
 @dataclass(frozen=True)
 class MuxDevStep:
@@ -132,6 +142,10 @@ class MuxDevStep:
     addr_macro: str
     value_hex: str
     comment: str
+
+    @property
+    def dev_kind(self) -> Literal["mux"]:
+        return "mux"
 
 
 DevStep = DivDevStep | DtoDevStep | GateDevStep | MuxDevStep
