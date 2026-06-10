@@ -8,6 +8,7 @@ trees:
     nodes:
       osc:
         kind: source
+        freq: 24000000
       pll0:
         kind: pll
         source: osc
@@ -16,6 +17,7 @@ trees:
       clk_cpu:
         kind: clk
         source: pll0
+        freq: 1000000000
 settings:
   class_prefix: chip_clk_
 ```
@@ -145,16 +147,18 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | | 节点类型。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `freq` | `optional int` | | 典型频率，单位 Hz。 |
 
 #### source
 
-除公共字段外无额外键。
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `freq` | `int` | | 典型频率，单位 Hz。 |
 
 #### pll
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 参考时钟前级引用。 |
 | `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。 |
 | `output_count` | `int` | `1` | 有几路输出。仅 `inno` 可用。 |
@@ -164,6 +168,7 @@ settings:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 前级引用。 |
 
 #### gate

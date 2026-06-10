@@ -79,35 +79,30 @@
 
 ![subject 节点视角：强调穿过 subject 节点的支路](images/test_route.drawio.svg)
 
-为避免多路选择切换后频率不变、无法区分支路，起步须令各 **div**、**dto** 分频比为 1，各 **PLL** 在 YAML 中配置不同 **frequence**，且与晶振频率不同。
+为使多路选择切换后频率可区分，调用前环境宜令各 **div**、**dto** 分频比为 1，各 **PLL** 在 YAML 中配置不同 **frequence**，且与晶振频率不同；基线 **fix_***、**config_reg**、**check_freq** 由测试平台在 **test_route** 之前完成。
 
 ### 具体方法
 
-1. **初始固定**：全部 **gate** 的 **fix_open** 为 1；全部 **div**、**dto** 的 **fix_ratio** 为 1；各 **mux** 的 **fix_sel** 指向可达任一 **clk** 的前级支路。**config_reg** 写整树寄存器前对 **tree** 执行一次 **randomize**。
-2. **check_freq**：**quiet** 为 1；失败则 **fatal** 结束。
-3. **clk** 有效性：**always_active_clk_nodes** 非空时，所列 **clk** 的 **valid** 须均为真；为空时 **tree.nodes** 中全部 **clk** 均须为真，否则 **fatal**。
-4. **结构探测**：全部 **clk** 的 **unfix_frequence** 为 1；**unfix_enabled** 为 0 仅当该 **clk** 在 **always_active_clk_nodes** 中，或 **always_active_clk_nodes** 为空时作用于全部 **clk**。作为必启 **clk** 前级的 **gate**、**mux** 不作为 **subject** 探测。对其余已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
-   1. 用 **get_nodes_before** / **get_nodes_after** 收集该节点在对应方向上的 **gate**、**mux**、**div**、**dto** 线列表，不含自身。
-   2. 遍历**自身**可选状态：门控开与关、多路选择各 **sel**、分频比 1 与 2；探测时暂时放开 **fix_***，结束后恢复。
-   3. 对每个自身状态，对线上其它节点做排列组合，**config_reg** 整树、**quiet** 为 1，再 **check_freq** 全树；**always_active_clk_nodes** 非空且当前组合会使所列 **clk** 失活时跳过该组合，不 **check_freq**；其余失败则 **fatal**。
-   4. 该方向完成后从已存控制量快照恢复并写回寄存器，再测下一节点。
+**结构探测**：全部 **clk** 的 **unfix_frequence** 为 1；**unfix_enabled** 为 0 仅当该 **clk** 在 **always_active_clk_nodes** 中，或 **always_active_clk_nodes** 为空时作用于全部 **clk**。作为必启 **clk** 前级的 **gate**、**mux** 不作为 **subject** 探测。对其余已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
+
+1. 用 **get_nodes_before** / **get_nodes_after** 收集该节点在对应方向上的 **gate**、**mux**、**div**、**dto** 线列表，不含自身。
+2. 遍历**自身**可选状态：门控开与关、多路选择各 **sel**、分频比 1 与 2；探测时暂时放开 **fix_***，结束后恢复。
+3. 对每个自身状态，对线上其它节点做排列组合，**config_reg** 整树、**quiet** 为 1，再 **check_freq** 全树；**always_active_clk_nodes** 非空且当前组合会使所列 **clk** 失活时跳过该组合，不 **check_freq**；其余失败则 **fatal**。
+4. 该方向完成后从已存控制量快照恢复并写回寄存器，再测下一节点。
 
 核心辅助函数在 **core/route_structure.sv**。
 
 ### 控制台进度
 
-**quiet** 为 0 时，**uvm_info** 按四段主流程与探测细目分行输出，便于对照仿真时间轴：
+**quiet** 为 0 时，**uvm_info** 按结构探测与细目分行输出，便于对照仿真时间轴：
 
 | 阶段 | 内容 |
 | --- | --- |
 | 开头 | **tree** 名字、**always_active_clk_nodes** 名单或「全部 **clk** 须活动」 |
-| **[1/4]** | 初始 **fix_*** |
-| **[2/4]** | 基线 **config_reg**、**check_freq** |
-| **[3/4]** | **clk** 有效性结论 |
-| **[4/4]** | 过滤必启 **clk** 通路上的 **gate** / **mux** **subject**；对其余 **subject** 分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
+| 探测 | 过滤必启 **clk** 通路上的 **gate** / **mux** **subject**；对其余 **subject** 分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
 | 结尾 | 清除全部 **clk** **unfix_frequence** 与 **unfix_enabled**、恢复控制量、**config_reg**、通过汇总 |
 
-探测循环内 **config_reg** 恒 **quiet** 为 1，避免与上层进度行重复；基线与收尾 **config_reg** 跟随 **req.quiet**。
+探测循环内 **config_reg** 恒 **quiet** 为 1，避免与上层进度行重复；收尾 **config_reg** 跟随 **req.quiet**。
 
 ### 错误点与允许点分析
 
@@ -115,9 +110,7 @@
 
 | 错误点 | 使用者可见现象 | 覆盖方式 |
 | --- | --- | --- |
-| 初始频率不符 | **check_freq** 在步骤 2 失败 | **fatal**，不进入结构探测 |
-| 必启时钟无效 | **always_active_clk_nodes** 所列或全部 **clk** 的 **valid** 为 0 | 步骤 3 **fatal** |
-| 上下游结构错误 | 切换线节点后频率与模型不一致 | 步骤 4 **check_freq** 失败 → **fatal** |
+| 上下游结构错误 | 切换线节点后频率与模型不一致 | **check_freq** 失败 → **fatal** |
 | 寄存器未写入 | **config_reg** 失败 | **fatal** |
 
 #### 允许点
@@ -125,8 +118,8 @@
 | 允许点 | 含义或配置 | 测试行为 |
 | --- | --- | --- |
 | 串联门控顺序 | 同开同关的门控先后不影响频率 | 不单独验证顺序；线上组合只改变开闭与分频、**sel** |
-| 非必启时钟关断 | **always_active_clk_nodes** 未列入的 **clk** 可被门控或 **mux** 关断 | 步骤 4 跳过会使必启 **clk** 失活的组合 |
-| 必启通路上的门控与多路选择 | 改变该 **gate** / **mux** 可能关断必启 **clk** | 步骤 4 不作为 **subject** 探测 |
+| 非必启时钟关断 | **always_active_clk_nodes** 未列入的 **clk** 可被门控或 **mux** 关断 | 跳过会使必启 **clk** 失活的组合 |
+| 必启通路上的门控与多路选择 | 改变该 **gate** / **mux** 可能关断必启 **clk** | 不作为 **subject** 探测 |
 | 反相器 | 只改相位 | 不在线列表中，不参与组合 |
 
 #### 本 test 范围外
@@ -154,7 +147,7 @@
 
 ### 正确性
 
-在各支路频率可区分的前提下：步骤 2、3 保证度量前提成立；步骤 4 对每个节点的上游、下游分别用可控寄存器扰动线节点，若模型前后级与 RTL 一致，则 **check_freq** 应与当前 **open**、**sel**、**ratio** 传播后的 **_resolved_freq** 一致；局部均通过则各节点前后级与配置图一致。
+在各支路频率可区分且调用前基线度量已通过的前提下：对每个节点的上游、下游分别用可控寄存器扰动线节点，若模型前后级与 RTL 一致，则 **check_freq** 应与当前 **open**、**sel**、**ratio** 传播后的 **_resolved_freq** 一致；局部均通过则各节点前后级与配置图一致。
 
 ## 常用 operation 摘要
 
@@ -162,7 +155,7 @@
 
 | operation | 作用 | 与 **test** 关系 |
 | --- | --- | --- |
-| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 单独写寄存器；**check_freq**、**check_duty**、**check_flip**、**test_route** 开头亦会调用 |
+| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 单独写寄存器；**check_freq**、**check_duty**、**check_flip** 量测前亦会调用；**test_route** 在探测循环与收尾调用 |
 | **check_freq** | 已配置寄存器模型时先 **config_reg**，再量 **source** / **clk** / **pll** 频率对 **frequence** | 端到端用例在 **check_duty** 之前调用 |
 | **check_duty** | 已配置寄存器模型时先 **config_reg**，再量占空比对 **duty_min** / **duty_max** | 环境在 **kit** 上直接调用 |
 
@@ -199,7 +192,7 @@
 | 场景 | 配置要点 | 调用 |
 | --- | --- | --- |
 | 单树端到端 | `example.yaml` 各 **kind** 至少一个，部分节点带 **path**、部分节点带 **reg** 或 **regs** | **check_freq** → **check_duty** |
-| 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **test_route** |
+| 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **check_freq** 通过后 **test_route** |
 | 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **check_freq** 只看 **pll** |
 | 门控全关 | 多个 **gate** 串联，**open** 随机 | **check_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
 | 固定 mux | 节点 **path** + **reg**，**fix_sel** | **check_freq** 前 **sel** 不变，只应看到选定前级频率 |

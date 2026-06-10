@@ -35,6 +35,12 @@ _SOURCE_ENDPOINT = re.compile(
 PllKind = Literal["tci", "sc", "dw", "inno"]
 
 
+def _coerce_required_freq(value: Any) -> int:
+    if value is None or value == "":
+        raise ValueError("须填写 freq")
+    return int(value)
+
+
 def parse_source_endpoint(raw: str, *, ctx: str) -> tuple[str, int]:
     text = raw.strip()
     match = _SOURCE_ENDPOINT.match(text)
@@ -105,11 +111,6 @@ class NodeBase(BaseModel):
         "",
         description="RTL 层次路径，按 `.` 分隔。",
     )
-    freq: Optional[int] = Field(
-        None,
-        ge=1,
-        description="典型频率，单位 Hz。",
-    )
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由 source 或 mux.source 推导；YAML 与 model_validate 不可传入。",
@@ -147,13 +148,6 @@ class NodeBase(BaseModel):
                     f"path 段 {seg!r} 须为合法 SystemVerilog 名字，完整 path: {value!r}"
                 )
         return value
-
-    @field_validator("freq", mode="before")
-    @classmethod
-    def _coerce_freq(cls, value: Any) -> Any:
-        if value is None or value == "":
-            return None
-        return int(value)
 
 
 class GateNode(NodeBase):
@@ -217,10 +211,22 @@ class InvNode(NodeBase):
 
 class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
+    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_freq(cls, value: Any) -> Any:
+        return _coerce_required_freq(value)
 
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
+    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_freq(cls, value: Any) -> Any:
+        return _coerce_required_freq(value)
     source: str = Field(
         ...,
         min_length=1,
@@ -267,7 +273,13 @@ class PllNode(NodeBase):
 
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
+    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
     source: str = Field(..., min_length=1, description="前级引用。")
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_freq(cls, value: Any) -> Any:
+        return _coerce_required_freq(value)
 
 
 class MuxNode(NodeBase):

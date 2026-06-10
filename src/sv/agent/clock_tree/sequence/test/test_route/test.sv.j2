@@ -248,35 +248,6 @@ task {{ settings.class_prefix }}test_route_seq::body();
                 UVM_LOW)
     end
 
-    if (!rq.quiet)
-        `uvm_info("CLK_TREE",
-            "test_route: [1/4] initial fixes — gates open, div/dto ratio 1, mux toward clk",
-            UVM_LOW)
-    {{ settings.class_prefix }}route_structure_apply_initial_fixes(tree);
-
-    if (!rq.quiet)
-        `uvm_info("CLK_TREE",
-            "test_route: [2/4] baseline config_reg + check_freq", UVM_LOW)
-    run_config_reg(tree, rq.quiet);
-    run_check_freq_quiet(tree);
-
-    if (rq.always_active_clk_nodes.size() > 0) begin
-        if (!{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
-                rq.always_active_clk_nodes))
-            `uvm_fatal("CLK_TREE",
-                "test_route: always_active clk nodes not active after initial config_reg")
-        if (!rq.quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "test_route: [3/4] always_active clk active — %s", req_clk_names), UVM_LOW)
-    end else begin
-        if (!{{ settings.class_prefix }}route_structure_all_clocks_valid(tree))
-            `uvm_fatal("CLK_TREE",
-                "test_route: not all clk nodes are active after initial config_reg")
-        if (!rq.quiet)
-            `uvm_info("CLK_TREE",
-                "test_route: [3/4] all clk nodes active", UVM_LOW)
-    end
-
     {{ settings.class_prefix }}route_structure_collect_probe_subjects(tree, subjects);
     if (subjects.size() == 0)
         `uvm_fatal("CLK_TREE",
@@ -302,7 +273,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
         subject_names = {{ settings.class_prefix }}route_structure_format_node_names(
             probe_subjects);
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: [4/4] structure probe — %0d subject(s): %s",
+            "test_route: structure probe — %0d subject(s): %s",
             probe_subjects.size(), subject_names), UVM_LOW)
     end
 

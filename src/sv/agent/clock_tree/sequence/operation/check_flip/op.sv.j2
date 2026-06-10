@@ -179,7 +179,11 @@ task {{ settings.class_prefix }}check_flip_seq::body();
                 "check_flip: subject %s is not div or dto", subjects[i].get_name()))
     end
 
-    {{ settings.class_prefix }}route_structure_clear_clk_unfix_frequence(tree);
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE",
+            "check_flip: clear fix/unfix + config_reg", UVM_LOW)
+    {{ settings.class_prefix }}route_structure_clear_all_fix(tree);
+    run_config_reg(tree, rq.quiet);
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE", $sformatf(

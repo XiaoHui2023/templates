@@ -87,20 +87,18 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endfor %}
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
-{%- if node.freq is not none %}
 {%- if node.kind in ["clk", "pll", "source"] %}
 {%- if node.sv_is_array %}
 {%- for i in range(node.output_count) %}
         {{ node.name }}[{{ i }}].frequence = {{ node.freq }};
 {%- if node.kind == "clk" %}
-        {{ node.name }}[{{ i }}].enabled = {{ 1 if node.freq > 0 else 0 }};
+        {{ node.name }}[{{ i }}].enabled = 1;
 {%- endif %}
 {%- endfor %}
 {%- else %}
         {{ node.name }}.frequence = {{ node.freq }};
 {%- if node.kind == "clk" %}
-        {{ node.name }}.enabled = {{ 1 if node.freq > 0 else 0 }};
-{%- endif %}
+        {{ node.name }}.enabled = 1;
 {%- endif %}
 {%- endif %}
 {%- endif %}

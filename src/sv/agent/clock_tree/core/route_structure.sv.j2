@@ -187,87 +187,6 @@ function automatic bit {{ settings.class_prefix }}route_structure_is_ancestor_of
     return 1'b0;
 endfunction
 
-// 选能到达 target 的 mux 输入键，无则取最小键
-function automatic int {{ settings.class_prefix }}route_structure_mux_sel_toward(
-        {{ settings.class_prefix }}mux mux_nd,
-        {{ settings.class_prefix }}node_base target);
-    int keys[$];
-    if (mux_nd == null || target == null)
-        return -1;
-    foreach (mux_nd.to_source[k])
-        keys.push_back(k);
-    keys.sort();
-    foreach (keys[i]) begin
-        if (mux_nd.to_source[keys[i]] != null
-                && {{ settings.class_prefix }}route_structure_is_ancestor_of(
-                    mux_nd.to_source[keys[i]], target))
-            return keys[i];
-    end
-    if (keys.size() > 0)
-        return keys[0];
-    return -1;
-endfunction
-
-// 各 mux 选向任一 clk 节点的输入
-function automatic void {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}node_base clk_nd;
-    int sel_pick;
-    if (tree == null)
-        return;
-    foreach (tree.nodes[i]) begin
-        if (!$cast(mux_nd, tree.nodes[i]))
-            continue;
-        sel_pick = -1;
-        foreach (tree.nodes[j]) begin
-            if (tree.nodes[j] == null || tree.nodes[j].kind != "clk")
-                continue;
-            clk_nd = tree.nodes[j];
-            sel_pick = {{ settings.class_prefix }}route_structure_mux_sel_toward(
-                mux_nd, clk_nd);
-            if (sel_pick >= 0)
-                break;
-        end
-        if (sel_pick < 0)
-            continue;
-{%- if enable_node_fix %}
-        mux_nd.fix_sel = sel_pick;
-{%- endif %}
-        {{ settings.class_prefix }}route_structure_set_mux_sel(mux_nd, sel_pick, 1'b0);
-    end
-endfunction
-
-// 设 gate/div/dto 初始 fix 与初值，再设 mux 通向 clk
-function automatic void {{ settings.class_prefix }}route_structure_apply_initial_fixes(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}gate gate_nd;
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
-    if (tree == null)
-        return;
-    foreach (tree.nodes[i]) begin
-        if ($cast(gate_nd, tree.nodes[i])) begin
-{%- if enable_node_fix %}
-            gate_nd.fix_open = 1'b1;
-            gate_nd.fix_close = 1'b0;
-{%- endif %}
-            gate_nd.open = 1'b1;
-        end else if ($cast(div_nd, tree.nodes[i])) begin
-{%- if enable_node_fix %}
-            div_nd.fix_ratio = 1;
-{%- endif %}
-            div_nd.ratio = 1;
-        end else if ($cast(dto_nd, tree.nodes[i])) begin
-{%- if enable_node_fix %}
-            dto_nd.fix_ratio = 1;
-{%- endif %}
-            dto_nd.ratio = 1;
-        end
-    end
-    {{ settings.class_prefix }}route_structure_apply_mux_toward_clks(tree);
-endfunction
-
 // 仅保留寄存器已绑定的 line 节点
 function automatic void {{ settings.class_prefix }}route_structure_filter_line_regs(
         {{ settings.class_prefix }}node_base line[$],
@@ -624,20 +543,31 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unf
     {{ settings.class_prefix }}route_structure_clear_clk_unfix_enabled(tree);
 endfunction
 
-// 全部 clk 节点 _resolved_active 为真
-function automatic bit {{ settings.class_prefix }}route_structure_all_clocks_valid(
+// 清除整树 fix_* 与 clk unfix_*，恢复自然约束求解
+function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix(
         {{ settings.class_prefix }}tree_base tree);
+{%- if enable_node_fix %}
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}dto dto_nd;
+
     if (tree == null)
-        return 1'b0;
+        return;
+    {{ settings.class_prefix }}route_structure_clear_clk_unfix(tree);
     foreach (tree.nodes[i]) begin
-        if (tree.nodes[i] == null)
-            continue;
-        if (tree.nodes[i].kind != "clk")
-            continue;
-        if (!tree.nodes[i]._resolved_active)
-            return 1'b0;
+        if ($cast(gate_nd, tree.nodes[i])) begin
+            gate_nd.fix_open = 1'b0;
+            gate_nd.fix_close = 1'b0;
+        end else if ($cast(mux_nd, tree.nodes[i])) begin
+            mux_nd.fix_sel = -1;
+        end else if ($cast(div_nd, tree.nodes[i])) begin
+            div_nd.fix_ratio = 0;
+        end else if ($cast(dto_nd, tree.nodes[i])) begin
+            dto_nd.fix_ratio = 0;
+        end
     end
-    return 1'b1;
+{%- endif %}
 endfunction
 
 // always_active_clk_nodes 所列 clk 节点 _resolved_active 均为真

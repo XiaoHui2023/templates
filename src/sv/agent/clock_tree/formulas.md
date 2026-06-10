@@ -35,7 +35,7 @@ ratio = 2^25 / step
 
 ## pll
 
-输出 **f** 由 YAML **freq** 软约束或随机。**config_reg** 以参考节点 **f_ref** 与目标 **f** 反算各型号分频系数。
+输出 **f** 由 YAML **freq** 写入 **frequence**。**config_reg** 以参考节点 **f_ref** 与目标 **f** 反算各型号分频系数。
 
 ### tci
 
