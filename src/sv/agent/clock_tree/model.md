@@ -72,14 +72,14 @@ classDiagram
 
 ## clk
 
-观测用时钟节点。**cst_clk** 将 **frequence**、**enabled** 分别与 **_resolved_freq**、**_resolved_active** 绑定；**unfix_frequence**、**unfix_enabled** 为 1 时对应等式不施加。
+观测用时钟节点。**cst_clk** 将 **frequence**、**enabled** 分别与 **_resolved_freq**、**_resolved_active** 绑定；**unfix_frequence**、**unfix_enabled** 为 1 时对应等式不施加，为 0 时该字段随解析结果固定、不独立随机。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | frequence | longint | 频率，单位 Hz |
 | enabled | bit，rand | 是否活动 |
-| unfix_frequence | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **frequence**；由序列或环境赋值，不可经 YAML 配置 |
-| unfix_enabled | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **enabled**；由序列或环境赋值，不可经 YAML 配置 |
+| unfix_frequence | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **frequence**；由序列或环境赋值，不可由 YAML 配置 |
+| unfix_enabled | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **enabled**；由序列或环境赋值，不可由 YAML 配置 |
 
 ## pll_base
 

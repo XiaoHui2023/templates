@@ -30,6 +30,7 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
         {{ settings.class_prefix }}node_base stored_nodes[$],
         {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$],
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
+        {{ settings.class_prefix }}node_base pinned_gate_mux[$],
         bit quiet,
         int subject_idx,
         int subject_total);
@@ -96,6 +97,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
         {{ settings.class_prefix }}node_base stored_nodes[$],
         {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$],
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
+        {{ settings.class_prefix }}node_base pinned_gate_mux[$],
         bit quiet,
         int subject_idx,
         int subject_total);
@@ -124,6 +126,8 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
         {{ settings.class_prefix }}route_structure_collect_downstream_line(tree, subject, line);
         dir_label = "downstream";
     end
+    {{ settings.class_prefix }}route_structure_filter_pinned_gate_mux_from_line(
+        line, pinned_gate_mux);
 
     line_snaps_nodes = line;
     save_ctrl_snap(line_snaps_nodes, line_snaps);
@@ -216,8 +220,10 @@ task {{ settings.class_prefix }}test_route_seq::body();
     {{ settings.class_prefix }}node_base subjects[$];
     {{ settings.class_prefix }}node_base probe_subjects[$];
     {{ settings.class_prefix }}node_base stored_nodes[$];
+    {{ settings.class_prefix }}node_base pinned_gate_mux[$];
     {{ settings.class_prefix }}route_ctrl_snap_t stored_snaps[$];
     string req_clk_names;
+    string pinned_names;
     string subject_names;
     int i;
 
@@ -252,13 +258,21 @@ task {{ settings.class_prefix }}test_route_seq::body();
         `uvm_fatal("CLK_TREE",
             "test_route: no gate/mux/div/dto nodes with bound regs")
 
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE",
+            "test_route: baseline config_reg — path gate/mux from post-config state",
+            UVM_LOW)
+    run_config_reg(tree, rq.quiet);
+
+    {{ settings.class_prefix }}route_structure_collect_always_active_upstream_gate_mux(
+        tree, rq.always_active_clk_nodes, pinned_gate_mux);
+
     probe_subjects.delete();
     foreach (subjects[i]) begin
-        if ({{ settings.class_prefix }}route_structure_probe_subject_skipped_for_always_active(
-                subjects[i], rq.always_active_clk_nodes)) begin
+        if ({{ settings.class_prefix }}node_in_queue(subjects[i], pinned_gate_mux)) begin
             if (!rq.quiet)
                 `uvm_info("CLK_TREE", $sformatf(
-                    "test_route: skip subject %s (%s) — on path to always_active clk",
+                    "test_route: skip subject %s (%s) — on selected path to always_active clk",
                     subjects[i].get_name(), subjects[i].kind), UVM_LOW)
             continue;
         end
@@ -269,6 +283,13 @@ task {{ settings.class_prefix }}test_route_seq::body();
             "test_route: no probe subjects after always_active gate/mux filter")
 
     if (!rq.quiet) begin
+        if (pinned_gate_mux.size() > 0) begin
+            pinned_names = {{ settings.class_prefix }}route_structure_format_node_names(
+                pinned_gate_mux);
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_route: pin path gate/mux (%0d): %s",
+                pinned_gate_mux.size(), pinned_names), UVM_LOW)
+        end
         subject_names = {{ settings.class_prefix }}route_structure_format_node_names(
             probe_subjects);
         `uvm_info("CLK_TREE", $sformatf(
@@ -281,12 +302,17 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
         tree, rq.always_active_clk_nodes);
+    {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(pinned_gate_mux);
+    save_ctrl_snap(stored_nodes, stored_snaps);
+    run_config_reg(tree, 1'b1);
 
     for (i = 0; i < probe_subjects.size(); i++) begin
         verify_one_direction(tree, probe_subjects[i], 1'b1, stored_nodes, stored_snaps,
-            rq.always_active_clk_nodes, rq.quiet, i, probe_subjects.size());
+            rq.always_active_clk_nodes, pinned_gate_mux, rq.quiet, i,
+            probe_subjects.size());
         verify_one_direction(tree, probe_subjects[i], 1'b0, stored_nodes, stored_snaps,
-            rq.always_active_clk_nodes, rq.quiet, i, probe_subjects.size());
+            rq.always_active_clk_nodes, pinned_gate_mux, rq.quiet, i,
+            probe_subjects.size());
     end
 
     if (!rq.quiet)

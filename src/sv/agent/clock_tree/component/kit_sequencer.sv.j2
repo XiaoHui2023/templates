@@ -31,7 +31,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     extern task test_flip({{ settings.class_prefix }}tree_base tree = null);
     // 配置寄存器并遍历路由组合
     // tree — 时钟树句柄，空则用 kit.tree
-    // always_active_clk_nodes — 须全程保持活动的 clk 句柄；空则要求全部 clk 活动；探测时仅固定其 enabled
+    // always_active_clk_nodes — 须全程活动的 clk；test_route 先 config_reg 再据选通链 fix 上游 gate/mux
     extern task test_route(
         {{ settings.class_prefix }}tree_base tree = null,
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$] = {});

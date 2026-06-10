@@ -113,11 +113,11 @@
 
 ![subject 节点视角：强调穿过 subject 节点的支路](images/test_route.drawio.svg)
 
-为使多路选择切换后频率可区分，调用前环境宜令各 **div**、**dto** 分频比为 1，各 **PLL** 在 YAML 中配置不同 **frequence**，且与晶振频率不同；基线 **fix_***、**config_reg**、**check_freq** 由测试平台在 **test_route** 之前完成。
+为使多路选择切换后频率可区分，调用前环境宜令各 **div**、**dto** 分频比为 1，各 **PLL** 在 YAML 中配置不同 **frequence**，且与晶振频率不同。
 
 ### 具体方法
 
-**结构探测**：全部 **clk** 的 **unfix_frequence** 为 1；**unfix_enabled** 为 0 仅当该 **clk** 在 **always_active_clk_nodes** 中，或 **always_active_clk_nodes** 为空时作用于全部 **clk**。作为必启 **clk** 前级的 **gate**、**mux** 不作为 **subject** 探测。对其余已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
+**结构探测** 开头先 **config_reg** 定基线，使 **mux** **sel** 与 **source** 链与寄存器一致；**always_active_clk_nodes** 所列必启通路上的 **gate**、**mux** 在此之后判定。全部 **clk** 的 **unfix_frequence** 为 1；**unfix_enabled** 为 0 时 **enabled** 随 **_resolved_active** 固定。该值为 0 作用于所列 **clk**，或列表为空时作用于全部 **clk**；列表非空时未列入的 **clk** **unfix_enabled** 为 1。自各必启 **clk** 沿配置后的 **source** 选通链向上收集 **gate**、**mux**；所列节点不作为 **subject**，**gate** 设 **fix_open**、**mux** 以此时 **sel** 设 **fix_sel**，全程不变且不出现在其它 **subject** 的线组合里。对其余已绑寄存器的 **gate**、**mux**、**div**、**dto** 节点，分别做**上游**与**下游**探测：
 
 1. 用 **get_nodes_before** / **get_nodes_after** 收集该节点在对应方向上的 **gate**、**mux**、**div**、**dto** 线列表，不含自身。
 2. 遍历**自身**可选状态：门控开与关、多路选择各 **sel**、分频比 1 与 2；探测时暂时放开 **fix_***，结束后恢复。
@@ -132,8 +132,8 @@
 
 | 阶段 | 内容 |
 | --- | --- |
-| 开头 | **tree** 名字、**always_active_clk_nodes** 名单或「全部 **clk** 须活动」 |
-| 探测 | 过滤必启 **clk** 通路上的 **gate** / **mux** **subject**；对其余 **subject** 分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
+| 开头 | **tree** 名字、**always_active_clk_nodes** 名单或「全部 **clk** 须活动」；基线 **config_reg** 后列出须 **fix** 的选通链 **gate** / **mux** |
+| 探测 | 列出须 **fix** 的上游 **gate** / **mux**；过滤其 **subject** 与线组合；对其余 **subject** 分别打 **upstream** / **downstream**、线上节点、自身变体与线组合、**check_freq** 或跳过原因；段末汇总运行与跳过次数 |
 | 结尾 | **route_structure_clear_all_fix** 后 **config_reg**；**clk** 的 **frequence**、**enabled** 重新受 **cst_clk** 约束，通过汇总 |
 
 探测循环内 **config_reg** 恒 **quiet** 为 1，避免与上层进度行重复；收尾 **config_reg** 跟随 **req.quiet**。
@@ -153,7 +153,7 @@
 | --- | --- | --- |
 | 串联门控顺序 | 同开同关的门控先后不影响频率 | 不单独验证顺序；线上组合只改变开闭与分频、**sel** |
 | 非必启时钟关断 | **always_active_clk_nodes** 未列入的 **clk** 可被门控或 **mux** 关断 | 跳过会使必启 **clk** 失活的组合 |
-| 必启通路上的门控与多路选择 | 改变该 **gate** / **mux** 可能关断必启 **clk** | 不作为 **subject** 探测 |
+| 必启 **clk** 选通链上的门控与多路选择 | 改变该 **gate** / **mux** 可能关断必启 **clk** | 不作为 **subject**；**fix_open** / **fix_sel** 锁定，不参与线组合 |
 | 反相器 | 只改相位 | 不在线列表中，不参与组合 |
 
 #### 本 test 范围外

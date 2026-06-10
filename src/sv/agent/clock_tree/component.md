@@ -6,65 +6,65 @@
 
 | 键 | 类型 | 说明 |
 | --- | --- | --- |
-| `tree` | **tree_base** | 测试平台创建 **tree**、**build** 绑定寄存器模型、**connect_{name}_tree** 挂 **vif** 后写入 **agent**；**build_phase** 赋给 **sqr.tree** |
+| `tree` | **tree_base** | **build**、**connect_{name}_tree** 完成后写入 **agent**；**build_phase** 赋 **sqr.tree** |
 
 ## 快捷函数
 
-在 **agent.sqr** 上调用同名 **task**；失败则中止。
+**tree** 默认空则用 **sqr.tree**。
 
 ### config_reg
 
-按树节点把目标值写入寄存器模型。配置 **class_regmodel** 且节点绑定了 **regs** 时才会生成。
+按树节点写寄存器模型。配置 **class_regmodel** 且节点绑定了 **regs** 时生成。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 待处理整棵树；空则用 **sqr.tree** |
+| **tree** | **tree_base** | 空 | |
 
 ### check_freq
 
-量 **source**、**clk**、**pll** 波形频率，与节点 **frequence** 比较。至少一处节点配置 **path** 时才会生成。
+量 **source**、**clk**、**pll** 频率。至少一处节点配置 **path** 时生成。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 待量测整棵树；空则用 **sqr.tree** |
+| **tree** | **tree_base** | 空 | |
 
 ### check_duty
 
-量带 **vif** 节点的占空比，与 **settings** 中 **duty_min**、**duty_max** 闭区间比较。至少一处节点配置 **path** 时才会生成。
+量带 **vif** 节点占空比。至少一处节点配置 **path** 时生成。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 待量测整棵树；空则用 **sqr.tree** |
+| **tree** | **tree_base** | 空 | |
 
 ### test_freq
 
-先 **config_reg**，再 **check_freq**。**path** 与 **regs** 均配置时才会生成。
+**config_reg** 后 **check_freq**。**path** 与 **regs** 均配置时生成。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 待测整棵树；空则用 **sqr.tree** |
+| **tree** | **tree_base** | 空 | |
 
 ### test_duty
 
-先 **config_reg**，再 **check_duty**。**path** 与 **regs** 均配置时才会生成。
+**config_reg** 后 **check_duty**。**path** 与 **regs** 均配置时生成。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 待测整棵树；空则用 **sqr.tree** |
+| **tree** | **tree_base** | 空 | |
 
 ### test_flip
 
-写寄存器后对 **div**、**dto** 做分频比翻转探测。**route_test_enabled** 为真时才会生成。
+**div**、**dto** 分频比翻转探测。**route_test_enabled** 为真时生成。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 待测整棵树；空则用 **sqr.tree** |
+| **tree** | **tree_base** | 空 | |
 
 ### test_route
 
-写寄存器后遍历路由组合做结构探测。**route_test_enabled** 为真时才会生成。
+路由组合结构探测。**route_test_enabled** 为真时生成。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 待测整棵树；空则用 **sqr.tree** |
-| **always_active_clk_nodes** | **node_base** 队列 | 空队列 | 须全程保持活动的 **clk** 节点；空则要求全部 **clk** 活动；探测时只固定其 **enabled** |
+| **tree** | **tree_base** | 空 | |
+| **always_active_clk_nodes** | **node_base** 队列 | 空队列 | 全程活动的 **clk**；空为全部；**test_route** 开头 **config_reg** 后沿选通链定上游 **gate** / **mux** 并 **fix** 锁定；所列 **clk** **unfix_frequence** 为 1、**unfix_enabled** 为 0 |
