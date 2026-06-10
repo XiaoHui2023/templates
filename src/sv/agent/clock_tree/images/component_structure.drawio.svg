@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="820px" height="340px" viewBox="0 0 820 340" content="&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;templates&quot; version=&quot;24.0.0&quot;&gt;
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="620px" height="300px" viewBox="0 0 620 300" content="&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;templates&quot; version=&quot;24.0.0&quot;&gt;
   &lt;diagram id=&quot;component-structure&quot; name=&quot;Page-1&quot;&gt;
     &lt;mxGraphModel dx=&quot;1100&quot; dy=&quot;700&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;827&quot; pageHeight=&quot;1169&quot; math=&quot;0&quot; shadow=&quot;0&quot;&gt;
       &lt;root&gt;
@@ -25,76 +25,37 @@
           &lt;mxGeometry x=&quot;76&quot; y=&quot;100&quot; width=&quot;120&quot; height=&quot;28&quot; as=&quot;geometry&quot;/&gt;
         &lt;/mxCell&gt;
 
-        &lt;mxCell id=&quot;main_tree&quot; value=&quot;main_tree&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2980b9;fontStyle=1;verticalAlign=top;spacingTop=8;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;60&quot; y=&quot;200&quot; width=&quot;120&quot; height=&quot;72&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;main_tree_sub&quot; value=&quot;tree_base&quot; style=&quot;text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontColor=#555555;fontSize=11;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;60&quot; y=&quot;244&quot; width=&quot;120&quot; height=&quot;20&quot; as=&quot;geometry&quot;/&gt;
+        &lt;mxCell id=&quot;tree_inst&quot; value=&quot;tree&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2980b9;align=center;verticalAlign=middle;fontStyle=1;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;60&quot; y=&quot;200&quot; width=&quot;100&quot; height=&quot;48&quot; as=&quot;geometry&quot;/&gt;
         &lt;/mxCell&gt;
 
-        &lt;mxCell id=&quot;u_agent&quot; value=&quot;agent&quot; style=&quot;swimlane;rounded=1;whiteSpace=wrap;html=1;fillColor=#d5f5e3;strokeColor=#27ae60;startSize=28;fontStyle=0;childLayout=stackLayout;horizontal=1;horizontalStack=0;resizeParent=1;resizeLast=0;collapsible=0;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;260&quot; y=&quot;160&quot; width=&quot;280&quot; height=&quot;200&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;u_agent_inst&quot; value=&quot;u_agent&quot; style=&quot;text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=15;&quot; vertex=&quot;1&quot; parent=&quot;u_agent&quot;&gt;
-          &lt;mxGeometry x=&quot;0&quot; y=&quot;28&quot; width=&quot;280&quot; height=&quot;30&quot; as=&quot;geometry&quot;/&gt;
+        &lt;mxCell id=&quot;u_agent&quot; value=&quot;agent&quot; style=&quot;swimlane;rounded=1;whiteSpace=wrap;html=1;fillColor=#d5f5e3;strokeColor=#27ae60;startSize=28;fontStyle=0;collapsible=0;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;240&quot; y=&quot;170&quot; width=&quot;220&quot; height=&quot;110&quot; as=&quot;geometry&quot;/&gt;
         &lt;/mxCell&gt;
 
-        &lt;mxCell id=&quot;sqr&quot; value=&quot;sqr&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#fdebd0;strokeColor=#e67e22;fontStyle=1;verticalAlign=top;spacingTop=6;&quot; vertex=&quot;1&quot; parent=&quot;u_agent&quot;&gt;
-          &lt;mxGeometry x=&quot;30&quot; y=&quot;70&quot; width=&quot;220&quot; height=&quot;108&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;sqr_tree&quot; value=&quot;tree&quot; style=&quot;text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontColor=#555555;fontSize=12;&quot; vertex=&quot;1&quot; parent=&quot;u_agent&quot;&gt;
-          &lt;mxGeometry x=&quot;30&quot; y=&quot;100&quot; width=&quot;220&quot; height=&quot;24&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;sqr_tools&quot; value=&quot;tools&quot; style=&quot;text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontColor=#555555;fontSize=12;&quot; vertex=&quot;1&quot; parent=&quot;u_agent&quot;&gt;
-          &lt;mxGeometry x=&quot;30&quot; y=&quot;124&quot; width=&quot;220&quot; height=&quot;24&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;sqr_core&quot; value=&quot;core_tools&quot; style=&quot;text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontColor=#888888;fontSize=11;&quot; vertex=&quot;1&quot; parent=&quot;u_agent&quot;&gt;
-          &lt;mxGeometry x=&quot;30&quot; y=&quot;148&quot; width=&quot;220&quot; height=&quot;20&quot; as=&quot;geometry&quot;/&gt;
+        &lt;mxCell id=&quot;sqr&quot; value=&quot;sqr&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#fdebd0;strokeColor=#e67e22;align=center;verticalAlign=middle;fontStyle=1;&quot; vertex=&quot;1&quot; parent=&quot;u_agent&quot;&gt;
+          &lt;mxGeometry x=&quot;50&quot; y=&quot;48&quot; width=&quot;120&quot; height=&quot;44&quot; as=&quot;geometry&quot;/&gt;
         &lt;/mxCell&gt;
 
-        &lt;mxCell id=&quot;caller&quot; value=&quot;测试平台调用&amp;#xa;&amp;#xa;config_reg&amp;#xa;check_freq / check_duty&amp;#xa;test_freq / test_duty&amp;#xa;test_flip / test_route&amp;#xa;&amp;#xa;agent.sqr 快捷 task&amp;#xa;tree 入参可空&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8e44ad;fontStyle=1;verticalAlign=top;spacingTop=8;align=center;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;600&quot; y=&quot;160&quot; width=&quot;220&quot; height=&quot;200&quot; as=&quot;geometry&quot;/&gt;
+        &lt;mxCell id=&quot;use_tip&quot; value=&quot;&quot; style=&quot;ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;520&quot; y=&quot;224&quot; width=&quot;1&quot; height=&quot;1&quot; as=&quot;geometry&quot;/&gt;
         &lt;/mxCell&gt;
 
-        &lt;mxCell id=&quot;e_cfg&quot; value=&quot;config_db&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;fontSize=11;fontColor=#555555;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;main_tree&quot; target=&quot;u_agent&quot;&gt;
+        &lt;mxCell id=&quot;e_cfg&quot; value=&quot;config_db&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;fontSize=11;fontColor=#555555;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;tree_inst&quot; target=&quot;u_agent&quot;&gt;
           &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
         &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e_use1&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#8e44ad;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;sqr&quot; target=&quot;caller&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;&gt;
-            &lt;Array as=&quot;points&quot;&gt;
-              &lt;mxPoint x=&quot;540&quot; y=&quot;250&quot;/&gt;
-              &lt;mxPoint x=&quot;540&quot; y=&quot;200&quot;/&gt;
-            &lt;/Array&gt;
-          &lt;/mxGeometry&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e_use2&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#8e44ad;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;sqr&quot; target=&quot;caller&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;&gt;
-            &lt;Array as=&quot;points&quot;&gt;
-              &lt;mxPoint x=&quot;540&quot; y=&quot;260&quot;/&gt;
-              &lt;mxPoint x=&quot;540&quot; y=&quot;240&quot;/&gt;
-            &lt;/Array&gt;
-          &lt;/mxGeometry&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e_use3&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#8e44ad;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;sqr&quot; target=&quot;caller&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;&gt;
-            &lt;Array as=&quot;points&quot;&gt;
-              &lt;mxPoint x=&quot;540&quot; y=&quot;270&quot;/&gt;
-              &lt;mxPoint x=&quot;540&quot; y=&quot;280&quot;/&gt;
-            &lt;/Array&gt;
-          &lt;/mxGeometry&gt;
+        &lt;mxCell id=&quot;e_use&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;sqr&quot; target=&quot;use_tip&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
         &lt;/mxCell&gt;
       &lt;/root&gt;
     &lt;/mxGraphModel&gt;
   &lt;/diagram&gt;
 &lt;/mxfile&gt;
 " style="background-color: rgb(248, 249, 252);">
-  <rect width="820" height="340" fill="#f8f9fc"/>
+  <rect width="620" height="300" fill="#f8f9fc"/>
   <defs>
     <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#1a1a2e"/>
-    </marker>
-    <marker id="arrUse" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#8e44ad"/>
     </marker>
   </defs>
   <rect x="24" y="24" width="28" height="20" rx="3" fill="#dbeafe" stroke="#2980b9" stroke-width="1.5"/>
@@ -103,27 +64,13 @@
   <text x="60" y="66" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#1a1a2e">agent</text>
   <rect x="24" y="80" width="28" height="20" rx="3" fill="#fdebd0" stroke="#e67e22" stroke-width="1.5"/>
   <text x="60" y="94" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#1a1a2e">kit_sequencer</text>
-  <rect x="48" y="148" width="120" height="72" rx="6" fill="#dbeafe" stroke="#2980b9" stroke-width="2"/>
-  <text x="108" y="180" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#2980b9">main_tree</text>
-  <text x="108" y="202" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#555">tree_base</text>
-  <rect x="248" y="100" width="280" height="200" rx="8" fill="#d5f5e3" stroke="#27ae60" stroke-width="2"/>
-  <text x="388" y="128" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#27ae60">agent</text>
-  <text x="388" y="148" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#1a1a2e">u_agent</text>
-  <rect x="278" y="168" width="220" height="108" rx="6" fill="#fdebd0" stroke="#e67e22" stroke-width="2"/>
-  <text x="388" y="192" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#e67e22">sqr</text>
-  <text x="388" y="216" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#555">tree</text>
-  <text x="388" y="238" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#555">tools</text>
-  <text x="388" y="260" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#888">core_tools</text>
-  <line x1="168" y1="184" x2="248" y2="184" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="208" y="174" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#555">config_db</text>
-  <line x1="498" y1="220" x2="568" y2="180" stroke="#8e44ad" stroke-width="1.5" marker-end="url(#arrUse)"/>
-  <line x1="498" y1="240" x2="568" y2="260" stroke="#8e44ad" stroke-width="1.5" marker-end="url(#arrUse)"/>
-  <rect x="568" y="100" width="220" height="200" rx="8" fill="#ffffff" stroke="#8e44ad" stroke-width="2"/>
-  <text x="678" y="128" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#8e44ad">测试平台调用</text>
-  <text x="678" y="158" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#555">config_reg</text>
-  <text x="678" y="180" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#555">check_freq / check_duty</text>
-  <text x="678" y="202" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#555">test_freq / test_duty</text>
-  <text x="678" y="224" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#555">test_flip / test_route</text>
-  <text x="678" y="256" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#888">agent.sqr 快捷 task</text>
-  <text x="678" y="278" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#888">tree 入参可空</text>
+  <rect x="48" y="178" width="100" height="48" rx="6" fill="#dbeafe" stroke="#2980b9" stroke-width="2"/>
+  <text x="98" y="206" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#2980b9">tree</text>
+  <rect x="228" y="148" width="220" height="110" rx="8" fill="#d5f5e3" stroke="#27ae60" stroke-width="2"/>
+  <text x="338" y="172" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#27ae60">agent</text>
+  <rect x="278" y="196" width="120" height="44" rx="6" fill="#fdebd0" stroke="#e67e22" stroke-width="2"/>
+  <text x="338" y="222" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#e67e22">sqr</text>
+  <line x1="148" y1="202" x2="228" y2="202" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="188" y="192" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#555">config_db</text>
+  <line x1="398" y1="218" x2="520" y2="218" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
 </svg>

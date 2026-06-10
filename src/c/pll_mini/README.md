@@ -96,4 +96,4 @@ settings:
 
 配置顺序与 clock_tree **config_reg** 相同：活动 **pll** 写寄存器后 **wait_lock**；活动 **div** 与 **dto**；打开的 **gate**；活动 **mux**；关闭的 **gate**。
 
-生成的 **pll_mini.c** 中每步寄存器写为已合并的整字常量 **reg_word**，并附各 field 切片的 **lsb**、**width**、**value** 注释行供核对。
+生成的 **pll_mini.c** 中 **pll_mini_config_pll** 按推算结果直接写死各 PLL 寄存器地址与整字常量；**div**、**dto**、**gate**、**mux** 各有一种 **pll_mini_config_*** 函数，文件上方 **pll_mini_dev_steps** 数组只列这些器件的地址与写入参数，**chip_pll_config** 先调 PLL 再按数组依次调用对应函数。

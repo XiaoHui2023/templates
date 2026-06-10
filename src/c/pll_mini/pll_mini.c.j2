@@ -111,14 +111,14 @@ static void pll_mini_config_mux(uint32_t addr, uint32_t sel)
 
 static void pll_mini_config_pll(void)
 {
-{% for w in config_plan.pll_writes -%}
+{% for w in config_plan.pll_writes %}
     /* {{ w.comment }} */
     {{ settings.reg_write_fn }}({{ w.addr_macro }}, {{ w.value_hex }});
-{% endfor -%}
-{% for w in config_plan.pll_wait_locks -%}
+{% endfor %}
+{% for w in config_plan.pll_wait_locks %}
     /* {{ w.comment }} */
     (void)pll_mini_wait_lock({{ w.addr_macro }}, {{ w.lock_mask_hex }}, {{ w.timeout_us }}u);
-{% endfor -%}
+{% endfor %}
 }
 
 void {{ settings.main_fn }}(void)
