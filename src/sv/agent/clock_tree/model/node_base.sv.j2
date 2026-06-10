@@ -3,7 +3,7 @@
 
 class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
-        `uvm_field_int(_resolved_freq, UVM_DEFAULT|(_print_resolve?0:UVM_NOPRINT))
+        `uvm_field_int(_resolved_freq, UVM_DEFAULT|UVM_DEC|(_print_resolve?0:UVM_NOPRINT))
         `uvm_field_int(_resolved_active, UVM_DEFAULT|(_print_resolve?0:UVM_NOPRINT))
         `uvm_field_int(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
     `uvm_object_utils_end

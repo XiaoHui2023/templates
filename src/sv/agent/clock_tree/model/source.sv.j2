@@ -3,7 +3,7 @@
 
 class {{ settings.class_prefix }}source extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}source)
-        `uvm_field_int(frequence, UVM_ALL_ON)
+        `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
 
     longint frequence;
