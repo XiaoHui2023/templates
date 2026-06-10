@@ -1,0 +1,20 @@
+{% if any_node_path and regs_enabled %}
+`ifndef {{ (settings.class_prefix ~ "test_freq_req") | upper }}
+`define {{ (settings.class_prefix ~ "test_freq_req") | upper }}
+
+class {{ settings.class_prefix }}test_freq_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}test_freq_req)
+        `uvm_field_object(tree, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(quiet, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    {{ settings.class_prefix }}tree_base tree;
+    bit quiet;
+
+    function new(string name = "{{ settings.class_prefix }}test_freq_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif
+{% endif %}

@@ -1,0 +1,89 @@
+{% if any_node_path and regs_enabled %}
+`ifndef {{ (settings.class_prefix ~ "test_freq_seq") | upper }}
+`define {{ (settings.class_prefix ~ "test_freq_seq") | upper }}
+
+class {{ settings.class_prefix }}test_freq_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}test_freq_req,
+    {{ settings.class_prefix }}test_freq_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}test_freq_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name = "{{ settings.class_prefix }}test_freq_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+    extern task run_config_reg(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
+    extern task run_check_freq(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
+endclass
+
+task {{ settings.class_prefix }}test_freq_seq::run_config_reg(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
+    {{ settings.class_prefix }}config_reg_req cfg_req;
+    {{ settings.class_prefix }}config_reg_seq cfg_seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_freq: tree is null for config_reg")
+    cfg_req = {{ settings.class_prefix }}config_reg_req::type_id::create("cfg_req");
+    cfg_req.tree = tree;
+    cfg_req.quiet = quiet;
+    cfg_seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
+    cfg_seq.req = cfg_req;
+    cfg_seq.start(p_sequencer);
+    if (cfg_seq.rsp == null || !cfg_seq.rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_freq: config_reg failed")
+endtask
+
+task {{ settings.class_prefix }}test_freq_seq::run_check_freq(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
+    {{ settings.class_prefix }}check_freq_req freq_req;
+    {{ settings.class_prefix }}check_freq_rsp freq_rsp;
+    {{ settings.class_prefix }}check_freq_seq freq_seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_freq: tree is null for check_freq")
+    freq_req = {{ settings.class_prefix }}check_freq_req::type_id::create("freq_req");
+    freq_req.tree = tree;
+    freq_req.quiet = quiet;
+    freq_seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
+    freq_seq.req = freq_req;
+    freq_seq.start(p_sequencer);
+    freq_rsp = freq_seq.rsp;
+    if (freq_rsp == null || !freq_rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_freq: check_freq failed")
+endtask
+
+task {{ settings.class_prefix }}test_freq_seq::body();
+    {{ settings.class_prefix }}test_freq_req rq;
+    {{ settings.class_prefix }}test_freq_rsp rs;
+    {{ settings.class_prefix }}tree_base tree;
+
+    if (req == null)
+        `uvm_fatal("CLK_TREE", "test_freq: req is null")
+
+    rq = req;
+    tree = rq.tree;
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_freq: tree is null")
+
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_freq: begin tree %s", tree.get_name()), UVM_LOW)
+
+    run_config_reg(tree, rq.quiet);
+    run_check_freq(tree, rq.quiet);
+
+    rs = {{ settings.class_prefix }}test_freq_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE", "test_freq: passed", UVM_LOW)
+
+    rsp = rs;
+endtask
+
+`endif
+{% endif %}

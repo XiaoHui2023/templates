@@ -1,15 +1,15 @@
 {% if route_test_enabled %}
-`ifndef {{ (settings.class_prefix ~ "check_flip_seq") | upper }}
-`define {{ (settings.class_prefix ~ "check_flip_seq") | upper }}
+`ifndef {{ (settings.class_prefix ~ "test_flip_seq") | upper }}
+`define {{ (settings.class_prefix ~ "test_flip_seq") | upper }}
 
-class {{ settings.class_prefix }}check_flip_seq extends uvm_sequence #(
-    {{ settings.class_prefix }}check_flip_req,
-    {{ settings.class_prefix }}check_flip_rsp
+class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}test_flip_req,
+    {{ settings.class_prefix }}test_flip_rsp
 );
-    `uvm_object_utils({{ settings.class_prefix }}check_flip_seq)
+    `uvm_object_utils({{ settings.class_prefix }}test_flip_seq)
     `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
-    function new(string name = "{{ settings.class_prefix }}check_flip_seq");
+    function new(string name = "{{ settings.class_prefix }}test_flip_seq");
         super.new(name);
     endfunction
 
@@ -28,33 +28,32 @@ class {{ settings.class_prefix }}check_flip_seq extends uvm_sequence #(
         bit quiet);
 endclass
 
-task {{ settings.class_prefix }}check_flip_seq::run_check_freq_quiet(
+task {{ settings.class_prefix }}test_flip_seq::run_check_freq_quiet(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}check_freq_req freq_req;
     {{ settings.class_prefix }}check_freq_rsp freq_rsp;
     {{ settings.class_prefix }}check_freq_seq freq_seq;
 
     if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_flip: tree is null for check_freq")
+        `uvm_fatal("CLK_TREE", "test_flip: tree is null for check_freq")
     freq_req = {{ settings.class_prefix }}check_freq_req::type_id::create("freq_req");
     freq_req.tree = tree;
     freq_req.quiet = 1'b1;
-    freq_req.skip_config_reg = 1'b1;
     freq_seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
     freq_seq.req = freq_req;
     freq_seq.start(p_sequencer);
     freq_rsp = freq_seq.rsp;
     if (freq_rsp == null || !freq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "check_flip: check_freq failed")
+        `uvm_fatal("CLK_TREE", "test_flip: check_freq failed")
 endtask
 
-task {{ settings.class_prefix }}check_flip_seq::run_config_reg(
+task {{ settings.class_prefix }}test_flip_seq::run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
     {{ settings.class_prefix }}config_reg_req cfg_req;
     {{ settings.class_prefix }}config_reg_seq cfg_seq;
 
     if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_flip: tree is null for config_reg")
+        `uvm_fatal("CLK_TREE", "test_flip: tree is null for config_reg")
     cfg_req = {{ settings.class_prefix }}config_reg_req::type_id::create("cfg_req");
     cfg_req.tree = tree;
     cfg_req.quiet = quiet;
@@ -62,10 +61,10 @@ task {{ settings.class_prefix }}check_flip_seq::run_config_reg(
     cfg_seq.req = cfg_req;
     cfg_seq.start(p_sequencer);
     if (cfg_seq.rsp == null || !cfg_seq.rsp.ok)
-        `uvm_fatal("CLK_TREE", "check_flip: config_reg failed")
+        `uvm_fatal("CLK_TREE", "test_flip: config_reg failed")
 endtask
 
-task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
+task {{ settings.class_prefix }}test_flip_seq::verify_div_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div div_nd,
         bit quiet);
@@ -77,7 +76,7 @@ task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
         return;
     if (!div_nd.f_div.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "check_flip: div %s f_div not bound", div_nd.get_name()))
+            "test_flip: div %s f_div not bound", div_nd.get_name()))
 
     reg_msb = 1 << ({{ settings.class_prefix }}reg_field_width(div_nd.f_div) - 1);
     msb_ratio = {{ settings.class_prefix }}div_ratio_for_reg_msb(div_nd.f_div);
@@ -88,7 +87,7 @@ task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "check_flip: div %s reg msb 0x%0h fix_ratio %0d",
+            "test_flip: div %s reg msb 0x%0h fix_ratio %0d",
             div_nd.get_name(), reg_msb, msb_ratio), UVM_MEDIUM)
     run_config_reg(tree, quiet);
     run_check_freq_quiet(tree);
@@ -98,11 +97,11 @@ task {{ settings.class_prefix }}check_flip_seq::verify_div_msb(
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "check_flip: div %s restored ratio %0d",
+            "test_flip: div %s restored ratio %0d",
             div_nd.get_name(), snap.ratio), UVM_MEDIUM)
 endtask
 
-task {{ settings.class_prefix }}check_flip_seq::verify_dto_msb(
+task {{ settings.class_prefix }}test_flip_seq::verify_dto_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}dto dto_nd,
         bit quiet);
@@ -114,7 +113,7 @@ task {{ settings.class_prefix }}check_flip_seq::verify_dto_msb(
         return;
     if (!dto_nd.f_step.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "check_flip: dto %s f_step not bound", dto_nd.get_name()))
+            "test_flip: dto %s f_step not bound", dto_nd.get_name()))
 
     reg_msb = 1 << ({{ settings.class_prefix }}reg_field_width(dto_nd.f_step) - 1);
     msb_ratio = {{ settings.class_prefix }}dto_ratio_for_reg_msb(dto_nd.f_step);
@@ -125,7 +124,7 @@ task {{ settings.class_prefix }}check_flip_seq::verify_dto_msb(
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "check_flip: dto %s reg msb 0x%0h fix_ratio %0d",
+            "test_flip: dto %s reg msb 0x%0h fix_ratio %0d",
             dto_nd.get_name(), reg_msb, msb_ratio), UVM_MEDIUM)
     run_config_reg(tree, quiet);
     run_check_freq_quiet(tree);
@@ -135,13 +134,13 @@ task {{ settings.class_prefix }}check_flip_seq::verify_dto_msb(
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "check_flip: dto %s restored ratio %0d",
+            "test_flip: dto %s restored ratio %0d",
             dto_nd.get_name(), snap.ratio), UVM_MEDIUM)
 endtask
 
-task {{ settings.class_prefix }}check_flip_seq::body();
-    {{ settings.class_prefix }}check_flip_req rq;
-    {{ settings.class_prefix }}check_flip_rsp rs;
+task {{ settings.class_prefix }}test_flip_seq::body();
+    {{ settings.class_prefix }}test_flip_req rq;
+    {{ settings.class_prefix }}test_flip_rsp rs;
     {{ settings.class_prefix }}tree_base tree;
     {{ settings.class_prefix }}node_base subjects[$];
     {{ settings.class_prefix }}div div_nd;
@@ -149,25 +148,29 @@ task {{ settings.class_prefix }}check_flip_seq::body();
     int i;
 
     if (req == null)
-        `uvm_fatal("CLK_TREE", "check_flip: req is null")
+        `uvm_fatal("CLK_TREE", "test_flip: req is null")
 
     rq = req;
     tree = rq.tree;
     if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_flip: tree is null")
+        `uvm_fatal("CLK_TREE", "test_flip: tree is null")
 
-    rs = {{ settings.class_prefix }}check_flip_rsp::type_id::create("rsp");
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: begin tree %s", tree.get_name()), UVM_LOW)
+
+    run_config_reg(tree, rq.quiet);
+
+    rs = {{ settings.class_prefix }}test_flip_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
     {{ settings.class_prefix }}route_structure_collect_flip_subjects(
         tree, {}, subjects);
     if (subjects.size() == 0)
         `uvm_fatal("CLK_TREE",
-            "check_flip: no div or dto node with bound regs in scope")
+            "test_flip: no div or dto node with bound regs in scope")
 
     {{ settings.class_prefix }}route_structure_set_all_clk_unfix_frequence(tree, 1'b1);
-
-    run_config_reg(tree, rq.quiet);
 
     for (i = 0; i < subjects.size(); i++) begin
         if ($cast(div_nd, subjects[i]))
@@ -176,18 +179,18 @@ task {{ settings.class_prefix }}check_flip_seq::body();
             verify_dto_msb(tree, dto_nd, rq.quiet);
         else
             `uvm_fatal("CLK_TREE", $sformatf(
-                "check_flip: subject %s is not div or dto", subjects[i].get_name()))
+                "test_flip: subject %s is not div or dto", subjects[i].get_name()))
     end
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE",
-            "check_flip: clear fix/unfix + config_reg", UVM_LOW)
+            "test_flip: clear fix/unfix + config_reg", UVM_LOW)
     {{ settings.class_prefix }}route_structure_clear_all_fix(tree);
     run_config_reg(tree, rq.quiet);
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "check_flip: passed, %0d subject node(s)", subjects.size()), UVM_LOW)
+            "test_flip: passed, %0d subject node(s)", subjects.size()), UVM_LOW)
 
     rsp = rs;
 endtask

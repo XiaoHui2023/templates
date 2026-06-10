@@ -33,9 +33,11 @@
 | 方法 | 说明 |
 | --- | --- |
 | `config_reg` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；写 **tree.nodes** 全部寄存器前对 **tree** 执行一次 **randomize**；不向测试平台返回 **rsp** |
-| `check_freq` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；已配置寄存器模型时先 **config_reg**，再检查 **tree.nodes** 中 **source**、**clk**、**pll** 节点频率 |
-| `check_duty` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；已配置寄存器模型时先 **config_reg**，再检查 **tree.nodes** 中带 **vif** 节点占空比 |
-| `check_flip` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；全部 **clk** **unfix_frequence** 为 1 后先 **config_reg** 释放整树 **div**、**dto** 复位；再对每个带绑定寄存器的 **div**、**dto** 用 **fix_ratio** 固定 MSB 分频比，**config_reg** 写寄存器后 **check_freq**，恢复后再 **config_reg**；结束时清除全部 **fix_*** 与 **unfix_***，再 **config_reg** 使 **clk** 频率与有效性按 **_resolved_*** 约束，**div**、**gate**、**mux** 等随约束链写入寄存器 |
+| `check_freq` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；只量测 **tree.nodes** 中 **source**、**clk**、**pll** 频率，不写寄存器 |
+| `check_duty` | **task**；入参 **tree** 默认空，空时用 **kit** 上 **tree**；只量测带 **vif** 节点占空比，不写寄存器 |
+| `test_freq` | **task**；入参 **tree** 默认空；**config_reg** 后 **check_freq** |
+| `test_duty` | **task**；入参 **tree** 默认空；**config_reg** 后 **check_duty** |
+| `test_flip` | **task**；入参 **tree** 默认空；先 **config_reg**，再全部 **clk** **unfix_frequence** 为 1，对每个带绑定寄存器的 **div**、**dto** 用 **fix_ratio** 固定 MSB 分频比、写寄存器后 **check_freq**、恢复后再写寄存器；结束时清除全部 **fix_*** 与 **unfix_*** 并 **config_reg** |
 | `test_route` | **task**；入参 **tree** 默认空、**always_active_clk_nodes** 为须全程保持活动的 **clk** 句柄队列，默认空；仅做结构探测，探测循环内 **config_reg**、**check_freq**。**tree** 为空时用 **kit** 上 **tree** |
 
 ## sequence · operation
@@ -45,9 +47,8 @@
 | 行为目录 | 说明 |
 | --- | --- |
 | `config_reg` | 对 **req.tree** 执行一次 **randomize** 后，遍历 **tree.nodes** 写寄存器模型，通过 **p_sequencer.tools**；固定五段顺序：全部 **pll** 写寄存器后统一 **wait_lock**；全部 **div** 与 **dto**；**gate** 且 **open** 为真；全部 **mux**；**gate** 且 **open** 为假。**pll** **valid** 为 0 时跳过写寄存器与 **wait_lock**；参考与输出频率均未变时亦跳过；**pll_sc** / **pll_dw** 按目标频率算分频后上电 |
-| `check_freq` | **regs_enabled** 且 **req.skip_config_reg** 为 0 时先 **config_reg**；遍历 **req.tree.nodes**，检查 **source**、**clk**、**pll** 频率 |
-| `check_duty` | **regs_enabled** 且 **req.skip_config_reg** 为 0 时先 **config_reg**；遍历 **req.tree.nodes**，检查带 **vif** 节点占空比 |
-| `check_flip` | 全部 **clk** **unfix_frequence** 为 1；先 **config_reg** 整树初配；对每个 **div**、**dto** subject 用 **fix_ratio** 固定 MSB 分频比，**config_reg** 求解并写寄存器，**check_freq**，再恢复分频比并 **config_reg**；结束时清除全部 **fix_*** 与 **unfix_***，再 **config_reg** |
+| `check_freq` | 遍历 **req.tree.nodes**，检查 **source**、**clk**、**pll** 频率 |
+| `check_duty` | 遍历 **req.tree.nodes**，检查带 **vif** 节点占空比 |
 
 ## sequence · test
 
@@ -55,6 +56,9 @@
 
 | 测试目录 | 说明 |
 | --- | --- |
+| `test_freq` | **config_reg** 后 **check_freq** |
+| `test_duty` | **config_reg** 后 **check_duty** |
+| `test_flip` | 开头 **config_reg**；全部 **clk** **unfix_frequence** 为 1；对每个 **div**、**dto** subject 固定 MSB 分频比、**config_reg**、**check_freq**、恢复并 **config_reg**；收尾清除 **fix_*** / **unfix_*** 后 **config_reg** |
 | `test_route` | **req.always_active_clk_nodes** 非空时探测中只固定所列 **clk** 活动；全部 **clk** **unfix_frequence** 为 1，仅所列 **clk** **unfix_enabled** 为 0；跳过必启 **clk** 通路上的 **gate** / **mux** **subject** 及会关断必启 **clk** 的组合；对其余带寄存器的 **gate**、**mux**、**div**、**dto** 做上下游线探测；**req.quiet** 为 0 时按探测细目打印 **uvm_info** |
 
 ## sequence · base

@@ -14,34 +14,11 @@ class {{ settings.class_prefix }}check_duty_seq extends uvm_sequence #(
     endfunction
 
     extern virtual task body();
-{% if regs_enabled %}
-    extern task run_config_reg(
-        {{ settings.class_prefix }}tree_base tree, bit quiet);
-{% endif %}
     extern task evaluate_one_node(
         {{ settings.class_prefix }}node_base nd,
         {{ settings.class_prefix }}check_duty_rsp rs
     );
 endclass
-
-{% if regs_enabled %}
-task {{ settings.class_prefix }}check_duty_seq::run_config_reg(
-        {{ settings.class_prefix }}tree_base tree, bit quiet);
-    {{ settings.class_prefix }}config_reg_req cfg_req;
-    {{ settings.class_prefix }}config_reg_seq cfg_seq;
-
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_duty: tree is null for config_reg")
-    cfg_req = {{ settings.class_prefix }}config_reg_req::type_id::create("cfg_req");
-    cfg_req.tree = tree;
-    cfg_req.quiet = quiet;
-    cfg_seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
-    cfg_seq.req = cfg_req;
-    cfg_seq.start(p_sequencer);
-    if (cfg_seq.rsp == null || !cfg_seq.rsp.ok)
-        `uvm_fatal("CLK_TREE", "check_duty: config_reg failed")
-endtask
-{% endif %}
 
 task {{ settings.class_prefix }}check_duty_seq::evaluate_one_node(
     {{ settings.class_prefix }}node_base nd,
@@ -83,11 +60,6 @@ task {{ settings.class_prefix }}check_duty_seq::body();
     rq = req;
     if (rq.tree == null)
         `uvm_fatal("CLK_TREE", "check_duty: tree is null")
-
-{% if regs_enabled %}
-    if (!rq.skip_config_reg)
-        run_config_reg(rq.tree, rq.quiet);
-{% endif %}
 
     foreach (rq.tree.nodes[i]) begin
         nd = rq.tree.nodes[i];

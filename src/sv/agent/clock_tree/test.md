@@ -65,6 +65,9 @@
 
 | 名称 | 目录 | **kit** **task** | **req** 要点 | **rsp** 要点 |
 | --- | --- | --- | --- | --- |
+| **test_freq** | `sequence/test/test_freq/` | **test_freq**；**tree** 默认空则用 **kit** 上 **tree** | **tree** 句柄，可空；**quiet** 为 1 时不打进度 **uvm_info** | **ok** 汇总 |
+| **test_duty** | `sequence/test/test_duty/` | **test_duty**；**tree** 默认空则用 **kit** 上 **tree** | 同 **test_freq** | **ok** 汇总 |
+| **test_flip** | `sequence/test/test_flip/` | **test_flip**；**tree** 默认空则用 **kit** 上 **tree** | 同 **test_freq** | **ok** 汇总 |
 | **test_route** | `sequence/test/test_route/` | **test_route**；**tree** 默认空则用 **kit** 上 **tree**；**always_active_clk_nodes** 为须全程保持活动的 **clk** 句柄队列，默认空 | **tree** 句柄，可空；**always_active_clk_nodes** 为须全程保持活动的 **clk** 节点队列，空则要求全部 **clk** 活动；**quiet** 为 1 时不打进度 **uvm_info** | **ok** 汇总 |
 
 ## test_route
@@ -155,9 +158,9 @@
 
 | operation | 作用 | 与 **test** 关系 |
 | --- | --- | --- |
-| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 单独写寄存器；**check_freq**、**check_duty**、**check_flip** 量测前亦会调用；**test_route** 在探测循环与收尾调用 |
-| **check_freq** | 已配置寄存器模型时先 **config_reg**，再量 **source** / **clk** / **pll** 频率对 **frequence** | 端到端用例在 **check_duty** 之前调用 |
-| **check_duty** | 已配置寄存器模型时先 **config_reg**，再量占空比对 **duty_min** / **duty_max** | 环境在 **kit** 上直接调用 |
+| **config_reg** | 五段写寄存器：**pll** → **div** / **dto** → 开 **gate** → **mux** → 关 **gate** | 单独写寄存器；**test_freq**、**test_duty**、**test_flip** 开头调用；**test_route** 在探测循环与收尾调用 |
+| **check_freq** | 量 **source** / **clk** / **pll** 频率对 **frequence** | **test_freq**、**test_route**、**test_flip** 内部组合 |
+| **check_duty** | 量占空比对 **duty_min** / **duty_max** | **test_duty** 组合 |
 
 **config_reg** 写寄存器前对 **tree** 执行 **randomize**，软约束覆盖使用者按图可能填写的合法组合；分别存在 **path** 节点与 **reg** 或 **regs** 节点时模型生成 **fix_*** 成员，固定场景由序列或环境在 **config_reg** 调用前对 **fix_open**、**fix_sel**、**fix_ratio** 等赋值，YAML 不提供对应字段。
 
@@ -177,9 +180,9 @@
 
 在**上述前提**内，端到端充分检查建议包含：
 
-1. **check_freq** 或 **check_duty** 开头的 **config_reg** 覆盖所有带 **regs** / **reg** 的 **pll**、**div**、**dto**、**gate**、**mux**。
-2. **check_freq** 覆盖 **source**、**clk**、**pll** 观测点。
-3. **check_duty** 覆盖所有带 **path** 的 **vif** 节点。
+1. **test_freq** 或 **test_duty** 开头的 **config_reg** 覆盖所有带 **regs** / **reg** 的 **pll**、**div**、**dto**、**gate**、**mux**。
+2. **test_freq** 覆盖 **source**、**clk**、**pll** 观测点。
+3. **test_duty** 覆盖所有带 **path** 的 **vif** 节点。
 
 **不声称**覆盖：网状时钟、异步跨时钟域、门控物理差异导致的占空比畸变、未配置 **path** 的节点。
 
@@ -191,11 +194,11 @@
 
 | 场景 | 配置要点 | 调用 |
 | --- | --- | --- |
-| 单树端到端 | `example.yaml` 各 **kind** 至少一个，部分节点带 **path**、部分节点带 **reg** 或 **regs** | **check_freq** → **check_duty** |
-| 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **check_freq** 通过后 **test_route** |
-| 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **check_freq** 只看 **pll** |
-| 门控全关 | 多个 **gate** 串联，**open** 随机 | **check_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
-| 固定 mux | 节点 **path** + **reg**，**fix_sel** | **check_freq** 前 **sel** 不变，只应看到选定前级频率 |
-| 固定 div 分频 | 节点 **path** + **regs**；**check_freq** 前设 **fix_ratio** | **ratio** 不变，**check_freq** 按该分频比换算 |
+| 单树端到端 | `example.yaml` 各 **kind** 至少一个，部分节点带 **path**、部分节点带 **reg** 或 **regs** | **test_freq** → **test_duty** |
+| 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **test_freq** 通过后 **test_route** |
+| 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **test_freq** 只看 **pll** |
+| 门控全关 | 多个 **gate** 串联，**open** 随机 | **test_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
+| 固定 mux | 节点 **path** + **reg**，**fix_sel** | **test_freq** 前 **sel** 不变，只应看到选定前级频率 |
+| 固定 div 分频 | 节点 **path** + **regs**；**test_freq** 前设 **fix_ratio** | **ratio** 不变，**test_freq** 按该分频比换算 |
 
-长时随机回归可在环境中循环调用 **check_freq**，每轮量测前由序列内 **config_reg** 写寄存器。
+长时随机回归可在环境中循环调用 **test_freq**，或先 **config_reg** 再 **check_freq**。

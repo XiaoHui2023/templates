@@ -47,10 +47,18 @@ sequence/operation/check_freq/op.sv
 sequence/operation/check_duty/req.sv
 sequence/operation/check_duty/rsp.sv
 sequence/operation/check_duty/op.sv
+{% if any_node_path and regs_enabled %}
+sequence/test/test_freq/req.sv
+sequence/test/test_freq/rsp.sv
+sequence/test/test_freq/test.sv
+sequence/test/test_duty/req.sv
+sequence/test/test_duty/rsp.sv
+sequence/test/test_duty/test.sv
+{% endif %}
 {% if route_test_enabled %}
-sequence/operation/check_flip/req.sv
-sequence/operation/check_flip/rsp.sv
-sequence/operation/check_flip/op.sv
+sequence/test/test_flip/req.sv
+sequence/test/test_flip/rsp.sv
+sequence/test/test_flip/test.sv
 sequence/test/test_route/req.sv
 sequence/test/test_route/rsp.sv
 sequence/test/test_route/test.sv
