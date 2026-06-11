@@ -43,45 +43,139 @@ function automatic int {{ settings.class_prefix }}reg_field_width(
     return rb.field.get_n_bits();
 endfunction
 
-// 仅写 div field MSB 时对应的分频比
-function automatic int {{ settings.class_prefix }}div_ratio_for_reg_msb(
-        {{ settings.class_prefix }}reg f_div);
-    int width;
-    int reg_msb;
-    int ratio;
-    width = {{ settings.class_prefix }}reg_field_width(f_div);
+// MSB=1、LSB=0 单比特 pattern 下 div field 写入值 n
+function automatic int {{ settings.class_prefix }}div_reg_n_flip_msb(int width);
     if (width <= 0)
-        `uvm_fatal("CLK_TREE", "div_ratio_for_reg_msb: field width must be positive")
-    reg_msb = 1 << (width - 1);
-    ratio = reg_msb + 1;
-    if (ratio > 64)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "div_ratio_for_reg_msb: msb-only ratio %0d exceeds max 64, width %0d",
-            ratio, width))
-    return ratio;
+        `uvm_fatal("CLK_TREE", "div_reg_n_flip_msb: field width must be positive")
+    if (width == 1)
+        return 1;
+    return 1 << (width - 1);
 endfunction
 
-// 仅写 step field MSB 时对应的 DTO 比
-function automatic int {{ settings.class_prefix }}dto_ratio_for_reg_msb(
-        {{ settings.class_prefix }}reg f_step);
+// MSB=0、LSB=1 单比特 pattern 下 div field 写入值 n
+function automatic int {{ settings.class_prefix }}div_reg_n_flip_lsb(int width);
+    return 1;
+endfunction
+
+// div field n 是否落在允许分频比内
+function automatic bit {{ settings.class_prefix }}div_flip_n_legal(int n);
+    return n >= 1 && (n + 1) <= 64;
+endfunction
+
+// 保留探测位，必要时 OR 低位辅助比特使 n 合法
+function automatic int {{ settings.class_prefix }}div_flip_n_legalize(
+        int n,
+        int width);
+    int mask;
+    int cand;
+    int b;
+    if (width <= 0)
+        `uvm_fatal("CLK_TREE", "div_flip_n_legalize: field width must be positive")
+    mask = (1 << width) - 1;
+    n = n & mask;
+    if ({{ settings.class_prefix }}div_flip_n_legal(n))
+        return n;
+    cand = n | (1 << 1);
+    if ({{ settings.class_prefix }}div_flip_n_legal(cand))
+        return cand;
+    for (b = 2; b < width - 1; b++) begin
+        cand = n | (1 << b);
+        if ({{ settings.class_prefix }}div_flip_n_legal(cand))
+            return cand;
+    end
+    `uvm_fatal("CLK_TREE", $sformatf(
+        "div_flip_n_legalize: cannot legalize n 0x%0h within width %0d",
+        n, width))
+endfunction
+
+// msb_one_lsb_zero 为真取 MSB 单比特，为假取 LSB 单比特
+function automatic int {{ settings.class_prefix }}div_ratio_for_reg_flip(
+        {{ settings.class_prefix }}reg f_div,
+        bit msb_one_lsb_zero);
+    int width;
+    int n;
+    width = {{ settings.class_prefix }}reg_field_width(f_div);
+    if (width <= 0)
+        `uvm_fatal("CLK_TREE", "div_ratio_for_reg_flip: field width must be positive")
+    if (msb_one_lsb_zero)
+        n = {{ settings.class_prefix }}div_reg_n_flip_msb(width);
+    else
+        n = {{ settings.class_prefix }}div_reg_n_flip_lsb(width);
+    n = {{ settings.class_prefix }}div_flip_n_legalize(n, width);
+    return n + 1;
+endfunction
+
+// MSB=1、LSB=0 单比特 pattern 下 step field 写入值
+function automatic longint {{ settings.class_prefix }}dto_reg_step_flip_msb(int width);
+    if (width <= 0)
+        `uvm_fatal("CLK_TREE", "dto_reg_step_flip_msb: field width must be positive")
+    if (width == 1)
+        return 1;
+    return longint'(1) << (width - 1);
+endfunction
+
+// MSB=0、LSB=1 单比特 pattern 下 step field 写入值
+function automatic longint {{ settings.class_prefix }}dto_reg_step_flip_lsb(int width);
+    return 1;
+endfunction
+
+// step 是否在 DTO 合法范围且可反算分频比
+function automatic bit {{ settings.class_prefix }}dto_flip_step_legal(longint step);
     longint max_step;
-    longint reg_msb;
     longint ratio_l;
+    max_step = longint'(1) << 25;
+    if (step < 1 || step >= max_step)
+        return 1'b0;
+    ratio_l = max_step / step;
+    if (ratio_l < 1 || ratio_l >= max_step)
+        return 1'b0;
+    return 1'b1;
+endfunction
+
+// 保留探测位，必要时 OR 低位辅助比特使 step 合法
+function automatic longint {{ settings.class_prefix }}dto_flip_step_legalize(
+        longint step,
+        int width);
+    longint mask;
+    longint cand;
+    int b;
+    if (width <= 0)
+        `uvm_fatal("CLK_TREE", "dto_flip_step_legalize: field width must be positive")
+    mask = (longint'(1) << width) - 1;
+    step = step & mask;
+    if ({{ settings.class_prefix }}dto_flip_step_legal(step))
+        return step;
+    cand = step | longint'(1 << 1);
+    if ({{ settings.class_prefix }}dto_flip_step_legal(cand))
+        return cand;
+    for (b = 2; b < width - 1; b++) begin
+        cand = step | (longint'(1) << b);
+        if ({{ settings.class_prefix }}dto_flip_step_legal(cand))
+            return cand;
+    end
+    `uvm_fatal("CLK_TREE", $sformatf(
+        "dto_flip_step_legalize: cannot legalize step %0d within width %0d",
+        step, width))
+endfunction
+
+// msb_one_lsb_zero 为真取 MSB 单比特，为假取 LSB 单比特
+function automatic int {{ settings.class_prefix }}dto_ratio_for_reg_flip(
+        {{ settings.class_prefix }}reg f_step,
+        bit msb_one_lsb_zero);
+    longint max_step;
+    longint ratio_l;
+    longint step;
     int width;
     width = {{ settings.class_prefix }}reg_field_width(f_step);
     if (width <= 0)
-        `uvm_fatal("CLK_TREE", "dto_ratio_for_reg_msb: field width must be positive")
+        `uvm_fatal("CLK_TREE", "dto_ratio_for_reg_flip: field width must be positive")
+    if (msb_one_lsb_zero)
+        step = {{ settings.class_prefix }}dto_reg_step_flip_msb(width);
+    else
+        step = {{ settings.class_prefix }}dto_reg_step_flip_lsb(width);
+    step = {{ settings.class_prefix }}dto_flip_step_legalize(step, width);
     max_step = longint'(1) << 25;
-    reg_msb = longint'(1) << (width - 1);
-    if (reg_msb < 1 || reg_msb >= max_step)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "dto_ratio_for_reg_msb: msb-only step %0d out of range, width %0d",
-            reg_msb, width))
-    ratio_l = max_step / reg_msb;
-    if (ratio_l < 1 || ratio_l >= max_step)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "dto_ratio_for_reg_msb: ratio %0d out of range for width %0d",
-            ratio_l, width))
+    ratio_l = max_step / step;
     return int'(ratio_l);
 endfunction
 {% endif %}
