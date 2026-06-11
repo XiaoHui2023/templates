@@ -63,13 +63,24 @@ endtask
 
 // 写 mux 的选择控制
 task {{ settings.class_prefix }}config_reg_seq::config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
-    if (!mux_nd.f_reg.is_bound())
+    if (!mux_nd.f_rst.is_bound() || !mux_nd.f_sel.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: mux %s f_reg not bound", mux_nd.get_name()))
+            "config_reg: mux %s regs not bound", mux_nd.get_name()))
+    if (p_sequencer.tools.node.mux_sel_unchanged(
+            mux_nd.get_name(), mux_nd.sel)) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: mux %s skip unchanged sel %0d",
+                mux_nd.get_name(), mux_nd.sel), UVM_MEDIUM)
+        return;
+    end
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: mux %s sel %0d", mux_nd.get_name(), mux_nd.sel), UVM_MEDIUM)
-    p_sequencer.tools.node.configure_mux(mux_nd.f_reg, mux_nd.sel);
+    p_sequencer.tools.node.configure_mux(
+        mux_nd.f_rst, mux_nd.f_sel, mux_nd.sel);
+    p_sequencer.tools.node.note_mux_sel_configured(
+        mux_nd.get_name(), mux_nd.sel);
 endtask
 
 // 写 div 的复位、load 与分频比
@@ -78,26 +89,11 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_div_node({{ settings.
             || !div_nd.f_rst.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: div %s regs not bound", div_nd.get_name()))
-    if (p_sequencer.tools.node.div_rst_was_released(div_nd.get_name())) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: div %s skip rst, ratio %0d",
-                div_nd.get_name(), div_nd.ratio), UVM_MEDIUM)
-        p_sequencer.tools.node.configure_div_ratio(
-            div_nd.f_load, div_nd.f_div, div_nd.ratio);
-    end else begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: div %s ratio %0d", div_nd.get_name(), div_nd.ratio), UVM_MEDIUM)
-{%- if settings.should_reset_div %}
-        p_sequencer.tools.node.configure_div(
-            div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd.ratio);
-{%- else %}
-        p_sequencer.tools.node.configure_div_direct(
-            div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd.ratio);
-{%- endif %}
-        p_sequencer.tools.node.note_div_rst_released(div_nd.get_name());
-    end
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: div %s ratio %0d", div_nd.get_name(), div_nd.ratio), UVM_MEDIUM)
+    p_sequencer.tools.node.configure_div(
+        div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd.ratio);
 endtask
 
 // 写 dto 的复位、bypass、load 与 step
@@ -106,26 +102,11 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.
             || !dto_nd.f_step.is_bound() || !dto_nd.f_rst.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: dto %s regs not bound", dto_nd.get_name()))
-    if (p_sequencer.tools.node.dto_rst_was_released(dto_nd.get_name())) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: dto %s skip rst, ratio %0d",
-                dto_nd.get_name(), dto_nd.ratio), UVM_MEDIUM)
-        p_sequencer.tools.node.configure_dto_ratio(
-            dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
-    end else begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: dto %s ratio %0d", dto_nd.get_name(), dto_nd.ratio), UVM_MEDIUM)
-{%- if settings.should_reset_dto %}
-        p_sequencer.tools.node.configure_dto(
-            dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
-{%- else %}
-        p_sequencer.tools.node.configure_dto_direct(
-            dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
-{%- endif %}
-        p_sequencer.tools.node.note_dto_rst_released(dto_nd.get_name());
-    end
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: dto %s ratio %0d", dto_nd.get_name(), dto_nd.ratio), UVM_MEDIUM)
+    p_sequencer.tools.node.configure_dto(
+        dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
 endtask
 
 // 按 SC PLL 目标频率写配置

@@ -23,25 +23,84 @@
 
 ## config_reg
 
-通过 **sequencer.tools** 写寄存器模型，只更新约定 field，field 内其余位保持不变。
+通过 **sequencer.tools** 写寄存器模型。每次只改约定 field 的切片，父寄存器其余位读回后合并再写。**set_write** 在镜像值未变时跳过总线写；**apply** 对多 field 先统一 **set** 再按父寄存器去重写一次。
 
-写入分五段，遍历 **tree.nodes**：
+**body** 先 **randomize** **tree**，再按下列五段遍历 **tree.nodes**：
 
-1. 全部 **pll** 寄存器，再对本轮全部 **pll** **wait_lock**
+1. 全部 **pll**，再对本轮实际写过寄存器的 **pll** **wait_lock**
 2. 全部 **div**、**dto**
 3. **open** 为真的 **gate**
 4. 全部 **mux**
 5. **open** 为假的 **gate**
 
-**pll** 分频用 **source.frequence** 与节点 **frequence**；缺 **source** 或频率非法则 **fatal**。参考频率与输出 **frequence** 均与 **sequencer.tools.pll** 中按节点名记录的上次写入相同时跳过寄存器更新，且不再 **wait_lock**。
+### 寄存器访问
 
-**div**、**dto** 首次 **config_reg** 都会写 **rst** 为不复位电平。**should_reset_div** 或 **should_reset_dto** 为真时，首次配置先拉 **rst** 到复位电平、再写分频 field 与 **load**、最后写 **rst** 不复位；为假时首次只把 **rst** 写不复位并写分频 field 与 **load**，不经复位脉冲。**sequencer.tools.node** 按节点名记录是否已完成首次 **rst** 配置；之后同一 **sequencer** 生命周期内再次 **config_reg** 只更新分频 field 与 **load** 脉冲，不再写 **rst**。
+| 机制 | 说明 |
+| --- | --- |
+| **reg_rw.set_write** | 读镜像、合并切片、值变才前门写父寄存器 |
+| **reg_rw.apply** | 多 field 批量 **set** 后按父寄存器合并写 |
+| **sequencer.tools.pll** | 按节点名记上次 **ref_hz**、**out_hz**；二者均未变则跳过该 **pll** 写与 **wait_lock** |
+| **sequencer.tools.node** | **mux** 记上次写入的 **sel** |
 
-### 注意
+### 含复位或掉电的写
+
+**mux**、**div**、**dto**、**pll** 凡要先拉复位或掉电再改其它 field，统一两步：
+
+1. 第一次只写复位或掉电电平，常用 **set_write** 只动 **rst**、**reset**、**pd** 等单一控制位。
+2. 第二次 **apply** 同时写取消复位或掉电与其余待配 field；同一父寄存器内能合并的不拆成多次总线写。
+
+**load** 的 0→1 脉冲、**pll** **dw** 的固定延时等时序要求仍单独一步。每次 **config_reg** 对 **div**、**dto** 都走复位两步。**mux** **sel** 未变则整段跳过。
+
+| 节点 | 第一次 | 第二次 **apply** 含 |
+| --- | --- | --- |
+| **mux** | 只写 **rst** 复位电平 | **rst** 不复位与 **sel** |
+| **div** | 只写 **rst** 复位电平 | **rst** 不复位、**div**、**load**=0；再 **load**=1 |
+| **dto** | 只写 **rst** 复位电平 | **rst** 不复位与 **load**/**bypass**/**step** |
+| **pll tci** | 只写 **reset**=1 | 复位保持期间写 **bypass**/**pwrdn** 与分频 field；再一次 **apply** **reset**=0 与 **bypass**=0 |
+| **pll sc** | 五路 **pd**/**bypass** 全 1 | 五路全 0 与 **refdiv**/**postdiv**/**fbdiv** |
+| **pll dw** | 只写 **reset**=1 | **pwron**/**shift**/**bypass**；延时后 **reset**=0 与 **shift**=0 同次 **apply** |
+| **pll inno** 共享级 | 只写 **pd**=1 | **pd**=0 与 **refdiv**/**fbdiv** |
+
+### pll
+
+参考时钟取 **source._resolved_freq**，目标频率取节点 **frequence**。**_resolved_active** 为假时跳过该 **pll**。缺 **source**、频率非正或绑定 field 不全则 **fatal**。
+
+本轮写过寄存器的 **pll** 进入 **wait_lock** 队列；**pll_inno** 仅 **group_id** 为 0 的句柄入队并轮询 **f_lock**。轮询间隔 2 µs，上限 **pll_lock_timeout_us**，超时 **fatal**；成功后置 **locked** 为真。
+
+| **pll_kind** | 分频算式 | 写寄存器顺序 |
+| --- | --- | --- |
+| **tci** | **clkr**=1，**clkod**=1，**clkf**=**out**/**ref**，**bwadj**=**clkf** | 见上表 **pll tci** 三步；分频 field 在 **reset** 保持期间写入 |
+| **sc** | 在 **pll_sc_fbdiv_min**～**pll_sc_fbdiv_max** 内搜 **fbdiv**、**refdiv**、**postdiv1**、**postdiv2** 使 **ref**×**fbdiv**/**refdiv**/**postdiv1**/**postdiv2**≈**out** | 见上表 **pll sc** |
+| **dw** | 由 **out**、**ref** 算 **fbdiv**、**prediv**、**divvcop**、**p**、**divvcor**、**r** | **fbdiv**/**prediv** → 见上表 **pll dw** → **divvcor**/**r**/**p**/**divvcop** → **enr**/**enp**=1 |
+| **inno** | 共享级 **fbdiv**/**refdiv**；每路 **postdiv1**/**postdiv2** | **group_id**=0：见上表 **pll inno** 共享级，并写该路 **postdiv1**/**postdiv2**；**group_id**>0：读回共享 **fbdiv**/**refdiv**，只写该路 **postdiv1**/**postdiv2** |
+
+### div
+
+模型 **ratio** 为 1～64；寄存器 **div** field 写入 **n**=**ratio**−1，**ratio**=1 时 **n**=0。每次 **config_reg** 遵循上节 **div** 行。**rst** 极性由 **div_reg_high_means_reset** 决定。
+
+### dto
+
+| **ratio** | **load** | **bypass** | **step** |
+| --- | --- | --- | --- |
+| 1 | 1 | 1 | 0 |
+| >1 | 1 | 0 | 2^25/**ratio**，整数落在 1～2^25−1 |
+
+每次 **config_reg** 遵循上节 **dto** 行。**rst** 极性由 **dto_reg_high_means_reset** 决定。
+
+### gate
+
+按节点 **open** 写 **f_reg**。**gate_reg_high_means_open** 为真时寄存器值与 **open** 相同；为假时取反。
+
+第 3 段只写 **open** 为真的 **gate**；第 5 段只写 **open** 为假的 **gate**。
+
+### mux
+
+**sel** 未变则跳过。**sel** 变更时遵循上节 **mux** 行；极性由 **mux_reg_high_means_reset** 决定。
+
+### 写入顺序说明
 
 + 器件上 **div** 常默认处于复位态，分频输出不工作；**mux** 若先切到该支路，选中路径上可能长时间无有效时钟或频率不对。
-+ **config_reg** 固定把 **div**、**dto** 写在 **mux** 之前，让分频在 **mux** 选中该支路前就绪。
-+ **dto** 同样有 **rst** 释放流程，与 **div** 同属第 2 段，理由相同。
++ 第 2 段固定在第 4 段之前，让分频在 **mux** 选中该支路前就绪。
 
 ## check_freq
 

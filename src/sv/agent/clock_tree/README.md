@@ -46,8 +46,7 @@ settings:
 | `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。 |
 | `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 | `dto_reg_high_means_reset` | `bool` | `false` | 为真时 dto **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
-| `should_reset_div` | `bool` | `false` | 为真时 **config_reg** 首次配置 div 先拉 **rst** 复位再释放；为假时首次只把 **rst** 写不复位并写 **div** 与 **load**。 |
-| `should_reset_dto` | `bool` | `false` | 为真时 **config_reg** 首次配置 dto 先拉 **rst** 复位再释放；为假时首次只把 **rst** 写不复位并写 **step**、**load** 与 **bypass**。 |
+| `mux_reg_high_means_reset` | `bool` | `false` | 为真时 mux **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 
 ### 配置值写法
 
@@ -228,4 +227,5 @@ settings:
 | `kind` | `str` | `mux` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
-| `reg` | `str` | `""` | 选择寄存器模型路径。 |
+| `regs.rst` | `str` | | 复位位。 |
+| `regs.sel` | `str` | | 选择 field。 |

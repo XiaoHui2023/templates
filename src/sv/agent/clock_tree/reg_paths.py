@@ -25,7 +25,9 @@ _REG_BIT_SUFFIX = re.compile(r"\[(?P<body>[^\]]+)\]$")
 RegPathGroup = Dict[str, str]
 RegsMap = Dict[str, Union[str, RegPathGroup]]
 
-SINGLE_REG_NODE_KINDS = frozenset({"gate", "mux"})
+SINGLE_REG_NODE_KINDS = frozenset({"gate"})
+
+MUX_REG_KEYS = frozenset({"rst", "sel"})
 
 DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
@@ -363,6 +365,16 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
             _append_binding(out, tree.name, access, "f_reg", node.reg)
         elif node.kind == "pll":
             _pll_reg_bindings(out, tree, node)
+        elif node.kind == "mux":
+            validate_regs_exact(
+                node.regs,
+                MUX_REG_KEYS,
+                node_name=node.name,
+                kind="mux",
+            )
+            access = sv_node_access(node.name, 0, node_output_count(node))
+            for key, path in sorted(node.regs.items()):
+                _append_binding(out, tree.name, access, f"f_{key}", path)
         elif node.kind == "div":
             validate_regs_exact(
                 node.regs,

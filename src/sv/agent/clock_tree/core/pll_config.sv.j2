@@ -433,16 +433,10 @@ task {{ settings.class_prefix }}pll_cfg::configure_inno_shared(
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
 
-    binds = '{f_pd};
-    vals = '{1};
-    rw.apply(binds, vals);
+    rw.set_write(f_pd, 1);
 
-    binds = '{f_refdiv, f_fbdiv};
-    vals = '{refdiv, fbdiv};
-    rw.apply(binds, vals);
-
-    binds = '{f_pd};
-    vals = '{0};
+    binds = '{f_pd, f_refdiv, f_fbdiv};
+    vals = '{0, refdiv, fbdiv};
     rw.apply(binds, vals);
 endtask
 
@@ -527,20 +521,14 @@ task {{ settings.class_prefix }}pll_cfg::configure_tci(
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
 
-    binds = '{f_bypass, f_pwrdn, f_reset};
-    vals = '{1, 0, 1};
+    rw.set_write(f_reset, 1);
+
+    binds = '{f_bypass, f_pwrdn, f_clkod, f_clkf, f_clkr, f_bwadj};
+    vals = '{1, 0, clkod, clkf, clkr, bwadj};
     rw.apply(binds, vals);
 
-    binds = '{f_clkod, f_clkf, f_clkr, f_bwadj};
-    vals = '{clkod, clkf, clkr, bwadj};
-    rw.apply(binds, vals);
-
-    binds = '{f_reset};
-    vals = '{0};
-    rw.apply(binds, vals);
-
-    binds = '{f_bypass};
-    vals = '{0};
+    binds = '{f_reset, f_bypass};
+    vals = '{0, 0};
     rw.apply(binds, vals);
 endtask
 
@@ -565,12 +553,9 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc(
     vals = '{1, 1, 1, 1, 1};
     rw.apply(binds, vals);
 
-    binds = '{f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv};
-    vals = '{refdiv, postdiv2, postdiv1, fbdiv};
-    rw.apply(binds, vals);
-
-    binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
-    vals = '{0, 0, 0, 0, 0};
+    binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
+        f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv};
+    vals = '{0, 0, 0, 0, 0, refdiv, postdiv2, postdiv1, fbdiv};
     rw.apply(binds, vals);
 endtask
 
@@ -600,18 +585,15 @@ task {{ settings.class_prefix }}pll_cfg::configure_dw(
     vals = '{fbdiv, prediv};
     rw.apply(binds, vals);
 
-    binds = '{f_reset, f_pwron, f_shift, f_bypass};
-    vals = '{1, 1, 1, 0};
+    rw.set_write(f_reset, 1);
+
+    binds = '{f_pwron, f_shift, f_bypass};
+    vals = '{1, 1, 0};
     rw.apply(binds, vals);
     #4us;
 
-    binds = '{f_reset};
-    vals = '{0};
-    rw.apply(binds, vals);
-    #16us;
-
-    binds = '{f_shift};
-    vals = '{0};
+    binds = '{f_reset, f_shift};
+    vals = '{0, 0};
     rw.apply(binds, vals);
     #10us;
 

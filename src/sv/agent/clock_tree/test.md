@@ -229,7 +229,7 @@
 | 通路结构 | 同上；**gate**、**mux**、**div**、**dto** 等分别配置 **path** 与寄存器，不必同一节点 | **test_freq** 通过后 **test_route** |
 | 仅 PLL 路径 | **pll** + **source**，**regs** 齐全 | **test_freq** 只看 **pll** |
 | 门控全关 | 多个 **gate** 串联，**open** 随机 | **test_freq** 在关断分支 **valid** 为 0 处不测或期望无时钟 |
-| 固定 mux | 节点 **path** + **reg**，**fix_sel** | **test_freq** 前 **sel** 不变，只应看到选定前级频率 |
+| 固定 mux | 节点 **path** + **regs**，**fix_sel** | **test_freq** 前 **sel** 不变，只应看到选定前级频率 |
 | 固定 div 分频 | 节点 **path** + **regs**；**test_freq** 前设 **fix_ratio** | **ratio** 不变，**test_freq** 按该分频比换算 |
 
 长时随机回归可在环境中循环调用 **test_freq**，或先 **config_reg** 再 **check_freq**。

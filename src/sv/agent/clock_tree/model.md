@@ -83,7 +83,7 @@ classDiagram
 
 ## pll_base
 
-PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 约束 **frequence** 等于 **_resolved_freq**；**cst_resolve_freq_from_src** 空关断，输出频率由 **frequence** 直接给定，须按前级换算时由序列或环境先读前级频率再写入 **frequence**。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；**valid** 为 0 时跳过寄存器更新与 **wait_lock**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时亦跳过寄存器更新。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
+PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 约束 **frequence** 等于 **_resolved_freq**；**cst_resolve_freq_from_src** 空关断，输出频率由 **frequence** 直接给定，须按前级换算时由序列或环境先读前级频率再写入 **frequence**。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；**valid** 为 0 时跳过寄存器更新与 **wait_lock**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时亦跳过寄存器更新。**config_reg** 含 **reset**/**pd** 的型号先单独写复位或掉电电平，再一次 **apply** 写取消复位或掉电与其余 field，与 **mux**、**div**、**dto** 同一规则。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
@@ -120,7 +120,10 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 | max_sel | int | 建树时由 **mux.source** 键最大值写入 |
 | fix_sel | int | **enable_node_fix** 为真时生成；默认 **-1** 表示不固定 **sel**；**≥ 0** 时在 **cst_resolve_active_from_src** 中约束 **sel** 等于该值 |
 | to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 在 **to_source[sel] != null** 时写入 **source** |
-| reg | string，可选 | 寄存器模型路径，按 `.` 分隔，可带比特范围后缀；**config_reg** 写入 **sel** |
+| regs.rst | string，可选 | 复位位；**sel** 与上次写入不同时 **config_reg** 先拉复位再写 **sel** |
+| regs.sel | string，可选 | 选择 field；**config_reg** 写入 **sel** |
+
+**config_reg**：**sel** 与 **sequencer.tools.node** 记录的上次写入相同时跳过。**sel** 变更时先单独写 **rst** 复位电平，再一次 **apply** 写 **rst** 不复位与 **sel**；极性由 **mux_reg_high_means_reset** 决定。
 
 **cst_resolve_active_from_src**：**to_source[sel]** 为空则 **valid** 为 0，否则随所选前级 **valid**。
 
@@ -140,7 +143,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_div**：**ratio** 在 1～64；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。节点首次配置都会写 **rst** 为不复位电平，极性由 **div_reg_high_means_reset** 决定。**should_reset_div** 为真时，首次先把 **rst** 写复位电平、再写 **div** 与 **load**、最后写 **rst** 不复位；为假时首次只把 **rst** 写不复位并写 **div** 与 **load**，不经复位脉冲。同一 **sequencer** 上该节点已完成首次 **rst** 配置后，**config_reg** 与 **configure_div_ratio** 相同，只改 **div** 与 **load**。
+**config_reg**：**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。每次先单独写 **rst** 复位电平，再一次 **apply** 写 **rst** 不复位、**div**=N、**load**=0，再 **load**=1。极性由 **div_reg_high_means_reset** 决定。
 
 ## dto
 
@@ -154,7 +157,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_dto**：**ratio** 大于 0 且不超过 2^25；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：**ratio** 为 1 时旁通，**load**=1，**bypass**=1，**step**=0；**ratio** 大于 1 时 **load**=1，**bypass**=0，**step**=2^25/**ratio**，整数须落在 1～2^25−1。节点首次配置都会写 **rst** 为不复位电平，极性由 **dto_reg_high_means_reset** 决定。**should_reset_dto** 为真时，首次先把 **rst** 写复位电平、再写 **step**、**load** 与 **bypass**、最后写 **rst** 不复位；为假时首次只把 **rst** 写不复位并写 **step**、**load** 与 **bypass**，不经复位脉冲。同一 **sequencer** 上该节点已完成首次 **rst** 配置后，**config_reg** 与 **configure_dto_ratio** 相同，只改 **step**、**load**、**bypass**。
+**config_reg**：**ratio** 为 1 时旁通，**load**=1，**bypass**=1，**step**=0；**ratio** 大于 1 时 **load**=1，**bypass**=0，**step**=2^25/**ratio**，整数落在 1～2^25−1。每次先单独写 **rst** 复位电平，再一次 **apply** 写 **rst** 不复位与 **load**/**bypass**/**step**。极性由 **dto_reg_high_means_reset** 决定。
 
 ## gate
 

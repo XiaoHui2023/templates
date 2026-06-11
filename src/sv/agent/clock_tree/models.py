@@ -91,18 +91,10 @@ class Settings(BaseModel):
         description="为真时 dto 的 rst 位 1 表示复位、0 不复位；"
         "为假时 0 表示复位、1 不复位。",
     )
-    should_reset_div: bool = Field(
+    mux_reg_high_means_reset: bool = Field(
         False,
-        description="为真时 config_reg 首次配置 div 先拉 rst 到复位电平、"
-        "再写 div 与 load、最后写 rst 为不复位；"
-        "为假时首次只把 rst 写为不复位电平并写 div 与 load，不经复位脉冲。",
-    )
-    should_reset_dto: bool = Field(
-        False,
-        description="为真时 config_reg 首次配置 dto 先拉 rst 到复位电平、"
-        "再写 step、load 与 bypass、最后写 rst 为不复位；"
-        "为假时首次只把 rst 写为不复位电平并写 step、load 与 bypass，"
-        "不经复位脉冲。",
+        description="为真时 mux 的 rst 位 1 表示复位、0 不复位；"
+        "为假时 0 表示复位、1 不复位。",
     )
 
     @field_validator("duty_min", "duty_max", mode="before")
