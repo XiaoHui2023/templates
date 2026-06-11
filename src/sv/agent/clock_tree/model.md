@@ -1,10 +1,10 @@
 # 数据模型
 
-展开类型名带 **class_prefix** 前缀；下文标题与表仅用后缀名。
+展开类型名带 **class_prefix** 前缀；标题与表格只写类型名后缀。
 
 ## 类型继承
 
-配置中的每棵 **tree** 展开为 **`{name}_tree`** 类型，挂在 **tree_base** 下；节点类型均派生 **node_base**。
+每棵时钟树对应一个 **{name}_tree** 类型，派生自 **tree_base**。节点类型均派生自 **node_base**。
 
 ```mermaid
 classDiagram
@@ -18,6 +18,7 @@ classDiagram
     pll_base <|-- pll_tci
     pll_base <|-- pll_sc
     pll_base <|-- pll_dw
+    pll_base <|-- pll_inno
     node_base <|-- mux
     node_base <|-- div
     node_base <|-- dto
@@ -26,7 +27,7 @@ classDiagram
     tree_base <|-- tree_impl
 ```
 
-**spec_item** 即 **spec** 以 **uvm_sequence_item** 为类型实参的展开名。**tree_impl** 表示各配置树类型，如 **main_tree**。
+**spec_item** 是 **spec** 以 **uvm_sequence_item** 为类型实参后的类型名。**tree_impl** 表示各配置树类型，如 **main_tree**。
 
 ## node_base
 
@@ -34,13 +35,17 @@ classDiagram
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| kind | string | 器件类型；各派生类在 **new** 中设为配置 **kind** 字面量 |
-| frequence | longint，rand | 典型频率，单位 Hz；**cst_node_base** 软约束默认为 0 |
-| valid | bit，rand | 时钟是否有效；**cst_node_base** 软约束默认为 0 |
-| vif | virtual interface | 配置中填写 RTL 路径时由 **tree_connection** 绑定对应 interface；未配置则为 null |
-| source | 节点句柄 | 前级驱动；无配置则为 null |
-| cst_resolve_active_from_src | 约束 | 前级非空时 **valid** 与前级一致；子类可重载 |
-| cst_resolve_freq_from_src | 约束 | 前级非空时 **frequence** 与前级一致；子类可重载或空关断 |
+| **kind** | **string** | 器件类型 |
+| **frequence** | **longint**，**rand** | 典型频率，单位 Hz |
+| **valid** | **bit**，**rand** | 时钟有效状态 |
+| **vif** | **virtual interface** | 测量接口句柄 |
+| **source** | **node_base** | 当前选中的前级节点 |
+
+| 约束 | 说明 |
+| --- | --- |
+| **cst_node_base** | **frequence** 与 **valid** 默认软约束为 0 |
+| **cst_resolve_active_from_src** | 前级非空时 **valid** 与前级一致 |
+| **cst_resolve_freq_from_src** | 前级非空时 **frequence** 与前级一致 |
 
 ## tree_base
 
@@ -48,130 +53,196 @@ classDiagram
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| nodes | 节点队列 | 建树后装入的全部节点句柄 |
-| low_power | bit，rand | 低功耗；软约束默认为 0。**cst_tree_base** 在 **low_power** 为 0 时将 **nodes** 中 **kind** 为 **clk** 的 **valid** 软约束为 1，为 1 时软约束为 0 |
+| **nodes** | **node_base** 队列 | 建树后的全部节点句柄 |
+| **low_power** | **bit**，**rand** | 为 0 时 **clk** 节点默认有效；为 1 时 **clk** 节点默认无效 |
 
 ## 图遍历
 
-**core/tree_nodes.sv** 提供 **function automatic** 工具，入参为 **tree_base** 与 **tree.nodes** 中的节点句柄；结果不含入参节点本身。**mux** 按 **to_source** 全输入展开，不只当前 **sel**。
+**tree_nodes** 工具函数接收 **tree_base** 与节点句柄，结果不含入参节点本身。**mux** 按全部 **to_source** 输入计算，不只看当前 **sel**。
 
 | 函数 | 说明 |
 | --- | --- |
-| **get_nodes_before** | 沿 **source** / **to_source** 向上收集全部前级节点；可选 **kind** 实参，空串表示不过滤 |
-| **get_nodes_after** | 在 **tree.nodes** 中收集以该节点为前级的全部后级节点；可选 **kind** 同上 |
-| **get_tree_head_nodes** | 在 **tree.nodes** 中取开端节点：无前级，或全部前级不在 **tree.nodes**；**mux** 任一 **to_source** 落在 **tree.nodes** 则不算开端 |
-| **get_tree_tail_nodes** | 在 **tree.nodes** 中取末尾节点：无后级，或全部后级不在 **tree.nodes** |
-| **get_subgraph_tail_nodes** | 在入参节点队列内按末尾规则筛选；须传入 **tree_base** 供下游扫描 |
-| **filter_nodes_by_kind** | 按 **kind** 字符串筛选节点队列；**kind** 为空串时原样返回 |
-| **get_sources_before** / **get_clks_before** / **get_plls_before** 等 | 固定 **kind** 封装；后级方向同名，如 **get_plls_after** |
-| **get_sources_at_tree_head** / **get_clks_at_tree_tail** 等 | 在整棵树开端或末尾按 **kind** 筛选 |
+| **get_nodes_before** | 沿 **source** / **to_source** 收集全部前级节点 |
+| **get_nodes_after** | 收集以该节点为前级的全部后级节点 |
+| **get_tree_head_nodes** | 收集整棵树的开端节点 |
+| **get_tree_tail_nodes** | 收集整棵树的末尾节点 |
+| **get_subgraph_tail_nodes** | 在入参节点队列内筛选末尾节点 |
+| **filter_nodes_by_kind** | 按 **kind** 筛选节点队列；空串不过滤 |
+| **get_sources_before** / **get_clks_before** / **get_plls_before** | 固定 **kind** 的前级筛选函数 |
+| **get_sources_at_tree_head** / **get_clks_at_tree_tail** | 整棵树开端或末尾的固定 **kind** 筛选函数 |
 
 ## source
 
-配置 **kind: source** 的时钟根节点；无前级时 **cst_resolve_freq_from_src** 不施加频率等式。**classic_frequence** 由建树 **new** 从 YAML **freq** 写入；**cst_source** 硬约束 **frequence** 等于 **classic_frequence**；**frequence** 大于 0 时 **valid** 为 1。
+时钟根节点。
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **classic_frequence** | **longint** | 配置中的典型频率 |
+
+| 约束 | 说明 |
+| --- | --- |
+| **cst_source** | **frequence** 等于 **classic_frequence**；频率大于 0 时 **valid** 为 1 |
+| **cst_resolve_freq_from_src** | 无前级时不施加频率等式 |
 
 ## clk
 
-观测用时钟节点。**cst_clk** 将 **frequence**、**enabled** 分别与 **_resolved_freq**、**_resolved_active** 绑定；**unfix_frequence**、**unfix_enabled** 为 1 时对应等式不施加，为 0 时该字段随解析结果固定、不独立随机。
+测量用时钟节点。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| frequence | longint | 频率，单位 Hz |
-| enabled | bit，rand | 是否活动 |
-| unfix_frequence | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **frequence**；由序列或环境赋值，不可由 YAML 配置 |
-| unfix_enabled | bit | **enable_node_fix** 为真时生成；为 1 时 **cst_clk** 不约束 **enabled**；由序列或环境赋值，不可由 YAML 配置 |
+| **frequence** | **longint** | 频率，单位 Hz |
+| **enabled** | **bit**，**rand** | 活动状态 |
+| **unfix_frequence** | **bit** | 为 1 时 **frequence** 不受解析频率约束 |
+| **unfix_enabled** | **bit** | 为 1 时 **enabled** 不受解析有效状态约束 |
+
+| 约束 | 说明 |
+| --- | --- |
+| **cst_clk** | **frequence** 与 **enabled** 默认绑定到解析结果 |
 
 ## pll_base
 
-PLL 公共基类；**kind** 在 **new** 中固定为 **pll**。**classic_frequence** 由建树 **new** 写入；**cst_pll** 约束 **frequence** 等于 **_resolved_freq**；**cst_resolve_freq_from_src** 空关断，输出频率由 **frequence** 直接给定，须按前级换算时由序列或环境先读前级频率再写入 **frequence**。**config_reg** 以 **source.frequence** 为参考时钟算分频，**source** 为 null 则 **uvm_fatal**；**valid** 为 0 时跳过寄存器更新与 **wait_lock**；参考频率与 **frequence** 均与 **pll_cfg** 中上次写入记录相同时亦跳过寄存器更新。**config_reg** 含 **reset**/**pd** 的型号先单独写复位或掉电电平，再一次 **apply** 写取消复位或掉电与其余 field，与 **mux**、**div**、**dto** 同一规则。**cst_pll**：**frequence** 大于 0 时 **valid** 为 1。
+PLL 公共基类。目标输出频率由 **frequence** 给定，参考频率来自 **source**。
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| pll_kind | pll_kind_e | 各 **pll_*** 子类在 **new** 中赋固定枚举值 |
-| locked | bit | 锁定指示 |
+| **classic_frequence** | **longint** | 配置中的目标频率 |
+| **pll_kind** | **pll_kind_e** | PLL 型号枚举 |
+| **locked** | **bit** | 锁定状态 |
 
-YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** 中的哪一类，并与 **regs** 允许键校验一致；展开后 **pll_kind** 成员与之类型一致。
-
-| 配置 pll_kind | 展开类型 | 说明 |
-| --- | --- | --- |
-| tci | pll_tci | TCI 寄存器在该类 |
-| sc | pll_sc | SC 寄存器在该类 |
-| dw | pll_dw | DW 寄存器在该类 |
-
-| 配置 / 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| source | str，必填 | 参考时钟前级节点名；**tree** 构造时写入 **source** 句柄 |
-| pll_kind | tci、sc、dw，必填，大小写不限 | 决定例化哪一类 **pll_*** |
-| regs | dict，可选 | 键为逻辑名、值为 寄存器模型路径，按 `.` 分隔，可带 `[n]` 或 `[msb:lsb]` 后缀；**非空时须与 pll_kind 允许名字完全一致**，不得缺键或多键 |
-
-| pll_kind | regs 须包含的键 |
+| 约束 | 说明 |
 | --- | --- |
-| tci | lock、bypass、pwrdn、reset、clkod、clkf、clkr、bwadj |
-| sc | lock、vocpd、postdivpd、dsmpd、pd、bypass、refdiv、postdiv2、postdiv1、fbdiv |
-| dw | lock、fbdiv、prediv、reset、pwron、shift、bypass、divvcor、r、p、divvcop、enr、enp |
+| **cst_pll** | **frequence** 等于目标频率；频率大于 0 时 **valid** 为 1 |
+| **cst_resolve_freq_from_src** | 空关断；PLL 输出频率不直接沿前级传递 |
+
+### pll_tci
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **f_lock** | 寄存器 field | lock 状态 |
+| **f_bypass** | 寄存器 field | bypass 开关 |
+| **f_pwrdn** | 寄存器 field | 掉电控制 |
+| **f_reset** | 寄存器 field | 复位控制 |
+| **f_clkod** | 寄存器 field | 输出分频系数 |
+| **f_clkf** | 寄存器 field | 反馈倍频系数 |
+| **f_clkr** | 寄存器 field | 参考分频系数 |
+| **f_bwadj** | 寄存器 field | 环路带宽调节 |
+
+### pll_sc
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **f_lock** | 寄存器 field | lock 状态 |
+| **f_vocpd** | 寄存器 field | VCO 掉电 |
+| **f_postdivpd** | 寄存器 field | 后级分频掉电 |
+| **f_dsmpd** | 寄存器 field | ΔΣ 调制掉电 |
+| **f_pd** | 寄存器 field | 掉电控制 |
+| **f_bypass** | 寄存器 field | bypass 开关 |
+| **f_refdiv** | 寄存器 field | 参考分频系数 |
+| **f_postdiv2** | 寄存器 field | 后级分频 2 系数 |
+| **f_postdiv1** | 寄存器 field | 后级分频 1 系数 |
+| **f_fbdiv** | 寄存器 field | 反馈分频系数 |
+
+### pll_dw
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **f_lock** | 寄存器 field | lock 状态 |
+| **f_fbdiv** | 寄存器 field | 反馈分频系数 |
+| **f_prediv** | 寄存器 field | 前级分频系数 |
+| **f_reset** | 寄存器 field | 复位控制 |
+| **f_pwron** | 寄存器 field | 上电控制 |
+| **f_shift** | 寄存器 field | 频点偏移 |
+| **f_bypass** | 寄存器 field | bypass 开关 |
+| **f_divvcor** | 寄存器 field | VCO 分频系数 |
+| **f_r** | 寄存器 field | R 分频系数 |
+| **f_p** | 寄存器 field | P 分频系数 |
+| **f_divvcop** | 寄存器 field | VCO 后级分频系数 |
+| **f_enr** | 寄存器 field | R 通道使能 |
+| **f_enp** | 寄存器 field | P 通道使能 |
+
+### pll_inno
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **group_id** | **int** | 输出路序号 |
+| **f_lock** | 寄存器 field | lock 状态 |
+| **f_pd** | 寄存器 field | 掉电控制 |
+| **f_refdiv** | 寄存器 field | 参考分频系数 |
+| **f_fbdiv** | 寄存器 field | 反馈分频系数 |
+| **f_postdiv1** | 寄存器 field | 本路后级分频 1 系数 |
+| **f_postdiv2** | 寄存器 field | 本路后级分频 2 系数 |
 
 ## mux
 
 多路选择节点。
 
-| 成员 / 配置 | 类型 | 说明 |
+| 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| sel | int，rand | 选择值；**cst_mux** 约束 **sel** 在 0 至 **max_sel** |
-| max_sel | int | 建树时由 **mux.source** 键最大值写入 |
-| fix_sel | int | **enable_node_fix** 为真时生成；默认 **-1** 表示不固定 **sel**；**≥ 0** 时在 **cst_resolve_active_from_src** 中约束 **sel** 等于该值 |
-| to_source | 关联数组，int 键 | 各输入前级；**post_randomize** 在 **to_source[sel] != null** 时写入 **source** |
-| regs.rst | string，可选 | 复位位；**sel** 与上次写入不同时 **config_reg** 先拉复位再写 **sel** |
-| regs.sel | string，可选 | 选择 field；**config_reg** 写入 **sel** |
+| **sel** | **int**，**rand** | 当前选择值 |
+| **max_sel** | **int** | 最大选择值 |
+| **fix_sel** | **int** | 非负时固定 **sel** |
+| **to_source** | **node_base** 关联数组 | 各输入前级 |
+| **f_rst** | 寄存器 field | 复位位 |
+| **f_sel** | 寄存器 field | 选择 field |
 
-**config_reg**：**sel** 与 **sequencer.tools.node** 记录的上次写入相同时跳过。**sel** 变更时先单独写 **rst** 复位电平，再一次 **apply** 写 **rst** 不复位与 **sel**；极性由 **mux_reg_high_means_reset** 决定。
-
-**cst_resolve_active_from_src**：**to_source[sel]** 为空则 **valid** 为 0，否则随所选前级 **valid**。
-
-## enable_node_fix
-
-**Models** 推导字段：分别存在非空 **path** 节点与非空 **reg** 或 **regs** 节点时为真。为真时在 **gate**、**mux**、**div**、**dto** 模型类中生成 **fix_*** 成员，在 **clk** 中生成 **unfix_frequence**、**unfix_enabled**；YAML 不可写入 **settings**。
+| 约束或回调 | 说明 |
+| --- | --- |
+| **cst_mux** | **sel** 在 0 至 **max_sel** 内 |
+| **cst_resolve_active_from_src** | 当前输入为空时 **valid** 为 0，否则跟随当前输入 |
+| **post_randomize** | 将 **source** 指向 **to_source[sel]** |
 
 ## div
 
-分频节点。
+整数分频节点。
 
-| 成员 / 配置 | 说明 |
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **ratio** | **int**，**rand** | 分频比，1～64 |
+| **fix_ratio** | **int** | 大于 0 时固定 **ratio** |
+| **f_rst** | 寄存器 field | 复位位 |
+| **f_load** | 寄存器 field | 加载位 |
+| **f_div** | 寄存器 field | 分频系数 |
+
+| 约束 | 说明 |
 | --- | --- |
-| ratio | 分频比，rand，须 1～64；1 表示不分频，大于 1 表示分频比为 **ratio** |
-| fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_div** 中约束 **ratio**；由序列或环境在 **config_reg** 调用前赋值，不可经 YAML 配置 |
-| regs | 映射，可选 | 非空时键为 rst、load、div，值为各 field 的 寄存器模型路径，按 `.` 分隔，可带比特范围后缀 |
-
-**cst_div**：**ratio** 在 1～64；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
-
-**config_reg**：**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。每次先单独写 **rst** 复位电平，再一次 **apply** 写 **rst** 不复位、**div**=N、**load**=0，再 **load**=1。极性由 **div_reg_high_means_reset** 决定。
+| **cst_div** | **ratio** 在 1～64 |
+| **cst_resolve_freq_from_src** | 输出频率为前级频率整除 **ratio** |
 
 ## dto
 
-占空比变换节点。
+小数分频节点。
 
-| 成员 / 配置 | 说明 |
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **ratio** | **int**，**rand** | 分频比，大于 0 且不超过 2^25 |
+| **fix_ratio** | **int** | 大于 0 时固定 **ratio** |
+| **f_rst** | 寄存器 field | 复位位 |
+| **f_load** | 寄存器 field | 加载位 |
+| **f_bypass** | 寄存器 field | bypass 位 |
+| **f_step** | 寄存器 field | 步进控制 |
+
+| 约束 | 说明 |
 | --- | --- |
-| ratio | 分频比，rand，须大于 0 且不超过 2^25；与 **step** 对应关系为 分频比 = 2^25 / **step** |
-| fix_ratio | int | **enable_node_fix** 为真时生成；默认 **0** 表示不固定分频比；**> 0** 时在 **cst_dto** 中约束 **ratio**；由序列或环境在 **config_reg** 调用前赋值，不可经 YAML 配置 |
-| regs | 可选；非空时键须为 **rst**、**load**、**bypass**、**step**，值为各 field 的 寄存器模型路径，按 `.` 分隔，可带比特范围后缀 |
-
-**cst_dto**：**ratio** 大于 0 且不超过 2^25；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
-
-**config_reg**：**ratio** 为 1 时旁通，**load**=1，**bypass**=1，**step**=0；**ratio** 大于 1 时 **load**=1，**bypass**=0，**step**=2^25/**ratio**，整数落在 1～2^25−1。每次先单独写 **rst** 复位电平，再一次 **apply** 写 **rst** 不复位与 **load**/**bypass**/**step**。极性由 **dto_reg_high_means_reset** 决定。
+| **cst_dto** | **ratio** 大于 0 且不超过 2^25 |
+| **cst_resolve_freq_from_src** | 输出频率为前级频率整除 **ratio** |
 
 ## gate
 
 门控节点。
 
-| 成员 / 配置 | 类型 | 说明 |
+| 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| open | bit，rand | 为真时开放时钟通行；为假时屏蔽输出 |
-| fix_open | bit | **enable_node_fix** 为真时生成；为 1 时在 **cst_gate** 中约束 **open** 为 1 |
-| fix_close | bit | **enable_node_fix** 为真时生成；为 1 时在 **cst_gate** 中约束 **open** 为 0 |
-| reg | string，可选 | 寄存器模型路径，按 `.` 分隔，可带比特范围后缀；**config_reg** 写入门控位，写 1 是否表示打开由 **settings** 的 **gate_reg_high_means_open** 决定 |
+| **open** | **bit**，**rand** | 时钟通行状态 |
+| **fix_open** | **bit** | 为 1 时固定 **open** 为 1 |
+| **fix_close** | **bit** | 为 1 时固定 **open** 为 0 |
+| **f_reg** | 寄存器 field | 门控位 |
 
-重载 **cst_resolve_active_from_src**：**open** 为假时 **valid** 为 0；**open** 为真且前级非空时 **valid** 与前级一致；**open** 为真且无前级时 **valid** 为 0。重载 **cst_resolve_freq_from_src**：**open** 为假时 **frequence** 为 0；**open** 为真且前级非空时 **frequence** 与前级一致；**open** 为真且无前级时 **frequence** 为 0。
+| 约束 | 说明 |
+| --- | --- |
+| **cst_gate** | **fix_open** 与 **fix_close** 控制 **open** |
+| **cst_resolve_active_from_src** | **open** 为真且前级有效时 **valid** 为 1 |
+| **cst_resolve_freq_from_src** | **open** 为真且前级存在时 **frequence** 跟随前级，否则为 0 |
 
 ## inv
 
-反相器节点；除 **node_base** 公共字段外无附加成员。
+反相器节点。除 **node_base** 公共字段外无附加成员。
