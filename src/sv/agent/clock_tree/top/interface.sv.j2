@@ -22,23 +22,30 @@ interface {{ settings.class_prefix }}interface #(
         .DUTY_MAX_PCT(DUTY_MAX_PCT)
     ) meas(.in(in));
 
+    // 写测量开关；关时清零测量结果
+    // en — 测量开关
     function automatic void set_measure_en(bit en);
         meas.set_measure_en(en);
     endfunction
 
+    // 清零测量结果后开启测量
     function automatic void start_measure();
         meas.start_measure();
     endfunction
 
+    // 关闭测量并清零测量结果
     function automatic void stop_measure();
         meas.stop_measure();
     endfunction
 
-    // hz — 可量测的最低频率，单位 Hz
+    // 可测量的最低频率，单位 Hz
+    // hz — 最低频率，Hz
     function automatic void set_min_freq_hz(int hz);
         meas.set_min_freq_hz(hz);
     endfunction
 
+    // 轮询 stable，最长 meas_timeout_ns_rt
+    // ok — 为真表示在时限内达到稳定
     task automatic wait_measure_stable(output bit ok);
         meas.wait_measure_stable(ok);
     endtask

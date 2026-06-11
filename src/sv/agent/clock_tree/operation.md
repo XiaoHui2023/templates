@@ -45,7 +45,7 @@
 
 ## check_freq
 
-只量测，不写寄存器。遍历 **req.tree.nodes**，只处理 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。**req.min_freq_hz** 为 0 时用 **settings.min_freq_hz**；量测前对各 **vif** 调用 **set_min_freq_hz** 与序列轮询共用该值推导超时。
+只测量，不写寄存器。遍历 **req.tree.nodes**，只处理 **kind** 为 **source**、**clk** 或 **pll** 且已挂 **vif** 的项。**req.min_freq_hz** 为 0 时用 **settings.min_freq_hz**；测量前对各 **vif** 调用 **set_min_freq_hz** 与序列轮询共用该值推导超时。
 
 先对全部目标节点 **start_measure**，再按轮询 **stable**：**stable** 含连续周期稳定与无有效边沿超时两种结束方式。某节点 **stable** 后按 **_resolved_active** 与 **active**、**freq_hz** 判定：期望无时钟时要求 **active** 为假；期望有时钟时要求 **active** 为真且 **freq_hz** 与 **_resolved_freq** 相对偏差不超过 **period_tolerance**。未 **stable** 的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未 **stable** 则报错。
 
@@ -53,6 +53,6 @@
 
 ## check_duty
 
-只量测，不写寄存器。遍历 **req.tree.nodes**，处理已挂 **vif** 的节点，不限 **kind**。先对全部目标节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即根据 **vif.meas.duty_ok** 判定并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。
+只测量，不写寄存器。遍历 **req.tree.nodes**，处理已挂 **vif** 的节点，不限 **kind**。先对全部目标节点 **start_measure**，再按轮询 **stable**：某节点一旦稳定即根据 **vif.meas.duty_ok** 判定并 **stop_measure** 该节点；未稳定的节点进入下一轮，直至全部测完或达到与 **min_freq_hz** 对应的超时；超时仍未稳定的节点报错。范围由 **duty_min**、**duty_max** 决定。未通过占空比的节点记入 **rsp.failed_nodes**。
 
 写寄存器后再量占空比用 **test_duty**。

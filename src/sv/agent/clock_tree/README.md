@@ -35,7 +35,7 @@ settings:
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `min_freq_hz` | `int` | `500` | 量测接口与 check_freq 默认最低频率，单位 Hz。 |
+| `min_freq_hz` | `int` | `500` | 测量接口与 check_freq 默认最低频率，单位 Hz。 |
 | `stable_cycles` | `int` | `3` | 连续稳定所需周期数。 |
 | `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
 | `duty_min` | `float` | `33` | 允许占空比下限，百分数；闭区间端点计入合格。 |

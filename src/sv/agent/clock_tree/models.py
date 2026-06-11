@@ -34,8 +34,8 @@ class Settings(BaseModel):
     min_freq_hz: int = Field(
         500,
         ge=500,
-        description="量测接口与 check_freq 默认最低频率，单位 Hz；"
-        "决定无边沿超时与可量测频率下限。",
+        description="测量接口与 check_freq 默认最低频率，单位 Hz；"
+        "决定无边沿超时与可测量频率下限。",
     )
     stable_cycles: int = Field(
         3,

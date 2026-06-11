@@ -14,7 +14,6 @@ interface {{ settings.class_prefix }}measure_interface #(
     timeunit 1ns;
     timeprecision 1fs;
 
-    // $realtime and realtime deltas: timeunit (ns). timeprecision 1fs resolves 2GHz half-period 0.5ns.
     localparam real DUTY_MIN = DUTY_MIN_PCT / 100.0;
     localparam real DUTY_MAX = DUTY_MAX_PCT / 100.0;
     localparam real DUTY_BOUND_EPS = 1.0e-9;
@@ -37,6 +36,8 @@ interface {{ settings.class_prefix }}measure_interface #(
     int meas_timeout_ns_rt;
     real max_edge_period_rt;
 
+    // 按最低频率更新超时与最大边沿间隔
+    // hz — 最低频率，Hz
     function automatic void update_meas_timing_from_min_freq(int hz);
         if (hz < MIN_FREQ_HZ)
             hz = MIN_FREQ_HZ;
@@ -45,6 +46,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         max_edge_period_rt = RT_PER_SEC / hz;
     endfunction
 
+    // 清零测量结果与边沿状态
     function automatic void reset_measure();
         active = 1'b0;
         stable = 1'b0;
@@ -58,7 +60,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         stable_match_cnt = 0;
     endfunction
 
-    // 超时表示量测结束且无有效边沿
+    // 超时表示测量结束且无有效边沿
     function automatic void mark_timeout();
         active = 1'b0;
         stable = 1'b1;
@@ -68,6 +70,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         stable_match_cnt = 0;
     endfunction
 
+    // 根据相邻上升沿更新频率、占空比与 stable
     function automatic void sample_period(realtime pos_t, realtime prev_pos_t);
         realtime period_t;
         realtime high_t;
@@ -108,22 +111,27 @@ interface {{ settings.class_prefix }}measure_interface #(
         last_period_t = period_t;
     endfunction
 
-    // hz — 可量测的最低频率，单位 Hz
+    // 可测量的最低频率，单位 Hz
+    // hz — 最低频率，Hz
     function automatic void set_min_freq_hz(int hz);
         update_meas_timing_from_min_freq(hz);
     endfunction
 
+    // 写测量开关；关时清零测量结果
+    // en — 测量开关
     function automatic void set_measure_en(bit en);
         meas_en = en;
         if (!en)
             reset_measure();
     endfunction
 
+    // 清零测量结果后开启测量
     function automatic void start_measure();
         reset_measure();
         meas_en = 1'b1;
     endfunction
 
+    // 关闭测量并清零测量结果
     function automatic void stop_measure();
         set_measure_en(1'b0);
     endfunction
@@ -142,6 +150,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         ok = stable;
     endtask
 
+    // 监视上升沿并采样周期
     task automatic watch_posedge();
         realtime now_t;
         realtime prev_pos_t;
@@ -163,6 +172,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         end
     endtask
 
+    // 监视下降沿并记录高电平结束时刻
     task automatic watch_negedge();
         forever begin
             @(negedge in);
