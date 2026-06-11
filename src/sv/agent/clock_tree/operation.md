@@ -18,25 +18,25 @@
 
 ## config_reg
 
-**config_reg** 先随机化 **tree**，再按 **pll**、**div** / **dto**、打开的 **gate**、**mux**、关闭的 **gate** 五段写寄存器。
+**config_reg** 先随机化 **tree**，再按 **pll**、**div** / **dto**、**mux** 切换准备、打开的 **gate**、**mux**、关闭的 **gate** 六段写寄存器。
 
 | 段 | 节点 |
 | --- | --- |
 | 1 | 全部 **pll**；本轮实际写过寄存器的 **pll** 进入 **wait_lock** |
 | 2 | 全部 **div**、**dto** |
-| 3 | **open** 为真的 **gate** |
-| 4 | 全部 **mux** |
-| 5 | **open** 为假的 **gate** |
+| 3 | **sel** 将变化的 **mux**：打开其全部上游 **gate**，按最慢直接前级时钟等待 **mux_switch_wait_cycles** 个周期 |
+| 4 | **open** 为真的 **gate** |
+| 5 | 全部 **mux** |
+| 6 | **open** 为假的 **gate**，含第 3 段临时打开的 **gate** |
 
 **reg_rw.set_write** 读镜像、合并切片，值变化时写父寄存器。**reg_rw.apply** 对多个 field 先统一 **set**，再按父寄存器合并写。
 
 ### 复位与掉电
 
-**mux**、**div**、**dto**、**pll** 需要先拉复位或掉电时，第一次只写控制位，第二次 **apply** 同时写取消复位或掉电与其余 field。同一父寄存器内能合并的 field 不拆成多次总线写。
+**div**、**dto**、**pll** 需要先拉复位或掉电时，第一次只写控制位，第二次 **apply** 同时写取消复位或掉电与其余 field。同一父寄存器内能合并的 field 不拆成多次总线写。
 
 | 节点 | 第一次 | 第二次 |
 | --- | --- | --- |
-| **mux** | 只写 **rst** 复位电平 | **rst** 不复位与 **sel** |
 | **div** | 只写 **rst** 复位电平 | **rst** 不复位、**div**、**load**=0；再 **load**=1 |
 | **dto** | 只写 **rst** 复位电平 | **rst** 不复位与 **load**/**bypass**/**step** |
 | **pll tci** | **reset**=1 | 保持复位写 **bypass**/**pwrdn** 与分频 field；再写 **reset**=0 与 **bypass**=0 |
@@ -61,7 +61,7 @@
 
 ### div
 
-**ratio** 为 1～64。寄存器 **div** field 写入 **n**=**ratio**−1；**ratio** 为 1 时 **n** 为 0。每次写入都执行复位两步，**rst** 极性由 **div_reg_high_means_reset** 决定。
+**ratio** 为 1～64。寄存器 **div** field 写入 **n**=**ratio**−1；**ratio** 为 1 时 **n** 为 0。**should_reset_div** 为真时每次写入都执行复位两步；为假时首次不经复位脉冲，此后只更新 **div** 与 **load**。**rst** 极性由 **div_reg_high_means_reset** 决定。
 
 ### dto
 
@@ -70,15 +70,17 @@
 | 1 | 1 | 1 | 0 |
 | 大于 1 | 1 | 0 | 2^25/**ratio**，整数落在 1～2^25−1 |
 
-每次写入都执行复位两步，**rst** 极性由 **dto_reg_high_means_reset** 决定。
+**should_reset_dto** 为真时每次写入都执行复位两步；为假时首次不经复位脉冲，此后只更新 **load**、**bypass** 与 **step**。**rst** 极性由 **dto_reg_high_means_reset** 决定。
 
 ### gate
 
-第 3 段只写 **open** 为真的 **gate**；第 5 段只写 **open** 为假的 **gate**。**gate_reg_high_means_open** 为真时寄存器值与 **open** 相同，为假时取反。
+第 4 段只写 **open** 为真的 **gate**；第 6 段只写 **open** 为假的 **gate**。**gate_reg_high_means_open** 为真时寄存器值与 **open** 相同，为假时取反。
 
 ### mux
 
-**sel** 与上次写入相同时跳过。**sel** 变化时执行复位两步，**rst** 极性由 **mux_reg_high_means_reset** 决定。
+第 3 段仅处理 **sel** 与上次写入不同的 **mux**：沿各 **mux** 上游收集全部 **gate** 并写寄存器为打开；在全部待切换 **mux** 的直接前级里取最低 **_resolved_freq**，等待 **mux_switch_wait_cycles** 乘该时钟周期，多路取最长等待时间。全部 **mux** **sel** 均未变化时跳过第 3 段。
+
+第 5 段写全部 **mux**：**sel** 与上次写入相同时跳过；否则写入 **sel** 寄存器。
 
 ## check_freq
 

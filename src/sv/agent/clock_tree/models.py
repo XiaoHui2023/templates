@@ -42,6 +42,11 @@ class Settings(BaseModel):
         ge=2,
         description="连续稳定所需周期数。",
     )
+    mux_switch_wait_cycles: int = Field(
+        3,
+        ge=1,
+        description="config_reg 写 mux 选择前，按待切换 mux 最慢直接前级时钟等待的周期数。",
+    )
     period_tolerance: float = Field(
         0.05,
         gt=0.0,
@@ -91,10 +96,19 @@ class Settings(BaseModel):
         description="为真时 dto 的 rst 位 1 表示复位、0 不复位；"
         "为假时 0 表示复位、1 不复位。",
     )
-    mux_reg_high_means_reset: bool = Field(
+    should_reset_div: bool = Field(
         False,
-        description="为真时 mux 的 rst 位 1 表示复位、0 不复位；"
-        "为假时 0 表示复位、1 不复位。",
+        description="为真时每次 config_reg 配置 div 先拉 rst 到复位电平，"
+        "再写 div 与 load、最后写 rst 为不复位；"
+        "为假时首次只将 rst 写为不复位电平并写 div 与 load，"
+        "此后仅更新 div 与 load，不经复位脉冲。",
+    )
+    should_reset_dto: bool = Field(
+        False,
+        description="为真时每次 config_reg 配置 dto 先拉 rst 到复位电平，"
+        "再写 step、load 与 bypass、最后写 rst 为不复位；"
+        "为假时首次只将 rst 写为不复位电平并写 step、load 与 bypass，"
+        "此后仅更新 step、load 与 bypass，不经复位脉冲。",
     )
 
     @field_validator("duty_min", "duty_max", mode="before")

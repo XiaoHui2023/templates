@@ -13,8 +13,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
 {%- endif %}
     {{ settings.class_prefix }}node_base to_source[int];
 {% if regs_enabled %}
-    {{ settings.class_prefix }}reg f_rst;
-    {{ settings.class_prefix }}reg f_sel;
+    {{ settings.class_prefix }}reg f_reg;
 {% endif %}
 
     constraint cst_mux {
@@ -39,8 +38,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         fix_sel = -1;
 {%- endif %}
 {% if regs_enabled %}
-        f_rst = new();
-        f_sel = new();
+        f_reg = new();
 {% endif %}
         kind = "mux";
     endfunction

@@ -19,7 +19,6 @@ from pydantic import (
 from reg_paths import (
     DIV_REG_KEYS,
     DTO_REG_KEYS,
-    MUX_REG_KEYS,
     PLL_KIND_TO_SV,
     normalize_pll_kind,
     sv_node_access,
@@ -289,18 +288,15 @@ class MuxNode(NodeBase):
         default_factory=dict,
         description="输入标签到前级引用的映射。",
     )
-    regs: Dict[str, str] = Field(
-        default_factory=dict,
-        description="非空时键为 rst、sel，值为寄存器模型路径。",
+    reg: str = Field(
+        "",
+        description="寄存器模型路径。",
     )
 
     @model_validator(mode="after")
     def _validate_mux(self, info: ValidationInfo) -> MuxNode:
-        validate_regs_exact(
-            self.regs,
-            MUX_REG_KEYS,
-            node_name=_validation_node_name(self, info),
-            kind="mux",
+        validate_optional_reg(
+            self.reg, node_name=_validation_node_name(self, info), kind="mux"
         )
         return self
 

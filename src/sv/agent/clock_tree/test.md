@@ -142,5 +142,5 @@
 | 通路结构 | **gate**、**mux**、**div**、**dto** 分别有可测路径与寄存器 | **test_freq** 通过后 **test_route** |
 | PLL 路径 | **pll** 与 **source**，寄存器 field 齐全 | **test_freq** |
 | 门控全关 | 多个 **gate** 串联，**open** 随机 | **test_freq** |
-| 固定 mux | 节点带 **path** 与 **regs**，测试前设置 **fix_sel** | **test_freq** |
+| 固定 mux | 节点带 **path** 与 **reg**，测试前设置 **fix_sel** | **test_freq** |
 | 固定 div 分频 | 节点带 **path** 与 **regs**，测试前设置 **fix_ratio** | **test_freq** |

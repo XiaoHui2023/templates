@@ -37,6 +37,7 @@ settings:
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
 | `min_freq_hz` | `int` | `500` | 测量接口与 check_freq 默认最低频率，单位 Hz。 |
 | `stable_cycles` | `int` | `3` | 连续稳定所需周期数。 |
+| `mux_switch_wait_cycles` | `int` | `3` | **config_reg** 写 **mux** 选择前，按待切换 **mux** 最慢直接前级时钟等待的周期数。 |
 | `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
 | `duty_min` | `float` | `33` | 允许占空比下限，百分数；闭区间端点计入合格。 |
 | `duty_max` | `float` | `66` | 允许占空比上限，百分数；闭区间端点计入合格。 |
@@ -46,7 +47,8 @@ settings:
 | `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。 |
 | `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 | `dto_reg_high_means_reset` | `bool` | `false` | 为真时 dto **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
-| `mux_reg_high_means_reset` | `bool` | `false` | 为真时 mux **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
+| `should_reset_div` | `bool` | `false` | 为真时每次 **config_reg** 写 div 都先拉 **rst** 复位再释放；为假时首次只写 **rst** 不复位并写 **div** 与 **load**，此后仅更新 **div** 与 **load**。 |
+| `should_reset_dto` | `bool` | `false` | 为真时每次 **config_reg** 写 dto 都先拉 **rst** 复位再释放；为假时首次只写 **rst** 不复位并写 **step**、**load** 与 **bypass**，此后仅更新这三项。 |
 
 ### 配置值写法
 
@@ -227,5 +229,4 @@ settings:
 | `kind` | `str` | `mux` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
-| `regs.rst` | `str` | | 复位位。 |
-| `regs.sel` | `str` | | 选择 field。 |
+| `reg` | `str` | `""` | 选择寄存器模型路径。 |

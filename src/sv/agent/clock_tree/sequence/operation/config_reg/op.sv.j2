@@ -20,6 +20,11 @@ class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
     extern virtual task body();
     // 写 gate 的开关控制
     extern task config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
+    // 向寄存器写入指定 gate 开关
+    // reg_open — 写入寄存器的打开电平
+    extern task config_reg_gate_node_reg(
+        {{ settings.class_prefix }}gate gate_nd,
+        bit reg_open);
     // 写 mux 的选择控制
     extern task config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
     // 写 div 的复位、load 与分频比
@@ -48,6 +53,8 @@ class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
     extern task config_gate_nodes({{ settings.class_prefix }}tree_base tree, bit open);
     // 写入 mux 选择寄存器
     extern task config_mux_nodes({{ settings.class_prefix }}tree_base tree);
+    // 切换 mux 前打开上游 gate 并等待时钟稳定
+    extern task prep_mux_switch_gates({{ settings.class_prefix }}tree_base tree);
 endclass
 
 // 写 gate 的开关控制
@@ -61,11 +68,24 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_gate_node({{ settings
     p_sequencer.tools.node.configure_gate(gate_nd.f_reg, gate_nd.open);
 endtask
 
+// 向寄存器写入指定 gate 开关
+task {{ settings.class_prefix }}config_reg_seq::config_reg_gate_node_reg(
+        {{ settings.class_prefix }}gate gate_nd,
+        bit reg_open);
+    if (!gate_nd.f_reg.is_bound())
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: gate %s f_reg not bound", gate_nd.get_name()))
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: gate %s reg open %0b", gate_nd.get_name(), reg_open), UVM_MEDIUM)
+    p_sequencer.tools.node.configure_gate(gate_nd.f_reg, reg_open);
+endtask
+
 // 写 mux 的选择控制
 task {{ settings.class_prefix }}config_reg_seq::config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
-    if (!mux_nd.f_rst.is_bound() || !mux_nd.f_sel.is_bound())
+    if (!mux_nd.f_reg.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: mux %s regs not bound", mux_nd.get_name()))
+            "config_reg: mux %s f_reg not bound", mux_nd.get_name()))
     if (p_sequencer.tools.node.mux_sel_unchanged(
             mux_nd.get_name(), mux_nd.sel)) begin
         if (!quiet)
@@ -77,8 +97,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_mux_node({{ settings.
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: mux %s sel %0d", mux_nd.get_name(), mux_nd.sel), UVM_MEDIUM)
-    p_sequencer.tools.node.configure_mux(
-        mux_nd.f_rst, mux_nd.f_sel, mux_nd.sel);
+    p_sequencer.tools.node.configure_mux(mux_nd.f_reg, mux_nd.sel);
     p_sequencer.tools.node.note_mux_sel_configured(
         mux_nd.get_name(), mux_nd.sel);
 endtask
@@ -89,11 +108,29 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_div_node({{ settings.
             || !div_nd.f_rst.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: div %s regs not bound", div_nd.get_name()))
+{%- if settings.should_reset_div %}
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: div %s ratio %0d", div_nd.get_name(), div_nd.ratio), UVM_MEDIUM)
     p_sequencer.tools.node.configure_div(
         div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd.ratio);
+{%- else %}
+    if (p_sequencer.tools.node.div_rst_was_released(div_nd.get_name())) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: div %s skip rst, ratio %0d",
+                div_nd.get_name(), div_nd.ratio), UVM_MEDIUM)
+        p_sequencer.tools.node.configure_div_ratio(
+            div_nd.f_load, div_nd.f_div, div_nd.ratio);
+    end else begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: div %s ratio %0d", div_nd.get_name(), div_nd.ratio), UVM_MEDIUM)
+        p_sequencer.tools.node.configure_div_direct(
+            div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd.ratio);
+        p_sequencer.tools.node.note_div_rst_released(div_nd.get_name());
+    end
+{%- endif %}
 endtask
 
 // 写 dto 的复位、bypass、load 与 step
@@ -102,11 +139,29 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.
             || !dto_nd.f_step.is_bound() || !dto_nd.f_rst.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: dto %s regs not bound", dto_nd.get_name()))
+{%- if settings.should_reset_dto %}
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: dto %s ratio %0d", dto_nd.get_name(), dto_nd.ratio), UVM_MEDIUM)
     p_sequencer.tools.node.configure_dto(
         dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
+{%- else %}
+    if (p_sequencer.tools.node.dto_rst_was_released(dto_nd.get_name())) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: dto %s skip rst, ratio %0d",
+                dto_nd.get_name(), dto_nd.ratio), UVM_MEDIUM)
+        p_sequencer.tools.node.configure_dto_ratio(
+            dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
+    end else begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: dto %s ratio %0d", dto_nd.get_name(), dto_nd.ratio), UVM_MEDIUM)
+        p_sequencer.tools.node.configure_dto_direct(
+            dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
+        p_sequencer.tools.node.note_dto_rst_released(dto_nd.get_name());
+    end
+{%- endif %}
 endtask
 
 // 按 SC PLL 目标频率写配置
@@ -431,6 +486,74 @@ task {{ settings.class_prefix }}config_reg_seq::config_mux_nodes(
             config_reg_mux_node(mux_nd);
 endtask
 
+// 切换 mux 前打开上游 gate 并等待时钟稳定
+task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_switch[$];
+    {{ settings.class_prefix }}gate gates_open[$];
+    {{ settings.class_prefix }}node_base peers[$];
+    {{ settings.class_prefix }}node_base upstream_gates[$];
+    longint slowest_hz;
+    longint peer_hz;
+    int wait_ns;
+    int max_wait_ns;
+
+    mux_switch.delete();
+    for (int i = 0; i < tree.nodes.size(); i++) begin
+        if (!$cast(mux_nd, tree.nodes[i]))
+            continue;
+        if (p_sequencer.tools.node.mux_sel_unchanged(
+                mux_nd.get_name(), mux_nd.sel))
+            continue;
+        {{ settings.class_prefix }}append_unique_node(mux_switch, mux_nd);
+    end
+    if (mux_switch.size() == 0)
+        return;
+
+    gates_open.delete();
+    foreach (mux_switch[i]) begin
+        upstream_gates.delete();
+        {{ settings.class_prefix }}get_gates_before(tree, mux_switch[i], upstream_gates);
+        foreach (upstream_gates[j]) begin
+            if (!$cast(gate_nd, upstream_gates[j]))
+                continue;
+            {{ settings.class_prefix }}append_unique_node(gates_open, gate_nd);
+        end
+    end
+
+    foreach (gates_open[i])
+        config_reg_gate_node_reg(gates_open[i], 1'b1);
+
+    max_wait_ns = 0;
+    foreach (mux_switch[i]) begin
+        slowest_hz = 0;
+        {{ settings.class_prefix }}tree_upstream_peers(mux_switch[i], peers);
+        foreach (peers[j]) begin
+            peer_hz = peers[j]._resolved_freq;
+            if (peer_hz <= 0)
+                continue;
+            if (slowest_hz == 0 || peer_hz < slowest_hz)
+                slowest_hz = peer_hz;
+        end
+        if (slowest_hz > 0) begin
+            wait_ns = (1_000_000_000 + slowest_hz - 1) / slowest_hz
+                * {{ settings.mux_switch_wait_cycles }};
+            if (wait_ns > max_wait_ns)
+                max_wait_ns = wait_ns;
+        end
+    end
+
+    if (max_wait_ns > 0) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: mux switch wait %0d ns over %0d mux(s)",
+                max_wait_ns, mux_switch.size()), UVM_MEDIUM)
+        #(max_wait_ns * 1ns);
+    end
+endtask
+
 // 按树节点顺序配置寄存器并返回结果
 task {{ settings.class_prefix }}config_reg_seq::body();
     {{ settings.class_prefix }}config_reg_req rq;
@@ -457,6 +580,7 @@ task {{ settings.class_prefix }}config_reg_seq::body();
     config_pll_nodes(tree, plls);
     wait_pll_nodes(plls);
     config_div_dto_nodes(tree);
+    prep_mux_switch_gates(tree);
     config_gate_nodes(tree, 1'b1);
     config_mux_nodes(tree);
     config_gate_nodes(tree, 1'b0);

@@ -86,9 +86,7 @@ trees:
         source:
           "0": pll_inno[0]
           "1": pll_inno[1]
-        regs:
-          rst: blk_mux_pll.rst
-          sel: blk_mux_pll.sel
+        reg: blk_mux_pll.sel
 
       mux_ref:
         kind: mux
@@ -96,9 +94,7 @@ trees:
         source:
           "0": mux_pll
           "1": xtal
-        regs:
-          rst: blk_mux_ref.rst
-          sel: blk_mux_ref.sel
+        reg: blk_mux_ref.sel
 
       gate0:
         kind: gate

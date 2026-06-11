@@ -15,7 +15,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
     if ($cast(gate_nd, nd))
         return gate_nd.f_reg.is_bound();
     if ($cast(mux_nd, nd))
-        return mux_nd.f_rst.is_bound() && mux_nd.f_sel.is_bound();
+        return mux_nd.f_reg.is_bound();
     if ($cast(div_nd, nd))
         return div_nd.f_rst.is_bound() && div_nd.f_load.is_bound()
             && div_nd.f_div.is_bound();

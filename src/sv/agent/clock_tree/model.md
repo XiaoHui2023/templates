@@ -182,8 +182,7 @@ PLL 公共基类。目标输出频率由 **frequence** 给定，参考频率来�
 | **max_sel** | **int** | 最大选择值 |
 | **fix_sel** | **int** | 非负时固定 **sel** |
 | **to_source** | **node_base** 关联数组 | 各输入前级 |
-| **f_rst** | 寄存器 field | 复位位 |
-| **f_sel** | 寄存器 field | 选择 field |
+| **f_reg** | 寄存器 field | 选择 field |
 
 | 约束或回调 | 说明 |
 | --- | --- |

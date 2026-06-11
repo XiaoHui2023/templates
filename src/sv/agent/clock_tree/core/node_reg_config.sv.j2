@@ -5,6 +5,8 @@
 class {{ settings.class_prefix }}node_cfg;
     {{ settings.class_prefix }}reg_rw rw;
     protected int mux_last_sel[string];
+    protected bit div_rst_released[string];
+    protected bit dto_rst_released[string];
 
     function new({{ settings.class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
@@ -14,14 +16,22 @@ class {{ settings.class_prefix }}node_cfg;
 
     // open — 仿真门开闭，按极性写入 f_reg
     extern task configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
-    // sel 变更时两步写：先单独复位，再释放复位并写 sel
-    extern task configure_mux(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_sel,
-        int sel);
+    // sel — mux 选择值
+    extern task configure_mux({{ settings.class_prefix }}reg f_reg, int sel);
     // ratio — 先复位脉冲，再写 div 与 load
     extern task configure_div(
         {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio);
+    // ratio — rst 写不复位电平并更新 div 与 load
+    extern task configure_div_direct(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio);
+    // ratio — 仅更新 div 与 load 脉冲
+    extern task configure_div_ratio(
         {{ settings.class_prefix }}reg f_load,
         {{ settings.class_prefix }}reg f_div,
         int ratio);
@@ -32,10 +42,31 @@ class {{ settings.class_prefix }}node_cfg;
         {{ settings.class_prefix }}reg f_bypass,
         {{ settings.class_prefix }}reg f_step,
         int ratio);
+    // ratio — rst 写不复位电平并更新 step、load 与 bypass
+    extern task configure_dto_direct(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio);
+    // ratio — 仅更新 step、load 与 bypass
+    extern task configure_dto_ratio(
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio);
     // node_name、sel — 上次写入的 mux 选择值与当前相同
     extern function bit mux_sel_unchanged(string node_name, int sel);
     // node_name、sel — 记录 mux 选择寄存器已写入的值
     extern function void note_mux_sel_configured(string node_name, int sel);
+    // node_name — 该 div 是否已在 config_reg 中写过寄存器
+    extern function bit div_rst_was_released(string node_name);
+    // node_name — 记录 div 已完成首次寄存器写
+    extern function void note_div_rst_released(string node_name);
+    // node_name — 该 dto 是否已在 config_reg 中写过寄存器
+    extern function bit dto_rst_was_released(string node_name);
+    // node_name — 记录 dto 已完成首次寄存器写
+    extern function void note_dto_rst_released(string node_name);
 endclass
 
 task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
@@ -47,21 +78,9 @@ task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefi
 endtask
 
 task {{ settings.class_prefix }}node_cfg::configure_mux(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_sel,
+        {{ settings.class_prefix }}reg f_reg,
         int sel);
-    {{ settings.class_prefix }}reg binds[$];
-    int vals[$];
-{%- if settings.mux_reg_high_means_reset %}
-    rw.set_write(f_rst, 1);
-    binds = '{f_rst, f_sel};
-    vals = '{0, sel};
-{%- else %}
-    rw.set_write(f_rst, 0);
-    binds = '{f_rst, f_sel};
-    vals = '{1, sel};
-{%- endif %}
-    rw.apply(binds, vals);
+    rw.set_write(f_reg, sel);
 endtask
 
 task {{ settings.class_prefix }}node_cfg::configure_div(
@@ -83,6 +102,34 @@ task {{ settings.class_prefix }}node_cfg::configure_div(
     vals = '{1, n, 0};
 {%- endif %}
     rw.apply(binds, vals);
+    rw.set_write(f_load, 1);
+endtask
+
+task {{ settings.class_prefix }}node_cfg::configure_div_direct(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio);
+    int n;
+    n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+{%- if settings.div_reg_high_means_reset %}
+    rw.set_write(f_rst, 0);
+{%- else %}
+    rw.set_write(f_rst, 1);
+{%- endif %}
+    rw.set_write(f_div, n);
+    rw.set_write(f_load, 0);
+    rw.set_write(f_load, 1);
+endtask
+
+task {{ settings.class_prefix }}node_cfg::configure_div_ratio(
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio);
+    int n;
+    n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+    rw.set_write(f_div, n);
+    rw.set_write(f_load, 0);
     rw.set_write(f_load, 1);
 endtask
 
@@ -119,6 +166,52 @@ task {{ settings.class_prefix }}node_cfg::configure_dto(
     rw.apply(binds, vals);
 endtask
 
+task {{ settings.class_prefix }}node_cfg::configure_dto_direct(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio);
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
+    int step;
+{%- if settings.dto_reg_high_means_reset %}
+    rw.set_write(f_rst, 0);
+{%- else %}
+    rw.set_write(f_rst, 1);
+{%- endif %}
+    if ({{ settings.class_prefix }}dto_ratio_is_bypass(ratio)) begin
+        binds = '{f_load, f_bypass, f_step};
+        vals = '{1, 1, 0};
+        rw.apply(binds, vals);
+    end else begin
+        step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);
+        binds = '{f_load, f_bypass, f_step};
+        vals = '{1, 0, step};
+        rw.apply(binds, vals);
+    end
+endtask
+
+task {{ settings.class_prefix }}node_cfg::configure_dto_ratio(
+        {{ settings.class_prefix }}reg f_load,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio);
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
+    int step;
+    if ({{ settings.class_prefix }}dto_ratio_is_bypass(ratio)) begin
+        binds = '{f_load, f_bypass, f_step};
+        vals = '{1, 1, 0};
+        rw.apply(binds, vals);
+    end else begin
+        step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);
+        binds = '{f_load, f_bypass, f_step};
+        vals = '{1, 0, step};
+        rw.apply(binds, vals);
+    end
+endtask
+
 function bit {{ settings.class_prefix }}node_cfg::mux_sel_unchanged(
         string node_name, int sel);
     return mux_last_sel.exists(node_name) && mux_last_sel[node_name] == sel;
@@ -127,6 +220,22 @@ endfunction
 function void {{ settings.class_prefix }}node_cfg::note_mux_sel_configured(
         string node_name, int sel);
     mux_last_sel[node_name] = sel;
+endfunction
+
+function bit {{ settings.class_prefix }}node_cfg::div_rst_was_released(string node_name);
+    return div_rst_released.exists(node_name);
+endfunction
+
+function void {{ settings.class_prefix }}node_cfg::note_div_rst_released(string node_name);
+    div_rst_released[node_name] = 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}node_cfg::dto_rst_was_released(string node_name);
+    return dto_rst_released.exists(node_name);
+endfunction
+
+function void {{ settings.class_prefix }}node_cfg::note_dto_rst_released(string node_name);
+    dto_rst_released[node_name] = 1'b1;
 endfunction
 
 `endif
