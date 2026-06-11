@@ -216,8 +216,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: subject %s %s done — %0d check_freq run(s), "
-            + "%0d self variant skip(s), %0d line combo skip(s)",
+            "test_route: subject %s %s done — %0d check_freq run(s), %0d self variant skip(s), %0d line combo skip(s)",
             subject.get_name(), dir_label, n_run, n_skip_sub, n_skip_combo),
             UVM_LOW)
 endtask
