@@ -91,6 +91,17 @@ class Settings(BaseModel):
         description="为真时 dto 的 rst 位 1 表示复位、0 不复位；"
         "为假时 0 表示复位、1 不复位。",
     )
+    reset_div_on_first_config: bool = Field(
+        False,
+        description="为真时 config_reg 首次配置 div 前先走 rst 复位释放流程；"
+        "为假时直接写 div 与 load。",
+    )
+    reset_dto_on_first_config: bool = Field(
+        False,
+        description="为真时 config_reg 首次配置 dto 前先走 rst 复位释放流程；"
+        "为假时直接写 step、load 与 bypass。",
+    )
+
     @field_validator("duty_min", "duty_max", mode="before")
     @classmethod
     def _duty_as_percent(cls, v: object) -> object:

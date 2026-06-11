@@ -2,18 +2,6 @@
 `ifndef {{ (settings.class_prefix ~ "route_structure") | upper }}
 `define {{ (settings.class_prefix ~ "route_structure") | upper }}
 
-typedef struct {
-    bit     gate_open;
-    int     mux_sel;
-    int     ratio;
-{%- if enable_node_fix %}
-    bit     fix_open;
-    bit     fix_close;
-    int     fix_sel;
-    int     fix_ratio;
-{%- endif %}
-} {{ settings.class_prefix }}route_ctrl_snap_t;
-
 // gate/mux/div/dto 所需 field 均已绑定
 function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
         {{ settings.class_prefix }}node_base nd);
@@ -49,21 +37,13 @@ endfunction
 // 读出节点当前 open/sel/ratio 等到 snap
 function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
         {{ settings.class_prefix }}node_base nd,
-        output {{ settings.class_prefix }}route_ctrl_snap_t snap);
+        output {{ settings.class_prefix }}route_ctrl_snap snap);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}div div_nd;
     {{ settings.class_prefix }}dto dto_nd;
 
-    snap.gate_open = 1'b0;
-    snap.mux_sel = 0;
-    snap.ratio = 1;
-{%- if enable_node_fix %}
-    snap.fix_open = 0;
-    snap.fix_close = 0;
-    snap.fix_sel = -1;
-    snap.fix_ratio = 0;
-{%- endif %}
+    snap = new();
     if ($cast(gate_nd, nd)) begin
         snap.gate_open = gate_nd.open;
 {%- if enable_node_fix %}
@@ -91,13 +71,15 @@ endfunction
 // clear_fix — 为真时清除 fix 约束字段
 function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         {{ settings.class_prefix }}node_base nd,
-        {{ settings.class_prefix }}route_ctrl_snap_t snap,
+        {{ settings.class_prefix }}route_ctrl_snap snap,
         bit clear_fix);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}div div_nd;
     {{ settings.class_prefix }}dto dto_nd;
 
+    if (snap == null)
+        return;
     if ($cast(gate_nd, nd)) begin
         gate_nd.open = snap.gate_open;
 {%- if enable_node_fix %}
@@ -140,7 +122,7 @@ endfunction
 // 设 gate open 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_gate_open(
         {{ settings.class_prefix }}gate gate_nd, bit open_val, bit clear_fix);
-    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    {{ settings.class_prefix }}route_ctrl_snap snap;
     if (gate_nd == null)
         return;
     {{ settings.class_prefix }}route_structure_save_ctrl(gate_nd, snap);
@@ -151,7 +133,7 @@ endfunction
 // 设 mux sel 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_mux_sel(
         {{ settings.class_prefix }}mux mux_nd, int sel_val, bit clear_fix);
-    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    {{ settings.class_prefix }}route_ctrl_snap snap;
     if (mux_nd == null)
         return;
     {{ settings.class_prefix }}route_structure_save_ctrl(mux_nd, snap);
@@ -162,7 +144,7 @@ endfunction
 // 设 div/dto ratio 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_ratio(
         {{ settings.class_prefix }}node_base nd, int ratio_val, bit clear_fix);
-    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    {{ settings.class_prefix }}route_ctrl_snap snap;
     if (nd == null)
         return;
     {{ settings.class_prefix }}route_structure_save_ctrl(nd, snap);
@@ -519,7 +501,7 @@ endfunction
 // 从 line 去掉已 fix 锁定的 gate/mux
 function automatic void {{ settings.class_prefix }}route_structure_filter_pinned_gate_mux_from_line(
         ref {{ settings.class_prefix }}node_base line[$],
-        {{ settings.class_prefix }}node_base pinned_gate_mux[$]);
+        input {{ settings.class_prefix }}node_base pinned_gate_mux[$]);
     {{ settings.class_prefix }}node_base kept[$];
 
     kept.delete();
@@ -586,7 +568,7 @@ function automatic void {{ settings.class_prefix }}route_structure_fix_all_gate_
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    {{ settings.class_prefix }}route_ctrl_snap snap;
 
     if (tree == null)
         return;

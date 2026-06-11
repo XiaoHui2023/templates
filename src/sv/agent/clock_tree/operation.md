@@ -35,7 +35,7 @@
 
 **pll** 分频用 **source.frequence** 与节点 **frequence**；缺 **source** 或频率非法则 **fatal**。参考频率与输出 **frequence** 均与 **sequencer.tools.pll** 中按节点名记录的上次写入相同时跳过寄存器更新，且不再 **wait_lock**。
 
-**div**、**dto** 在 **sequencer.tools.node** 中按节点名记录是否已走过 **rst** 释放。每个节点**首次** **config_reg** 走完整 **rst** 流程；之后同一 **sequencer** 生命周期内再次 **config_reg** 只更新分频 field 与 **load** 脉冲，不再拉 **rst**。
+**div**、**dto** 默认不走 **rst** 流程，**config_reg** 只更新分频 field 与 **load** 脉冲。**reset_div_on_first_config** 或 **reset_dto_on_first_config** 为真时，**sequencer.tools.node** 按节点名记录是否已走过 **rst** 释放；每个节点首次 **config_reg** 走完整 **rst** 流程，之后同一 **sequencer** 生命周期内再次 **config_reg** 不再拉 **rst**。
 
 ### 注意
 

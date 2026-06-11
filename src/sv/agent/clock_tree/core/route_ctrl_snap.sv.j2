@@ -1,0 +1,31 @@
+{% if route_test_enabled %}
+`ifndef {{ (settings.class_prefix ~ "route_ctrl_snap") | upper }}
+`define {{ (settings.class_prefix ~ "route_ctrl_snap") | upper }}
+
+class {{ settings.class_prefix }}route_ctrl_snap;
+    bit     gate_open;
+    int     mux_sel;
+    int     ratio;
+{%- if enable_node_fix %}
+    bit     fix_open;
+    bit     fix_close;
+    int     fix_sel;
+    int     fix_ratio;
+{%- endif %}
+
+    // 清零为可恢复的默认控制状态
+    function new();
+        gate_open = 1'b0;
+        mux_sel = 0;
+        ratio = 1;
+{%- if enable_node_fix %}
+        fix_open = 1'b0;
+        fix_close = 1'b0;
+        fix_sel = -1;
+        fix_ratio = 0;
+{%- endif %}
+    endfunction
+endclass
+
+`endif
+{% endif %}

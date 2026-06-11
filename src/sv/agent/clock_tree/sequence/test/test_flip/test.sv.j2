@@ -9,19 +9,25 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
     `uvm_object_utils({{ settings.class_prefix }}test_flip_seq)
     `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
+    // 构造 div/dto 翻转测试序列
     function new(string name = "{{ settings.class_prefix }}test_flip_seq");
         super.new(name);
     endfunction
 
+    // 验证 div/dto 控制位翻转后 clk 仍可测
     extern virtual task body();
+    // 静默校验当前树的 clk 频率
     extern task run_check_freq_quiet(
         {{ settings.class_prefix }}tree_base tree);
+    // 按当前树状态写寄存器
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
+    // 将 div 分频字段写到 MSB 对应比值后校验
     extern task verify_div_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div div_nd,
         bit quiet);
+    // 将 dto step 字段写到 MSB 对应比值后校验
     extern task verify_dto_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}dto dto_nd,
@@ -68,7 +74,7 @@ task {{ settings.class_prefix }}test_flip_seq::verify_div_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div div_nd,
         bit quiet);
-    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    {{ settings.class_prefix }}route_ctrl_snap snap;
     int msb_ratio;
     int reg_msb;
 
@@ -105,7 +111,7 @@ task {{ settings.class_prefix }}test_flip_seq::verify_dto_msb(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}dto dto_nd,
         bit quiet);
-    {{ settings.class_prefix }}route_ctrl_snap_t snap;
+    {{ settings.class_prefix }}route_ctrl_snap snap;
     int msb_ratio;
     int reg_msb;
 
