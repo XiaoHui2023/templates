@@ -140,7 +140,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_div**：**ratio** 在 1～64；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：默认只写 **div** 与 **load**，**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。**reset_div_on_first_config** 为真时，节点首次配置先把 **rst** 写复位电平，再写 **div** 与 **load**，最后把 **rst** 写不复位电平；为真时 **div_reg_high_means_reset** 复位为 1、不复位为 0；为假则复位为 0、不复位为 1。同一 **sequencer** 上该节点已释放过 **rst** 后，**config_reg** 与 **configure_div_ratio** 相同，只改 **div** 与 **load**。
+**config_reg**：**div** 写 N，N=0 不分频，N>0 时分频比为 N+1；**load** 先写 0 再写 1。节点首次配置都会写 **rst** 为不复位电平，极性由 **div_reg_high_means_reset** 决定。**should_reset_div** 为真时，首次先把 **rst** 写复位电平、再写 **div** 与 **load**、最后写 **rst** 不复位；为假时首次只把 **rst** 写不复位并写 **div** 与 **load**，不经复位脉冲。同一 **sequencer** 上该节点已完成首次 **rst** 配置后，**config_reg** 与 **configure_div_ratio** 相同，只改 **div** 与 **load**。
 
 ## dto
 
@@ -154,7 +154,7 @@ YAML **pll_kind** 决定 **tree** 例化 **pll_tci**、**pll_sc**、**pll_dw** �
 
 **cst_dto**：**ratio** 大于 0 且不超过 2^25；**cst_resolve_freq_from_src** 为前级频率整除 **ratio**。
 
-**config_reg**：默认只写 **step**、**load** 与 **bypass**，**load**=1，**bypass**=0，**step**=2^25/**ratio**（整数，须落在 1～2^25−1，故 **ratio** 不能为 1）。**reset_dto_on_first_config** 为真时，节点首次配置先把 **rst** 写复位电平，再写 **step**、**load** 与 **bypass**，最后把 **rst** 写不复位电平；为真时 **dto_reg_high_means_reset** 复位为 1、不复位为 0；为假则复位为 0、不复位为 1。同一 **sequencer** 上该节点已释放过 **rst** 后，**config_reg** 与 **configure_dto_ratio** 相同，只改 **step**、**load**、**bypass**。
+**config_reg**：**load**=1，**bypass**=0，**step**=2^25/**ratio**（整数，须落在 1～2^25−1，故 **ratio** 不能为 1）。节点首次配置都会写 **rst** 为不复位电平，极性由 **dto_reg_high_means_reset** 决定。**should_reset_dto** 为真时，首次先把 **rst** 写复位电平、再写 **step**、**load** 与 **bypass**、最后写 **rst** 不复位；为假时首次只把 **rst** 写不复位并写 **step**、**load** 与 **bypass**，不经复位脉冲。同一 **sequencer** 上该节点已完成首次 **rst** 配置后，**config_reg** 与 **configure_dto_ratio** 相同，只改 **step**、**load**、**bypass**。
 
 ## gate
 
