@@ -28,7 +28,8 @@ f = f_ref / ratio
 | **f** | 本节点输出频率 |
 | **f_ref** | 前级节点频率 |
 | **ratio** | 分频比，大于 0 且不超过 2^25 |
-| **step** | **step** 寄存器写入值，1～2^25−1 |
+| **step** | **step** 寄存器写入值；旁通时为 0，分频时为 1～2^25−1 |
+| **bypass** | 旁通开关；**ratio** 为 1 时写 1，否则写 0 |
 
 ```
 f = f_ref / ratio
@@ -39,7 +40,7 @@ step = 2^25 / ratio
 ratio = 2^25 / step
 ```
 
-**ratio** 为 1 时 **step** 无合法取值。
+**ratio** 为 1 时旁通：**bypass**=1，**step**=0，**load**=1。
 
 ## pll
 

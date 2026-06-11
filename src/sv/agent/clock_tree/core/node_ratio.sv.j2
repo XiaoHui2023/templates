@@ -11,6 +11,11 @@ function automatic int {{ settings.class_prefix }}div_ratio_to_n(int ratio);
     return ratio - 1;
 endfunction
 
+// ratio 为 1 时旁通，不按 step 公式编码
+function automatic bit {{ settings.class_prefix }}dto_ratio_is_bypass(int ratio);
+    return ratio == 1;
+endfunction
+
 // DTO 比转 step，step = 2^25 / ratio
 function automatic int {{ settings.class_prefix }}dto_ratio_to_step(int ratio);
     longint step_i;
