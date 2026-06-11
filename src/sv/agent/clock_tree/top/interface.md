@@ -1,5 +1,7 @@
 # 接口
 
+![](../images/interface_structure.drawio.svg)
+
 ## interface
 
 | 项 | 值 |

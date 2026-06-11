@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="320px" height="532px" viewBox="0 0 320 532" content="&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;templates&quot; version=&quot;24.0.0&quot;&gt;&lt;diagram id=&quot;test-route-flow&quot; name=&quot;Page-1&quot;&gt;&lt;mxGraphModel dx=&quot;900&quot; dy=&quot;600&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;827&quot; pageHeight=&quot;1169&quot; math=&quot;0&quot; shadow=&quot;0&quot; background=&quot;none&quot;&gt;&lt;root&gt;&lt;mxCell id=&quot;0&quot;/&gt;&lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;&lt;mxCell id=&quot;s0&quot; value=&quot;按理想配置写寄存器
+建立基线&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fc;strokeColor=#2980b9;align=center;verticalAlign=middle;fontSize=12;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;30&quot; y=&quot;40&quot; width=&quot;260&quot; height=&quot;72&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;s1&quot; value=&quot;固定必启时钟路径
+选定考查节点&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fc;strokeColor=#2980b9;align=center;verticalAlign=middle;fontSize=12;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;30&quot; y=&quot;154&quot; width=&quot;260&quot; height=&quot;72&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;e1&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;s0&quot; target=&quot;s1&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;s2&quot; value=&quot;对每个考查节点：
+沿上下游尝试状态组合
+写寄存器并核对频率
+停振组合跳过&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fc;strokeColor=#2980b9;align=center;verticalAlign=middle;fontSize=12;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;30&quot; y=&quot;268&quot; width=&quot;260&quot; height=&quot;88&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;e2&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;s1&quot; target=&quot;s2&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;s3&quot; value=&quot;清除固定项
+写寄存器收尾&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fc;strokeColor=#2980b9;align=center;verticalAlign=middle;fontSize=12;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;30&quot; y=&quot;398&quot; width=&quot;260&quot; height=&quot;72&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;e3&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;s2&quot; target=&quot;s3&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;&lt;/diagram&gt;&lt;/mxfile&gt;" style="background-color: transparent; background-color: transparent;">
+<defs><marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1a1a2e"/></marker></defs>
+<rect x="30" y="40" width="260" height="72" rx="6" fill="#e8f4fc" stroke="#2980b9" stroke-width="2"/>
+<text x="160" y="69" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">按理想配置写寄存器</text>
+<text x="160" y="85" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">建立基线</text>
+<rect x="30" y="154" width="260" height="72" rx="6" fill="#e8f4fc" stroke="#2980b9" stroke-width="2"/>
+<text x="160" y="183" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">固定必启时钟路径</text>
+<text x="160" y="199" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">选定考查节点</text>
+<line x1="160" y1="112" x2="160" y2="154" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="30" y="268" width="260" height="88" rx="6" fill="#e8f4fc" stroke="#2980b9" stroke-width="2"/>
+<text x="160" y="291" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">对每个考查节点：</text>
+<text x="160" y="307" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">沿上下游尝试状态组合</text>
+<text x="160" y="323" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">写寄存器并核对频率</text>
+<text x="160" y="339" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">停振组合跳过</text>
+<line x1="160" y1="226" x2="160" y2="268" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="30" y="398" width="260" height="72" rx="6" fill="#e8f4fc" stroke="#2980b9" stroke-width="2"/>
+<text x="160" y="427" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">清除固定项</text>
+<text x="160" y="443" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#1a1a2e">写寄存器收尾</text>
+<line x1="160" y1="356" x2="160" y2="398" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+</svg>

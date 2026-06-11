@@ -1,6 +1,6 @@
 # UVM 组件
 
-![](images/component_structure.drawio.svg)
+![](../images/component_structure.drawio.svg)
 
 ## config_db
 

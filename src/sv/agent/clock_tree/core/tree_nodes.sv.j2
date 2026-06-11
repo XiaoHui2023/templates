@@ -14,7 +14,7 @@ endfunction
 // 去重后追加到 dest
 function automatic void {{ settings.class_prefix }}append_unique_node(
         ref {{ settings.class_prefix }}node_base dest[$],
-        {{ settings.class_prefix }}node_base nd);
+        input {{ settings.class_prefix }}node_base nd);
     if (nd == null)
         return;
     if ({{ settings.class_prefix }}node_in_queue(nd, dest))

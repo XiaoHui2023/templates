@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="420px" height="400px" viewBox="0 0 420 400" content="&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;templates&quot; version=&quot;24.0.0&quot;&gt;
+  &lt;diagram id=&quot;check-duty-flow&quot; name=&quot;Page-1&quot;&gt;
+    &lt;mxGraphModel dx=&quot;900&quot; dy=&quot;600&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;420&quot; pageHeight=&quot;400&quot; math=&quot;0&quot; shadow=&quot;0&quot; background=&quot;none&quot;&gt;
+      &lt;root&gt;
+        &lt;mxCell id=&quot;0&quot;/&gt;
+        &lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;
+        &lt;mxCell id=&quot;n1&quot; value=&quot;收集树中带测量路径的节点&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;90&quot; y=&quot;24&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;n2&quot; value=&quot;对各节点启动占空比测量&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;90&quot; y=&quot;88&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;n3&quot; value=&quot;等待各节点波形稳定&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;90&quot; y=&quot;152&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;n4&quot; value=&quot;比对占空比与允许范围&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;90&quot; y=&quot;248&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;n5&quot; value=&quot;结束测量并返回&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#eafaf1;strokeColor=#27ae60;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;90&quot; y=&quot;344&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;b_timeout&quot; value=&quot;记为失败&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#fdedec;strokeColor=#c0392b;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;300&quot; y=&quot;154&quot; width=&quot;100&quot; height=&quot;36&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;b_fail&quot; value=&quot;记录未通过节点&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#fdedec;strokeColor=#c0392b;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
+          &lt;mxGeometry x=&quot;300&quot; y=&quot;250&quot; width=&quot;110&quot; height=&quot;36&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e1&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n1&quot; target=&quot;n2&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e2&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n2&quot; target=&quot;n3&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e3&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n3&quot; target=&quot;n4&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e4&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n4&quot; target=&quot;n5&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e5&quot; value=&quot;超时&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#c0392b;fontSize=11;fontColor=#c0392b;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n3&quot; target=&quot;b_timeout&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e6&quot; value=&quot;不符&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#c0392b;fontSize=11;fontColor=#c0392b;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n4&quot; target=&quot;b_fail&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e7&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#c0392b;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;b_timeout&quot; target=&quot;n5&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e8&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#c0392b;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;b_fail&quot; target=&quot;n5&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+        &lt;mxCell id=&quot;e9&quot; value=&quot;未稳定&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;fontSize=11;dashed=1;fontColor=#555555;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n3&quot; target=&quot;n3&quot;&gt;
+          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
+        &lt;/mxCell&gt;
+      &lt;/root&gt;
+    &lt;/mxGraphModel&gt;
+  &lt;/diagram&gt;
+&lt;/mxfile&gt;" style="background-color: transparent; background-color: transparent;">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1a1a2e"/>
+    </marker>
+    <marker id="arr-r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#c0392b"/>
+    </marker>
+  </defs>
+  <rect x="90" y="24" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="200" y="49" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">收集树中带测量路径的节点</text>
+  <line x1="200" y1="64" x2="200" y2="88" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="90" y="88" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="200" y="113" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">对各节点启动占空比测量</text>
+  <line x1="200" y1="128" x2="200" y2="152" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="90" y="152" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="200" y="177" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">等待各节点波形稳定</text>
+  <path d="M 72 172 C 52 172, 52 132, 72 132" fill="none" stroke="#555" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+  <text x="48" y="156" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" fill="#555">未稳定</text>
+  <line x1="310" y1="172" x2="300" y2="172" stroke="#c0392b" stroke-width="2" marker-end="url(#arr-r)"/>
+  <text x="292" y="164" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" fill="#c0392b">超时</text>
+  <rect x="300" y="154" width="100" height="36" rx="6" fill="#fdedec" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="350" y="177" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#c0392b">记为失败</text>
+  <line x1="200" y1="192" x2="200" y2="248" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="90" y="248" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="200" y="273" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">比对占空比与允许范围</text>
+  <line x1="310" y1="268" x2="300" y2="268" stroke="#c0392b" stroke-width="2" marker-end="url(#arr-r)"/>
+  <text x="292" y="260" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" fill="#c0392b">不符</text>
+  <rect x="300" y="250" width="110" height="36" rx="6" fill="#fdedec" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="355" y="273" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#c0392b">记录未通过节点</text>
+  <line x1="200" y1="288" x2="200" y2="344" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+  <path d="M 350 190 L 350 320 L 200 320 L 200 344" fill="none" stroke="#c0392b" stroke-width="1.5" marker-end="url(#arr-r)"/>
+  <path d="M 355 286 L 355 320" fill="none" stroke="#c0392b" stroke-width="1.5"/>
+  <rect x="90" y="344" width="220" height="40" rx="6" fill="#eafaf1" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="200" y="369" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#27ae60">结束测量并返回</text>
+</svg>
