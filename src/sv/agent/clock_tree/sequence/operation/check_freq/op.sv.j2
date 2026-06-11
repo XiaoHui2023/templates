@@ -89,7 +89,8 @@ task {{ settings.class_prefix }}check_freq_seq::body();
         `uvm_fatal("CLK_TREE", "check_freq: tree is null")
 
     meas_min_freq_hz = rq.min_freq_hz > 0 ? rq.min_freq_hz : {{ settings.min_freq_hz }};
-    meas_timeout_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz;
+    meas_timeout_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz
+        * {{ settings.stable_cycles }};
 
     foreach (rq.tree.nodes[i]) begin
         nd = rq.tree.nodes[i];

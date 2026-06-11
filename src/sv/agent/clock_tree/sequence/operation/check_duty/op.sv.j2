@@ -52,7 +52,8 @@ task {{ settings.class_prefix }}check_duty_seq::body();
     int pending;
     bit node_done[];
 
-    meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }};
+    meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }}
+        * {{ settings.stable_cycles }};
 
     if (req == null)
         `uvm_fatal("CLK_TREE", "check_duty: req is null")
