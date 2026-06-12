@@ -14,6 +14,9 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     int group_id;
     bit _print_resolve;
     bit _print_group_id;
+{%- if enable_node_fix %}
+    bit _print_fix;
+{%- endif %}
     {{ settings.class_prefix }}node_base source;
     {{ settings.class_prefix }}node_base to_group[int];
 {% if any_node_path %}
@@ -39,6 +42,9 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         group_id = 0;
         _print_resolve = 0;
         _print_group_id = 0;
+{%- if enable_node_fix %}
+        _print_fix = 0;
+{%- endif %}
     endfunction
 endclass
 

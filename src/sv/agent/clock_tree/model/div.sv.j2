@@ -4,6 +4,9 @@
 class {{ settings.class_prefix }}div extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}div)
         `uvm_field_int(ratio, UVM_ALL_ON | UVM_DEC)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_ratio, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
+{%- endif %}
     `uvm_object_utils_end
 
     rand int ratio;

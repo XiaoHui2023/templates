@@ -46,7 +46,7 @@ class {{ settings.class_prefix }}pll_cfg;
         output int p,
         output int divvcor,
         output int r);
-    // Inno 共享级 fbdiv、refdiv
+    // Inno 组内共用 fbdiv、refdiv
     extern function void inno_shared_divisors(
         longint out_hz,
         longint ref_hz,
@@ -137,7 +137,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_enp,
         longint out_hz,
         longint ref_hz);
-    // 写 Inno 共享级 pd、refdiv、fbdiv
+    // 写 Inno 组内共用 pd、refdiv、fbdiv
     extern task configure_inno_shared(
         {{ settings.class_prefix }}reg f_pd,
         {{ settings.class_prefix }}reg f_refdiv,
@@ -150,7 +150,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_postdiv2,
         int postdiv1,
         int postdiv2);
-    // write_shared — 为真时重算共享级，否则读回 fbdiv/refdiv
+    // write_shared — 为真时重算组内共用分频，否则读回 fbdiv/refdiv
     extern task configure_inno_from_hz(
         {{ settings.class_prefix }}reg f_pd,
         {{ settings.class_prefix }}reg f_refdiv,

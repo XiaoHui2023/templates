@@ -4,8 +4,6 @@
 - 同时存在带 **path** 与带 **reg** 的节点，且 **class_regmodel** 非空
 - 配置宜：**div** / **dto** 分频比为 1；各 **PLL** 目标频率互异且不同于晶振
 
-![subject 节点视角：强调穿过 subject 节点的支路](../../../images/test_route.drawio.svg)
-
 ## req
 
 | 成员 | 类型 | 说明 |
@@ -16,7 +14,7 @@
 
 ## 主流程
 
-![](flow.drawio.svg)
+![](../../../images/test_route.drawio.svg)
 
 | 节点 | 自身取值 |
 | --- | --- |

@@ -4,6 +4,10 @@
 class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}gate)
         `uvm_field_int(open, UVM_ALL_ON)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_open, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
+        `uvm_field_int(fix_close, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
+{%- endif %}
     `uvm_object_utils_end
 
     rand bit open;

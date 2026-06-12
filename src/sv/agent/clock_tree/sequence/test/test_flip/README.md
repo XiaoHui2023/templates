@@ -12,7 +12,7 @@
 
 ## 主流程
 
-![](flow.drawio.svg)
+![](../../../images/test_flip_flow.drawio.svg)
 
 ## rsp
 

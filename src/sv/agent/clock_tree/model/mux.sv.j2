@@ -4,6 +4,9 @@
 class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}mux)
         `uvm_field_int(sel, UVM_ALL_ON)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_sel, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
+{%- endif %}
     `uvm_object_utils_end
 
     int max_sel;
