@@ -1,6 +1,6 @@
 # test_route
 
-- 对每个 **subject** 遍历上下游：**subject** 状态变体 × 连线节点组合，每组合 **config_reg** 后 **check_freq**
+- 对每个 **subject** 遍历上下游：**subject** 各状态 × 连线节点组合，每组合 **config_reg** 后 **check_freq**
 - 同时存在带 **path** 与带 **reg** 的节点，且 **class_regmodel** 非空
 - 配置宜：**div** / **dto** 分频比为 1；各 **PLL** 目标频率互异且不同于晶振
 
@@ -18,7 +18,7 @@
 
 ![](flow.drawio.svg)
 
-| 节点 | 自身变体 |
+| 节点 | 自身取值 |
 | --- | --- |
 | **gate** | 开、关 |
 | **mux** | 各 **sel** |

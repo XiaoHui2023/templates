@@ -1,88 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="420px" height="520px" viewBox="0 0 420 520" content="&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;templates&quot; version=&quot;24.0.0&quot;&gt;
-  &lt;diagram id=&quot;config-reg-flow&quot; name=&quot;Page-1&quot;&gt;
-    &lt;mxGraphModel dx=&quot;900&quot; dy=&quot;600&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;420&quot; pageHeight=&quot;520&quot; math=&quot;0&quot; shadow=&quot;0&quot; background=&quot;none&quot;&gt;
-      &lt;root&gt;
-        &lt;mxCell id=&quot;0&quot;/&gt;
-        &lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;
-        &lt;mxCell id=&quot;n1&quot; value=&quot;随机化树节点目标值&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;24&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;n2&quot; value=&quot;配置 PLL 并等待锁定&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;80&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;n3&quot; value=&quot;配置 div、dto&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;136&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;n4&quot; value=&quot;mux 切换前打开上游 gate 并等待&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;192&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;n5&quot; value=&quot;配置应打开的 gate&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;248&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;n6&quot; value=&quot;配置 mux 选择&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;304&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;n7&quot; value=&quot;配置应关闭的 gate&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#2980b9;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;360&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;n8&quot; value=&quot;返回&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#eafaf1;strokeColor=#27ae60;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;
-          &lt;mxGeometry x=&quot;90&quot; y=&quot;416&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e1&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n1&quot; target=&quot;n2&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e2&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n2&quot; target=&quot;n3&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e3&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n3&quot; target=&quot;n4&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e4&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n4&quot; target=&quot;n5&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e5&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n5&quot; target=&quot;n6&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e6&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n6&quot; target=&quot;n7&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-        &lt;mxCell id=&quot;e7&quot; style=&quot;edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#1a1a2e;fontSize=11;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n7&quot; target=&quot;n8&quot;&gt;
-          &lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;
-        &lt;/mxCell&gt;
-      &lt;/root&gt;
-    &lt;/mxGraphModel&gt;
-  &lt;/diagram&gt;
-&lt;/mxfile&gt;" style="background-color: transparent; background-color: transparent;">
-  <defs>
-    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#1a1a2e"/>
-    </marker>
-    <marker id="arr-r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#c0392b"/>
-    </marker>
-  </defs>
-  <rect x="90" y="24" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
-  <text x="200" y="49" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">随机化树节点目标值</text>
-  <rect x="90" y="80" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
-  <text x="200" y="105" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">配置 PLL 并等待锁定</text>
-  <line x1="200" y1="64" x2="200" y2="80" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
-  <rect x="90" y="136" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
-  <text x="200" y="161" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">配置 div、dto</text>
-  <line x1="200" y1="120" x2="200" y2="136" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
-  <rect x="90" y="192" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
-  <text x="200" y="217" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">mux 切换前打开上游 gate 并等待</text>
-  <line x1="200" y1="176" x2="200" y2="192" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
-  <rect x="90" y="248" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
-  <text x="200" y="273" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">配置应打开的 gate</text>
-  <line x1="200" y1="232" x2="200" y2="248" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
-  <rect x="90" y="304" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
-  <text x="200" y="329" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">配置 mux 选择</text>
-  <line x1="200" y1="288" x2="200" y2="304" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
-  <rect x="90" y="360" width="220" height="40" rx="6" fill="#e8f4fd" stroke="#2980b9" stroke-width="1.5"/>
-  <text x="200" y="385" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1a1a2e">配置应关闭的 gate</text>
-  <line x1="200" y1="344" x2="200" y2="360" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
-  <rect x="90" y="416" width="220" height="40" rx="6" fill="#eafaf1" stroke="#27ae60" stroke-width="1.5"/>
-  <text x="200" y="441" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#27ae60">返回</text>
-  <line x1="200" y1="400" x2="200" y2="416" stroke="#1a1a2e" stroke-width="2" marker-end="url(#arr)"/>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="420px" height="520px" viewBox="0 0 420 520" xml:lang="zh-CN" content="&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;templates&quot; version=&quot;24.0.0&quot;&gt;&lt;diagram id=&quot;config-reg-flow&quot; name=&quot;Page-1&quot;&gt;&lt;mxGraphModel dx=&quot;900&quot; dy=&quot;600&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;420&quot; pageHeight=&quot;520&quot; math=&quot;0&quot; shadow=&quot;0&quot; background=&quot;none&quot;&gt;&lt;root&gt;&lt;mxCell id=&quot;0&quot;/&gt;&lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;&lt;mxCell id=&quot;n1&quot; value=&quot;随机化树节点目标值&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;24&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;n2&quot; value=&quot;配置 PLL 并等待锁定&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;88&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;n3&quot; value=&quot;配置 div、dto&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;152&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;n4&quot; value=&quot;mux 切换前打开上游 gate 并等待&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;216&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;n5&quot; value=&quot;配置应打开的 gate&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;280&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;n6&quot; value=&quot;配置 mux 选择&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;344&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;n7&quot; value=&quot;配置应关闭的 gate&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;408&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;n8&quot; value=&quot;返回&quot; style=&quot;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=13;fontColor=#111111;arcSize=8;align=center;verticalAlign=middle;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;90&quot; y=&quot;472&quot; width=&quot;220&quot; height=&quot;40&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;e1&quot; style=&quot;edgeStyle=none;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#111111;strokeWidth=1.5;fontSize=11;fontColor=#333333;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n1&quot; target=&quot;n2&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;e2&quot; style=&quot;edgeStyle=none;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#111111;strokeWidth=1.5;fontSize=11;fontColor=#333333;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n2&quot; target=&quot;n3&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;e3&quot; style=&quot;edgeStyle=none;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#111111;strokeWidth=1.5;fontSize=11;fontColor=#333333;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n3&quot; target=&quot;n4&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;e4&quot; style=&quot;edgeStyle=none;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#111111;strokeWidth=1.5;fontSize=11;fontColor=#333333;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n4&quot; target=&quot;n5&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;e5&quot; style=&quot;edgeStyle=none;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#111111;strokeWidth=1.5;fontSize=11;fontColor=#333333;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n5&quot; target=&quot;n6&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;e6&quot; style=&quot;edgeStyle=none;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#111111;strokeWidth=1.5;fontSize=11;fontColor=#333333;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n6&quot; target=&quot;n7&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;mxCell id=&quot;e7&quot; style=&quot;edgeStyle=none;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#111111;strokeWidth=1.5;fontSize=11;fontColor=#333333;&quot; edge=&quot;1&quot; parent=&quot;1&quot; source=&quot;n7&quot; target=&quot;n8&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;&lt;/diagram&gt;&lt;/mxfile&gt;" style="background-color: transparent; background-color: transparent;">
+<defs>
+  <marker id="arrowBlack" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 Z" fill="#111"/></marker>
+  <marker id="arrowGray" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 Z" fill="#777"/></marker>
+</defs>
+<rect x="90" y="24" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="49" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">随机化树节点目标值</text>
+<line x1="200" y1="64" x2="200" y2="88" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
+<rect x="90" y="88" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="113" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">配置 PLL 并等待锁定</text>
+<line x1="200" y1="128" x2="200" y2="152" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
+<rect x="90" y="152" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="177" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">配置 div、dto</text>
+<line x1="200" y1="192" x2="200" y2="216" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
+<rect x="90" y="216" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="241" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">mux 切换前打开上游 gate 并等待</text>
+<line x1="200" y1="256" x2="200" y2="280" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
+<rect x="90" y="280" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="305" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">配置应打开的 gate</text>
+<line x1="200" y1="320" x2="200" y2="344" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
+<rect x="90" y="344" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="369" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">配置 mux 选择</text>
+<line x1="200" y1="384" x2="200" y2="408" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
+<rect x="90" y="408" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="433" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">配置应关闭的 gate</text>
+<line x1="200" y1="448" x2="200" y2="472" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
+<rect x="90" y="472" width="220" height="40" rx="7" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="200" y="497" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#111">返回</text>
 </svg>

@@ -23,7 +23,7 @@
 | **field** | **uvm_reg_field** | 读写目标 field |
 | **offset** | **int unsigned** | 在父寄存器中的位偏移 |
 | **width** | **int unsigned** | 位宽 |
-| **has_read** | **bit** | 已读过父寄存器则为 1 |
+| **has_read** | **bit** | 是否已读过父寄存器 |
 
 ## 枚举
 
@@ -42,10 +42,10 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
+| **frequence** | **longint** | 频率 |
+| **vif** | **interface** | 测量接口 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **frequence** | **longint** | 频率 |
-| **vif** | **interface** | 接口 |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -55,12 +55,12 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
+| **source** | **node_base** | 前级节点 |
+| **vif** | **interface** | 测量接口 |
+| **frequence** | **longint** | 频率 |
+| **enabled** | **bit**，**rand** | 使能 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
-| **vif** | **interface** | 接口 |
-| **frequence** | **longint** | 频率 |
-| **enabled** | **bit**，**rand** | |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -72,12 +72,10 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
-| **vif** | **interface** | 接口 |
+| **source** | **node_base** | 参考时钟前级 |
+| **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
-| **locked** | **bit** | |
+| **locked** | **bit** | 锁定状态 |
 | **f_lock** | **reg** | |
 | **f_bypass** | **reg** | |
 | **f_pwrdn** | **reg** | |
@@ -86,6 +84,8 @@
 | **f_clkf** | **reg** | |
 | **f_clkr** | **reg** | |
 | **f_bwadj** | **reg** | |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -96,12 +96,10 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
-| **vif** | **interface** | 接口 |
+| **source** | **node_base** | 参考时钟前级 |
+| **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
-| **locked** | **bit** | |
+| **locked** | **bit** | 锁定状态 |
 | **f_lock** | **reg** | |
 | **f_vocpd** | **reg** | |
 | **f_postdivpd** | **reg** | |
@@ -112,6 +110,8 @@
 | **f_postdiv2** | **reg** | |
 | **f_postdiv1** | **reg** | |
 | **f_fbdiv** | **reg** | |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -122,12 +122,10 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
-| **vif** | **interface** | 接口 |
+| **source** | **node_base** | 参考时钟前级 |
+| **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
-| **locked** | **bit** | |
+| **locked** | **bit** | 锁定状态 |
 | **f_lock** | **reg** | |
 | **f_fbdiv** | **reg** | |
 | **f_prediv** | **reg** | |
@@ -141,6 +139,8 @@
 | **f_divvcop** | **reg** | |
 | **f_enr** | **reg** | |
 | **f_enp** | **reg** | |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -151,20 +151,20 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **group_id** | **int** | 多路输出路序号 |
-| **to_group** | **node_base** 关联数组 | 多路输出时 |
-| **source** | **node_base** | |
-| **vif** | **interface** | 接口 |
+| **group_id** | **int** | 输出路序号 |
+| **to_group** | **node_base** 关联数组 | 同组其它路节点 |
+| **source** | **node_base** | 参考时钟前级 |
+| **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
-| **locked** | **bit** | |
+| **locked** | **bit** | 锁定状态 |
 | **f_lock** | **reg** | |
 | **f_pd** | **reg** | |
 | **f_refdiv** | **reg** | |
 | **f_fbdiv** | **reg** | |
-| **f_postdiv1** | **reg** | 多路输出按下标展开 |
-| **f_postdiv2** | **reg** | 多路输出按下标展开 |
+| **f_postdiv1** | **reg** | |
+| **f_postdiv2** | **reg** | |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -175,13 +175,13 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
+| **source** | **node_base** | 当前选中的前级节点 |
+| **max_sel** | **int** | 最大选择值 |
+| **sel** | **int**，**rand** | 当前选择值 |
+| **to_source** | **node_base** 关联数组 | 各输入前级 |
+| **f_reg** | **reg** | |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | **post_randomize** 后为 **to_source[sel]** |
-| **max_sel** | **int** | |
-| **sel** | **int**，**rand** | |
-| **to_source** | **node_base** 关联数组 | |
-| **f_reg** | **reg** | |
 
 | 约束或回调 | 说明 |
 | --- | --- |
@@ -194,13 +194,13 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
-| **ratio** | **int**，**rand** | |
+| **source** | **node_base** | 前级节点 |
+| **ratio** | **int**，**rand** | 分频比 |
 | **f_rst** | **reg** | |
 | **f_load** | **reg** | |
 | **f_div** | **reg** | |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -212,14 +212,14 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
-| **ratio** | **int**，**rand** | |
+| **source** | **node_base** | 前级节点 |
+| **ratio** | **int**，**rand** | 分频比 |
 | **f_rst** | **reg** | |
 | **f_load** | **reg** | |
 | **f_bypass** | **reg** | |
 | **f_step** | **reg** | |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -231,11 +231,11 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
+| **source** | **node_base** | 前级节点 |
+| **open** | **bit**，**rand** | 通行状态 |
+| **f_reg** | **reg** | |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
-| **open** | **bit**，**rand** | |
-| **f_reg** | **reg** | |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -246,9 +246,9 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
+| **source** | **node_base** | 前级节点 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
-| **source** | **node_base** | |
 
 | 约束 | 说明 |
 | --- | --- |
