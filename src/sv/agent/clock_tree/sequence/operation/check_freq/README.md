@@ -7,8 +7,8 @@
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | **tree** | **tree_base** | 时钟树 |
-| **quiet** | **bit** | 减少 **UVM** 日志 |
-| **min_freq_hz** | **int** | 测量下限 Hz；0 用 **settings.min_freq_hz** |
+| **quiet** | **bit** | 静默打印 |
+| **min_freq_hz** | **int** | 允许最低时钟频率 |
 
 ## 流程
 

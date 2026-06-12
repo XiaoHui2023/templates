@@ -19,19 +19,6 @@ constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_case {
 }
 ```
 
-{% if first_clk_name %}
-## 时钟
-
-开关时钟或改变频率，以 {{ first_clk_name }} 为例（详见 `trees.sv`）。
-
-```systemverilog
-constraint {{ settings.class_prefix }}{{ first_clk_tree_name }}_tree::cst_user {
-    {{ first_clk_name }}.enabled; // 打开时钟
-    {{ first_clk_name }}.frequence == 123456000; // 频率123.456Mhz
-}
-```
-
-{% endif %}
 ## 建立与使用
 
 在平台中建立 `{{ settings.class_prefix }}agent`，放入构建后的 `{{ settings.class_prefix }}{{ trees[0].name }}_tree`
@@ -73,6 +60,23 @@ task main_phase(uvm_phase phase);
     ...
 endtask
 ```
+{% if first_clk_name and regs_enabled %}
+## 时钟
+
+开关时钟或改变频率，以 {{ first_clk_name }} 为例（详见 `trees.sv`）。
+
+```systemverilog
+task main_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    
+    tree.low_power(); // 低功耗（关闭全部时钟）
+    tree.{{ first_clk_name }}.enabled = 1; // 开启时钟
+    tree.{{ first_clk_name }}.frequence = 123456000; // 频率123.456Mhz
+    clk_sqr.config_reg(); // 应用配置
+endtask
+```
+
+{% endif %}
 
 {% if any_node_path %}
 ## 顶层连线

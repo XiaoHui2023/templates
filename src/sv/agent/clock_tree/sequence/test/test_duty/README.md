@@ -1,18 +1,17 @@
 # test_duty
 
-- **config_reg** 后 **check_duty**
-- 至少一处 **path**，且 **class_regmodel** 非空并有节点绑定 **reg** 或 **regs**
+测试占空比
 
 ## req
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | **tree** | **tree_base** | 时钟树 |
-| **quiet** | **bit** | 减少 **UVM** 日志 |
+| **quiet** | **bit** | 静默打印 |
 
-## 主流程
+## 流程
 
-![](../../../images/test_duty_flow.drawio.svg)
+![test_duty 流程](../../../images/test_duty_flow.drawio.svg)
 
 ## rsp
 

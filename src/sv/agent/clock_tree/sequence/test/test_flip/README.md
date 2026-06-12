@@ -1,18 +1,30 @@
 # test_flip
 
-- 固定 **gate** / **mux**，对每个已绑 **reg** 的 **div** / **dto** 各测两种 **field** 单比特 pattern：**MSB**=1、**LSB**=0 与 **MSB**=0、**LSB**=1；单比特 pattern 非法时保留该探测位，再 OR **bit[1]** 等低位辅助比特使其合法，例如 **LSB** 单独为 1 时结果为 3；**config_reg** 后 **check_freq**
-- 同时存在带 **path** 与带 **reg** 的节点，且 **class_regmodel** 非空
+测试 **div**、**dto** 控制位翻转
 
 ## req
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | **tree** | **tree_base** | 时钟树 |
-| **quiet** | **bit** | 减少 **UVM** 日志 |
+| **quiet** | **bit** | 静默打印 |
 
-## 主流程
+## 流程
 
-![](../../../images/test_flip_flow.drawio.svg)
+![test_flip 流程](../../../images/test_flip_flow.drawio.svg)
+
+## 细节
+
+固定 **gate** / **mux**，探测只改 **div** / **dto** 分频比，不改路由。
+
+### div / dto
+
+| pattern | 写入意图 |
+| --- | --- |
+| **MSB**=1、**LSB**=0 | 仅最高位为 1 |
+| **MSB**=0、**LSB**=1 | 仅最低位为 1 |
+
+仅 **LSB**=1 不合法时，再将某一个无关辅助位置 1，使配置值合法。
 
 ## rsp
 
