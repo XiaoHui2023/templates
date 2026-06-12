@@ -7,7 +7,7 @@ class Models(BaseModel):
     class_prefix: str = Field(
         "ral_test_",
         min_length=1,
-        description="生成类型名所用前缀；主 sequence 为此前缀加 seq，reg_fd 辅助 sequence 的类型名亦带此前缀。",
+        description="生成类型名所用前缀；主 sequence 为此前缀加 seq，reg_fd 辅助 sequence 的类型名同样带此前缀。",
     )
     reset: bool = Field(
         False,

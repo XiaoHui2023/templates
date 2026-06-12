@@ -86,7 +86,7 @@ def path_to_macro_prefix(path: str) -> str:
 class Reg(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    path: str = Field(..., min_length=1, description="寄存器点分路径；亦作 C 宏前缀来源。")
+    path: str = Field(..., min_length=1, description="寄存器点分路径，并作为 C 宏前缀来源。")
     address: int = Field(..., ge=0, description="寄存器物理地址。")
     fields: List[RegField] = Field(..., min_length=1, description="field 列表。")
 
