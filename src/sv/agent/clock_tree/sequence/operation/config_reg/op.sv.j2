@@ -491,8 +491,8 @@ task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}gate gate_nd;
-    {{ settings.class_prefix }}mux mux_switch[$];
-    {{ settings.class_prefix }}gate gates_open[$];
+    {{ settings.class_prefix }}node_base mux_switch[$];
+    {{ settings.class_prefix }}node_base gates_open[$];
     {{ settings.class_prefix }}node_base peers[$];
     {{ settings.class_prefix }}node_base upstream_gates[$];
     longint slowest_hz;
@@ -523,8 +523,11 @@ task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
         end
     end
 
-    foreach (gates_open[i])
-        config_reg_gate_node_reg(gates_open[i], 1'b1);
+    foreach (gates_open[i]) begin
+        if (!$cast(gate_nd, gates_open[i]))
+            continue;
+        config_reg_gate_node_reg(gate_nd, 1'b1);
+    end
 
     max_wait_ns = 0;
     foreach (mux_switch[i]) begin

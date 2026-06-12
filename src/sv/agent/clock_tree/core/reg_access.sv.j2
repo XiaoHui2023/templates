@@ -23,7 +23,7 @@ class {{ settings.class_prefix }}reg_rw;
     extern task set_write({{ settings.class_prefix }}reg rb, int value);
     // binds — field 绑定队列
     // vals — 与 binds 同下标的写入值
-    extern task apply(ref {{ settings.class_prefix }}reg binds[$], ref int vals[$]);
+    extern task apply(input {{ settings.class_prefix }}reg binds[$], input int vals[$]);
 endclass
 
 function uvm_reg {{ settings.class_prefix }}reg_rw::parent_reg({{ settings.class_prefix }}reg rb);
@@ -123,8 +123,8 @@ task {{ settings.class_prefix }}reg_rw::set_write({{ settings.class_prefix }}reg
 endtask
 
 task {{ settings.class_prefix }}reg_rw::apply(
-        ref {{ settings.class_prefix }}reg binds[$],
-        ref int vals[$]);
+        input {{ settings.class_prefix }}reg binds[$],
+        input int vals[$]);
     uvm_reg regs[$];
     uvm_reg read_regs[$];
     if (binds.size() != vals.size())
