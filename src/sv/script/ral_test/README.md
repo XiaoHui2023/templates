@@ -17,9 +17,9 @@ access: true
 | --- | --- | --- | --- |
 | class_prefix | string | ral_test_ | 生成类型名前缀；主 sequence 为此前缀加 seq |
 | reset | bool | false | 寄存器复位默认值自测 |
-| access | bool | false | 寄存器前门写读自测；按 field 翻转可写位、核对后立刻写回测前读到的整寄存器值，再测下一个 field |
+| access | bool | false | 寄存器前门写读自测；按 field 翻转可写位、比对后立刻写回测前读到的整寄存器值，再测下一个 field |
 | mem_hdl_paths | bool | false | 启用 uvm_reg_mem_hdl_paths_seq |
 | bit_bash | bool | false | 启用 uvm_reg_bit_bash_seq |
-| ignore_partial_ro_fields | bool | false | 为真时，对仍含可写字段的寄存器，在 map 上为 RO field 设置 NO_FIELD_TESTS；reset 与 access 自测均不核对被标记 field，且 access 仅翻转 RW 位 |
+| ignore_partial_ro_fields | bool | false | 为真时，对仍含可写字段的寄存器，在 map 上为 RO field 设置 NO_FIELD_TESTS；reset 与 access 自测均不比对被标记 field，且 access 仅翻转 RW 位 |
 
 须至少启用 reset、access、mem_hdl_paths、bit_bash 之一。
