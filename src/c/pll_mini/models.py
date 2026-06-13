@@ -64,6 +64,11 @@ class Settings(BaseModel):
         ge=1,
         description="consolver 求解超时，毫秒；省略则不限时。",
     )
+    reg_base_offset: int = Field(
+        0,
+        ge=0,
+        description="寄存器整体偏移地址。",
+    )
 
     @model_validator(mode="after")
     def _validate_identifiers(self) -> Settings:
@@ -91,12 +96,7 @@ class Models(BaseModel):
     ralf: str = Field(..., min_length=1, description="RALF 文件路径。")
     ralf_include_dirs: List[str] = Field(
         default_factory=list,
-        description="RALF source 搜索目录列表。",
-    )
-    ralf_base_offset: int = Field(
-        0,
-        ge=0,
-        description="加到 ralf-conv 全部寄存器绝对地址上的字节偏移。",
+        description="RALF 引用其它文件时的额外搜索目录。",
     )
     tree: Tree = Field(..., description="单棵时钟树。")
     settings: Settings = Field(
@@ -141,7 +141,7 @@ class Models(BaseModel):
             self.ralf,
             yaml_dir=yaml_dir,
             include_dirs=self.ralf_include_dirs,
-            base_offset=self.ralf_base_offset,
+            base_offset=self.settings.reg_base_offset,
         )
         object.__setattr__(self, "_regmodel", regs)
         return self

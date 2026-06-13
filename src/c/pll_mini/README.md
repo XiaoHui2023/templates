@@ -1,5 +1,7 @@
 # pll_mini
 
+![](images/pipeline.drawio.svg)
+
 ## 示例
 
 ```yaml
@@ -30,55 +32,192 @@ settings:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `ralf` | `str` | 必填 | RALF 文件路径；相对路径先相对 YAML 所在目录，再相对模板单元目录查找。 |
-| `ralf_include_dirs` | `list[str]` | `[]` | ralf-conv 解析 `source` 时的额外搜索目录。 |
-| `ralf_base_offset` | `int` | `0` | 加到 ralf-conv 输出的全部寄存器绝对地址上的字节偏移。 |
-| `tree` | `Tree` | 必填 | 单棵时钟树；节点字段与 clock_tree 同形，不含 RTL `path` 与仿真度量项。 |
+| `ralf` | `str` | | RALF 文件路径。 |
+| `ralf_include_dirs` | `list[str]` | `[]` | RALF 引用其它文件时的额外搜索目录。 |
+| `tree` | `Tree` | | 单棵时钟树。 |
 | `settings` | `Settings` | 见下表 | 全局选项。 |
 
 ### Settings
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `main_fn` | `str` | `pll_mini_config` | 配置入口 C 函数名；经 DPI-C 导出供 SystemVerilog `import`。 |
+| `main_fn` | `str` | `pll_mini_config` | 配置入口 C 函数名。 |
 | `header_guard` | `str` | `PLL_MINI_H` | 头文件 include guard。 |
 | `gate_reg_high_means_open` | `bool` | `false` | 门控寄存器写 1 是否表示打开。 |
 | `div_reg_high_means_reset` | `bool` | `false` | div 的 rst 写 1 是否表示复位。 |
 | `dto_reg_high_means_reset` | `bool` | `false` | dto 的 rst 写 1 是否表示复位。 |
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
-| `consolver_timeout_ms` | `int` | 省略 | consolver 求解超时，毫秒。 |
+| `consolver_timeout_ms` | `int` | | consolver 求解超时，毫秒。 |
+| `reg_base_offset` | `int` | `0` | 寄存器整体偏移地址。 |
+
+### 寄存器模型路径
+
+寄存器路径按 `.` 分隔，可指定比特范围。
+
+| 写法 | 含义 |
+| --- | --- |
+| `blk.field` | 整个 field |
+| `blk.field[1]` | 仅 bit 1 |
+| `blk.field[3:0]` | 从 bit 0 起连续 4 位 |
+
+### 前级引用
+
+写 **nodes** 中的节点名；多路输出加 `[序号]`。
+
+| 写法 | 含义 |
+| --- | --- |
+| `osc` | 通常写法，单路输出前级 |
+| `pll0` | 单路输出前级 |
+| `pll0[0]` | 多路输出前级，第 0 路 |
+| `pll0[1]` | 多路输出前级，第 1 路 |
 
 ### Tree
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `name` | `str` | 必填 | 时钟树名。 |
-| `nodes` | `dict[str, Node]` | 必填 | 节点表，键为节点名。 |
+| `name` | `str` | | 时钟树名。 |
+| `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
 
-至少含一个 `kind: clk` 节点；各 clk 的 `freq` 锚定该输出频率，求解器同时为全部 clk 选取活动路径、mux 选择与分频比。
+### Node - source
 
-### Node
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `source` | |
+| `freq` | `int` | | 典型频率，单位 Hz。 |
 
-`kind` 决定节点形状；`regs` 或 `reg` 非空时都要能在 RALF 转出的寄存器模型中解析。门控开闭、mux 选择、div/dto 分频比与 PLL 各 field 写入值由频率约束求解后推算，不在 YAML 填写。
+### Node - pll
 
-| `kind` | 主要字段 | 说明 |
-| --- | --- | --- |
-| `source` | `freq` | 时钟源频率，单位 Hz。 |
-| `pll` | `source`, `pll_kind`, `freq`, `regs` | 目标输出频率；`regs` 键集合与型号一致。 |
-| `div` | `source`, `regs` | 分频比由约束求解确定。 |
-| `dto` | `source`, `regs` | 分频比由约束求解确定。 |
-| `gate` | `source`, `reg` | 活动路径上门打开，其余关闭。 |
-| `mux` | `source`, `reg` | 选择能同时满足全部 clk 的输入标签。 |
-| `inv` | `source` | 反相，无寄存器。 |
-| `clk` | `source`, `freq` | 输出频率锚点，单位 Hz。 |
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `pll` | |
+| `freq` | `int` | | 典型频率，单位 Hz。 |
+| `source` | `str` | | 参考时钟前级引用。 |
+| `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。 |
+| `output_count` | `int` | `1` | 有几路输出。仅 `inno` 可用。 |
 
-配置顺序与 clock_tree **config_reg** 相同：全部活动 **pll** 写寄存器后统一等待 lock；活动 **div** 与 **dto**；打开的 **gate**；活动 **mux**；关闭的 **gate**。
+#### tci
 
-同 **pll_kind** 且 **output_count** 相同的活动节点，寄存器路径后缀与 field 位域布局必须一致，否则 Python 校验报错。同一输出频率在不同节点上推算的分频也要一致。
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.bypass` | `str` | | bypass 开关。 |
+| `regs.pwrdn` | `str` | | 掉电控制。 |
+| `regs.reset` | `str` | | 复位控制。 |
+| `regs.clkod` | `str` | | 输出分频系数。 |
+| `regs.clkf` | `str` | | 反馈倍频系数。 |
+| `regs.clkr` | `str` | | 参考分频系数。 |
+| `regs.bwadj` | `str` | | 环路带宽调节。 |
 
-每种 **pll_kind** 生成一个通用函数 **pll_mini_config_pll_***，参数为各寄存器块 64 位地址与 **out_freq_hz**；函数内 **switch** 枚举该型号在时钟树中出现过的输出频率。每个活动 PLL 实例在 **chip_pll_config** 中传入本实例地址宏与目标频率；**pll_mini_config_steps** 仍只列 **div**、**dto**、**gate**、**mux**。
+#### sc
 
-寄存器读写通过 DPI 从 SystemVerilog 导入 **cpu_config_read**、**cpu_config_write**；地址为 64 位，数据为 32 位。**main_fn** 在 C 侧 `export "DPI-C"`，仿真中 `import "DPI-C" context function void <main_fn>();`。SystemVerilog 以 `export "DPI-C" function int unsigned cpu_config_read(input longint unsigned addr);` 与 `export "DPI-C" function void cpu_config_write(input longint unsigned addr, input int unsigned data);` 提供读写实现。
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.vocpd` | `str` | | VCO 掉电。 |
+| `regs.postdivpd` | `str` | | 后级分频掉电。 |
+| `regs.dsmpd` | `str` | | ΔΣ 调制掉电。 |
+| `regs.pd` | `str` | | 掉电控制。 |
+| `regs.bypass` | `str` | | bypass 开关。 |
+| `regs.refdiv` | `str` | | 参考分频系数。 |
+| `regs.postdiv2` | `str` | | 后级分频 2 系数。 |
+| `regs.postdiv1` | `str` | | 后级分频 1 系数。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
 
-模板单元 **`bin/linux/`** 含 consolver 与 ralf-conv 的 Linux 单文件可执行体；Git 已标记可执行，克隆后在 Ubuntu 上可直接配合 jinja-build 使用，无需 `chmod`。Windows 上在本仓库内跑 jinja-build 时使用 **`test/c/pll_mini/bin/windows/`** 中的可执行体；也可通过环境变量 **`PLL_MINI_BIN_DIR`** 指定其它目录。
+#### dw
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
+| `regs.prediv` | `str` | | 前级分频系数。 |
+| `regs.reset` | `str` | | 复位控制。 |
+| `regs.pwron` | `str` | | 上电控制。 |
+| `regs.shift` | `str` | | 频点偏移。 |
+| `regs.bypass` | `str` | | bypass 开关。 |
+| `regs.divvcor` | `str` | | VCO 分频系数。 |
+| `regs.r` | `str` | | R 分频系数。 |
+| `regs.p` | `str` | | P 分频系数。 |
+| `regs.divvcop` | `str` | | VCO 后级分频系数。 |
+| `regs.enr` | `str` | | R 通道使能。 |
+| `regs.enp` | `str` | | P 通道使能。 |
+
+#### inno
+
+**output_count** 为 1：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.pd` | `str` | | 掉电控制。 |
+| `regs.refdiv` | `str` | | 参考分频系数。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
+| `regs.postdiv1` | `str` | | 后级分频 1 系数。 |
+| `regs.postdiv2` | `str` | | 后级分频 2 系数。 |
+
+**output_count** 大于 1：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `regs.lock` | `str` | | PLL lock 状态位。 |
+| `regs.pd` | `str` | | 掉电控制。 |
+| `regs.refdiv` | `str` | | 参考分频系数。 |
+| `regs.fbdiv` | `str` | | 反馈分频系数。 |
+| `regs.postdiv1` | `str` | | 第 0 路后级分频 1 系数。 |
+| `regs.postdiv2` | `str` | | 第 0 路后级分频 2 系数。 |
+| `regs.postdiv1_1` | `str` | | 第 1 路后级分频 1 系数。 |
+| `regs.postdiv2_1` | `str` | | 第 1 路后级分频 2 系数。 |
+
+更多输出路时 **regs** 内名字序号递增，如 `postdiv1_2`、`postdiv2_2`。
+
+### Node - clk
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `clk` | |
+| `freq` | `int` | | 典型频率，单位 Hz。 |
+| `source` | `str` | | 前级引用。 |
+
+### Node - gate
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `gate` | |
+| `source` | `str` | | 前级引用。 |
+| `reg` | `str` | `""` | 门控寄存器模型路径。 |
+
+### Node - div
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `div` | |
+| `source` | `str` | | 前级引用。 |
+| `regs.rst` | `str` | | 复位位。 |
+| `regs.load` | `str` | | 加载位。 |
+| `regs.div` | `str` | | 分频系数。 |
+
+### Node - dto
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `dto` | |
+| `source` | `str` | | 前级引用。 |
+| `regs.rst` | `str` | | 复位位。 |
+| `regs.load` | `str` | | 加载位。 |
+| `regs.bypass` | `str` | | bypass 位。 |
+| `regs.step` | `str` | | 步进控制。 |
+
+### Node - inv
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `inv` | |
+| `source` | `str` | | 前级引用。 |
+
+### Node - mux
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `mux` | |
+| `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
+| `reg` | `str` | `""` | 选择寄存器模型路径。 |
