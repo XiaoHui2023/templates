@@ -1,0 +1,4 @@
+src/c/pll_mini/bin/linux/consolver binary
+src/c/pll_mini/bin/linux/ralf-conv binary
+test/c/pll_mini/bin/windows/consolver.exe binary
+test/c/pll_mini/bin/windows/ralf-conv.exe binary

@@ -127,7 +127,7 @@ class Reg(BaseModel):
 
     @property
     def address_hex(self) -> str:
-        return f"0x{self.address:08X}u"
+        return f"0x{self.address:X}"
 
     def field_by_name(self, name: str) -> Optional[RegField]:
         for fld in self.fields:

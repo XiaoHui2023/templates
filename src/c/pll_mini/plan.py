@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Literal
+from typing import List
 
 from formulas import dto_ratio_to_step
 from nodes import DivNode, DtoNode, GateNode, MuxNode, PllNode, Tree
@@ -15,12 +15,9 @@ from regmodel import (
 )
 from reg_paths import inno_postdiv_reg_keys
 
-StepKind = Literal["write", "wait_lock"]
-
-
 @dataclass(frozen=True)
 class FieldPartView:
-    """单个可编辑 field 切片；对应节点 reg 路径的最小粒度。"""
+    """Single field value fragment for one register write."""
 
     field_name: str
     part_label: str
@@ -30,21 +27,29 @@ class FieldPartView:
     comment: str
 
     @property
-    def value_hex(self) -> str:
-        return f"0x{self.value & 0xFFFFFFFF:08X}u"
+    def value_u(self) -> str:
+        return f"{self.value}u"
+
+    @property
+    def lsb_u(self) -> str:
+        return f"{self.lsb}u"
+
+    @property
+    def value_hex_lit(self) -> str:
+        return f"0x{self.value:X}"
 
 
 @dataclass(frozen=True)
 class RegWriteStep:
-    """整寄存器写入步骤。"""
+    """One register write in the generated configuration sequence."""
 
-    kind: StepKind
     node_name: str
     reg: Reg
     value: int
     comment: str
     parts: tuple[FieldPartView, ...]
     step_index: int
+    addr_pad_width: int = 0
 
     @property
     def addr_macro(self) -> str:
@@ -54,113 +59,93 @@ class RegWriteStep:
     def value_hex(self) -> str:
         return f"0x{self.value & 0xFFFFFFFF:08X}u"
 
-    @property
-    def parts_array_name(self) -> str:
-        return f"pll_mini_step_{self.step_index}_fields"
-
-
-@dataclass(frozen=True)
-class WaitLockStep:
-    """PLL lock 轮询步骤。"""
-
-    kind: StepKind
-    node_name: str
-    reg: Reg
-    lock_mask: int
-    timeout_us: int
-    comment: str
-
-    @property
-    def addr_macro(self) -> str:
-        return self.reg.addr_macro
-
-    @property
-    def lock_mask_hex(self) -> str:
-        return f"0x{self.lock_mask & 0xFFFFFFFF:08X}u"
-
-
-ConfigStep = RegWriteStep | WaitLockStep
-
-
-@dataclass(frozen=True)
-class PllRegWrite:
-    node_name: str
-    addr_macro: str
-    value_hex: str
-    comment: str
-
-
-@dataclass(frozen=True)
-class PllWaitLock:
-    node_name: str
-    addr_macro: str
-    lock_mask_hex: str
-    timeout_us: int
-    comment: str
-
-
-@dataclass(frozen=True)
-class DivDevStep:
-    node_name: str
-    addr_macro: str
-    word_rst_assert_hex: str
-    word_program_hex: str
-    word_load_assert_hex: str
-    comment: str
+    def _packed_value_lines(
+        self,
+        *,
+        first_prefix: str,
+        cont_indent: str,
+        close: str,
+        unsigned_suffix: bool = True,
+        cast_uint32: bool = True,
+        hex_literals: bool = False,
+    ) -> list[str]:
+        lines: list[str] = []
+        for idx, part in enumerate(self.parts):
+            if idx == 0:
+                prefix = first_prefix
+            else:
+                prefix = cont_indent
+            sep = " |" if idx + 1 < len(self.parts) else close
+            if hex_literals:
+                value_lit = part.value_hex_lit
+                lsb_lit = str(part.lsb)
+            elif unsigned_suffix:
+                value_lit = part.value_u
+                lsb_lit = part.lsb_u
+            else:
+                value_lit = str(part.value)
+                lsb_lit = str(part.lsb)
+            if cast_uint32:
+                expr = f"((uint32_t){value_lit:<6} << {lsb_lit:<4})"
+            else:
+                expr = f"({value_lit:<6} << {lsb_lit:<4})"
+            lines.append(f"{prefix}{expr}{sep} // {part.comment}")
+        return lines
 
     @property
-    def dev_kind(self) -> Literal["div"]:
-        return "div"
+    def c_config_step_lines(self) -> str:
+        pad = self.addr_pad_width if self.addr_pad_width > 0 else len(self.addr_macro)
+        base_indent = "    "
+        addr_field = "{ " + f"{self.addr_macro:<{pad}}" + ", "
+        field_start_col = len(base_indent) + len(addr_field)
+        cont_indent = " " * field_start_col
+        return "\n".join(
+            self._packed_value_lines(
+                first_prefix=base_indent + addr_field,
+                cont_indent=cont_indent,
+                close=" },",
+                unsigned_suffix=False,
+                cast_uint32=False,
+                hex_literals=True,
+            )
+        )
 
 
-@dataclass(frozen=True)
-class DtoDevStep:
-    node_name: str
-    writes: tuple[tuple[str, str], ...]
-    comment: str
-
-    @property
-    def dev_kind(self) -> Literal["dto"]:
-        return "dto"
-
-
-@dataclass(frozen=True)
-class GateDevStep:
-    node_name: str
-    addr_macro: str
-    value_hex: str
-    comment: str
-
-    @property
-    def dev_kind(self) -> Literal["gate"]:
-        return "gate"
-
-
-@dataclass(frozen=True)
-class MuxDevStep:
-    node_name: str
-    addr_macro: str
-    value_hex: str
-    comment: str
-
-    @property
-    def dev_kind(self) -> Literal["mux"]:
-        return "mux"
-
-
-DevStep = DivDevStep | DtoDevStep | GateDevStep | MuxDevStep
+def _is_single_bit_mask_hex(mask_hex: str) -> bool:
+    literal = mask_hex.rstrip("uU")
+    value = int(literal, 16)
+    return value != 0 and (value & (value - 1)) == 0
 
 
 @dataclass(frozen=True)
 class ConfigPlan:
-    pll_writes: tuple[PllRegWrite, ...]
-    pll_wait_locks: tuple[PllWaitLock, ...]
-    dev_steps: tuple[DevStep, ...]
+    pll_kind_plans: tuple["PllKindPlan", ...]
+    pll_instances: tuple["PllInstancePlan", ...]
+    dev_steps: tuple[RegWriteStep, ...]
+
+    @property
+    def pll_writes(self) -> tuple["PllInstancePlan", ...]:
+        return self.pll_instances
+
+    @property
+    def fixed_wait_lock_mask_hex(self) -> str | None:
+        """若全部须等待锁定的 PLL 共用同一单比特 mask，返回该字面量；否则为 None。"""
+        masks = {
+            inst.lock_mask_hex
+            for inst in self.pll_instances
+            if inst.wait_lock
+        }
+        if len(masks) != 1:
+            return None
+        mask_hex = masks.pop()
+        if not _is_single_bit_mask_hex(mask_hex):
+            return None
+        return mask_hex
 
 
 @dataclass
 class _FieldPatch:
-    """规划阶段的单次 field 赋值，供合并为整 reg 写。"""
+    """Pending field assignment before register-level merge."""
 
     node_name: str
     field_ref: FieldRef
@@ -193,7 +178,7 @@ PLL_INNO_SHARED_KEYS = ("pd", "refdiv", "fbdiv")
 
 
 class SettingsView:
-    """plan 使用的 settings 只读视图。"""
+    """Read-only settings view used while building the plan."""
 
     def __init__(
         self,
@@ -201,12 +186,10 @@ class SettingsView:
         gate_reg_high_means_open: bool,
         div_reg_high_means_reset: bool,
         dto_reg_high_means_reset: bool,
-        lock_timeout_us: int,
     ) -> None:
         self.gate_reg_high_means_open = gate_reg_high_means_open
         self.div_reg_high_means_reset = div_reg_high_means_reset
         self.dto_reg_high_means_reset = dto_reg_high_means_reset
-        self.lock_timeout_us = lock_timeout_us
 
 
 def _patch(
@@ -217,7 +200,7 @@ def _patch(
     value: int,
     note: str,
 ) -> _FieldPatch:
-    ref = index.resolve(raw_path, ctx=f"节点 {node_name!r}")
+    ref = index.resolve(raw_path, ctx=f"node {node_name!r}")
     return _FieldPatch(
         node_name=node_name,
         field_ref=ref,
@@ -245,14 +228,7 @@ def _patch_to_part_view(patch: _FieldPatch) -> FieldPartView:
 
 
 def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
-    """把 field 级补丁按 reg 合并；同一 reg 内 field 重复赋值时分多次写。
-
-    Args:
-        patches: 按配置顺序排列的 field 赋值。
-
-    Returns:
-        整寄存器写入步骤。
-    """
+    """Merge field assignments into register writes."""
     out: List[RegWriteStep] = []
     last_written: dict[str, int] = {}
     idx = 0
@@ -292,7 +268,6 @@ def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
         comment = "; ".join(unique_notes) if unique_notes else first.node_name
         out.append(
             RegWriteStep(
-                kind="write",
                 node_name=first.node_name,
                 reg=reg,
                 value=value,
@@ -304,54 +279,20 @@ def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
     return out
 
 
-def _rst_pulse_patches(
+def _reset_release_patch(
     index: RegModelIndex,
     node: DivNode | DtoNode,
     *,
     high_means_reset: bool,
-) -> List[_FieldPatch]:
-    reset_val = 1 if high_means_reset else 0
+) -> _FieldPatch:
     release_val = 0 if high_means_reset else 1
-    path = node.regs["rst"]
-    return [
-        _patch(
-            index,
-            node_name=node.name,
-            raw_path=path,
-            value=reset_val,
-            note=f"{node.name} rst assert",
-        ),
-        _patch(
-            index,
-            node_name=node.name,
-            raw_path=path,
-            value=release_val,
-            note=f"{node.name} rst release",
-        ),
-    ]
-
-
-def _load_pulse_patches(
-    index: RegModelIndex,
-    node: DivNode,
-) -> List[_FieldPatch]:
-    path = node.regs["load"]
-    return [
-        _patch(
-            index,
-            node_name=node.name,
-            raw_path=path,
-            value=0,
-            note=f"{node.name} load deassert",
-        ),
-        _patch(
-            index,
-            node_name=node.name,
-            raw_path=path,
-            value=1,
-            note=f"{node.name} load assert",
-        ),
-    ]
+    return _patch(
+        index,
+        node_name=node.name,
+        raw_path=node.regs["rst"],
+        value=release_val,
+        note=f"{node.name} rst release",
+    )
 
 
 def _expand_pll_sc(
@@ -570,7 +511,7 @@ def expand_pll_patches(
         return _expand_pll_dw(index, node, cfg)
     if node.pll_kind == "inno":
         return _expand_pll_inno(index, node, cfg)
-    raise ValueError(f"未知 pll_kind {node.pll_kind!r}")
+    raise ValueError(f"unknown pll_kind {node.pll_kind!r}")
 
 
 def expand_div_patches(
@@ -581,11 +522,13 @@ def expand_div_patches(
 ) -> List[_FieldPatch]:
     from formulas import div_ratio_to_n
 
-    patches = _rst_pulse_patches(
-        index,
-        node,
-        high_means_reset=settings.div_reg_high_means_reset,
-    )
+    patches = [
+        _reset_release_patch(
+            index,
+            node,
+            high_means_reset=settings.div_reg_high_means_reset,
+        )
+    ]
     div_n = div_ratio_to_n(resolved.ratio)
     patches.append(
         _patch(
@@ -596,7 +539,15 @@ def expand_div_patches(
             note=f"{node.name} ratio={resolved.ratio} div={div_n}",
         )
     )
-    patches.extend(_load_pulse_patches(index, node))
+    patches.append(
+        _patch(
+            index,
+            node_name=node.name,
+            raw_path=node.regs["load"],
+            value=1,
+            note=f"{node.name} load",
+        )
+    )
     return patches
 
 
@@ -607,11 +558,13 @@ def expand_dto_patches(
     resolved: ResolvedNode,
 ) -> List[_FieldPatch]:
     step = dto_ratio_to_step(resolved.ratio)
-    patches = _rst_pulse_patches(
-        index,
-        node,
-        high_means_reset=settings.dto_reg_high_means_reset,
-    )
+    patches = [
+        _reset_release_patch(
+            index,
+            node,
+            high_means_reset=settings.dto_reg_high_means_reset,
+        )
+    ]
     dto_note = (
         f"{node.name} ratio={resolved.ratio} load=1 bypass=0 step={step}"
     )
@@ -664,83 +617,46 @@ def expand_mux_patch(
     )
 
 
-def wait_lock_step(
+def _pll_lock_view(
     index: RegModelIndex,
     node: PllNode,
-    settings: SettingsView,
-) -> WaitLockStep:
+) -> tuple[str, str]:
     if "lock" not in node.regs:
-        raise ValueError(f"pll 节点 {node.name!r} 的 regs 须含 lock 以轮询")
-    ref = index.resolve(node.regs["lock"], ctx=f"节点 {node.name!r} lock")
-    return WaitLockStep(
-        kind="wait_lock",
-        node_name=node.name,
-        reg=ref.reg,
-        lock_mask=ref.effective_mask,
-        timeout_us=settings.lock_timeout_us,
-        comment=f"{node.name} wait lock",
-    )
+        raise ValueError(f"pll node {node.name!r} requires regs.lock")
+    ref = index.resolve(node.regs["lock"], ctx=f"node {node.name!r} lock")
+    mask_hex = f"0x{ref.effective_mask & 0xFFFFFFFF:08X}u"
+    return ref.reg.addr_macro, mask_hex
 
 
-def _reg_writes_to_pll_views(
-    writes: List[RegWriteStep],
-) -> tuple[PllRegWrite, ...]:
-    return tuple(
-        PllRegWrite(
-            node_name=w.node_name,
-            addr_macro=w.addr_macro,
-            value_hex=w.value_hex,
-            comment=w.comment,
-        )
-        for w in writes
-    )
+def _pll_fn_name(node_name: str) -> str:
+    return f"pll_mini_config_{node_name}"
 
 
-def _div_dev_step(writes: List[RegWriteStep], node_name: str) -> DivDevStep:
-    if len(writes) != 3:
-        raise ValueError(
-            f"div 节点 {node_name!r} 须产生 3 次寄存器写，得到 {len(writes)}"
-        )
-    addr = writes[0].addr_macro
-    for w in writes[1:]:
-        if w.addr_macro != addr:
-            raise ValueError(
-                f"div 节点 {node_name!r} 的 rst/load/div 须映射到同一寄存器地址"
+def _with_step_indexes(steps: List[RegWriteStep]) -> tuple[RegWriteStep, ...]:
+    indexed: list[RegWriteStep] = []
+    for idx, step in enumerate(steps):
+        indexed.append(
+            RegWriteStep(
+                node_name=step.node_name,
+                reg=step.reg,
+                value=step.value,
+                comment=step.comment,
+                parts=step.parts,
+                step_index=idx,
             )
-    return DivDevStep(
-        node_name=node_name,
-        addr_macro=addr,
-        word_rst_assert_hex=writes[0].value_hex,
-        word_program_hex=writes[1].value_hex,
-        word_load_assert_hex=writes[2].value_hex,
-        comment=writes[-1].comment,
-    )
-
-
-def _dto_dev_step(writes: List[RegWriteStep], node_name: str) -> DtoDevStep:
-    pairs = tuple((w.addr_macro, w.value_hex) for w in writes)
-    return DtoDevStep(
-        node_name=node_name,
-        writes=pairs,
-        comment=writes[-1].comment if writes else node_name,
-    )
-
-
-def _gate_dev_step(write: RegWriteStep) -> GateDevStep:
-    return GateDevStep(
-        node_name=write.node_name,
-        addr_macro=write.addr_macro,
-        value_hex=write.value_hex,
-        comment=write.comment,
-    )
-
-
-def _mux_dev_step(write: RegWriteStep) -> MuxDevStep:
-    return MuxDevStep(
-        node_name=write.node_name,
-        addr_macro=write.addr_macro,
-        value_hex=write.value_hex,
-        comment=write.comment,
+        )
+    pad = max((len(s.addr_macro) for s in indexed), default=0)
+    return tuple(
+        RegWriteStep(
+            node_name=s.node_name,
+            reg=s.reg,
+            value=s.value,
+            comment=s.comment,
+            parts=s.parts,
+            step_index=s.step_index,
+            addr_pad_width=pad,
+        )
+        for s in indexed
     )
 
 
@@ -750,86 +666,61 @@ def build_config_plan(
     settings: SettingsView,
     resolved: TreeResolve,
 ) -> ConfigPlan:
-    """按 config_reg 五段顺序生成 PLL 固化写与器件步骤表。"""
-    pll_writes: List[PllRegWrite] = []
-    pll_wait_locks: List[PllWaitLock] = []
-    dev_steps: List[DevStep] = []
-    pll_patches: List[_FieldPatch] = []
+    """Build PLL kind plans, instances, and non-PLL register write steps."""
+    from pll_kind_plan import build_pll_plan
 
-    for node in tree.nodes_ordered:
-        if not isinstance(node, PllNode) or not node.regs:
-            continue
-        state = resolved.by_name[node.name]
-        if not state.active:
-            continue
-        pll_patches.extend(expand_pll_patches(index, node, state))
-    pll_writes.extend(
-        _reg_writes_to_pll_views(merge_field_patches(pll_patches))
-    )
-
-    for node in tree.nodes_ordered:
-        if not isinstance(node, PllNode) or not node.regs:
-            continue
-        state = resolved.by_name[node.name]
-        if not state.active:
-            continue
-        if node.pll_kind == "inno" and node.output_count > 1:
-            continue
-        lock = wait_lock_step(index, node, settings)
-        pll_wait_locks.append(
-            PllWaitLock(
-                node_name=lock.node_name,
-                addr_macro=lock.addr_macro,
-                lock_mask_hex=lock.lock_mask_hex,
-                timeout_us=lock.timeout_us,
-                comment=lock.comment,
-            )
-        )
+    pll_bundle = build_pll_plan(tree, index, resolved)
+    dev_steps: List[RegWriteStep] = []
 
     for node in tree.nodes_ordered:
         state = resolved.by_name[node.name]
         if not state.active:
             continue
         if isinstance(node, DivNode) and node.regs:
-            writes = merge_field_patches(
-                expand_div_patches(index, node, settings, state)
+            dev_steps.extend(
+                merge_field_patches(
+                    expand_div_patches(index, node, settings, state)
+                )
             )
-            dev_steps.append(_div_dev_step(writes, node.name))
         elif isinstance(node, DtoNode) and node.regs:
-            writes = merge_field_patches(
-                expand_dto_patches(index, node, settings, state)
+            dev_steps.extend(
+                merge_field_patches(
+                    expand_dto_patches(index, node, settings, state)
+                )
             )
-            dev_steps.append(_dto_dev_step(writes, node.name))
 
     for node in tree.nodes_ordered:
         if isinstance(node, GateNode) and node.reg:
             state = resolved.by_name[node.name]
             if state.gate_open:
-                writes = merge_field_patches(
-                    [expand_gate_patch(index, node, settings, state)]
+                dev_steps.extend(
+                    merge_field_patches(
+                        [expand_gate_patch(index, node, settings, state)]
+                    )
                 )
-                dev_steps.append(_gate_dev_step(writes[0]))
 
     for node in tree.nodes_ordered:
         if isinstance(node, MuxNode) and node.reg:
             state = resolved.by_name[node.name]
             if state.active:
-                writes = merge_field_patches(
-                    [expand_mux_patch(index, node, state)]
+                dev_steps.extend(
+                    merge_field_patches(
+                        [expand_mux_patch(index, node, state)]
+                    )
                 )
-                dev_steps.append(_mux_dev_step(writes[0]))
 
     for node in tree.nodes_ordered:
         if isinstance(node, GateNode) and node.reg:
             state = resolved.by_name[node.name]
             if not state.gate_open:
-                writes = merge_field_patches(
-                    [expand_gate_patch(index, node, settings, state)]
+                dev_steps.extend(
+                    merge_field_patches(
+                        [expand_gate_patch(index, node, settings, state)]
+                    )
                 )
-                dev_steps.append(_gate_dev_step(writes[0]))
 
     return ConfigPlan(
-        pll_writes=tuple(pll_writes),
-        pll_wait_locks=tuple(pll_wait_locks),
-        dev_steps=tuple(dev_steps),
+        pll_kind_plans=pll_bundle.kind_plans,
+        pll_instances=pll_bundle.instances,
+        dev_steps=_with_step_indexes(dev_steps),
     )

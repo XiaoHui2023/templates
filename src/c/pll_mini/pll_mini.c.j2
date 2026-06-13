@@ -1,151 +1,68 @@
 #include "pll_mini.h"
 
 #include <stddef.h>
-#include <stdint.h>
 
-typedef enum {
-    PLL_MINI_DEV_DIV = 0,
-    PLL_MINI_DEV_DTO = 1,
-    PLL_MINI_DEV_GATE = 2,
-    PLL_MINI_DEV_MUX = 3,
-} pll_mini_dev_kind_t;
-
-typedef struct {
-    uint32_t addr;
-    uint32_t value;
-} pll_mini_reg_pair_t;
-
-typedef struct {
-    pll_mini_dev_kind_t kind;
-    uint32_t addr;
-    uint32_t word0;
-    uint32_t word1;
-    uint32_t word2;
-    uint8_t dto_count;
-    pll_mini_reg_pair_t dto_pairs[4];
-} pll_mini_dev_step_t;
-
-static const pll_mini_dev_step_t pll_mini_dev_steps[] = {
+static const pll_mini_config_step_t pll_mini_config_steps[] = {
 {% for step in config_plan.dev_steps -%}
-{%- if step.dev_kind == "div" %}
-    /* {{ step.comment }} */
-    { PLL_MINI_DEV_DIV, {{ step.addr_macro }}, {{ step.word_rst_assert_hex }},
-      {{ step.word_program_hex }}, {{ step.word_load_assert_hex }}, 0u,
-      { { 0u, 0u }, { 0u, 0u }, { 0u, 0u }, { 0u, 0u } } },
-{%- elif step.dev_kind == "gate" %}
-    /* {{ step.comment }} */
-    { PLL_MINI_DEV_GATE, {{ step.addr_macro }}, {{ step.value_hex }},
-      0u, 0u, 0u,
-      { { 0u, 0u }, { 0u, 0u }, { 0u, 0u }, { 0u, 0u } } },
-{%- elif step.dev_kind == "mux" %}
-    /* {{ step.comment }} */
-    { PLL_MINI_DEV_MUX, {{ step.addr_macro }}, {{ step.value_hex }},
-      0u, 0u, 0u,
-      { { 0u, 0u }, { 0u, 0u }, { 0u, 0u }, { 0u, 0u } } },
-{%- elif step.dev_kind == "dto" %}
-    /* {{ step.comment }} */
-    { PLL_MINI_DEV_DTO, 0u, 0u, 0u, 0u, {{ step.writes | length }}u, {
-{%- for addr_macro, value_hex in step.writes %}
-        { {{ addr_macro }}, {{ value_hex }} },
-{%- endfor %}
-{%- set pad = 4 - step.writes | length %}
-{%- for _ in range(pad) %}
-        { 0u, 0u },
-{%- endfor %}
-    } },
-{%- endif %}
+{{ step.c_config_step_lines }}
 {% endfor -%}
 };
 
-static void {{ settings.reg_write_fn }}(uint32_t addr, uint32_t value)
+{% if config_plan.fixed_wait_lock_mask_hex -%}
+static void pll_mini_wait_lock(uint64_t addr)
 {
-    *(volatile uint32_t *)(uintptr_t)addr = value;
+    while ((cpu_config_read(addr) & {{ config_plan.fixed_wait_lock_mask_hex }}) == 0u)
+        ;
 }
-
-static uint32_t pll_mini_reg_read(uint32_t addr)
+{% else -%}
+static void pll_mini_wait_lock(uint64_t addr, uint32_t lock_mask)
 {
-    return *(volatile uint32_t *)(uintptr_t)addr;
+    while ((cpu_config_read(addr) & lock_mask) == 0u)
+        ;
 }
+{% endif -%}
 
-static int pll_mini_wait_lock(uint32_t addr, uint32_t lock_mask, uint32_t timeout_us)
+{% for kind in config_plan.pll_kind_plans -%}
+static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 {
-    uint32_t elapsed;
-
-    for (elapsed = 0u; elapsed < timeout_us; elapsed++) {
-        if ((pll_mini_reg_read(addr) & lock_mask) != 0u)
-            return 0;
+{%- for name in kind.cfg_var_names %}
+    uint32_t {{ name }};
+{%- endfor %}
+    switch (out_freq_hz) {
+{%- for branch in kind.freq_branches %}
+    case {{ branch.freq_case_lit }}:
+{%- for name, value in branch.assignments %}
+        {{ name }} = {{ value }};
+{%- endfor %}
+        break;
+{%- endfor %}
+    default:
+        return;
     }
-    return -1;
+{%- for write in kind.write_templates %}
+
+    cpu_config_write({{ write.addr_param }},
+{%- for part in write.parts %}
+{{ "        " }}({{ part.value_expr }} << {{ part.lsb }}){% if not loop.last %} |{% else %});{% endif %} // {{ part.comment }}
+{%- endfor %}
+{%- endfor %}
 }
 
-static void pll_mini_config_div(
-    uint32_t addr_ctrl,
-    uint32_t word_rst_assert,
-    uint32_t word_program,
-    uint32_t word_load_assert)
-{
-    {{ settings.reg_write_fn }}(addr_ctrl, word_rst_assert);
-    {{ settings.reg_write_fn }}(addr_ctrl, word_program);
-    {{ settings.reg_write_fn }}(addr_ctrl, word_load_assert);
-}
-
-static void pll_mini_config_dto(
-    const pll_mini_reg_pair_t *pairs,
-    size_t pair_count)
-{
-    size_t i;
-
-    for (i = 0u; i < pair_count; i++)
-        {{ settings.reg_write_fn }}(pairs[i].addr, pairs[i].value);
-}
-
-static void pll_mini_config_gate(uint32_t addr, uint32_t value)
-{
-    {{ settings.reg_write_fn }}(addr, value);
-}
-
-static void pll_mini_config_mux(uint32_t addr, uint32_t sel)
-{
-    {{ settings.reg_write_fn }}(addr, sel);
-}
-
-static void pll_mini_config_pll(void)
-{
-{% for w in config_plan.pll_writes %}
-    /* {{ w.comment }} */
-    {{ settings.reg_write_fn }}({{ w.addr_macro }}, {{ w.value_hex }});
-{% endfor %}
-{% for w in config_plan.pll_wait_locks %}
-    /* {{ w.comment }} */
-    (void)pll_mini_wait_lock({{ w.addr_macro }}, {{ w.lock_mask_hex }}, {{ w.timeout_us }}u);
-{% endfor %}
-}
+{% endfor -%}
+export "DPI-C" function {{ settings.main_fn }};
 
 void {{ settings.main_fn }}(void)
 {
     size_t i;
+{% for inst in config_plan.pll_instances %}
+    {{ inst.fn_name }}({{ inst.c_call_args }});
+{% endfor %}
+{% for inst in config_plan.pll_instances if inst.wait_lock %}
+    pll_mini_wait_lock({% if config_plan.fixed_wait_lock_mask_hex %}{{ inst.lock_addr_macro }}{% else %}{{ inst.lock_addr_macro }}, {{ inst.lock_mask_hex }}{% endif %});
+{% endfor %}
+    for (i = 0u; i < sizeof(pll_mini_config_steps) / sizeof(pll_mini_config_steps[0]); i++) {
+        const pll_mini_config_step_t *step = &pll_mini_config_steps[i];
 
-    pll_mini_config_pll();
-
-    for (i = 0u; i < sizeof(pll_mini_dev_steps) / sizeof(pll_mini_dev_steps[0]); i++) {
-        const pll_mini_dev_step_t *step = &pll_mini_dev_steps[i];
-
-        switch (step->kind) {
-        case PLL_MINI_DEV_DIV:
-            pll_mini_config_div(
-                step->addr, step->word0, step->word1, step->word2);
-            break;
-        case PLL_MINI_DEV_DTO:
-            pll_mini_config_dto(step->dto_pairs, step->dto_count);
-            break;
-        case PLL_MINI_DEV_GATE:
-            pll_mini_config_gate(step->addr, step->word0);
-            break;
-        case PLL_MINI_DEV_MUX:
-            pll_mini_config_mux(step->addr, step->word0);
-            break;
-        default:
-            break;
-        }
+        cpu_config_write(step->addr, step->value);
     }
 }

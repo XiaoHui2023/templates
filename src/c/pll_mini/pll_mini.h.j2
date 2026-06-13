@@ -3,14 +3,23 @@
 
 #include <stdint.h>
 
+{% set ns = namespace(addr_name_width=0) -%}
 {% for reg in regmodel -%}
-#define {{ reg.addr_macro }} {{ reg.address_hex }}
-{% for field in reg.fields -%}
-#define REG_{{ reg.macro_prefix }}_{{ field.name | upper }}_LSB ({{ field.lsb }}u)
-#define REG_{{ reg.macro_prefix }}_{{ field.name | upper }}_WIDTH ({{ field.width }}u)
-#define REG_{{ reg.macro_prefix }}_{{ field.name | upper }}_MASK ({{ field.mask_hex }})
+{% if reg.addr_macro | length > ns.addr_name_width -%}
+{% set ns.addr_name_width = reg.addr_macro | length -%}
+{% endif -%}
 {% endfor -%}
-{% endfor -%}
+{% for reg in regmodel -%}
+#define {{ reg.addr_macro.ljust(ns.addr_name_width) }} {{ reg.address_hex }}
+{% endfor %}
+
+typedef struct {
+    uint64_t addr;
+    uint32_t value;
+} pll_mini_config_step_t;
+
+extern uint32_t cpu_config_read(uint64_t addr);
+extern void cpu_config_write(uint64_t addr, uint32_t data);
 
 void {{ settings.main_fn }}(void);
 
