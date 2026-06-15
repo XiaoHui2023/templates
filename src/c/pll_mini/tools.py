@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -21,14 +22,20 @@ def bin_dir() -> Path:
     """返回 consolver 与 ralf-conv 所在目录。"""
     override = os.environ.get("PLL_MINI_BIN_DIR")
     if override:
-        return Path(override)
-    platform_dir = "windows" if sys.platform == "win32" else "linux"
-    pkg_bin = _PKG_DIR / "bin" / platform_dir
-    if sys.platform == "win32" and not _has_tool(pkg_bin):
-        win = _repo_root() / "test" / "c" / "pll_mini" / "bin" / "windows"
-        if _has_tool(win):
-            return win
-    return pkg_bin
+        root = Path(override)
+    else:
+        platform_dir = "windows" if sys.platform == "win32" else "linux"
+        pkg_bin = _PKG_DIR / "bin" / platform_dir
+        if sys.platform == "win32" and not _has_tool(pkg_bin):
+            win = _repo_root() / "test" / "c" / "pll_mini" / "bin" / "windows"
+            if _has_tool(win):
+                return win
+        root = pkg_bin
+    if sys.platform != "win32" and root.is_dir():
+        for entry in root.iterdir():
+            if entry.is_file():
+                _ensure_executable(entry)
+    return root
 
 
 def _has_tool(directory: Path) -> bool:
@@ -43,14 +50,31 @@ def _tool_name(base: str) -> str:
     return base
 
 
+def _ensure_executable(path: Path) -> None:
+    """Linux 上 clone 后若无执行位则补上，避免 core.filemode=false 等情形。"""
+    if sys.platform == "win32" or not path.is_file():
+        return
+    if os.access(path, os.X_OK):
+        return
+    try:
+        mode = path.stat().st_mode
+        os.chmod(path, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    except OSError:
+        return
+
+
 def consolver_path(base: Path | None = None) -> Path:
     root = base if base is not None else bin_dir()
-    return root / _tool_name("consolver")
+    path = root / _tool_name("consolver")
+    _ensure_executable(path)
+    return path
 
 
 def ralfconv_path(base: Path | None = None) -> Path:
     root = base if base is not None else bin_dir()
-    return root / _tool_name("ralf-conv")
+    path = root / _tool_name("ralf-conv")
+    _ensure_executable(path)
+    return path
 
 
 def run_consolver_solve(
