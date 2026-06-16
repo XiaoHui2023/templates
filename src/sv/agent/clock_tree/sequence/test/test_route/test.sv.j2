@@ -310,7 +310,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE",
-            "test_route: init — pll/div/path fix + non-always_active clk unfix_frequence — confirm config_reg",
+            "test_route: init — pll/div/path fix + all clk unfix_frequence — confirm config_reg",
             UVM_LOW)
     run_config_reg(tree, rq.quiet);
 

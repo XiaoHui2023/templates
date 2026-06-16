@@ -19,8 +19,8 @@
     <text x="214" y="114" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">通路 gate / mux / div</text>
     <rect x="334.0" y="52.0" width="280" height="80" rx="5" ry="5" fill="#ffffff" stroke="#111111" stroke-width="1.5" pointer-events="all"/>
     <text x="474" y="89" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">PLL 错频 + div fix</text>
-    <text x="474" y="105" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">通路 fix + 非 always_active</text>
-    <text x="474" y="121" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">clk unfix_frequence</text>
+    <text x="474" y="105" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">通路 fix + 全部 clk</text>
+    <text x="474" y="121" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">unfix_frequence</text>
     <rect x="634.0" y="62.0" width="110" height="70" rx="5" ry="5" fill="#ffffff" stroke="#111111" stroke-width="1.5" pointer-events="all"/>
     <text x="689" y="98" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">config_reg</text>
     <text x="689" y="114" fill="#111111" font-family="Helvetica" font-size="13px" text-anchor="middle">确认写入</text>
