@@ -489,28 +489,31 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_div_dto_r
 {%- endif %}
 endfunction
 
-// 结构探测前：全部 clk unfix_frequence；须活动的 clk unfix_enabled 为 0
+// 结构探测前：非 always_active 的 clk 设 unfix_frequence；always_active 的 clk 保持频率约束
 function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
+    bit is_always_active;
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
-        clk_nd.unfix_frequence = 1'b1;
-        if (always_active_clk_nodes.size() > 0)
-            clk_nd.unfix_enabled = !{{ settings.class_prefix }}route_structure_clk_is_always_active(
+        is_always_active = always_active_clk_nodes.size() > 0
+            && {{ settings.class_prefix }}route_structure_clk_is_always_active(
                 clk_nd, always_active_clk_nodes);
+        clk_nd.unfix_frequence = !is_always_active;
+        if (always_active_clk_nodes.size() > 0)
+            clk_nd.unfix_enabled = !is_always_active;
         else
             clk_nd.unfix_enabled = 1'b0;
     end
 {%- endif %}
 endfunction
 
-// config_reg 之后：自 always_active clk 沿已配置的 source 选通链向上，收集 gate/mux
+// config_reg 之后：自 always_active clk 沿已配置的 source 选通链向上，收集 gate/mux/div
 function automatic void {{ settings.class_prefix }}route_structure_collect_always_active_upstream_gate_mux(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
@@ -527,19 +530,20 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_alway
             continue;
         cur = always_active_clk_nodes[i].source;
         while (cur != null) begin
-            if (cur.kind == "gate" || cur.kind == "mux")
+            if (cur.kind == "gate" || cur.kind == "mux" || cur.kind == "div")
                 {{ settings.class_prefix }}append_unique_node(collected, cur);
             cur = cur.source;
         end
     end
 endfunction
 
-// gate 固定打开、mux 以当前 sel 设 fix_sel
+// gate 固定打开、mux 以当前 sel 设 fix_sel、div 固定 ratio 1
 function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(
         {{ settings.class_prefix }}node_base gate_mux[$]);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}div div_nd;
 
     foreach (gate_mux[i]) begin
         if (gate_mux[i] == null)
@@ -549,12 +553,13 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_
         else if ($cast(mux_nd, gate_mux[i])) begin
             mux_nd.fix_sel = mux_nd.sel;
             mux_nd.post_randomize();
-        end
+        end else if ($cast(div_nd, gate_mux[i]))
+            {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
     end
 {%- endif %}
 endfunction
 
-// 从 line 去掉已 fix 锁定的 gate/mux
+// 从 line 去掉已 fix 锁定的 gate/mux/div
 function automatic void {{ settings.class_prefix }}route_structure_filter_pinned_gate_mux_from_line(
         ref {{ settings.class_prefix }}node_base line[$],
         input {{ settings.class_prefix }}node_base pinned_gate_mux[$]);
