@@ -433,6 +433,62 @@ function automatic bit {{ settings.class_prefix }}route_structure_clk_is_always_
     return 1'b0;
 endfunction
 
+// 树内 source 节点最小正频率；无正频率则 0
+function automatic longint {{ settings.class_prefix }}route_structure_min_source_freq_hz(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}source src_nd;
+    longint min_hz;
+    min_hz = 0;
+    if (tree == null)
+        return 0;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(src_nd, tree.nodes[i]))
+            continue;
+        if (src_nd.frequence <= 0)
+            continue;
+        if (min_hz == 0 || src_nd.frequence < min_hz)
+            min_hz = src_nd.frequence;
+    end
+    return min_hz;
+endfunction
+
+// test_route 前：按 tree.nodes 顺序将各 pll frequence 设为最小 source 的 2、3、… 倍
+function automatic void {{ settings.class_prefix }}route_structure_apply_pll_distinct_freq_policy(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}pll_base pll_nd;
+    longint base_hz;
+    int mult;
+    base_hz = {{ settings.class_prefix }}route_structure_min_source_freq_hz(tree);
+    if (base_hz <= 0)
+        `uvm_fatal("CLK_TREE", "test_route: no positive source frequence for pll policy")
+    mult = 2;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(pll_nd, tree.nodes[i]))
+            continue;
+        pll_nd.frequence = base_hz * mult;
+        mult++;
+    end
+endfunction
+
+// test_route 前：全部 div/dto ratio 与 fix_ratio 固定为 1
+function automatic void {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(
+        {{ settings.class_prefix }}tree_base tree);
+{%- if enable_node_fix %}
+    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}dto dto_nd;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if ($cast(div_nd, tree.nodes[i]))
+            {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
+        else if ($cast(dto_nd, tree.nodes[i]))
+            {{ settings.class_prefix }}route_structure_set_ratio(dto_nd, 1, 1'b1);
+    end
+{%- endif %}
+endfunction
+
 // 结构探测前：全部 clk unfix_frequence；须活动的 clk unfix_enabled 为 0
 function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
         {{ settings.class_prefix }}tree_base tree,

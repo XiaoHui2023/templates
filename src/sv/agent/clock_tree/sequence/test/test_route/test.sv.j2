@@ -266,9 +266,11 @@ task {{ settings.class_prefix }}test_route_seq::body();
         `uvm_fatal("CLK_TREE",
             "test_route: no gate/mux/div/dto nodes with bound regs")
 
+    {{ settings.class_prefix }}route_structure_apply_pll_distinct_freq_policy(tree);
+    {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(tree);
     if (!rq.quiet)
         `uvm_info("CLK_TREE",
-            "test_route: baseline config_reg — path gate/mux from post-config state",
+            "test_route: pll distinct freq + div/dto ratio 1 — baseline config_reg",
             UVM_LOW)
     run_config_reg(tree, rq.quiet);
 
