@@ -10,38 +10,18 @@ from typing import Any, Mapping, Sequence
 
 _PKG_DIR = Path(__file__).resolve().parent
 
-
-def _repo_root() -> Path:
-    for parent in _PKG_DIR.parents:
-        if (parent / "src" / "c" / "pll_mini").is_dir():
-            return parent
-    return _PKG_DIR.parents[2]
+_CONSOLVER_URL = "https://github.com/XiaoHui2023/consolver"
+_RALFCONV_URL = "https://github.com/XiaoHui2023/ralfconv"
 
 
 def bin_dir() -> Path:
-    """返回 consolver 与 ralf-conv 所在目录。"""
-    override = os.environ.get("PLL_MINI_BIN_DIR")
-    if override:
-        root = Path(override)
-    else:
-        platform_dir = "windows" if sys.platform == "win32" else "linux"
-        pkg_bin = _PKG_DIR / "bin" / platform_dir
-        if sys.platform == "win32" and not _has_tool(pkg_bin):
-            win = _repo_root() / "test" / "c" / "pll_mini" / "bin" / "windows"
-            if _has_tool(win):
-                return win
-        root = pkg_bin
+    """返回 consolver 与 ralfconv 所在目录。"""
+    root = _PKG_DIR / "bin"
     if sys.platform != "win32" and root.is_dir():
         for entry in root.iterdir():
             if entry.is_file():
                 _ensure_executable(entry)
     return root
-
-
-def _has_tool(directory: Path) -> bool:
-    if not directory.is_dir():
-        return False
-    return consolver_path(directory).is_file() and ralfconv_path(directory).is_file()
 
 
 def _tool_name(base: str) -> str:
@@ -51,7 +31,7 @@ def _tool_name(base: str) -> str:
 
 
 def _ensure_executable(path: Path) -> None:
-    """Linux 上 clone 后若无执行位则补上，避免 core.filemode=false 等情形。"""
+    """非 Windows 上 clone 后若无执行位则补上，避免 core.filemode=false 等情形。"""
     if sys.platform == "win32" or not path.is_file():
         return
     if os.access(path, os.X_OK):
@@ -63,6 +43,14 @@ def _ensure_executable(path: Path) -> None:
         return
 
 
+def _missing_tool_error(tool: str, url: str, exe: Path) -> FileNotFoundError:
+    bindir = bin_dir()
+    return FileNotFoundError(
+        f"找不到 {tool} 可执行文件: {exe}\n"
+        f"请从 {url} 下载，将可执行文件放到 {bindir}"
+    )
+
+
 def consolver_path(base: Path | None = None) -> Path:
     root = base if base is not None else bin_dir()
     path = root / _tool_name("consolver")
@@ -72,7 +60,7 @@ def consolver_path(base: Path | None = None) -> Path:
 
 def ralfconv_path(base: Path | None = None) -> Path:
     root = base if base is not None else bin_dir()
-    path = root / _tool_name("ralf-conv")
+    path = root / _tool_name("ralfconv")
     _ensure_executable(path)
     return path
 
@@ -85,7 +73,7 @@ def run_consolver_solve(
     """调用 consolver 求解 SMT-LIB 文本并解析 JSON 结果。"""
     exe = consolver_path()
     if not exe.is_file():
-        raise FileNotFoundError(f"找不到 consolver 可执行文件: {exe}")
+        raise _missing_tool_error("consolver", _CONSOLVER_URL, exe)
     cmd = [str(exe), "solve", "--input-text", smt2_text]
     if timeout_ms is not None:
         cmd.extend(["--timeout-ms", str(timeout_ms)])
@@ -126,10 +114,10 @@ def run_ralfconv_flat(
     include_dirs: Sequence[Path] = (),
     base_offset: int = 0,
 ) -> str:
-    """调用 ralf-conv 把 RALF 转为 flat JSON 文本。"""
+    """调用 ralfconv 把 RALF 转为 flat JSON 文本。"""
     exe = ralfconv_path()
     if not exe.is_file():
-        raise FileNotFoundError(f"找不到 ralf-conv 可执行文件: {exe}")
+        raise _missing_tool_error("ralfconv", _RALFCONV_URL, exe)
     if not ralf_path.is_file():
         raise FileNotFoundError(f"RALF 文件不存在: {ralf_path}")
     cmd = [
@@ -154,6 +142,6 @@ def run_ralfconv_flat(
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise RuntimeError(
-            f"ralf-conv 退出码 {proc.returncode}: {detail or '无输出'}"
+            f"ralfconv 退出码 {proc.returncode}: {detail or '无输出'}"
         )
     return proc.stdout

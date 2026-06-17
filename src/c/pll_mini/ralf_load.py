@@ -31,7 +31,7 @@ def load_regmodel_from_ralf(
     include_dirs: Sequence[str] = (),
     base_offset: int = 0,
 ) -> List[Reg]:
-    """读取 RALF 并经 ralf-conv 转为 Reg 列表。"""
+    """读取 RALF 并经 ralfconv 转为 Reg 列表。"""
     ralf_path = _resolve_ralf_path(ralf, yaml_dir=yaml_dir)
     inc_paths = [Path(p) for p in include_dirs]
     text = run_ralfconv_flat(
@@ -41,12 +41,12 @@ def load_regmodel_from_ralf(
     )
     rows = json.loads(text)
     if not isinstance(rows, list):
-        raise ValueError(f"ralf-conv flat JSON 须为数组，得到 {type(rows).__name__}")
+        raise ValueError(f"ralfconv flat JSON 应为数组，得到 {type(rows).__name__}")
 
     regs: List[Reg] = []
     for item in rows:
         if not isinstance(item, dict):
-            raise ValueError("ralf-conv 数组元素须为对象")
+            raise ValueError("ralfconv 数组元素应为对象")
         path = item.get("path")
         address = item.get("address")
         fields_raw = item.get("fields")
