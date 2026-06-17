@@ -452,20 +452,103 @@ function automatic longint {{ settings.class_prefix }}route_structure_min_source
     return min_hz;
 endfunction
 
-// test_route 前：按 tree.nodes 顺序将各 pll frequence 设为最小 source 的 2、3、… 倍
+// test_route 倍数分配时：取 pll 参考频率，跳过节点保留当前 frequence
+function automatic longint {{ settings.class_prefix }}route_structure_pll_policy_ref_hz(
+        {{ settings.class_prefix }}pll_base pll_nd,
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$],
+        int start_mult,
+        longint base_hz);
+    {{ settings.class_prefix }}pll_base src_pll;
+    {{ settings.class_prefix }}pll_base cur_pll;
+    int assign_idx;
+
+    if (pll_nd == null || pll_nd.source == null)
+        return 0;
+    if (pll_nd.source.kind == "pll") begin
+        if (!$cast(src_pll, pll_nd.source))
+            return pll_nd.source._resolved_freq;
+        if ({{ settings.class_prefix }}node_in_queue(src_pll, skip_nodes))
+            return src_pll.frequence;
+        assign_idx = 0;
+        if (tree == null)
+            return src_pll._resolved_freq;
+        foreach (tree.nodes[i]) begin
+            if (!$cast(cur_pll, tree.nodes[i]))
+                continue;
+            if (cur_pll == src_pll)
+                return base_hz * (start_mult + assign_idx);
+            if (!{{ settings.class_prefix }}node_in_queue(cur_pll, skip_nodes))
+                assign_idx++;
+        end
+        return src_pll._resolved_freq;
+    end
+    return pll_nd.source._resolved_freq;
+endfunction
+
+// 对参与倍数分配的各 pll，求不小于 2 且全体可配置的最小起始倍数
+function automatic int {{ settings.class_prefix }}route_structure_pll_distinct_freq_start_mult(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$]);
+    {{ settings.class_prefix }}pll_base pll_nd;
+    longint base_hz;
+    longint ref_hz;
+    longint out_hz;
+    int start_mult;
+    int assign_idx;
+    bit all_ok;
+
+    base_hz = {{ settings.class_prefix }}route_structure_min_source_freq_hz(tree);
+    if (base_hz <= 0)
+        `uvm_fatal("CLK_TREE", "test_route: no positive source frequence for pll policy")
+    if (tree == null)
+        return 2;
+    for (start_mult = 2; start_mult < 256; start_mult++) begin
+        all_ok = 1'b1;
+        assign_idx = 0;
+        foreach (tree.nodes[i]) begin
+            if (!$cast(pll_nd, tree.nodes[i]))
+                continue;
+            if ({{ settings.class_prefix }}node_in_queue(pll_nd, skip_nodes))
+                continue;
+            out_hz = base_hz * (start_mult + assign_idx);
+            ref_hz = {{ settings.class_prefix }}route_structure_pll_policy_ref_hz(
+                pll_nd, tree, skip_nodes, start_mult, base_hz);
+            if (ref_hz <= 0
+                    || !{{ settings.class_prefix }}pll_out_hz_feasible(
+                        pll_nd.pll_kind, out_hz, ref_hz)) begin
+                all_ok = 1'b0;
+                break;
+            end
+            assign_idx++;
+        end
+        if (all_ok)
+            return start_mult;
+    end
+    `uvm_fatal("CLK_TREE",
+        "test_route: no start mult 2..255 yields feasible pll distinct freqs")
+    return 2;
+endfunction
+
+// test_route 前：按 tree.nodes 顺序将各 pll frequence 设为最小 source 的 N、N+1、… 倍
+// skip_nodes — 保持 frequence 不变的 pll 或路径节点
 function automatic void {{ settings.class_prefix }}route_structure_apply_pll_distinct_freq_policy(
-        {{ settings.class_prefix }}tree_base tree);
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
     {{ settings.class_prefix }}pll_base pll_nd;
     longint base_hz;
     int mult;
     base_hz = {{ settings.class_prefix }}route_structure_min_source_freq_hz(tree);
     if (base_hz <= 0)
         `uvm_fatal("CLK_TREE", "test_route: no positive source frequence for pll policy")
-    mult = 2;
+    mult = {{ settings.class_prefix }}route_structure_pll_distinct_freq_start_mult(
+        tree, skip_nodes);
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
         if (!$cast(pll_nd, tree.nodes[i]))
+            continue;
+        if ({{ settings.class_prefix }}node_in_queue(pll_nd, skip_nodes))
             continue;
         pll_nd.frequence = base_hz * mult;
         mult++;
@@ -513,7 +596,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unf
 {%- endif %}
 endfunction
 
-// config_reg 之后：自 always_active clk 沿已配置的 source 选通链向上，收集 gate/mux/div
+// config_reg 之后：自 always_active clk 沿已配置的 source 选通链向上，收集 gate/mux/div/pll
 function automatic void {{ settings.class_prefix }}route_structure_collect_always_active_upstream_gate_mux(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
@@ -530,7 +613,8 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_alway
             continue;
         cur = always_active_clk_nodes[i].source;
         while (cur != null) begin
-            if (cur.kind == "gate" || cur.kind == "mux" || cur.kind == "div")
+            if (cur.kind == "gate" || cur.kind == "mux" || cur.kind == "div"
+                    || cur.kind == "pll")
                 {{ settings.class_prefix }}append_unique_node(collected, cur);
             cur = cur.source;
         end

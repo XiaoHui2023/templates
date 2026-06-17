@@ -638,5 +638,157 @@ task {{ settings.class_prefix }}pll_cfg::wait_lock({{ settings.class_prefix }}re
         "wait_lock: %s lock not 1 within %0t", f_lock.field.get_full_name(), timeout))
 endtask
 
+// out_hz 在 ref_hz 下是否存在合法 SC 分频组合
+function automatic bit {{ settings.class_prefix }}pll_sc_out_hz_feasible(
+        longint out_hz,
+        longint ref_hz);
+    localparam int HW_MIN = 1;
+    localparam int HW_MAX = 4095;
+    localparam int PREF_MIN = {{ settings.pll_sc_fbdiv_min }};
+    localparam int PREF_MAX = {{ settings.pll_sc_fbdiv_max }};
+    int refdiv_try;
+    int postdiv1_try;
+    int postdiv2_try;
+    int fbdiv_i;
+    longint product;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+    int best_fbdiv;
+    bit pref_only;
+
+    if (ref_hz <= 0 || out_hz <= 0)
+        return 1'b0;
+    have_best = 0;
+    pref_only = 1;
+    for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
+        for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
+            for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
+                product = refdiv_try * postdiv1_try * postdiv2_try;
+                fbdiv_r = real'(out_hz) * real'(product) / real'(ref_hz);
+                fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+                if (fbdiv_i < HW_MIN || fbdiv_i > HW_MAX)
+                    continue;
+                if (pref_only && (fbdiv_i < PREF_MIN || fbdiv_i > PREF_MAX))
+                    continue;
+                actual_hz = (ref_hz * fbdiv_i) / product;
+                err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+                if (!have_best || err < best_err) begin
+                    best_err = err;
+                    best_fbdiv = fbdiv_i;
+                    have_best = 1;
+                end
+            end
+        end
+    end
+    if (!have_best && pref_only) begin
+        pref_only = 0;
+        for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
+            for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
+                for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
+                    product = refdiv_try * postdiv1_try * postdiv2_try;
+                    fbdiv_r = real'(out_hz) * real'(product) / real'(ref_hz);
+                    fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+                    if (fbdiv_i < HW_MIN || fbdiv_i > HW_MAX)
+                        continue;
+                    actual_hz = (ref_hz * fbdiv_i) / product;
+                    err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+                    if (!have_best || err < best_err) begin
+                        best_err = err;
+                        best_fbdiv = fbdiv_i;
+                        have_best = 1;
+                    end
+                end
+            end
+        end
+    end
+    return have_best;
+endfunction
+
+// out_hz 在 ref_hz 下是否存在合法 DW 分频组合
+function automatic bit {{ settings.class_prefix }}pll_dw_out_hz_feasible(
+        longint out_hz,
+        longint ref_hz);
+    localparam int FBDIV_MIN = 1;
+    localparam int FBDIV_MAX = 1023;
+    int p_try;
+    int fbdiv_i;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+
+    if (ref_hz <= 0 || out_hz <= 0)
+        return 1'b0;
+    have_best = 0;
+    for (p_try = 0; p_try <= 7; p_try++) begin
+        fbdiv_r = real'(out_hz) * real'(p_try + 1) / real'(ref_hz);
+        fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+        if (fbdiv_i < FBDIV_MIN || fbdiv_i > FBDIV_MAX)
+            continue;
+        actual_hz = (ref_hz * fbdiv_i) / (p_try + 1);
+        err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+        if (!have_best || err < best_err) begin
+            best_err = err;
+            have_best = 1;
+        end
+    end
+    return have_best;
+endfunction
+
+// out_hz 在 ref_hz 下是否存在合法 Inno 共用分频
+function automatic bit {{ settings.class_prefix }}pll_inno_out_hz_feasible(
+        longint out_hz,
+        longint ref_hz);
+    int refdiv_try;
+    int fbdiv_i;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+
+    if (ref_hz <= 0 || out_hz <= 0)
+        return 1'b0;
+    have_best = 0;
+    for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
+        fbdiv_r = real'(out_hz) * real'(refdiv_try) / real'(ref_hz);
+        fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
+        if (fbdiv_i < 1 || fbdiv_i > 4095)
+            continue;
+        actual_hz = (ref_hz * fbdiv_i) / refdiv_try;
+        err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
+        if (!have_best || err < best_err) begin
+            best_err = err;
+            have_best = 1;
+        end
+    end
+    return have_best;
+endfunction
+
+// 按 pll_kind 判断 out_hz 在 ref_hz 下是否可配置
+function automatic bit {{ settings.class_prefix }}pll_out_hz_feasible(
+        pll_kind_e kind,
+        longint out_hz,
+        longint ref_hz);
+    if (ref_hz <= 0 || out_hz <= 0)
+        return 1'b0;
+    case (kind)
+        PLL_TCI:
+            return out_hz >= ref_hz;
+        PLL_SC:
+            return {{ settings.class_prefix }}pll_sc_out_hz_feasible(out_hz, ref_hz);
+        PLL_DW:
+            return {{ settings.class_prefix }}pll_dw_out_hz_feasible(out_hz, ref_hz);
+        PLL_INNO:
+            return {{ settings.class_prefix }}pll_inno_out_hz_feasible(out_hz, ref_hz);
+        default:
+            return 1'b0;
+    endcase
+endfunction
+
 `endif
 {% endif %}
