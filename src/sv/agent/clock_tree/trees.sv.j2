@@ -118,7 +118,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
         end
     endfunction
 
-    // Bind node register fields when a register model is provided.
+    // Bind node register fields when a register model is provided; randomize tree nodes.
     extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
 endclass
 
@@ -138,6 +138,8 @@ function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_
 {%- endfor %}
     end
 {%- endif %}
+    if (!randomize())
+        `uvm_fatal("CLK_TREE", "build: tree randomize failed")
 endfunction
 
 {%- endfor %}
