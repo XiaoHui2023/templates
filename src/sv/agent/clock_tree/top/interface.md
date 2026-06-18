@@ -24,6 +24,7 @@
 | **PERIOD_TOL** | real | 相邻周期相对偏差上限 |
 | **DUTY_MIN_PCT** | real | 允许占空比下限，百分数 |
 | **DUTY_MAX_PCT** | real | 允许占空比上限，百分数 |
+| **DUTY_TOL_PCT** | real | 占空比允许范围在 **DUTY_MIN_PCT**、**DUTY_MAX_PCT** 之外的容差，百分数点 |
 
 ### 成员
 
@@ -87,6 +88,7 @@
 | **PERIOD_TOL** | real | 相邻周期相对偏差上限 |
 | **DUTY_MIN_PCT** | real | 允许占空比下限，百分数 |
 | **DUTY_MAX_PCT** | real | 允许占空比上限，百分数 |
+| **DUTY_TOL_PCT** | real | 占空比允许范围在 **DUTY_MIN_PCT**、**DUTY_MAX_PCT** 之外的容差，百分数点 |
 
 ### 成员
 
@@ -96,7 +98,7 @@
 | **active** | logic | 已采到有效边沿 |
 | **freq_hz** | real | 当前测得频率，Hz |
 | **duty** | real | 当前占空比，0～1 |
-| **duty_ok** | logic | 当前占空比在 **DUTY_MIN_PCT**～**DUTY_MAX_PCT** 内 |
+| **duty_ok** | logic | 当前占空比在 **[DUTY_MIN_PCT − DUTY_TOL_PCT, DUTY_MAX_PCT + DUTY_TOL_PCT]** 内 |
 | **freq_stable** | logic | 频率已连续 **STABLE_CYCLES** 个周期稳定 |
 | **duty_stable** | logic | 占空比已连续 **STABLE_CYCLES** 个周期在允许范围内 |
 | **timed_out** | logic | 无边沿或边沿间隔过长导致测量超时 |

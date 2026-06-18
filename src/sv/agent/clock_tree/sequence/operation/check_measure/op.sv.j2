@@ -19,15 +19,88 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
         bit check_freq,
         bit check_duty
     );
-    extern function bit node_measure_ready(
+    // 该节点是否参与频率比对
+    // nd — 节点
+    // check_freq — 为真时按 kind 过滤
+    extern function bit node_needs_freq_check(
         {{ settings.class_prefix }}node_base nd,
-        bit check_freq,
+        bit check_freq
+    );
+    // 频率测量是否可进入比对
+    // nd — 节点
+    // check_freq — 为真时等待 freq_stable
+    extern function bit node_freq_measure_ready(
+        {{ settings.class_prefix }}node_base nd,
+        bit check_freq
+    );
+    // 占空比测量是否可进入比对
+    // nd — 节点
+    // check_duty — 为真时等待 duty_stable
+    extern function bit node_duty_measure_ready(
+        {{ settings.class_prefix }}node_base nd,
         bit check_duty
     );
-    extern task evaluate_one_node(
+    // 比对单节点频率并在通过时打印
+    // nd — 节点
+    // rq — 请求
+    // rs — 响应，失败时写 ok 与 failed_nodes
+    extern task evaluate_node_freq(
         {{ settings.class_prefix }}node_base nd,
         {{ settings.class_prefix }}check_measure_req rq,
         {{ settings.class_prefix }}check_measure_rsp rs
+    );
+    // 比对单节点占空比并在通过时打印
+    // nd — 节点
+    // rq — 请求
+    // rs — 响应，失败时写 ok 与 failed_nodes
+    extern task evaluate_node_duty(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}check_measure_req rq,
+        {{ settings.class_prefix }}check_measure_rsp rs
+    );
+    // 同一 vif 是否仍有未完成节点
+    // vif — 测量接口
+    // except_idx — 排除的下标
+    // nodes — 待测节点队列
+    // done — 各节点是否已完成
+    extern function bit vif_has_other_pending(
+        {{ settings.class_prefix }}interface vif,
+        int except_idx,
+        {{ settings.class_prefix }}node_base nodes[],
+        bit done[]
+    );
+    // 首次使用该 vif 时开启测量
+    // nd — 节点
+    // idx — nodes 下标
+    // nodes — 待测节点队列
+    // rq — 请求
+    // meas_min_freq_hz — 最低频率，Hz
+    extern function void start_measure_if_new_vif(
+        {{ settings.class_prefix }}node_base nd,
+        int idx,
+        {{ settings.class_prefix }}node_base nodes[],
+        {{ settings.class_prefix }}check_measure_req rq,
+        int meas_min_freq_hz
+    );
+    // 强制重启该节点 vif 上的测量
+    // nd — 节点
+    // rq — 请求
+    // meas_min_freq_hz — 最低频率，Hz
+    extern function void restart_measure_on_vif(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}check_measure_req rq,
+        int meas_min_freq_hz
+    );
+    // 无其它待测节点占用该 vif 时关闭测量
+    // nd — 节点
+    // idx — nodes 下标
+    // nodes — 待测节点队列
+    // done — 各节点是否已完成
+    extern function void stop_measure_if_vif_idle(
+        {{ settings.class_prefix }}node_base nd,
+        int idx,
+        {{ settings.class_prefix }}node_base nodes[],
+        bit done[]
     );
 endclass
 
@@ -45,21 +118,38 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
     return nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll";
 endfunction
 
-function bit {{ settings.class_prefix }}check_measure_seq::node_measure_ready(
+function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check(
     {{ settings.class_prefix }}node_base nd,
-    bit check_freq,
-    bit check_duty
+    bit check_freq
 );
-    if (nd.vif.meas.timed_out)
-        return 1'b1;
-    if (check_freq && !nd.vif.meas.freq_stable)
+    if (!check_freq)
         return 1'b0;
-    if (check_duty && !nd.vif.meas.duty_stable)
-        return 1'b0;
-    return 1'b1;
+    return nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll";
 endfunction
 
-task {{ settings.class_prefix }}check_measure_seq::evaluate_one_node(
+function bit {{ settings.class_prefix }}check_measure_seq::node_freq_measure_ready(
+    {{ settings.class_prefix }}node_base nd,
+    bit check_freq
+);
+    if (!node_needs_freq_check(nd, check_freq))
+        return 1'b1;
+    if (nd.vif.meas.timed_out)
+        return 1'b1;
+    return nd.vif.meas.freq_stable;
+endfunction
+
+function bit {{ settings.class_prefix }}check_measure_seq::node_duty_measure_ready(
+    {{ settings.class_prefix }}node_base nd,
+    bit check_duty
+);
+    if (!check_duty)
+        return 1'b1;
+    if (nd.vif.meas.timed_out)
+        return 1'b1;
+    return nd.vif.meas.duty_stable;
+endfunction
+
+task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
     {{ settings.class_prefix }}node_base nd,
     {{ settings.class_prefix }}check_measure_req rq,
     {{ settings.class_prefix }}check_measure_rsp rs
@@ -69,6 +159,9 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_one_node(
     real measured_hz;
     real rel_diff;
 
+    if (!node_needs_freq_check(nd, rq.check_freq))
+        return;
+
     if (nd.vif.meas.timed_out) begin
         `uvm_error("CLK_TREE", $sformatf(
             "check_measure: node %s timed out", nd.get_name()))
@@ -76,68 +169,145 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_one_node(
         return;
     end
 
-    if (rq.check_freq
-            && (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll")) begin
-        if (!nd.vif.meas.freq_stable) begin
-            `uvm_error("CLK_TREE", $sformatf(
-                "check_measure: node %s frequency did not stabilize",
-                nd.get_name()))
-            rs.ok = 1'b0;
-            return;
-        end
-
-        expect_active = nd._resolved_active;
-        expected_hz = real'(nd._resolved_freq);
-
-        if (!expect_active || expected_hz <= 0.0) begin
-            if (nd.vif.meas.active) begin
-                `uvm_error("CLK_TREE", $sformatf(
-                    "check_measure: node %s expected inactive measured %0.2f Hz",
-                    nd.get_name(), nd.vif.meas.freq_hz))
-                rs.ok = 1'b0;
-            end
-            return;
-        end
-
-        if (!nd.vif.meas.active) begin
-            `uvm_error("CLK_TREE", $sformatf(
-                "check_measure: node %s expected %0.0f Hz no activity",
-                nd.get_name(), expected_hz))
-            rs.ok = 1'b0;
-            return;
-        end
-
-        measured_hz = nd.vif.meas.freq_hz;
-        rel_diff = (measured_hz > expected_hz) ?
-            (measured_hz - expected_hz) / expected_hz :
-            (expected_hz - measured_hz) / expected_hz;
-        if (rel_diff > {{ settings.period_tolerance }}) begin
-            `uvm_error("CLK_TREE", $sformatf(
-                "check_measure: node %s freq expected %0.0f Hz measured %0.2f Hz rel %0.4f",
-                nd.get_name(), expected_hz, measured_hz, rel_diff))
-            rs.ok = 1'b0;
-        end
+    if (!nd.vif.meas.freq_stable) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s frequency did not stabilize",
+            nd.get_name()))
+        rs.ok = 1'b0;
+        return;
     end
 
-    if (rq.check_duty) begin
-        if (!nd.vif.meas.duty_stable) begin
+    expect_active = nd._resolved_active;
+    expected_hz = real'(nd._resolved_freq);
+
+    if (!expect_active || expected_hz <= 0.0) begin
+        if (nd.vif.meas.active) begin
             `uvm_error("CLK_TREE", $sformatf(
-                "check_measure: node %s duty did not stabilize",
-                nd.get_name()))
+                "check_measure: node %s expected inactive measured %0.2f Hz",
+                nd.get_name(), nd.vif.meas.freq_hz))
             rs.ok = 1'b0;
             return;
         end
-
-        if (!nd.vif.meas.duty_ok) begin
-            `uvm_error("CLK_TREE", $sformatf(
-                "check_measure: node %s duty %0.2f%% out of range [%0.2f,%0.2f]",
-                nd.get_name(), nd.vif.meas.duty * 100.0,
-                {{ settings.duty_min }}, {{ settings.duty_max }}))
-            rs.ok = 1'b0;
-            rs.failed_nodes.push_back(nd);
-        end
+        `uvm_info("CLK_TREE", $sformatf(
+            "check_measure: node %s freq passed", nd.get_name()), UVM_LOW)
+        return;
     end
+
+    if (!nd.vif.meas.active) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s expected %0.0f Hz no activity",
+            nd.get_name(), expected_hz))
+        rs.ok = 1'b0;
+        return;
+    end
+
+    measured_hz = nd.vif.meas.freq_hz;
+    rel_diff = (measured_hz > expected_hz) ?
+        (measured_hz - expected_hz) / expected_hz :
+        (expected_hz - measured_hz) / expected_hz;
+    if (rel_diff > {{ settings.period_tolerance }}) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s freq expected %0.0f Hz measured %0.2f Hz rel %0.4f",
+            nd.get_name(), expected_hz, measured_hz, rel_diff))
+        rs.ok = 1'b0;
+        return;
+    end
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "check_measure: node %s freq passed", nd.get_name()), UVM_LOW)
 endtask
+
+task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
+    {{ settings.class_prefix }}node_base nd,
+    {{ settings.class_prefix }}check_measure_req rq,
+    {{ settings.class_prefix }}check_measure_rsp rs
+);
+    if (!rq.check_duty)
+        return;
+
+    if (nd.vif.meas.timed_out) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s timed out", nd.get_name()))
+        rs.ok = 1'b0;
+        return;
+    end
+
+    if (!nd.vif.meas.duty_stable) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s duty did not stabilize",
+            nd.get_name()))
+        rs.ok = 1'b0;
+        return;
+    end
+
+    if (!nd.vif.meas.duty_ok) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s duty %0.3f%% out of range [%0.2f,%0.2f] tol %0.3f",
+            nd.get_name(), nd.vif.meas.duty * 100.0,
+            {{ settings.duty_min }}, {{ settings.duty_max }},
+            {{ settings.duty_tolerance_pct }}))
+        rs.ok = 1'b0;
+        rs.failed_nodes.push_back(nd);
+        return;
+    end
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "check_measure: node %s duty passed", nd.get_name()), UVM_LOW)
+endtask
+
+function bit {{ settings.class_prefix }}check_measure_seq::vif_has_other_pending(
+    {{ settings.class_prefix }}interface vif,
+    int except_idx,
+    {{ settings.class_prefix }}node_base nodes[],
+    bit done[]
+);
+    for (int j = 0; j < nodes.size(); j++) begin
+        if (j == except_idx || done[j])
+            continue;
+        if (nodes[j].vif == vif)
+            return 1'b1;
+    end
+    return 1'b0;
+endfunction
+
+function void {{ settings.class_prefix }}check_measure_seq::start_measure_if_new_vif(
+    {{ settings.class_prefix }}node_base nd,
+    int idx,
+    {{ settings.class_prefix }}node_base nodes[],
+    {{ settings.class_prefix }}check_measure_req rq,
+    int meas_min_freq_hz
+);
+    for (int j = 0; j < idx; j++) begin
+        if (nodes[j].vif == nd.vif)
+            return;
+    end
+    if (rq.check_freq
+            && (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll"))
+        nd.vif.set_min_freq_hz(meas_min_freq_hz);
+    nd.vif.start_measure();
+endfunction
+
+function void {{ settings.class_prefix }}check_measure_seq::restart_measure_on_vif(
+    {{ settings.class_prefix }}node_base nd,
+    {{ settings.class_prefix }}check_measure_req rq,
+    int meas_min_freq_hz
+);
+    if (rq.check_freq
+            && (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll"))
+        nd.vif.set_min_freq_hz(meas_min_freq_hz);
+    nd.vif.start_measure();
+endfunction
+
+function void {{ settings.class_prefix }}check_measure_seq::stop_measure_if_vif_idle(
+    {{ settings.class_prefix }}node_base nd,
+    int idx,
+    {{ settings.class_prefix }}node_base nodes[],
+    bit done[]
+);
+    if (vif_has_other_pending(nd.vif, idx, nodes, done))
+        return;
+    nd.vif.stop_measure();
+endfunction
 
 task {{ settings.class_prefix }}check_measure_seq::body();
     {{ settings.class_prefix }}check_measure_req rq;
@@ -150,6 +320,10 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     int checked;
     int pending;
     bit node_done[];
+    bit freq_done[];
+    bit duty_done[];
+    bit meas_restart_done[];
+    {{ settings.class_prefix }}node_base nodes_arr[];
 
     if (req == null)
         `uvm_fatal("CLK_TREE", "check_measure: req is null")
@@ -175,23 +349,31 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     if (checked == 0)
         `uvm_fatal("CLK_TREE", "check_measure: no node with vif in tree")
 
+    nodes_arr = new[checked];
+    foreach (nodes_to_check[i])
+        nodes_arr[i] = nodes_to_check[i];
+
     rs = {{ settings.class_prefix }}check_measure_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
     node_done = new[nodes_to_check.size()];
+    freq_done = new[nodes_to_check.size()];
+    duty_done = new[nodes_to_check.size()];
+    meas_restart_done = new[nodes_to_check.size()];
     pending = nodes_to_check.size();
 
     foreach (nodes_to_check[i]) begin
         nd = nodes_to_check[i];
+        if (!node_needs_freq_check(nd, rq.check_freq))
+            freq_done[i] = 1'b1;
+        if (!rq.check_duty)
+            duty_done[i] = 1'b1;
         if (!rq.quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "check_measure: node %s kind %s freq %0b duty %0b expected %0d Hz active %0b",
                 nd.get_name(), nd.kind, rq.check_freq, rq.check_duty,
                 nd._resolved_freq, nd._resolved_active), UVM_MEDIUM)
-        if (rq.check_freq
-                && (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll"))
-            nd.vif.set_min_freq_hz(meas_min_freq_hz);
-        nd.vif.start_measure();
+        start_measure_if_new_vif(nd, i, nodes_arr, rq, meas_min_freq_hz);
     end
 
     elapsed_ns = 0;
@@ -199,13 +381,31 @@ task {{ settings.class_prefix }}check_measure_seq::body();
         foreach (nodes_to_check[i]) begin
             if (node_done[i])
                 continue;
-            if (!node_measure_ready(
-                    nodes_to_check[i], rq.check_freq, rq.check_duty))
-                continue;
-            evaluate_one_node(nodes_to_check[i], rq, rs);
-            nodes_to_check[i].vif.stop_measure();
-            node_done[i] = 1'b1;
-            pending--;
+            nd = nodes_to_check[i];
+            if (!meas_restart_done[i] && !nd.vif.meas.meas_en
+                    && !nd.vif.meas.timed_out
+                    && (!freq_done[i] || !duty_done[i])) begin
+                meas_restart_done[i] = 1'b1;
+                `uvm_warning("CLK_TREE", $sformatf(
+                    "check_measure: node %s meas_en low while pending; restart measure",
+                    nd.get_name()))
+                restart_measure_on_vif(nd, rq, meas_min_freq_hz);
+            end
+            if (!freq_done[i]
+                    && node_freq_measure_ready(nd, rq.check_freq)) begin
+                evaluate_node_freq(nd, rq, rs);
+                freq_done[i] = 1'b1;
+            end
+            if (!duty_done[i]
+                    && node_duty_measure_ready(nd, rq.check_duty)) begin
+                evaluate_node_duty(nd, rq, rs);
+                duty_done[i] = 1'b1;
+            end
+            if (freq_done[i] && duty_done[i]) begin
+                stop_measure_if_vif_idle(nd, i, nodes_arr, node_done);
+                node_done[i] = 1'b1;
+                pending--;
+            end
         end
         if (pending > 0) begin
             #1ns;
@@ -216,8 +416,16 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     foreach (nodes_to_check[i]) begin
         if (node_done[i])
             continue;
-        evaluate_one_node(nodes_to_check[i], rq, rs);
-        nodes_to_check[i].vif.stop_measure();
+        nd = nodes_to_check[i];
+        if (!freq_done[i]) begin
+            evaluate_node_freq(nd, rq, rs);
+            freq_done[i] = 1'b1;
+        end
+        if (!duty_done[i]) begin
+            evaluate_node_duty(nd, rq, rs);
+            duty_done[i] = 1'b1;
+        end
+        stop_measure_if_vif_idle(nd, i, nodes_arr, node_done);
     end
 
     if (rs.ok && !rq.quiet)

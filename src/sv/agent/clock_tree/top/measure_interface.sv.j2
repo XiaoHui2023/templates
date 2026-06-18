@@ -7,16 +7,17 @@ interface {{ settings.class_prefix }}measure_interface #(
     parameter int STABLE_CYCLES = {{ settings.stable_cycles }},
     parameter real PERIOD_TOL = {{ settings.period_tolerance }},
     parameter real DUTY_MIN_PCT = {{ settings.duty_min }},
-    parameter real DUTY_MAX_PCT = {{ settings.duty_max }}
+    parameter real DUTY_MAX_PCT = {{ settings.duty_max }},
+    parameter real DUTY_TOL_PCT = {{ settings.duty_tolerance_pct }}
 ) (
     input wire in
 );
     timeunit 1ns;
     timeprecision 1fs;
 
-    localparam real DUTY_MIN = DUTY_MIN_PCT / 100.0;
-    localparam real DUTY_MAX = DUTY_MAX_PCT / 100.0;
-    localparam real DUTY_BOUND_EPS = 1.0e-9;
+    localparam real DUTY_MIN = (DUTY_MIN_PCT - DUTY_TOL_PCT) / 100.0;
+    localparam real DUTY_MAX = (DUTY_MAX_PCT + DUTY_TOL_PCT) / 100.0;
+    localparam real DUTY_BOUND_EPS = 1.0e-12;
     localparam real RT_PER_SEC = 1.0e9;
     localparam int TIMEOUT_MARGIN = 3;
 
@@ -297,9 +298,11 @@ interface {{ settings.class_prefix }}measure_interface #(
                     mark_timeout();
                 else if (($realtime - last_edge_t) >= max_edge_period_rt)
                     mark_timeout();
+                if (timed_out) begin
+                    meas_en = 1'b0;
+                    break;
+                end
             end
-            if (meas_en && timed_out)
-                meas_en = 1'b0;
         end
     end
 endinterface

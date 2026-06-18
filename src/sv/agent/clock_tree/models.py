@@ -65,6 +65,13 @@ class Settings(BaseModel):
         le=100.0,
         description="允许占空比上限，百分数；闭区间端点计入合格。",
     )
+    duty_tolerance_pct: float = Field(
+        0.05,
+        ge=0.0,
+        le=10.0,
+        description="占空比允许范围在 duty_min、duty_max 之外的容差，百分数点；"
+        "测量值在 [duty_min − duty_tolerance_pct, duty_max + duty_tolerance_pct] 内视为合格。",
+    )
     pll_lock_timeout_us: int = Field(
         1_000,
         ge=1,
