@@ -16,7 +16,7 @@ from pydantic import (
 _C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 from nodes import Tree
-from plan import SettingsView, build_config_plan
+from plan import SettingsView, build_config_plan, collect_used_regs
 from ralf_load import load_regmodel_from_ralf
 from regmodel import Reg, RegModelIndex
 from resolve import resolve_tree
@@ -173,6 +173,11 @@ class Models(BaseModel):
             ),
             self.tree_resolve,
         )
+
+    @property
+    def header_regs(self) -> List[Reg]:
+        index = RegModelIndex(self.regmodel)
+        return list(collect_used_regs(index, self.config_plan))
 
     @classmethod
     def model_validate_with_yaml_dir(

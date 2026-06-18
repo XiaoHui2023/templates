@@ -296,18 +296,15 @@ def _inno_write_templates(
             (PllWritePartTemplate(pd_ref.effective_lsb, "1", "pd assert"),),
         )
     )
-    for key in ("refdiv", "fbdiv"):
-        ref = index.resolve(
-            template_node.regs[key],
-            ctx=f"pll node {template_node.name!r} regs[{key!r}]",
+    templates.extend(
+        _group_reg_write_templates(
+            index,
+            template_node,
+            ("refdiv", "fbdiv"),
+            value_expr_for_key=lambda key: key,
+            comment_for_key=lambda key: key,
         )
-        tail = ref.reg.path.split(".")[-1]
-        templates.append(
-            PllWriteTemplate(
-                _slot_param_name(tail),
-                (PllWritePartTemplate(ref.effective_lsb, key, key),),
-            )
-        )
+    )
     templates.append(
         PllWriteTemplate(
             _slot_param_name(pd_tail),
@@ -315,34 +312,30 @@ def _inno_write_templates(
         )
     )
     if output_count <= 1:
-        for key in ("postdiv1", "postdiv2"):
-            ref = index.resolve(
-                template_node.regs[key],
-                ctx=f"pll node {template_node.name!r} regs[{key!r}]",
+        templates.extend(
+            _group_reg_write_templates(
+                index,
+                template_node,
+                ("postdiv1", "postdiv2"),
+                value_expr_for_key=lambda key: key,
+                comment_for_key=lambda key: key,
             )
-            tail = ref.reg.path.split(".")[-1]
-            templates.append(
-                PllWriteTemplate(
-                    _slot_param_name(tail),
-                    (PllWritePartTemplate(ref.effective_lsb, key, key),),
-                )
-            )
+        )
         return tuple(templates)
     for group_id in range(output_count):
         p1_key, p2_key = inno_postdiv_reg_keys(group_id)
-        for reg_key in (p1_key, p2_key):
-            ref = index.resolve(
-                template_node.regs[reg_key],
-                ctx=f"pll node {template_node.name!r} regs[{reg_key!r}]",
+        post = f"out{group_id}"
+        templates.extend(
+            _group_reg_write_templates(
+                index,
+                template_node,
+                (p1_key, p2_key),
+                value_expr_for_key=lambda key: key,
+                comment_for_key=lambda key, p1=p1_key, gid=group_id: (
+                    f"out{gid} {key}" if key == p1 else key
+                ),
             )
-            tail = ref.reg.path.split(".")[-1]
-            note = f"out{group_id} {reg_key}" if reg_key == p1_key else reg_key
-            templates.append(
-                PllWriteTemplate(
-                    _slot_param_name(tail),
-                    (PllWritePartTemplate(ref.effective_lsb, reg_key, note),),
-                )
-            )
+        )
     return tuple(templates)
 
 

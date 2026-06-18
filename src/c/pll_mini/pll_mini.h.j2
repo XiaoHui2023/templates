@@ -4,12 +4,12 @@
 #include <stdint.h>
 
 {% set ns = namespace(addr_name_width=0) -%}
-{% for reg in regmodel -%}
+{% for reg in header_regs -%}
 {% if reg.addr_macro | length > ns.addr_name_width -%}
 {% set ns.addr_name_width = reg.addr_macro | length -%}
 {% endif -%}
 {% endfor -%}
-{% for reg in regmodel -%}
+{% for reg in header_regs -%}
 #define {{ reg.addr_macro.ljust(ns.addr_name_width) }} {{ reg.address_hex }}
 {% endfor %}
 

@@ -228,55 +228,77 @@ def _patch_to_part_view(patch: _FieldPatch) -> FieldPartView:
 
 
 def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
-    """Merge field assignments into register writes."""
-    out: List[RegWriteStep] = []
+    """把 field 赋值合并为按 32 位寄存器的一次写。
+
+    同一寄存器、同一轮写序 epoch 内的多个 field，即使中间夹了其它寄存器，
+    也合并到该 epoch 首次出现的位置。同一 field 再次赋值则开启新 epoch。
+    """
+    if not patches:
+        return []
+
+    reg_part_keys: dict[str, set[tuple[str, int, int]]] = {}
+    reg_epochs: dict[str, list[list[tuple[int, _FieldPatch]]]] = {}
+
+    for idx, patch in enumerate(patches):
+        ref = patch.field_ref
+        reg_path = ref.reg.path
+        part_key = (ref.field.name, ref.effective_lsb, ref.effective_width)
+
+        if reg_path not in reg_epochs:
+            reg_epochs[reg_path] = [[]]
+            reg_part_keys[reg_path] = set()
+
+        if part_key in reg_part_keys[reg_path]:
+            reg_epochs[reg_path].append([])
+            reg_part_keys[reg_path] = set()
+
+        reg_epochs[reg_path][-1].append((idx, patch))
+        reg_part_keys[reg_path].add(part_key)
+
+    steps_with_idx: list[tuple[int, RegWriteStep]] = []
     last_written: dict[str, int] = {}
-    idx = 0
-    while idx < len(patches):
-        first = patches[idx]
-        reg = first.field_ref.reg
-        value = last_written.get(reg.path, 0)
-        touched: set[str] = set()
-        notes: list[str] = []
-        part_views: list[FieldPartView] = []
-        start = idx
-        while idx < len(patches) and patches[idx].field_ref.reg.path == reg.path:
-            patch = patches[idx]
-            ref = patch.field_ref
-            part_key = (ref.field.name, ref.effective_lsb, ref.effective_width)
-            if part_key in touched:
-                break
-            value = pack_field_value(value, ref, patch.value)
-            touched.add(part_key)
-            part_views.append(_patch_to_part_view(patch))
-            if patch.note:
-                notes.append(patch.note)
-            idx += 1
-        if idx == start:
-            patch = patches[idx]
-            value = pack_field_value(
-                last_written.get(reg.path, 0),
-                patch.field_ref,
-                patch.value,
+
+    for epochs in reg_epochs.values():
+        for epoch in epochs:
+            if not epoch:
+                continue
+            earliest_idx = epoch[0][0]
+            first_patch = epoch[0][1]
+            reg = first_patch.field_ref.reg
+            value = last_written.get(reg.path, 0)
+            part_views_by_key: dict[tuple[str, int, int], FieldPartView] = {}
+            notes: list[str] = []
+
+            for _patch_idx, patch in epoch:
+                ref = patch.field_ref
+                part_key = (ref.field.name, ref.effective_lsb, ref.effective_width)
+                value = pack_field_value(value, ref, patch.value)
+                part_views_by_key[part_key] = _patch_to_part_view(patch)
+                if patch.note:
+                    notes.append(patch.note)
+
+            part_views = sorted(part_views_by_key.values(), key=lambda part: part.lsb)
+            last_written[reg.path] = value
+            unique_notes = list(dict.fromkeys(notes))
+            comment = (
+                "; ".join(unique_notes) if unique_notes else first_patch.node_name
             )
-            part_views = [_patch_to_part_view(patch)]
-            if patch.note:
-                notes = [patch.note]
-            idx += 1
-        last_written[reg.path] = value
-        unique_notes = list(dict.fromkeys(notes))
-        comment = "; ".join(unique_notes) if unique_notes else first.node_name
-        out.append(
-            RegWriteStep(
-                node_name=first.node_name,
-                reg=reg,
-                value=value,
-                comment=comment,
-                parts=tuple(part_views),
-                step_index=0,
+            steps_with_idx.append(
+                (
+                    earliest_idx,
+                    RegWriteStep(
+                        node_name=first_patch.node_name,
+                        reg=reg,
+                        value=value,
+                        comment=comment,
+                        parts=tuple(part_views),
+                        step_index=0,
+                    ),
+                )
             )
-        )
-    return out
+
+    steps_with_idx.sort(key=lambda item: item[0])
+    return [step for _idx, step in steps_with_idx]
 
 
 def _reset_release_patch(
@@ -658,6 +680,26 @@ def _with_step_indexes(steps: List[RegWriteStep]) -> tuple[RegWriteStep, ...]:
         )
         for s in indexed
     )
+
+
+def collect_used_regs(
+    index: RegModelIndex,
+    plan: ConfigPlan,
+) -> tuple[Reg, ...]:
+    """Collect registers referenced by generated C configuration code."""
+    by_path: dict[str, Reg] = {}
+    macro_to_reg = {reg.addr_macro: reg for reg in index.regs}
+    for step in plan.dev_steps:
+        by_path[step.reg.path] = step.reg
+    for inst in plan.pll_instances:
+        for macro in (*inst.addr_args, inst.lock_addr_macro):
+            if not macro:
+                continue
+            reg = macro_to_reg.get(macro)
+            if reg is None:
+                raise ValueError(f"未知地址宏 {macro!r}")
+            by_path[reg.path] = reg
+    return tuple(reg for reg in index.regs if reg.path in by_path)
 
 
 def build_config_plan(

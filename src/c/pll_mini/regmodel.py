@@ -149,7 +149,7 @@ class FieldRef:
     def effective_lsb(self) -> int:
         if self.offset is None:
             return self.field.lsb
-        return self.offset
+        return self.field.lsb + self.offset
 
     @property
     def effective_width(self) -> int:
@@ -261,4 +261,12 @@ class RegModelIndex:
                 f"{ctx} 路径 {raw_path!r} 的 field {field_name!r} "
                 f"不在 reg path {reg.path!r} 的 fields 中"
             )
-        return FieldRef(reg=reg, field=fld, offset=offset, width=width)
+        ref = FieldRef(reg=reg, field=fld, offset=offset, width=width)
+        if offset is not None:
+            eff_w = ref.effective_width
+            if offset < 0 or offset + eff_w > fld.width:
+                raise ValueError(
+                    f"{ctx} 路径 {raw_path!r} 的比特范围超出 field "
+                    f"{field_name!r} 位宽 {fld.width}"
+                )
+        return ref
