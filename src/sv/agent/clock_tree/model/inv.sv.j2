@@ -2,10 +2,46 @@
 `define {{ (settings.class_prefix ~ "inv") | upper }}
 
 class {{ settings.class_prefix }}inv extends {{ settings.class_prefix }}node_base;
-    `uvm_object_utils({{ settings.class_prefix }}inv)
+    `uvm_object_utils_begin({{ settings.class_prefix }}inv)
+        `uvm_field_int(inverted, UVM_ALL_ON)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_inverted, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
+{%- endif %}
+    `uvm_object_utils_end
+
+    rand bit inverted;
+{%- if enable_node_fix %}
+    bit fix_inverted;
+{%- endif %}
+{% if regs_enabled %}
+    {{ settings.class_prefix }}reg f_reg;
+{% endif %}
+
+    constraint cst_resolve_active_from_src {
+        source -> _resolved_active == source._resolved_active;
+        !source -> !_resolved_active;
+    }
+
+    constraint cst_resolve_freq_from_src {
+        source -> _resolved_freq == source._resolved_freq;
+        !source -> _resolved_freq == 0;
+    }
+{%- if enable_node_fix %}
+
+    constraint cst_inv {
+        fix_inverted -> inverted;
+    }
+{%- endif %}
 
     function new(string name = "");
         super.new(name);
+        inverted = 1'b1;
+{%- if enable_node_fix %}
+        fix_inverted = 0;
+{%- endif %}
+{% if regs_enabled %}
+        f_reg = new();
+{% endif %}
         kind = "inv";
     endfunction
 endclass

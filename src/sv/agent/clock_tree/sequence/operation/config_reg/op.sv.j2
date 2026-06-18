@@ -31,6 +31,8 @@ class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
     extern task config_reg_div_node({{ settings.class_prefix }}div div_nd);
     // 写 dto 的复位、bypass、load 与 step
     extern task config_reg_dto_node({{ settings.class_prefix }}dto dto_nd);
+    // 写 inv 的反相/直通控制
+    extern task config_reg_inv_node({{ settings.class_prefix }}inv inv_nd);
     // 按具体 PLL 类型分派配置流程
     extern task config_reg_pll_node({{ settings.class_prefix }}pll_base pll_nd, output bit configured);
     // 按 SC PLL 目标频率写配置
@@ -49,6 +51,8 @@ class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
     extern task wait_pll_nodes({{ settings.class_prefix }}pll_base plls[$]);
     // 写入 div 与 dto 控制寄存器
     extern task config_div_dto_nodes({{ settings.class_prefix }}tree_base tree);
+    // 写入 inv 控制寄存器
+    extern task config_inv_nodes({{ settings.class_prefix }}tree_base tree);
     // 按 open 状态写入 gate 控制寄存器
     extern task config_gate_nodes({{ settings.class_prefix }}tree_base tree, bit open);
     // 写入 mux 选择寄存器
@@ -465,6 +469,29 @@ task {{ settings.class_prefix }}config_reg_seq::config_div_dto_nodes(
     end
 endtask
 
+// 写 inv 的反相/直通控制
+task {{ settings.class_prefix }}config_reg_seq::config_reg_inv_node(
+        {{ settings.class_prefix }}inv inv_nd);
+    if (!inv_nd.f_reg.is_bound())
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: inv %s f_reg not bound", inv_nd.get_name()))
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: inv %s inverted %0b", inv_nd.get_name(), inv_nd.inverted),
+            UVM_MEDIUM)
+    p_sequencer.tools.node.configure_inv(inv_nd.f_reg, inv_nd.inverted);
+endtask
+
+// 写入 inv 控制寄存器
+task {{ settings.class_prefix }}config_reg_seq::config_inv_nodes(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}inv inv_nd;
+
+    for (int i = 0; i < tree.nodes.size(); i++)
+        if ($cast(inv_nd, tree.nodes[i]) && inv_nd.f_reg.is_bound())
+            config_reg_inv_node(inv_nd);
+endtask
+
 // 按 open 状态写入 gate 控制寄存器
 task {{ settings.class_prefix }}config_reg_seq::config_gate_nodes(
         {{ settings.class_prefix }}tree_base tree,
@@ -583,6 +610,7 @@ task {{ settings.class_prefix }}config_reg_seq::body();
     config_pll_nodes(tree, plls);
     wait_pll_nodes(plls);
     config_div_dto_nodes(tree);
+    config_inv_nodes(tree);
     prep_mux_switch_gates(tree);
     config_gate_nodes(tree, 1'b1);
     config_mux_nodes(tree);

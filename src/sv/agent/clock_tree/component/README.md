@@ -18,37 +18,25 @@
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
 
-### check_freq
+### check_measure
 
-校验各 **clk** 频率。
-
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
-
-### check_duty
-
-校验各 **clk** 占空比。
+校验频率与占空比；一次 **start_measure** 并行观测。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
+| **check_freq** | **bit** | `1` | 为真时检查 **source**、**clk**、**pll** 频率 |
+| **check_duty** | **bit** | `1` | 为真时检查全部带 **vif** 节点占空比 |
 
-### test_freq
+### test_measure
 
-写寄存器后校验各 **clk** 频率。
-
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
-
-### test_duty
-
-写寄存器后校验占空比。
+写寄存器后校验频率与占空比；一次 **check_measure** 并行观测。
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
+| **check_freq** | **bit** | `1` | 为真时检查 **source**、**clk**、**pll** 频率 |
+| **check_duty** | **bit** | `1` | 为真时检查全部带 **vif** 节点占空比 |
 
 ### test_flip
 

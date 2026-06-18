@@ -18,6 +18,7 @@ interface {{ settings.class_prefix }}measure_interface #(
     localparam real DUTY_MAX = DUTY_MAX_PCT / 100.0;
     localparam real DUTY_BOUND_EPS = 1.0e-9;
     localparam real RT_PER_SEC = 1.0e9;
+    localparam int TIMEOUT_MARGIN = 3;
 
     bit meas_en;
 
@@ -25,16 +26,46 @@ interface {{ settings.class_prefix }}measure_interface #(
     real freq_hz;
     real duty;
     logic duty_ok;
-    logic stable;
+    logic freq_stable;
+    logic duty_stable;
+    logic timed_out;
+    real phase_frac;
+
+    real last_freq_hz;
+    real last_duty;
+    real last_phase_frac;
+    logic last_valid;
 
     realtime last_edge_t;
+    realtime ref_posedge_t;
     realtime last_posedge_t;
     realtime last_period_t;
     realtime high_end_t;
-    int stable_match_cnt;
+    int freq_stable_cnt;
+    int duty_stable_cnt;
     int min_freq_hz_rt;
     int meas_timeout_ns_rt;
     real max_edge_period_rt;
+
+    // 周期内归一化相位，取值 0 以上且小于 1
+    // t — 上升沿时刻
+    // t_ref — 参考 0 时刻
+    // period — 当前周期
+    function automatic real frac_phase(
+            realtime t,
+            realtime t_ref,
+            real period);
+        real offset;
+        real cycles;
+
+        if (period <= 0.0)
+            return 0.0;
+        offset = (t - t_ref) / period;
+        cycles = offset - $floor(offset);
+        if (cycles < 0.0)
+            cycles += 1.0;
+        return cycles;
+    endfunction
 
     // 按最低频率更新超时与最大边沿间隔
     // hz — 最低频率，Hz
@@ -42,35 +73,52 @@ interface {{ settings.class_prefix }}measure_interface #(
         if (hz < MIN_FREQ_HZ)
             hz = MIN_FREQ_HZ;
         min_freq_hz_rt = hz;
-        meas_timeout_ns_rt = (1_000_000_000 + hz - 1) / hz;
+        meas_timeout_ns_rt = (1_000_000_000 + hz - 1) / hz
+            * STABLE_CYCLES * TIMEOUT_MARGIN;
         max_edge_period_rt = RT_PER_SEC / hz;
+    endfunction
+
+    // 将当前读数写入 last_* 快照
+    function automatic void latch_last_results();
+        if (active) begin
+            last_freq_hz = freq_hz;
+            last_duty = duty;
+            last_phase_frac = phase_frac;
+            last_valid = 1'b1;
+        end
     endfunction
 
     // 清零测量结果与边沿状态
     function automatic void reset_measure();
         active = 1'b0;
-        stable = 1'b0;
+        freq_stable = 1'b0;
+        duty_stable = 1'b0;
+        timed_out = 1'b0;
         freq_hz = 0.0;
         duty = 0.0;
         duty_ok = 1'b0;
+        phase_frac = 0.0;
         last_edge_t = 0.0;
+        ref_posedge_t = 0.0;
         last_posedge_t = 0.0;
         last_period_t = 0.0;
         high_end_t = 0.0;
-        stable_match_cnt = 0;
+        freq_stable_cnt = 0;
+        duty_stable_cnt = 0;
     endfunction
 
     // 超时表示测量结束且无有效边沿
     function automatic void mark_timeout();
+        latch_last_results();
         active = 1'b0;
-        stable = 1'b1;
-        freq_hz = 0.0;
-        duty = 0.0;
-        duty_ok = 1'b0;
-        stable_match_cnt = 0;
+        timed_out = 1'b1;
+        freq_stable = 1'b0;
+        duty_stable = 1'b0;
+        freq_stable_cnt = 0;
+        duty_stable_cnt = 0;
     endfunction
 
-    // 根据相邻上升沿更新频率、占空比与 stable
+    // 根据相邻上升沿更新频率、占空比与稳定计数
     function automatic void sample_period(realtime pos_t, realtime prev_pos_t);
         realtime period_t;
         realtime high_t;
@@ -84,6 +132,10 @@ interface {{ settings.class_prefix }}measure_interface #(
             return;
 
         freq_hz = RT_PER_SEC / period_t;
+
+        if (ref_posedge_t <= 0.0)
+            ref_posedge_t = pos_t;
+        phase_frac = frac_phase(pos_t, ref_posedge_t, period_t);
 
         if (high_end_t > prev_pos_t && high_end_t <= pos_t) begin
             high_t = high_end_t - prev_pos_t;
@@ -100,12 +152,25 @@ interface {{ settings.class_prefix }}measure_interface #(
             rel_diff = (period_t > last_period_t) ?
                 (period_t - last_period_t) / last_period_t :
                 (last_period_t - period_t) / last_period_t;
-            if (rel_diff <= PERIOD_TOL)
-                stable_match_cnt++;
-            else
-                stable_match_cnt = 0;
-            if (stable_match_cnt >= STABLE_CYCLES - 1)
-                stable = 1'b1;
+            if (rel_diff <= PERIOD_TOL) begin
+                freq_stable_cnt++;
+                if (freq_stable_cnt >= STABLE_CYCLES)
+                    freq_stable = 1'b1;
+            end
+            else begin
+                freq_stable_cnt = 0;
+                freq_stable = 1'b0;
+            end
+        end
+
+        if (duty_ok) begin
+            duty_stable_cnt++;
+            if (duty_stable_cnt >= STABLE_CYCLES)
+                duty_stable = 1'b1;
+        end
+        else begin
+            duty_stable_cnt = 0;
+            duty_stable = 1'b0;
         end
 
         last_period_t = period_t;
@@ -117,9 +182,11 @@ interface {{ settings.class_prefix }}measure_interface #(
         update_meas_timing_from_min_freq(hz);
     endfunction
 
-    // 写测量开关；关时清零测量结果
+    // 写测量开关；关时写入 last_* 并清零测量结果
     // en — 测量开关
     function automatic void set_measure_en(bit en);
+        if (!en && meas_en)
+            latch_last_results();
         meas_en = en;
         if (!en)
             reset_measure();
@@ -131,23 +198,39 @@ interface {{ settings.class_prefix }}measure_interface #(
         meas_en = 1'b1;
     endfunction
 
-    // 关闭测量并清零测量结果
+    // 关闭测量并写入 last_* 快照
     function automatic void stop_measure();
         set_measure_en(1'b0);
     endfunction
 
-    // 轮询 stable，最长 meas_timeout_ns_rt
-    // ok — 为真表示在时限内达到稳定
-    task automatic wait_measure_stable(output bit ok);
+    // 轮询频率与占空比稳定，最长 meas_timeout_ns_rt
+    // need_freq — 为真时等待 freq_stable
+    // need_duty — 为真时等待 duty_stable
+    // ok — 为真表示在时限内达到所需稳定
+    task automatic wait_measure_stable(
+            input bit need_freq,
+            input bit need_duty,
+            output bit ok);
         int elapsed_ns;
+        bit freq_done;
+        bit duty_done;
 
         elapsed_ns = 0;
         ok = 1'b0;
-        while (!stable && elapsed_ns < meas_timeout_ns_rt) begin
+        while (elapsed_ns < meas_timeout_ns_rt) begin
+            if (timed_out)
+                break;
+            freq_done = !need_freq || freq_stable;
+            duty_done = !need_duty || duty_stable;
+            if (freq_done && duty_done) begin
+                ok = 1'b1;
+                break;
+            end
             #1ns;
             elapsed_ns++;
         end
-        ok = stable;
+        if (!timed_out && !ok)
+            mark_timeout();
     endtask
 
     // 监视上升沿并采样周期
@@ -187,6 +270,10 @@ interface {{ settings.class_prefix }}measure_interface #(
 
     initial begin
         meas_en = 1'b0;
+        last_valid = 1'b0;
+        last_freq_hz = 0.0;
+        last_duty = 0.0;
+        last_phase_frac = 0.0;
         update_meas_timing_from_min_freq(MIN_FREQ_HZ);
         reset_measure();
     end
@@ -211,7 +298,8 @@ interface {{ settings.class_prefix }}measure_interface #(
                 else if (($realtime - last_edge_t) >= max_edge_period_rt)
                     mark_timeout();
             end
-            reset_measure();
+            if (meas_en && timed_out)
+                meas_en = 1'b0;
         end
     end
 endinterface

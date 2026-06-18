@@ -49,11 +49,9 @@ task main_phase(uvm_phase phase);
     phase.raise_objection(this);
     ...
 {%- if any_node_path and regs_enabled %}
-    clk_sqr.test_freq();
-    clk_sqr.test_duty();
+    clk_sqr.test_measure();
 {%- elif any_node_path %}
-    clk_sqr.check_freq();
-    clk_sqr.check_duty();
+    clk_sqr.check_measure();
 {%- elif regs_enabled %}
     clk_sqr.config_reg();
 {%- endif %}

@@ -34,13 +34,13 @@ class Settings(BaseModel):
     min_freq_hz: int = Field(
         500,
         ge=500,
-        description="测量接口与 check_freq 默认最低频率，单位 Hz；"
+        description="测量接口与 check_measure 默认最低频率，单位 Hz；"
         "决定无边沿超时与可测量频率下限。",
     )
     stable_cycles: int = Field(
-        3,
+        100,
         ge=2,
-        description="连续稳定所需周期数。",
+        description="频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。",
     )
     mux_switch_wait_cycles: int = Field(
         3,
@@ -54,7 +54,7 @@ class Settings(BaseModel):
         description="相邻周期相对偏差上限。",
     )
     duty_min: float = Field(
-        33.0,
+        50.0,
         ge=0.0,
         le=100.0,
         description="允许占空比下限，百分数；闭区间端点计入合格。",
@@ -85,6 +85,10 @@ class Settings(BaseModel):
     gate_reg_high_means_open: bool = Field(
         False,
         description="为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。",
+    )
+    inv_reg_high_means_inverted: bool = Field(
+        False,
+        description="为真时 inv 寄存器位 1 表示反相输出；为假时 1 表示直通。",
     )
     div_reg_high_means_reset: bool = Field(
         False,

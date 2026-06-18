@@ -207,6 +207,17 @@ class DtoNode(NodeBase):
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
     source: str = Field(..., min_length=1, description="前级引用。")
+    reg: str = Field(
+        "",
+        description="反相/直通控制寄存器模型路径。",
+    )
+
+    @model_validator(mode="after")
+    def _validate_inv_reg(self, info: ValidationInfo) -> InvNode:
+        validate_optional_reg(
+            self.reg, node_name=_validation_node_name(self, info), kind="inv"
+        )
+        return self
 
 
 class ClockSourceNode(NodeBase):

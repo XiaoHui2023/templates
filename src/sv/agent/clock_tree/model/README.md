@@ -247,6 +247,9 @@
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | **source** | **node_base** | 前级节点 |
+| **inverted** | **bit**，**rand** | 为真时反相输出 |
+| **fix_inverted** | **bit** | 为真时固定 **inverted** |
+| **f_reg** | **reg** | 反相/直通控制寄存器 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 
@@ -254,3 +257,4 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
+| **cst_inv** | **fix_inverted** 为真时 **inverted** 取固定值 |

@@ -120,14 +120,12 @@
                         <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 184px; margin-left: 213px;">
                             <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #111111; ">
                                 <div style="display: inline-block; font-size: 13px; font-family: &quot;Helvetica&quot;; color: light-dark(#111111, #dfdfdf); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
-                                    保存当前控制量
-                                </div>
+                                    保存当前控制�?                                </div>
                             </div>
                         </div>
                     </foreignObject>
                     <text x="272" y="188" fill="#111111" font-family="&quot;Helvetica&quot;" font-size="13px" text-anchor="middle">
-                        保存当前控制量
-                    </text>
+                        保存当前控制�?                    </text>
                 </switch>
             </g>
         </g>
@@ -141,15 +139,14 @@
                         <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 148px; height: 1px; padding-top: 184px; margin-left: 363px;">
                             <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #111111; ">
                                 <div style="display: inline-block; font-size: 13px; font-family: &quot;Helvetica&quot;; color: light-dark(#111111, #dfdfdf); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
-                                    MSB/LSB 单比特探测
-                                    <br/>
+                                    MSB/LSB 单比特探�?                                    <br/>
                                     config_reg
                                 </div>
                             </div>
                         </div>
                     </foreignObject>
                     <text x="437" y="188" fill="#111111" font-family="&quot;Helvetica&quot;" font-size="13px" text-anchor="middle">
-                        MSB/LSB 单比特探测...
+                        MSB/LSB 单比特探�?..
                     </text>
                 </switch>
             </g>
@@ -164,13 +161,13 @@
                         <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 108px; height: 1px; padding-top: 184px; margin-left: 543px;">
                             <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #111111; ">
                                 <div style="display: inline-block; font-size: 13px; font-family: &quot;Helvetica&quot;; color: light-dark(#111111, #dfdfdf); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
-                                    check_freq
+                                    check_measure
                                 </div>
                             </div>
                         </div>
                     </foreignObject>
                     <text x="597" y="188" fill="#111111" font-family="&quot;Helvetica&quot;" font-size="13px" text-anchor="middle">
-                        check_freq
+                        check_measure
                     </text>
                 </switch>
             </g>

@@ -25,7 +25,7 @@ _REG_BIT_SUFFIX = re.compile(r"\[(?P<body>[^\]]+)\]$")
 RegPathGroup = Dict[str, str]
 RegsMap = Dict[str, Union[str, RegPathGroup]]
 
-SINGLE_REG_NODE_KINDS = frozenset({"gate", "mux"})
+SINGLE_REG_NODE_KINDS = frozenset({"gate", "mux", "inv"})
 
 DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 

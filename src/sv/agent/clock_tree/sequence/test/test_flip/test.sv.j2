@@ -16,12 +16,17 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
 
     // 验证 div/dto 控制位翻转后 clk 仍可测
     extern virtual task body();
-    // 静默校验当前树的 clk 频率
-    extern task run_check_freq_quiet(
+    // 静默校验当前树的频率
+    extern task run_check_measure_quiet(
         {{ settings.class_prefix }}tree_base tree);
     // 按当前树状态写寄存器
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
+    // 等待频率稳定并读出 last_phase_frac
+    extern task measure_node_phase(
+        {{ settings.class_prefix }}node_base nd,
+        output real phase_frac,
+        output bit ok);
     // 按 MSB 或 LSB 单比特 pattern 写 div 分频比后校验
     extern task verify_div_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
@@ -44,25 +49,32 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}dto dto_nd,
         bit quiet);
+    // 翻转 inv 控制并检查相位差约半周期
+    extern task verify_inv_flip(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}inv inv_nd,
+        bit quiet);
 endclass
 
-task {{ settings.class_prefix }}test_flip_seq::run_check_freq_quiet(
+task {{ settings.class_prefix }}test_flip_seq::run_check_measure_quiet(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}check_freq_req freq_req;
-    {{ settings.class_prefix }}check_freq_rsp freq_rsp;
-    {{ settings.class_prefix }}check_freq_seq freq_seq;
+    {{ settings.class_prefix }}check_measure_req meas_req;
+    {{ settings.class_prefix }}check_measure_rsp meas_rsp;
+    {{ settings.class_prefix }}check_measure_seq meas_seq;
 
     if (tree == null)
-        `uvm_fatal("CLK_TREE", "test_flip: tree is null for check_freq")
-    freq_req = {{ settings.class_prefix }}check_freq_req::type_id::create("freq_req");
-    freq_req.tree = tree;
-    freq_req.quiet = 1'b1;
-    freq_seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
-    freq_seq.req = freq_req;
-    freq_seq.start(p_sequencer);
-    freq_rsp = freq_seq.rsp;
-    if (freq_rsp == null || !freq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "test_flip: check_freq failed")
+        `uvm_fatal("CLK_TREE", "test_flip: tree is null for check_measure")
+    meas_req = {{ settings.class_prefix }}check_measure_req::type_id::create("meas_req");
+    meas_req.tree = tree;
+    meas_req.quiet = 1'b1;
+    meas_req.check_freq = 1'b1;
+    meas_req.check_duty = 1'b0;
+    meas_seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
+    meas_seq.req = meas_req;
+    meas_seq.start(p_sequencer);
+    meas_rsp = meas_seq.rsp;
+    if (meas_rsp == null || !meas_rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_flip: check_measure failed")
 endtask
 
 task {{ settings.class_prefix }}test_flip_seq::run_config_reg(
@@ -80,6 +92,39 @@ task {{ settings.class_prefix }}test_flip_seq::run_config_reg(
     cfg_seq.start(p_sequencer);
     if (cfg_seq.rsp == null || !cfg_seq.rsp.ok)
         `uvm_fatal("CLK_TREE", "test_flip: config_reg failed")
+endtask
+
+task {{ settings.class_prefix }}test_flip_seq::measure_node_phase(
+        {{ settings.class_prefix }}node_base nd,
+        output real phase_frac,
+        output bit ok);
+    int meas_timeout_ns;
+    int elapsed_ns;
+
+    phase_frac = 0.0;
+    ok = 1'b0;
+    if (nd == null || nd.vif == null)
+        return;
+
+    meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }}
+        * {{ settings.stable_cycles }} * 3;
+    nd.vif.start_measure();
+    elapsed_ns = 0;
+    while (elapsed_ns < meas_timeout_ns) begin
+        if (nd.vif.meas.timed_out)
+            break;
+        if (nd.vif.meas.freq_stable) begin
+            ok = 1'b1;
+            break;
+        end
+        #1ns;
+        elapsed_ns++;
+    end
+    nd.vif.stop_measure();
+    if (ok && nd.vif.meas.last_valid)
+        phase_frac = nd.vif.meas.last_phase_frac;
+    else
+        ok = 1'b0;
 endtask
 
 task {{ settings.class_prefix }}test_flip_seq::verify_div_flip_pattern(
@@ -110,7 +155,7 @@ task {{ settings.class_prefix }}test_flip_seq::verify_div_flip_pattern(
             "test_flip: div %s %s fix_ratio %0d",
             div_nd.get_name(), pat_label, probe_ratio), UVM_MEDIUM)
     run_config_reg(tree, quiet);
-    run_check_freq_quiet(tree);
+    run_check_measure_quiet(tree);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(div_nd, snap, 1'b1);
     run_config_reg(tree, quiet);
@@ -163,7 +208,7 @@ task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip_pattern(
             "test_flip: dto %s %s fix_ratio %0d",
             dto_nd.get_name(), pat_label, probe_ratio), UVM_MEDIUM)
     run_config_reg(tree, quiet);
-    run_check_freq_quiet(tree);
+    run_check_measure_quiet(tree);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(dto_nd, snap, 1'b1);
     run_config_reg(tree, quiet);
@@ -188,6 +233,66 @@ task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip(
         verify_dto_flip_pattern(tree, dto_nd, 1'b0, quiet);
 endtask
 
+task {{ settings.class_prefix }}test_flip_seq::verify_inv_flip(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}inv inv_nd,
+        bit quiet);
+    real phase_before;
+    real phase_after;
+    real phase_diff;
+    real phase_err;
+    bit ok;
+    bit saved_inverted;
+
+    if (inv_nd == null)
+        return;
+    if (inv_nd.vif == null)
+        return;
+    if (!inv_nd.f_reg.is_bound())
+        return;
+
+    saved_inverted = inv_nd.inverted;
+
+    measure_node_phase(inv_nd, phase_before, ok);
+    if (!ok)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "test_flip: inv %s phase before flip did not stabilize",
+            inv_nd.get_name()))
+
+    inv_nd.inverted = !inv_nd.inverted;
+    inv_nd.fix_inverted = 1'b1;
+
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: inv %s toggle inverted to %0b",
+            inv_nd.get_name(), inv_nd.inverted), UVM_MEDIUM)
+    run_config_reg(tree, quiet);
+
+    measure_node_phase(inv_nd, phase_after, ok);
+    if (!ok)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "test_flip: inv %s phase after flip did not stabilize",
+            inv_nd.get_name()))
+
+    phase_diff = phase_after - phase_before;
+    if (phase_diff < 0.0)
+        phase_diff += 1.0;
+    phase_err = (phase_diff > 0.5) ? (phase_diff - 0.5) : (0.5 - phase_diff);
+    if (phase_err > {{ settings.period_tolerance }})
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "test_flip: inv %s phase diff %0.4f expected ~0.5 before %0.4f after %0.4f",
+            inv_nd.get_name(), phase_diff, phase_before, phase_after))
+
+    inv_nd.inverted = saved_inverted;
+    inv_nd.fix_inverted = 1'b0;
+    run_config_reg(tree, quiet);
+
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: inv %s phase flip OK diff %0.4f",
+            inv_nd.get_name(), phase_diff), UVM_MEDIUM)
+endtask
+
 task {{ settings.class_prefix }}test_flip_seq::body();
     {{ settings.class_prefix }}test_flip_req rq;
     {{ settings.class_prefix }}test_flip_rsp rs;
@@ -195,6 +300,7 @@ task {{ settings.class_prefix }}test_flip_seq::body();
     {{ settings.class_prefix }}node_base subjects[$];
     {{ settings.class_prefix }}div div_nd;
     {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}inv inv_nd;
     int i;
 
     if (req == null)
@@ -235,6 +341,12 @@ task {{ settings.class_prefix }}test_flip_seq::body();
         else
             `uvm_fatal("CLK_TREE", $sformatf(
                 "test_flip: subject %s is not div or dto", subjects[i].get_name()))
+    end
+
+    for (i = 0; i < tree.nodes.size(); i++) begin
+        if (!$cast(inv_nd, tree.nodes[i]))
+            continue;
+        verify_inv_flip(tree, inv_nd, rq.quiet);
     end
 
     if (!rq.quiet)

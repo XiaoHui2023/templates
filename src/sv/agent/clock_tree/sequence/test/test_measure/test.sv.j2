@@ -1,0 +1,102 @@
+{% if any_node_path and regs_enabled %}
+`ifndef {{ (settings.class_prefix ~ "test_measure_seq") | upper }}
+`define {{ (settings.class_prefix ~ "test_measure_seq") | upper }}
+
+class {{ settings.class_prefix }}test_measure_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}test_measure_req,
+    {{ settings.class_prefix }}test_measure_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}test_measure_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name = "{{ settings.class_prefix }}test_measure_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+    extern task run_config_reg(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
+    extern task run_check_measure(
+        {{ settings.class_prefix }}tree_base tree,
+        bit check_freq,
+        bit check_duty,
+        bit quiet);
+endclass
+
+task {{ settings.class_prefix }}test_measure_seq::run_config_reg(
+        {{ settings.class_prefix }}tree_base tree, bit quiet);
+    {{ settings.class_prefix }}config_reg_req cfg_req;
+    {{ settings.class_prefix }}config_reg_seq cfg_seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_measure: tree is null for config_reg")
+    cfg_req = {{ settings.class_prefix }}config_reg_req::type_id::create("cfg_req");
+    cfg_req.tree = tree;
+    cfg_req.quiet = quiet;
+    cfg_seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
+    cfg_seq.req = cfg_req;
+    cfg_seq.start(p_sequencer);
+    if (cfg_seq.rsp == null || !cfg_seq.rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_measure: config_reg failed")
+endtask
+
+task {{ settings.class_prefix }}test_measure_seq::run_check_measure(
+        {{ settings.class_prefix }}tree_base tree,
+        bit check_freq,
+        bit check_duty,
+        bit quiet);
+    {{ settings.class_prefix }}check_measure_req meas_req;
+    {{ settings.class_prefix }}check_measure_rsp meas_rsp;
+    {{ settings.class_prefix }}check_measure_seq meas_seq;
+
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_measure: tree is null for check_measure")
+    if (!check_freq && !check_duty)
+        `uvm_fatal("CLK_TREE", "test_measure: check_freq and check_duty both disabled")
+    meas_req = {{ settings.class_prefix }}check_measure_req::type_id::create("meas_req");
+    meas_req.tree = tree;
+    meas_req.quiet = quiet;
+    meas_req.check_freq = check_freq;
+    meas_req.check_duty = check_duty;
+    meas_seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
+    meas_seq.req = meas_req;
+    meas_seq.start(p_sequencer);
+    meas_rsp = meas_seq.rsp;
+    if (meas_rsp == null || !meas_rsp.ok)
+        `uvm_fatal("CLK_TREE", "test_measure: check_measure failed")
+endtask
+
+task {{ settings.class_prefix }}test_measure_seq::body();
+    {{ settings.class_prefix }}test_measure_req rq;
+    {{ settings.class_prefix }}test_measure_rsp rs;
+    {{ settings.class_prefix }}tree_base tree;
+
+    if (req == null)
+        `uvm_fatal("CLK_TREE", "test_measure: req is null")
+
+    rq = req;
+    tree = rq.tree;
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_measure: tree is null")
+    if (!rq.check_freq && !rq.check_duty)
+        `uvm_fatal("CLK_TREE", "test_measure: check_freq and check_duty both disabled")
+
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_measure: begin tree %s freq %0b duty %0b",
+            tree.get_name(), rq.check_freq, rq.check_duty), UVM_LOW)
+
+    run_config_reg(tree, rq.quiet);
+    run_check_measure(tree, rq.check_freq, rq.check_duty, rq.quiet);
+
+    rs = {{ settings.class_prefix }}test_measure_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    if (!rq.quiet)
+        `uvm_info("CLK_TREE", "test_measure: passed", UVM_LOW)
+
+    rsp = rs;
+endtask
+
+`endif
+{% endif %}

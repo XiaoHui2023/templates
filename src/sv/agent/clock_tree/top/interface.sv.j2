@@ -22,7 +22,7 @@ interface {{ settings.class_prefix }}interface #(
         .DUTY_MAX_PCT(DUTY_MAX_PCT)
     ) meas(.in(in));
 
-    // 写测量开关；关时清零测量结果
+    // 写测量开关；关时写入 last_* 并清零测量结果
     // en — 测量开关
     function automatic void set_measure_en(bit en);
         meas.set_measure_en(en);
@@ -33,7 +33,7 @@ interface {{ settings.class_prefix }}interface #(
         meas.start_measure();
     endfunction
 
-    // 关闭测量并清零测量结果
+    // 关闭测量并写入 last_* 快照
     function automatic void stop_measure();
         meas.stop_measure();
     endfunction
@@ -44,10 +44,15 @@ interface {{ settings.class_prefix }}interface #(
         meas.set_min_freq_hz(hz);
     endfunction
 
-    // 轮询 stable，最长 meas_timeout_ns_rt
-    // ok — 为真表示在时限内达到稳定
-    task automatic wait_measure_stable(output bit ok);
-        meas.wait_measure_stable(ok);
+    // 轮询频率与占空比稳定，最长 meas_timeout_ns_rt
+    // need_freq — 为真时等待 freq_stable
+    // need_duty — 为真时等待 duty_stable
+    // ok — 为真表示在时限内达到所需稳定
+    task automatic wait_measure_stable(
+            input bit need_freq,
+            input bit need_duty,
+            output bit ok);
+        meas.wait_measure_stable(need_freq, need_duty, ok);
     endtask
 endinterface
 

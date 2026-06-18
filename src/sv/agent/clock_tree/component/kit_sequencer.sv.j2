@@ -15,16 +15,18 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     extern task config_reg({{ settings.class_prefix }}tree_base tree = null);
 {% endif %}
 {% if any_node_path %}
-    // 校验各 clk 频率
-    extern task check_freq({{ settings.class_prefix }}tree_base tree = null);
-    // 校验各 clk 占空比
-    extern task check_duty({{ settings.class_prefix }}tree_base tree = null);
+    // 校验频率与占空比
+    extern task check_measure(
+        {{ settings.class_prefix }}tree_base tree = null,
+        bit check_freq = 1'b1,
+        bit check_duty = 1'b1);
 {% endif %}
 {% if any_node_path and regs_enabled %}
-    // 写寄存器后校验各 clk 频率
-    extern task test_freq({{ settings.class_prefix }}tree_base tree = null);
-    // 写寄存器后校验占空比
-    extern task test_duty({{ settings.class_prefix }}tree_base tree = null);
+    // 写寄存器后校验频率与占空比
+    extern task test_measure(
+        {{ settings.class_prefix }}tree_base tree = null,
+        bit check_freq = 1'b1,
+        bit check_duty = 1'b1);
 {% endif %}
 {% if route_test_enabled %}
     // 写寄存器后校验 div/dto 复位翻转
@@ -63,94 +65,58 @@ endtask
 {% endif %}
 
 {% if any_node_path %}
-task {{ settings.class_prefix }}kit_sequencer::check_freq(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}check_freq_req req;
-    {{ settings.class_prefix }}check_freq_rsp seq_rsp;
-    {{ settings.class_prefix }}check_freq_seq seq;
+task {{ settings.class_prefix }}kit_sequencer::check_measure(
+        {{ settings.class_prefix }}tree_base tree,
+        bit check_freq,
+        bit check_duty);
+    {{ settings.class_prefix }}check_measure_req req;
+    {{ settings.class_prefix }}check_measure_rsp seq_rsp;
+    {{ settings.class_prefix }}check_measure_seq seq;
 
     if (tree == null)
         tree = this.tree;
     if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_freq: tree is null")
+        `uvm_fatal("CLK_TREE", "check_measure: tree is null")
 
-    req = {{ settings.class_prefix }}check_freq_req::type_id::create("req");
+    req = {{ settings.class_prefix }}check_measure_req::type_id::create("req");
     req.tree = tree;
+    req.check_freq = check_freq;
+    req.check_duty = check_duty;
 
-    seq = {{ settings.class_prefix }}check_freq_seq::type_id::create("check_freq");
+    seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
     seq.req = req;
     seq.start(this);
     seq_rsp = seq.rsp;
     if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "check_freq: operation failed")
-endtask
-
-task {{ settings.class_prefix }}kit_sequencer::check_duty(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}check_duty_req req;
-    {{ settings.class_prefix }}check_duty_rsp seq_rsp;
-    {{ settings.class_prefix }}check_duty_seq seq;
-
-    if (tree == null)
-        tree = this.tree;
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "check_duty: tree is null")
-
-    req = {{ settings.class_prefix }}check_duty_req::type_id::create("req");
-    req.tree = tree;
-
-    seq = {{ settings.class_prefix }}check_duty_seq::type_id::create("check_duty");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "check_duty: operation failed")
+        `uvm_fatal("CLK_TREE", "check_measure: operation failed")
 endtask
 {% endif %}
 
 {% if any_node_path and regs_enabled %}
-task {{ settings.class_prefix }}kit_sequencer::test_freq(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}test_freq_req req;
-    {{ settings.class_prefix }}test_freq_rsp seq_rsp;
-    {{ settings.class_prefix }}test_freq_seq seq;
+task {{ settings.class_prefix }}kit_sequencer::test_measure(
+        {{ settings.class_prefix }}tree_base tree,
+        bit check_freq,
+        bit check_duty);
+    {{ settings.class_prefix }}test_measure_req req;
+    {{ settings.class_prefix }}test_measure_rsp seq_rsp;
+    {{ settings.class_prefix }}test_measure_seq seq;
 
     if (tree == null)
         tree = this.tree;
     if (tree == null)
-        `uvm_fatal("CLK_TREE", "test_freq: tree is null")
+        `uvm_fatal("CLK_TREE", "test_measure: tree is null")
 
-    req = {{ settings.class_prefix }}test_freq_req::type_id::create("req");
+    req = {{ settings.class_prefix }}test_measure_req::type_id::create("req");
     req.tree = tree;
+    req.check_freq = check_freq;
+    req.check_duty = check_duty;
 
-    seq = {{ settings.class_prefix }}test_freq_seq::type_id::create("test_freq");
+    seq = {{ settings.class_prefix }}test_measure_seq::type_id::create("test_measure");
     seq.req = req;
     seq.start(this);
     seq_rsp = seq.rsp;
     if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "test_freq: operation failed")
-endtask
-
-task {{ settings.class_prefix }}kit_sequencer::test_duty(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}test_duty_req req;
-    {{ settings.class_prefix }}test_duty_rsp seq_rsp;
-    {{ settings.class_prefix }}test_duty_seq seq;
-
-    if (tree == null)
-        tree = this.tree;
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "test_duty: tree is null")
-
-    req = {{ settings.class_prefix }}test_duty_req::type_id::create("req");
-    req.tree = tree;
-
-    seq = {{ settings.class_prefix }}test_duty_seq::type_id::create("test_duty");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "test_duty: operation failed")
+        `uvm_fatal("CLK_TREE", "test_measure: operation failed")
 endtask
 {% endif %}
 

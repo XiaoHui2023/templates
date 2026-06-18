@@ -42,19 +42,13 @@ sequence/operation/config_reg/rsp.sv
 sequence/operation/config_reg/op.sv
 {% endif %}
 {% if any_node_path %}
-sequence/operation/check_freq/req.sv
-sequence/operation/check_freq/rsp.sv
-sequence/operation/check_freq/op.sv
-sequence/operation/check_duty/req.sv
-sequence/operation/check_duty/rsp.sv
-sequence/operation/check_duty/op.sv
+sequence/operation/check_measure/req.sv
+sequence/operation/check_measure/rsp.sv
+sequence/operation/check_measure/op.sv
 {% if any_node_path and regs_enabled %}
-sequence/test/test_freq/req.sv
-sequence/test/test_freq/rsp.sv
-sequence/test/test_freq/test.sv
-sequence/test/test_duty/req.sv
-sequence/test/test_duty/rsp.sv
-sequence/test/test_duty/test.sv
+sequence/test/test_measure/req.sv
+sequence/test/test_measure/rsp.sv
+sequence/test/test_measure/test.sv
 {% endif %}
 {% if route_test_enabled %}
 sequence/test/test_flip/req.sv

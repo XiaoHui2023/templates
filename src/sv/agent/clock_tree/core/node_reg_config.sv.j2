@@ -16,6 +16,8 @@ class {{ settings.class_prefix }}node_cfg;
 
     // open — 仿真门开闭，按极性写入 f_reg
     extern task configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
+    // inverted — 反相输出电平，按极性写入 f_reg
+    extern task configure_inv({{ settings.class_prefix }}reg f_reg, bit inverted);
     // sel — mux 选择值
     extern task configure_mux({{ settings.class_prefix }}reg f_reg, int sel);
     // ratio — 先复位脉冲，再写 div 与 load
@@ -74,6 +76,14 @@ task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefi
     rw.set_write(f_reg, open);
 {%- else %}
     rw.set_write(f_reg, !open);
+{%- endif %}
+endtask
+
+task {{ settings.class_prefix }}node_cfg::configure_inv({{ settings.class_prefix }}reg f_reg, bit inverted);
+{%- if settings.inv_reg_high_means_inverted %}
+    rw.set_write(f_reg, inverted);
+{%- else %}
+    rw.set_write(f_reg, !inverted);
 {%- endif %}
 endtask
 

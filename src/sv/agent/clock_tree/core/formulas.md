@@ -84,6 +84,21 @@ f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 
 在合法组合中使 **f_actual** 与 **f** 绝对误差最小；先在 **fbdiv_min**～**fbdiv_max** 内搜，无解再搜全硬件范围。
 
+## 测量相位
+
+| 参数 | 说明 |
+| --- | --- |
+| **t_rise** | 当前上升沿时刻 |
+| **t_ref** | 本次 **start_measure** 后第一个上升沿时刻，作为该路 0 时刻 |
+| **T** | 当前测得周期 |
+| **phase_frac** | 归一化相位，取值 0 以上且小于 1 |
+
+```
+phase_frac = fmod(t_rise - t_ref, T) / T
+```
+
+**phase_frac** 为 **real**，表示周期内位置；频率达到 **freq_stable** 后读数有效。占空比与频率在一次测量中并行采样，各自独立计数 **STABLE_CYCLES** 个连续稳定周期；中途失稳则对应计数清零。测量结束可通过 **last_freq_hz**、**last_duty**、**last_phase_frac** 读取最近一次结果。
+
 ### dw
 
 | 参数 | 说明 |
