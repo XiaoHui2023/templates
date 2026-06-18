@@ -660,18 +660,6 @@ def _with_step_indexes(steps: List[RegWriteStep]) -> tuple[RegWriteStep, ...]:
     )
 
 
-def _assert_unique_reg_paths(steps: List[RegWriteStep]) -> None:
-    """gate、mux、div、dto 等每颗寄存器只出现一步写操作。"""
-    seen: set[str] = set()
-    for step in steps:
-        path = step.reg.path
-        if path in seen:
-            raise ValueError(
-                f"register {path!r} appears in more than one config step"
-            )
-        seen.add(path)
-
-
 def build_config_plan(
     tree: Tree,
     index: RegModelIndex,
@@ -686,32 +674,50 @@ def build_config_plan(
 
     for node in tree.nodes_ordered:
         state = resolved.by_name[node.name]
-        if isinstance(node, DivNode) and node.regs and state.active:
+        if not state.active:
+            continue
+        if isinstance(node, DivNode) and node.regs:
             dev_steps.extend(
                 merge_field_patches(
                     expand_div_patches(index, node, settings, state)
                 )
             )
-        elif isinstance(node, DtoNode) and node.regs and state.active:
+        elif isinstance(node, DtoNode) and node.regs:
             dev_steps.extend(
                 merge_field_patches(
                     expand_dto_patches(index, node, settings, state)
                 )
             )
-        elif isinstance(node, GateNode) and node.reg:
-            dev_steps.extend(
-                merge_field_patches(
-                    [expand_gate_patch(index, node, settings, state)]
-                )
-            )
-        elif isinstance(node, MuxNode) and node.reg and state.active:
-            dev_steps.extend(
-                merge_field_patches(
-                    [expand_mux_patch(index, node, state)]
-                )
-            )
 
-    _assert_unique_reg_paths(dev_steps)
+    for node in tree.nodes_ordered:
+        if isinstance(node, GateNode) and node.reg:
+            state = resolved.by_name[node.name]
+            if state.gate_open:
+                dev_steps.extend(
+                    merge_field_patches(
+                        [expand_gate_patch(index, node, settings, state)]
+                    )
+                )
+
+    for node in tree.nodes_ordered:
+        if isinstance(node, MuxNode) and node.reg:
+            state = resolved.by_name[node.name]
+            if state.active:
+                dev_steps.extend(
+                    merge_field_patches(
+                        [expand_mux_patch(index, node, state)]
+                    )
+                )
+
+    for node in tree.nodes_ordered:
+        if isinstance(node, GateNode) and node.reg:
+            state = resolved.by_name[node.name]
+            if not state.gate_open:
+                dev_steps.extend(
+                    merge_field_patches(
+                        [expand_gate_patch(index, node, settings, state)]
+                    )
+                )
 
     return ConfigPlan(
         pll_kind_plans=pll_bundle.kind_plans,
