@@ -108,7 +108,17 @@ interface {{ settings.class_prefix }}measure_interface #(
         duty_stable_cnt = 0;
     endfunction
 
-    // 超时表示测量结束且无有效边沿
+    // 从未采到边沿时结束测量
+    function automatic void mark_inactive();
+        active = 1'b0;
+        timed_out = 1'b0;
+        freq_stable = 1'b0;
+        duty_stable = 1'b0;
+        freq_stable_cnt = 0;
+        duty_stable_cnt = 0;
+    endfunction
+
+    // 已采到边沿但在时限内未达到稳定计数
     function automatic void mark_timeout();
         latch_last_results();
         active = 1'b0;
@@ -221,6 +231,8 @@ interface {{ settings.class_prefix }}measure_interface #(
         while (elapsed_ns < meas_timeout_ns_rt) begin
             if (timed_out)
                 break;
+            if (!meas_en && !active)
+                break;
             freq_done = !need_freq || freq_stable;
             duty_done = !need_duty || duty_stable;
             if (freq_done && duty_done) begin
@@ -230,8 +242,12 @@ interface {{ settings.class_prefix }}measure_interface #(
             #1ns;
             elapsed_ns++;
         end
-        if (!timed_out && !ok)
-            mark_timeout();
+        if (!ok && !timed_out) begin
+            if (last_edge_t <= 0.0)
+                mark_inactive();
+            else
+                mark_timeout();
+        end
     endtask
 
     // 监视上升沿并采样周期
@@ -294,14 +310,20 @@ interface {{ settings.class_prefix }}measure_interface #(
                 #(meas_timeout_ns_rt * 1ns);
                 if (!meas_en)
                     break;
-                if (last_edge_t <= 0.0)
-                    mark_timeout();
-                else if (($realtime - last_edge_t) >= max_edge_period_rt)
-                    mark_timeout();
-                if (timed_out) begin
+                if (last_edge_t <= 0.0) begin
+                    mark_inactive();
                     meas_en = 1'b0;
                     break;
                 end
+                if (($realtime - last_edge_t) >= max_edge_period_rt
+                        || !freq_stable || !duty_stable) begin
+                    mark_timeout();
+                    meas_en = 1'b0;
+                    break;
+                end
+                latch_last_results();
+                meas_en = 1'b0;
+                break;
             end
         end
     end

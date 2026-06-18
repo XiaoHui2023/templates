@@ -113,6 +113,8 @@ task {{ settings.class_prefix }}test_flip_seq::measure_node_phase(
     while (elapsed_ns < meas_timeout_ns) begin
         if (nd.vif.meas.timed_out)
             break;
+        if (!nd.vif.meas.meas_en && !nd.vif.meas.active)
+            break;
         if (nd.vif.meas.freq_stable) begin
             ok = 1'b1;
             break;

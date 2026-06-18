@@ -28,14 +28,14 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     );
     // 频率测量是否可进入比对
     // nd — 节点
-    // check_freq — 为真时等待 freq_stable
+    // check_freq — 为真时等待 freq_stable、timed_out 或无边沿结束
     extern function bit node_freq_measure_ready(
         {{ settings.class_prefix }}node_base nd,
         bit check_freq
     );
     // 占空比测量是否可进入比对
     // nd — 节点
-    // check_duty — 为真时等待 duty_stable
+    // check_duty — 为真时等待 duty_stable、timed_out 或无边沿结束
     extern function bit node_duty_measure_ready(
         {{ settings.class_prefix }}node_base nd,
         bit check_duty
@@ -133,9 +133,13 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_freq_measure_rea
 );
     if (!node_needs_freq_check(nd, check_freq))
         return 1'b1;
+    if (nd.vif.meas.freq_stable)
+        return 1'b1;
     if (nd.vif.meas.timed_out)
         return 1'b1;
-    return nd.vif.meas.freq_stable;
+    if (!nd.vif.meas.meas_en && !nd.vif.meas.active)
+        return 1'b1;
+    return 1'b0;
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_duty_measure_ready(
@@ -144,9 +148,13 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_duty_measure_rea
 );
     if (!check_duty)
         return 1'b1;
+    if (nd.vif.meas.duty_stable)
+        return 1'b1;
     if (nd.vif.meas.timed_out)
         return 1'b1;
-    return nd.vif.meas.duty_stable;
+    if (!nd.vif.meas.meas_en && !nd.vif.meas.active)
+        return 1'b1;
+    return 1'b0;
 endfunction
 
 task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
@@ -162,9 +170,26 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
     if (!node_needs_freq_check(nd, rq.check_freq))
         return;
 
+    expect_active = nd._resolved_active;
+    expected_hz = real'(nd._resolved_freq);
+
+    if (!nd.vif.meas.active && !nd.vif.meas.timed_out) begin
+        if (!expect_active || expected_hz <= 0.0) begin
+            `uvm_info("CLK_TREE", $sformatf(
+                "check_measure: node %s freq passed", nd.get_name()), UVM_LOW)
+            return;
+        end
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s expected %0.0f Hz no activity",
+            nd.get_name(), expected_hz))
+        rs.ok = 1'b0;
+        return;
+    end
+
     if (nd.vif.meas.timed_out) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s timed out", nd.get_name()))
+            "check_measure: node %s frequency did not stabilize",
+            nd.get_name()))
         rs.ok = 1'b0;
         return;
     end
@@ -177,9 +202,6 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
         return;
     end
 
-    expect_active = nd._resolved_active;
-    expected_hz = real'(nd._resolved_freq);
-
     if (!expect_active || expected_hz <= 0.0) begin
         if (nd.vif.meas.active) begin
             `uvm_error("CLK_TREE", $sformatf(
@@ -190,14 +212,6 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
         end
         `uvm_info("CLK_TREE", $sformatf(
             "check_measure: node %s freq passed", nd.get_name()), UVM_LOW)
-        return;
-    end
-
-    if (!nd.vif.meas.active) begin
-        `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s expected %0.0f Hz no activity",
-            nd.get_name(), expected_hz))
-        rs.ok = 1'b0;
         return;
     end
 
@@ -225,9 +239,24 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
     if (!rq.check_duty)
         return;
 
+    if (!nd.vif.meas.active && !nd.vif.meas.timed_out) begin
+        if (!nd._resolved_active) begin
+            `uvm_info("CLK_TREE", $sformatf(
+                "check_measure: node %s duty passed", nd.get_name()), UVM_LOW)
+            return;
+        end
+        `uvm_error("CLK_TREE", $sformatf(
+            "check_measure: node %s expected activity no clock edges",
+            nd.get_name()))
+        rs.ok = 1'b0;
+        rs.failed_nodes.push_back(nd);
+        return;
+    end
+
     if (nd.vif.meas.timed_out) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s timed out", nd.get_name()))
+            "check_measure: node %s duty did not stabilize",
+            nd.get_name()))
         rs.ok = 1'b0;
         return;
     end
@@ -384,6 +413,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             nd = nodes_to_check[i];
             if (!meas_restart_done[i] && !nd.vif.meas.meas_en
                     && !nd.vif.meas.timed_out
+                    && (nd.vif.meas.active || nd.vif.meas.freq_stable
+                        || nd.vif.meas.duty_stable)
                     && (!freq_done[i] || !duty_done[i])) begin
                 meas_restart_done[i] = 1'b1;
                 `uvm_warning("CLK_TREE", $sformatf(

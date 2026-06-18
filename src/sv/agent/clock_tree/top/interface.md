@@ -19,7 +19,7 @@
 
 | 名字 | 类型 | 说明 |
 | --- | --- | --- |
-| **MIN_FREQ_HZ** | int | 测量最低频率与无边沿超时，Hz |
+| **MIN_FREQ_HZ** | int | 测量最低频率与稳定判定时限基准，Hz |
 | **STABLE_CYCLES** | int | 频率或占空比各自连续稳定所需周期数 |
 | **PERIOD_TOL** | real | 相邻周期相对偏差上限 |
 | **DUTY_MIN_PCT** | real | 允许占空比下限，百分数 |
@@ -58,7 +58,7 @@
 
 ### wait_measure_stable
 
-轮询 **freq_stable** 与 **duty_stable**，最长等待 **meas_timeout_ns_rt**；超时置 **timed_out**。
+轮询 **freq_stable** 与 **duty_stable**，最长等待 **meas_timeout_ns_rt**；从未采到边沿则 **active** 为 0 且 **timed_out** 为 0；已采到边沿但无法稳定则置 **timed_out**。
 
 | 参数 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |
@@ -83,7 +83,7 @@
 
 | 名字 | 类型 | 说明 |
 | --- | --- | --- |
-| **MIN_FREQ_HZ** | int | 测量最低频率与无边沿超时，Hz |
+| **MIN_FREQ_HZ** | int | 测量最低频率与稳定判定时限基准，Hz |
 | **STABLE_CYCLES** | int | 频率或占空比各自连续稳定所需周期数 |
 | **PERIOD_TOL** | real | 相邻周期相对偏差上限 |
 | **DUTY_MIN_PCT** | real | 允许占空比下限，百分数 |
@@ -101,7 +101,7 @@
 | **duty_ok** | logic | 当前占空比在 **[DUTY_MIN_PCT − DUTY_TOL_PCT, DUTY_MAX_PCT + DUTY_TOL_PCT]** 内 |
 | **freq_stable** | logic | 频率已连续 **STABLE_CYCLES** 个周期稳定 |
 | **duty_stable** | logic | 占空比已连续 **STABLE_CYCLES** 个周期在允许范围内 |
-| **timed_out** | logic | 无边沿或边沿间隔过长导致测量超时 |
+| **timed_out** | logic | 已采到边沿但在时限内未达到 **STABLE_CYCLES** 稳定 |
 | **phase_frac** | real | 当前相位，取值 0 以上且小于 1；频率稳定后有效 |
 | **last_freq_hz** | real | 最近一次测量结束时的频率，Hz |
 | **last_duty** | real | 最近一次测量结束时的占空比 |
@@ -134,7 +134,7 @@
 
 ### wait_measure_stable
 
-轮询 **freq_stable** 与 **duty_stable**，最长等待 **meas_timeout_ns_rt**；超时置 **timed_out**。
+轮询 **freq_stable** 与 **duty_stable**，最长等待 **meas_timeout_ns_rt**；从未采到边沿则 **active** 为 0 且 **timed_out** 为 0；已采到边沿但无法稳定则置 **timed_out**。
 
 | 参数 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |
