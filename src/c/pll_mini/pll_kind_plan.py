@@ -163,38 +163,63 @@ def _slot_param_name(reg_tail: str) -> str:
     return f"{reg_tail}_addr"
 
 
-def _sc_write_templates() -> tuple[PllWriteTemplate, ...]:
-    pd_lsb = {"vocpd": 0, "postdivpd": 1, "dsmpd": 2, "pd": 3, "bypass": 4}
-    div_lsb = {"refdiv": 0, "postdiv2": 8, "postdiv1": 12, "fbdiv": 16}
-    pd_parts = tuple(
-        PllWritePartTemplate(
-            lsb=pd_lsb[key],
-            value_expr="1",
-            comment="power-down" if key == "vocpd" else key,
+def _group_reg_write_templates(
+    index: RegModelIndex,
+    template_node: PllNode,
+    keys: Sequence[str],
+    *,
+    value_expr_for_key,
+    comment_for_key,
+) -> tuple[PllWriteTemplate, ...]:
+    """按 YAML 路径解析出的寄存器名分组，同寄存器多 field 合并为一次写。"""
+    groups: list[tuple[str, list[PllWritePartTemplate]]] = []
+    for key in keys:
+        ref = index.resolve(
+            template_node.regs[key],
+            ctx=f"pll node {template_node.name!r} regs[{key!r}]",
         )
-        for key in PLL_SC_PD_KEYS
-    )
-    div_parts = tuple(
-        PllWritePartTemplate(
-            lsb=div_lsb[key],
-            value_expr=key,
-            comment=key,
+        tail = ref.reg.path.split(".")[-1]
+        part = PllWritePartTemplate(
+            lsb=ref.effective_lsb,
+            value_expr=value_expr_for_key(key),
+            comment=comment_for_key(key),
         )
-        for key in PLL_SC_DIV_KEYS
+        if groups and groups[-1][0] == tail:
+            groups[-1][1].append(part)
+        else:
+            groups.append((tail, [part]))
+    return tuple(
+        PllWriteTemplate(_slot_param_name(tail), tuple(parts))
+        for tail, parts in groups
     )
-    en_parts = tuple(
-        PllWritePartTemplate(
-            lsb=pd_lsb[key],
-            value_expr="0",
-            comment="enable" if key == "vocpd" else key,
-        )
-        for key in PLL_SC_PD_KEYS
+
+
+def _sc_write_templates(
+    index: RegModelIndex,
+    template_node: PllNode,
+) -> tuple[PllWriteTemplate, ...]:
+    pd_down = _group_reg_write_templates(
+        index,
+        template_node,
+        PLL_SC_PD_KEYS,
+        value_expr_for_key=lambda _key: "1",
+        comment_for_key=lambda key: "power-down" if key == "vocpd" else key,
     )
-    return (
-        PllWriteTemplate("pd_addr", pd_parts),
-        PllWriteTemplate("div_addr", div_parts),
-        PllWriteTemplate("pd_addr", en_parts),
+    div_cfg = _group_reg_write_templates(
+        index,
+        template_node,
+        PLL_SC_DIV_KEYS,
+        value_expr_for_key=lambda key: key,
+        comment_for_key=lambda key: key,
     )
+    pd_en = _group_reg_write_templates(
+        index,
+        template_node,
+        PLL_SC_PD_KEYS,
+        value_expr_for_key=lambda _key: "0",
+        comment_for_key=lambda key: "enable" if key == "vocpd" else key,
+    )
+    return pd_down + div_cfg + pd_en
 
 
 def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
@@ -355,7 +380,7 @@ def _kind_write_templates(
     template_node: PllNode,
 ) -> tuple[PllWriteTemplate, ...]:
     if pll_kind == "sc":
-        return _sc_write_templates()
+        return _sc_write_templates(index, template_node)
     if pll_kind == "tci":
         return _tci_write_templates()
     if pll_kind == "dw":
