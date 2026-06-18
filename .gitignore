@@ -1,6 +1,7 @@
 *.png
-test/
 __pycache__/
+src/c/pll_mini/bin/**
+!src/c/pll_mini/bin/.gitkeep
 *.pyc
 .cursor/
 **/.jinja-build-out*/
