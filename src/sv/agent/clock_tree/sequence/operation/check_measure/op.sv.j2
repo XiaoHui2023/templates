@@ -64,7 +64,7 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     // nodes — 待测节点队列
     // done — 各节点是否已完成
     extern function bit vif_has_other_pending(
-        {{ settings.class_prefix }}interface vif,
+        virtual {{ settings.class_prefix }}interface vif,
         int except_idx,
         {{ settings.class_prefix }}node_base nodes[],
         bit done[]
@@ -256,7 +256,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
 endtask
 
 function bit {{ settings.class_prefix }}check_measure_seq::vif_has_other_pending(
-    {{ settings.class_prefix }}interface vif,
+    virtual {{ settings.class_prefix }}interface vif,
     int except_idx,
     {{ settings.class_prefix }}node_base nodes[],
     bit done[]
