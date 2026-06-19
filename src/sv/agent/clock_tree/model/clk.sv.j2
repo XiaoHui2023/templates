@@ -13,6 +13,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 
     longint frequence;
     rand bit enabled;
+    bit _always_active;
 {%- if enable_node_fix %}
     bit unfix_frequence;
     bit unfix_enabled;
@@ -26,11 +27,13 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         frequence == _resolved_freq;
         enabled == _resolved_active;
 {%- endif %}
+        _always_active -> enabled == 1'b1;
     }
 
     function new(string name = "");
         super.new(name);
         frequence = 0;
+        _always_active = 1'b0;
 {%- if enable_node_fix %}
         unfix_frequence = 0;
         unfix_enabled = 0;

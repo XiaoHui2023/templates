@@ -10,6 +10,12 @@
 | **clock_nodes** | **clk** 队列 | |
 | **{节点名}** | 节点类型或数组 | |
 
+| 方法 | 说明 |
+| --- | --- |
+| **low_power** | 将非 **_always_active** 的 **clk** **enabled** 置 0 |
+| **collect_always_active_clk_nodes** | 收集 **_always_active** 为真的 **clk** |
+| **has_always_active_clk** | 是否存在 **_always_active** 为真的 **clk** |
+
 | 约束 | 说明 |
 | --- | --- |
 | **cst_base** | 外部约束 |
@@ -59,6 +65,7 @@
 | **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
 | **enabled** | **bit**，**rand** | 使能 |
+| **_always_active** | **bit** | 全程保持有效；由树构造时按 YAML **always_active** 写入 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 
@@ -66,7 +73,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
-| **cst_clk** | **randomize** 后 **frequence** 等于 **_resolved_freq**，**enabled** 等于 **_resolved_active** |
+| **cst_clk** | **randomize** 后 **frequence** 等于 **_resolved_freq**，**enabled** 等于 **_resolved_active**；**_always_active** 为真时 **enabled** 必须为 1 |
 
 ### pll_tci
 

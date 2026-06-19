@@ -185,6 +185,7 @@ settings:
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 前级引用。 |
+| `always_active` | `bool` | `false` | 为真时该时钟全程保持有效；**low_power** 不关断，**test_route** 固定其选通路径。 |
 
 ### Node - gate
 

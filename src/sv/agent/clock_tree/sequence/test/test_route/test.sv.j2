@@ -36,7 +36,6 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
         bit upstream,
         {{ settings.class_prefix }}node_base stored_nodes[$],
         {{ settings.class_prefix }}route_ctrl_snap stored_snaps[$],
-        {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
         {{ settings.class_prefix }}node_base pinned_path[$],
         bit quiet,
         int subject_idx,
@@ -107,7 +106,6 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
         bit upstream,
         {{ settings.class_prefix }}node_base stored_nodes[$],
         {{ settings.class_prefix }}route_ctrl_snap stored_snaps[$],
-        {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
         {{ settings.class_prefix }}node_base pinned_path[$],
         bit quiet,
         int subject_idx,
@@ -169,9 +167,9 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                 {{ settings.class_prefix }}route_structure_variant_label(subject, sv)),
                 UVM_MEDIUM)
         run_config_reg(tree, 1'b1);
-        if (always_active_clk_nodes.size() > 0
+        if (tree.has_always_active_clk()
                 && !{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
-                    always_active_clk_nodes)) begin
+                    tree)) begin
             n_skip_sub++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
@@ -192,9 +190,9 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                     "test_route:     %s line [%0d/%0d] %s — config_reg",
                     dir_label, c + 1, n_combo, combo_summary), UVM_MEDIUM)
             run_config_reg(tree, 1'b1);
-            if (always_active_clk_nodes.size() > 0
+            if (tree.has_always_active_clk()
                     && !{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
-                        always_active_clk_nodes)) begin
+                        tree)) begin
                 n_skip_combo++;
                 if (!quiet)
                     `uvm_info("CLK_TREE", $sformatf(
@@ -231,6 +229,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     {{ settings.class_prefix }}node_base probe_subjects[$];
     {{ settings.class_prefix }}node_base stored_nodes[$];
     {{ settings.class_prefix }}node_base pinned_path[$];
+    {{ settings.class_prefix }}node_base always_active_clk_nodes[$];
     {{ settings.class_prefix }}route_ctrl_snap stored_snaps[$];
     string req_clk_names;
     string pinned_names;
@@ -249,17 +248,18 @@ task {{ settings.class_prefix }}test_route_seq::body();
     rs.ok = 1'b1;
 
     if (!rq.quiet) begin
+        tree.collect_always_active_clk_nodes(always_active_clk_nodes);
         req_clk_names = {{ settings.class_prefix }}route_structure_format_node_names(
-            rq.always_active_clk_nodes);
+            always_active_clk_nodes);
         `uvm_info("CLK_TREE", $sformatf(
             "test_route: begin tree %s", tree.get_name()), UVM_LOW)
-        if (rq.always_active_clk_nodes.size() > 0)
+        if (always_active_clk_nodes.size() > 0)
             `uvm_info("CLK_TREE", $sformatf(
                 "test_route: always_active clk (%0d): %s",
-                rq.always_active_clk_nodes.size(), req_clk_names), UVM_LOW)
+                always_active_clk_nodes.size(), req_clk_names), UVM_LOW)
         else
             `uvm_info("CLK_TREE",
-                "test_route: always_active clk unset — all clk nodes must stay active",
+                "test_route: no always_active clk — all clk nodes may vary enabled",
                 UVM_LOW)
     end
 
@@ -274,7 +274,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     run_config_reg(tree, rq.quiet);
 
     {{ settings.class_prefix }}route_structure_collect_always_active_upstream_gate_mux(
-        tree, rq.always_active_clk_nodes, pinned_path);
+        tree, pinned_path);
 
     probe_subjects.delete();
     foreach (subjects[i]) begin
@@ -304,8 +304,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     {{ settings.class_prefix }}route_structure_apply_pll_distinct_freq_policy(tree, pinned_path);
     {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(tree);
     {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(pinned_path);
-    {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
-        tree, rq.always_active_clk_nodes);
+    {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(tree);
 
     stored_nodes = tree.nodes;
     save_ctrl_snap(stored_nodes, stored_snaps);
@@ -326,10 +325,10 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     for (i = 0; i < probe_subjects.size(); i++) begin
         verify_one_direction(tree, probe_subjects[i], 1'b1, stored_nodes, stored_snaps,
-            rq.always_active_clk_nodes, pinned_path, rq.quiet, i,
+            pinned_path, rq.quiet, i,
             probe_subjects.size());
         verify_one_direction(tree, probe_subjects[i], 1'b0, stored_nodes, stored_snaps,
-            rq.always_active_clk_nodes, pinned_path, rq.quiet, i,
+            pinned_path, rq.quiet, i,
             probe_subjects.size());
     end
 

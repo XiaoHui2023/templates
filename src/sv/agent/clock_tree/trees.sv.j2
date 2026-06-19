@@ -93,12 +93,18 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
         {{ node.name }}[{{ i }}].frequence = {{ node.freq }};
 {%- if node.kind == "clk" %}
         {{ node.name }}[{{ i }}].enabled = 1;
+{%- if node.always_active %}
+        {{ node.name }}[{{ i }}]._always_active = 1;
+{%- endif %}
 {%- endif %}
 {%- endfor %}
 {%- else %}
         {{ node.name }}.frequence = {{ node.freq }};
 {%- if node.kind == "clk" %}
         {{ node.name }}.enabled = 1;
+{%- if node.always_active %}
+        {{ node.name }}._always_active = 1;
+{%- endif %}
 {%- endif %}
 {%- endif %}
 {%- endif %}

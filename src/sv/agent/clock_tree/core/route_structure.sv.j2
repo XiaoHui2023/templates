@@ -418,19 +418,12 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
     end
 endfunction
 
-// always_active_clk_nodes 队列是否含该 clk 句柄
+// clk 节点是否标记为全程有效
 function automatic bit {{ settings.class_prefix }}route_structure_clk_is_always_active(
-        {{ settings.class_prefix }}clk clk_nd,
-        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
+        {{ settings.class_prefix }}clk clk_nd);
     if (clk_nd == null)
         return 1'b0;
-    foreach (always_active_clk_nodes[i]) begin
-        if (always_active_clk_nodes[i] == null)
-            continue;
-        if (always_active_clk_nodes[i] == clk_nd)
-            return 1'b1;
-    end
-    return 1'b0;
+    return clk_nd._always_active;
 endfunction
 
 // 树内 source 节点最小正频率；无正频率则 0
@@ -493,46 +486,39 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_div_dto_r
 {%- endif %}
 endfunction
 
-// 结构探测前：全部 clk 设 unfix_frequence；仅非 always_active 的 clk 设 unfix_enabled
+// 结构探测前：全部 clk 设 unfix_frequence；仅非 _always_active 的 clk 设 unfix_enabled
 function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
+        {{ settings.class_prefix }}tree_base tree);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
-    bit is_always_active;
+    bit has_always_active;
     if (tree == null)
         return;
+    has_always_active = tree.has_always_active_clk();
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
-        is_always_active = always_active_clk_nodes.size() > 0
-            && {{ settings.class_prefix }}route_structure_clk_is_always_active(
-                clk_nd, always_active_clk_nodes);
         clk_nd.unfix_frequence = 1'b1;
-        if (always_active_clk_nodes.size() > 0)
-            clk_nd.unfix_enabled = !is_always_active;
-        else
-            clk_nd.unfix_enabled = 1'b0;
+        clk_nd.unfix_enabled = has_always_active && !clk_nd._always_active;
     end
 {%- endif %}
 endfunction
 
-// config_reg 之后：自 always_active clk 沿已配置的 source 选通链向上，收集 gate/mux/div/pll
+// config_reg 之后：自 _always_active clk 沿已配置的 source 选通链向上，收集 gate/mux/div/pll
 function automatic void {{ settings.class_prefix }}route_structure_collect_always_active_upstream_gate_mux(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base always_active_clk_nodes[$],
         output {{ settings.class_prefix }}node_base collected[$]);
+    {{ settings.class_prefix }}clk clk_nd;
     {{ settings.class_prefix }}node_base cur;
 
     collected.delete();
-    if (tree == null || always_active_clk_nodes.size() == 0)
+    if (tree == null)
         return;
-    foreach (always_active_clk_nodes[i]) begin
-        if (always_active_clk_nodes[i] == null)
+    foreach (tree.clock_nodes[i]) begin
+        clk_nd = tree.clock_nodes[i];
+        if (clk_nd == null || !clk_nd._always_active)
             continue;
-        if (always_active_clk_nodes[i].kind != "clk")
-            continue;
-        cur = always_active_clk_nodes[i].source;
+        cur = clk_nd.source;
         while (cur != null) begin
             if (cur.kind == "gate" || cur.kind == "mux" || cur.kind == "div"
                     || cur.kind == "pll")
@@ -699,15 +685,15 @@ function automatic int {{ settings.class_prefix }}route_structure_theoretical_mi
     return int'(min_src_hz / 2);
 endfunction
 
-// always_active_clk_nodes 所列 clk 节点 _resolved_active 均为真
+// 树内 _always_active clk 节点 _resolved_active 均为真
 function automatic bit {{ settings.class_prefix }}route_structure_always_active_clocks_valid(
-        {{ settings.class_prefix }}node_base always_active_clk_nodes[$]);
-    foreach (always_active_clk_nodes[i]) begin
-        if (always_active_clk_nodes[i] == null)
+        {{ settings.class_prefix }}tree_base tree);
+    if (tree == null)
+        return 1'b1;
+    foreach (tree.clock_nodes[i]) begin
+        if (!tree.clock_nodes[i]._always_active)
             continue;
-        if (always_active_clk_nodes[i].kind != "clk")
-            continue;
-        if (!always_active_clk_nodes[i]._resolved_active)
+        if (!tree.clock_nodes[i]._resolved_active)
             return 1'b0;
     end
     return 1'b1;

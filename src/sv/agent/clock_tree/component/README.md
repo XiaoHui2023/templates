@@ -53,4 +53,3 @@
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 时钟树句柄；默认空则用 **sqr.tree** |
-| **always_active_clk_nodes** | **node_base** 队列 | 空队列 | 全程活动的 **clk** |

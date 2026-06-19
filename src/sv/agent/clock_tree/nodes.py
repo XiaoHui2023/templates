@@ -299,6 +299,10 @@ class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
     freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
     source: str = Field(..., min_length=1, description="前级引用。")
+    always_active: bool = Field(
+        default=False,
+        description="为真时该时钟节点全程保持有效；low_power 不关断。",
+    )
 
     @field_validator("freq", mode="before")
     @classmethod
