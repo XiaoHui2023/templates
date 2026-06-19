@@ -31,8 +31,21 @@ _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _SOURCE_ENDPOINT = re.compile(
     r"^(?P<device>[A-Za-z_][A-Za-z0-9_$]*)(?:\[(?P<idx>\d+)\])?$"
 )
+_NODE_KIND_ALIASES: dict[str, str] = {
+    "clock": "clk",
+    "div_n": "div",
+    "dto_n": "dto",
+}
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
+
+
+def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
+    kind = item.get("kind")
+    canonical = _NODE_KIND_ALIASES.get(kind)
+    if canonical is not None:
+        return {**item, "kind": canonical}
+    return item
 
 
 def _coerce_required_freq(value: Any) -> int:
@@ -363,8 +376,7 @@ class Tree(BaseModel):
                 if not isinstance(item, dict):
                     as_dict[str(item)] = item
                     continue
-                if item.get("kind") == "clock":
-                    item = {**item, "kind": "clk"}
+                item = _normalize_node_item(item)
                 node_name = item.get("name")
                 if not node_name:
                     raise ValueError(
@@ -384,8 +396,7 @@ class Tree(BaseModel):
                     f"nodes 键 {key!r} 须为合法 SystemVerilog 名字"
                 )
             if isinstance(item, dict):
-                if item.get("kind") == "clock":
-                    item = {**item, "kind": "clk"}
+                item = _normalize_node_item(item)
                 if "name" in item:
                     raise ValueError(
                         f"nodes[{key!r}] 体内不可含 name，以字典键 {key!r} 为准"
