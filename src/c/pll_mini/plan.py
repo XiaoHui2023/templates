@@ -712,57 +712,37 @@ def build_config_plan(
     from pll_kind_plan import build_pll_plan
 
     pll_bundle = build_pll_plan(tree, index, resolved)
-    dev_steps: List[RegWriteStep] = []
+    dev_patches: List[_FieldPatch] = []
 
     for node in tree.nodes_ordered:
         state = resolved.by_name[node.name]
         if not state.active:
             continue
         if isinstance(node, DivNode) and node.regs:
-            dev_steps.extend(
-                merge_field_patches(
-                    expand_div_patches(index, node, settings, state)
-                )
-            )
+            dev_patches.extend(expand_div_patches(index, node, settings, state))
         elif isinstance(node, DtoNode) and node.regs:
-            dev_steps.extend(
-                merge_field_patches(
-                    expand_dto_patches(index, node, settings, state)
-                )
-            )
+            dev_patches.extend(expand_dto_patches(index, node, settings, state))
 
     for node in tree.nodes_ordered:
         if isinstance(node, GateNode) and node.reg:
             state = resolved.by_name[node.name]
             if state.gate_open:
-                dev_steps.extend(
-                    merge_field_patches(
-                        [expand_gate_patch(index, node, settings, state)]
-                    )
-                )
+                dev_patches.append(expand_gate_patch(index, node, settings, state))
 
     for node in tree.nodes_ordered:
         if isinstance(node, MuxNode) and node.reg:
             state = resolved.by_name[node.name]
             if state.active:
-                dev_steps.extend(
-                    merge_field_patches(
-                        [expand_mux_patch(index, node, state)]
-                    )
-                )
+                dev_patches.append(expand_mux_patch(index, node, state))
 
     for node in tree.nodes_ordered:
         if isinstance(node, GateNode) and node.reg:
             state = resolved.by_name[node.name]
             if not state.gate_open:
-                dev_steps.extend(
-                    merge_field_patches(
-                        [expand_gate_patch(index, node, settings, state)]
-                    )
-                )
+                dev_patches.append(expand_gate_patch(index, node, settings, state))
 
     return ConfigPlan(
         pll_kind_plans=pll_bundle.kind_plans,
         pll_instances=pll_bundle.instances,
-        dev_steps=_with_step_indexes(dev_steps),
+        dev_steps=_with_step_indexes(merge_field_patches(dev_patches)),
     )
