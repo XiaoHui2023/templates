@@ -43,6 +43,7 @@ settings:
 | --- | --- | --- | --- |
 | `main_fn` | `str` | `pll_mini_config` | 配置入口 C 函数名。 |
 | `header_guard` | `str` | `PLL_MINI_H` | 头文件 include guard。 |
+| `source_guard` | `str` | `PLL_MINI_C` | 源文件 include guard，避免被多次 include。 |
 | `gate_reg_high_means_open` | `bool` | `false` | 门控寄存器写 1 是否表示打开。 |
 | `div_reg_high_means_reset` | `bool` | `false` | div 的 rst 写 1 是否表示复位。 |
 | `dto_reg_high_means_reset` | `bool` | `false` | dto 的 rst 写 1 是否表示复位。 |

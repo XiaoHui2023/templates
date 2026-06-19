@@ -57,8 +57,8 @@ class PllKindPlan:
 
     @property
     def c_fn_params(self) -> str:
-        addr = ", ".join(f"uint64_t {name}" for name in self.addr_params)
-        return f"{addr}, uint32_t out_freq_hz"
+        addr = ", ".join(f"unsigned long {name}" for name in self.addr_params)
+        return f"{addr}, unsigned int out_freq_hz"
 
 
 @dataclass(frozen=True)

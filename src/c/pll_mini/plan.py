@@ -86,7 +86,7 @@ class RegWriteStep:
                 value_lit = str(part.value)
                 lsb_lit = str(part.lsb)
             if cast_uint32:
-                expr = f"((uint32_t){value_lit:<6} << {lsb_lit:<4})"
+                expr = f"((unsigned int){value_lit:<6} << {lsb_lit:<4})"
             else:
                 expr = f"({value_lit:<6} << {lsb_lit:<4})"
             lines.append(f"{prefix}{expr}{sep} // {part.comment}")

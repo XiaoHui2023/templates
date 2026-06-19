@@ -1,6 +1,7 @@
-#include "pll_mini.h"
+#ifndef {{ settings.source_guard }}
+#define {{ settings.source_guard }}
 
-#include <stddef.h>
+#include "pll_mini.h"
 
 static const pll_mini_config_step_t pll_mini_config_steps[] = {
 {% for step in config_plan.dev_steps -%}
@@ -9,16 +10,22 @@ static const pll_mini_config_step_t pll_mini_config_steps[] = {
 };
 
 {% if config_plan.fixed_wait_lock_mask_hex -%}
-static void pll_mini_wait_lock(uint64_t addr)
+static void pll_mini_wait_lock(unsigned long addr)
 {
-    while ((cpu_config_read(addr) & {{ config_plan.fixed_wait_lock_mask_hex }}) == 0u)
-        ;
+    unsigned int data;
+
+    cpu_config_read(&data, addr);
+    while ((data & {{ config_plan.fixed_wait_lock_mask_hex }}) == 0u)
+        cpu_config_read(&data, addr);
 }
 {% else -%}
-static void pll_mini_wait_lock(uint64_t addr, uint32_t lock_mask)
+static void pll_mini_wait_lock(unsigned long addr, unsigned int lock_mask)
 {
-    while ((cpu_config_read(addr) & lock_mask) == 0u)
-        ;
+    unsigned int data;
+
+    cpu_config_read(&data, addr);
+    while ((data & lock_mask) == 0u)
+        cpu_config_read(&data, addr);
 }
 {% endif -%}
 
@@ -26,7 +33,7 @@ static void pll_mini_wait_lock(uint64_t addr, uint32_t lock_mask)
 static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 {
 {%- for name in kind.cfg_var_names %}
-    uint32_t {{ name }};
+    unsigned int {{ name }};
 {%- endfor %}
     switch (out_freq_hz) {
 {%- for branch in kind.freq_branches %}
@@ -49,11 +56,9 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 }
 
 {% endfor -%}
-export "DPI-C" function {{ settings.main_fn }};
-
 void {{ settings.main_fn }}(void)
 {
-    size_t i;
+    unsigned int i;
 {% for inst in config_plan.pll_instances %}
     {{ inst.fn_name }}({{ inst.c_call_args }});
 {% endfor %}
@@ -66,3 +71,5 @@ void {{ settings.main_fn }}(void)
         cpu_config_write(step->addr, step->value);
     }
 }
+
+#endif

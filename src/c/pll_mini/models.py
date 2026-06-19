@@ -35,6 +35,11 @@ class Settings(BaseModel):
         min_length=1,
         description="头文件 include guard 宏名。",
     )
+    source_guard: str = Field(
+        "PLL_MINI_C",
+        min_length=1,
+        description="源文件 include guard 宏名，避免被多次 include。",
+    )
     gate_reg_high_means_open: bool = Field(
         False,
         description="为真时门控寄存器写 1 表示打开；为假时写 1 表示关闭。",
@@ -75,6 +80,7 @@ class Settings(BaseModel):
         for name, value in (
             ("main_fn", self.main_fn),
             ("header_guard", self.header_guard),
+            ("source_guard", self.source_guard),
         ):
             if not _C_IDENT.match(value):
                 raise ValueError(f"{name} {value!r} 须为合法 C 标识符")
