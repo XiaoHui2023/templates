@@ -1,6 +1,6 @@
 # check_measure
 
-同时检查频率与占空比；interface 一次 **start_measure** 并行观测，频率与占空比各自独立计数稳定周期。
+同时检查频率与占空比；interface 一次 **start_measure** 并行观测。先经 **active_cycles** 个上升沿确认有活动，再各自独立计数稳定周期。
 
 ## req
 

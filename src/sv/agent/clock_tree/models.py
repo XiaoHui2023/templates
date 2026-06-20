@@ -35,12 +35,18 @@ class Settings(BaseModel):
         500,
         ge=500,
         description="测量接口与 check_measure 默认最低频率，单位 Hz；"
-        "决定无边沿超时与可测量频率下限。",
+        "决定活动与稳定阶段超时时限及可测量频率下限。",
+    )
+    active_cycles: int = Field(
+        3,
+        ge=2,
+        description="判定时钟有活动所需连续上升沿个数；"
+        "未达个数即结束活动阶段并置 inactive。",
     )
     stable_cycles: int = Field(
         100,
         ge=2,
-        description="频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。",
+        description="活动确认后频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。",
     )
     mux_switch_wait_cycles: int = Field(
         3,

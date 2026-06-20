@@ -38,7 +38,8 @@ settings:
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
 | `min_freq_hz` | `int` | `500` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
-| `stable_cycles` | `int` | `100` | 频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。 |
+| `active_cycles` | `int` | `3` | 判定时钟有活动所需连续上升沿个数；未达个数即结束活动阶段。 |
+| `stable_cycles` | `int` | `100` | 活动确认后频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。 |
 | `mux_switch_wait_cycles` | `int` | `3` | **config_reg** 写 **mux** 选择前，按待切换 **mux** 最慢直接前级时钟等待的周期数。 |
 | `period_tolerance` | `float` | `0.05` | 相邻周期相对偏差上限。 |
 | `duty_min` | `float` | `50` | 允许占空比下限，百分数；闭区间端点计入合格。 |

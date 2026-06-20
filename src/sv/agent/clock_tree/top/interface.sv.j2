@@ -4,6 +4,7 @@
 
 interface {{ settings.class_prefix }}interface #(
     parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},
+    parameter int ACTIVE_CYCLES = {{ settings.active_cycles }},
     parameter int STABLE_CYCLES = {{ settings.stable_cycles }},
     parameter real PERIOD_TOL = {{ settings.period_tolerance }},
     parameter real DUTY_MIN_PCT = {{ settings.duty_min }},
@@ -17,6 +18,7 @@ interface {{ settings.class_prefix }}interface #(
 
     {{ settings.class_prefix }}measure_interface #(
         .MIN_FREQ_HZ(MIN_FREQ_HZ),
+        .ACTIVE_CYCLES(ACTIVE_CYCLES),
         .STABLE_CYCLES(STABLE_CYCLES),
         .PERIOD_TOL(PERIOD_TOL),
         .DUTY_MIN_PCT(DUTY_MIN_PCT),
@@ -46,10 +48,10 @@ interface {{ settings.class_prefix }}interface #(
         meas.set_min_freq_hz(hz);
     endfunction
 
-    // 轮询频率与占空比稳定，最长 meas_timeout_ns_rt
+    // 轮询活动确认与频率、占空比稳定
     // need_freq — 为真时等待 freq_stable
     // need_duty — 为真时等待 duty_stable
-    // ok — 为真表示在时限内达到所需稳定
+    // ok — 为真表示活动已确认且在稳定时限内达到所需稳定
     task automatic wait_measure_stable(
             input bit need_freq,
             input bit need_duty,

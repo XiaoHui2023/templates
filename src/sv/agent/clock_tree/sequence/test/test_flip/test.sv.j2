@@ -98,6 +98,9 @@ task {{ settings.class_prefix }}test_flip_seq::measure_node_phase(
         {{ settings.class_prefix }}node_base nd,
         output real phase_frac,
         output bit ok);
+    int meas_period_ns;
+    int meas_active_timeout_ns;
+    int meas_stable_timeout_ns;
     int meas_timeout_ns;
     int elapsed_ns;
 
@@ -106,14 +109,30 @@ task {{ settings.class_prefix }}test_flip_seq::measure_node_phase(
     if (nd == null || nd.vif == null)
         return;
 
-    meas_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1) / {{ settings.min_freq_hz }}
-        * {{ settings.stable_cycles }} * 3;
+    meas_period_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1)
+        / {{ settings.min_freq_hz }};
+    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }} * 3;
+    meas_stable_timeout_ns = meas_period_ns * {{ settings.stable_cycles }} * 3;
+    meas_timeout_ns = meas_active_timeout_ns + meas_stable_timeout_ns;
     nd.vif.start_measure();
     elapsed_ns = 0;
-    while (elapsed_ns < meas_timeout_ns) begin
+    while (elapsed_ns < meas_active_timeout_ns) begin
+        if (nd.vif.meas.activity_ok || nd.vif.meas.inactive)
+            break;
+        if (!nd.vif.meas.meas_en)
+            break;
+        #1ns;
+        elapsed_ns++;
+    end
+    if (!nd.vif.meas.activity_ok) begin
+        nd.vif.stop_measure();
+        return;
+    end
+    elapsed_ns = 0;
+    while (elapsed_ns < meas_stable_timeout_ns) begin
         if (nd.vif.meas.timed_out)
             break;
-        if (!nd.vif.meas.meas_en && !nd.vif.meas.active)
+        if (!nd.vif.meas.meas_en)
             break;
         if (nd.vif.meas.freq_stable) begin
             ok = 1'b1;

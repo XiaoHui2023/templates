@@ -4,6 +4,7 @@
 
 interface {{ settings.class_prefix }}measure_interface #(
     parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},
+    parameter int ACTIVE_CYCLES = {{ settings.active_cycles }},
     parameter int STABLE_CYCLES = {{ settings.stable_cycles }},
     parameter real PERIOD_TOL = {{ settings.period_tolerance }},
     parameter real DUTY_MIN_PCT = {{ settings.duty_min }},
@@ -24,6 +25,8 @@ interface {{ settings.class_prefix }}measure_interface #(
     bit meas_en;
 
     logic active;
+    logic activity_ok;
+    logic inactive;
     real freq_hz;
     real duty;
     logic duty_ok;
@@ -42,10 +45,12 @@ interface {{ settings.class_prefix }}measure_interface #(
     realtime last_posedge_t;
     realtime last_period_t;
     realtime high_end_t;
+    int activity_edge_cnt;
     int freq_stable_cnt;
     int duty_stable_cnt;
     int min_freq_hz_rt;
-    int meas_timeout_ns_rt;
+    int active_timeout_ns_rt;
+    int stable_timeout_ns_rt;
     real max_edge_period_rt;
 
     // 周期内归一化相位，取值 0 以上且小于 1
@@ -68,20 +73,23 @@ interface {{ settings.class_prefix }}measure_interface #(
         return cycles;
     endfunction
 
-    // 按最低频率更新超时与最大边沿间隔
+    // 按最低频率更新活动与稳定阶段超时及最大边沿间隔
     // hz — 最低频率，Hz
     function automatic void update_meas_timing_from_min_freq(int hz);
+        int period_ns;
+
         if (hz < MIN_FREQ_HZ)
             hz = MIN_FREQ_HZ;
         min_freq_hz_rt = hz;
-        meas_timeout_ns_rt = (1_000_000_000 + hz - 1) / hz
-            * STABLE_CYCLES * TIMEOUT_MARGIN;
+        period_ns = (1_000_000_000 + hz - 1) / hz;
+        active_timeout_ns_rt = period_ns * ACTIVE_CYCLES * TIMEOUT_MARGIN;
+        stable_timeout_ns_rt = period_ns * STABLE_CYCLES * TIMEOUT_MARGIN;
         max_edge_period_rt = RT_PER_SEC / hz;
     endfunction
 
     // 将当前读数写入 last_* 快照
     function automatic void latch_last_results();
-        if (active) begin
+        if (activity_ok) begin
             last_freq_hz = freq_hz;
             last_duty = duty;
             last_phase_frac = phase_frac;
@@ -92,6 +100,8 @@ interface {{ settings.class_prefix }}measure_interface #(
     // 清零测量结果与边沿状态
     function automatic void reset_measure();
         active = 1'b0;
+        activity_ok = 1'b0;
+        inactive = 1'b0;
         freq_stable = 1'b0;
         duty_stable = 1'b0;
         timed_out = 1'b0;
@@ -104,13 +114,16 @@ interface {{ settings.class_prefix }}measure_interface #(
         last_posedge_t = 0.0;
         last_period_t = 0.0;
         high_end_t = 0.0;
+        activity_edge_cnt = 0;
         freq_stable_cnt = 0;
         duty_stable_cnt = 0;
     endfunction
 
-    // 从未采到边沿时结束测量
+    // 活动阶段未采够上升沿时结束测量
     function automatic void mark_inactive();
         active = 1'b0;
+        activity_ok = 1'b0;
+        inactive = 1'b1;
         timed_out = 1'b0;
         freq_stable = 1'b0;
         duty_stable = 1'b0;
@@ -118,10 +131,12 @@ interface {{ settings.class_prefix }}measure_interface #(
         duty_stable_cnt = 0;
     endfunction
 
-    // 已采到边沿但在时限内未达到稳定计数
+    // 活动已确认但在稳定阶段时限内未达到稳定计数
     function automatic void mark_timeout();
         latch_last_results();
-        active = 1'b0;
+        active = 1'b1;
+        activity_ok = 1'b1;
+        inactive = 1'b0;
         timed_out = 1'b1;
         freq_stable = 1'b0;
         duty_stable = 1'b0;
@@ -129,7 +144,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         duty_stable_cnt = 0;
     endfunction
 
-    // 根据相邻上升沿更新频率、占空比与稳定计数
+    // 活动确认后根据相邻上升沿更新频率、占空比与稳定计数
     function automatic void sample_period(realtime pos_t, realtime prev_pos_t);
         realtime period_t;
         realtime high_t;
@@ -214,10 +229,10 @@ interface {{ settings.class_prefix }}measure_interface #(
         set_measure_en(1'b0);
     endfunction
 
-    // 轮询频率与占空比稳定，最长 meas_timeout_ns_rt
+    // 轮询活动确认与频率、占空比稳定
     // need_freq — 为真时等待 freq_stable
     // need_duty — 为真时等待 duty_stable
-    // ok — 为真表示在时限内达到所需稳定
+    // ok — 为真表示活动已确认且在稳定时限内达到所需稳定
     task automatic wait_measure_stable(
             input bit need_freq,
             input bit need_duty,
@@ -228,10 +243,25 @@ interface {{ settings.class_prefix }}measure_interface #(
 
         elapsed_ns = 0;
         ok = 1'b0;
-        while (elapsed_ns < meas_timeout_ns_rt) begin
+        while (elapsed_ns < active_timeout_ns_rt) begin
+            if (activity_ok || inactive)
+                break;
+            if (!meas_en)
+                break;
+            #1ns;
+            elapsed_ns++;
+        end
+        if (!activity_ok) begin
+            if (!inactive && meas_en)
+                mark_inactive();
+            return;
+        end
+
+        elapsed_ns = 0;
+        while (elapsed_ns < stable_timeout_ns_rt) begin
             if (timed_out)
                 break;
-            if (!meas_en && !active)
+            if (!meas_en)
                 break;
             freq_done = !need_freq || freq_stable;
             duty_done = !need_duty || duty_stable;
@@ -242,10 +272,9 @@ interface {{ settings.class_prefix }}measure_interface #(
             #1ns;
             elapsed_ns++;
         end
-        if (!ok && !timed_out) begin
-            if (last_edge_t <= 0.0)
-                mark_inactive();
-            else
+        if (!ok && !timed_out && meas_en) begin
+            if (($realtime - last_edge_t) >= max_edge_period_rt
+                    || !freq_stable || !duty_stable)
                 mark_timeout();
         end
     endtask
@@ -262,12 +291,24 @@ interface {{ settings.class_prefix }}measure_interface #(
 
             now_t = $realtime;
             last_edge_t = now_t;
-            active = 1'b1;
 
             prev_pos_t = last_posedge_t;
             last_posedge_t = now_t;
 
-            if (prev_pos_t > 0.0)
+            if (!activity_ok) begin
+                activity_edge_cnt++;
+                if (activity_edge_cnt >= ACTIVE_CYCLES) begin
+                    activity_ok = 1'b1;
+                    active = 1'b1;
+                    freq_stable_cnt = 0;
+                    duty_stable_cnt = 0;
+                    freq_stable = 1'b0;
+                    duty_stable = 1'b0;
+                    last_period_t = 0.0;
+                end
+            end
+
+            if (activity_ok && prev_pos_t > 0.0)
                 sample_period(now_t, prev_pos_t);
         end
     endtask
@@ -280,7 +321,6 @@ interface {{ settings.class_prefix }}measure_interface #(
                 continue;
 
             last_edge_t = $realtime;
-            active = 1'b1;
             high_end_t = last_edge_t;
         end
     endtask
@@ -306,15 +346,18 @@ interface {{ settings.class_prefix }}measure_interface #(
     initial begin : meas_timeout_loop
         forever begin
             wait (meas_en === 1'b1);
+            #(active_timeout_ns_rt * 1ns);
+            if (!meas_en)
+                continue;
+            if (!activity_ok) begin
+                mark_inactive();
+                meas_en = 1'b0;
+                continue;
+            end
             forever begin
-                #(meas_timeout_ns_rt * 1ns);
+                #(stable_timeout_ns_rt * 1ns);
                 if (!meas_en)
                     break;
-                if (last_edge_t <= 0.0) begin
-                    mark_inactive();
-                    meas_en = 1'b0;
-                    break;
-                end
                 if (($realtime - last_edge_t) >= max_edge_period_rt
                         || !freq_stable || !duty_stable) begin
                     mark_timeout();
