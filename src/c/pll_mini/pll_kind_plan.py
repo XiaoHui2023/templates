@@ -23,14 +23,27 @@ PllGroupKey = Tuple[str, int]
 @dataclass(frozen=True)
 class PllWritePartTemplate:
     lsb: int
+    width: int
     value_expr: str
     comment: str
+
+    @property
+    def value_mask_hex(self) -> str:
+        if self.width >= 32:
+            return "0xFFFFFFFFu"
+        return f"0x{((1 << self.width) - 1):08X}u"
 
 
 @dataclass(frozen=True)
 class PllWriteTemplate:
     addr_param: str
     parts: tuple[PllWritePartTemplate, ...]
+
+    @property
+    def value_var(self) -> str:
+        if self.addr_param.endswith("_addr"):
+            return f"{self.addr_param[:-len('_addr')]}_value"
+        return f"{self.addr_param}_value"
 
 
 @dataclass(frozen=True)
@@ -59,6 +72,15 @@ class PllKindPlan:
     def c_fn_params(self) -> str:
         addr = ", ".join(f"unsigned long {name}" for name in self.addr_params)
         return f"{addr}, unsigned int out_freq_hz"
+
+    @property
+    def addr_value_vars(self) -> tuple[str, ...]:
+        return tuple(
+            f"{name[:-len('_addr')]}_value"
+            if name.endswith("_addr")
+            else f"{name}_value"
+            for name in self.addr_params
+        )
 
 
 @dataclass(frozen=True)
@@ -181,6 +203,7 @@ def _group_reg_write_templates(
         tail = ref.reg.path.split(".")[-1]
         part = PllWritePartTemplate(
             lsb=ref.effective_lsb,
+            width=ref.effective_width,
             value_expr=value_expr_for_key(key),
             comment=comment_for_key(key),
         )
@@ -230,6 +253,7 @@ def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
     ctrl_init = tuple(
         PllWritePartTemplate(
             lsb=ctrl_lsb[key],
+            width=1,
             value_expr=str(val),
             comment="bypass=1 pwrdn=0 reset=1" if key == "bypass" else key,
         )
@@ -238,6 +262,7 @@ def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
     div_parts = tuple(
         PllWritePartTemplate(
             lsb=div_lsb[key],
+            width=8,
             value_expr=key,
             comment=key,
         )
@@ -248,11 +273,11 @@ def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
         PllWriteTemplate(_slot_param_name(div_tail), div_parts),
         PllWriteTemplate(
             _slot_param_name(ctrl_tail),
-            (PllWritePartTemplate(2, "0", "reset release"),),
+            (PllWritePartTemplate(2, 1, "0", "reset release"),),
         ),
         PllWriteTemplate(
             _slot_param_name(ctrl_tail),
-            (PllWritePartTemplate(0, "0", "bypass off"),),
+            (PllWritePartTemplate(0, 1, "0", "bypass off"),),
         ),
     )
 
@@ -269,7 +294,7 @@ def _dw_write_templates(
         )
         tail = ref.reg.path.split(".")[-1]
         by_reg.setdefault(tail, []).append(
-            PllWritePartTemplate(ref.effective_lsb, key, key)
+            PllWritePartTemplate(ref.effective_lsb, ref.effective_width, key, key)
         )
     return tuple(
         PllWriteTemplate(_slot_param_name(tail), tuple(parts))
@@ -293,7 +318,14 @@ def _inno_write_templates(
     templates.append(
         PllWriteTemplate(
             _slot_param_name(pd_tail),
-            (PllWritePartTemplate(pd_ref.effective_lsb, "1", "pd assert"),),
+            (
+                PllWritePartTemplate(
+                    pd_ref.effective_lsb,
+                    pd_ref.effective_width,
+                    "1",
+                    "pd assert",
+                ),
+            ),
         )
     )
     templates.extend(
@@ -308,7 +340,14 @@ def _inno_write_templates(
     templates.append(
         PllWriteTemplate(
             _slot_param_name(pd_tail),
-            (PllWritePartTemplate(pd_ref.effective_lsb, "0", "pd release"),),
+            (
+                PllWritePartTemplate(
+                    pd_ref.effective_lsb,
+                    pd_ref.effective_width,
+                    "0",
+                    "pd release",
+                ),
+            ),
         )
     )
     if output_count <= 1:

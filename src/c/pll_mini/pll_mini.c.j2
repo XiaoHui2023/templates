@@ -35,6 +35,9 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 {%- for name in kind.cfg_var_names %}
     unsigned int {{ name }};
 {%- endfor %}
+{%- for value_var in kind.addr_value_vars %}
+    unsigned int {{ value_var }} = 0u;
+{%- endfor %}
     switch (out_freq_hz) {
 {%- for branch in kind.freq_branches %}
     case {{ branch.freq_case_lit }}:
@@ -48,10 +51,11 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
     }
 {%- for write in kind.write_templates %}
 
-    cpu_config_write({{ write.addr_param }},
 {%- for part in write.parts %}
-{{ "        " }}({{ part.value_expr }} << {{ part.lsb }}){% if not loop.last %} |{% else %});{% endif %} // {{ part.comment }}
+    {{ write.value_var }} &= ~({{ part.value_mask_hex }} << {{ part.lsb }}u);
+    {{ write.value_var }} |= (((unsigned int)({{ part.value_expr }}) & {{ part.value_mask_hex }}) << {{ part.lsb }}u); // {{ part.comment }}
 {%- endfor %}
+    cpu_config_write({{ write.addr_param }}, {{ write.value_var }});
 {%- endfor %}
 }
 
