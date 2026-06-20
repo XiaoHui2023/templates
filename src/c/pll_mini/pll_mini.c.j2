@@ -15,7 +15,7 @@ static void pll_mini_wait_lock(unsigned long addr)
     unsigned int data;
 
     cpu_config_read(&data, addr);
-    while ((data & {{ config_plan.fixed_wait_lock_mask_hex }}) == 0u)
+    while ((data & {{ config_plan.fixed_wait_lock_mask_hex }}) == 0)
         cpu_config_read(&data, addr);
 }
 {% else -%}
@@ -24,7 +24,7 @@ static void pll_mini_wait_lock(unsigned long addr, unsigned int lock_mask)
     unsigned int data;
 
     cpu_config_read(&data, addr);
-    while ((data & lock_mask) == 0u)
+    while ((data & lock_mask) == 0)
         cpu_config_read(&data, addr);
 }
 {% endif -%}
@@ -36,7 +36,7 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
     unsigned int {{ name }};
 {%- endfor %}
 {%- for value_var in kind.addr_value_vars %}
-    unsigned int {{ value_var }} = 0u;
+    unsigned int {{ value_var }} = 0;
 {%- endfor %}
     switch (out_freq_hz) {
 {%- for branch in kind.freq_branches %}
@@ -51,10 +51,7 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
     }
 {%- for write in kind.write_templates %}
 
-{%- for part in write.parts %}
-    {{ write.value_var }} &= ~({{ part.value_mask_hex }} << {{ part.lsb }}u);
-    {{ write.value_var }} |= (((unsigned int)({{ part.value_expr }}) & {{ part.value_mask_hex }}) << {{ part.lsb }}u); // {{ part.comment }}
-{%- endfor %}
+    {{ write.c_value_update_stmt }}
     cpu_config_write({{ write.addr_param }}, {{ write.value_var }});
 {%- endfor %}
 }
@@ -69,7 +66,7 @@ void {{ settings.main_fn }}(void)
 {% for inst in config_plan.pll_instances if inst.wait_lock %}
     pll_mini_wait_lock({% if config_plan.fixed_wait_lock_mask_hex %}{{ inst.lock_addr_macro }}{% else %}{{ inst.lock_addr_macro }}, {{ inst.lock_mask_hex }}{% endif %});
 {% endfor %}
-    for (i = 0u; i < sizeof(pll_mini_config_steps) / sizeof(pll_mini_config_steps[0]); i++) {
+    for (i = 0; i < sizeof(pll_mini_config_steps) / sizeof(pll_mini_config_steps[0]); i++) {
         const pll_mini_config_step_t *step = &pll_mini_config_steps[i];
 
         cpu_config_write(step->addr, step->value);

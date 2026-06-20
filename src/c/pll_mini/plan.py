@@ -646,7 +646,7 @@ def _pll_lock_view(
     if "lock" not in node.regs:
         raise ValueError(f"pll node {node.name!r} requires regs.lock")
     ref = index.resolve(node.regs["lock"], ctx=f"node {node.name!r} lock")
-    mask_hex = f"0x{ref.effective_mask & 0xFFFFFFFF:08X}u"
+    mask_hex = f"0x{(ref.effective_mask & 0xFFFFFFFF):X}"
     return ref.reg.addr_macro, mask_hex
 
 

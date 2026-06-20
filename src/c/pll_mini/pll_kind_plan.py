@@ -27,11 +27,24 @@ class PllWritePartTemplate:
     value_expr: str
     comment: str
 
-    @property
-    def value_mask_hex(self) -> str:
-        if self.width >= 32:
-            return "0xFFFFFFFFu"
-        return f"0x{((1 << self.width) - 1):08X}u"
+
+def _c_compact_hex32(value: int) -> str:
+    return f"0x{value & 0xFFFFFFFF:X}"
+
+
+def _field_mask(width: int) -> int:
+    if width >= 32:
+        return 0xFFFFFFFF
+    return (1 << width) - 1
+
+
+def _is_int_literal(expr: str) -> bool:
+    text = expr.strip()
+    if not text:
+        return False
+    if text[0] == "-":
+        return text[1:].isdigit()
+    return text.isdigit()
 
 
 @dataclass(frozen=True)
@@ -44,6 +57,47 @@ class PllWriteTemplate:
         if self.addr_param.endswith("_addr"):
             return f"{self.addr_param[:-len('_addr')]}_value"
         return f"{self.addr_param}_value"
+
+    @classmethod
+    def _combined_clear_mask_hex(cls, parts: tuple[PllWritePartTemplate, ...]) -> str:
+        total = 0
+        for part in parts:
+            total |= _field_mask(part.width) << part.lsb
+        return _c_compact_hex32(total)
+
+    @classmethod
+    def _part_set_term(cls, part: PllWritePartTemplate) -> str | None:
+        if _is_int_literal(part.value_expr):
+            val = int(part.value_expr)
+            if val == 0:
+                return None
+            return f"({val} << {part.lsb})"
+        if part.lsb == 0:
+            return part.value_expr
+        return f"({part.value_expr} << {part.lsb})"
+
+    @property
+    def c_value_update_stmt(self) -> str:
+        """同寄存器多 field 合并为一条读改写赋值；set 侧按 field 换行，见 pll_mini_notes。"""
+        var = self.value_var
+        clear_mask = self._combined_clear_mask_hex(self.parts)
+        set_parts = [
+            (term, part.comment)
+            for part in self.parts
+            if (term := self._part_set_term(part)) is not None
+        ]
+        if not set_parts:
+            comments = ", ".join(part.comment for part in self.parts if part.comment)
+            suffix = f" // {comments}" if comments else ""
+            return f"{var} = {var} & ~{clear_mask};{suffix}"
+        cont_indent = " " * (4 + len(var) + 3)
+        lines = [f"{var} = ({var} & ~{clear_mask})"]
+        for idx, (term, comment) in enumerate(set_parts):
+            is_last = idx + 1 == len(set_parts)
+            sep = ";" if is_last else " |"
+            suffix = f" // {comment}" if comment else ""
+            lines.append(f"{cont_indent}| {term}{sep}{suffix}")
+        return "\n".join(lines)
 
 
 @dataclass(frozen=True)
