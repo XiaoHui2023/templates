@@ -609,19 +609,14 @@ def expand_gate_patch(
     index: RegModelIndex,
     node: GateNode,
     settings: SettingsView,
-    resolved: ResolvedNode,
 ) -> _FieldPatch:
-    if settings.gate_reg_high_means_open:
-        value = 1 if resolved.gate_open else 0
-    else:
-        value = 0 if resolved.gate_open else 1
-    state = "open" if resolved.gate_open else "close"
+    value = 1 if settings.gate_reg_high_means_open else 0
     return _patch(
         index,
         node_name=node.name,
         raw_path=node.reg,
         value=value,
-        note=f"{node.name} gate {state}",
+        note=f"{node.name} gate open",
     )
 
 
@@ -726,20 +721,14 @@ def build_config_plan(
     for node in tree.nodes_ordered:
         if isinstance(node, GateNode) and node.reg:
             state = resolved.by_name[node.name]
-            if state.gate_open:
-                dev_patches.append(expand_gate_patch(index, node, settings, state))
+            if state.active:
+                dev_patches.append(expand_gate_patch(index, node, settings))
 
     for node in tree.nodes_ordered:
         if isinstance(node, MuxNode) and node.reg:
             state = resolved.by_name[node.name]
             if state.active:
                 dev_patches.append(expand_mux_patch(index, node, state))
-
-    for node in tree.nodes_ordered:
-        if isinstance(node, GateNode) and node.reg:
-            state = resolved.by_name[node.name]
-            if not state.gate_open:
-                dev_patches.append(expand_gate_patch(index, node, settings, state))
 
     return ConfigPlan(
         pll_kind_plans=pll_bundle.kind_plans,
