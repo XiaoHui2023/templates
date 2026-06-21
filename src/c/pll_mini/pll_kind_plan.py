@@ -94,7 +94,7 @@ class PllWriteTemplate:
         lines = [f"{var} = ({var} & ~{clear_mask})"]
         for idx, (term, comment) in enumerate(set_parts):
             is_last = idx + 1 == len(set_parts)
-            sep = ";" if is_last else " |"
+            sep = ";" if is_last else ""
             suffix = f" // {comment}" if comment else ""
             lines.append(f"{cont_indent}| {term}{sep}{suffix}")
         return "\n".join(lines)
