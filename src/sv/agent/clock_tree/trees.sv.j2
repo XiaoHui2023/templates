@@ -92,6 +92,9 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "source" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_source_class }}::type_id::create("{{ node.name }}");
         {{ node.name }}.source_kind = {{ source_kind_to_sv_enum[node.source_kind] }};
+{%- elif node.kind == "cell" %}
+        {{ node.name }} = {{ settings.class_prefix }}cell::type_id::create("{{ node.name }}");
+        {{ node.name }}.cell_kind = "{{ node.cell_kind }}";
 {%- else %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
 {%- endif %}
@@ -116,25 +119,50 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endfor %}
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
-{%- if node.kind in ["clk", "pll", "source"] %}
+{%- if node.kind == "clk" %}
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
-        {{ node.name }}["{{ g }}"].frequence = {{ node.freq }};
-{%- if node.kind == "clk" %}
-        {{ node.name }}["{{ g }}"].enabled = 1;
-{%- if node.always_active %}
-        {{ node.name }}["{{ g }}"]._always_active = 1;
+{%- set clk_acc = node.name ~ '["' ~ g ~ '"]' %}
+{%- if node.clk_trees_emit_frequence %}
+        {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
+{%- if node.clk_trees_emit_enabled %}
+        {{ clk_acc }}.enabled = {{ node.clk_init_enabled }};
+{%- endif %}
+{%- if enable_node_fix and node.clk_trees_emit_unfix_frequence %}
+        {{ clk_acc }}.unfix_frequence = 1'b0;
+{%- endif %}
+{%- if enable_node_fix and node.clk_trees_emit_unfix_enabled %}
+        {{ clk_acc }}.unfix_enabled = 1'b0;
+{%- endif %}
+{%- if node.always_active %}
+        {{ clk_acc }}._always_active = 1;
 {%- endif %}
 {%- endfor %}
 {%- else %}
-        {{ node.name }}.frequence = {{ node.freq }};
-{%- if node.kind == "clk" %}
-        {{ node.name }}.enabled = 1;
+{%- if node.clk_trees_emit_frequence %}
+        {{ node.name }}.frequence = {{ node.clk_init_frequence }};
+{%- endif %}
+{%- if node.clk_trees_emit_enabled %}
+        {{ node.name }}.enabled = {{ node.clk_init_enabled }};
+{%- endif %}
+{%- if enable_node_fix and node.clk_trees_emit_unfix_frequence %}
+        {{ node.name }}.unfix_frequence = 1'b0;
+{%- endif %}
+{%- if enable_node_fix and node.clk_trees_emit_unfix_enabled %}
+        {{ node.name }}.unfix_enabled = 1'b0;
+{%- endif %}
 {%- if node.always_active %}
         {{ node.name }}._always_active = 1;
 {%- endif %}
 {%- endif %}
+{%- elif node.kind in ["pll", "source"] %}
+{%- if node.output_groups %}
+{%- for g in node.output_groups %}
+        {{ node.name }}["{{ g }}"].frequence = {{ node.freq }};
+{%- endfor %}
+{%- else %}
+        {{ node.name }}.frequence = {{ node.freq }};
 {%- endif %}
 {%- endif %}
 {%- if node.kind == "mux" %}

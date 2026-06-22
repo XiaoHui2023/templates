@@ -24,6 +24,7 @@ from reg_paths import (
     SOURCE_KIND_TO_SV,
     div_reg_keys_for_kind,
     node_path_connectable,
+    normalize_cell_kind,
     normalize_div_kind,
     normalize_inv_kind,
     normalize_pll_kind,
@@ -51,6 +52,7 @@ PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div2"]
 InvKind = Literal["inv", "mux_inv"]
 SourceKind = Literal["source", "gate"]
+CellKind = Literal["cell", "buf"]
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -68,6 +70,12 @@ def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
 def _coerce_required_freq(value: Any) -> int:
     if value is None or value == "":
         raise ValueError("须填写 freq")
+    return int(value)
+
+
+def _coerce_optional_int(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
     return int(value)
 
 
@@ -374,9 +382,27 @@ class PllNode(NodeBase):
         return self
 
 
+class CellNode(NodeBase):
+    kind: Literal["cell"] = "cell"
+    cell_kind: CellKind = Field(
+        "cell",
+        description="cell 型号：cell、buf，大小写不限；仅区分配置，仿真行为相同。",
+    )
+    source: str = Field(..., min_length=1, description="前级引用。")
+
+    @field_validator("cell_kind", mode="before")
+    @classmethod
+    def _normalize_cell_kind(cls, value: object) -> str:
+        return normalize_cell_kind(value)
+
+
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
-    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
+    freq: Optional[int] = Field(
+        default=None,
+        description="典型频率，单位 Hz；省略表示频率与开关均不指定；"
+        "正数同时指定频率与使能；负数仅不约束 _resolved_freq。",
+    )
     source: str = Field(..., min_length=1, description="前级引用。")
     always_active: bool = Field(
         default=False,
@@ -385,8 +411,59 @@ class ClkNode(NodeBase):
 
     @field_validator("freq", mode="before")
     @classmethod
-    def _coerce_freq(cls, value: Any) -> Any:
-        return _coerce_required_freq(value)
+    def _coerce_optional_freq(cls, value: Any) -> Any:
+        return _coerce_optional_int(value)
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="trees 构造写入 frequence；省略 freq 时为 -1；YAML 不可传入。",
+    )
+    @property
+    def clk_init_frequence(self) -> int:
+        return -1 if self.freq is None else self.freq
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="trees 构造写入 enabled；省略 freq 时为 -1，否则为 1；YAML 不可传入。",
+    )
+    @property
+    def clk_init_enabled(self) -> int:
+        return -1 if self.freq is None else 1
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="frequence 非 clk::new 默认 -1 时为真；YAML 不可传入。",
+    )
+    @property
+    def clk_trees_emit_frequence(self) -> bool:
+        return self.freq is not None and self.freq != -1
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="enabled 非 clk::new 默认 -1 时为真；YAML 不可传入。",
+    )
+    @property
+    def clk_trees_emit_enabled(self) -> bool:
+        return self.freq is not None
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="unfix_frequence 非 clk::new 默认 1 时为真；YAML 不可传入。",
+    )
+    @property
+    def clk_trees_emit_unfix_frequence(self) -> bool:
+        return self.freq is not None and self.freq > 0
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="unfix_enabled 非 clk::new 默认 1 时为真；YAML 不可传入。",
+    )
+    @property
+    def clk_trees_emit_unfix_enabled(self) -> bool:
+        return self.freq is not None
+
+    @model_validator(mode="after")
+    def _validate_clk_freq(self) -> ClkNode:
+        if self.freq is not None and self.freq == 0:
+            raise ValueError(
+                f"clk 节点 {self.name!r} freq 为 0 非法；"
+                f"正频率应大于等于 1，不约束请省略或填负数"
+            )
+        return self
 
 
 class MuxNode(NodeBase):
@@ -415,6 +492,7 @@ Node = Annotated[
         InvNode,
         ClockSourceNode,
         PllNode,
+        CellNode,
         ClkNode,
         MuxNode,
     ],
@@ -602,7 +680,7 @@ def upstream_peer_names(node: Node) -> List[str]:
             parse_source_endpoint(peer, ctx="mux.source")[0]
             for peer in node.source.values()
         ]
-    if node.kind in ("gate", "div", "inv", "clk", "pll"):
+    if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
         device, _out_group = parse_source_endpoint(node.source, ctx="source")
         return [device]
     return []
@@ -666,7 +744,7 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
                     nodes,
                     ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
                 )
-        elif node.kind in ("gate", "div", "inv", "clk", "pll"):
+        elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
             _validate_source_ref(
                 node.source,
                 nodes,

@@ -12,7 +12,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     `uvm_object_utils_end
 
     longint frequence;
-    rand bit enabled;
+    int enabled;
     bit _always_active;
 {%- if enable_node_fix %}
     bit unfix_frequence;
@@ -21,22 +21,23 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 
     constraint cst_clk {
 {%- if enable_node_fix %}
-        !unfix_frequence -> frequence == _resolved_freq;
-        !unfix_enabled -> enabled == _resolved_active;
+        !(unfix_frequence || frequence < 0) -> frequence == _resolved_freq;
+        !(unfix_enabled || enabled < 0) -> enabled == _resolved_active;
 {%- else %}
-        frequence == _resolved_freq;
-        enabled == _resolved_active;
+        frequence >= 0 -> frequence == _resolved_freq;
+        enabled >= 0 -> enabled == _resolved_active;
 {%- endif %}
-        _always_active -> enabled == 1'b1;
+        _always_active -> enabled == 1;
     }
 
     function new(string name = "");
         super.new(name);
-        frequence = 0;
+        frequence = -1;
+        enabled = -1;
         _always_active = 1'b0;
 {%- if enable_node_fix %}
-        unfix_frequence = 0;
-        unfix_enabled = 0;
+        unfix_frequence = 1'b1;
+        unfix_enabled = 1'b1;
 {%- endif %}
         kind = "clk";
     endfunction

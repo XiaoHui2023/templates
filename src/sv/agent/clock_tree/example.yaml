@@ -110,9 +110,15 @@ trees:
         path: dut.gate0
         reg: blk_gate0.en
 
+      cell_buf:
+        kind: cell
+        cell_kind: buf
+        source: gate0
+        path: dut.cell_buf
+
       div2_0:
         kind: div2
-        source: gate0
+        source: cell_buf
         path: dut.div2_0
 
       div0:

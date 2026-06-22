@@ -188,7 +188,7 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | `clk` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `freq` | `int` | | 典型频率，单位 Hz。 |
+| `freq` | `int` | | 典型频率，单位 Hz；省略则频率与使能均不参与随机；正数同时指定频率与使能；负值仅放宽输出频率随机范围。 |
 | `source` | `str` | | 前级引用。 |
 | `always_active` | `bool` | `false` | 为真时该时钟全程保持有效；**low_power** 不关断，**test_route** 固定其选通路径。 |
 
@@ -200,6 +200,19 @@ settings:
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
 | `reg` | `str` | `""` | 门控寄存器模型路径。 |
+
+### Node - cell
+
+直通单元，输出频率与活动状态与前级相同；各 **cell_kind** 共用同一仿真类。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `cell` | |
+| `cell_kind` | `str` | `cell` | 取 `cell`、`buf`。 |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
+| `source` | `str` | | 前级引用。 |
+
+**cell_kind** 为 `buf` 时字段与上表相同，仅型号不同。
 
 ### Node - div
 

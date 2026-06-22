@@ -58,6 +58,8 @@ _DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div2"}
 
 _INV_KIND_CANON = frozenset({"inv", "mux_inv"})
 
+_CELL_KIND_CANON = frozenset({"cell", "buf"})
+
 DIV_KIND_TO_SV: dict[str, str] = {
     "div": "div_div",
     "div_n": "div_div",
@@ -118,6 +120,17 @@ def normalize_inv_kind(value: object) -> str:
     if canon not in _INV_KIND_CANON:
         raise ValueError(
             f"inv_kind 须为 inv、mux_inv 之一，大小写不限，得到 {value!r}"
+        )
+    return canon
+
+
+def normalize_cell_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"cell_kind 须为字符串，得到 {type(value).__name__}")
+    canon = value.strip().lower()
+    if canon not in _CELL_KIND_CANON:
+        raise ValueError(
+            f"cell_kind 须为 cell、buf 之一，大小写不限，得到 {value!r}"
         )
     return canon
 
