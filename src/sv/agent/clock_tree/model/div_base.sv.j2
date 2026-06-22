@@ -1,0 +1,31 @@
+`ifndef {{ (settings.class_prefix ~ "div_base") | upper }}
+`define {{ (settings.class_prefix ~ "div_base") | upper }}
+
+class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}div_base)
+        `uvm_field_int(ratio, UVM_ALL_ON | UVM_DEC)
+{%- if enable_node_fix %}
+        `uvm_field_int(fix_ratio, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
+{%- endif %}
+    `uvm_object_utils_end
+
+    div_kind_e div_kind;
+    rand int ratio;
+{%- if enable_node_fix %}
+    int fix_ratio;
+{%- endif %}
+
+    constraint cst_resolve_freq_from_src {
+        source != null -> _resolved_freq == source._resolved_freq / ratio;
+    }
+
+    function new(string name = "");
+        super.new(name);
+{%- if enable_node_fix %}
+        fix_ratio = 0;
+{%- endif %}
+        kind = "div";
+    endfunction
+endclass
+
+`endif

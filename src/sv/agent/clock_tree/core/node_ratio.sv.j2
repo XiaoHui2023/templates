@@ -11,6 +11,16 @@ function automatic int {{ settings.class_prefix }}div_ratio_to_n(int ratio);
     return ratio - 1;
 endfunction
 
+// cpu_gate 分频比 N 转寄存器 n，N 须 1～32
+function automatic int {{ settings.class_prefix }}cpu_gate_ratio_to_n(int ratio);
+    if (ratio <= 1)
+        return 0;
+    if (ratio > 32)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "cpu_gate_ratio_to_n: ratio %0d exceeds max 32", ratio))
+    return ratio - 1;
+endfunction
+
 // ratio 为 1 时旁通，不按 step 公式编码
 function automatic bit {{ settings.class_prefix }}dto_ratio_is_bypass(int ratio);
     return ratio == 1;

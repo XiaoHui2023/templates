@@ -30,24 +30,24 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
     // 按 MSB 或 LSB 单比特 pattern 写 div 分频比后校验
     extern task verify_div_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div div_nd,
+        {{ settings.class_prefix }}div_div div_nd,
         bit msb_one_lsb_zero,
         bit quiet);
     // div 两种 field 单比特 pattern 各测一轮
     extern task verify_div_flip(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div div_nd,
+        {{ settings.class_prefix }}div_div div_nd,
         bit quiet);
     // 按 MSB 或 LSB 单比特 pattern 写 dto 分频比后校验
     extern task verify_dto_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}dto dto_nd,
+        {{ settings.class_prefix }}div_dto dto_nd,
         bit msb_one_lsb_zero,
         bit quiet);
     // dto 两种 field 单比特 pattern 各测一轮
     extern task verify_dto_flip(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}dto dto_nd,
+        {{ settings.class_prefix }}div_dto dto_nd,
         bit quiet);
     // 翻转 inv 控制并检查相位差约半周期
     extern task verify_inv_flip(
@@ -150,7 +150,7 @@ endtask
 
 task {{ settings.class_prefix }}test_flip_seq::verify_div_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div div_nd,
+        {{ settings.class_prefix }}div_div div_nd,
         bit msb_one_lsb_zero,
         bit quiet);
     {{ settings.class_prefix }}route_ctrl_snap snap;
@@ -189,7 +189,7 @@ endtask
 
 task {{ settings.class_prefix }}test_flip_seq::verify_div_flip(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div div_nd,
+        {{ settings.class_prefix }}div_div div_nd,
         bit quiet);
     int width;
 
@@ -203,7 +203,7 @@ endtask
 
 task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}dto dto_nd,
+        {{ settings.class_prefix }}div_dto dto_nd,
         bit msb_one_lsb_zero,
         bit quiet);
     {{ settings.class_prefix }}route_ctrl_snap snap;
@@ -242,7 +242,7 @@ endtask
 
 task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}dto dto_nd,
+        {{ settings.class_prefix }}div_dto dto_nd,
         bit quiet);
     int width;
 
@@ -319,8 +319,8 @@ task {{ settings.class_prefix }}test_flip_seq::body();
     {{ settings.class_prefix }}test_flip_rsp rs;
     {{ settings.class_prefix }}tree_base tree;
     {{ settings.class_prefix }}node_base subjects[$];
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}div_div div_nd;
+    {{ settings.class_prefix }}div_dto dto_nd;
     {{ settings.class_prefix }}inv inv_nd;
     int i;
 

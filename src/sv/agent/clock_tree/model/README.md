@@ -42,12 +42,20 @@
 | **PLL_DW** | **pll_dw** |
 | **PLL_INNO** | **pll_inno** |
 
+### source_kind_e
+
+| 取值 | 说明 |
+| --- | --- |
+| **SOURCE** | **source** |
+| **GATE** | **source_gate** |
+
 ## 节点
 
-### source
+### source_base
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
+| **source_kind** | **source_kind_e** | 输入源型号 |
 | **frequence** | **longint** | 频率 |
 | **vif** | **interface** | 测量接口 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
@@ -56,6 +64,14 @@
 | 约束 | 说明 |
 | --- | --- |
 | **cst_source** | **randomize** 后 **_resolved_freq** 等于 **frequence** |
+
+### source
+
+继承 **source_base**；构造时 **source_kind** 为 **SOURCE**。
+
+### source_gate
+
+继承 **source_base**；构造时 **source_kind** 为 **GATE**。
 
 ### clk
 
@@ -158,7 +174,7 @@
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| **group_id** | **int** | 输出路序号 |
+| **group_id** | **string** | 多路输出名；单路为空字符串 |
 | **to_group** | **node_base** 关联数组 | 同组其它路节点 |
 | **source** | **node_base** | 参考时钟前级 |
 | **vif** | **interface** | 测量接口 |
@@ -214,6 +230,21 @@
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_div** | **ratio** 只能取 1～64 的整数 |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** |
+
+### div_div2
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **source** | **node_base** | 前级节点 |
+| **ratio** | **int** | 固定为 2 |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
+
+| 约束 | 说明 |
+| --- | --- |
+| **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
+| **cst_div** | **ratio** 恒为 2 |
+| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 2 |
 
 ### dto
 

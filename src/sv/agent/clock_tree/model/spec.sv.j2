@@ -11,6 +11,25 @@ class {{ settings.class_prefix }}spec#(type T = uvm_object) extends T;
         PLL_INNO
     } pll_kind_e;
 
+    typedef enum {
+        DIV,
+        DIV_N,
+        DTO,
+        DTO_N,
+        CPU_GATE,
+        DIV2
+    } div_kind_e;
+
+    typedef enum {
+        INV,
+        MUX_INV
+    } inv_kind_e;
+
+    typedef enum {
+        SOURCE,
+        GATE
+    } source_kind_e;
+
     function new(string name = "");
         super.new(name);
     endfunction

@@ -1,0 +1,13 @@
+`ifndef {{ (settings.class_prefix ~ "source_gate") | upper }}
+`define {{ (settings.class_prefix ~ "source_gate") | upper }}
+
+class {{ settings.class_prefix }}source_gate extends {{ settings.class_prefix }}source_base;
+    `uvm_object_utils({{ settings.class_prefix }}source_gate)
+
+    function new(string name = "");
+        super.new(name);
+        source_kind = GATE;
+    endfunction
+endclass
+
+`endif

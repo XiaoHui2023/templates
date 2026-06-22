@@ -69,14 +69,14 @@ settings:
 
 #### 前级引用
 
-写 **nodes** 中的节点名；多路输出加 `[序号]`。
+写 **nodes** 中的节点名；多路输出加 `[输出名]`，方括号内为字符串，与 **output_groups** 或 **regs** 内 `postdiv1[名字]` 一致。
 
 | 写法 | 含义 |
 | --- | --- |
 | `osc` | 通常写法，单路输出前级 |
 | `pll0` | 单路输出前级 |
-| `pll0[0]` | 多路输出前级，第 0 路 |
-| `pll0[1]` | 多路输出前级，第 1 路 |
+| `pll0["0"]` 或 `pll0[0]` | 多路输出前级，输出名为 `0` |
+| `cpu_gate0[hclk]` | 多路 **cpu_gate** 的 **hclk** 路 |
 
 ### Tree
 
@@ -90,8 +90,11 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `source` | |
+| `source_kind` | `str` | `source` | 取 `source`、`gate`。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
+
+**source_kind** 为 `gate` 时字段与上表相同，仅型号不同。
 
 ### Node - pll
 
@@ -208,6 +211,16 @@ settings:
 | `regs.load` | `str` | | 加载位。 |
 | `regs.div` | `str` | | 分频系数。 |
 
+### Node - div2
+
+固定 2 分频，无寄存器，**ratio** 恒为 2。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `div2` | 等价于 `kind: div` 且 `div_kind: div2`。 |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
+| `source` | `str` | | 前级引用。 |
+
 ### Node - dto
 
 | 字段 | 类型 | 默认值 | 说明 |
@@ -219,6 +232,25 @@ settings:
 | `regs.load` | `str` | | 加载位。 |
 | `regs.bypass` | `str` | | bypass 位。 |
 | `regs.step` | `str` | | 步进控制。 |
+
+### Node - cpu_gate
+
+**div_kind** 为 `cpu_gate` 时，固定 3 路输出，输出名与方括号引用一致：
+
+| 输出名 | 信号 | 频率行为 |
+| --- | --- | --- |
+| `hclk_en` | **hclk_en** | 按分频比输出 |
+| `hclk` | **hclk** | 按分频比输出 |
+| `clk_arm_core` | **clk_arm_core** | 与前级同频 |
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `div` | |
+| `div_kind` | `str` | `cpu_gate` | |
+| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
+| `source` | `str` | | 前级引用。 |
+| `regs.rst` | `str` | | 低电平复位位。 |
+| `regs.div` | `str` | | 5 bit 分频系数 field。 |
 
 ### Node - inv
 

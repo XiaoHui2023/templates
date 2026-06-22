@@ -1,0 +1,38 @@
+`ifndef {{ (settings.class_prefix ~ "div_cpu_gate") | upper }}
+`define {{ (settings.class_prefix ~ "div_cpu_gate") | upper }}
+
+class {{ settings.class_prefix }}div_cpu_gate extends {{ settings.class_prefix }}div_base;
+    `uvm_object_utils({{ settings.class_prefix }}div_cpu_gate)
+{% if regs_enabled %}
+    {{ settings.class_prefix }}reg f_rst;
+    {{ settings.class_prefix }}reg f_div;
+{% endif %}
+
+    constraint cst_div {
+        ratio > 0;
+        ratio <= 32;
+{%- if enable_node_fix %}
+        fix_ratio > 0 -> ratio == fix_ratio;
+{%- endif %}
+    }
+
+    constraint cst_resolve_freq_from_src {
+        source != null -> {
+            group_id == "{{ cpu_gate_pass_through_group }}" -> _resolved_freq == source._resolved_freq;
+            group_id != "{{ cpu_gate_pass_through_group }}" -> _resolved_freq == source._resolved_freq / ratio;
+        };
+        source == null -> _resolved_freq == 0;
+    }
+
+    function new(string name = "");
+        super.new(name);
+{% if regs_enabled %}
+        f_rst = new();
+        f_div = new();
+{% endif %}
+        div_kind = CPU_GATE;
+        _print_group_id = 1;
+    endfunction
+endclass
+
+`endif

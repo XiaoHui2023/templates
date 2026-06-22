@@ -1,0 +1,26 @@
+`ifndef {{ (settings.class_prefix ~ "source_base") | upper }}
+`define {{ (settings.class_prefix ~ "source_base") | upper }}
+
+class {{ settings.class_prefix }}source_base extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}source_base)
+        `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
+    `uvm_object_utils_end
+
+    source_kind_e source_kind;
+    longint frequence;
+
+    constraint cst_source {
+        _resolved_freq == frequence;
+    }
+
+    constraint cst_resolve_freq_from_src {
+    }
+
+    function new(string name = "");
+        super.new(name);
+        frequence = 0;
+        kind = "source";
+    endfunction
+endclass
+
+`endif

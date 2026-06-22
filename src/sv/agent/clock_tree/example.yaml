@@ -5,7 +5,14 @@ trees:
     nodes:
       xtal:
         kind: source
+        source_kind: source
         path: dut.xtal
+        freq: 24000000
+
+      gate_xtal:
+        kind: source
+        source_kind: gate
+        path: dut.gate_xtal
         freq: 24000000
 
       pll_tci:
@@ -102,9 +109,15 @@ trees:
         path: dut.gate0
         reg: blk_gate0.en
 
+      div2_0:
+        kind: div2
+        source: gate0
+        path: dut.div2_0
+
       div0:
         kind: div
-        source: gate0
+        div_kind: div
+        source: div2_0
         path: dut.div0
         regs:
           rst: blk_div0.rst
@@ -113,10 +126,12 @@ trees:
 
       inv0:
         kind: inv
+        inv_kind: inv
         source: div0
 
       dto0:
-        kind: dto
+        kind: div
+        div_kind: dto
         source: inv0
         path: dut.dto0
         regs:
@@ -124,6 +139,27 @@ trees:
           load: blk_dto0.load
           bypass: blk_dto0.bypass
           step: blk_dto0.step
+
+      cpu_gate0:
+        kind: div
+        div_kind: cpu_gate
+        source: dto0
+        path: dut.cpu_gate0
+        regs:
+          rst: blk_cpu_gate0.rst
+          div: blk_cpu_gate0.div
+
+      clk_arm:
+        kind: clk
+        freq: 100000000
+        path: dut.clk_arm
+        source: cpu_gate0[clk_arm_core]
+
+      clk_hclk:
+        kind: clk
+        freq: 50000000
+        path: dut.clk_hclk
+        source: cpu_gate0[hclk]
 
       clk_out:
         kind: clk

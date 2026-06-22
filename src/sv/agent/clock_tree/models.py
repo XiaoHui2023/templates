@@ -9,12 +9,20 @@ _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 from nodes import Tree
 from reg_paths import (
+    CPU_GATE_PASS_THROUGH_GROUP,
+    CPU_GATE_PRIMARY_GROUP,
+    DIV_KIND_TO_SV_ENUM,
+    INV_KIND_TO_SV_ENUM,
     PLL_REG_KEYS,
+    SOURCE_KIND_TO_SV_ENUM,
     RegBindingRow,
     any_node_path,
     tree_has_path_and_reg,
     any_reg_configured as tree_has_node_regs,
+    collect_div_sv_classes,
+    collect_inv_sv_classes,
     collect_pll_sv_classes,
+    collect_source_sv_classes,
     iter_reg_bindings,
 )
 
@@ -204,6 +212,51 @@ class Models(BaseModel):
             kinds.update(collect_pll_sv_classes(tree))
         return sorted(kinds)
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="各 tree 所用 div 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
+    )
+    @property
+    def div_sv_classes(self) -> List[str]:
+        kinds: set[str] = set()
+        for tree in self.trees:
+            kinds.update(collect_div_sv_classes(tree))
+        return sorted(kinds)
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="各 tree 所用 inv 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
+    )
+    @property
+    def inv_sv_classes(self) -> List[str]:
+        kinds: set[str] = set()
+        for tree in self.trees:
+            kinds.update(collect_inv_sv_classes(tree))
+        return sorted(kinds)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def div_kind_to_sv_enum(self) -> Dict[str, str]:
+        return dict(DIV_KIND_TO_SV_ENUM)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def inv_kind_to_sv_enum(self) -> Dict[str, str]:
+        return dict(INV_KIND_TO_SV_ENUM)
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="各 tree 所用 source 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
+    )
+    @property
+    def source_sv_classes(self) -> List[str]:
+        kinds: set[str] = set()
+        for tree in self.trees:
+            kinds.update(collect_source_sv_classes(tree))
+        return sorted(kinds)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def source_kind_to_sv_enum(self) -> Dict[str, str]:
+        return dict(SOURCE_KIND_TO_SV_ENUM)
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def pll_reg_keys_by_kind(self) -> Dict[str, List[str]]:
@@ -236,6 +289,21 @@ class Models(BaseModel):
             and self.regs_enabled
             and self.any_node_path
         )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cpu_gate_primary_group(self) -> str:
+        return CPU_GATE_PRIMARY_GROUP
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cpu_gate_pass_through_group(self) -> str:
+        return CPU_GATE_PASS_THROUGH_GROUP
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def inno_pll_primary_group(self) -> str:
+        return "0"
 
     @computed_field  # type: ignore[prop-decorator]
     @property

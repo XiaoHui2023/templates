@@ -28,11 +28,13 @@ class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
     // 写 mux 的选择控制
     extern task config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
     // 写 div 的复位、load 与分频比
-    extern task config_reg_div_node({{ settings.class_prefix }}div div_nd);
+    extern task config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
     // 写 dto 的复位、bypass、load 与 step
-    extern task config_reg_dto_node({{ settings.class_prefix }}dto dto_nd);
+    extern task config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
+    // 写 cpu_gate 的低有效 rst 与分频比
+    extern task config_reg_cpu_gate_node({{ settings.class_prefix }}div_cpu_gate cpu_gate_nd);
     // 写 inv 的反相/直通控制
-    extern task config_reg_inv_node({{ settings.class_prefix }}inv inv_nd);
+    extern task config_reg_inv_node({{ settings.class_prefix }}inv_base inv_nd);
     // 按具体 PLL 类型分派配置流程
     extern task config_reg_pll_node({{ settings.class_prefix }}pll_base pll_nd, output bit configured);
     // 按 SC PLL 目标频率写配置
@@ -107,7 +109,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_mux_node({{ settings.
 endtask
 
 // 写 div 的复位、load 与分频比
-task {{ settings.class_prefix }}config_reg_seq::config_reg_div_node({{ settings.class_prefix }}div div_nd);
+task {{ settings.class_prefix }}config_reg_seq::config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
     if (!div_nd.f_load.is_bound() || !div_nd.f_div.is_bound()
             || !div_nd.f_rst.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
@@ -138,7 +140,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_div_node({{ settings.
 endtask
 
 // 写 dto 的复位、bypass、load 与 step
-task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.class_prefix }}dto dto_nd);
+task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
     if (!dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
             || !dto_nd.f_step.is_bound() || !dto_nd.f_rst.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
@@ -164,6 +166,39 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.
         p_sequencer.tools.node.configure_dto_direct(
             dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd.ratio);
         p_sequencer.tools.node.note_dto_rst_released(dto_nd.get_name());
+    end
+{%- endif %}
+endtask
+
+// 写 cpu_gate 的低有效 rst 与分频比
+task {{ settings.class_prefix }}config_reg_seq::config_reg_cpu_gate_node(
+        {{ settings.class_prefix }}div_cpu_gate cpu_gate_nd);
+    if (!cpu_gate_nd.f_div.is_bound() || !cpu_gate_nd.f_rst.is_bound())
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: cpu_gate %s regs not bound", cpu_gate_nd.get_name()))
+{%- if settings.should_reset_div %}
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: cpu_gate %s ratio %0d",
+            cpu_gate_nd.get_name(), cpu_gate_nd.ratio), UVM_MEDIUM)
+    p_sequencer.tools.node.configure_cpu_gate(
+        cpu_gate_nd.f_rst, cpu_gate_nd.f_div, cpu_gate_nd.ratio);
+{%- else %}
+    if (p_sequencer.tools.node.cpu_gate_rst_was_released(cpu_gate_nd.get_name())) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: cpu_gate %s skip rst, ratio %0d",
+                cpu_gate_nd.get_name(), cpu_gate_nd.ratio), UVM_MEDIUM)
+        p_sequencer.tools.node.configure_cpu_gate_ratio(
+            cpu_gate_nd.f_div, cpu_gate_nd.ratio);
+    end else begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: cpu_gate %s ratio %0d",
+                cpu_gate_nd.get_name(), cpu_gate_nd.ratio), UVM_MEDIUM)
+        p_sequencer.tools.node.configure_cpu_gate_direct(
+            cpu_gate_nd.f_rst, cpu_gate_nd.f_div, cpu_gate_nd.ratio);
+        p_sequencer.tools.node.note_cpu_gate_rst_released(cpu_gate_nd.get_name());
     end
 {%- endif %}
 endtask
@@ -282,7 +317,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_inno_node({{ sett
             || !pll_inno_nd.f_postdiv1.is_bound() || !pll_inno_nd.f_postdiv2.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: pll_inno %s regs not bound", pll_inno_nd.get_name()))
-    write_shared = pll_inno_nd.group_id == 0;
+    write_shared = pll_inno_nd.group_id == "{{ inno_pll_primary_group }}";
     if (p_sequencer.tools.pll.freq_cfg_unchanged(
             pll_inno_nd.get_name(), ref_hz, pll_inno_nd.frequence) && !write_shared) begin
         if (!quiet)
@@ -389,7 +424,7 @@ task {{ settings.class_prefix }}config_reg_seq::wait_pll_lock_node({{ settings.c
     {{ settings.class_prefix }}pll_inno pll_inno_nd;
 
     if ($cast(pll_inno_nd, pll_nd)) begin
-        if (pll_inno_nd.group_id != 0)
+        if (pll_inno_nd.group_id != "{{ inno_pll_primary_group }}")
             return;
         if (!pll_inno_nd.f_lock.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf(
@@ -441,7 +476,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_pll_nodes(
             {{ settings.class_prefix }}pll_inno pll_inno_nd;
             config_reg_pll_node(pll_nd, pll_cfg);
             if (pll_cfg) begin
-                if ($cast(pll_inno_nd, pll_nd) && pll_inno_nd.group_id != 0)
+                if ($cast(pll_inno_nd, pll_nd) && pll_inno_nd.group_id != "{{ inno_pll_primary_group }}")
                     continue;
                 plls.push_back(pll_nd);
             end
@@ -458,20 +493,26 @@ endtask
 // 写入 div 与 dto 控制寄存器
 task {{ settings.class_prefix }}config_reg_seq::config_div_dto_nodes(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}div_div div_div_nd;
+    {{ settings.class_prefix }}div_dto div_dto_nd;
+    {{ settings.class_prefix }}div_cpu_gate cpu_gate_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++) begin
-        if ($cast(div_nd, tree.nodes[i]))
-            config_reg_div_node(div_nd);
-        else if ($cast(dto_nd, tree.nodes[i]))
-            config_reg_dto_node(dto_nd);
+        if ($cast(div_div_nd, tree.nodes[i]))
+            config_reg_div_node(div_div_nd);
+        else if ($cast(div_dto_nd, tree.nodes[i]))
+            config_reg_dto_node(div_dto_nd);
+        else if ($cast(cpu_gate_nd, tree.nodes[i])) begin
+            if (cpu_gate_nd.group_id != "{{ cpu_gate_primary_group }}")
+                continue;
+            config_reg_cpu_gate_node(cpu_gate_nd);
+        end
     end
 endtask
 
 // 写 inv 的反相/直通控制
 task {{ settings.class_prefix }}config_reg_seq::config_reg_inv_node(
-        {{ settings.class_prefix }}inv inv_nd);
+        {{ settings.class_prefix }}inv_base inv_nd);
     if (!inv_nd.f_reg.is_bound())
         `uvm_fatal("CLK_TREE", $sformatf(
             "config_reg: inv %s f_reg not bound", inv_nd.get_name()))
@@ -485,7 +526,7 @@ endtask
 // 写入 inv 控制寄存器
 task {{ settings.class_prefix }}config_reg_seq::config_inv_nodes(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}inv inv_nd;
+    {{ settings.class_prefix }}inv_base inv_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++)
         if ($cast(inv_nd, tree.nodes[i]) && inv_nd.f_reg.is_bound())

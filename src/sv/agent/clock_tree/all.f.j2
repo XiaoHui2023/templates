@@ -8,13 +8,20 @@ model/node_base.sv
 {% if regs_enabled %}
 model/reg.sv
 {% endif %}
+model/source_base.sv
 model/source.sv
+model/source_gate.sv
 model/clk.sv
-model/div.sv
-model/dto.sv
+model/div_base.sv
+model/div_div.sv
+model/div_dto.sv
+model/div_cpu_gate.sv
+model/div_div2.sv
 model/gate.sv
 model/mux.sv
+model/inv_base.sv
 model/inv.sv
+model/inv_mux.sv
 model/pll_base.sv
 model/pll_tci.sv
 model/pll_sc.sv

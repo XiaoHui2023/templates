@@ -7,8 +7,9 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
         {{ settings.class_prefix }}node_base nd);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}div_div div_div_nd;
+    {{ settings.class_prefix }}div_dto div_dto_nd;
+    {{ settings.class_prefix }}div_cpu_gate div_cpu_gate_nd;
 
     if (nd == null)
         return 1'b0;
@@ -16,12 +17,15 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
         return gate_nd.f_reg.is_bound();
     if ($cast(mux_nd, nd))
         return mux_nd.f_reg.is_bound();
-    if ($cast(div_nd, nd))
-        return div_nd.f_rst.is_bound() && div_nd.f_load.is_bound()
-            && div_nd.f_div.is_bound();
-    if ($cast(dto_nd, nd))
-        return dto_nd.f_rst.is_bound() && dto_nd.f_load.is_bound()
-            && dto_nd.f_bypass.is_bound() && dto_nd.f_step.is_bound();
+    if ($cast(div_div_nd, nd))
+        return div_div_nd.f_rst.is_bound() && div_div_nd.f_load.is_bound()
+            && div_div_nd.f_div.is_bound();
+    if ($cast(div_dto_nd, nd))
+        return div_dto_nd.f_rst.is_bound() && div_dto_nd.f_load.is_bound()
+            && div_dto_nd.f_bypass.is_bound() && div_dto_nd.f_step.is_bound();
+    if ($cast(div_cpu_gate_nd, nd))
+        return div_cpu_gate_nd.group_id == "{{ cpu_gate_primary_group }}"
+            && div_cpu_gate_nd.f_rst.is_bound() && div_cpu_gate_nd.f_div.is_bound();
     return 1'b0;
 endfunction
 
@@ -30,8 +34,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_is_probe_kind(
         {{ settings.class_prefix }}node_base nd);
     if (nd == null)
         return 1'b0;
-    return nd.kind == "gate" || nd.kind == "mux" || nd.kind == "div"
-        || nd.kind == "dto";
+    return nd.kind == "gate" || nd.kind == "mux" || nd.kind == "div";
 endfunction
 
 // 读出节点当前 open/sel/ratio 等到 snap
@@ -40,8 +43,7 @@ function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
         output {{ settings.class_prefix }}route_ctrl_snap snap);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}div_base div_nd;
 
     snap = new();
     if ($cast(gate_nd, nd)) begin
@@ -60,11 +62,6 @@ function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
 {%- if enable_node_fix %}
         snap.fix_ratio = div_nd.fix_ratio;
 {%- endif %}
-    end else if ($cast(dto_nd, nd)) begin
-        snap.ratio = dto_nd.ratio;
-{%- if enable_node_fix %}
-        snap.fix_ratio = dto_nd.fix_ratio;
-{%- endif %}
     end
 endfunction
 
@@ -75,8 +72,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         bit clear_fix);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}div_base div_nd;
 
     if (snap == null)
         return;
@@ -108,14 +104,6 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         else
             div_nd.fix_ratio = snap.fix_ratio;
 {%- endif %}
-    end else if ($cast(dto_nd, nd)) begin
-        dto_nd.ratio = snap.ratio;
-{%- if enable_node_fix %}
-        if (clear_fix)
-            dto_nd.fix_ratio = snap.ratio;
-        else
-            dto_nd.fix_ratio = snap.fix_ratio;
-{%- endif %}
     end
 endfunction
 
@@ -145,7 +133,10 @@ endfunction
 function automatic void {{ settings.class_prefix }}route_structure_set_ratio(
         {{ settings.class_prefix }}node_base nd, int ratio_val, bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap snap;
+    {{ settings.class_prefix }}div_div2 div2_nd;
     if (nd == null)
+        return;
+    if ($cast(div2_nd, nd))
         return;
     {{ settings.class_prefix }}route_structure_save_ctrl(nd, snap);
     snap.ratio = ratio_val;
@@ -251,7 +242,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_flip_
         foreach (filter[i]) begin
             if (filter[i] == null)
                 continue;
-            if (filter[i].kind != "div" && filter[i].kind != "dto")
+            if (filter[i].kind != "div")
                 continue;
             if (!{{ settings.class_prefix }}route_structure_regs_ready(filter[i]))
                 continue;
@@ -264,7 +255,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_flip_
     foreach (tree.nodes[i]) begin
         if (tree.nodes[i] == null)
             continue;
-        if (tree.nodes[i].kind != "div" && tree.nodes[i].kind != "dto")
+        if (tree.nodes[i].kind != "div")
             continue;
         if (!{{ settings.class_prefix }}route_structure_regs_ready(tree.nodes[i]))
             continue;
@@ -281,7 +272,7 @@ function automatic string {{ settings.class_prefix }}route_structure_variant_lab
         return "?";
     if (nd.kind == "gate")
         return $sformatf("open=%0b", idx != 0);
-    if (nd.kind == "div" || nd.kind == "dto")
+    if (nd.kind == "div")
         return $sformatf("ratio=%0d", idx == 0 ? 1 : 2);
     if ($cast(mux_nd, nd)) begin
         foreach (mux_nd.to_source[k])
@@ -346,7 +337,7 @@ function automatic int {{ settings.class_prefix }}route_structure_variant_count(
         return 0;
     if (nd.kind == "gate")
         return 2;
-    if (nd.kind == "div" || nd.kind == "dto")
+    if (nd.kind == "div")
         return 2;
     if ($cast(mux_nd, nd)) begin
         foreach (mux_nd.to_source[k])
@@ -367,7 +358,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_variant
     if ($cast(gate_nd, nd))
         {{ settings.class_prefix }}route_structure_set_gate_open(
             gate_nd, idx != 0, clear_fix);
-    else if (nd.kind == "div" || nd.kind == "dto")
+    else if (nd.kind == "div")
         {{ settings.class_prefix }}route_structure_set_ratio(
             nd, idx == 0 ? 1 : 2, clear_fix);
     else if ($cast(mux_nd, nd)) begin
@@ -469,19 +460,16 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_pll_dis
     end
 endfunction
 
-// test_route 前：全部 div/dto ratio 与 fix_ratio 固定为 1
+// test_route 前：全部 div ratio 与 fix_ratio 固定为 1
 function automatic void {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(
         {{ settings.class_prefix }}tree_base tree);
 {%- if enable_node_fix %}
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}div_base div_nd;
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
         if ($cast(div_nd, tree.nodes[i]))
             {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
-        else if ($cast(dto_nd, tree.nodes[i]))
-            {{ settings.class_prefix }}route_structure_set_ratio(dto_nd, 1, 1'b1);
     end
 {%- endif %}
 endfunction
@@ -534,7 +522,7 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}div div_nd;
+    {{ settings.class_prefix }}div_base div_nd;
 
     foreach (gate_mux[i]) begin
         if (gate_mux[i] == null)
@@ -642,8 +630,7 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}div div_nd;
-    {{ settings.class_prefix }}dto dto_nd;
+    {{ settings.class_prefix }}div_base div_nd;
 
     if (tree == null)
         return;
@@ -656,8 +643,6 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix
             mux_nd.fix_sel = -1;
         end else if ($cast(div_nd, tree.nodes[i])) begin
             div_nd.fix_ratio = 0;
-        end else if ($cast(dto_nd, tree.nodes[i])) begin
-            dto_nd.fix_ratio = 0;
         end
     end
 {%- endif %}

@@ -1,0 +1,30 @@
+`ifndef {{ (settings.class_prefix ~ "div_div") | upper }}
+`define {{ (settings.class_prefix ~ "div_div") | upper }}
+
+class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_base;
+    `uvm_object_utils({{ settings.class_prefix }}div_div)
+{% if regs_enabled %}
+    {{ settings.class_prefix }}reg f_rst;
+    {{ settings.class_prefix }}reg f_load;
+    {{ settings.class_prefix }}reg f_div;
+{% endif %}
+
+    constraint cst_div {
+        ratio > 0;
+        ratio <= 64;
+{%- if enable_node_fix %}
+        fix_ratio > 0 -> ratio == fix_ratio;
+{%- endif %}
+    }
+
+    function new(string name = "");
+        super.new(name);
+{% if regs_enabled %}
+        f_rst = new();
+        f_load = new();
+        f_div = new();
+{% endif %}
+    endfunction
+endclass
+
+`endif

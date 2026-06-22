@@ -17,10 +17,18 @@ from pydantic import (
 )
 
 from reg_paths import (
-    DIV_REG_KEYS,
-    DTO_REG_KEYS,
+    CPU_GATE_OUTPUT_GROUPS,
+    DIV_KIND_TO_SV,
+    INV_KIND_TO_SV,
     PLL_KIND_TO_SV,
+    SOURCE_KIND_TO_SV,
+    div_reg_keys_for_kind,
+    normalize_div_kind,
+    normalize_inv_kind,
     normalize_pll_kind,
+    normalize_source_kind,
+    node_output_groups,
+    primary_output_group,
     sv_node_access,
     validate_optional_reg,
     validate_pll_regs_exact,
@@ -29,15 +37,19 @@ from reg_paths import (
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _SOURCE_ENDPOINT = re.compile(
-    r"^(?P<device>[A-Za-z_][A-Za-z0-9_$]*)(?:\[(?P<idx>\d+)\])?$"
+    r"^(?P<device>[A-Za-z_][A-Za-z0-9_$]*)(?:\[(?P<group>[^\]]+)\])?$"
 )
+_GROUP_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 _NODE_KIND_ALIASES: dict[str, str] = {
     "clock": "clk",
-    "div_n": "div",
-    "dto_n": "dto",
 }
 
+_LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div2"})
+
 PllKind = Literal["tci", "sc", "dw", "inno"]
+DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div2"]
+InvKind = Literal["inv", "mux_inv"]
+SourceKind = Literal["source", "gate"]
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -45,6 +57,10 @@ def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
     canonical = _NODE_KIND_ALIASES.get(kind)
     if canonical is not None:
         return {**item, "kind": canonical}
+    if kind in _LEGACY_DIV_KINDS:
+        div_kind = item.get("div_kind", kind)
+        body = {k: v for k, v in item.items() if k != "kind"}
+        return {**body, "kind": "div", "div_kind": div_kind}
     return item
 
 
@@ -54,23 +70,22 @@ def _coerce_required_freq(value: Any) -> int:
     return int(value)
 
 
-def parse_source_endpoint(raw: str, *, ctx: str) -> tuple[str, int]:
+def parse_source_endpoint(raw: str, *, ctx: str) -> tuple[str, str]:
     text = raw.strip()
     match = _SOURCE_ENDPOINT.match(text)
     if not match:
         raise ValueError(
-            f"{ctx} 前级引用 {raw!r} 须为器件名或 器件名[输出序号] 形式"
+            f"{ctx} 前级引用 {raw!r} 须为器件名或 器件名[输出名] 形式"
         )
     device = match.group("device")
-    idx_text = match.group("idx")
-    out_idx = int(idx_text) if idx_text is not None else 0
-    return device, out_idx
-
-
-def node_output_count(node: Node) -> int:
-    if node.kind == "pll":
-        return node.output_count
-    return 1
+    group_text = match.group("group")
+    out_group = group_text if group_text is not None else ""
+    if out_group and not _GROUP_KEY_RE.match(out_group):
+        raise ValueError(
+            f"{ctx} 前级引用 {raw!r} 中输出名 {out_group!r} "
+            f"须为合法 SystemVerilog 名字"
+        )
+    return device, out_group
 
 
 @dataclass(frozen=True)
@@ -78,7 +93,7 @@ class SvNodeSlot:
     """展开到 SV 的单个节点实例槽位。"""
 
     node_key: str
-    group_id: int
+    group_id: str
     access: str
 
 
@@ -90,10 +105,9 @@ class SourceRef(BaseModel):
         min_length=1,
         description="前级器件名，与 tree.nodes 字典键一致。",
     )
-    out_idx: int = Field(
-        0,
-        ge=0,
-        description="前级器件输出序号；省略 `[序号]` 时等价于 0。",
+    out_group: str = Field(
+        "",
+        description="前级器件输出名；省略方括号时为空字符串，表示单路输出默认路。",
     )
     key: Optional[int] = Field(
         None,
@@ -118,7 +132,21 @@ class NodeBase(BaseModel):
     )
     @property
     def sv_is_array(self) -> bool:
-        return node_output_count(self) > 1  # type: ignore[arg-type]
+        return len(node_output_groups(self)) > 1  # type: ignore[arg-type]
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="多路输出名列表；单路节点为空；YAML 不可传入。",
+    )
+    @property
+    def output_groups(self) -> List[str]:
+        return []
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="多路输出时为首路输出名，单路为空字符串；YAML 不可传入。",
+    )
+    @property
+    def primary_output_group(self) -> str:
+        return primary_output_group(self)
 
     path: str = Field(
         "",
@@ -133,13 +161,13 @@ class NodeBase(BaseModel):
         if self.kind == "mux":
             refs: List[SourceRef] = []
             for key, peer in self.source.items():
-                device, out_idx = parse_source_endpoint(peer, ctx="mux.source")
-                refs.append(SourceRef(name=device, out_idx=out_idx, key=int(key)))
+                device, out_group = parse_source_endpoint(peer, ctx="mux.source")
+                refs.append(SourceRef(name=device, out_group=out_group, key=int(key)))
             return refs
         if self.kind == "source":
             return []
-        device, out_idx = parse_source_endpoint(self.source, ctx="source")
-        return [SourceRef(name=device, out_idx=out_idx)]
+        device, out_group = parse_source_endpoint(self.source, ctx="source")
+        return [SourceRef(name=device, out_group=out_group)]
 
     @computed_field(  # type: ignore[prop-decorator]
         description="mux 的 source 键最大值，供 SV max_sel；YAML 与 model_validate 不可传入。",
@@ -181,49 +209,74 @@ class GateNode(NodeBase):
 
 class DivNode(NodeBase):
     kind: Literal["div"] = "div"
+    div_kind: DivKind = Field(
+        "div",
+        description="分频器型号：div、div_n、dto、dto_n、cpu_gate、div2，大小写不限。",
+    )
     source: str = Field(..., min_length=1, description="前级引用。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="非空时键为 rst、load、div，值为寄存器模型路径。",
+        description="非空时键由 div_kind 决定：div/div_n 为 rst、load、div；"
+        "dto/dto_n 为 rst、load、bypass、step；"
+        "cpu_gate 为 rst、div；"
+        "div2 不可配置寄存器，须为空。",
     )
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="cpu_gate 固定三路输出名；其余 div 为空；YAML 不可传入。",
+    )
+    @property
+    def output_groups(self) -> List[str]:
+        if self.div_kind == "cpu_gate":
+            return list(CPU_GATE_OUTPUT_GROUPS)
+        return []
+
+    @field_validator("div_kind", mode="before")
+    @classmethod
+    def _normalize_div_kind(cls, value: object) -> str:
+        return normalize_div_kind(value)
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 div_kind 映射的 SV 模型类名片段；YAML 与 model_validate 不可传入。",
+    )
+    @property
+    def sv_div_class(self) -> str:
+        return DIV_KIND_TO_SV[self.div_kind]
 
     @model_validator(mode="after")
     def _validate_div_regs(self, info: ValidationInfo) -> DivNode:
         validate_regs_exact(
             self.regs,
-            DIV_REG_KEYS,
+            div_reg_keys_for_kind(self.div_kind),
             node_name=_validation_node_name(self, info),
-            kind="div",
-        )
-        return self
-
-
-class DtoNode(NodeBase):
-    kind: Literal["dto"] = "dto"
-    source: str = Field(..., min_length=1, description="前级引用。")
-    regs: Dict[str, str] = Field(
-        default_factory=dict,
-        description="非空时键为 rst、load、bypass、step，值为寄存器模型路径。",
-    )
-
-    @model_validator(mode="after")
-    def _validate_dto_regs(self, info: ValidationInfo) -> DtoNode:
-        validate_regs_exact(
-            self.regs,
-            DTO_REG_KEYS,
-            node_name=_validation_node_name(self, info),
-            kind="dto",
+            kind=f"div({self.div_kind})",
         )
         return self
 
 
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
+    inv_kind: InvKind = Field(
+        "inv",
+        description="反相器型号：inv、mux_inv，大小写不限。",
+    )
     source: str = Field(..., min_length=1, description="前级引用。")
     reg: str = Field(
         "",
         description="反相/直通控制寄存器模型路径。",
     )
+
+    @field_validator("inv_kind", mode="before")
+    @classmethod
+    def _normalize_inv_kind(cls, value: object) -> str:
+        return normalize_inv_kind(value)
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 inv_kind 映射的 SV 模型类名片段；YAML 与 model_validate 不可传入。",
+    )
+    @property
+    def sv_inv_class(self) -> str:
+        return INV_KIND_TO_SV[self.inv_kind]
 
     @model_validator(mode="after")
     def _validate_inv_reg(self, info: ValidationInfo) -> InvNode:
@@ -235,7 +288,23 @@ class InvNode(NodeBase):
 
 class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
+    source_kind: SourceKind = Field(
+        "source",
+        description="输入源型号：source、gate，大小写不限。",
+    )
     freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
+
+    @field_validator("source_kind", mode="before")
+    @classmethod
+    def _normalize_source_kind(cls, value: object) -> str:
+        return normalize_source_kind(value)
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 source_kind 映射的 SV 模型类名片段；YAML 与 model_validate 不可传入。",
+    )
+    @property
+    def sv_source_class(self) -> str:
+        return SOURCE_KIND_TO_SV[self.source_kind]
 
     @field_validator("freq", mode="before")
     @classmethod
@@ -279,6 +348,15 @@ class PllNode(NodeBase):
     def sv_pll_class(self) -> str:
         return PLL_KIND_TO_SV[self.pll_kind]
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="多路 inno 时为 0、1 等字符串路名；单路为空；YAML 不可传入。",
+    )
+    @property
+    def output_groups(self) -> List[str]:
+        if self.output_count <= 1:
+            return []
+        return [str(i) for i in range(self.output_count)]
+
     @model_validator(mode="after")
     def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:
         if self.output_count > 1 and self.pll_kind != "inno":
@@ -290,7 +368,7 @@ class PllNode(NodeBase):
             self.regs,
             self.pll_kind,
             node_name=_validation_node_name(self, info),
-            output_count=self.output_count,
+            output_groups=self.output_groups,
         )
         return self
 
@@ -333,7 +411,6 @@ Node = Annotated[
     Union[
         GateNode,
         DivNode,
-        DtoNode,
         InvNode,
         ClockSourceNode,
         PllNode,
@@ -450,20 +527,30 @@ class Tree(BaseModel):
     def sv_slots(self) -> List[SvNodeSlot]:
         slots: List[SvNodeSlot] = []
         for key, node in self.nodes.items():
-            count = node_output_count(node)
-            for group_id in range(count):
+            groups = node_output_groups(node)
+            if not groups:
+                slots.append(
+                    SvNodeSlot(
+                        node_key=key,
+                        group_id="",
+                        access=sv_node_access(key, "", groups),
+                    )
+                )
+                continue
+            for group_id in groups:
                 slots.append(
                     SvNodeSlot(
                         node_key=key,
                         group_id=group_id,
-                        access=sv_node_access(key, group_id, count),
+                        access=sv_node_access(key, group_id, groups),
                     )
                 )
         return slots
 
     def source_sv_access(self, ref: SourceRef) -> str:
         peer = self.nodes[ref.name]
-        return sv_node_access(ref.name, ref.out_idx, node_output_count(peer))
+        groups = node_output_groups(peer)
+        return sv_node_access(ref.name, ref.out_group, groups)
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由各节点 source 反查；键为器件名，值为以其为前级的子节点名列表；YAML 不可传入。",
@@ -484,8 +571,8 @@ def upstream_peer_names(node: Node) -> List[str]:
             parse_source_endpoint(peer, ctx="mux.source")[0]
             for peer in node.source.values()
         ]
-    if node.kind in ("gate", "div", "dto", "inv", "clk", "pll"):
-        device, _out_idx = parse_source_endpoint(node.source, ctx="source")
+    if node.kind in ("gate", "div", "inv", "clk", "pll"):
+        device, _out_group = parse_source_endpoint(node.source, ctx="source")
         return [device]
     return []
 
@@ -506,21 +593,27 @@ def _validate_source_ref(
     *,
     ctx: str,
 ) -> None:
-    device, out_idx = parse_source_endpoint(raw, ctx=ctx)
+    device, out_group = parse_source_endpoint(raw, ctx=ctx)
     if device not in nodes:
         raise ValueError(
             f"{ctx} 引用器件 {device!r} 不在 nodes 中"
         )
     peer = nodes[device]
-    count = node_output_count(peer)
-    if count <= 1 and out_idx != 0:
+    groups = node_output_groups(peer)
+    if not groups:
+        if out_group:
+            raise ValueError(
+                f"{ctx} 引用 {raw!r}：器件 {device!r} 仅单路输出，不可写方括号"
+            )
+        return
+    if not out_group:
         raise ValueError(
-            f"{ctx} 引用 {raw!r}：器件 {device!r} 仅单路输出，不可使用 [{out_idx}]"
+            f"{ctx} 引用 {raw!r}：器件 {device!r} 有多路输出，须写 器件名[输出名]"
         )
-    if out_idx >= count:
+    if out_group not in groups:
         raise ValueError(
-            f"{ctx} 引用 {raw!r}：输出序号 {out_idx} 超出器件 {device!r} "
-            f"的 output_count {count}"
+            f"{ctx} 引用 {raw!r}：输出名 {out_group!r} 不在器件 {device!r} "
+            f"允许集合 {groups!r} 中"
         )
 
 
@@ -542,7 +635,7 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
                     nodes,
                     ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
                 )
-        elif node.kind in ("gate", "div", "dto", "inv", "clk", "pll"):
+        elif node.kind in ("gate", "div", "inv", "clk", "pll"):
             _validate_source_ref(
                 node.source,
                 nodes,
