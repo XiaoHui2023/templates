@@ -23,6 +23,7 @@ from reg_paths import (
     PLL_KIND_TO_SV,
     SOURCE_KIND_TO_SV,
     div_reg_keys_for_kind,
+    node_path_connectable,
     normalize_div_kind,
     normalize_inv_kind,
     normalize_pll_kind,
@@ -436,11 +437,30 @@ class Tree(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., min_length=1, description="时钟树名称。")
+    module_path: str = Field(
+        "",
+        description="该树可测量 RTL 模块的层次路径，按 `.` 分隔；"
+        "非空时仅 path 等于此路径或以其为前缀的节点接测量 interface；"
+        "省略或空字符串表示不按模块过滤。",
+    )
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
         description="节点表，键为节点名。",
     )
+
+    @field_validator("module_path")
+    @classmethod
+    def _validate_module_path(cls, value: str) -> str:
+        if not value:
+            return value
+        for seg in value.split("."):
+            if not _SV_ID.match(seg):
+                raise ValueError(
+                    f"module_path 段 {seg!r} 须为合法 SystemVerilog 名字，"
+                    f"完整 module_path: {value!r}"
+                )
+        return value
 
     @model_validator(mode="before")
     @classmethod
@@ -546,6 +566,17 @@ class Tree(BaseModel):
                     )
                 )
         return slots
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="module_path 范围内且 path 非空的 sv_slots；用于测量 interface 与 tree_connection；YAML 不可传入。",
+    )
+    @property
+    def connectable_slots(self) -> List[SvNodeSlot]:
+        return [
+            slot
+            for slot in self.sv_slots
+            if node_path_connectable(self, self.nodes[slot.node_key])
+        ]
 
     def source_sv_access(self, ref: SourceRef) -> str:
         peer = self.nodes[ref.name]

@@ -2,6 +2,7 @@
 
 trees:
   - name: main
+    module_path: dut
     nodes:
       xtal:
         kind: source

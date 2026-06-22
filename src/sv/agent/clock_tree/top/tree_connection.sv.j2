@@ -7,28 +7,24 @@
     {{ settings.class_prefix }}interface {{ settings.class_prefix }}``id``_if ( .in(p) );
 
 {%- for tree in trees %}
-{%- for slot in tree.sv_slots %}
+{%- for slot in tree.connectable_slots %}
 {%- set node = tree.nodes[slot.node_key] %}
-{%- if node.path %}
 {%- if node.sv_is_array %}
 `{{ _mac_conn }}({{ tree.name }}_{{ slot.node_key }}_{{ slot.group_id }}, {{ node.path }})
 {%- else %}
 `{{ _mac_conn }}({{ tree.name }}_{{ slot.node_key }}, {{ node.path }})
-{%- endif %}
 {%- endif %}
 {%- endfor %}
 
 function automatic void {{ settings.class_prefix }}connect_{{ tree.name }}_tree({{ settings.class_prefix }}{{ tree.name }}_tree t);
     if (t == null)
         uvm_report_fatal("CLK_TREE", "{{ settings.class_prefix }}connect_{{ tree.name }}_tree: tree is null");
-{%- for slot in tree.sv_slots %}
+{%- for slot in tree.connectable_slots %}
 {%- set node = tree.nodes[slot.node_key] %}
-{%- if node.path %}
 {%- if node.sv_is_array %}
     t.{{ slot.access }}.vif = {{ settings.class_prefix }}{{ tree.name }}_{{ slot.node_key }}_{{ slot.group_id }}_if;
 {%- else %}
     t.{{ slot.access }}.vif = {{ settings.class_prefix }}{{ tree.name }}_{{ slot.node_key }}_if;
-{%- endif %}
 {%- endif %}
 {%- endfor %}
 endfunction

@@ -83,6 +83,7 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `name` | `str` | | 时钟树名称。 |
+| `module_path` | `str` | `""` | 该树可测量 RTL 模块的层次路径，按 `.` 分隔；非空时仅 **path** 等于此路径或以其为前缀的节点接测量 interface 并参与 **check_measure**；省略或空字符串表示不按模块过滤。 |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
 
 ### Node - source

@@ -432,10 +432,23 @@ def any_reg_configured(tree: Tree) -> bool:
     return False
 
 
+def node_path_connectable(tree: Tree, node: object) -> bool:
+    """节点 RTL path 非空且落在 tree.module_path 范围内时为真。"""
+    path = getattr(node, "path", "")
+    if not path:
+        return False
+    scope = tree.module_path
+    if not scope:
+        return True
+    if path == scope:
+        return True
+    return path.startswith(scope + ".")
+
+
 def any_node_path(tree: Tree) -> bool:
-    """任一节点配置了非空 RTL path 时为真，用于决定是否展开 interface 与 tree_connection。"""
+    """任一节点有可连接 RTL path 时为真，用于决定是否展开 interface 与 tree_connection。"""
     for node in tree.nodes_ordered:
-        if node.path:
+        if node_path_connectable(tree, node):
             return True
     return False
 
