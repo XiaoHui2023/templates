@@ -83,16 +83,21 @@ INV_KIND_TO_SV: dict[str, str] = {
     "mux_inv": "inv_mux",
 }
 
-_SOURCE_KIND_CANON = frozenset({"source", "gate"})
+_SOURCE_KIND_CANON = frozenset({"source", "gate", "vdd", "gnd"})
+_FIXED_ZERO_FREQ_SOURCE_KINDS = frozenset({"vdd", "gnd"})
 
 SOURCE_KIND_TO_SV: dict[str, str] = {
     "source": "source",
     "gate": "source_gate",
+    "vdd": "source_vdd",
+    "gnd": "source_gnd",
 }
 
 SOURCE_KIND_TO_SV_ENUM: dict[str, str] = {
     "source": "SOURCE",
     "gate": "GATE",
+    "vdd": "VDD",
+    "gnd": "GND",
 }
 
 INV_KIND_TO_SV_ENUM: dict[str, str] = {
@@ -141,7 +146,8 @@ def normalize_source_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _SOURCE_KIND_CANON:
         raise ValueError(
-            f"source_kind 须为 source、gate 之一，大小写不限，得到 {value!r}"
+            f"source_kind 须为 source、gate、vdd、gnd 之一，"
+            f"大小写不限，得到 {value!r}"
         )
     return canon
 

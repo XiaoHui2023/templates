@@ -1,0 +1,13 @@
+`ifndef {{ (settings.class_prefix ~ "source_vdd") | upper }}
+`define {{ (settings.class_prefix ~ "source_vdd") | upper }}
+
+class {{ settings.class_prefix }}source_vdd extends {{ settings.class_prefix }}source_base;
+    `uvm_object_utils({{ settings.class_prefix }}source_vdd)
+
+    function new(string name = "");
+        super.new(name);
+        source_kind = VDD;
+    endfunction
+endclass
+
+`endif

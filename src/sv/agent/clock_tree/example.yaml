@@ -16,6 +16,14 @@ trees:
         path: dut.gate_xtal
         freq: 24000000
 
+      vdd0:
+        kind: source
+        source_kind: vdd
+
+      gnd0:
+        kind: source
+        source_kind: gnd
+
       pll_tci:
         kind: pll
         source: xtal

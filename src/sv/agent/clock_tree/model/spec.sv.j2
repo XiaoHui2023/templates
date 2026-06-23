@@ -27,7 +27,9 @@ class {{ settings.class_prefix }}spec#(type T = uvm_object) extends T;
 
     typedef enum {
         SOURCE,
-        GATE
+        GATE,
+        VDD,
+        GND
     } source_kind_e;
 
     function new(string name = "");

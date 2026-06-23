@@ -48,6 +48,8 @@
 | --- | --- |
 | **SOURCE** | **source** |
 | **GATE** | **source_gate** |
+| **VDD** | **source_vdd** |
+| **GND** | **source_gnd** |
 
 ## 节点
 
@@ -72,6 +74,14 @@
 ### source_gate
 
 继承 **source_base**；构造时 **source_kind** 为 **GATE**。
+
+### source_vdd
+
+继承 **source_base**；构造时 **source_kind** 为 **VDD**；**frequence** 固定为 0。
+
+### source_gnd
+
+继承 **source_base**；构造时 **source_kind** 为 **GND**；**frequence** 固定为 0。
 
 ### clk
 

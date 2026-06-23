@@ -22,6 +22,7 @@ from reg_paths import (
     INV_KIND_TO_SV,
     PLL_KIND_TO_SV,
     SOURCE_KIND_TO_SV,
+    _FIXED_ZERO_FREQ_SOURCE_KINDS,
     div_reg_keys_for_kind,
     node_path_connectable,
     normalize_cell_kind,
@@ -51,7 +52,7 @@ _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_
 PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
 InvKind = Literal["inv", "mux_inv"]
-SourceKind = Literal["source", "gate"]
+SourceKind = Literal["source", "gate", "vdd", "gnd"]
 CellKind = Literal["cell", "buf"]
 
 
@@ -316,9 +317,13 @@ class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
     source_kind: SourceKind = Field(
         "source",
-        description="输入源型号：source、gate，大小写不限。",
+        description="输入源型号：source、gate、vdd、gnd，大小写不限。",
     )
-    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
+    freq: int = Field(
+        0,
+        ge=0,
+        description="典型频率，单位 Hz；vdd、gnd 固定为 0 或可省略。",
+    )
 
     @field_validator("source_kind", mode="before")
     @classmethod
@@ -335,7 +340,23 @@ class ClockSourceNode(NodeBase):
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_freq(cls, value: Any) -> Any:
-        return _coerce_required_freq(value)
+        if value is None or value == "":
+            return 0
+        return int(value)
+
+    @model_validator(mode="after")
+    def _validate_source_freq(self) -> ClockSourceNode:
+        if self.source_kind in _FIXED_ZERO_FREQ_SOURCE_KINDS:
+            if self.freq != 0:
+                raise ValueError(
+                    f"source_kind 为 {self.source_kind} 时 freq 只能是 0 或省略"
+                )
+            return self
+        if self.freq < 1:
+            raise ValueError(
+                "source_kind 为 source、gate 时须填写大于 0 的 freq"
+            )
+        return self
 
 
 class PllNode(NodeBase):
