@@ -12,7 +12,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "div" %}
 {%- if node.div_kind == "cpu_gate" %}
 {%- set field_flags = "UVM_ALL_ON | (_print_div ? 0 : UVM_NOPRINT)" %}
-{%- elif node.div_kind in ["div", "div_n", "div2"] %}
+{%- elif node.div_kind in ["div", "div_n", "div_r"] %}
 {%- set field_flags = "UVM_ALL_ON | (_print_div ? 0 : UVM_NOPRINT)" %}
 {%- else %}
 {%- set field_flags = "UVM_ALL_ON | (_print_dto ? 0 : UVM_NOPRINT)" %}
@@ -73,6 +73,9 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
         {{ node.name }}["{{ g }}"].group_id = "{{ g }}";
 {%- if node.kind == "div" %}
         {{ node.name }}["{{ g }}"].div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
+{%- if node.div_kind == "div_r" %}
+        {{ node.name }}["{{ g }}"].fixed_ratio = {{ node.ratio }};
+{%- endif %}
 {%- endif %}
 {%- endfor %}
 {%- for g in node.output_groups %}
@@ -87,6 +90,9 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "div" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_div_class }}::type_id::create("{{ node.name }}");
         {{ node.name }}.div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
+{%- if node.div_kind == "div_r" %}
+        {{ node.name }}.fixed_ratio = {{ node.ratio }};
+{%- endif %}
 {%- elif node.kind == "inv" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_inv_class }}::type_id::create("{{ node.name }}");
 {%- elif node.kind == "source" %}

@@ -116,15 +116,16 @@ trees:
         source: gate0
         path: dut.cell_buf
 
-      div2_0:
-        kind: div2
+      div_r_0:
+        kind: div_r
+        ratio: 2
         source: cell_buf
-        path: dut.div2_0
+        path: dut.div_r_0
 
       div0:
         kind: div
         div_kind: div
-        source: div2_0
+        source: div_r_0
         path: dut.div0
         regs:
           rst: blk_div0.rst

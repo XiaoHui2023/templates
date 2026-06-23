@@ -54,7 +54,7 @@ CPU_GATE_PASS_THROUGH_GROUP = "clk_arm_core"
 
 CPU_GATE_PRIMARY_GROUP = CPU_GATE_OUTPUT_GROUPS[0]
 
-_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div2"})
+_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
 
 _INV_KIND_CANON = frozenset({"inv", "mux_inv"})
 
@@ -66,7 +66,7 @@ DIV_KIND_TO_SV: dict[str, str] = {
     "dto": "div_dto",
     "dto_n": "div_dto",
     "cpu_gate": "div_cpu_gate",
-    "div2": "div_div2",
+    "div_r": "div_div_r",
 }
 
 DIV_KIND_TO_SV_ENUM: dict[str, str] = {
@@ -75,7 +75,7 @@ DIV_KIND_TO_SV_ENUM: dict[str, str] = {
     "dto": "DTO",
     "dto_n": "DTO_N",
     "cpu_gate": "CPU_GATE",
-    "div2": "DIV2",
+    "div_r": "DIV_R",
 }
 
 INV_KIND_TO_SV: dict[str, str] = {
@@ -107,7 +107,7 @@ def normalize_div_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _DIV_KIND_CANON:
         raise ValueError(
-            f"div_kind 须为 div、div_n、dto、dto_n、cpu_gate、div2 之一，"
+            f"div_kind 须为 div、div_n、dto、dto_n、cpu_gate、div_r 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -151,7 +151,7 @@ def div_reg_keys_for_kind(div_kind: str) -> frozenset[str]:
         return DIV_REG_KEYS
     if div_kind == "cpu_gate":
         return CPU_GATE_REG_KEYS
-    if div_kind == "div2":
+    if div_kind == "div_r":
         return frozenset()
     return DTO_REG_KEYS
 

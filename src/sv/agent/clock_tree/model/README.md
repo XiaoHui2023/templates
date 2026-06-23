@@ -231,20 +231,21 @@
 | **cst_div** | **ratio** 只能取 1～64 的整数 |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** |
 
-### div_div2
+### div_div_r
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | **source** | **node_base** | 前级节点 |
-| **ratio** | **int** | 固定为 2 |
+| **fixed_ratio** | **int** | 配置写入的固定分频比 |
+| **ratio** | **int** | 等于 **fixed_ratio** |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
-| **cst_div** | **ratio** 恒为 2 |
-| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 2 |
+| **cst_div** | **ratio** 等于 **fixed_ratio**，取值 1～64 |
+| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** |
 
 ### dto
 

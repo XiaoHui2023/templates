@@ -133,10 +133,10 @@ endfunction
 function automatic void {{ settings.class_prefix }}route_structure_set_ratio(
         {{ settings.class_prefix }}node_base nd, int ratio_val, bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap snap;
-    {{ settings.class_prefix }}div_div2 div2_nd;
+    {{ settings.class_prefix }}div_div_r div_r_nd;
     if (nd == null)
         return;
-    if ($cast(div2_nd, nd))
+    if ($cast(div_r_nd, nd))
         return;
     {{ settings.class_prefix }}route_structure_save_ctrl(nd, snap);
     snap.ratio = ratio_val;

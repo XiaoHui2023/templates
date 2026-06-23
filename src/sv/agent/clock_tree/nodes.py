@@ -46,10 +46,10 @@ _NODE_KIND_ALIASES: dict[str, str] = {
     "clock": "clk",
 }
 
-_LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div2"})
+_LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
-DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div2"]
+DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
 InvKind = Literal["inv", "mux_inv"]
 SourceKind = Literal["source", "gate"]
 CellKind = Literal["cell", "buf"]
@@ -220,15 +220,21 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     div_kind: DivKind = Field(
         "div",
-        description="分频器型号：div、div_n、dto、dto_n、cpu_gate、div2，大小写不限。",
+        description="分频器型号：div、div_n、dto、dto_n、cpu_gate、div_r，大小写不限。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
+    ratio: Optional[int] = Field(
+        None,
+        ge=1,
+        le=64,
+        description="div_r 固定分频比，1～64；仅 div_r 填写。",
+    )
     regs: Dict[str, str] = Field(
         default_factory=dict,
         description="非空时键由 div_kind 决定：div/div_n 为 rst、load、div；"
         "dto/dto_n 为 rst、load、bypass、step；"
         "cpu_gate 为 rst、div；"
-        "div2 不可配置寄存器，须为空。",
+        "div_r 不可配置寄存器，须为空。",
     )
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -254,6 +260,17 @@ class DivNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_div_regs(self, info: ValidationInfo) -> DivNode:
+        if self.div_kind == "div_r":
+            if self.ratio is None:
+                raise ValueError(
+                    f"div 节点 {_validation_node_name(self, info)!r} "
+                    f"div_kind 为 div_r 时须填写 ratio"
+                )
+        elif self.ratio is not None:
+            raise ValueError(
+                f"div 节点 {_validation_node_name(self, info)!r} "
+                f"div_kind 为 {self.div_kind!r} 时不可填写 ratio"
+            )
         validate_regs_exact(
             self.regs,
             div_reg_keys_for_kind(self.div_kind),
