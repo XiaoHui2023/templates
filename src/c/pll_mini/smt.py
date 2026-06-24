@@ -69,6 +69,11 @@ def build_smt2(
                 lines.append(f"(assert (= {_sym(name, 'ratio')} {node.ratio}))")
         if isinstance(node, GateNode):
             lines.append(f"(declare-const {_sym(name, 'gate_open')} Bool)")
+            if node.open is not None:
+                lit = "true" if node.open else "false"
+                lines.append(
+                    f"(assert (= {_sym(name, 'gate_open')} {lit}))"
+                )
 
     for name in node_names:
         node = tree.nodes[name]
@@ -259,7 +264,11 @@ def parse_solve_model(
             elif node.div_kind == "div_r" and node.ratio is not None:
                 ratios[name] = node.ratio
         if isinstance(node, GateNode):
-            gate_open[name] = _model_bool(model, _sym(name, "gate_open"))
+            gate_open[name] = (
+                node.open != 0
+                if node.open is not None
+                else _model_bool(model, _sym(name, "gate_open"))
+            )
 
     return active, freq, ratios, mux_sel, gate_open
 

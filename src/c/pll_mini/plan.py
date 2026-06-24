@@ -738,7 +738,11 @@ def build_config_plan(
             dev_patches.extend(expand_div_patches(index, node, settings, state))
 
     for node in tree.nodes_ordered:
-        if isinstance(node, GateNode) and node.reg:
+        if (
+            isinstance(node, GateNode)
+            and node.reg
+            and node.open is None
+        ):
             state = resolved.by_name[node.name]
             if state.active:
                 dev_patches.append(expand_gate_patch(index, node, settings))

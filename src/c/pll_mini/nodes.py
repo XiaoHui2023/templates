@@ -121,9 +121,17 @@ class NodeBase(BaseModel):
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
     source: str = Field(..., min_length=1, description="前级引用。")
+    open: Optional[int] = Field(
+        None,
+        ge=0,
+        le=1,
+        description="门控开关，0 关闭、1 打开；省略表示由求解器决定；"
+        "已填写时功能固定，不写 reg。",
+    )
     reg: str = Field(
         "",
-        description="门控寄存器模型点分路径；空则生成时跳过写寄存器。",
+        description="门控寄存器模型点分路径；空则生成时跳过写寄存器；"
+        "open 已填写时也应为空。",
     )
 
     @model_validator(mode="after")
@@ -131,6 +139,11 @@ class GateNode(NodeBase):
         validate_optional_reg(
             self.reg, node_name=_validation_node_name(self, info), kind="gate"
         )
+        if self.open is not None and self.reg:
+            raise ValueError(
+                f"gate 节点 {_validation_node_name(self, info)!r} "
+                f"已指定 open 时 reg 应为空"
+            )
         return self
 
 
