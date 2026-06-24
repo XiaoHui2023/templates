@@ -20,7 +20,7 @@ class {{ settings.class_prefix }}div_cpu_gate extends {{ settings.class_prefix }
         source != null -> {
             group_id == "{{ cpu_gate_pass_through_group }}" -> _resolved_freq == source._resolved_freq;
             group_id != "{{ cpu_gate_pass_through_group }}" -> _resolved_freq == source._resolved_freq / ratio;
-        };
+        }
         source == null -> _resolved_freq == 0;
     }
 
