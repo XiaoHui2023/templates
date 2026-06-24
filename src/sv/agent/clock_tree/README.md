@@ -107,8 +107,7 @@ settings:
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 参考时钟前级引用。 |
-| `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。 |
-| `output_count` | `int` | `1` | 有几路输出。仅 `inno` 可用。 |
+| `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。`inno` 固定两路输出。 |
 
 #### tci
 
@@ -158,18 +157,7 @@ settings:
 
 #### inno
 
-**output_count** 为 1：
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `regs.lock` | `str` | | PLL lock 状态位。 |
-| `regs.pd` | `str` | | 掉电控制。 |
-| `regs.refdiv` | `str` | | 参考分频系数。 |
-| `regs.fbdiv` | `str` | | 反馈分频系数。 |
-| `regs.postdiv1` | `str` | | 后级分频 1 系数。 |
-| `regs.postdiv2` | `str` | | 后级分频 2 系数。 |
-
-**output_count** 大于 1：
+固定两路输出，组内共用 **lock**、**pd**、**refdiv**、**fbdiv**，每路各有 **postdiv1**、**postdiv2**。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -181,8 +169,6 @@ settings:
 | `regs.postdiv2[0]` | `str` | | 第 0 路后级分频 2 系数。 |
 | `regs.postdiv1[1]` | `str` | | 第 1 路后级分频 1 系数。 |
 | `regs.postdiv2[1]` | `str` | | 第 1 路后级分频 2 系数。 |
-
-更多输出路时 **regs** 内名字序号递增，如 `postdiv1[2]`、`postdiv2[2]`。
 
 ### Node - clk
 

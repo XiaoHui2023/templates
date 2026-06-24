@@ -21,6 +21,7 @@ from reg_paths import (
     CPU_GATE_OUTPUT_GROUPS,
     DIV_KIND_TO_SV,
     INV_KIND_TO_SV,
+    INNO_PLL_OUTPUT_GROUPS,
     PLL_KIND_TO_SV,
     SOURCE_KIND_TO_SV,
     _FIXED_ZERO_FREQ_SOURCE_KINDS,
@@ -391,14 +392,9 @@ class PllNode(NodeBase):
         description="参考时钟前级引用。",
     )
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno，大小写不限。")
-    output_count: int = Field(
-        1,
-        ge=1,
-        description="有几路输出。仅 inno 可用。",
-    )
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="逻辑名到寄存器模型路径；非空时键须与 pll_kind、output_count 允许集合一致。",
+        description="逻辑名到寄存器模型路径；非空时键须与 pll_kind 允许集合一致。",
     )
 
     @field_validator("pll_kind", mode="before")
@@ -414,21 +410,16 @@ class PllNode(NodeBase):
         return PLL_KIND_TO_SV[self.pll_kind]
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="多路 inno 时为 0、1 等字符串路名；单路为空；YAML 不可传入。",
+        description="inno 为 0、1 两路输出名；其它 pll 为空；YAML 不可传入。",
     )
     @property
     def output_groups(self) -> List[str]:
-        if self.output_count <= 1:
-            return []
-        return [str(i) for i in range(self.output_count)]
+        if self.pll_kind == "inno":
+            return list(INNO_PLL_OUTPUT_GROUPS)
+        return []
 
     @model_validator(mode="after")
     def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:
-        if self.output_count > 1 and self.pll_kind != "inno":
-            raise ValueError(
-                f"pll 节点 {self.name!r} output_count 为 {self.output_count} 时 "
-                f"pll_kind 须为 inno，得到 {self.pll_kind!r}"
-            )
         validate_pll_regs_exact(
             self.regs,
             self.pll_kind,

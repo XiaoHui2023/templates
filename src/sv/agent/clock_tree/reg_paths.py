@@ -167,6 +167,8 @@ _PLL_KIND_CANON = frozenset({"tci", "sc", "dw", "inno"})
 
 INNO_PLL_SHARED_REG_KEYS = frozenset({"lock", "pd", "refdiv", "fbdiv"})
 
+INNO_PLL_OUTPUT_GROUPS = ["0", "1"]
+
 PLL_REG_KEYS: dict[str, frozenset[str]] = {
     "tci": frozenset({
         "lock",
@@ -223,13 +225,9 @@ PLL_KIND_TO_SV: dict[str, str] = {
 }
 
 
-def inno_pll_reg_keys(output_groups: List[str]) -> frozenset[str]:
+def inno_pll_reg_keys() -> frozenset[str]:
     keys = set(INNO_PLL_SHARED_REG_KEYS)
-    if not output_groups:
-        keys.add("postdiv1")
-        keys.add("postdiv2")
-        return frozenset(keys)
-    for group_id in output_groups:
+    for group_id in INNO_PLL_OUTPUT_GROUPS:
         keys.add(f"postdiv1[{group_id}]")
         keys.add(f"postdiv2[{group_id}]")
     return frozenset(keys)
@@ -381,8 +379,8 @@ def validate_pll_regs_exact(
     output_groups: Optional[List[str]] = None,
 ) -> None:
     groups = output_groups or []
-    if pll_kind == "inno" and groups:
-        allowed = inno_pll_reg_keys(groups)
+    if pll_kind == "inno":
+        allowed = inno_pll_reg_keys()
     else:
         allowed = PLL_REG_KEYS.get(pll_kind)
         if groups:
@@ -503,7 +501,7 @@ def _pll_reg_bindings(
         node_name=node.name,
         output_groups=groups,
     )
-    if node.pll_kind == "inno" and groups:
+    if node.pll_kind == "inno":
         for group_id in groups:
             access = sv_node_access(node.name, group_id, groups)
             for key in sorted(INNO_PLL_SHARED_REG_KEYS):

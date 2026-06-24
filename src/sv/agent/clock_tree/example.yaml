@@ -83,7 +83,6 @@ trees:
         kind: pll
         source: xtal
         pll_kind: inno
-        output_count: 2
         path: dut.pll_inno
         freq: 48000000
         regs:
