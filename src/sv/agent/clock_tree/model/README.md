@@ -281,15 +281,17 @@
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | **source** | **node_base** | 前级节点 |
-| **open** | **bit**，**rand** | 通行状态 |
+| **_resolved_open** | **bit**，**rand** | 解析后的通行状态 |
+| **open** | **int** | 配置输入；默认 -1 表示不参与固定；0 或 1 时约束 **_resolved_open** |
 | **f_reg** | **reg** | |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 
 | 约束 | 说明 |
 | --- | --- |
-| **cst_resolve_active_from_src** | **open** 为 0 时 **_resolved_active** 为 0；**open** 为 1 且 **source** 已连接时等于 **source._resolved_active**；**open** 为 1 且 **source** 未连接时为 0 |
-| **cst_resolve_freq_from_src** | **open** 为 0 时 **_resolved_freq** 为 0；**open** 为 1 且 **source** 已连接时等于 **source._resolved_freq**；**open** 为 1 且 **source** 未连接时为 0 |
+| **cst_open** | **open** 为 0 或 1 时等于 **_resolved_open** |
+| **cst_resolve_active_from_src** | **_resolved_open** 为 0 时 **_resolved_active** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_active**；为 1 且 **source** 未连接时为 0 |
+| **cst_resolve_freq_from_src** | **_resolved_open** 为 0 时 **_resolved_freq** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_freq**；为 1 且 **source** 未连接时为 0 |
 
 ### cell
 

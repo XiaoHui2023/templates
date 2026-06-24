@@ -185,6 +185,13 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
         {{ node.name }}.unfix_sel = 1'b0;
 {%- endif %}
 {%- endif %}
+{%- elif node.kind == "gate" %}
+{%- if node.gate_trees_emit_unfix_open %}
+        {{ node.name }}.open = {{ node.gate_init_open }};
+{%- if enable_node_fix %}
+        {{ node.name }}.unfix_open = 1'b0;
+{%- endif %}
+{%- endif %}
 {%- endif %}
 {%- endfor %}
         nodes.delete();

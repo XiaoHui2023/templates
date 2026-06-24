@@ -205,10 +205,30 @@ class NodeBase(BaseModel):
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
     source: str = Field(..., min_length=1, description="前级引用。")
+    open: Optional[int] = Field(
+        None,
+        ge=0,
+        le=1,
+        description="门控开关；0 关闭、1 打开；省略表示随机化。",
+    )
     reg: str = Field(
         "",
         description="寄存器模型路径。",
     )
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="trees 构造写入 open；省略时为 -1；YAML 不可传入。",
+    )
+    @property
+    def gate_init_open(self) -> int:
+        return -1 if self.open is None else self.open
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="open 非 gate::new 默认 -1 时为真；YAML 不可传入。",
+    )
+    @property
+    def gate_trees_emit_unfix_open(self) -> bool:
+        return self.open is not None
 
     @model_validator(mode="after")
     def _validate_gate_reg(self, info: ValidationInfo) -> GateNode:

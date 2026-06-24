@@ -47,8 +47,9 @@ function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
 
     snap = new();
     if ($cast(gate_nd, nd)) begin
-        snap.gate_open = gate_nd.open;
+        snap.gate_open = gate_nd._resolved_open;
 {%- if enable_node_fix %}
+        snap.unfix_open = gate_nd.unfix_open;
         snap.fix_open = gate_nd.fix_open;
         snap.fix_close = gate_nd.fix_close;
 {%- endif %}
@@ -77,15 +78,18 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
     if (snap == null)
         return;
     if ($cast(gate_nd, nd)) begin
-        gate_nd.open = snap.gate_open;
+        gate_nd._resolved_open = snap.gate_open;
 {%- if enable_node_fix %}
         if (clear_fix) begin
-            gate_nd.fix_open = snap.gate_open;
-            gate_nd.fix_close = !snap.gate_open;
+            gate_nd.open = snap.gate_open;
+            gate_nd.unfix_open = 1'b0;
         end else begin
+            gate_nd.unfix_open = snap.unfix_open;
             gate_nd.fix_open = snap.fix_open;
             gate_nd.fix_close = snap.fix_close;
         end
+{%- else %}
+        gate_nd.open = snap.gate_open;
 {%- endif %}
     end else if ($cast(mux_nd, nd)) begin
         mux_nd._resolved_sel = snap.mux_sel;
@@ -640,6 +644,8 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix
     {{ settings.class_prefix }}route_structure_clear_clk_unfix(tree);
     foreach (tree.nodes[i]) begin
         if ($cast(gate_nd, tree.nodes[i])) begin
+            gate_nd.open = -1;
+            gate_nd.unfix_open = 1'b1;
             gate_nd.fix_open = 1'b0;
             gate_nd.fix_close = 1'b0;
         end else if ($cast(mux_nd, tree.nodes[i])) begin

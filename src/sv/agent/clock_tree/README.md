@@ -187,6 +187,7 @@ settings:
 | `kind` | `str` | `gate` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
+| `open` | `int` | | 门控开关；0 关闭、1 打开；省略则参与随机化。 |
 | `reg` | `str` | `""` | 门控寄存器模型路径。 |
 
 ### Node - cell

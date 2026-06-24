@@ -70,8 +70,8 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_gate_node({{ settings
             "config_reg: gate %s f_reg not bound", gate_nd.get_name()))
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "config_reg: gate %s open %0b", gate_nd.get_name(), gate_nd.open), UVM_MEDIUM)
-    p_sequencer.tools.node.configure_gate(gate_nd.f_reg, gate_nd.open);
+            "config_reg: gate %s open %0b", gate_nd.get_name(), gate_nd._resolved_open), UVM_MEDIUM)
+    p_sequencer.tools.node.configure_gate(gate_nd.f_reg, gate_nd._resolved_open);
 endtask
 
 // 向寄存器写入指定 gate 开关
@@ -546,7 +546,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_gate_nodes(
     {{ settings.class_prefix }}gate gate_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(gate_nd, tree.nodes[i]) && gate_nd.open == open)
+        if ($cast(gate_nd, tree.nodes[i]) && gate_nd._resolved_open == open)
             config_reg_gate_node(gate_nd);
 endtask
 

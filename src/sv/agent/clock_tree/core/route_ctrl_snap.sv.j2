@@ -7,6 +7,7 @@ class {{ settings.class_prefix }}route_ctrl_snap;
     int     mux_sel;
     int     ratio;
 {%- if enable_node_fix %}
+    bit     unfix_open;
     bit     fix_open;
     bit     fix_close;
     bit     unfix_sel;
@@ -19,6 +20,7 @@ class {{ settings.class_prefix }}route_ctrl_snap;
         mux_sel = 0;
         ratio = 1;
 {%- if enable_node_fix %}
+        unfix_open = 1'b1;
         fix_open = 1'b0;
         fix_close = 1'b0;
         unfix_sel = 1'b1;
