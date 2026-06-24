@@ -84,6 +84,24 @@ f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 
 在合法组合中使 **f_actual** 与 **f** 绝对误差最小；先在 **fbdiv_min**～**fbdiv_max** 内搜，无解再搜全硬件范围。
 
+### inno
+
+| 参数 | 说明 |
+| --- | --- |
+| **f_actual** | 由系数算出的输出频率 |
+| **fbdiv** | 反馈分频，1～4095，四舍五入取整；两路共用 |
+| **refdiv** | 参考分频，1～63；两路共用 |
+| **postdiv1** | 后分频 1，1～7；每路独立 |
+| **postdiv2** | 后分频 2，1～7；每路独立 |
+
+```
+f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
+```
+
+**fbdiv**、**refdiv** 两路共用；每路各有 **postdiv1**、**postdiv2**。
+
+在合法组合中使 **f_actual** 与 **f** 绝对误差最小。先视 **postdiv1**、**postdiv2** 均为 1，在 **refdiv** 1～63 与 **fbdiv** 1～4095 内搜共用系数；再固定已定的 **fbdiv**、**refdiv**，在 **postdiv1**、**postdiv2** 各 1～7 内为该路搜后级分频。
+
 ## 测量相位
 
 | 参数 | 说明 |
