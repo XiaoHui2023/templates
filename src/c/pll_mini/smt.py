@@ -58,10 +58,15 @@ def build_smt2(
             keys = sorted(node.source.keys(), key=lambda k: int(k))
             max_sel = max(int(k) for k in keys)
             lines.append(f"(declare-const {_sym(name, 'sel')} Int)")
-            lines.append(f"(assert (>= {_sym(name, 'sel')} 0))")
-            lines.append(f"(assert (<= {_sym(name, 'sel')} {max_sel}))")
+            if node.sel is not None:
+                lines.append(f"(assert (= {_sym(name, 'sel')} {node.sel}))")
+            else:
+                lines.append(f"(assert (>= {_sym(name, 'sel')} 0))")
+                lines.append(f"(assert (<= {_sym(name, 'sel')} {max_sel}))")
         if isinstance(node, DivNode) and _div_needs_ratio_var(node):
             lines.append(f"(declare-const {_sym(name, 'ratio')} Int)")
+            if node.ratio is not None:
+                lines.append(f"(assert (= {_sym(name, 'ratio')} {node.ratio}))")
         if isinstance(node, GateNode):
             lines.append(f"(declare-const {_sym(name, 'gate_open')} Bool)")
 
@@ -239,10 +244,18 @@ def parse_solve_model(
         active[name] = _model_bool(model, _sym(name, "active"))
         freq[name] = _model_int(model, _sym(name, "freq"))
         if isinstance(node, MuxNode):
-            mux_sel[name] = _model_int(model, _sym(name, "sel"))
+            mux_sel[name] = (
+                node.sel
+                if node.sel is not None
+                else _model_int(model, _sym(name, "sel"))
+            )
         if isinstance(node, DivNode):
             if _div_needs_ratio_var(node):
-                ratios[name] = _model_int(model, _sym(name, "ratio"))
+                ratios[name] = (
+                    node.ratio
+                    if node.ratio is not None
+                    else _model_int(model, _sym(name, "ratio"))
+                )
             elif node.div_kind == "div_r" and node.ratio is not None:
                 ratios[name] = node.ratio
         if isinstance(node, GateNode):

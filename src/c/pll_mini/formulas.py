@@ -223,6 +223,8 @@ def inno_pll_cfg(
     *,
     output_groups: list[str] | None = None,
 ) -> dict[str, int]:
+    from reg_paths import INNO_PLL_OUTPUT_GROUPS, inno_postdiv_reg_keys
+
     fbdiv, refdiv = inno_shared_divisors(out_hz, ref_hz)
     postdiv1, postdiv2 = inno_postdivisors(out_hz, ref_hz, fbdiv, refdiv)
     cfg: dict[str, int] = {
@@ -230,15 +232,9 @@ def inno_pll_cfg(
         "refdiv": refdiv,
         "fbdiv": fbdiv,
     }
-    groups = output_groups or []
-    if not groups:
-        cfg["postdiv1"] = postdiv1
-        cfg["postdiv2"] = postdiv2
-    else:
-        from reg_paths import inno_postdiv_reg_keys
-
-        for group_id in groups:
-            p1_key, p2_key = inno_postdiv_reg_keys(group_id)
-            cfg[p1_key] = postdiv1
-            cfg[p2_key] = postdiv2
+    groups = output_groups or list(INNO_PLL_OUTPUT_GROUPS)
+    for group_id in groups:
+        p1_key, p2_key = inno_postdiv_reg_keys(group_id)
+        cfg[p1_key] = postdiv1
+        cfg[p2_key] = postdiv2
     return cfg

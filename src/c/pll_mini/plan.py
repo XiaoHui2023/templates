@@ -476,22 +476,6 @@ def _expand_pll_inno(
             note=f"{node.name} pd release",
         )
     )
-    if not node.output_groups:
-        post = (
-            f"{node.name} postdiv1={cfg['postdiv1']} "
-            f"postdiv2={cfg['postdiv2']}"
-        )
-        for key in ("postdiv1", "postdiv2"):
-            patches.append(
-                _patch(
-                    index,
-                    node_name=node.name,
-                    raw_path=node.regs[key],
-                    value=cfg[key],
-                    note=post if key == "postdiv1" else "",
-                )
-            )
-        return patches
     for group_id in node.output_groups:
         p1_key, p2_key = inno_postdiv_reg_keys(group_id)
         post = (

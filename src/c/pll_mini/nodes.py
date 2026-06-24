@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     PrivateAttr,
     TypeAdapter,
+    ValidationError,
     ValidationInfo,
     computed_field,
     field_validator,
@@ -17,10 +18,13 @@ from pydantic import (
 
 from reg_paths import (
     CPU_GATE_OUTPUT_GROUPS,
+    INNO_PLL_OUTPUT_GROUPS,
     _FIXED_ZERO_FREQ_SOURCE_KINDS,
     div_reg_keys_for_kind,
     node_output_groups,
+    normalize_cell_kind,
     normalize_div_kind,
+    normalize_inv_kind,
     normalize_pll_kind,
     normalize_source_kind,
     primary_output_group,
@@ -31,8 +35,8 @@ from reg_paths import (
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
+InvKind = Literal["inv", "mux_inv", "inv_cell"]
 SourceKind = Literal["source", "gate", "vdd", "gnd"]
-CellKind = Literal["cell", "buf"]
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _SOURCE_ENDPOINT = re.compile(
@@ -140,8 +144,7 @@ class DivNode(NodeBase):
     ratio: Optional[int] = Field(
         None,
         ge=1,
-        le=64,
-        description="div_r 固定分频比，1～64；仅 div_r 填写。",
+        description="分频比；div_r 必填；其余 div 省略表示由求解器决定。",
     )
     regs: Dict[str, str] = Field(
         default_factory=dict,
@@ -174,10 +177,15 @@ class DivNode(NodeBase):
                     f"div_kind 为 div_r 时须填写 ratio"
                 )
         elif self.ratio is not None:
-            raise ValueError(
-                f"div 节点 {_validation_node_name(self, info)!r} "
-                f"div_kind 为 {self.div_kind!r} 时不可填写 ratio"
-            )
+            max_ratio = 64
+            if self.div_kind == "cpu_gate":
+                max_ratio = 32
+            if self.ratio > max_ratio:
+                raise ValueError(
+                    f"div 节点 {_validation_node_name(self, info)!r} "
+                    f"div_kind 为 {self.div_kind!r} 时 ratio 须不大于 {max_ratio}，"
+                    f"得到 {self.ratio}"
+                )
         validate_regs_exact(
             self.regs,
             div_reg_keys_for_kind(self.div_kind),
@@ -189,7 +197,16 @@ class DivNode(NodeBase):
 
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
+    inv_kind: InvKind = Field(
+        "inv",
+        description="反相器型号：inv、mux_inv、inv_cell，大小写不限。",
+    )
     source: str = Field(..., min_length=1, description="前级引用。")
+
+    @field_validator("inv_kind", mode="before")
+    @classmethod
+    def _normalize_inv_kind(cls, value: object) -> str:
+        return normalize_inv_kind(value)
 
 
 class ClockSourceNode(NodeBase):
@@ -236,14 +253,9 @@ class PllNode(NodeBase):
     freq: int = Field(..., ge=1, description="目标输出频率，单位 Hz。")
     source: str = Field(..., min_length=1, description="参考时钟前级引用。")
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno。")
-    output_count: int = Field(
-        1,
-        ge=1,
-        description="PLL 输出路数；大于 1 时仅允许 pll_kind 为 inno。",
-    )
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="非空时键须与 pll_kind、output_count 允许集合完全一致。",
+        description="非空时键须与 pll_kind 允许集合完全一致。",
     )
 
     @field_validator("freq", mode="before")
@@ -257,26 +269,20 @@ class PllNode(NodeBase):
         return normalize_pll_kind(value)
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="多路 inno 时为 0、1 等字符串路名；单路为空；YAML 不可传入。",
+        description="inno 为 0、1 两路输出名；其它 pll 为空；YAML 不可传入。",
     )
     @property
     def output_groups(self) -> List[str]:
-        if self.output_count <= 1:
-            return []
-        return [str(i) for i in range(self.output_count)]
+        if self.pll_kind == "inno":
+            return list(INNO_PLL_OUTPUT_GROUPS)
+        return []
 
     @model_validator(mode="after")
     def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:
-        node_name = _validation_node_name(self, info)
-        if self.output_count > 1 and self.pll_kind != "inno":
-            raise ValueError(
-                f"pll 节点 {node_name!r} output_count 为 {self.output_count} 时 "
-                f"pll_kind 须为 inno"
-            )
         validate_pll_regs_exact(
             self.regs,
             self.pll_kind,
-            node_name=node_name,
+            node_name=_validation_node_name(self, info),
             output_groups=self.output_groups,
         )
         return self
@@ -284,11 +290,17 @@ class PllNode(NodeBase):
 
 class CellNode(NodeBase):
     kind: Literal["cell"] = "cell"
-    cell_kind: CellKind = Field(
+    cell_kind: str = Field(
         "cell",
-        description="cell 型号：cell、buf，大小写不限；仅区分配置，频率行为相同。",
+        min_length=1,
+        description="配置型号，任意非空字符串；仅作记录，频率行为相同。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
+
+    @field_validator("cell_kind", mode="before")
+    @classmethod
+    def _normalize_cell_kind(cls, value: object) -> str:
+        return normalize_cell_kind(value)
 
 
 class ClkNode(NodeBase):
@@ -325,16 +337,35 @@ class MuxNode(NodeBase):
         default_factory=dict,
         description="多路输入：键为输入标签，值为前级引用。",
     )
+    sel: Optional[int] = Field(
+        None,
+        ge=0,
+        description="mux 选择值；省略表示由求解器决定。",
+    )
     reg: str = Field(
         "",
         description="mux 选择寄存器模型点分路径；空则生成时跳过写寄存器。",
     )
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="mux 的 source 键最大值；YAML 不可传入。",
+    )
+    @property
+    def mux_max_sel(self) -> int:
+        if not self.source:
+            return 0
+        return max(int(k) for k in self.source.keys())
 
     @model_validator(mode="after")
     def _validate_mux(self, info: ValidationInfo) -> MuxNode:
         validate_optional_reg(
             self.reg, node_name=_validation_node_name(self, info), kind="mux"
         )
+        if self.sel is not None and self.sel > self.mux_max_sel:
+            raise ValueError(
+                f"mux 节点 {_validation_node_name(self, info)!r} "
+                f"sel 为 {self.sel} 超出 source 键范围 0～{self.mux_max_sel}"
+            )
         return self
 
 
@@ -353,6 +384,49 @@ Node = Annotated[
 ]
 
 _node_adapter: TypeAdapter[Node] = TypeAdapter(Node)
+
+_NODE_KINDS_TEXT = "gate、div、inv、source、pll、cell、clk、mux"
+
+
+def _node_kind_diagnosis(item: Any) -> str:
+    if not isinstance(item, dict):
+        return f"应为对象，得到 {type(item).__name__}"
+    kind = item.get("kind")
+    if kind is None:
+        return "缺少 kind 字段"
+    return (
+        f"kind 为 {kind!r} 无法识别，应为 {_NODE_KINDS_TEXT} 之一；"
+        f"分频旧写法可用 div、div_n、dto、dto_n、cpu_gate、div_r 作为 kind"
+    )
+
+
+def _format_node_validation_error(
+    node_key: str,
+    item: Any,
+    exc: ValidationError,
+) -> str:
+    errors = exc.errors()
+    if len(errors) == 1 and errors[0].get("type") in (
+        "union_tag_not_found",
+        "union_tag_invalid",
+    ):
+        return f"nodes[{node_key!r}] {_node_kind_diagnosis(item)}"
+    parts: list[str] = []
+    for err in errors:
+        loc = err.get("loc", ())
+        loc_text = ".".join(str(part) for part in loc)
+        msg = str(err.get("msg", ""))
+        parts.append(f"{loc_text}: {msg}" if loc_text else msg)
+    return f"nodes[{node_key!r}] " + "；".join(parts)
+
+
+def _validate_node_at_key(node_key: str, item: Any) -> Node:
+    try:
+        return _node_adapter.validate_python(item, context={"node_name": node_key})
+    except ValidationError as exc:
+        raise ValueError(
+            _format_node_validation_error(node_key, item, exc)
+        ) from exc
 
 
 def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
@@ -427,9 +501,7 @@ class Tree(BaseModel):
                 object.__setattr__(item, "_name", key)
                 built[key] = item
                 continue
-            node = _node_adapter.validate_python(
-                item, context={"node_name": key}
-            )
+            node = _validate_node_at_key(key, item)
             object.__setattr__(node, "_name", key)
             built[key] = node
         return built

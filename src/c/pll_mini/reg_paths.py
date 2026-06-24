@@ -29,6 +29,10 @@ _PLL_KIND_CANON = frozenset({"tci", "sc", "dw", "inno"})
 
 INNO_PLL_SHARED_REG_KEYS = frozenset({"lock", "pd", "refdiv", "fbdiv"})
 
+INNO_PLL_OUTPUT_GROUPS = ["0", "1"]
+
+_INV_KIND_CANON = frozenset({"inv", "mux_inv", "inv_cell"})
+
 PLL_KIND_TO_SV: dict[str, str] = {
     "tci": "pll_tci",
     "sc": "pll_sc",
@@ -144,22 +148,36 @@ def div_kind_uses_div_regs(div_kind: str) -> bool:
     return div_kind in ("div", "div_n")
 
 
-def inno_pll_reg_keys(output_groups: List[str]) -> frozenset[str]:
+def inno_pll_reg_keys() -> frozenset[str]:
     keys = set(INNO_PLL_SHARED_REG_KEYS)
-    if not output_groups:
-        keys.add("postdiv1")
-        keys.add("postdiv2")
-        return frozenset(keys)
-    for group_id in output_groups:
+    for group_id in INNO_PLL_OUTPUT_GROUPS:
         keys.add(f"postdiv1[{group_id}]")
         keys.add(f"postdiv2[{group_id}]")
     return frozenset(keys)
 
 
 def inno_postdiv_reg_keys(group_id: str) -> tuple[str, str]:
-    if not group_id:
-        return "postdiv1", "postdiv2"
     return f"postdiv1[{group_id}]", f"postdiv2[{group_id}]"
+
+
+def normalize_inv_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"inv_kind 须为字符串，得到 {type(value).__name__}")
+    canon = value.strip().lower()
+    if canon not in _INV_KIND_CANON:
+        raise ValueError(
+            f"inv_kind 须为 inv、mux_inv、inv_cell 之一，大小写不限，得到 {value!r}"
+        )
+    return canon
+
+
+def normalize_cell_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"cell_kind 应为字符串，得到 {type(value).__name__}")
+    text = value.strip()
+    if not text:
+        raise ValueError(f"cell_kind 应为非空字符串，得到 {value!r}")
+    return text
 
 
 def normalize_pll_kind(value: object) -> str:
@@ -238,8 +256,8 @@ def validate_pll_regs_exact(
     output_groups: Optional[List[str]] = None,
 ) -> None:
     groups = output_groups or []
-    if pll_kind == "inno" and groups:
-        allowed = inno_pll_reg_keys(groups)
+    if pll_kind == "inno":
+        allowed = inno_pll_reg_keys()
     else:
         allowed = PLL_REG_KEYS.get(pll_kind)
         if groups:

@@ -95,8 +95,7 @@ settings:
 | `kind` | `str` | `pll` | |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 参考时钟前级引用。 |
-| `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。 |
-| `output_count` | `int` | `1` | 有几路输出。仅 `inno` 可用。 |
+| `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。`inno` 固定两路输出。 |
 
 #### tci
 
@@ -146,7 +145,7 @@ settings:
 
 #### inno
 
-**output_count** 为 1：
+固定两路输出，组内共用 **lock**、**pd**、**refdiv**、**fbdiv**，每路各有 **postdiv1**、**postdiv2**。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -154,23 +153,10 @@ settings:
 | `regs.pd` | `str` | | 掉电控制。 |
 | `regs.refdiv` | `str` | | 参考分频系数。 |
 | `regs.fbdiv` | `str` | | 反馈分频系数。 |
-| `regs.postdiv1` | `str` | | 后级分频 1 系数。 |
-| `regs.postdiv2` | `str` | | 后级分频 2 系数。 |
-
-**output_count** 大于 1：
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `regs.lock` | `str` | | PLL lock 状态位。 |
-| `regs.pd` | `str` | | 掉电控制。 |
-| `regs.refdiv` | `str` | | 参考分频系数。 |
-| `regs.fbdiv` | `str` | | 反馈分频系数。 |
-| `regs.postdiv1[0]` | `str` | | 输出名 `0` 的后级分频 1 系数。 |
-| `regs.postdiv2[0]` | `str` | | 输出名 `0` 的后级分频 2 系数。 |
-| `regs.postdiv1[1]` | `str` | | 输出名 `1` 的后级分频 1 系数。 |
-| `regs.postdiv2[1]` | `str` | | 输出名 `1` 的后级分频 2 系数。 |
-
-更多输出路时 **regs** 内名字为 `postdiv1[输出名]`、`postdiv2[输出名]`。
+| `regs.postdiv1[0]` | `str` | | 第 0 路后级分频 1 系数。 |
+| `regs.postdiv2[0]` | `str` | | 第 0 路后级分频 2 系数。 |
+| `regs.postdiv1[1]` | `str` | | 第 1 路后级分频 1 系数。 |
+| `regs.postdiv2[1]` | `str` | | 第 1 路后级分频 2 系数。 |
 
 ### Node - clk
 
@@ -198,7 +184,7 @@ settings:
 | `kind` | `str` | `div` | |
 | `div_kind` | `str` | `div` | 取 `div`、`div_n`、`dto`、`dto_n`、`cpu_gate`、`div_r`。 |
 | `source` | `str` | | 前级引用。 |
-| `ratio` | `int` | | 仅 `div_r`：固定分频比 1～64。 |
+| `ratio` | `int` | | `div_r` 必填固定分频比 1～64；其它 **div_kind** 可填以固定分频比。 |
 | `regs` | `dict` | `{}` | 键由 `div_kind` 决定；`div_r` 须为空。 |
 
 **div_kind** 为 `div` 或 `div_n`：
@@ -227,14 +213,6 @@ settings:
 
 输出名为 `hclk_en`、`hclk`、`clk_arm_core`；前级引用须写 `节点名[输出名]`。
 
-### Node - cell
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `cell` | |
-| `cell_kind` | `str` | `cell` | 取 `cell`、`buf`。 |
-| `source` | `str` | | 前级引用。 |
-
 ### Node - inv
 
 反相器仅作频率透传，**不写寄存器**，生成代码跳过配置。
@@ -242,6 +220,7 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `inv` | |
+| `inv_kind` | `str` | `inv` | 取 `inv`、`mux_inv`、`inv_cell`。 |
 | `source` | `str` | | 前级引用。 |
 
 ### Node - mux
@@ -250,4 +229,13 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | `mux` | |
 | `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
+| `sel` | `int` | | mux 选择值；省略表示由求解器决定。 |
 | `reg` | `str` | `""` | 选择寄存器模型路径。 |
+
+### Node - cell
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `kind` | `str` | `cell` | |
+| `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
+| `source` | `str` | | 前级引用。 |

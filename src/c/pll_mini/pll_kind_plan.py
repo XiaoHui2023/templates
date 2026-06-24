@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence
 
 from nodes import PllNode, Tree
 from plan import (
@@ -17,7 +17,7 @@ from plan import (
 from regmodel import FieldRef, RegModelIndex
 from resolve import ResolvedNode, TreeResolve
 
-PllGroupKey = Tuple[str, int]
+PllGroupKey = str
 
 
 @dataclass(frozen=True)
@@ -113,7 +113,6 @@ class PllFreqBranch:
 @dataclass(frozen=True)
 class PllKindPlan:
     pll_kind: str
-    output_count: int
     fn_name: str
     addr_params: tuple[str, ...]
     cfg_var_names: tuple[str, ...]
@@ -188,8 +187,8 @@ def _validate_pll_group_layout(
     nodes: Sequence[PllNode],
     index: RegModelIndex,
 ) -> None:
-    kind, output_count = group_key
-    label = f"pll_kind {kind!r} output_count {output_count}"
+    kind = group_key
+    label = f"pll_kind {kind!r}"
     suffix_maps = [
         {key: reg_path_suffix(node.regs[key]) for key in sorted(node.regs)}
         for node in nodes
@@ -215,8 +214,8 @@ def _validate_pll_freq_cfg(
     nodes: Sequence[PllNode],
     resolved: TreeResolve,
 ) -> dict[int, dict[str, int]]:
-    kind, output_count = group_key
-    label = f"pll_kind {kind!r} output_count {output_count}"
+    kind = group_key
+    label = f"pll_kind {kind!r}"
     by_freq: dict[int, dict[str, int]] = {}
     for node in nodes:
         state = resolved.by_name[node.name]
@@ -405,16 +404,9 @@ def _inno_write_templates(
         )
     )
     if not output_groups:
-        templates.extend(
-            _group_reg_write_templates(
-                index,
-                template_node,
-                ("postdiv1", "postdiv2"),
-                value_expr_for_key=lambda key: key,
-                comment_for_key=lambda key: key,
-            )
+        raise ValueError(
+            f"pll_kind inno 须有两路输出，output_groups 为空"
         )
-        return tuple(templates)
     for group_id in output_groups:
         p1_key, p2_key = inno_postdiv_reg_keys(group_id)
         templates.extend(
@@ -447,13 +439,10 @@ def _cfg_var_names_for_kind(
         return tuple(k for k in PLL_DW_ORDER if k in keys)
     if pll_kind == "inno":
         ordered: list[str] = ["refdiv", "fbdiv"]
-        if not output_groups:
-            ordered.extend(["postdiv1", "postdiv2"])
-        else:
-            from reg_paths import inno_postdiv_reg_keys
+        from reg_paths import inno_postdiv_reg_keys
 
-            for group_id in output_groups:
-                ordered.extend(inno_postdiv_reg_keys(group_id))
+        for group_id in output_groups:
+            ordered.extend(inno_postdiv_reg_keys(group_id))
         return tuple(k for k in ordered if k in keys)
     raise ValueError(f"unknown pll_kind {pll_kind!r}")
 
@@ -550,7 +539,7 @@ def build_pll_plan(
     active = _collect_active_pll_nodes(tree, resolved)
     groups: dict[PllGroupKey, list[PllNode]] = {}
     for node in active:
-        key = (node.pll_kind, node.output_count)
+        key = node.pll_kind
         groups.setdefault(key, []).append(node)
 
     kind_plans: list[PllKindPlan] = []
@@ -558,7 +547,7 @@ def build_pll_plan(
 
     for group_key in sorted(groups.keys()):
         nodes = groups[group_key]
-        pll_kind, output_count = group_key
+        pll_kind = group_key
         _validate_pll_group_layout(group_key, nodes, index)
         cfg_by_freq = _validate_pll_freq_cfg(group_key, nodes, resolved)
         template_node = nodes[0]
@@ -576,7 +565,6 @@ def build_pll_plan(
         kind_plans.append(
             PllKindPlan(
                 pll_kind=pll_kind,
-                output_count=output_count,
                 fn_name=fn_name,
                 addr_params=addr_params,
                 cfg_var_names=cfg_var_names,
@@ -588,10 +576,7 @@ def build_pll_plan(
         )
         for node in nodes:
             state = resolved.by_name[node.name]
-            wait_lock = not (pll_kind == "inno" and output_count > 1)
-            lock_addr_macro = ""
-            if wait_lock:
-                lock_addr_macro, _ = _pll_lock_view(index, node)
+            lock_addr_macro, _ = _pll_lock_view(index, node)
             instances.append(
                 PllInstancePlan(
                     node_name=node.name,
@@ -600,7 +585,7 @@ def build_pll_plan(
                         node, index, state, slot_tails
                     ),
                     freq_hz=node.freq,
-                    wait_lock=wait_lock,
+                    wait_lock=True,
                     lock_addr_macro=lock_addr_macro,
                     lock_mask_hex=lock_mask_hex,
                 )
