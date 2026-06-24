@@ -169,11 +169,12 @@ task {{ settings.class_prefix }}test_flip_seq::verify_div_flip_pattern(
 
     {{ settings.class_prefix }}route_structure_save_ctrl(div_nd, snap);
 
-    div_nd.fix_ratio = probe_ratio;
+    div_nd.ratio = probe_ratio;
+    div_nd.unfix_ratio = 1'b0;
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: div %s %s fix_ratio %0d",
+            "test_flip: div %s %s ratio %0d",
             div_nd.get_name(), pat_label, probe_ratio), UVM_MEDIUM)
     run_config_reg(tree, quiet);
     run_check_measure_quiet(tree);
@@ -222,11 +223,12 @@ task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip_pattern(
 
     {{ settings.class_prefix }}route_structure_save_ctrl(dto_nd, snap);
 
-    dto_nd.fix_ratio = probe_ratio;
+    dto_nd.ratio = probe_ratio;
+    dto_nd.unfix_ratio = 1'b0;
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: dto %s %s fix_ratio %0d",
+            "test_flip: dto %s %s ratio %0d",
             dto_nd.get_name(), pat_label, probe_ratio), UVM_MEDIUM)
     run_config_reg(tree, quiet);
     run_check_measure_quiet(tree);

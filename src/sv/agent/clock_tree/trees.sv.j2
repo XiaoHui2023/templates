@@ -73,8 +73,11 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
         {{ node.name }}["{{ g }}"].group_id = "{{ g }}";
 {%- if node.kind == "div" %}
         {{ node.name }}["{{ g }}"].div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
-{%- if node.div_kind == "div_r" %}
-        {{ node.name }}["{{ g }}"].fixed_ratio = {{ node.ratio }};
+{%- if node.div_trees_emit_unfix_ratio %}
+        {{ node.name }}["{{ g }}"].ratio = {{ node.div_init_ratio }};
+{%- if enable_node_fix %}
+        {{ node.name }}["{{ g }}"].unfix_ratio = 1'b0;
+{%- endif %}
 {%- endif %}
 {%- endif %}
 {%- endfor %}
@@ -90,8 +93,11 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "div" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_div_class }}::type_id::create("{{ node.name }}");
         {{ node.name }}.div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
-{%- if node.div_kind == "div_r" %}
-        {{ node.name }}.fixed_ratio = {{ node.ratio }};
+{%- if node.div_trees_emit_unfix_ratio %}
+        {{ node.name }}.ratio = {{ node.div_init_ratio }};
+{%- if enable_node_fix %}
+        {{ node.name }}.unfix_ratio = 1'b0;
+{%- endif %}
 {%- endif %}
 {%- elif node.kind == "inv" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_inv_class }}::type_id::create("{{ node.name }}");
@@ -173,6 +179,12 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- if node.kind == "mux" %}
         {{ node.name }}.max_sel = {{ node.mux_max_sel }};
+{%- if node.mux_trees_emit_unfix_sel %}
+        {{ node.name }}.sel = {{ node.mux_init_sel }};
+{%- if enable_node_fix %}
+        {{ node.name }}.unfix_sel = 1'b0;
+{%- endif %}
+{%- endif %}
 {%- endif %}
 {%- endfor %}
         nodes.delete();

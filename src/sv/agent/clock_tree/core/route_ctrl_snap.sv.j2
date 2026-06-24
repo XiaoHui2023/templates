@@ -9,8 +9,8 @@ class {{ settings.class_prefix }}route_ctrl_snap;
 {%- if enable_node_fix %}
     bit     fix_open;
     bit     fix_close;
-    int     fix_sel;
-    int     fix_ratio;
+    bit     unfix_sel;
+    bit     unfix_ratio;
 {%- endif %}
 
     // 清零为可恢复的默认控制状态
@@ -21,8 +21,8 @@ class {{ settings.class_prefix }}route_ctrl_snap;
 {%- if enable_node_fix %}
         fix_open = 1'b0;
         fix_close = 1'b0;
-        fix_sel = -1;
-        fix_ratio = 0;
+        unfix_sel = 1'b1;
+        unfix_ratio = 1'b1;
 {%- endif %}
     endfunction
 endclass

@@ -53,14 +53,14 @@ function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
         snap.fix_close = gate_nd.fix_close;
 {%- endif %}
     end else if ($cast(mux_nd, nd)) begin
-        snap.mux_sel = mux_nd.sel;
+        snap.mux_sel = mux_nd._resolved_sel;
 {%- if enable_node_fix %}
-        snap.fix_sel = mux_nd.fix_sel;
+        snap.unfix_sel = mux_nd.unfix_sel;
 {%- endif %}
     end else if ($cast(div_nd, nd)) begin
-        snap.ratio = div_nd.ratio;
+        snap.ratio = div_nd._resolved_ratio;
 {%- if enable_node_fix %}
-        snap.fix_ratio = div_nd.fix_ratio;
+        snap.unfix_ratio = div_nd.unfix_ratio;
 {%- endif %}
     end
 endfunction
@@ -88,21 +88,23 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
         end
 {%- endif %}
     end else if ($cast(mux_nd, nd)) begin
-        mux_nd.sel = snap.mux_sel;
+        mux_nd._resolved_sel = snap.mux_sel;
 {%- if enable_node_fix %}
-        if (clear_fix)
-            mux_nd.fix_sel = snap.mux_sel;
-        else
-            mux_nd.fix_sel = snap.fix_sel;
+        if (clear_fix) begin
+            mux_nd.sel = snap.mux_sel;
+            mux_nd.unfix_sel = 1'b0;
+        end else
+            mux_nd.unfix_sel = snap.unfix_sel;
 {%- endif %}
         mux_nd.post_randomize();
     end else if ($cast(div_nd, nd)) begin
-        div_nd.ratio = snap.ratio;
+        div_nd._resolved_ratio = snap.ratio;
 {%- if enable_node_fix %}
-        if (clear_fix)
-            div_nd.fix_ratio = snap.ratio;
-        else
-            div_nd.fix_ratio = snap.fix_ratio;
+        if (clear_fix) begin
+            div_nd.ratio = snap.ratio;
+            div_nd.unfix_ratio = 1'b0;
+        end else
+            div_nd.unfix_ratio = snap.unfix_ratio;
 {%- endif %}
     end
 endfunction
@@ -460,7 +462,7 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_pll_dis
     end
 endfunction
 
-// test_route 前：全部 div ratio 与 fix_ratio 固定为 1
+// test_route 前：全部 div _resolved_ratio 与 ratio 固定为 1
 function automatic void {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(
         {{ settings.class_prefix }}tree_base tree);
 {%- if enable_node_fix %}
@@ -516,7 +518,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_alway
     end
 endfunction
 
-// gate 固定打开、mux 以当前 sel 设 fix_sel、div 固定 ratio 1
+// gate 固定打开、mux 以当前 _resolved_sel 设 sel、div 固定 _resolved_ratio 为 1
 function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(
         {{ settings.class_prefix }}node_base gate_mux[$]);
 {%- if enable_node_fix %}
@@ -530,7 +532,8 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_
         if ($cast(gate_nd, gate_mux[i]))
             {{ settings.class_prefix }}route_structure_set_gate_open(gate_nd, 1'b1, 1'b1);
         else if ($cast(mux_nd, gate_mux[i])) begin
-            mux_nd.fix_sel = mux_nd.sel;
+            mux_nd.sel = mux_nd._resolved_sel;
+            mux_nd.unfix_sel = 1'b0;
             mux_nd.post_randomize();
         end else if ($cast(div_nd, gate_mux[i]))
             {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
@@ -640,9 +643,11 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix
             gate_nd.fix_open = 1'b0;
             gate_nd.fix_close = 1'b0;
         end else if ($cast(mux_nd, tree.nodes[i])) begin
-            mux_nd.fix_sel = -1;
+            mux_nd.sel = -1;
+            mux_nd.unfix_sel = 1'b1;
         end else if ($cast(div_nd, tree.nodes[i])) begin
-            div_nd.fix_ratio = 0;
+            div_nd.ratio = -1;
+            div_nd.unfix_ratio = 1'b1;
         end
     end
 {%- endif %}

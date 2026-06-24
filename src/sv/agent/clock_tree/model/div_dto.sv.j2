@@ -11,11 +11,8 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_
 {% endif %}
 
     constraint cst_dto {
-        ratio > 0;
-        ratio <= (1 << 25);
-{%- if enable_node_fix %}
-        fix_ratio > 0 -> ratio == fix_ratio;
-{%- endif %}
+        _resolved_ratio > 0;
+        _resolved_ratio <= (1 << 25);
     }
 
     function new(string name = "");

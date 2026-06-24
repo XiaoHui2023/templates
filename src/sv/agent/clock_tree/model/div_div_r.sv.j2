@@ -4,15 +4,9 @@
 class {{ settings.class_prefix }}div_div_r extends {{ settings.class_prefix }}div_base;
     `uvm_object_utils({{ settings.class_prefix }}div_div_r)
 
-    int fixed_ratio;
-
     constraint cst_div {
-        fixed_ratio >= 1;
-        fixed_ratio <= 64;
-        ratio == fixed_ratio;
-{%- if enable_node_fix %}
-        fix_ratio > 0 -> fix_ratio == fixed_ratio;
-{%- endif %}
+        _resolved_ratio >= 1;
+        _resolved_ratio <= 64;
     }
 
     function new(string name = "");

@@ -10,11 +10,8 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
 {% endif %}
 
     constraint cst_div {
-        ratio > 0;
-        ratio <= 64;
-{%- if enable_node_fix %}
-        fix_ratio > 0 -> ratio == fix_ratio;
-{%- endif %}
+        _resolved_ratio > 0;
+        _resolved_ratio <= 64;
     }
 
     function new(string name = "");

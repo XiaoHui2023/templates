@@ -227,8 +227,7 @@ class DivNode(NodeBase):
     ratio: Optional[int] = Field(
         None,
         ge=1,
-        le=64,
-        description="div_r 固定分频比，1～64；仅 div_r 填写。",
+        description="分频比；div_r 必填；其余 div 省略表示随机化。",
     )
     regs: Dict[str, str] = Field(
         default_factory=dict,
@@ -268,10 +267,15 @@ class DivNode(NodeBase):
                     f"div_kind 为 div_r 时须填写 ratio"
                 )
         elif self.ratio is not None:
-            raise ValueError(
-                f"div 节点 {_validation_node_name(self, info)!r} "
-                f"div_kind 为 {self.div_kind!r} 时不可填写 ratio"
-            )
+            max_ratio = 64
+            if self.div_kind == "cpu_gate":
+                max_ratio = 32
+            if self.ratio > max_ratio:
+                raise ValueError(
+                    f"div 节点 {_validation_node_name(self, info)!r} "
+                    f"div_kind 为 {self.div_kind!r} 时 ratio 须不大于 {max_ratio}，"
+                    f"得到 {self.ratio}"
+                )
         validate_regs_exact(
             self.regs,
             div_reg_keys_for_kind(self.div_kind),
@@ -279,6 +283,20 @@ class DivNode(NodeBase):
             kind=f"div({self.div_kind})",
         )
         return self
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="trees 构造写入 ratio；省略时为 -1；YAML 不可传入。",
+    )
+    @property
+    def div_init_ratio(self) -> int:
+        return -1 if self.ratio is None else self.ratio
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="ratio 非 div_base::new 默认 -1 时为真；YAML 不可传入。",
+    )
+    @property
+    def div_trees_emit_unfix_ratio(self) -> bool:
+        return self.ratio is not None
 
 
 class InvNode(NodeBase):
@@ -510,16 +528,40 @@ class MuxNode(NodeBase):
         default_factory=dict,
         description="输入标签到前级引用的映射。",
     )
+    sel: Optional[int] = Field(
+        None,
+        ge=0,
+        description="mux 选择值；省略表示随机化。",
+    )
     reg: str = Field(
         "",
         description="寄存器模型路径。",
     )
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="trees 构造写入 sel；省略时为 -1；YAML 不可传入。",
+    )
+    @property
+    def mux_init_sel(self) -> int:
+        return -1 if self.sel is None else self.sel
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="sel 非 mux::new 默认 -1 时为真；YAML 不可传入。",
+    )
+    @property
+    def mux_trees_emit_unfix_sel(self) -> bool:
+        return self.sel is not None
 
     @model_validator(mode="after")
     def _validate_mux(self, info: ValidationInfo) -> MuxNode:
         validate_optional_reg(
             self.reg, node_name=_validation_node_name(self, info), kind="mux"
         )
+        if self.sel is not None and self.sel > self.mux_max_sel:
+            raise ValueError(
+                f"mux 节点 {_validation_node_name(self, info)!r} "
+                f"sel 为 {self.sel} 超出 source 键范围 0～{self.mux_max_sel}"
+            )
         return self
 
 
