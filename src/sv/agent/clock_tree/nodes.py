@@ -10,6 +10,7 @@ from pydantic import (
     Field,
     PrivateAttr,
     TypeAdapter,
+    ValidationError,
     ValidationInfo,
     computed_field,
     field_validator,
@@ -581,6 +582,49 @@ Node = Annotated[
 
 _node_adapter: TypeAdapter[Node] = TypeAdapter(Node)
 
+_NODE_KINDS_TEXT = "gate、div、inv、source、pll、cell、clk、mux"
+
+
+def _node_kind_diagnosis(item: Any) -> str:
+    if not isinstance(item, dict):
+        return f"应为对象，得到 {type(item).__name__}"
+    kind = item.get("kind")
+    if kind is None:
+        return "缺少 kind 字段"
+    return (
+        f"kind 为 {kind!r} 无法识别，应为 {_NODE_KINDS_TEXT} 之一；"
+        f"分频旧写法可用 div、div_n、dto、dto_n、cpu_gate、div_r 作为 kind"
+    )
+
+
+def _format_node_validation_error(
+    node_key: str,
+    item: Any,
+    exc: ValidationError,
+) -> str:
+    errors = exc.errors()
+    if len(errors) == 1 and errors[0].get("type") in (
+        "union_tag_not_found",
+        "union_tag_invalid",
+    ):
+        return f"nodes[{node_key!r}] {_node_kind_diagnosis(item)}"
+    parts: list[str] = []
+    for err in errors:
+        loc = err.get("loc", ())
+        loc_text = ".".join(str(part) for part in loc)
+        msg = str(err.get("msg", ""))
+        parts.append(f"{loc_text}: {msg}" if loc_text else msg)
+    return f"nodes[{node_key!r}] " + "；".join(parts)
+
+
+def _validate_node_at_key(node_key: str, item: Any) -> Node:
+    try:
+        return _node_adapter.validate_python(item, context={"node_name": node_key})
+    except ValidationError as exc:
+        raise ValueError(
+            _format_node_validation_error(node_key, item, exc)
+        ) from exc
+
 
 def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
     key = (info.context or {}).get("node_name")
@@ -676,9 +720,7 @@ class Tree(BaseModel):
                 object.__setattr__(item, "_name", key)
                 built[key] = item
                 continue
-            node = _node_adapter.validate_python(
-                item, context={"node_name": key}
-            )
+            node = _validate_node_at_key(key, item)
             object.__setattr__(node, "_name", key)
             built[key] = node
         return built
