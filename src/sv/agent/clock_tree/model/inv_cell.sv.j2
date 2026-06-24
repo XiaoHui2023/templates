@@ -1,0 +1,13 @@
+`ifndef {{ (settings.class_prefix ~ "inv_cell") | upper }}
+`define {{ (settings.class_prefix ~ "inv_cell") | upper }}
+
+class {{ settings.class_prefix }}inv_cell extends {{ settings.class_prefix }}inv_base;
+    `uvm_object_utils({{ settings.class_prefix }}inv_cell)
+
+    function new(string name = "");
+        super.new(name);
+        inv_kind = INV_CELL;
+    endfunction
+endclass
+
+`endif

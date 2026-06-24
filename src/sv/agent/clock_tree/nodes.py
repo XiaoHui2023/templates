@@ -51,7 +51,7 @@ _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
-InvKind = Literal["inv", "mux_inv"]
+InvKind = Literal["inv", "mux_inv", "inv_cell"]
 SourceKind = Literal["source", "gate", "vdd", "gnd"]
 CellKind = Literal["cell", "buf"]
 
@@ -285,7 +285,7 @@ class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
     inv_kind: InvKind = Field(
         "inv",
-        description="反相器型号：inv、mux_inv，大小写不限。",
+        description="反相器型号：inv、mux_inv、inv_cell，大小写不限。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
     reg: str = Field(
