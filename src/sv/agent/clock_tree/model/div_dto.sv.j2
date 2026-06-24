@@ -2,7 +2,7 @@
 `define {{ (settings.class_prefix ~ "div_dto") | upper }}
 
 class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_base;
-    `uvm_object_utils({{ settings.class_prefix }}div_dto})
+    `uvm_object_utils({{ settings.class_prefix }}div_dto)
 {% if regs_enabled %}
     {{ settings.class_prefix }}reg f_rst;
     {{ settings.class_prefix }}reg f_load;
