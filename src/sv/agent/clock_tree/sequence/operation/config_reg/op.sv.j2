@@ -498,14 +498,20 @@ task {{ settings.class_prefix }}config_reg_seq::config_div_dto_nodes(
     {{ settings.class_prefix }}div_cpu_gate cpu_gate_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++) begin
-        if ($cast(div_div_nd, tree.nodes[i]))
-            config_reg_div_node(div_div_nd);
-        else if ($cast(div_dto_nd, tree.nodes[i]))
-            config_reg_dto_node(div_dto_nd);
-        else if ($cast(cpu_gate_nd, tree.nodes[i])) begin
+        if ($cast(div_div_nd, tree.nodes[i])) begin
+            if (div_div_nd.f_rst.is_bound() && div_div_nd.f_load.is_bound()
+                    && div_div_nd.f_div.is_bound())
+                config_reg_div_node(div_div_nd);
+        end else if ($cast(div_dto_nd, tree.nodes[i])) begin
+            if (div_dto_nd.f_rst.is_bound() && div_dto_nd.f_load.is_bound()
+                    && div_dto_nd.f_bypass.is_bound()
+                    && div_dto_nd.f_step.is_bound())
+                config_reg_dto_node(div_dto_nd);
+        end else if ($cast(cpu_gate_nd, tree.nodes[i])) begin
             if (cpu_gate_nd.group_id != "{{ cpu_gate_primary_group }}")
                 continue;
-            config_reg_cpu_gate_node(cpu_gate_nd);
+            if (cpu_gate_nd.f_rst.is_bound() && cpu_gate_nd.f_div.is_bound())
+                config_reg_cpu_gate_node(cpu_gate_nd);
         end
     end
 endtask
@@ -550,7 +556,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_mux_nodes(
     {{ settings.class_prefix }}mux mux_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(mux_nd, tree.nodes[i]))
+        if ($cast(mux_nd, tree.nodes[i]) && mux_nd.f_reg.is_bound())
             config_reg_mux_node(mux_nd);
 endtask
 
@@ -571,6 +577,8 @@ task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
     mux_switch.delete();
     for (int i = 0; i < tree.nodes.size(); i++) begin
         if (!$cast(mux_nd, tree.nodes[i]))
+            continue;
+        if (!mux_nd.f_reg.is_bound())
             continue;
         if (p_sequencer.tools.node.mux_sel_unchanged(
                 mux_nd.get_name(), mux_nd._resolved_sel))
