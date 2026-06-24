@@ -9,6 +9,8 @@ RegPathGroup = Dict[str, str]
 RegsMap = Dict[str, Union[str, RegPathGroup]]
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+_C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_REG_KEY_BRACKET = re.compile(r"\[([^\]]*)\]")
 
 SINGLE_REG_NODE_KINDS = frozenset({"gate", "mux"})
 
@@ -158,6 +160,18 @@ def inno_pll_reg_keys() -> frozenset[str]:
 
 def inno_postdiv_reg_keys(group_id: str) -> tuple[str, str]:
     return f"postdiv1[{group_id}]", f"postdiv2[{group_id}]"
+
+
+def reg_key_to_c_ident(key: str) -> str:
+    """把 YAML 逻辑 reg 键转为合法 C 名字，如 postdiv1[0] → postdiv1_0。"""
+    text = _REG_KEY_BRACKET.sub(r"_\1", key)
+    if text and text[0].isdigit():
+        text = f"reg_{text}"
+    if not _C_IDENT.match(text):
+        raise ValueError(
+            f"reg 键 {key!r} 无法转为合法 C 名字，得到 {text!r}"
+        )
+    return text
 
 
 def normalize_inv_kind(value: object) -> str:

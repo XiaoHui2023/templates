@@ -13,6 +13,7 @@ from plan import (
     _pll_lock_view,
 )
 from regmodel import FieldRef, RegModelIndex
+from reg_paths import reg_key_to_c_ident
 from resolve import TreeResolve
 
 PllGroupKey = str
@@ -399,7 +400,7 @@ def _sc_write_templates(
         template_node,
         PLL_SC_DIV_KEYS,
         slot_id="sc_div",
-        value_expr_for_key=lambda key: key,
+        value_expr_for_key=reg_key_to_c_ident,
         comment_for_key=lambda key: key,
     )
     pd_en = _group_reg_write_templates(
@@ -429,7 +430,7 @@ def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
         PllWritePartTemplate(
             lsb=div_lsb[key],
             width=8,
-            value_expr=key,
+            value_expr=reg_key_to_c_ident(key),
             comment=key,
         )
         for key in PLL_TCI_DIV_KEYS
@@ -465,7 +466,7 @@ def _dw_write_templates(
                 PllWritePartTemplate(
                     ref.effective_lsb,
                     ref.effective_width,
-                    key,
+                    reg_key_to_c_ident(key),
                     key,
                 )
             )
@@ -504,7 +505,7 @@ def _inno_write_templates(
             template_node,
             ("refdiv", "fbdiv"),
             slot_id="inno_div",
-            value_expr_for_key=lambda key: key,
+            value_expr_for_key=reg_key_to_c_ident,
             comment_for_key=lambda key: key,
         )
     )
@@ -533,7 +534,7 @@ def _inno_write_templates(
                 template_node,
                 (p1_key, p2_key),
                 slot_id=f"inno_postdiv_{group_id}",
-                value_expr_for_key=lambda key: key,
+                value_expr_for_key=reg_key_to_c_ident,
                 comment_for_key=lambda key, p1=p1_key, gid=group_id: (
                     f"out[{gid}] {key}" if key == p1 else key
                 ),
@@ -596,12 +597,14 @@ def _addr_params_from_writes(writes: tuple[PllWriteTemplate, ...]) -> tuple[str,
 
 def _freq_branches(
     cfg_by_freq: dict[int, dict[str, int]],
-    cfg_var_names: tuple[str, ...],
+    cfg_logical_keys: tuple[str, ...],
 ) -> tuple[PllFreqBranch, ...]:
     branches: list[PllFreqBranch] = []
     for freq_hz in sorted(cfg_by_freq):
         cfg = cfg_by_freq[freq_hz]
-        assignments = tuple((name, cfg[name]) for name in cfg_var_names)
+        assignments = tuple(
+            (reg_key_to_c_ident(name), cfg[name]) for name in cfg_logical_keys
+        )
         branches.append(PllFreqBranch(freq_hz=freq_hz, assignments=assignments))
     return tuple(branches)
 
@@ -669,8 +672,11 @@ def build_pll_plan(
         write_templates = _kind_write_templates(
             pll_kind, output_groups, index, template_node
         )
-        cfg_var_names = _cfg_var_names_for_kind(
+        cfg_logical_keys = _cfg_var_names_for_kind(
             pll_kind, output_groups, cfg_by_freq
+        )
+        cfg_var_names = tuple(
+            reg_key_to_c_ident(name) for name in cfg_logical_keys
         )
         addr_params = _addr_params_from_writes(write_templates)
         slot_specs = _unique_slot_specs_in_order(
@@ -685,7 +691,7 @@ def build_pll_plan(
                 fn_name=fn_name,
                 addr_params=addr_params,
                 cfg_var_names=cfg_var_names,
-                freq_branches=_freq_branches(cfg_by_freq, cfg_var_names),
+                freq_branches=_freq_branches(cfg_by_freq, cfg_logical_keys),
                 write_templates=write_templates,
                 lock_mask_hex=lock_mask_hex,
                 slot_ids=slot_ids,
