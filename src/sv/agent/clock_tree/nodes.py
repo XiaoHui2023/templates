@@ -53,7 +53,6 @@ PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
 InvKind = Literal["inv", "mux_inv", "inv_cell"]
 SourceKind = Literal["source", "gate", "vdd", "gnd"]
-CellKind = Literal["cell", "buf"]
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -440,9 +439,10 @@ class PllNode(NodeBase):
 
 class CellNode(NodeBase):
     kind: Literal["cell"] = "cell"
-    cell_kind: CellKind = Field(
+    cell_kind: str = Field(
         "cell",
-        description="cell 型号：cell、buf，大小写不限；仅区分配置，仿真行为相同。",
+        min_length=1,
+        description="配置型号，任意非空字符串；仅作记录，仿真行为相同。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
 

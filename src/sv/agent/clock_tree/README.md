@@ -210,11 +210,9 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `cell` | |
-| `cell_kind` | `str` | `cell` | 取 `cell`、`buf`。 |
+| `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
-
-**cell_kind** 为 `buf` 时字段与上表相同，仅型号不同。
 
 ### Node - div
 
