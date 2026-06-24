@@ -11,11 +11,9 @@ from plan import (
     PLL_TCI_CTRL_KEYS,
     PLL_TCI_DIV_KEYS,
     _pll_lock_view,
-    expand_pll_patches,
-    merge_field_patches,
 )
 from regmodel import FieldRef, RegModelIndex
-from resolve import ResolvedNode, TreeResolve
+from resolve import TreeResolve
 
 PllGroupKey = str
 
@@ -119,7 +117,7 @@ class PllKindPlan:
     freq_branches: tuple[PllFreqBranch, ...]
     write_templates: tuple[PllWriteTemplate, ...]
     lock_mask_hex: str
-    slot_tails: tuple[str, ...]
+    slot_ids: tuple[str, ...]
 
     @property
     def c_fn_params(self) -> str:
@@ -157,29 +155,40 @@ class PllPlanBundle:
     instances: tuple[PllInstancePlan, ...]
 
 
-def reg_path_suffix(path: str) -> str:
-    parts = path.split(".")
-    if len(parts) < 2:
-        return path
-    return ".".join(parts[1:])
+PllSlotSpec = tuple[str, tuple[str, ...]]
 
 
 def _field_ref_signature(ref: FieldRef) -> tuple[int, int]:
     return ref.effective_lsb, ref.effective_width
 
 
-def _pll_layout_signature(
+def _pll_field_specs(
     node: PllNode,
     index: RegModelIndex,
-) -> tuple[tuple[str, str, tuple[int, int]], ...]:
-    items: list[tuple[str, str, tuple[int, int]]] = []
+) -> tuple[tuple[str, int, int], ...]:
+    items: list[tuple[str, int, int]] = []
     for key in sorted(node.regs.keys()):
         ref = index.resolve(
             node.regs[key],
             ctx=f"pll node {node.name!r} regs[{key!r}]",
         )
-        items.append((key, reg_path_suffix(node.regs[key]), _field_ref_signature(ref)))
+        lsb, width = _field_ref_signature(ref)
+        items.append((key, lsb, width))
     return tuple(items)
+
+
+def _pll_reg_grouping(
+    node: PllNode,
+    index: RegModelIndex,
+) -> frozenset[frozenset[str]]:
+    reg_to_keys: dict[str, set[str]] = {}
+    for key in sorted(node.regs.keys()):
+        ref = index.resolve(
+            node.regs[key],
+            ctx=f"pll node {node.name!r} regs[{key!r}]",
+        )
+        reg_to_keys.setdefault(ref.reg.path, set()).add(key)
+    return frozenset(frozenset(keys) for keys in reg_to_keys.values())
 
 
 def _validate_pll_group_layout(
@@ -189,22 +198,27 @@ def _validate_pll_group_layout(
 ) -> None:
     kind = group_key
     label = f"pll_kind {kind!r}"
-    suffix_maps = [
-        {key: reg_path_suffix(node.regs[key]) for key in sorted(node.regs)}
-        for node in nodes
-    ]
-    unique_suffix = {tuple(sorted(m.items())) for m in suffix_maps}
-    if len(unique_suffix) != 1:
-        names = ", ".join(n.name for n in nodes)
+    ref_node = nodes[0]
+    ref_fields = _pll_field_specs(ref_node, index)
+    ref_grouping = _pll_reg_grouping(ref_node, index)
+    names = ", ".join(n.name for n in nodes)
+
+    field_mismatch = False
+    grouping_mismatch = False
+    for node in nodes[1:]:
+        if _pll_field_specs(node, index) != ref_fields:
+            field_mismatch = True
+        if _pll_reg_grouping(node, index) != ref_grouping:
+            grouping_mismatch = True
+
+    if field_mismatch:
         raise ValueError(
-            f"{label} 的活动节点 {names} 寄存器路径后缀不一致，"
+            f"{label} 的活动节点 {names} 各逻辑键 field 的 lsb、位宽不一致，"
             f"同型号须使用相同寄存器规格"
         )
-    signatures = [_pll_layout_signature(node, index) for node in nodes]
-    if len(set(signatures)) != 1:
-        names = ", ".join(n.name for n in nodes)
+    if grouping_mismatch:
         raise ValueError(
-            f"{label} 的活动节点 {names} field 位域布局不一致，"
+            f"{label} 的活动节点 {names} 逻辑键到物理寄存器的合并分组不一致，"
             f"同型号须使用相同寄存器规格"
         )
 
@@ -234,8 +248,103 @@ def _pll_kind_fn_name(pll_kind: str) -> str:
     return f"pll_mini_config_pll_{pll_kind}"
 
 
-def _slot_param_name(reg_tail: str) -> str:
-    return f"{reg_tail}_addr"
+def _slot_param_name(slot_id: str) -> str:
+    return f"{slot_id}_addr"
+
+
+def _keys_slot_specs(
+    keys: Sequence[str],
+    slot_prefix: str,
+    node: PllNode,
+    index: RegModelIndex,
+) -> tuple[PllSlotSpec, ...]:
+    """按节点上逻辑键共址关系拆成命名槽；与路径字符串无关。"""
+    reg_paths_order: list[str] = []
+    keys_by_reg: dict[str, list[str]] = {}
+    for key in keys:
+        ref = index.resolve(
+            node.regs[key],
+            ctx=f"pll node {node.name!r} regs[{key!r}]",
+        )
+        reg_path = ref.reg.path
+        if reg_path not in keys_by_reg:
+            reg_paths_order.append(reg_path)
+            keys_by_reg[reg_path] = []
+        keys_by_reg[reg_path].append(key)
+    if len(reg_paths_order) == 1:
+        return ((slot_prefix, tuple(keys)),)
+    return tuple(
+        (f"{slot_prefix}_{idx}", tuple(keys_by_reg[reg_path]))
+        for idx, reg_path in enumerate(reg_paths_order)
+    )
+
+
+def _kind_write_slot_specs(
+    pll_kind: str,
+    node: PllNode,
+    index: RegModelIndex,
+    output_groups: list[str],
+) -> tuple[PllSlotSpec, ...]:
+    if pll_kind == "sc":
+        return (
+            *_keys_slot_specs(PLL_SC_PD_KEYS, "sc_pd", node, index),
+            *_keys_slot_specs(PLL_SC_DIV_KEYS, "sc_div", node, index),
+        )
+    if pll_kind == "tci":
+        return (
+            *_keys_slot_specs(PLL_TCI_CTRL_KEYS, "tci_ctrl", node, index),
+            *_keys_slot_specs(PLL_TCI_DIV_KEYS, "tci_div", node, index),
+        )
+    if pll_kind == "dw":
+        reg_paths_order: list[str] = []
+        keys_by_reg: dict[str, list[str]] = {}
+        for key in PLL_DW_ORDER:
+            ref = index.resolve(
+                node.regs[key],
+                ctx=f"pll node {node.name!r} regs[{key!r}]",
+            )
+            reg_path = ref.reg.path
+            if reg_path not in keys_by_reg:
+                reg_paths_order.append(reg_path)
+                keys_by_reg[reg_path] = []
+            keys_by_reg[reg_path].append(key)
+        return tuple(
+            (f"dw_{idx}", tuple(keys_by_reg[reg_path]))
+            for idx, reg_path in enumerate(reg_paths_order)
+        )
+    if pll_kind == "inno":
+        from reg_paths import inno_postdiv_reg_keys
+
+        specs: list[PllSlotSpec] = [
+            ("inno_pd", ("pd",)),
+            *_keys_slot_specs(("refdiv", "fbdiv"), "inno_div", node, index),
+        ]
+        for group_id in output_groups:
+            p1_key, p2_key = inno_postdiv_reg_keys(group_id)
+            specs.extend(
+                _keys_slot_specs(
+                    (p1_key, p2_key),
+                    f"inno_postdiv_{group_id}",
+                    node,
+                    index,
+                )
+            )
+        return tuple(specs)
+    raise ValueError(f"unknown pll_kind {pll_kind!r}")
+
+
+def _unique_slot_specs_in_order(
+    slot_specs: tuple[PllSlotSpec, ...],
+) -> tuple[PllSlotSpec, ...]:
+    seen: set[str] = set()
+    ordered: list[PllSlotSpec] = []
+    for spec in slot_specs:
+        slot_id = spec[0]
+        if slot_id in seen:
+            continue
+        seen.add(slot_id)
+        ordered.append(spec)
+    return tuple(ordered)
 
 
 def _group_reg_write_templates(
@@ -243,30 +352,33 @@ def _group_reg_write_templates(
     template_node: PllNode,
     keys: Sequence[str],
     *,
+    slot_id: str,
     value_expr_for_key,
     comment_for_key,
 ) -> tuple[PllWriteTemplate, ...]:
-    """按 YAML 路径解析出的寄存器名分组，同寄存器多 field 合并为一次写。"""
+    """按 YAML 逻辑键顺序分组，同物理寄存器多 field 合并为一次写。"""
     groups: list[tuple[str, list[PllWritePartTemplate]]] = []
     for key in keys:
         ref = index.resolve(
             template_node.regs[key],
             ctx=f"pll node {template_node.name!r} regs[{key!r}]",
         )
-        tail = ref.reg.path.split(".")[-1]
+        reg_path = ref.reg.path
         part = PllWritePartTemplate(
             lsb=ref.effective_lsb,
             width=ref.effective_width,
             value_expr=value_expr_for_key(key),
             comment=comment_for_key(key),
         )
-        if groups and groups[-1][0] == tail:
+        if groups and groups[-1][0] == reg_path:
             groups[-1][1].append(part)
         else:
-            groups.append((tail, [part]))
+            groups.append((reg_path, [part]))
+    if len(groups) == 1:
+        return (PllWriteTemplate(_slot_param_name(slot_id), tuple(groups[0][1])),)
     return tuple(
-        PllWriteTemplate(_slot_param_name(tail), tuple(parts))
-        for tail, parts in groups
+        PllWriteTemplate(_slot_param_name(f"{slot_id}_{idx}"), tuple(parts))
+        for idx, (_reg_path, parts) in enumerate(groups)
     )
 
 
@@ -278,6 +390,7 @@ def _sc_write_templates(
         index,
         template_node,
         PLL_SC_PD_KEYS,
+        slot_id="sc_pd",
         value_expr_for_key=lambda _key: "1",
         comment_for_key=lambda key: "power-down" if key == "vocpd" else key,
     )
@@ -285,6 +398,7 @@ def _sc_write_templates(
         index,
         template_node,
         PLL_SC_DIV_KEYS,
+        slot_id="sc_div",
         value_expr_for_key=lambda key: key,
         comment_for_key=lambda key: key,
     )
@@ -292,6 +406,7 @@ def _sc_write_templates(
         index,
         template_node,
         PLL_SC_PD_KEYS,
+        slot_id="sc_pd",
         value_expr_for_key=lambda _key: "0",
         comment_for_key=lambda key: "enable" if key == "vocpd" else key,
     )
@@ -299,8 +414,6 @@ def _sc_write_templates(
 
 
 def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
-    ctrl_tail = "ctrl"
-    div_tail = "div"
     ctrl_lsb = {"bypass": 0, "pwrdn": 1, "reset": 2}
     div_lsb = {"clkod": 0, "clkf": 8, "clkr": 16, "bwadj": 24}
     ctrl_init = tuple(
@@ -322,14 +435,14 @@ def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
         for key in PLL_TCI_DIV_KEYS
     )
     return (
-        PllWriteTemplate(_slot_param_name(ctrl_tail), ctrl_init),
-        PllWriteTemplate(_slot_param_name(div_tail), div_parts),
+        PllWriteTemplate(_slot_param_name("tci_ctrl"), ctrl_init),
+        PllWriteTemplate(_slot_param_name("tci_div"), div_parts),
         PllWriteTemplate(
-            _slot_param_name(ctrl_tail),
+            _slot_param_name("tci_ctrl"),
             (PllWritePartTemplate(2, 1, "0", "reset release"),),
         ),
         PllWriteTemplate(
-            _slot_param_name(ctrl_tail),
+            _slot_param_name("tci_ctrl"),
             (PllWritePartTemplate(0, 1, "0", "bypass off"),),
         ),
     )
@@ -339,20 +452,25 @@ def _dw_write_templates(
     index: RegModelIndex,
     template_node: PllNode,
 ) -> tuple[PllWriteTemplate, ...]:
-    by_reg: dict[str, list[PllWritePartTemplate]] = {}
-    for key in PLL_DW_ORDER:
-        ref = index.resolve(
-            template_node.regs[key],
-            ctx=f"pll node {template_node.name!r} regs[{key!r}]",
-        )
-        tail = ref.reg.path.split(".")[-1]
-        by_reg.setdefault(tail, []).append(
-            PllWritePartTemplate(ref.effective_lsb, ref.effective_width, key, key)
-        )
-    return tuple(
-        PllWriteTemplate(_slot_param_name(tail), tuple(parts))
-        for tail, parts in by_reg.items()
-    )
+    slot_specs = _kind_write_slot_specs("dw", template_node, index, [])
+    templates: list[PllWriteTemplate] = []
+    for slot_id, keys in slot_specs:
+        parts: list[PllWritePartTemplate] = []
+        for key in keys:
+            ref = index.resolve(
+                template_node.regs[key],
+                ctx=f"pll node {template_node.name!r} regs[{key!r}]",
+            )
+            parts.append(
+                PllWritePartTemplate(
+                    ref.effective_lsb,
+                    ref.effective_width,
+                    key,
+                    key,
+                )
+            )
+        templates.append(PllWriteTemplate(_slot_param_name(slot_id), tuple(parts)))
+    return tuple(templates)
 
 
 def _inno_write_templates(
@@ -367,10 +485,9 @@ def _inno_write_templates(
         template_node.regs["pd"],
         ctx=f"pll node {template_node.name!r} regs.pd",
     )
-    pd_tail = pd_ref.reg.path.split(".")[-1]
     templates.append(
         PllWriteTemplate(
-            _slot_param_name(pd_tail),
+            _slot_param_name("inno_pd"),
             (
                 PllWritePartTemplate(
                     pd_ref.effective_lsb,
@@ -386,13 +503,14 @@ def _inno_write_templates(
             index,
             template_node,
             ("refdiv", "fbdiv"),
+            slot_id="inno_div",
             value_expr_for_key=lambda key: key,
             comment_for_key=lambda key: key,
         )
     )
     templates.append(
         PllWriteTemplate(
-            _slot_param_name(pd_tail),
+            _slot_param_name("inno_pd"),
             (
                 PllWritePartTemplate(
                     pd_ref.effective_lsb,
@@ -414,6 +532,7 @@ def _inno_write_templates(
                 index,
                 template_node,
                 (p1_key, p2_key),
+                slot_id=f"inno_postdiv_{group_id}",
                 value_expr_for_key=lambda key: key,
                 comment_for_key=lambda key, p1=p1_key, gid=group_id: (
                     f"out[{gid}] {key}" if key == p1 else key
@@ -464,18 +583,6 @@ def _kind_write_templates(
     raise ValueError(f"unknown pll_kind {pll_kind!r}")
 
 
-def _slot_tails_from_writes(writes: tuple[PllWriteTemplate, ...]) -> tuple[str, ...]:
-    seen: set[str] = set()
-    tails: list[str] = []
-    for wt in writes:
-        tail = wt.addr_param[: -len("_addr")]
-        if tail in seen:
-            continue
-        seen.add(tail)
-        tails.append(tail)
-    return tuple(tails)
-
-
 def _addr_params_from_writes(writes: tuple[PllWriteTemplate, ...]) -> tuple[str, ...]:
     seen: set[str] = set()
     params: list[str] = []
@@ -502,20 +609,27 @@ def _freq_branches(
 def _instance_addr_args(
     node: PllNode,
     index: RegModelIndex,
-    state: ResolvedNode,
-    slot_tails: tuple[str, ...],
+    slot_specs: tuple[PllSlotSpec, ...],
 ) -> tuple[str, ...]:
-    writes = merge_field_patches(expand_pll_patches(index, node, state))
-    by_tail: dict[str, str] = {}
-    for step in writes:
-        tail = step.reg.path.split(".")[-1]
-        by_tail[tail] = step.addr_macro
-    missing = [tail for tail in slot_tails if tail not in by_tail]
-    if missing:
-        raise ValueError(
-            f"pll 节点 {node.name!r} 缺少寄存器 {missing!r} 的地址"
+    args: list[str] = []
+    for slot_id, keys in slot_specs:
+        reg_paths = {
+            index.resolve(
+                node.regs[key],
+                ctx=f"pll node {node.name!r} regs[{key!r}]",
+            ).reg.path
+            for key in keys
+        }
+        if len(reg_paths) != 1:
+            raise ValueError(
+                f"pll 节点 {node.name!r} 槽 {slot_id!r} 的逻辑键映射到多个寄存器"
+            )
+        ref = index.resolve(
+            node.regs[keys[0]],
+            ctx=f"pll node {node.name!r} regs[{keys[0]!r}]",
         )
-    return tuple(by_tail[tail] for tail in slot_tails)
+        args.append(ref.reg.addr_macro)
+    return tuple(args)
 
 
 def _collect_active_pll_nodes(
@@ -559,7 +673,10 @@ def build_pll_plan(
             pll_kind, output_groups, cfg_by_freq
         )
         addr_params = _addr_params_from_writes(write_templates)
-        slot_tails = _slot_tails_from_writes(write_templates)
+        slot_specs = _unique_slot_specs_in_order(
+            _kind_write_slot_specs(pll_kind, template_node, index, output_groups)
+        )
+        slot_ids = tuple(spec[0] for spec in slot_specs)
         _, lock_mask_hex = _pll_lock_view(index, template_node)
         fn_name = _pll_kind_fn_name(pll_kind)
         kind_plans.append(
@@ -571,18 +688,24 @@ def build_pll_plan(
                 freq_branches=_freq_branches(cfg_by_freq, cfg_var_names),
                 write_templates=write_templates,
                 lock_mask_hex=lock_mask_hex,
-                slot_tails=slot_tails,
+                slot_ids=slot_ids,
             )
         )
         for node in nodes:
-            state = resolved.by_name[node.name]
             lock_addr_macro, _ = _pll_lock_view(index, node)
+            node_slot_specs = _unique_slot_specs_in_order(
+                _kind_write_slot_specs(pll_kind, node, index, output_groups)
+            )
+            if node_slot_specs != slot_specs:
+                raise ValueError(
+                    f"pll_kind {pll_kind!r} 节点 {node.name!r} 写槽与模板不一致"
+                )
             instances.append(
                 PllInstancePlan(
                     node_name=node.name,
                     fn_name=fn_name,
                     addr_args=_instance_addr_args(
-                        node, index, state, slot_tails
+                        node, index, slot_specs
                     ),
                     freq_hz=node.freq,
                     wait_lock=True,
