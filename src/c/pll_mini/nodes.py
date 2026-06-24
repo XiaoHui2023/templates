@@ -144,14 +144,15 @@ class DivNode(NodeBase):
     ratio: Optional[int] = Field(
         None,
         ge=1,
-        description="分频比；div_r 必填；其余 div 省略表示由求解器决定。",
+        description="分频比；div_r 必填；其余 div 省略表示由求解器决定；"
+        "已填写时功能固定，不写 regs。",
     )
     regs: Dict[str, str] = Field(
         default_factory=dict,
         description="非空时键由 div_kind 决定：div/div_n 为 rst、load、div；"
         "dto/dto_n 为 rst、load、bypass、step；"
         "cpu_gate 为 rst、div；"
-        "div_r 不可配置寄存器，须为空。",
+        "div_r 不可配置寄存器，应为空；ratio 已填写时也应为空。",
     )
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -185,6 +186,11 @@ class DivNode(NodeBase):
                     f"div 节点 {_validation_node_name(self, info)!r} "
                     f"div_kind 为 {self.div_kind!r} 时 ratio 须不大于 {max_ratio}，"
                     f"得到 {self.ratio}"
+                )
+            if self.regs:
+                raise ValueError(
+                    f"div 节点 {_validation_node_name(self, info)!r} "
+                    f"已指定 ratio 时 regs 应为空"
                 )
         validate_regs_exact(
             self.regs,
@@ -340,11 +346,12 @@ class MuxNode(NodeBase):
     sel: Optional[int] = Field(
         None,
         ge=0,
-        description="mux 选择值；省略表示由求解器决定。",
+        description="mux 选择值；省略表示由求解器决定；已填写时功能固定，不写 reg。",
     )
     reg: str = Field(
         "",
-        description="mux 选择寄存器模型点分路径；空则生成时跳过写寄存器。",
+        description="mux 选择寄存器模型点分路径；空则生成时跳过写寄存器；"
+        "sel 已填写时也应为空。",
     )
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -361,11 +368,17 @@ class MuxNode(NodeBase):
         validate_optional_reg(
             self.reg, node_name=_validation_node_name(self, info), kind="mux"
         )
-        if self.sel is not None and self.sel > self.mux_max_sel:
-            raise ValueError(
-                f"mux 节点 {_validation_node_name(self, info)!r} "
-                f"sel 为 {self.sel} 超出 source 键范围 0～{self.mux_max_sel}"
-            )
+        if self.sel is not None:
+            if self.reg:
+                raise ValueError(
+                    f"mux 节点 {_validation_node_name(self, info)!r} "
+                    f"已指定 sel 时 reg 应为空"
+                )
+            if self.sel > self.mux_max_sel:
+                raise ValueError(
+                    f"mux 节点 {_validation_node_name(self, info)!r} "
+                    f"sel 为 {self.sel} 超出 source 键范围 0～{self.mux_max_sel}"
+                )
         return self
 
 

@@ -730,7 +730,11 @@ def build_config_plan(
         state = resolved.by_name[node.name]
         if not state.active:
             continue
-        if isinstance(node, DivNode) and node.regs:
+        if (
+            isinstance(node, DivNode)
+            and node.regs
+            and node.ratio is None
+        ):
             dev_patches.extend(expand_div_patches(index, node, settings, state))
 
     for node in tree.nodes_ordered:
@@ -740,7 +744,11 @@ def build_config_plan(
                 dev_patches.append(expand_gate_patch(index, node, settings))
 
     for node in tree.nodes_ordered:
-        if isinstance(node, MuxNode) and node.reg:
+        if (
+            isinstance(node, MuxNode)
+            and node.reg
+            and node.sel is None
+        ):
             state = resolved.by_name[node.name]
             if state.active:
                 dev_patches.append(expand_mux_patch(index, node, state))
