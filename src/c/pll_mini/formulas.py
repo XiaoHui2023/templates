@@ -221,7 +221,7 @@ def inno_pll_cfg(
     out_hz: int,
     ref_hz: int,
     *,
-    output_count: int,
+    output_groups: list[str] | None = None,
 ) -> dict[str, int]:
     fbdiv, refdiv = inno_shared_divisors(out_hz, ref_hz)
     postdiv1, postdiv2 = inno_postdivisors(out_hz, ref_hz, fbdiv, refdiv)
@@ -230,13 +230,14 @@ def inno_pll_cfg(
         "refdiv": refdiv,
         "fbdiv": fbdiv,
     }
-    if output_count <= 1:
+    groups = output_groups or []
+    if not groups:
         cfg["postdiv1"] = postdiv1
         cfg["postdiv2"] = postdiv2
     else:
         from reg_paths import inno_postdiv_reg_keys
 
-        for group_id in range(output_count):
+        for group_id in groups:
             p1_key, p2_key = inno_postdiv_reg_keys(group_id)
             cfg[p1_key] = postdiv1
             cfg[p2_key] = postdiv2

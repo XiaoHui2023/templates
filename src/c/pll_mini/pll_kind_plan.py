@@ -357,7 +357,7 @@ def _dw_write_templates(
 
 
 def _inno_write_templates(
-    output_count: int,
+    output_groups: list[str],
     index: RegModelIndex,
     template_node: PllNode,
 ) -> tuple[PllWriteTemplate, ...]:
@@ -404,7 +404,7 @@ def _inno_write_templates(
             ),
         )
     )
-    if output_count <= 1:
+    if not output_groups:
         templates.extend(
             _group_reg_write_templates(
                 index,
@@ -415,9 +415,8 @@ def _inno_write_templates(
             )
         )
         return tuple(templates)
-    for group_id in range(output_count):
+    for group_id in output_groups:
         p1_key, p2_key = inno_postdiv_reg_keys(group_id)
-        post = f"out{group_id}"
         templates.extend(
             _group_reg_write_templates(
                 index,
@@ -425,7 +424,7 @@ def _inno_write_templates(
                 (p1_key, p2_key),
                 value_expr_for_key=lambda key: key,
                 comment_for_key=lambda key, p1=p1_key, gid=group_id: (
-                    f"out{gid} {key}" if key == p1 else key
+                    f"out[{gid}] {key}" if key == p1 else key
                 ),
             )
         )
@@ -434,7 +433,7 @@ def _inno_write_templates(
 
 def _cfg_var_names_for_kind(
     pll_kind: str,
-    output_count: int,
+    output_groups: list[str],
     cfg_by_freq: dict[int, dict[str, int]],
 ) -> tuple[str, ...]:
     keys: set[str] = set()
@@ -448,12 +447,12 @@ def _cfg_var_names_for_kind(
         return tuple(k for k in PLL_DW_ORDER if k in keys)
     if pll_kind == "inno":
         ordered: list[str] = ["refdiv", "fbdiv"]
-        if output_count <= 1:
+        if not output_groups:
             ordered.extend(["postdiv1", "postdiv2"])
         else:
             from reg_paths import inno_postdiv_reg_keys
 
-            for group_id in range(output_count):
+            for group_id in output_groups:
                 ordered.extend(inno_postdiv_reg_keys(group_id))
         return tuple(k for k in ordered if k in keys)
     raise ValueError(f"unknown pll_kind {pll_kind!r}")
@@ -461,7 +460,7 @@ def _cfg_var_names_for_kind(
 
 def _kind_write_templates(
     pll_kind: str,
-    output_count: int,
+    output_groups: list[str],
     index: RegModelIndex,
     template_node: PllNode,
 ) -> tuple[PllWriteTemplate, ...]:
@@ -472,7 +471,7 @@ def _kind_write_templates(
     if pll_kind == "dw":
         return _dw_write_templates(index, template_node)
     if pll_kind == "inno":
-        return _inno_write_templates(output_count, index, template_node)
+        return _inno_write_templates(output_groups, index, template_node)
     raise ValueError(f"unknown pll_kind {pll_kind!r}")
 
 
@@ -563,11 +562,12 @@ def build_pll_plan(
         _validate_pll_group_layout(group_key, nodes, index)
         cfg_by_freq = _validate_pll_freq_cfg(group_key, nodes, resolved)
         template_node = nodes[0]
+        output_groups = template_node.output_groups
         write_templates = _kind_write_templates(
-            pll_kind, output_count, index, template_node
+            pll_kind, output_groups, index, template_node
         )
         cfg_var_names = _cfg_var_names_for_kind(
-            pll_kind, output_count, cfg_by_freq
+            pll_kind, output_groups, cfg_by_freq
         )
         addr_params = _addr_params_from_writes(write_templates)
         slot_tails = _slot_tails_from_writes(write_templates)

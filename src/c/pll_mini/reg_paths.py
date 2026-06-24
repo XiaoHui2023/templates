@@ -16,6 +16,15 @@ DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
 DTO_REG_KEYS = frozenset({"rst", "load", "bypass", "step"})
 
+CPU_GATE_REG_KEYS = frozenset({"rst", "div"})
+
+CPU_GATE_OUTPUT_GROUPS: tuple[str, ...] = ("hclk_en", "hclk", "clk_arm_core")
+
+_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
+
+_SOURCE_KIND_CANON = frozenset({"source", "gate", "vdd", "gnd"})
+_FIXED_ZERO_FREQ_SOURCE_KINDS = frozenset({"vdd", "gnd"})
+
 _PLL_KIND_CANON = frozenset({"tci", "sc", "dw", "inno"})
 
 INNO_PLL_SHARED_REG_KEYS = frozenset({"lock", "pd", "refdiv", "fbdiv"})
@@ -76,22 +85,81 @@ PLL_REG_KEYS: dict[str, frozenset[str]] = {
 }
 
 
-def inno_pll_reg_keys(output_count: int) -> frozenset[str]:
+def node_output_groups(node: object) -> List[str]:
+    kind = getattr(node, "kind", None)
+    if kind == "pll":
+        return list(getattr(node, "output_groups", []))
+    if kind == "div" and getattr(node, "div_kind", None) == "cpu_gate":
+        return list(CPU_GATE_OUTPUT_GROUPS)
+    return []
+
+
+def node_output_count(node: object) -> int:
+    groups = node_output_groups(node)
+    if groups:
+        return len(groups)
+    return 1
+
+
+def primary_output_group(node: object) -> str:
+    groups = node_output_groups(node)
+    return groups[0] if groups else ""
+
+
+def normalize_div_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"div_kind 须为字符串，得到 {type(value).__name__}")
+    canon = value.strip().lower()
+    if canon not in _DIV_KIND_CANON:
+        raise ValueError(
+            f"div_kind 须为 div、div_n、dto、dto_n、cpu_gate、div_r 之一，"
+            f"大小写不限，得到 {value!r}"
+        )
+    return canon
+
+
+def normalize_source_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"source_kind 须为字符串，得到 {type(value).__name__}")
+    canon = value.strip().lower()
+    if canon not in _SOURCE_KIND_CANON:
+        raise ValueError(
+            f"source_kind 须为 source、gate、vdd、gnd 之一，"
+            f"大小写不限，得到 {value!r}"
+        )
+    return canon
+
+
+def div_reg_keys_for_kind(div_kind: str) -> frozenset[str]:
+    if div_kind in ("div", "div_n"):
+        return DIV_REG_KEYS
+    if div_kind == "cpu_gate":
+        return CPU_GATE_REG_KEYS
+    if div_kind == "div_r":
+        return frozenset()
+    return DTO_REG_KEYS
+
+
+def div_kind_uses_div_regs(div_kind: str) -> bool:
+    return div_kind in ("div", "div_n")
+
+
+def inno_pll_reg_keys(output_groups: List[str]) -> frozenset[str]:
     keys = set(INNO_PLL_SHARED_REG_KEYS)
-    for idx in range(output_count):
-        if idx == 0:
-            keys.add("postdiv1")
-            keys.add("postdiv2")
-        else:
-            keys.add(f"postdiv1_{idx}")
-            keys.add(f"postdiv2_{idx}")
+    if not output_groups:
+        keys.add("postdiv1")
+        keys.add("postdiv2")
+        return frozenset(keys)
+    for group_id in output_groups:
+        keys.add(f"postdiv1[{group_id}]")
+        keys.add(f"postdiv2[{group_id}]")
     return frozenset(keys)
 
 
-def inno_postdiv_reg_keys(group_id: int) -> tuple[str, str]:
-    if group_id == 0:
+def inno_postdiv_reg_keys(group_id: str) -> tuple[str, str]:
+    if not group_id:
         return "postdiv1", "postdiv2"
-    return f"postdiv1_{group_id}", f"postdiv2_{group_id}"
+    return f"postdiv1[{group_id}]", f"postdiv2[{group_id}]"
 
 
 def normalize_pll_kind(value: object) -> str:
@@ -120,7 +188,7 @@ def flatten_regs(regs: RegsMap) -> dict[str, str]:
     flat: dict[str, str] = {}
     for blk, val in regs.items():
         if not _SV_ID.match(blk):
-            raise ValueError(f"regs 键 {blk!r} 须为合法 SystemVerilog 标识符")
+            raise ValueError(f"regs 键 {blk!r} 须为合法 SystemVerilog 名字")
         if isinstance(val, str):
             validate_reg_path(val, ctx=f"regs[{blk!r}]")
             flat[blk] = val
@@ -128,7 +196,7 @@ def flatten_regs(regs: RegsMap) -> dict[str, str]:
             for field, tail in val.items():
                 if not _SV_ID.match(field):
                     raise ValueError(
-                        f"regs[{blk!r}] 内键 {field!r} 须为合法 SystemVerilog 标识符"
+                        f"regs[{blk!r}] 内键 {field!r} 须为合法 SystemVerilog 名字"
                     )
                 full = f"{blk}.{tail}"
                 validate_reg_path(full, ctx=f"regs[{blk!r}][{field!r}]")
@@ -167,15 +235,16 @@ def validate_pll_regs_exact(
     pll_kind: str,
     *,
     node_name: str,
-    output_count: int = 1,
+    output_groups: Optional[List[str]] = None,
 ) -> None:
-    if pll_kind == "inno" and output_count > 1:
-        allowed = inno_pll_reg_keys(output_count)
+    groups = output_groups or []
+    if pll_kind == "inno" and groups:
+        allowed = inno_pll_reg_keys(groups)
     else:
         allowed = PLL_REG_KEYS.get(pll_kind)
-        if output_count > 1:
+        if groups:
             raise ValueError(
-                f"pll 节点 {node_name!r} output_count 为 {output_count} 时 pll_kind 须为 inno"
+                f"pll 节点 {node_name!r} 配置了多路输出时 pll_kind 须为 inno"
             )
     if allowed is None:
         raise ValueError(f"pll 节点 {node_name!r} 未知 pll_kind {pll_kind!r}")

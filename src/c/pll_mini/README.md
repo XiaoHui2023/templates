@@ -64,14 +64,14 @@ settings:
 
 ### 前级引用
 
-写 **nodes** 中的节点名；多路输出加 `[序号]`。
+写 **nodes** 中的节点名；多路输出加 `[输出名]`。
 
 | 写法 | 含义 |
 | --- | --- |
 | `osc` | 通常写法，单路输出前级 |
 | `pll0` | 单路输出前级 |
-| `pll0[0]` | 多路输出前级，第 0 路 |
-| `pll0[1]` | 多路输出前级，第 1 路 |
+| `pll_inno[0]` | 多路输出前级，输出名为 `0` |
+| `cpu_gate0[hclk]` | cpu_gate 多路输出前级 |
 
 ### Tree
 
@@ -85,7 +85,8 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `source` | |
-| `freq` | `int` | | 典型频率，单位 Hz。 |
+| `source_kind` | `str` | `source` | 取 `source`、`gate`、`vdd`、`gnd`。 |
+| `freq` | `int` | | 典型频率，单位 Hz；`vdd`、`gnd` 为 0 或省略。 |
 
 ### Node - pll
 
@@ -164,20 +165,21 @@ settings:
 | `regs.pd` | `str` | | 掉电控制。 |
 | `regs.refdiv` | `str` | | 参考分频系数。 |
 | `regs.fbdiv` | `str` | | 反馈分频系数。 |
-| `regs.postdiv1` | `str` | | 第 0 路后级分频 1 系数。 |
-| `regs.postdiv2` | `str` | | 第 0 路后级分频 2 系数。 |
-| `regs.postdiv1_1` | `str` | | 第 1 路后级分频 1 系数。 |
-| `regs.postdiv2_1` | `str` | | 第 1 路后级分频 2 系数。 |
+| `regs.postdiv1[0]` | `str` | | 输出名 `0` 的后级分频 1 系数。 |
+| `regs.postdiv2[0]` | `str` | | 输出名 `0` 的后级分频 2 系数。 |
+| `regs.postdiv1[1]` | `str` | | 输出名 `1` 的后级分频 1 系数。 |
+| `regs.postdiv2[1]` | `str` | | 输出名 `1` 的后级分频 2 系数。 |
 
-更多输出路时 **regs** 内名字序号递增，如 `postdiv1_2`、`postdiv2_2`。
+更多输出路时 **regs** 内名字为 `postdiv1[输出名]`、`postdiv2[输出名]`。
 
 ### Node - clk
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `clk` | |
-| `freq` | `int` | | 典型频率，单位 Hz。 |
+| `freq` | `int` | | 典型频率，单位 Hz；省略表示不指定频率约束。 |
 | `source` | `str` | | 前级引用。 |
+| `always_active` | `bool` | `false` | 为真时全程保持有效。 |
 
 ### Node - gate
 
@@ -189,26 +191,53 @@ settings:
 
 ### Node - div
 
+`kind` 为 `div`，用 `div_kind` 区分型号。旧写法 `kind: dto` 等会在载入时归并为 `kind: div`。
+
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `div` | |
+| `div_kind` | `str` | `div` | 取 `div`、`div_n`、`dto`、`dto_n`、`cpu_gate`、`div_r`。 |
 | `source` | `str` | | 前级引用。 |
-| `regs.rst` | `str` | | 复位位。 |
-| `regs.load` | `str` | | 加载位。 |
-| `regs.div` | `str` | | 分频系数。 |
+| `ratio` | `int` | | 仅 `div_r`：固定分频比 1～64。 |
+| `regs` | `dict` | `{}` | 键由 `div_kind` 决定；`div_r` 须为空。 |
 
-### Node - dto
+**div_kind** 为 `div` 或 `div_n`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `regs.rst` | `str` | 复位位。 |
+| `regs.load` | `str` | 加载位。 |
+| `regs.div` | `str` | 分频系数。 |
+
+**div_kind** 为 `dto` 或 `dto_n`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `regs.rst` | `str` | 复位位。 |
+| `regs.load` | `str` | 加载位。 |
+| `regs.bypass` | `str` | bypass 位。 |
+| `regs.step` | `str` | 步进控制。 |
+
+**div_kind** 为 `cpu_gate`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `regs.rst` | `str` | 复位位。 |
+| `regs.div` | `str` | 分频系数。 |
+
+输出名为 `hclk_en`、`hclk`、`clk_arm_core`；前级引用须写 `节点名[输出名]`。
+
+### Node - cell
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `kind` | `str` | `dto` | |
+| `kind` | `str` | `cell` | |
+| `cell_kind` | `str` | `cell` | 取 `cell`、`buf`。 |
 | `source` | `str` | | 前级引用。 |
-| `regs.rst` | `str` | | 复位位。 |
-| `regs.load` | `str` | | 加载位。 |
-| `regs.bypass` | `str` | | bypass 位。 |
-| `regs.step` | `str` | | 步进控制。 |
 
 ### Node - inv
+
+反相器仅作频率透传，**不写寄存器**，生成代码跳过配置。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |

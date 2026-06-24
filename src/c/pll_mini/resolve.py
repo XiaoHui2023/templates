@@ -54,7 +54,7 @@ def _compute_pll_cfg(
         return dw_pll_cfg(out_hz, ref_hz)
     if node.pll_kind == "inno":
         return inno_pll_cfg(
-            out_hz, ref_hz, output_count=node.output_count
+            out_hz, ref_hz, output_groups=node.output_groups
         )
     raise ValueError(f"未知 pll_kind {node.pll_kind!r}")
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List
 
 from formulas import dto_ratio_to_step
-from nodes import DivNode, DtoNode, GateNode, MuxNode, PllNode, Tree
+from nodes import DivNode, GateNode, MuxNode, PllNode, Tree
 from resolve import ResolvedNode, TreeResolve
 from regmodel import (
     FieldRef,
@@ -303,7 +303,7 @@ def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
 
 def _reset_release_patch(
     index: RegModelIndex,
-    node: DivNode | DtoNode,
+    node: DivNode,
     *,
     high_means_reset: bool,
 ) -> _FieldPatch:
@@ -476,7 +476,7 @@ def _expand_pll_inno(
             note=f"{node.name} pd release",
         )
     )
-    if node.output_count <= 1:
+    if not node.output_groups:
         post = (
             f"{node.name} postdiv1={cfg['postdiv1']} "
             f"postdiv2={cfg['postdiv2']}"
@@ -492,10 +492,10 @@ def _expand_pll_inno(
                 )
             )
         return patches
-    for group_id in range(node.output_count):
+    for group_id in node.output_groups:
         p1_key, p2_key = inno_postdiv_reg_keys(group_id)
         post = (
-            f"{node.name} out{group_id} postdiv1={cfg[p1_key]} "
+            f"{node.name} out[{group_id}] postdiv1={cfg[p1_key]} "
             f"postdiv2={cfg[p2_key]}"
         )
         patches.append(
@@ -542,6 +542,11 @@ def expand_div_patches(
     settings: SettingsView,
     resolved: ResolvedNode,
 ) -> List[_FieldPatch]:
+    if node.div_kind in ("dto", "dto_n"):
+        return expand_dto_patches(index, node, settings, resolved)
+    if node.div_kind == "cpu_gate":
+        return expand_cpu_gate_patches(index, node, settings, resolved)
+
     from formulas import div_ratio_to_n
 
     patches = [
@@ -575,7 +580,7 @@ def expand_div_patches(
 
 def expand_dto_patches(
     index: RegModelIndex,
-    node: DtoNode,
+    node: DivNode,
     settings: SettingsView,
     resolved: ResolvedNode,
 ) -> List[_FieldPatch]:
@@ -602,6 +607,34 @@ def expand_dto_patches(
                 note=dto_note if key == "load" else "",
             )
         )
+    return patches
+
+
+def expand_cpu_gate_patches(
+    index: RegModelIndex,
+    node: DivNode,
+    settings: SettingsView,
+    resolved: ResolvedNode,
+) -> List[_FieldPatch]:
+    from formulas import div_ratio_to_n
+
+    patches = [
+        _reset_release_patch(
+            index,
+            node,
+            high_means_reset=settings.div_reg_high_means_reset,
+        )
+    ]
+    div_n = div_ratio_to_n(resolved.ratio) if resolved.ratio > 0 else 1
+    patches.append(
+        _patch(
+            index,
+            node_name=node.name,
+            raw_path=node.regs["div"],
+            value=div_n,
+            note=f"{node.name} div={div_n}",
+        )
+    )
     return patches
 
 
@@ -715,8 +748,6 @@ def build_config_plan(
             continue
         if isinstance(node, DivNode) and node.regs:
             dev_patches.extend(expand_div_patches(index, node, settings, state))
-        elif isinstance(node, DtoNode) and node.regs:
-            dev_patches.extend(expand_dto_patches(index, node, settings, state))
 
     for node in tree.nodes_ordered:
         if isinstance(node, GateNode) and node.reg:

@@ -7,7 +7,6 @@ from formulas import DTO_MAX_RATIO
 from nodes import (
     ClkNode,
     DivNode,
-    DtoNode,
     GateNode,
     MuxNode,
     PllNode,
@@ -35,6 +34,10 @@ def _ite_chain(pairs: List[Tuple[str, str]], default: str) -> str:
     return expr
 
 
+def _div_needs_ratio_var(node: DivNode) -> bool:
+    return node.div_kind in ("div", "div_n", "dto", "dto_n")
+
+
 def build_smt2(
     tree: Tree,
     *,
@@ -57,7 +60,7 @@ def build_smt2(
             lines.append(f"(declare-const {_sym(name, 'sel')} Int)")
             lines.append(f"(assert (>= {_sym(name, 'sel')} 0))")
             lines.append(f"(assert (<= {_sym(name, 'sel')} {max_sel}))")
-        if isinstance(node, (DivNode, DtoNode)):
+        if isinstance(node, DivNode) and _div_needs_ratio_var(node):
             lines.append(f"(declare-const {_sym(name, 'ratio')} Int)")
         if isinstance(node, GateNode):
             lines.append(f"(declare-const {_sym(name, 'gate_open')} Bool)")
@@ -65,15 +68,17 @@ def build_smt2(
     for name in node_names:
         node = tree.nodes[name]
         if node.kind == "source":
-            lines.append(f"(assert {_sym(name, 'active')})")
-            lines.append(
-                f"(assert (= {_sym(name, 'freq')} {node.freq}))"
-            )
+            if node.freq > 0:
+                lines.append(f"(assert {_sym(name, 'active')})")
+                lines.append(
+                    f"(assert (= {_sym(name, 'freq')} {node.freq}))"
+                )
         elif isinstance(node, ClkNode):
             lines.append(f"(assert {_sym(name, 'active')})")
-            lines.append(
-                f"(assert (= {_sym(name, 'freq')} {node.freq}))"
-            )
+            if node.freq is not None:
+                lines.append(
+                    f"(assert (= {_sym(name, 'freq')} {node.freq}))"
+                )
         elif isinstance(node, PllNode):
             lines.append(
                 f"(assert (=> {_sym(name, 'active')} "
@@ -95,11 +100,13 @@ def build_smt2(
         lines.append(f"(assert (=> {act_c} {act_p}))")
         if parent.kind == "mux":
             lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
-        elif node.kind in ("gate", "inv", "clk"):
+        elif node.kind in ("gate", "inv", "cell", "clk"):
+            lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
+        elif isinstance(node, DivNode) and node.div_kind == "cpu_gate":
             lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
         elif node.kind == "pll":
             pass
-        elif node.kind in ("div", "dto"):
+        elif isinstance(node, DivNode):
             pass
 
     for name in node_names:
@@ -135,33 +142,40 @@ def build_smt2(
 
     for name in node_names:
         node = tree.nodes[name]
-        if isinstance(node, DivNode):
-            parent_name, _ = parse_source_endpoint(
-                node.source, ctx="div"
-            )
-            act_d = _sym(name, "active")
+        if not isinstance(node, DivNode):
+            continue
+        parent_name, _ = parse_source_endpoint(
+            node.source, ctx="div"
+        )
+        act_d = _sym(name, "active")
+        freq_d = _sym(name, "freq")
+        freq_in = _sym(parent_name, "freq")
+        if node.div_kind in ("div", "div_n"):
             ratio = _sym(name, "ratio")
-            freq_d = _sym(name, "freq")
-            freq_in = _sym(parent_name, "freq")
             lines.append(f"(assert (>= {ratio} 1))")
             lines.append(f"(assert (<= {ratio} 64))")
             lines.append(
                 f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
             )
-        elif isinstance(node, DtoNode):
-            parent_name, _ = parse_source_endpoint(
-                node.source, ctx="dto"
-            )
-            act_d = _sym(name, "active")
+        elif node.div_kind in ("dto", "dto_n"):
             ratio = _sym(name, "ratio")
-            freq_d = _sym(name, "freq")
-            freq_in = _sym(parent_name, "freq")
             lines.append(f"(assert (>= {ratio} 2))")
             lines.append(f"(assert (<= {ratio} {DTO_MAX_RATIO}))")
             lines.append(
                 f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
             )
-        elif isinstance(node, GateNode):
+        elif node.div_kind == "div_r":
+            ratio = node.ratio
+            assert ratio is not None
+            lines.append(
+                f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
+            )
+        elif node.div_kind == "cpu_gate":
+            lines.append(f"(assert (=> {act_d} (= {freq_d} {freq_in})))")
+
+    for name in node_names:
+        node = tree.nodes[name]
+        if isinstance(node, GateNode):
             act_g = _sym(name, "active")
             open_g = _sym(name, "gate_open")
             lines.append(f"(assert (=> {act_g} {open_g}))")
@@ -226,8 +240,11 @@ def parse_solve_model(
         freq[name] = _model_int(model, _sym(name, "freq"))
         if isinstance(node, MuxNode):
             mux_sel[name] = _model_int(model, _sym(name, "sel"))
-        if isinstance(node, (DivNode, DtoNode)):
-            ratios[name] = _model_int(model, _sym(name, "ratio"))
+        if isinstance(node, DivNode):
+            if _div_needs_ratio_var(node):
+                ratios[name] = _model_int(model, _sym(name, "ratio"))
+            elif node.div_kind == "div_r" and node.ratio is not None:
+                ratios[name] = node.ratio
         if isinstance(node, GateNode):
             gate_open[name] = _model_bool(model, _sym(name, "gate_open"))
 
