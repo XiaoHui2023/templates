@@ -9,6 +9,8 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll
 {%- endfor %}
 {%- endif %}
 
+    {{ settings.class_prefix }}pll_inno to_group[string];
+
     function new(string name = "");
         super.new(name);
 {%- if regs_enabled %}

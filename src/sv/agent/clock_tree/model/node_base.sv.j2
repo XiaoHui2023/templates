@@ -18,7 +18,6 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     bit _print_fix;
 {%- endif %}
     {{ settings.class_prefix }}node_base source;
-    {{ settings.class_prefix }}node_base to_group[string];
 {% if any_node_path %}
     virtual {{ settings.class_prefix }}interface vif;
 {% endif %}

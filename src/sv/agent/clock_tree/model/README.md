@@ -100,7 +100,7 @@
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
 | **cst_clk** | **randomize** 后 **frequence** 等于 **_resolved_freq**，**enabled** 等于 **_resolved_active**；**_always_active** 为真时 **enabled** 必须为 1 |
-| **post_randomize** | **randomize** 结束后 **_resolved_active** 为真且 **_resolved_freq** 低于 **min_freq_hz** 时 **uvm_fatal** |
+| **post_randomize** | **randomize** 结束后 **_resolved_active** 为真且 **_resolved_freq** 低于 **min_freq_hz** 或高于 **max_freq_hz** 时 **uvm_fatal** |
 
 ### pll_tci
 

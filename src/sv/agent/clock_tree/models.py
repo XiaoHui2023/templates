@@ -9,6 +9,7 @@ _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 from nodes import Tree
 from reg_paths import (
+    CPU_GATE_HCLK_GROUP,
     CPU_GATE_PASS_THROUGH_GROUP,
     CPU_GATE_PRIMARY_GROUP,
     DIV_KIND_TO_SV_ENUM,
@@ -44,6 +45,12 @@ class Settings(BaseModel):
         ge=15000,
         description="测量接口与 check_measure 默认最低频率，单位 Hz；"
         "决定活动与稳定阶段超时时限及可测量频率下限。",
+    )
+    max_freq_hz: int = Field(
+        5_000_000_000,
+        ge=15000,
+        description="clk 节点 randomize 后允许的最高频率，单位 Hz；"
+        "活动时钟的 _resolved_freq 超过该值时 uvm_fatal。",
     )
     active_cycles: int = Field(
         1,
@@ -142,6 +149,15 @@ class Settings(BaseModel):
         if isinstance(v, (int, float)) and 0.0 < float(v) <= 1.0:
             return float(v) * 100.0
         return v
+
+    @model_validator(mode="after")
+    def _validate_freq_range(self) -> Settings:
+        if self.min_freq_hz > self.max_freq_hz:
+            raise ValueError(
+                f"min_freq_hz ({self.min_freq_hz}) 须不大于 "
+                f"max_freq_hz ({self.max_freq_hz})"
+            )
+        return self
 
     @model_validator(mode="after")
     def _validate_duty_range(self) -> Settings:
@@ -299,6 +315,11 @@ class Models(BaseModel):
     @property
     def cpu_gate_pass_through_group(self) -> str:
         return CPU_GATE_PASS_THROUGH_GROUP
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cpu_gate_hclk_group(self) -> str:
+        return CPU_GATE_HCLK_GROUP
 
     @computed_field  # type: ignore[prop-decorator]
     @property

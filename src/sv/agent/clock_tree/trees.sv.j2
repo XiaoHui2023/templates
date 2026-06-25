@@ -81,6 +81,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- endif %}
 {%- endfor %}
+{%- if (node.kind == "div" and node.div_kind == "cpu_gate") or (node.kind == "pll" and node.pll_kind == "inno") %}
 {%- for g in node.output_groups %}
 {%- for g2 in node.output_groups %}
 {%- if g != g2 %}
@@ -88,6 +89,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- endfor %}
 {%- endfor %}
+{%- endif %}
 {%- elif node.kind == "pll" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_pll_class }}::type_id::create("{{ node.name }}");
 {%- elif node.kind == "div" %}

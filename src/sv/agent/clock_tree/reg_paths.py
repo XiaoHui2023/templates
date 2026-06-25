@@ -52,6 +52,8 @@ CPU_GATE_OUTPUT_GROUPS: tuple[str, ...] = ("hclk_en", "hclk", "clk_arm_core")
 
 CPU_GATE_PASS_THROUGH_GROUP = "clk_arm_core"
 
+CPU_GATE_HCLK_GROUP = CPU_GATE_OUTPUT_GROUPS[1]
+
 CPU_GATE_PRIMARY_GROUP = CPU_GATE_OUTPUT_GROUPS[0]
 
 _DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
