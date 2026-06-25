@@ -2,6 +2,15 @@
 `ifndef {{ (settings.class_prefix ~ "pll_cfg") | upper }}
 `define {{ (settings.class_prefix ~ "pll_cfg") | upper }}
 
+// Inno fbdiv 不得为 0～7 或 11
+function automatic bit {{ settings.class_prefix }}inno_fbdiv_legal(int fbdiv);
+    if (fbdiv >= 0 && fbdiv <= 7)
+        return 0;
+    if (fbdiv == 11)
+        return 0;
+    return 1;
+endfunction
+
 class {{ settings.class_prefix }}pll_cfg;
     localparam int SC_FBDIV_HW_MIN = 1;
     localparam int SC_FBDIV_HW_MAX = 4095;
@@ -50,6 +59,7 @@ class {{ settings.class_prefix }}pll_cfg;
     extern function void inno_shared_divisors(
         longint out_hz,
         longint ref_hz,
+        int fbdiv_max,
         output int fbdiv,
         output int refdiv);
     // 已知 fbdiv、refdiv 时搜 postdiv
@@ -346,6 +356,7 @@ endtask
 function void {{ settings.class_prefix }}pll_cfg::inno_shared_divisors(
         longint out_hz,
         longint ref_hz,
+        int fbdiv_max,
         output int fbdiv,
         output int refdiv);
     int refdiv_try;
@@ -365,7 +376,9 @@ function void {{ settings.class_prefix }}pll_cfg::inno_shared_divisors(
     for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
         fbdiv_r = real'(out_hz) * real'(refdiv_try) / real'(ref_hz);
         fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
-        if (fbdiv_i < 1 || fbdiv_i > 4095)
+        if (fbdiv_i < 1 || fbdiv_i > fbdiv_max)
+            continue;
+        if (!{{ settings.class_prefix }}inno_fbdiv_legal(fbdiv_i))
             continue;
         actual_hz = (ref_hz * fbdiv_i) / refdiv_try;
         err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
@@ -467,7 +480,8 @@ task {{ settings.class_prefix }}pll_cfg::configure_inno_from_hz(
     int postdiv1;
     int postdiv2;
     if (write_shared)
-        inno_shared_divisors(out_hz, ref_hz, fbdiv, refdiv);
+        inno_shared_divisors(
+            out_hz, ref_hz, {{ settings.class_prefix }}reg_bound_max(f_fbdiv), fbdiv, refdiv);
     else begin
         rw.read(f_fbdiv, fbdiv);
         rw.read(f_refdiv, refdiv);

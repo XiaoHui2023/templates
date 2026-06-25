@@ -2,6 +2,24 @@
 `ifndef {{ (settings.class_prefix ~ "reg_rw") | upper }}
 `define {{ (settings.class_prefix ~ "reg_rw") | upper }}
 
+// 已绑定 field 有效位宽
+function automatic int {{ settings.class_prefix }}reg_bound_width(
+        {{ settings.class_prefix }}reg rb);
+    if (rb.field == null)
+        `uvm_fatal("CLK_TREE", "reg_bound_width: field is null")
+    if (rb.width > 0)
+        return rb.width;
+    return rb.field.get_n_bits();
+endfunction
+
+// 按绑定位宽得切片可写最大值
+function automatic int {{ settings.class_prefix }}reg_bound_max(
+        {{ settings.class_prefix }}reg rb);
+    int w;
+    w = {{ settings.class_prefix }}reg_bound_width(rb);
+    return (1 << w) - 1;
+endfunction
+
 class {{ settings.class_prefix }}reg_rw;
     // 取 field 所属 uvm_reg
     extern function uvm_reg parent_reg({{ settings.class_prefix }}reg rb);
