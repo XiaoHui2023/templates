@@ -99,9 +99,16 @@ def run_consolver_solve(
     status = payload.get("status")
     if status != "sat":
         reason = payload.get("reason", "")
-        raise RuntimeError(
-            f"时钟树约束不可满足: status={status!r} {reason}".strip()
-        )
+        if status == "unsat":
+            headline = "时钟树约束互相矛盾，无解"
+        elif status == "unknown":
+            headline = "时钟树约束求解超时或无法判定"
+        else:
+            headline = f"时钟树约束求解失败: status={status!r}"
+        detail = f"{headline}"
+        if reason:
+            detail = f"{detail}；{reason}"
+        raise RuntimeError(detail)
     model = payload.get("model")
     if not isinstance(model, dict):
         raise RuntimeError(f"consolver 返回缺少 model 字段: {payload!r}")
