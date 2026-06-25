@@ -117,6 +117,11 @@ class NodeBase(BaseModel):
     def primary_output_group(self) -> str:
         return primary_output_group(self)
 
+    path: str = Field(
+        "",
+        description="RTL 层次路径，按 `.` 分隔；pll_mini 仅接受，不参与求解与生成。",
+    )
+
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
@@ -221,6 +226,10 @@ class InvNode(NodeBase):
         description="反相器型号：inv、inv_mux、inv_cell，大小写不限。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
+    reg: str = Field(
+        "",
+        description="反相/直通控制寄存器模型路径；pll_mini 仅接受，不写寄存器。",
+    )
 
     @field_validator("inv_kind", mode="before")
     @classmethod
