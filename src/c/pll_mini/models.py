@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from pathlib import Path
 from typing import Any, List
 
@@ -16,10 +17,16 @@ from pydantic import (
 _C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 from nodes import Tree
-from plan import SettingsView, build_config_plan, collect_used_regs
+from plan import ConfigPlan, SettingsView, build_config_plan, collect_used_regs
 from ralf_load import load_regmodel_from_ralf
 from regmodel import Reg, RegModelIndex
-from resolve import resolve_tree
+from resolve import TreeResolve, resolve_tree
+
+_ModelCacheKey = tuple[str, str, tuple[str, ...]]
+_CACHE_LOCK = threading.RLock()
+_TREE_RESOLVE_CACHE: dict[_ModelCacheKey, TreeResolve] = {}
+_CONFIG_PLAN_CACHE: dict[_ModelCacheKey, ConfigPlan] = {}
+_HEADER_REGS_CACHE: dict[_ModelCacheKey, List[Reg]] = {}
 
 
 class Settings(BaseModel):
@@ -117,6 +124,9 @@ class Models(BaseModel):
     )
 
     _regmodel: List[Reg] = PrivateAttr(default_factory=list)
+    _tree_resolve: TreeResolve | None = PrivateAttr(default=None)
+    _config_plan: ConfigPlan | None = PrivateAttr(default=None)
+    _header_regs: List[Reg] | None = PrivateAttr(default=None)
 
     @model_validator(mode="before")
     @classmethod
@@ -162,36 +172,76 @@ class Models(BaseModel):
     def regmodel(self) -> List[Reg]:
         return list(self._regmodel)
 
-    @property
-    def tree_resolve(self):
-        s = self.settings
-        return resolve_tree(
-            self.tree,
-            pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
-            pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
-            consolver_timeout_ms=s.consolver_timeout_ms,
-            period_tolerance=s.period_tolerance,
-            reg_index=RegModelIndex(self.regmodel),
+    def _cache_key(self) -> _ModelCacheKey:
+        return (
+            self.tree.model_dump_json(),
+            self.settings.model_dump_json(),
+            tuple(reg.model_dump_json() for reg in self._regmodel),
         )
 
     @property
-    def config_plan(self):
-        s = self.settings
-        return build_config_plan(
-            self.tree,
-            RegModelIndex(self.regmodel),
-            SettingsView(
-                gate_reg_high_means_open=s.gate_reg_high_means_open,
-                div_reg_high_means_reset=s.div_reg_high_means_reset,
-                dto_reg_high_means_reset=s.dto_reg_high_means_reset,
-            ),
-            self.tree_resolve,
-        )
+    def tree_resolve(self) -> TreeResolve:
+        with _CACHE_LOCK:
+            if self._tree_resolve is not None:
+                return self._tree_resolve
+            key = self._cache_key()
+            cached = _TREE_RESOLVE_CACHE.get(key)
+            if cached is not None:
+                self._tree_resolve = cached
+                return cached
+            s = self.settings
+            result = resolve_tree(
+                self.tree,
+                pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
+                pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
+                consolver_timeout_ms=s.consolver_timeout_ms,
+                period_tolerance=s.period_tolerance,
+                reg_index=RegModelIndex(self.regmodel),
+            )
+            _TREE_RESOLVE_CACHE[key] = result
+            self._tree_resolve = result
+            return result
+
+    @property
+    def config_plan(self) -> ConfigPlan:
+        with _CACHE_LOCK:
+            if self._config_plan is not None:
+                return self._config_plan
+            key = self._cache_key()
+            cached = _CONFIG_PLAN_CACHE.get(key)
+            if cached is not None:
+                self._config_plan = cached
+                return cached
+            s = self.settings
+            result = build_config_plan(
+                self.tree,
+                RegModelIndex(self.regmodel),
+                SettingsView(
+                    gate_reg_high_means_open=s.gate_reg_high_means_open,
+                    div_reg_high_means_reset=s.div_reg_high_means_reset,
+                    dto_reg_high_means_reset=s.dto_reg_high_means_reset,
+                ),
+                self.tree_resolve,
+            )
+            _CONFIG_PLAN_CACHE[key] = result
+            self._config_plan = result
+            return result
 
     @property
     def header_regs(self) -> List[Reg]:
-        index = RegModelIndex(self.regmodel)
-        return list(collect_used_regs(index, self.config_plan))
+        with _CACHE_LOCK:
+            if self._header_regs is not None:
+                return list(self._header_regs)
+            key = self._cache_key()
+            cached = _HEADER_REGS_CACHE.get(key)
+            if cached is not None:
+                self._header_regs = cached
+                return list(cached)
+            index = RegModelIndex(self.regmodel)
+            result = list(collect_used_regs(index, self.config_plan))
+            _HEADER_REGS_CACHE[key] = result
+            self._header_regs = result
+            return list(result)
 
     @classmethod
     def model_validate_with_yaml_dir(
