@@ -2,13 +2,17 @@
 `define {{ (settings.class_prefix ~ "pll_inno") | upper }}
 
 class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll_base;
-    `uvm_object_utils({{ settings.class_prefix }}pll_inno)
+    `uvm_object_utils_begin({{ settings.class_prefix }}pll_inno)
+        `uvm_field_string(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
+    `uvm_object_utils_end
 {%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['inno'] %}
     {{ settings.class_prefix }}reg f_{{ key }};
 {%- endfor %}
 {%- endif %}
 
+    string group_id;
+    bit _print_group_id;
     {{ settings.class_prefix }}pll_inno to_group[string];
 
     function new(string name = "");
@@ -19,6 +23,7 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll
 {%- endfor %}
 {%- endif %}
         pll_kind = PLL_INNO;
+        group_id = "";
         _print_group_id = 1;
     endfunction
 endclass

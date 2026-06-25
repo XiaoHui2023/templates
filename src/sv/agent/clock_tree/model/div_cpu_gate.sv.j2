@@ -6,12 +6,16 @@
 {%- set div_freq_tol_hi = div_freq_tol_den + div_freq_tol_num %}
 
 class {{ settings.class_prefix }}div_cpu_gate extends {{ settings.class_prefix }}div_base;
-    `uvm_object_utils({{ settings.class_prefix }}div_cpu_gate)
+    `uvm_object_utils_begin({{ settings.class_prefix }}div_cpu_gate)
+        `uvm_field_string(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
+    `uvm_object_utils_end
 {% if regs_enabled %}
     {{ settings.class_prefix }}reg f_rst;
     {{ settings.class_prefix }}reg f_div;
 {% endif %}
 
+    string group_id;
+    bit _print_group_id;
     {{ settings.class_prefix }}div_cpu_gate to_group[string];
 
     constraint cst_div {
@@ -40,6 +44,7 @@ class {{ settings.class_prefix }}div_cpu_gate extends {{ settings.class_prefix }
         f_div = new();
 {% endif %}
         div_kind = CPU_GATE;
+        group_id = "";
         _print_group_id = 1;
     endfunction
 endclass

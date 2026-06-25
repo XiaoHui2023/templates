@@ -70,7 +70,9 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- for g in node.output_groups %}
         {{ node.name }}["{{ g }}"] = {{ sv_leaf_class }}::type_id::create($sformatf("{{ node.name }}[%s]", "{{ g }}"));
+{%- if (node.kind == "div" and node.div_kind == "cpu_gate") or (node.kind == "pll" and node.pll_kind == "inno") %}
         {{ node.name }}["{{ g }}"].group_id = "{{ g }}";
+{%- endif %}
 {%- if node.kind == "div" %}
         {{ node.name }}["{{ g }}"].div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
 {%- if node.div_trees_emit_unfix_ratio %}
