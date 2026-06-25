@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validat
 
 _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
-from nodes import Tree, _FREQ_HZ_U32_MAX
+from nodes import Tree
 from reg_paths import (
     CPU_GATE_HCLK_GROUP,
     CPU_GATE_PASS_THROUGH_GROUP,
@@ -27,7 +27,7 @@ from reg_paths import (
     iter_reg_bindings,
 )
 
-_MAX_FREQ_HZ = 4_000_000_000
+_MAX_FREQ_HZ = 5_000_000_000
 
 
 class Settings(BaseModel):
@@ -53,8 +53,7 @@ class Settings(BaseModel):
         ge=15000,
         le=_MAX_FREQ_HZ,
         description="clk 节点 randomize 后允许的最高频率，单位 Hz；"
-        "活动时钟的 _resolved_freq 超过该值时 uvm_fatal；"
-        f"不得超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}。",
+        "活动时钟的 _resolved_freq 超过该值时 uvm_fatal。",
     )
     active_cycles: int = Field(
         1,

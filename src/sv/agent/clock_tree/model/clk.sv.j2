@@ -44,18 +44,20 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 
     // randomize 后校验活动时钟的 _resolved_freq 在允许频率范围内
     function void post_randomize();
+        longint min_hz;
+        longint max_hz;
         super.post_randomize();
-        if (_resolved_active
-                && _resolved_freq < {{ settings.min_freq_hz }}) begin
+        min_hz = longint'({{ settings.min_freq_hz }});
+        max_hz = longint'({{ settings.max_freq_hz }});
+        if (_resolved_active && _resolved_freq < min_hz) begin
             `uvm_fatal("CLK_TREE", $sformatf(
                 "clk %s resolved freq %0d Hz below min allowed %0d Hz",
-                get_name(), _resolved_freq, {{ settings.min_freq_hz }}))
+                get_name(), _resolved_freq, min_hz))
         end
-        if (_resolved_active
-                && _resolved_freq > {{ settings.max_freq_hz }}) begin
+        if (_resolved_active && _resolved_freq > max_hz) begin
             `uvm_fatal("CLK_TREE", $sformatf(
                 "clk %s resolved freq %0d Hz above max allowed %0d Hz",
-                get_name(), _resolved_freq, {{ settings.max_freq_hz }}))
+                get_name(), _resolved_freq, max_hz))
         end
     endfunction
 endclass
