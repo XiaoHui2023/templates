@@ -48,17 +48,67 @@ _NODE_KIND_ALIASES: dict[str, str] = {
 }
 _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
 _CPU_GATE_RATIOS = frozenset({2, 3, 4, 6})
+_SOURCE_REF_KINDS = frozenset({"gate", "div", "inv", "cell", "clk", "pll"})
+
+
+def normalize_source_endpoint_input(raw: Any, *, ctx: str) -> str:
+    if isinstance(raw, str):
+        return raw.strip()
+    if isinstance(raw, dict):
+        if "name" not in raw:
+            raise ValueError(
+                f"{ctx} 前级引用 {raw!r} 须为字符串或含 name 字段的对象"
+            )
+        name = raw["name"]
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"{ctx} 前级引用 name 应为非空字符串")
+        out_group = raw.get("out_group", "")
+        if out_group is None:
+            out_group = ""
+        if not isinstance(out_group, (str, int)):
+            raise ValueError(
+                f"{ctx} 前级引用 out_group 应为字符串或整数，得到 {out_group!r}"
+            )
+        out_text = str(out_group).strip()
+        if out_text:
+            return f"{name}[{out_text}]"
+        return name
+    raise ValueError(
+        f"{ctx} 前级引用 {raw!r} 须为字符串或含 name 字段的对象"
+    )
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
     kind = item.get("kind")
-    canonical = _NODE_KIND_ALIASES.get(kind)
-    if canonical is not None:
-        return {**item, "kind": canonical}
     if kind in _LEGACY_DIV_KINDS:
         div_kind = item.get("div_kind", kind)
         body = {k: v for k, v in item.items() if k != "kind"}
-        return {**body, "kind": "div", "div_kind": div_kind}
+        item = {**body, "kind": "div", "div_kind": div_kind}
+        canonical = "div"
+    else:
+        alias = _NODE_KIND_ALIASES.get(kind)
+        if alias is not None:
+            item = {**item, "kind": alias}
+            canonical = alias
+        else:
+            canonical = str(kind) if kind is not None else ""
+    if canonical in _SOURCE_REF_KINDS and "source" in item:
+        item = {
+            **item,
+            "source": normalize_source_endpoint_input(
+                item["source"], ctx=f"{canonical}.source"
+            ),
+        }
+    elif canonical == "mux" and isinstance(item.get("source"), dict):
+        item = {
+            **item,
+            "source": {
+                str(key): normalize_source_endpoint_input(
+                    value, ctx="mux.source"
+                )
+                for key, value in item["source"].items()
+            },
+        }
     return item
 
 
@@ -74,8 +124,8 @@ def _coerce_optional_int(value: Any) -> Optional[int]:
     return int(value)
 
 
-def parse_source_endpoint(raw: str, *, ctx: str) -> tuple[str, str]:
-    text = raw.strip()
+def parse_source_endpoint(raw: Any, *, ctx: str) -> tuple[str, str]:
+    text = normalize_source_endpoint_input(raw, ctx=ctx)
     match = _SOURCE_ENDPOINT.match(text)
     if not match:
         raise ValueError(

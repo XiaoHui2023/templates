@@ -35,6 +35,14 @@ tree:
         load: blk_div0.ctrl.load
         div: blk_div0.ctrl.div
 
+    cpu_gate0:
+      kind: div
+      div_kind: cpu_gate
+      source: div0
+      regs:
+        rst: blk_cpu_gate0.ctrl.rst
+        div: blk_cpu_gate0.ctrl.div
+
     mux_ref:
       kind: mux
       source:
@@ -51,6 +59,13 @@ tree:
       kind: clk
       source: gate0
       freq: 30000000
+
+    clk_hclk:
+      kind: clk
+      source:
+        name: cpu_gate0
+        out_group: hclk
+      freq: 15000000
 
 settings:
   main_fn: chip_pll_config

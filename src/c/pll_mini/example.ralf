@@ -35,6 +35,16 @@ block blk_div0 {
   }
 }
 
+block blk_cpu_gate0 {
+  bytes 4;
+
+  register ctrl @'h240 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field div @8 { bits 4; access rw; }
+  }
+}
+
 block blk_mux_ref {
   bytes 4;
 
