@@ -60,6 +60,16 @@ def _div_needs_ratio_var(node: DivNode) -> bool:
     return node.div_kind in ("div", "div_n", "dto", "dto_n", "cpu_gate")
 
 
+def _finite_ratio_values(node: DivNode) -> tuple[int, ...] | None:
+    if node.ratio is not None:
+        return (node.ratio,)
+    if node.div_kind in ("div", "div_n"):
+        return tuple(range(1, 65))
+    if node.div_kind == "cpu_gate":
+        return (2, 3, 4, 6)
+    return None
+
+
 class _Smt2Builder:
     def __init__(self) -> None:
         self._declarations: List[str] = []
@@ -136,16 +146,72 @@ def _div_freq_constraint_expr(
     tol_hi: int,
     tol_den: int,
 ) -> str:
+    relation = _div_freq_relation_expr(
+        freq_in=freq_in,
+        freq_out=freq_out,
+        ratio=ratio,
+        freq_hw=freq_hw,
+        rem=rem,
+        tol_lo=tol_lo,
+        tol_hi=tol_hi,
+        tol_den=tol_den,
+    )
+    return f"(=> {active} {relation})"
+
+
+def _div_freq_relation_expr(
+    *,
+    freq_in: str,
+    freq_out: str,
+    ratio: str,
+    freq_hw: str,
+    rem: str,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> str:
     return (
-        f"(=> {active} (and "
+        f"(and "
         f"(> {freq_hw} 0) "
         f"(>= {rem} 0) "
         f"(< {rem} {ratio}) "
         f"(= {freq_in} (+ (* {freq_hw} {ratio}) {rem})) "
         f"(<= (* {freq_out} {tol_lo}) (* {freq_hw} {tol_den})) "
         f"(>= (* {freq_out} {tol_hi}) (* {freq_hw} {tol_den}))"
-        f"))"
+        f")"
     )
+
+
+def _finite_ratio_freq_constraint_expr(
+    *,
+    active: str,
+    freq_in: str,
+    freq_out: str,
+    ratio_sym: str,
+    values: tuple[int, ...],
+    freq_hw: str,
+    rem: str,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> str:
+    arms = [
+        "(and "
+        f"(= {ratio_sym} {value}) "
+        + _div_freq_relation_expr(
+            freq_in=freq_in,
+            freq_out=freq_out,
+            ratio=str(value),
+            freq_hw=freq_hw,
+            rem=rem,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+        + ")"
+        for value in values
+    ]
+    return f"(=> {active} (or {' '.join(arms)}))"
 
 
 def _smt2_for_diagnosis(smt2_named: str) -> str:
@@ -172,7 +238,11 @@ def diagnose_by_relaxation(
     for track, _expr, hint in tracked:
         relaxed = builder.render_plain_omit(track)
         try:
-            run_consolver_solve(relaxed, timeout_ms=timeout_ms)
+            run_consolver_solve(
+                relaxed,
+                label=f"relax {track}",
+                timeout_ms=timeout_ms,
+            )
         except RuntimeError:
             continue
         critical.append(hint)
@@ -474,26 +544,51 @@ def build_smt2(
         )
         if node.div_kind in ("div", "div_n"):
             ratio = _sym(name, "ratio")
-            builder.constraint(
-                f"(and (>= {ratio} 1) (<= {ratio} 64))",
-                track=_track("div", name, "ratio_range"),
-                hint=f"div 节点 {name} 分频比范围 1～64",
-            )
-            builder.constraint(
-                _div_freq_constraint_expr(
-                    active=act_d,
-                    freq_in=freq_in,
-                    freq_out=freq_d,
-                    ratio=ratio,
-                    freq_hw=freq_hw,
-                    rem=rem,
-                    tol_lo=tol_lo,
-                    tol_hi=tol_hi,
-                    tol_den=tol_den,
-                ),
-                track=_track("div", name, "freq_relation"),
-                hint=div_freq_hint,
-            )
+            values = _finite_ratio_values(node)
+            if values is None:
+                builder.constraint(
+                    f"(and (>= {ratio} 1) (<= {ratio} 64))",
+                    track=_track("div", name, "ratio_range"),
+                    hint=f"div 节点 {name} 分频比范围 1～64",
+                )
+                builder.constraint(
+                    _div_freq_constraint_expr(
+                        active=act_d,
+                        freq_in=freq_in,
+                        freq_out=freq_d,
+                        ratio=ratio,
+                        freq_hw=freq_hw,
+                        rem=rem,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                    ),
+                    track=_track("div", name, "freq_relation"),
+                    hint=div_freq_hint,
+                )
+            else:
+                allowed = " ".join(f"(= {ratio} {value})" for value in values)
+                builder.constraint(
+                    f"(or {allowed})",
+                    track=_track("div", name, "ratio_range"),
+                    hint=f"div 节点 {name} 分频比范围 1～64",
+                )
+                builder.constraint(
+                    _finite_ratio_freq_constraint_expr(
+                        active=act_d,
+                        freq_in=freq_in,
+                        freq_out=freq_d,
+                        ratio_sym=ratio,
+                        values=values,
+                        freq_hw=freq_hw,
+                        rem=rem,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                    ),
+                    track=_track("div", name, "freq_relation"),
+                    hint=div_freq_hint,
+                )
         elif node.div_kind in ("dto", "dto_n"):
             ratio = _sym(name, "ratio")
             builder.constraint(
@@ -539,20 +634,21 @@ def build_smt2(
             )
         elif node.div_kind == "cpu_gate":
             ratio = _sym(name, "ratio")
-            ratio_allowed = " ".join(
-                f"(= {ratio} {value})" for value in (2, 3, 4, 6)
-            )
+            values = _finite_ratio_values(node)
+            assert values is not None
+            ratio_allowed = " ".join(f"(= {ratio} {value})" for value in values)
             builder.constraint(
                 f"(or {ratio_allowed})",
                 track=_track("div", name, "ratio_range"),
                 hint=f"cpu_gate 节点 {name} 分频比只能是 2、3、4、6",
             )
             builder.constraint(
-                _div_freq_constraint_expr(
+                _finite_ratio_freq_constraint_expr(
                     active=act_d,
                     freq_in=freq_in,
                     freq_out=freq_d,
-                    ratio=ratio,
+                    ratio_sym=ratio,
+                    values=values,
                     freq_hw=freq_hw,
                     rem=rem,
                     tol_lo=tol_lo,
@@ -680,7 +776,11 @@ def solve_tree_constraints(
         period_tolerance=period_tolerance,
     )
     try:
-        model = run_consolver_solve(smt2, timeout_ms=timeout_ms)
+        model = run_consolver_solve(
+            smt2,
+            label="tree constraints",
+            timeout_ms=timeout_ms,
+        )
     except RuntimeError as exc:
         _raise_solve_failure(
             exc,

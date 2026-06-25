@@ -5,6 +5,8 @@ import os
 import stat
 import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -68,22 +70,54 @@ def ralfconv_path(base: Path | None = None) -> Path:
 def run_consolver_solve(
     smt2_text: str,
     *,
+    label: str = "constraints",
     timeout_ms: int | None = None,
 ) -> Mapping[str, Any]:
     """调用 consolver 求解 SMT-LIB 文本并解析 JSON 结果。"""
     exe = consolver_path()
     if not exe.is_file():
         raise _missing_tool_error("consolver", _CONSOLVER_URL, exe)
-    cmd = [str(exe), "solve", "--input-text", smt2_text]
-    if timeout_ms is not None:
-        cmd.extend(["--timeout-ms", str(timeout_ms)])
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+    started_at = time.perf_counter()
+    line_count = smt2_text.count("\n")
+    print(
+        f"[pll_mini] consolver solve start: {label}; "
+        f"lines={line_count}; timeout_ms={timeout_ms}",
+        file=sys.stderr,
+        flush=True,
+    )
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            suffix=".smt2",
+            delete=False,
+        ) as tmp:
+            tmp.write(smt2_text)
+            tmp_path = Path(tmp.name)
+        cmd = [str(exe), "solve", str(tmp_path)]
+        if timeout_ms is not None:
+            cmd.extend(["--timeout-ms", str(timeout_ms)])
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+    elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+    print(
+        f"[pll_mini] consolver solve done: {label}; "
+        f"elapsed_ms={elapsed_ms}; returncode={proc.returncode}",
+        file=sys.stderr,
+        flush=True,
     )
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
