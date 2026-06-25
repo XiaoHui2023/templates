@@ -118,8 +118,8 @@ task {{ settings.class_prefix }}test_flip_seq::measure_node_phase(
 
     meas_period_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1)
         / {{ settings.min_freq_hz }};
-    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }} * 3;
-    meas_stable_timeout_ns = meas_period_ns * {{ settings.stable_cycles }} * 3;
+    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }};
+    meas_stable_timeout_ns = meas_period_ns * {{ settings.stable_cycles }};
     meas_timeout_ns = meas_active_timeout_ns + meas_stable_timeout_ns;
     nd.vif.start_measure();
     elapsed_ns = 0;

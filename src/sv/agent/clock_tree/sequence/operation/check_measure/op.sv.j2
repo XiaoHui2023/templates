@@ -499,8 +499,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
 
     meas_min_freq_hz = rq.min_freq_hz > 0 ? rq.min_freq_hz : {{ settings.min_freq_hz }};
     meas_period_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz;
-    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }} * 3;
-    meas_stable_timeout_ns = meas_period_ns * {{ settings.stable_cycles }} * 3;
+    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }};
+    meas_stable_timeout_ns = meas_period_ns * {{ settings.stable_cycles }};
     meas_timeout_ns = meas_active_timeout_ns + meas_stable_timeout_ns;
     progress_interval_ns = meas_period_ns * 20;
     if (progress_interval_ns < 10_000)

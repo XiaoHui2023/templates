@@ -46,10 +46,10 @@ class Settings(BaseModel):
         "决定活动与稳定阶段超时时限及可测量频率下限。",
     )
     active_cycles: int = Field(
-        3,
-        ge=2,
+        1,
+        ge=1,
         description="判定时钟有活动所需连续上升沿个数；"
-        "未达个数即结束活动阶段并置 inactive。",
+        "未达个数且超过一个最低频率周期仍无边沿则 inactive。",
     )
     stable_cycles: int = Field(
         3,

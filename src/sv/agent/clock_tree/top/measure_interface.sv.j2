@@ -20,7 +20,6 @@ interface {{ settings.class_prefix }}measure_interface #(
     localparam real DUTY_MAX = (DUTY_MAX_PCT + DUTY_TOL_PCT) / 100.0;
     localparam real DUTY_BOUND_EPS = 1.0e-12;
     localparam real RT_PER_SEC = 1.0e9;
-    localparam int TIMEOUT_MARGIN = 3;
 
     bit meas_en;
 
@@ -83,8 +82,8 @@ interface {{ settings.class_prefix }}measure_interface #(
             hz = MIN_FREQ_HZ;
         min_freq_hz_rt = hz;
         period_ns = (1_000_000_000 + hz - 1) / hz;
-        active_timeout_ns_rt = period_ns * ACTIVE_CYCLES * TIMEOUT_MARGIN;
-        stable_timeout_ns_rt = period_ns * STABLE_CYCLES * TIMEOUT_MARGIN;
+        active_timeout_ns_rt = period_ns * ACTIVE_CYCLES;
+        stable_timeout_ns_rt = period_ns * STABLE_CYCLES;
         max_edge_period_rt = RT_PER_SEC / hz;
     endfunction
 
