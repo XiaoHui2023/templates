@@ -27,6 +27,7 @@
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
 | **check_freq** | **bit** | `1` | 为真时检查 **source**、**clk**、**pll** 频率 |
 | **check_duty** | **bit** | `1` | 为真时检查全部带 **vif** 节点占空比 |
+| **debug** | **bit** | `0` | 为真时 **check_measure** 打印等待进度 |
 
 ### test_measure
 
@@ -37,6 +38,7 @@
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
 | **check_freq** | **bit** | `1` | 为真时检查 **source**、**clk**、**pll** 频率 |
 | **check_duty** | **bit** | `1` | 为真时检查全部带 **vif** 节点占空比 |
+| **debug** | **bit** | `0` | 为真时 **check_measure** 打印等待进度 |
 
 ### test_flip
 
@@ -45,6 +47,7 @@
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
+| **debug** | **bit** | `0` | 为真时 **check_measure** 打印等待进度 |
 
 ### test_route
 
@@ -53,3 +56,4 @@
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 时钟树句柄；默认空则用 **sqr.tree** |
+| **debug** | **bit** | `0` | 为真时 **check_measure** 打印等待进度 |

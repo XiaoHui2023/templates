@@ -16,8 +16,10 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
 
     // 执行路由结构遍历并写回结果
     extern virtual task body();
-    // 静默校验当前树的 clk 频率
-    extern task run_check_measure_quiet({{ settings.class_prefix }}tree_base tree);
+    // 静默校验当前树 clk 频率
+    extern task run_check_measure_quiet(
+        {{ settings.class_prefix }}tree_base tree,
+        bit debug = 1'b0);
     // 按当前树状态写寄存器
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
@@ -38,12 +40,14 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
         {{ settings.class_prefix }}route_ctrl_snap stored_snaps[$],
         {{ settings.class_prefix }}node_base pinned_path[$],
         bit quiet,
+        bit debug,
         int subject_idx,
         int subject_total);
 endclass
 
 task {{ settings.class_prefix }}test_route_seq::run_check_measure_quiet(
-        {{ settings.class_prefix }}tree_base tree);
+        {{ settings.class_prefix }}tree_base tree,
+        bit debug = 1'b0);
     {{ settings.class_prefix }}check_measure_req meas_req;
     {{ settings.class_prefix }}check_measure_rsp meas_rsp;
     {{ settings.class_prefix }}check_measure_seq meas_seq;
@@ -53,6 +57,7 @@ task {{ settings.class_prefix }}test_route_seq::run_check_measure_quiet(
     meas_req = {{ settings.class_prefix }}check_measure_req::type_id::create("meas_req");
     meas_req.tree = tree;
     meas_req.quiet = 1'b1;
+    meas_req.debug = debug;
     meas_req.check_freq = 1'b1;
     meas_req.check_duty = 1'b0;
     meas_req.min_freq_hz = {{ settings.class_prefix }}route_structure_theoretical_min_freq_hz(
@@ -108,6 +113,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
         {{ settings.class_prefix }}route_ctrl_snap stored_snaps[$],
         {{ settings.class_prefix }}node_base pinned_path[$],
         bit quiet,
+        bit debug,
         int subject_idx,
         int subject_total);
     {{ settings.class_prefix }}node_base line[$];
@@ -203,7 +209,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "test_route:       check_measure"), UVM_MEDIUM)
-            run_check_measure_quiet(tree);
+            run_check_measure_quiet(tree, debug);
             n_run++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
@@ -247,12 +253,12 @@ task {{ settings.class_prefix }}test_route_seq::body();
     rs = {{ settings.class_prefix }}test_route_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
-    if (!rq.quiet) begin
+    if (!rq.quiet || rq.debug) begin
         tree.collect_always_active_clk_nodes(always_active_clk_nodes);
         req_clk_names = {{ settings.class_prefix }}route_structure_format_node_names(
             always_active_clk_nodes);
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: begin tree %s", tree.get_name()), UVM_LOW)
+            "test_route: begin tree %s debug %0b", tree.get_name(), rq.debug), UVM_LOW)
         if (always_active_clk_nodes.size() > 0)
             `uvm_info("CLK_TREE", $sformatf(
                 "test_route: always_active clk (%0d): %s",
@@ -325,10 +331,10 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     for (i = 0; i < probe_subjects.size(); i++) begin
         verify_one_direction(tree, probe_subjects[i], 1'b1, stored_nodes, stored_snaps,
-            pinned_path, rq.quiet, i,
+            pinned_path, rq.quiet, rq.debug, i,
             probe_subjects.size());
         verify_one_direction(tree, probe_subjects[i], 1'b0, stored_nodes, stored_snaps,
-            pinned_path, rq.quiet, i,
+            pinned_path, rq.quiet, rq.debug, i,
             probe_subjects.size());
     end
 

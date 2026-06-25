@@ -6,12 +6,14 @@ class {{ settings.class_prefix }}test_measure_req extends uvm_sequence_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}test_measure_req)
         `uvm_field_object(tree, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(quiet, UVM_ALL_ON)
+        `uvm_field_int(debug, UVM_ALL_ON)
         `uvm_field_int(check_freq, UVM_ALL_ON)
         `uvm_field_int(check_duty, UVM_ALL_ON)
     `uvm_object_utils_end
 
     {{ settings.class_prefix }}tree_base tree;
     bit quiet;
+    bit debug;
     bit check_freq;
     bit check_duty;
 

@@ -19,21 +19,27 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     extern task check_measure(
         {{ settings.class_prefix }}tree_base tree = null,
         bit check_freq = 1'b1,
-        bit check_duty = 1'b1);
+        bit check_duty = 1'b1,
+        bit debug = 1'b0);
 {% endif %}
 {% if any_node_path and regs_enabled %}
     // 写寄存器后校验频率与占空比
     extern task test_measure(
         {{ settings.class_prefix }}tree_base tree = null,
         bit check_freq = 1'b1,
-        bit check_duty = 1'b1);
+        bit check_duty = 1'b1,
+        bit debug = 1'b0);
 {% endif %}
 {% if route_test_enabled %}
     // 写寄存器后校验 div/dto 复位翻转
-    extern task test_flip({{ settings.class_prefix }}tree_base tree = null);
+    extern task test_flip(
+        {{ settings.class_prefix }}tree_base tree = null,
+        bit debug = 1'b0);
     // 配置寄存器并遍历路由组合
     // tree — 时钟树句柄，空则用 kit.tree
-    extern task test_route({{ settings.class_prefix }}tree_base tree = null);
+    extern task test_route(
+        {{ settings.class_prefix }}tree_base tree = null,
+        bit debug = 1'b0);
 {% endif %}
 endclass
 
@@ -65,7 +71,8 @@ endtask
 task {{ settings.class_prefix }}kit_sequencer::check_measure(
         {{ settings.class_prefix }}tree_base tree,
         bit check_freq,
-        bit check_duty);
+        bit check_duty,
+        bit debug);
     {{ settings.class_prefix }}check_measure_req req;
     {{ settings.class_prefix }}check_measure_rsp seq_rsp;
     {{ settings.class_prefix }}check_measure_seq seq;
@@ -79,6 +86,7 @@ task {{ settings.class_prefix }}kit_sequencer::check_measure(
     req.tree = tree;
     req.check_freq = check_freq;
     req.check_duty = check_duty;
+    req.debug = debug;
 
     seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
     seq.req = req;
@@ -93,7 +101,8 @@ endtask
 task {{ settings.class_prefix }}kit_sequencer::test_measure(
         {{ settings.class_prefix }}tree_base tree,
         bit check_freq,
-        bit check_duty);
+        bit check_duty,
+        bit debug);
     {{ settings.class_prefix }}test_measure_req req;
     {{ settings.class_prefix }}test_measure_rsp seq_rsp;
     {{ settings.class_prefix }}test_measure_seq seq;
@@ -107,6 +116,7 @@ task {{ settings.class_prefix }}kit_sequencer::test_measure(
     req.tree = tree;
     req.check_freq = check_freq;
     req.check_duty = check_duty;
+    req.debug = debug;
 
     seq = {{ settings.class_prefix }}test_measure_seq::type_id::create("test_measure");
     seq.req = req;
@@ -119,7 +129,8 @@ endtask
 
 {% if route_test_enabled %}
 task {{ settings.class_prefix }}kit_sequencer::test_flip(
-        {{ settings.class_prefix }}tree_base tree);
+        {{ settings.class_prefix }}tree_base tree,
+        bit debug);
     {{ settings.class_prefix }}test_flip_req req;
     {{ settings.class_prefix }}test_flip_rsp seq_rsp;
     {{ settings.class_prefix }}test_flip_seq seq;
@@ -131,6 +142,7 @@ task {{ settings.class_prefix }}kit_sequencer::test_flip(
 
     req = {{ settings.class_prefix }}test_flip_req::type_id::create("req");
     req.tree = tree;
+    req.debug = debug;
 
     seq = {{ settings.class_prefix }}test_flip_seq::type_id::create("test_flip");
     seq.req = req;
@@ -141,7 +153,8 @@ task {{ settings.class_prefix }}kit_sequencer::test_flip(
 endtask
 
 task {{ settings.class_prefix }}kit_sequencer::test_route(
-        {{ settings.class_prefix }}tree_base tree);
+        {{ settings.class_prefix }}tree_base tree,
+        bit debug);
     {{ settings.class_prefix }}test_route_req req;
     {{ settings.class_prefix }}test_route_rsp seq_rsp;
     {{ settings.class_prefix }}test_route_seq seq;
@@ -152,6 +165,7 @@ task {{ settings.class_prefix }}kit_sequencer::test_route(
         req.tree = this.tree;
     if (req.tree == null)
         `uvm_fatal("CLK_TREE", "test_route: tree is null")
+    req.debug = debug;
 
     seq = {{ settings.class_prefix }}test_route_seq::type_id::create(
         "test_route");

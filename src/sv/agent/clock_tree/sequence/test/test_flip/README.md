@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | **tree** | **tree_base** | 时钟树 |
 | **quiet** | **bit** | 静默打印 |
+| **debug** | **bit** | 为真时 **check_measure** 打印等待进度 |
 
 ## 流程
 

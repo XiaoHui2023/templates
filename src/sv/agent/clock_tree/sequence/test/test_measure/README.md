@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | **tree** | **tree_base** | 时钟树 |
 | **quiet** | **bit** | 静默打印 |
+| **debug** | **bit** | 为真时 **check_measure** 打印等待进度 |
 | **check_freq** | **bit** | 为真时检查 **source**、**clk**、**pll** 频率 |
 | **check_duty** | **bit** | 为真时检查全部带 **vif** 节点占空比 |
 
