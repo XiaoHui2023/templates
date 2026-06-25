@@ -223,7 +223,7 @@
 | **cst_resolve_freq_from_src** | **to_source[sel]** 已连接时 **_resolved_freq** 等于 **to_source[sel]._resolved_freq** |
 | **post_randomize** | **randomize** 结束后将 **source** 设为 **to_source[sel]** |
 
-### div
+### div_div
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
@@ -240,6 +240,27 @@
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_div** | **ratio** 只能取 1～64 的整数 |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** |
+
+### div_cpu_gate
+
+继承 **div_base**；**div_kind** 为 **CPU_GATE**。YAML **regs** 只允许 **rst**、**div**，无 **load**。寄存器写序列按 **div_reg_high_means_reset** 解释 **rst** 极性，默认 **false** 表示 0 为复位、1 为不复位。
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **group_id** | **string** | 多路输出名 |
+| **to_group** | **node_base** 关联数组 | 同节点其它路 |
+| **source** | **node_base** | 前级节点 |
+| **ratio** | **int**，**rand** | 分频比 |
+| **f_rst** | **reg** | |
+| **f_div** | **reg** | |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
+
+| 约束 | 说明 |
+| --- | --- |
+| **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
+| **cst_div** | **ratio** 只能取 1～32 的整数 |
+| **cst_resolve_freq_from_src** | **group_id** 为 **clk_arm_core** 时 **_resolved_freq** 等于 **source._resolved_freq**；其它路等于 **source._resolved_freq** 整除 **ratio** |
 
 ### div_div_r
 
