@@ -220,7 +220,7 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `inv` | |
-| `inv_kind` | `str` | `inv` | 取 `inv`、`mux_inv`、`inv_cell`。 |
+| `inv_kind` | `str` | `inv` | 取 `inv`、`inv_mux`、`inv_cell`。 |
 | `source` | `str` | | 前级引用。 |
 
 ### Node - mux

@@ -56,7 +56,7 @@ CPU_GATE_PRIMARY_GROUP = CPU_GATE_OUTPUT_GROUPS[0]
 
 _DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
 
-_INV_KIND_CANON = frozenset({"inv", "mux_inv", "inv_cell"})
+_INV_KIND_CANON = frozenset({"inv", "inv_mux", "inv_cell"})
 
 DIV_KIND_TO_SV: dict[str, str] = {
     "div": "div_div",
@@ -78,7 +78,7 @@ DIV_KIND_TO_SV_ENUM: dict[str, str] = {
 
 INV_KIND_TO_SV: dict[str, str] = {
     "inv": "inv",
-    "mux_inv": "inv_mux",
+    "inv_mux": "inv_mux",
     "inv_cell": "inv_cell",
 }
 
@@ -101,7 +101,7 @@ SOURCE_KIND_TO_SV_ENUM: dict[str, str] = {
 
 INV_KIND_TO_SV_ENUM: dict[str, str] = {
     "inv": "INV",
-    "mux_inv": "MUX_INV",
+    "inv_mux": "INV_MUX",
     "inv_cell": "INV_CELL",
 }
 
@@ -124,7 +124,7 @@ def normalize_inv_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _INV_KIND_CANON:
         raise ValueError(
-            f"inv_kind 须为 inv、mux_inv、inv_cell 之一，大小写不限，得到 {value!r}"
+            f"inv_kind 须为 inv、inv_mux、inv_cell 之一，大小写不限，得到 {value!r}"
         )
     return canon
 

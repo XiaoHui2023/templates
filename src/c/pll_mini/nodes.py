@@ -35,7 +35,7 @@ from reg_paths import (
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
-InvKind = Literal["inv", "mux_inv", "inv_cell"]
+InvKind = Literal["inv", "inv_mux", "inv_cell"]
 SourceKind = Literal["source", "pad", "vdd", "gnd"]
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
@@ -218,7 +218,7 @@ class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
     inv_kind: InvKind = Field(
         "inv",
-        description="反相器型号：inv、mux_inv、inv_cell，大小写不限。",
+        description="反相器型号：inv、inv_mux、inv_cell，大小写不限。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
 

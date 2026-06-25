@@ -259,7 +259,7 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `inv` | |
-| `inv_kind` | `str` | `inv` | 取 `inv`、`mux_inv`、`inv_cell`；`inv_cell` 与 `inv` 仿真行为相同。 |
+| `inv_kind` | `str` | `inv` | 取 `inv`、`inv_mux`、`inv_cell`；`inv_cell` 与 `inv` 仿真行为相同。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
 | `reg` | `str` | `""` | 反相/直通控制寄存器模型路径。 |

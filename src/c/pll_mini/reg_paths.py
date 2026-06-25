@@ -33,7 +33,7 @@ INNO_PLL_SHARED_REG_KEYS = frozenset({"lock", "pd", "refdiv", "fbdiv"})
 
 INNO_PLL_OUTPUT_GROUPS = ["0", "1"]
 
-_INV_KIND_CANON = frozenset({"inv", "mux_inv", "inv_cell"})
+_INV_KIND_CANON = frozenset({"inv", "inv_mux", "inv_cell"})
 
 PLL_KIND_TO_SV: dict[str, str] = {
     "tci": "pll_tci",
@@ -180,7 +180,7 @@ def normalize_inv_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _INV_KIND_CANON:
         raise ValueError(
-            f"inv_kind 须为 inv、mux_inv、inv_cell 之一，大小写不限，得到 {value!r}"
+            f"inv_kind 须为 inv、inv_mux、inv_cell 之一，大小写不限，得到 {value!r}"
         )
     return canon
 
