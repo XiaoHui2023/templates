@@ -1,6 +1,10 @@
 `ifndef {{ (settings.class_prefix ~ "clk") | upper }}
 `define {{ (settings.class_prefix ~ "clk") | upper }}
 
+{% set _sv_int_max = 2147483647 -%}
+{% set _min_freq_hz_lit = ("64'd" ~ settings.min_freq_hz) if settings.min_freq_hz > _sv_int_max else settings.min_freq_hz -%}
+{% set _max_freq_hz_lit = ("64'd" ~ settings.max_freq_hz) if settings.max_freq_hz > _sv_int_max else settings.max_freq_hz -%}
+
 class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}clk)
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
@@ -10,9 +14,6 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
 {%- endif %}
     `uvm_object_utils_end
-
-    parameter longint MIN_FREQ_HZ = {{ settings.min_freq_hz }};
-    parameter longint MAX_FREQ_HZ = {{ settings.max_freq_hz }};
 
     longint frequence;
     int enabled;
@@ -31,8 +32,8 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         enabled >= 0 -> enabled == _resolved_active;
 {%- endif %}
         _always_active -> enabled == 1;
-        !_resolved_active || _resolved_freq >= MIN_FREQ_HZ;
-        !_resolved_active || _resolved_freq <= MAX_FREQ_HZ;
+        !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
+        !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};
     }
 
     function new(string name = "");
