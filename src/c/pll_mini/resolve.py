@@ -10,6 +10,7 @@ from formulas import (
     sc_pll_cfg,
     tci_divisors,
 )
+from diagnose import verify_upstream_diagnose
 from nodes import (
     GateNode,
     PllNode,
@@ -139,7 +140,9 @@ def resolve_tree(
             pll_cfg=pll_cfg,
         )
 
-    return TreeResolve(
+    result = TreeResolve(
         by_name=resolved,
         clk_names=tuple(n.name for n in clk_nodes),
     )
+    verify_upstream_diagnose(tree, period_tolerance)
+    return result

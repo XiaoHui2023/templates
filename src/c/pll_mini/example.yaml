@@ -50,10 +50,23 @@ tree:
         "1": xtal
       reg: blk_mux_ref.sel.sel
 
+    div_mux:
+      kind: div
+      div_kind: div
+      source: mux_ref
+      regs:
+        rst: blk_div_mux.ctrl.rst
+        load: blk_div_mux.ctrl.load
+        div: blk_div_mux.ctrl.div
+
     gate0:
       kind: gate
       source: mux_ref
       reg: blk_gate0.en.en
+
+    clk_aux:
+      kind: clk
+      source: div_mux
 
     clk_out:
       kind: clk

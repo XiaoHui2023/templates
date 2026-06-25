@@ -54,6 +54,17 @@ block blk_mux_ref {
   }
 }
 
+block blk_div_mux {
+  bytes 4;
+
+  register ctrl @'h280 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
 block blk_gate0 {
   bytes 4;
 

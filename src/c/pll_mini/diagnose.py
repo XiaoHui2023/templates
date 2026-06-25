@@ -471,6 +471,12 @@ def _collect_div_issues(
     return issues
 
 
+def verify_upstream_diagnose(tree: Tree, period_tolerance: float) -> None:
+    """供 example + jinja_build 验收；mux 等多路前级回溯与调试诊断不得抛异常。"""
+    format_upstream_paths(tree)
+    collect_debug_issues(tree, period_tolerance)
+
+
 def collect_debug_issues(
     tree: Tree,
     period_tolerance: float,
