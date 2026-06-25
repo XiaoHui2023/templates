@@ -152,6 +152,23 @@ def _nearest_ratio_examples(
     return lines
 
 
+def _mux_selected_upstream(
+    mux: MuxNode,
+    mux_name: str,
+) -> str | None:
+    """mux 已固定 sel 时返回选中分支的前级节点名；否则返回 None。"""
+    if mux.sel is None:
+        return None
+    key = str(mux.sel)
+    arm_ref = mux.source.get(key)
+    if not arm_ref:
+        return None
+    arm_name, _ = parse_source_endpoint(
+        arm_ref, ctx=f"mux {mux_name!r} sel {key}"
+    )
+    return arm_name
+
+
 def _walk_upstream_chain(tree: Tree, start: str) -> List[str]:
     chain = [start]
     name = start
@@ -160,6 +177,14 @@ def _walk_upstream_chain(tree: Tree, start: str) -> List[str]:
         node = tree.nodes[name]
         if node.kind == "source":
             break
+        if isinstance(node, MuxNode):
+            arm_name = _mux_selected_upstream(node, name)
+            if arm_name is None or arm_name in seen:
+                break
+            seen.add(arm_name)
+            chain.append(arm_name)
+            name = arm_name
+            continue
         parent_name, _out_group = parse_source_endpoint(
             node.source, ctx=f"回溯 {name!r} source"
         )
@@ -169,16 +194,8 @@ def _walk_upstream_chain(tree: Tree, start: str) -> List[str]:
         if isinstance(parent, MuxNode):
             seen.add(parent_name)
             chain.append(parent_name)
-            if parent.sel is None:
-                break
-            key = str(parent.sel)
-            arm_ref = parent.source.get(key)
-            if not arm_ref:
-                break
-            arm_name, _ = parse_source_endpoint(
-                arm_ref, ctx=f"mux {parent_name!r} sel {key}"
-            )
-            if arm_name in seen:
+            arm_name = _mux_selected_upstream(parent, parent_name)
+            if arm_name is None or arm_name in seen:
                 break
             seen.add(arm_name)
             chain.append(arm_name)
