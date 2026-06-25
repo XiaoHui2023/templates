@@ -600,7 +600,7 @@ def expand_cpu_gate_patches(
     settings: SettingsView,
     resolved: ResolvedNode,
 ) -> List[_FieldPatch]:
-    from formulas import div_ratio_to_n
+    from formulas import cpu_gate_ratio_to_n
 
     patches = [
         _reset_release_patch(
@@ -609,14 +609,14 @@ def expand_cpu_gate_patches(
             high_means_reset=settings.div_reg_high_means_reset,
         )
     ]
-    div_n = div_ratio_to_n(resolved.ratio) if resolved.ratio > 0 else 1
+    div_n = cpu_gate_ratio_to_n(resolved.ratio)
     patches.append(
         _patch(
             index,
             node_name=node.name,
             raw_path=node.regs["div"],
             value=div_n,
-            note=f"{node.name} div={div_n}",
+            note=f"{node.name} ratio={resolved.ratio} div={div_n:#x}",
         )
     )
     return patches

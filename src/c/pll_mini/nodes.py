@@ -47,6 +47,7 @@ _NODE_KIND_ALIASES: dict[str, str] = {
     "clock": "clk",
 }
 _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
+_CPU_GATE_RATIOS = frozenset({2, 3, 4, 6})
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -196,13 +197,18 @@ class DivNode(NodeBase):
                     f"div_kind 为 div_r 时须填写 ratio"
                 )
         elif self.ratio is not None:
-            max_ratio = 64
             if self.div_kind == "cpu_gate":
-                max_ratio = 32
-            if self.ratio > max_ratio:
+                if self.ratio not in _CPU_GATE_RATIOS:
+                    allowed = "、".join(str(r) for r in sorted(_CPU_GATE_RATIOS))
+                    raise ValueError(
+                        f"div 节点 {_validation_node_name(self, info)!r} "
+                        f"div_kind 为 cpu_gate 时 ratio 只能是 {allowed}，"
+                        f"得到 {self.ratio}"
+                    )
+            elif self.ratio > 64:
                 raise ValueError(
                     f"div 节点 {_validation_node_name(self, info)!r} "
-                    f"div_kind 为 {self.div_kind!r} 时 ratio 须不大于 {max_ratio}，"
+                    f"div_kind 为 {self.div_kind!r} 时 ratio 应不大于 64，"
                     f"得到 {self.ratio}"
                 )
             if self.regs:

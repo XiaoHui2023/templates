@@ -8,6 +8,8 @@ INNO_FBDIV_SCALE = 4
 INNO_FBDIV_HW_MAX = 4095
 DTO_MAX_RATIO = 1 << 25
 
+CPU_GATE_RATIOS = frozenset({2, 3, 4, 6})
+
 
 def inno_fbdiv_legal(fbdiv: int) -> bool:
     if 0 <= fbdiv <= 7:
@@ -15,6 +17,27 @@ def inno_fbdiv_legal(fbdiv: int) -> bool:
     if fbdiv == 11:
         return False
     return True
+
+
+def cpu_gate_ratio_to_n(ratio: int) -> int:
+    mapping = {2: 0x0, 3: 0x2, 4: 0x4, 6: 0x8}
+    if ratio not in CPU_GATE_RATIOS:
+        allowed = "、".join(str(r) for r in sorted(CPU_GATE_RATIOS))
+        raise ValueError(f"cpu_gate ratio {ratio} 只能是 {allowed}")
+    return mapping[ratio]
+
+
+def cpu_gate_n_to_ratio(n: int) -> int:
+    n &= 0xF
+    if n in (0x0, 0x1):
+        return 2
+    if (n >> 2) == 0 and (n & 0x2):
+        return 3
+    if not (n & 0x8) and (n & 0x4):
+        return 4
+    if n & 0x8:
+        return 6
+    raise ValueError(f"cpu_gate div 0x{n:x} 无法反算合法 ratio")
 
 
 def div_ratio_to_n(ratio: int) -> int:

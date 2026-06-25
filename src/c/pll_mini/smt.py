@@ -13,6 +13,7 @@ from nodes import (
     Tree,
     parse_source_endpoint,
 )
+from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 from tools import run_consolver_solve
 
 _SMT_SAFE = re.compile(r"[^a-zA-Z0-9_]")
@@ -35,7 +36,7 @@ def _ite_chain(pairs: List[Tuple[str, str]], default: str) -> str:
 
 
 def _div_needs_ratio_var(node: DivNode) -> bool:
-    return node.div_kind in ("div", "div_n", "dto", "dto_n")
+    return node.div_kind in ("div", "div_n", "dto", "dto_n", "cpu_gate")
 
 
 def build_smt2(
@@ -99,7 +100,7 @@ def build_smt2(
         node = tree.nodes[name]
         if node.kind in ("source", "mux"):
             continue
-        parent_name, _ = parse_source_endpoint(
+        parent_name, out_group = parse_source_endpoint(
             node.source, ctx=f"节点 {name!r} source"
         )
         parent = tree.nodes[parent_name]
@@ -110,9 +111,15 @@ def build_smt2(
         lines.append(f"(assert (=> {act_c} {act_p}))")
         if parent.kind == "mux":
             lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
+        elif isinstance(parent, DivNode) and parent.div_kind == "cpu_gate":
+            ratio_p = _sym(parent_name, "ratio")
+            if out_group == CPU_GATE_PASS_THROUGH_GROUP:
+                lines.append(
+                    f"(assert (=> {act_c} (= {freq_c} (* {freq_p} {ratio_p}))))"
+                )
+            else:
+                lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
         elif node.kind in ("gate", "inv", "cell", "clk"):
-            lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
-        elif isinstance(node, DivNode) and node.div_kind == "cpu_gate":
             lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
         elif node.kind == "pll":
             pass
@@ -181,7 +188,14 @@ def build_smt2(
                 f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
             )
         elif node.div_kind == "cpu_gate":
-            lines.append(f"(assert (=> {act_d} (= {freq_d} {freq_in})))")
+            ratio = _sym(name, "ratio")
+            ratio_allowed = " ".join(
+                f"(= {ratio} {value})" for value in (2, 3, 4, 6)
+            )
+            lines.append(f"(assert (or {ratio_allowed}))")
+            lines.append(
+                f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
+            )
 
     for name in node_names:
         node = tree.nodes[name]

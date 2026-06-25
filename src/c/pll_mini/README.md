@@ -184,7 +184,7 @@ settings:
 | `kind` | `str` | `div` | |
 | `div_kind` | `str` | `div` | 取 `div`、`div_n`、`dto`、`dto_n`、`cpu_gate`、`div_r`。 |
 | `source` | `str` | | 前级引用。 |
-| `ratio` | `int` | | `div_r` 必填固定分频比 1～64；其它 **div_kind** 可填以固定分频比。 |
+| `ratio` | `int` | | `div_r` 必填固定分频比 1～64；`cpu_gate` 可填 2、3、4、6；其它 **div_kind** 可填以固定分频比。 |
 | `regs` | `dict` | `{}` | 键由 `div_kind` 决定；`div_r` 须为空。 |
 
 **div_kind** 为 `div` 或 `div_n`：
@@ -204,14 +204,20 @@ settings:
 | `regs.bypass` | `str` | bypass 位。 |
 | `regs.step` | `str` | 步进控制。 |
 
-**div_kind** 为 `cpu_gate`：
+**div_kind** 为 `cpu_gate` 时，固定 3 路输出：
+
+| 输出名 | 频率行为 |
+| --- | --- |
+| `hclk_en` | 按分频比输出 |
+| `hclk` | 按分频比输出 |
+| `clk_arm_core` | 与前级同频 |
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `regs.rst` | `str` | 复位位。 |
-| `regs.div` | `str` | 分频系数。 |
+| `regs.div` | `str` | 4 bit 分频 field，比只能是 2、3、4、6。 |
 
-输出名为 `hclk_en`、`hclk`、`clk_arm_core`；前级引用须写 `节点名[输出名]`。
+前级引用应写 `节点名[输出名]`。
 
 ### Node - inv
 
