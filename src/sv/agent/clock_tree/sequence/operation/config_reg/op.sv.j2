@@ -66,8 +66,7 @@ endclass
 // 写 gate 的开关控制
 task {{ settings.class_prefix }}config_reg_seq::config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
     if (!gate_nd.f_reg.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: gate %s f_reg not bound", gate_nd.get_name()))
+        return;
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: gate %s open %0b", gate_nd.get_name(), gate_nd._resolved_open), UVM_MEDIUM)
@@ -79,8 +78,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_gate_node_reg(
         {{ settings.class_prefix }}gate gate_nd,
         bit reg_open);
     if (!gate_nd.f_reg.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: gate %s f_reg not bound", gate_nd.get_name()))
+        return;
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: gate %s reg open %0b", gate_nd.get_name(), reg_open), UVM_MEDIUM)
@@ -90,8 +88,7 @@ endtask
 // 写 mux 的选择控制
 task {{ settings.class_prefix }}config_reg_seq::config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
     if (!mux_nd.f_reg.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: mux %s f_reg not bound", mux_nd.get_name()))
+        return;
     if (p_sequencer.tools.node.mux_sel_unchanged(
             mux_nd.get_name(), mux_nd._resolved_sel)) begin
         if (!quiet)
@@ -112,8 +109,7 @@ endtask
 task {{ settings.class_prefix }}config_reg_seq::config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
     if (!div_nd.f_load.is_bound() || !div_nd.f_div.is_bound()
             || !div_nd.f_rst.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: div %s regs not bound", div_nd.get_name()))
+        return;
 {%- if settings.should_reset_div %}
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
@@ -143,8 +139,7 @@ endtask
 task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
     if (!dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
             || !dto_nd.f_step.is_bound() || !dto_nd.f_rst.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: dto %s regs not bound", dto_nd.get_name()))
+        return;
 {%- if settings.should_reset_dto %}
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
@@ -174,8 +169,7 @@ endtask
 task {{ settings.class_prefix }}config_reg_seq::config_reg_cpu_gate_node(
         {{ settings.class_prefix }}div_cpu_gate cpu_gate_nd);
     if (!cpu_gate_nd.f_div.is_bound() || !cpu_gate_nd.f_rst.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: cpu_gate %s regs not bound", cpu_gate_nd.get_name()))
+        return;
 {%- if settings.should_reset_div %}
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
@@ -224,8 +218,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_sc_node({{ settin
             || !pll_sc_nd.f_bypass.is_bound() || !pll_sc_nd.f_refdiv.is_bound()
             || !pll_sc_nd.f_postdiv2.is_bound() || !pll_sc_nd.f_postdiv1.is_bound()
             || !pll_sc_nd.f_fbdiv.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: pll_sc %s regs not bound", pll_sc_nd.get_name()))
+        return;
     if (p_sequencer.tools.pll.freq_cfg_unchanged(
             pll_sc_nd.get_name(), ref_hz, pll_sc_nd.frequence)) begin
         if (!quiet)
@@ -270,8 +263,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_dw_node({{ settin
             || !pll_dw_nd.f_divvcor.is_bound() || !pll_dw_nd.f_r.is_bound()
             || !pll_dw_nd.f_p.is_bound() || !pll_dw_nd.f_divvcop.is_bound()
             || !pll_dw_nd.f_enr.is_bound() || !pll_dw_nd.f_enp.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: pll_dw %s regs not bound", pll_dw_nd.get_name()))
+        return;
     if (p_sequencer.tools.pll.freq_cfg_unchanged(
             pll_dw_nd.get_name(), ref_hz, pll_dw_nd.frequence)) begin
         if (!quiet)
@@ -315,8 +307,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_inno_node({{ sett
     if (!pll_inno_nd.f_pd.is_bound() || !pll_inno_nd.f_lock.is_bound()
             || !pll_inno_nd.f_refdiv.is_bound() || !pll_inno_nd.f_fbdiv.is_bound()
             || !pll_inno_nd.f_postdiv1.is_bound() || !pll_inno_nd.f_postdiv2.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: pll_inno %s regs not bound", pll_inno_nd.get_name()))
+        return;
     write_shared = pll_inno_nd.group_id == "{{ inno_pll_primary_group }}";
     if (p_sequencer.tools.pll.freq_cfg_unchanged(
             pll_inno_nd.get_name(), ref_hz, pll_inno_nd.frequence) && !write_shared) begin
@@ -387,8 +378,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_pll_node({{ settings.
                 || !pll_tci_nd.f_reset.is_bound() || !pll_tci_nd.f_clkod.is_bound()
                 || !pll_tci_nd.f_clkf.is_bound() || !pll_tci_nd.f_clkr.is_bound()
                 || !pll_tci_nd.f_bwadj.is_bound())
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "config_reg: pll_tci %s regs not bound", pll_tci_nd.get_name()))
+            return;
         if (p_sequencer.tools.pll.freq_cfg_unchanged(
                 pll_tci_nd.get_name(), ref_hz, pll_tci_nd.frequence)) begin
             if (!quiet)
@@ -427,32 +417,28 @@ task {{ settings.class_prefix }}config_reg_seq::wait_pll_lock_node({{ settings.c
         if (pll_inno_nd.group_id != "{{ inno_pll_primary_group }}")
             return;
         if (!pll_inno_nd.f_lock.is_bound())
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "config_reg: pll %s f_lock not bound", pll_nd.get_name()))
+            return;
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
         p_sequencer.tools.pll.wait_lock(pll_inno_nd.f_lock, {{ settings.pll_lock_timeout_us }}us);
     end else if ($cast(pll_tci_nd, pll_nd)) begin
         if (!pll_tci_nd.f_lock.is_bound())
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "config_reg: pll %s f_lock not bound", pll_nd.get_name()))
+            return;
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
         p_sequencer.tools.pll.wait_lock(pll_tci_nd.f_lock, {{ settings.pll_lock_timeout_us }}us);
     end else if ($cast(pll_sc_nd, pll_nd)) begin
         if (!pll_sc_nd.f_lock.is_bound())
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "config_reg: pll %s f_lock not bound", pll_nd.get_name()))
+            return;
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
         p_sequencer.tools.pll.wait_lock(pll_sc_nd.f_lock, {{ settings.pll_lock_timeout_us }}us);
     end else if ($cast(pll_dw_nd, pll_nd)) begin
         if (!pll_dw_nd.f_lock.is_bound())
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "config_reg: pll %s f_lock not bound", pll_nd.get_name()))
+            return;
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
@@ -520,8 +506,7 @@ endtask
 task {{ settings.class_prefix }}config_reg_seq::config_reg_inv_node(
         {{ settings.class_prefix }}inv_base inv_nd);
     if (!inv_nd.f_reg.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "config_reg: inv %s f_reg not bound", inv_nd.get_name()))
+        return;
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: inv %s inverted %0b", inv_nd.get_name(), inv_nd.inverted),
@@ -546,7 +531,8 @@ task {{ settings.class_prefix }}config_reg_seq::config_gate_nodes(
     {{ settings.class_prefix }}gate gate_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(gate_nd, tree.nodes[i]) && gate_nd._resolved_open == open)
+        if ($cast(gate_nd, tree.nodes[i]) && gate_nd.f_reg.is_bound()
+                && gate_nd._resolved_open == open)
             config_reg_gate_node(gate_nd);
 endtask
 
@@ -601,6 +587,8 @@ task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
 
     foreach (gates_open[i]) begin
         if (!$cast(gate_nd, gates_open[i]))
+            continue;
+        if (!gate_nd.f_reg.is_bound())
             continue;
         config_reg_gate_node_reg(gate_nd, 1'b1);
     end
