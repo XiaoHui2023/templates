@@ -11,6 +11,9 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 {%- endif %}
     `uvm_object_utils_end
 
+    parameter longint MIN_FREQ_HZ = {{ settings.min_freq_hz }};
+    parameter longint MAX_FREQ_HZ = {{ settings.max_freq_hz }};
+
     longint frequence;
     int enabled;
     bit _always_active;
@@ -28,6 +31,8 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         enabled >= 0 -> enabled == _resolved_active;
 {%- endif %}
         _always_active -> enabled == 1;
+        !_resolved_active || _resolved_freq >= MIN_FREQ_HZ;
+        !_resolved_active || _resolved_freq <= MAX_FREQ_HZ;
     }
 
     function new(string name = "");
@@ -40,25 +45,6 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         unfix_enabled = 1'b1;
 {%- endif %}
         kind = "clk";
-    endfunction
-
-    // randomize 后校验活动时钟的 _resolved_freq 在允许频率范围内
-    function void post_randomize();
-        longint min_hz;
-        longint max_hz;
-        super.post_randomize();
-        min_hz = longint'({{ settings.min_freq_hz }});
-        max_hz = longint'({{ settings.max_freq_hz }});
-        if (_resolved_active && _resolved_freq < min_hz) begin
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "clk %s resolved freq %0d Hz below min allowed %0d Hz",
-                get_name(), _resolved_freq, min_hz))
-        end
-        if (_resolved_active && _resolved_freq > max_hz) begin
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "clk %s resolved freq %0d Hz above max allowed %0d Hz",
-                get_name(), _resolved_freq, max_hz))
-        end
     endfunction
 endclass
 

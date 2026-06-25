@@ -53,7 +53,7 @@ class Settings(BaseModel):
         ge=15000,
         le=_MAX_FREQ_HZ,
         description="clk 节点 randomize 后允许的最高频率，单位 Hz；"
-        "活动时钟的 _resolved_freq 超过该值时 uvm_fatal。",
+        "活动时钟的 _resolved_freq 高于该值时 cst_clk 约束冲突。",
     )
     active_cycles: int = Field(
         1,
