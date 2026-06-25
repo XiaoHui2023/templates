@@ -4,7 +4,17 @@ SC_FBDIV_HW_MIN = 1
 SC_FBDIV_HW_MAX = 4095
 DW_FBDIV_MIN = 1
 DW_FBDIV_MAX = 1023
+INNO_FBDIV_SCALE = 4
+INNO_FBDIV_HW_MAX = 4095
 DTO_MAX_RATIO = 1 << 25
+
+
+def inno_fbdiv_legal(fbdiv: int) -> bool:
+    if 0 <= fbdiv <= 7:
+        return False
+    if fbdiv == 11:
+        return False
+    return True
 
 
 def div_ratio_to_n(ratio: int) -> int:
@@ -176,16 +186,23 @@ def dw_pll_cfg(out_hz: int, ref_hz: int) -> dict[str, int]:
     }
 
 
-def inno_shared_divisors(out_hz: int, ref_hz: int) -> tuple[int, int]:
+def inno_shared_divisors(
+    out_hz: int,
+    ref_hz: int,
+    *,
+    fbdiv_max: int = INNO_FBDIV_HW_MAX,
+) -> tuple[int, int]:
     if ref_hz <= 0 or out_hz <= 0:
         return 1, 1
     best: tuple[int, int, int] | None = None
     for refdiv in range(1, 64):
-        fbdiv_r = out_hz * refdiv / ref_hz
+        fbdiv_r = out_hz * refdiv * INNO_FBDIV_SCALE / ref_hz
         fbdiv_i = int(round(fbdiv_r))
-        if fbdiv_i < 1 or fbdiv_i > 4095:
+        if fbdiv_i < 1 or fbdiv_i > fbdiv_max:
             continue
-        actual_hz = (ref_hz * fbdiv_i) // refdiv
+        if not inno_fbdiv_legal(fbdiv_i):
+            continue
+        actual_hz = (ref_hz * fbdiv_i) // (INNO_FBDIV_SCALE * refdiv)
         err = abs(out_hz - actual_hz)
         if best is None or err < best[2]:
             best = (fbdiv_i, refdiv, err)
@@ -208,7 +225,7 @@ def inno_postdivisors(
             product = refdiv * postdiv1 * postdiv2
             if product < 1:
                 continue
-            actual_hz = (ref_hz * fbdiv) // product
+            actual_hz = (ref_hz * fbdiv) // (INNO_FBDIV_SCALE * product)
             err = abs(out_hz - actual_hz)
             if best is None or err < best[2]:
                 best = (postdiv1, postdiv2, err)
@@ -222,10 +239,11 @@ def inno_pll_cfg(
     ref_hz: int,
     *,
     output_groups: list[str] | None = None,
+    fbdiv_max: int = INNO_FBDIV_HW_MAX,
 ) -> dict[str, int]:
     from reg_paths import INNO_PLL_OUTPUT_GROUPS, inno_postdiv_reg_keys
 
-    fbdiv, refdiv = inno_shared_divisors(out_hz, ref_hz)
+    fbdiv, refdiv = inno_shared_divisors(out_hz, ref_hz, fbdiv_max=fbdiv_max)
     postdiv1, postdiv2 = inno_postdivisors(out_hz, ref_hz, fbdiv, refdiv)
     cfg: dict[str, int] = {
         "pd": 0,

@@ -164,6 +164,7 @@ class Models(BaseModel):
             pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
             pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
             consolver_timeout_ms=s.consolver_timeout_ms,
+            reg_index=RegModelIndex(self.regmodel),
         )
 
     @property

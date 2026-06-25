@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 from formulas import (
+    INNO_FBDIV_HW_MAX,
     dw_pll_cfg,
     inno_pll_cfg,
     sc_pll_cfg,
@@ -15,6 +16,7 @@ from nodes import (
     Tree,
     parse_source_endpoint,
 )
+from regmodel import RegModelIndex, reg_bound_max
 from smt import solve_tree_constraints
 
 
@@ -36,12 +38,23 @@ class TreeResolve:
     clk_names: Tuple[str, ...]
 
 
+def _inno_fbdiv_max(node: PllNode, reg_index: RegModelIndex | None) -> int:
+    if reg_index is None or "fbdiv" not in node.regs:
+        return INNO_FBDIV_HW_MAX
+    ref = reg_index.resolve(
+        node.regs["fbdiv"],
+        ctx=f"pll node {node.name!r} regs.fbdiv",
+    )
+    return reg_bound_max(ref)
+
+
 def _compute_pll_cfg(
     node: PllNode,
     ref_hz: int,
     *,
     fbdiv_min: int,
     fbdiv_max: int,
+    reg_index: RegModelIndex | None = None,
 ) -> Dict[str, int]:
     out_hz = node.freq
     if node.pll_kind == "tci":
@@ -54,7 +67,10 @@ def _compute_pll_cfg(
         return dw_pll_cfg(out_hz, ref_hz)
     if node.pll_kind == "inno":
         return inno_pll_cfg(
-            out_hz, ref_hz, output_groups=node.output_groups
+            out_hz,
+            ref_hz,
+            output_groups=node.output_groups,
+            fbdiv_max=_inno_fbdiv_max(node, reg_index),
         )
     raise ValueError(f"未知 pll_kind {node.pll_kind!r}")
 
@@ -65,6 +81,7 @@ def resolve_tree(
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
     consolver_timeout_ms: int | None = None,
+    reg_index: RegModelIndex | None = None,
 ) -> TreeResolve:
     clk_nodes = [n for n in tree.nodes_ordered if n.kind == "clk"]
     if not clk_nodes:
@@ -101,6 +118,7 @@ def resolve_tree(
                 ref_hz,
                 fbdiv_min=pll_sc_fbdiv_min,
                 fbdiv_max=pll_sc_fbdiv_max,
+                reg_index=reg_index,
             )
 
         resolved_freq = freq_map.get(node_name, 0)

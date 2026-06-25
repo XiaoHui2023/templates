@@ -175,6 +175,14 @@ class FieldRef:
         return f"REG_{self.reg.macro_prefix}_{self.field.name.upper()}_MASK"
 
 
+def reg_bound_max(ref: FieldRef) -> int:
+    """按 FieldRef 有效位宽得切片可写最大值。"""
+    w = ref.effective_width
+    if w >= 32:
+        return 0xFFFFFFFF
+    return (1 << w) - 1
+
+
 def parse_field_path(raw: str, *, ctx: str) -> Tuple[str, str, Optional[int], Optional[int]]:
     """解析节点 reg 点分路径与可选比特后缀。
 
