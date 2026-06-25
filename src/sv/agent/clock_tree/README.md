@@ -252,7 +252,7 @@ settings:
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
 | `regs.rst` | `str` | | 低电平复位位。 |
-| `regs.div` | `str` | | 5 bit 分频系数 field。 |
+| `regs.div` | `str` | | 4 bit 分频 field；比只能是 2、3、4、6。 |
 
 ### Node - inv
 

@@ -259,7 +259,7 @@
 | 约束 | 说明 |
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
-| **cst_div** | **ratio** 只能取 1～32 的整数 |
+| **cst_div** | **ratio** 只能取 2、3、4、6 |
 | **cst_resolve_freq_from_src** | **group_id** 为 **clk_arm_core** 时 **_resolved_freq** 等于 **source._resolved_freq**；其它路等于 **source._resolved_freq** 整除 **ratio** |
 
 ### div_div_r

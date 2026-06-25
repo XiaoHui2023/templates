@@ -9,8 +9,7 @@ class {{ settings.class_prefix }}div_cpu_gate extends {{ settings.class_prefix }
 {% endif %}
 
     constraint cst_div {
-        _resolved_ratio > 0;
-        _resolved_ratio <= 32;
+        _resolved_ratio inside {2, 3, 4, 6};
     }
 
     constraint cst_resolve_freq_from_src {
