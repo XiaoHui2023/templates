@@ -22,7 +22,7 @@ class {{ settings.class_prefix }}div_cpu_gate extends {{ settings.class_prefix }
             group_id != "{{ cpu_gate_pass_through_group }}" && _resolved_ratio > 0 -> {
                 _resolved_freq * {{ div_freq_tol_lo }} <= (source._resolved_freq / _resolved_ratio) * {{ div_freq_tol_den }};
                 _resolved_freq * {{ div_freq_tol_hi }} >= (source._resolved_freq / _resolved_ratio) * {{ div_freq_tol_den }};
-            };
+            }
         }
         source == null -> _resolved_freq == 0;
     }

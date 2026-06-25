@@ -17,6 +17,7 @@ from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 from tools import run_consolver_solve
 
 _SMT_SAFE = re.compile(r"[^a-zA-Z0-9_]")
+_FREQ_TOL_DEN = 100
 
 
 def _sym(node_name: str, suffix: str) -> str:
@@ -35,8 +36,40 @@ def _ite_chain(pairs: List[Tuple[str, str]], default: str) -> str:
     return expr
 
 
+def _freq_tolerance_bounds(period_tolerance: float) -> tuple[int, int, int]:
+    tol_num = round(period_tolerance * _FREQ_TOL_DEN)
+    return _FREQ_TOL_DEN - tol_num, _FREQ_TOL_DEN + tol_num, _FREQ_TOL_DEN
+
+
 def _div_needs_ratio_var(node: DivNode) -> bool:
     return node.div_kind in ("div", "div_n", "dto", "dto_n", "cpu_gate")
+
+
+def _append_div_freq_constraint(
+    lines: List[str],
+    *,
+    active: str,
+    freq_in: str,
+    freq_out: str,
+    ratio: str,
+    freq_hw: str,
+    rem: str,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> None:
+    lines.append(f"(assert (=> {active} (> {freq_hw} 0)))")
+    lines.append(f"(assert (=> {active} (>= {rem} 0)))")
+    lines.append(f"(assert (=> {active} (< {rem} {ratio})))")
+    lines.append(
+        f"(assert (=> {active} (= {freq_in} (+ (* {freq_hw} {ratio}) {rem}))))"
+    )
+    lines.append(
+        f"(assert (=> {active} (<= (* {freq_out} {tol_lo}) (* {freq_hw} {tol_den}))))"
+    )
+    lines.append(
+        f"(assert (=> {active} (>= (* {freq_out} {tol_hi}) (* {freq_hw} {tol_den}))))"
+    )
 
 
 def build_smt2(
@@ -44,12 +77,14 @@ def build_smt2(
     *,
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
+    period_tolerance: float,
 ) -> str:
     """把时钟树频率与路由约束编码为 SMT-LIB。"""
     lines: List[str] = [
         "(set-logic QF_LIA)",
     ]
     node_names = sorted(tree.nodes.keys())
+    tol_lo, tol_hi, tol_den = _freq_tolerance_bounds(period_tolerance)
 
     for name in node_names:
         lines.append(f"(declare-const {_sym(name, 'active')} Bool)")
@@ -68,6 +103,9 @@ def build_smt2(
             lines.append(f"(declare-const {_sym(name, 'ratio')} Int)")
             if node.ratio is not None:
                 lines.append(f"(assert (= {_sym(name, 'ratio')} {node.ratio}))")
+        if isinstance(node, DivNode):
+            lines.append(f"(declare-const {_sym(name, 'freq_hw')} Int)")
+            lines.append(f"(declare-const {_sym(name, 'rem')} Int)")
         if isinstance(node, GateNode):
             lines.append(f"(declare-const {_sym(name, 'gate_open')} Bool)")
             if node.open is not None:
@@ -112,10 +150,13 @@ def build_smt2(
         if parent.kind == "mux":
             lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
         elif isinstance(parent, DivNode) and parent.div_kind == "cpu_gate":
-            ratio_p = _sym(parent_name, "ratio")
             if out_group == CPU_GATE_PASS_THROUGH_GROUP:
+                pass_parent_name, _ = parse_source_endpoint(
+                    parent.source, ctx=f"cpu_gate {parent_name!r} source"
+                )
+                freq_pass = _sym(pass_parent_name, "freq")
                 lines.append(
-                    f"(assert (=> {act_c} (= {freq_c} (* {freq_p} {ratio_p}))))"
+                    f"(assert (=> {act_c} (= {freq_c} {freq_pass})))"
                 )
             else:
                 lines.append(f"(assert (=> {act_c} (= {freq_c} {freq_p})))")
@@ -167,25 +208,54 @@ def build_smt2(
         act_d = _sym(name, "active")
         freq_d = _sym(name, "freq")
         freq_in = _sym(parent_name, "freq")
+        freq_hw = _sym(name, "freq_hw")
+        rem = _sym(name, "rem")
         if node.div_kind in ("div", "div_n"):
             ratio = _sym(name, "ratio")
             lines.append(f"(assert (>= {ratio} 1))")
             lines.append(f"(assert (<= {ratio} 64))")
-            lines.append(
-                f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
+            _append_div_freq_constraint(
+                lines,
+                active=act_d,
+                freq_in=freq_in,
+                freq_out=freq_d,
+                ratio=ratio,
+                freq_hw=freq_hw,
+                rem=rem,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
             )
         elif node.div_kind in ("dto", "dto_n"):
             ratio = _sym(name, "ratio")
             lines.append(f"(assert (>= {ratio} 2))")
             lines.append(f"(assert (<= {ratio} {DTO_MAX_RATIO}))")
-            lines.append(
-                f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
+            _append_div_freq_constraint(
+                lines,
+                active=act_d,
+                freq_in=freq_in,
+                freq_out=freq_d,
+                ratio=ratio,
+                freq_hw=freq_hw,
+                rem=rem,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
             )
         elif node.div_kind == "div_r":
             ratio = node.ratio
             assert ratio is not None
-            lines.append(
-                f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
+            _append_div_freq_constraint(
+                lines,
+                active=act_d,
+                freq_in=freq_in,
+                freq_out=freq_d,
+                ratio=str(ratio),
+                freq_hw=freq_hw,
+                rem=rem,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
             )
         elif node.div_kind == "cpu_gate":
             ratio = _sym(name, "ratio")
@@ -193,8 +263,17 @@ def build_smt2(
                 f"(= {ratio} {value})" for value in (2, 3, 4, 6)
             )
             lines.append(f"(assert (or {ratio_allowed}))")
-            lines.append(
-                f"(assert (=> {act_d} (= {freq_in} (* {freq_d} {ratio}))))"
+            _append_div_freq_constraint(
+                lines,
+                active=act_d,
+                freq_in=freq_in,
+                freq_out=freq_d,
+                ratio=ratio,
+                freq_hw=freq_hw,
+                rem=rem,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
             )
 
     for name in node_names:
@@ -292,6 +371,7 @@ def solve_tree_constraints(
     *,
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
+    period_tolerance: float,
     timeout_ms: int | None = None,
 ) -> Tuple[Dict[str, bool], Dict[str, int], Dict[str, int], Dict[str, int], Dict[str, bool]]:
     """生成 SMT、调用 consolver 并解析模型。"""
@@ -299,6 +379,7 @@ def solve_tree_constraints(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+        period_tolerance=period_tolerance,
     )
     model = run_consolver_solve(smt2, timeout_ms=timeout_ms)
     return parse_solve_model(tree, model)

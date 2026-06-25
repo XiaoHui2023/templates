@@ -80,6 +80,7 @@ def resolve_tree(
     *,
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
+    period_tolerance: float,
     consolver_timeout_ms: int | None = None,
     reg_index: RegModelIndex | None = None,
 ) -> TreeResolve:
@@ -91,6 +92,7 @@ def resolve_tree(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+        period_tolerance=period_tolerance,
         timeout_ms=consolver_timeout_ms,
     )
 

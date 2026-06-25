@@ -69,6 +69,12 @@ class Settings(BaseModel):
         ge=1,
         description="consolver 求解超时，毫秒；省略则不限时。",
     )
+    period_tolerance: float = Field(
+        0.01,
+        ge=0,
+        le=1,
+        description="分频求解允许的相对频率偏差。",
+    )
     reg_base_offset: int = Field(
         0,
         ge=0,
@@ -164,6 +170,7 @@ class Models(BaseModel):
             pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
             pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
             consolver_timeout_ms=s.consolver_timeout_ms,
+            period_tolerance=s.period_tolerance,
             reg_index=RegModelIndex(self.regmodel),
         )
 
