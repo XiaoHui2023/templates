@@ -185,6 +185,6 @@ trees:
 
 settings:
   class_regmodel: regmodel_t
-  min_freq_hz: 500
+  min_freq_hz: 15000
   duty_min: 50
   duty_max: 66

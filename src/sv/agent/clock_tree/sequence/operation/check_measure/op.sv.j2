@@ -456,8 +456,7 @@ function void {{ settings.class_prefix }}check_measure_seq::log_measure_progress
             continue;
         nd = nodes_to_check[i];
         `uvm_info("CLK_TREE", $sformatf(
-            "check_measure progress: node %s stage %s meas_en %0b activity_ok %0b inactive %0b "
-            "freq_stable %0b duty_stable %0b timed_out %0b",
+            "check_measure progress: node %s stage %s meas_en %0b activity_ok %0b inactive %0b freq_stable %0b duty_stable %0b timed_out %0b",
             nd.get_name(),
             node_measure_stage_label(nd, activity_done[i], freq_done[i],
                 duty_done[i], rq.check_freq, rq.check_duty),

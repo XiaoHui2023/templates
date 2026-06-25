@@ -41,6 +41,17 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 {%- endif %}
         kind = "clk";
     endfunction
+
+    // randomize 后校验活动时钟的 _resolved_freq 不低于最低允许频率
+    function void post_randomize();
+        super.post_randomize();
+        if (_resolved_active
+                && _resolved_freq < {{ settings.min_freq_hz }}) begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "clk %s resolved freq %0d Hz below min allowed %0d Hz",
+                get_name(), _resolved_freq, {{ settings.min_freq_hz }}))
+        end
+    endfunction
 endclass
 
 `endif

@@ -59,7 +59,7 @@
 
 ### wait_measure_stable
 
-先轮询 **activity_ok** 或 **inactive**，最长 **active_timeout_ns_rt**；活动已确认后再轮询 **freq_stable** 与 **duty_stable**，最长 **stable_timeout_ns_rt**。活动阶段未采够上升沿则 **inactive** 为 1；活动已确认但稳定阶段超时则置 **timed_out**。
+先轮询 **activity_ok** 或 **inactive**，最长 **active_timeout_ns_rt**；活动阶段自测量起点或上一边沿起超过一个最低频率周期仍无边沿则 **inactive** 为 1。活动已确认后再轮询 **freq_stable** 与 **duty_stable**，最长 **stable_timeout_ns_rt**。活动已确认但稳定阶段超时则置 **timed_out**。
 
 | 参数 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |
@@ -99,7 +99,7 @@
 | **meas_en** | bit | 测量开关 |
 | **active** | logic | 与 **activity_ok** 同义，已连续 **ACTIVE_CYCLES** 个上升沿 |
 | **activity_ok** | logic | 活动阶段通过 |
-| **inactive** | logic | 活动阶段结束且未采够 **ACTIVE_CYCLES** 个上升沿 |
+| **inactive** | logic | 活动阶段结束：自测量起点或上一边沿起超过一个最低频率周期仍无边沿，或已见边沿但未采够 **ACTIVE_CYCLES** 个上升沿 |
 | **freq_hz** | real | 当前测得频率，Hz |
 | **duty** | real | 当前占空比，0～1 |
 | **duty_ok** | logic | 当前占空比在 **[DUTY_MIN_PCT − DUTY_TOL_PCT, DUTY_MAX_PCT + DUTY_TOL_PCT]** 内 |
@@ -138,7 +138,7 @@
 
 ### wait_measure_stable
 
-先轮询 **activity_ok** 或 **inactive**，最长 **active_timeout_ns_rt**；活动已确认后再轮询 **freq_stable** 与 **duty_stable**，最长 **stable_timeout_ns_rt**。活动阶段未采够上升沿则 **inactive** 为 1；活动已确认但稳定阶段超时则置 **timed_out**。
+先轮询 **activity_ok** 或 **inactive**，最长 **active_timeout_ns_rt**；活动阶段自测量起点或上一边沿起超过一个最低频率周期仍无边沿则 **inactive** 为 1。活动已确认后再轮询 **freq_stable** 与 **duty_stable**，最长 **stable_timeout_ns_rt**。活动已确认但稳定阶段超时则置 **timed_out**。
 
 | 参数 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |

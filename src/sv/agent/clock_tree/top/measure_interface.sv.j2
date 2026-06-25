@@ -52,6 +52,7 @@ interface {{ settings.class_prefix }}measure_interface #(
     int active_timeout_ns_rt;
     int stable_timeout_ns_rt;
     real max_edge_period_rt;
+    realtime activity_start_t;
 
     // 周期内归一化相位，取值 0 以上且小于 1
     // t — 上升沿时刻
@@ -85,6 +86,18 @@ interface {{ settings.class_prefix }}measure_interface #(
         active_timeout_ns_rt = period_ns * ACTIVE_CYCLES * TIMEOUT_MARGIN;
         stable_timeout_ns_rt = period_ns * STABLE_CYCLES * TIMEOUT_MARGIN;
         max_edge_period_rt = RT_PER_SEC / hz;
+    endfunction
+
+    // 活动阶段：自起点或上一边沿起超过 max_edge_period_rt 仍无边沿则 inactive
+    function automatic void check_activity_silence_inactive();
+        if (activity_ok || inactive || !meas_en)
+            return;
+        if (activity_edge_cnt == 0) begin
+            if (($realtime - activity_start_t) >= max_edge_period_rt)
+                mark_inactive();
+        end
+        else if (($realtime - last_edge_t) >= max_edge_period_rt)
+            mark_inactive();
     endfunction
 
     // 将当前读数写入 last_* 快照
@@ -222,6 +235,7 @@ interface {{ settings.class_prefix }}measure_interface #(
     function automatic void start_measure();
         reset_measure();
         meas_en = 1'b1;
+        activity_start_t = $realtime;
     endfunction
 
     // 关闭测量并写入 last_* 快照
@@ -244,6 +258,7 @@ interface {{ settings.class_prefix }}measure_interface #(
         elapsed_ns = 0;
         ok = 1'b0;
         while (elapsed_ns < active_timeout_ns_rt) begin
+            check_activity_silence_inactive();
             if (activity_ok || inactive)
                 break;
             if (!meas_en)
@@ -344,13 +359,32 @@ interface {{ settings.class_prefix }}measure_interface #(
     end
 
     initial begin : meas_timeout_loop
+        int activity_elapsed_ns;
         forever begin
             wait (meas_en === 1'b1);
-            #(active_timeout_ns_rt * 1ns);
+            activity_start_t = $realtime;
+            activity_elapsed_ns = 0;
+            forever begin
+                if (!meas_en)
+                    break;
+                if (activity_ok || inactive)
+                    break;
+                check_activity_silence_inactive();
+                if (inactive)
+                    break;
+                if (activity_elapsed_ns >= active_timeout_ns_rt) begin
+                    if (!activity_ok)
+                        mark_inactive();
+                    break;
+                end
+                #1ns;
+                activity_elapsed_ns++;
+            end
             if (!meas_en)
                 continue;
             if (!activity_ok) begin
-                mark_inactive();
+                if (!inactive)
+                    mark_inactive();
                 meas_en = 1'b0;
                 continue;
             end
