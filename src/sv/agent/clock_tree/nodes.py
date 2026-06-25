@@ -51,6 +51,7 @@ _NODE_KIND_ALIASES: dict[str, str] = {
 
 _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
 _CPU_GATE_RATIOS = frozenset({2, 3, 4, 6})
+_FREQ_HZ_U32_MAX = 2**32 - 1
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
@@ -367,6 +368,7 @@ class ClockSourceNode(NodeBase):
     freq: int = Field(
         0,
         ge=0,
+        le=_FREQ_HZ_U32_MAX,
         description="典型频率，单位 Hz；vdd、gnd 固定为 0 或可省略。",
     )
 
@@ -406,7 +408,12 @@ class ClockSourceNode(NodeBase):
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
-    freq: int = Field(..., ge=1, description="典型频率，单位 Hz。")
+    freq: int = Field(
+        ...,
+        ge=1,
+        le=_FREQ_HZ_U32_MAX,
+        description="典型频率，单位 Hz。",
+    )
 
     @field_validator("freq", mode="before")
     @classmethod
@@ -536,6 +543,11 @@ class ClkNode(NodeBase):
             raise ValueError(
                 f"clk 节点 {self.name!r} freq 为 0 非法；"
                 f"正频率应大于等于 1，不约束请省略或填负数"
+            )
+        if self.freq is not None and self.freq > _FREQ_HZ_U32_MAX:
+            raise ValueError(
+                f"clk 节点 {self.name!r} freq {self.freq} "
+                f"超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}"
             )
         return self
 
