@@ -14,10 +14,16 @@
 | **N** | **div** 寄存器写入值 |
 
 ```
-f = f_ref / ratio
+f_hw = f_ref / ratio
 ```
 
-整数除法。
+整数除法，**f_hw** 为寄存器按 **ratio** 配置后硅片输出频率。
+
+model 里 **\_resolved_freq** 相对 **f_hw** 允许偏差，上下界为 **period_tolerance**，与 **check_measure** 频率容差同一配置项：
+
+```
+f_hw * (1 - period_tolerance) <= _resolved_freq <= f_hw * (1 + period_tolerance)
+```
 
 **N** 与 **ratio**：**N** 为 0 时 **ratio** 为 1；**N** 大于 0 时 **ratio** 为 **N + 1**。反之 **ratio** 不大于 1 时 **N** 为 0，否则 **N** 为 **ratio − 1**。
 
@@ -31,8 +37,10 @@ f = f_ref / ratio
 | **div** | **div** field 写入值，4 bit |
 
 ```
-f = f_ref / ratio
+f_hw = f_ref / ratio
 ```
+
+**\_resolved_freq** 容差同 **div** 节。
 
 **div** 与 **ratio** 按 bit 前缀编码：
 
@@ -56,8 +64,10 @@ f = f_ref / ratio
 | **bypass** | 旁通开关；**ratio** 为 1 时写 1，否则写 0 |
 
 ```
-f = f_ref / ratio
+f_hw = f_ref / ratio
 ```
+
+**\_resolved_freq** 容差同 **div** 节。
 
 ```
 step = 2^25 / ratio

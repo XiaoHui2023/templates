@@ -239,7 +239,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_div** | **ratio** 只能取 1～64 的整数 |
-| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** |
+| **cst_resolve_freq_from_src** | **source** 已连接且 **ratio** 大于 0 时，**_resolved_freq** 落在 **source._resolved_freq** 整除 **ratio** 结果的 **period_tolerance** 相对偏差带内 |
 
 ### div_cpu_gate
 
@@ -260,7 +260,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_div** | **ratio** 只能取 2、3、4、6 |
-| **cst_resolve_freq_from_src** | **group_id** 为 **clk_arm_core** 时 **_resolved_freq** 等于 **source._resolved_freq**；其它路等于 **source._resolved_freq** 整除 **ratio** |
+| **cst_resolve_freq_from_src** | **group_id** 为 **clk_arm_core** 时 **_resolved_freq** 等于 **source._resolved_freq**；其它路容差同 **div_base** |
 
 ### div_div_r
 
@@ -276,7 +276,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_div** | **ratio** 等于 **fixed_ratio**，取值 1～64 |
-| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** |
+| **cst_resolve_freq_from_src** | 继承 **div_base**，容差同 **div** |
 
 ### dto
 
@@ -295,7 +295,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_dto** | **ratio** 只能取 1～2^25 的正整数 |
-| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** |
+| **cst_resolve_freq_from_src** | 继承 **div_base**，容差同 **div** |
 
 ### gate
 

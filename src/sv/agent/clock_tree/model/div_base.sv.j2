@@ -26,7 +26,12 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
     }
 
     constraint cst_resolve_freq_from_src {
-        source != null -> _resolved_freq == source._resolved_freq / _resolved_ratio;
+        source != null && _resolved_ratio > 0 -> {
+            1.0 * _resolved_freq >= 1.0 * (source._resolved_freq / _resolved_ratio)
+                * (1.0 - {{ settings.period_tolerance }});
+            1.0 * _resolved_freq <= 1.0 * (source._resolved_freq / _resolved_ratio)
+                * (1.0 + {{ settings.period_tolerance }});
+        };
     }
 
     function new(string name = "");

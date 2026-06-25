@@ -15,7 +15,12 @@ class {{ settings.class_prefix }}div_cpu_gate extends {{ settings.class_prefix }
     constraint cst_resolve_freq_from_src {
         source != null -> {
             group_id == "{{ cpu_gate_pass_through_group }}" -> _resolved_freq == source._resolved_freq;
-            group_id != "{{ cpu_gate_pass_through_group }}" -> _resolved_freq == source._resolved_freq / _resolved_ratio;
+            group_id != "{{ cpu_gate_pass_through_group }}" && _resolved_ratio > 0 -> {
+                1.0 * _resolved_freq >= 1.0 * (source._resolved_freq / _resolved_ratio)
+                    * (1.0 - {{ settings.period_tolerance }});
+                1.0 * _resolved_freq <= 1.0 * (source._resolved_freq / _resolved_ratio)
+                    * (1.0 + {{ settings.period_tolerance }});
+            };
         }
         source == null -> _resolved_freq == 0;
     }
