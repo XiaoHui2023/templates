@@ -10,10 +10,10 @@ trees:
         path: dut.xtal
         freq: 24000000
 
-      gate_xtal:
+      pad_xtal:
         kind: source
-        source_kind: gate
-        path: dut.gate_xtal
+        source_kind: pad
+        path: dut.pad_xtal
         freq: 24000000
 
       vdd0:

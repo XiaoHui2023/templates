@@ -47,7 +47,7 @@
 | 取值 | 说明 |
 | --- | --- |
 | **SOURCE** | **source** |
-| **GATE** | **source_gate** |
+| **PAD** | **source_pad** |
 | **VDD** | **source_vdd** |
 | **GND** | **source_gnd** |
 
@@ -71,9 +71,9 @@
 
 继承 **source_base**；构造时 **source_kind** 为 **SOURCE**。
 
-### source_gate
+### source_pad
 
-继承 **source_base**；构造时 **source_kind** 为 **GATE**。
+继承 **source_base**；构造时 **source_kind** 为 **PAD**。
 
 ### source_vdd
 

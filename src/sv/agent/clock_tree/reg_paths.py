@@ -82,19 +82,19 @@ INV_KIND_TO_SV: dict[str, str] = {
     "inv_cell": "inv_cell",
 }
 
-_SOURCE_KIND_CANON = frozenset({"source", "gate", "vdd", "gnd"})
+_SOURCE_KIND_CANON = frozenset({"source", "pad", "vdd", "gnd"})
 _FIXED_ZERO_FREQ_SOURCE_KINDS = frozenset({"vdd", "gnd"})
 
 SOURCE_KIND_TO_SV: dict[str, str] = {
     "source": "source",
-    "gate": "source_gate",
+    "pad": "source_pad",
     "vdd": "source_vdd",
     "gnd": "source_gnd",
 }
 
 SOURCE_KIND_TO_SV_ENUM: dict[str, str] = {
     "source": "SOURCE",
-    "gate": "GATE",
+    "pad": "PAD",
     "vdd": "VDD",
     "gnd": "GND",
 }
@@ -144,7 +144,7 @@ def normalize_source_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _SOURCE_KIND_CANON:
         raise ValueError(
-            f"source_kind 须为 source、gate、vdd、gnd 之一，"
+            f"source_kind 须为 source、pad、vdd、gnd 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon

@@ -4,6 +4,10 @@
 class {{ settings.class_prefix }}source_gnd extends {{ settings.class_prefix }}source_base;
     `uvm_object_utils({{ settings.class_prefix }}source_gnd)
 
+    constraint cst_gnd {
+        frequence == 0;
+    }
+
     function new(string name = "");
         super.new(name);
         source_kind = GND;

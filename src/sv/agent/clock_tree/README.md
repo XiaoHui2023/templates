@@ -91,11 +91,11 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `source` | |
-| `source_kind` | `str` | `source` | 取 `source`、`gate`、`vdd`、`gnd`。 |
+| `source_kind` | `str` | `source` | 取 `source`、`pad`、`vdd`、`gnd`。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 
-**source_kind** 为 `gate` 时字段与上表相同，仅型号不同。
+**source_kind** 为 `pad` 时字段与上表相同，仅型号不同。
 
 **source_kind** 为 `vdd`、`gnd` 时频率固定为 0，**freq** 可省略。
 

@@ -95,7 +95,7 @@ f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 | **postdiv2** | 后分频 2，1～7；每路独立 |
 
 ```
-f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
+f_actual = f_ref × fbdiv / 4 / refdiv / postdiv1 / postdiv2
 ```
 
 **fbdiv**、**refdiv** 两路共用；每路各有 **postdiv1**、**postdiv2**。

@@ -54,7 +54,7 @@ _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_
 PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
 InvKind = Literal["inv", "mux_inv", "inv_cell"]
-SourceKind = Literal["source", "gate", "vdd", "gnd"]
+SourceKind = Literal["source", "pad", "vdd", "gnd"]
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -356,7 +356,7 @@ class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
     source_kind: SourceKind = Field(
         "source",
-        description="输入源型号：source、gate、vdd、gnd，大小写不限。",
+        description="输入源型号：source、pad、vdd、gnd，大小写不限。",
     )
     freq: int = Field(
         0,
@@ -393,7 +393,7 @@ class ClockSourceNode(NodeBase):
             return self
         if self.freq < 1:
             raise ValueError(
-                "source_kind 为 source、gate 时须填写大于 0 的 freq"
+                "source_kind 为 source、pad 时须填写大于 0 的 freq"
             )
         return self
 

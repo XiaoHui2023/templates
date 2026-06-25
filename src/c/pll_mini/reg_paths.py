@@ -24,7 +24,7 @@ CPU_GATE_OUTPUT_GROUPS: tuple[str, ...] = ("hclk_en", "hclk", "clk_arm_core")
 
 _DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
 
-_SOURCE_KIND_CANON = frozenset({"source", "gate", "vdd", "gnd"})
+_SOURCE_KIND_CANON = frozenset({"source", "pad", "vdd", "gnd"})
 _FIXED_ZERO_FREQ_SOURCE_KINDS = frozenset({"vdd", "gnd"})
 
 _PLL_KIND_CANON = frozenset({"tci", "sc", "dw", "inno"})
@@ -130,7 +130,7 @@ def normalize_source_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _SOURCE_KIND_CANON:
         raise ValueError(
-            f"source_kind 须为 source、gate、vdd、gnd 之一，"
+            f"source_kind 须为 source、pad、vdd、gnd 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon

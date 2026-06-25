@@ -85,7 +85,7 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `source` | |
-| `source_kind` | `str` | `source` | 取 `source`、`gate`、`vdd`、`gnd`。 |
+| `source_kind` | `str` | `source` | 取 `source`、`pad`、`vdd`、`gnd`。 |
 | `freq` | `int` | | 典型频率，单位 Hz；`vdd`、`gnd` 为 0 或省略。 |
 
 ### Node - pll
