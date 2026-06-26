@@ -28,6 +28,7 @@ _THEME = Theme(
         "progress.title": "#61afef",
         "progress.stage": "#abb2bf",
         "progress.ok": "#98c379",
+        "progress.clk": "#98c379",
         "progress.dim": "#5c6370",
         "tree.kind": "#56b6c2",
         "tree.target": "#e5c07b",
@@ -42,6 +43,15 @@ _ACTIVE_SESSION: ProgressSession | None = None
 def active_progress_session() -> ProgressSession | None:
     with _SESSION_LOCK:
         return _ACTIVE_SESSION
+
+
+def bind_progress_session(session: ProgressSession) -> None:
+    _set_active_session(session)
+
+
+def unbind_progress_session(session: ProgressSession) -> None:
+    if active_progress_session() is session:
+        _set_active_session(None)
 
 
 def _set_active_session(session: ProgressSession | None) -> None:
@@ -215,6 +225,7 @@ class ProgressSession:
             transient=True,
         )
         self._overall_task = self._overall.add_task("pll_mini", total=self._overall_total)
+        self.bootstrap_plan()
         self._live = Live(
             self._render(),
             console=self._console,
@@ -237,8 +248,12 @@ class ProgressSession:
     def set_tree(self, tree: Tree) -> None:
         self._tree = tree
 
-    def plan_overall(self, *, component_count: int, extra_steps: int = 4) -> None:
-        """partition 之后设置总步数：各子树 + merge + verify + resolve 等。"""
+    def bootstrap_plan(self) -> None:
+        """会话启动时的总步数占位：regmodel + partition + 1 子树 + 后续固定阶段。"""
+        self.plan_overall(component_count=1)
+
+    def plan_overall(self, *, component_count: int, extra_steps: int = 7) -> None:
+        """partition 之后设置总步数：regmodel、partition、各子树、merge、verify、resolve、config、header。"""
         self._overall_total = max(1, component_count + extra_steps)
         if self._overall is not None and self._overall_task is not None:
             self._overall.update(
@@ -271,7 +286,21 @@ class ProgressSession:
         started = time.perf_counter()
         self._stage_text = f"{component} · {action} · {label}"
         self._stage_fields = _format_fields(fields)
-        if component == "search" and action == "solve":
+        if component == "models" and action == "load":
+            if self._overall is not None and self._overall_task is not None:
+                self._overall.update(
+                    self._overall_task,
+                    description="加载寄存器模型",
+                )
+        elif component == "consolver" and action == "solve":
+            if self._overall is not None and self._overall_task is not None:
+                self._overall.update(
+                    self._overall_task,
+                    description="SMT 约束求解",
+                )
+        elif component == "diagnose":
+            self._sub_visible = False
+        elif component == "search" and action == "solve":
             if self._overall is not None and self._overall_task is not None:
                 self._overall.update(
                     self._overall_task,
@@ -324,8 +353,13 @@ class ProgressSession:
             self.advance_overall(description="公式回放验证", steps=1)
         elif component == "resolve" and action == "nodes":
             self.advance_overall(description="解析节点频率", steps=1)
+        elif component == "models" and action == "load":
+            self.advance_overall(description="寄存器模型就绪", steps=1)
         elif component == "models" and action == "compute":
-            self.advance_overall(description=f"{label} 完成", steps=1)
+            if label == "config_plan":
+                self.advance_overall(description="配置计划完成", steps=1)
+            elif label == "header_regs":
+                self.advance_overall(description="头文件寄存器收集完成", steps=1)
         self._refresh()
 
     def show_partition_preview(

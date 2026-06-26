@@ -22,7 +22,12 @@ from ralf_load import load_regmodel_from_ralf
 from regmodel import Reg, RegModelIndex
 from resolve import TreeResolve, resolve_tree
 from tools import log_stage_done, log_stage_start
-from ui import pll_mini_progress
+from ui import (
+    ProgressSession,
+    active_progress_session,
+    bind_progress_session,
+    unbind_progress_session,
+)
 
 _ModelCacheKey = tuple[str, str, tuple[str, ...]]
 _CACHE_LOCK = threading.RLock()
@@ -130,6 +135,39 @@ class Models(BaseModel):
     _tree_resolve: TreeResolve | None = PrivateAttr(default=None)
     _config_plan: ConfigPlan | None = PrivateAttr(default=None)
     _header_regs: List[Reg] | None = PrivateAttr(default=None)
+    _progress_depth: int = PrivateAttr(default=0)
+    _progress_session: ProgressSession | None = PrivateAttr(default=None)
+
+    def _progress_enter(self) -> None:
+        self._progress_depth += 1
+        if self._progress_depth != 1:
+            return
+        if active_progress_session() is not None:
+            return
+        session = ProgressSession(self.tree)
+        session.start()
+        bind_progress_session(session)
+        object.__setattr__(self, "_progress_session", session)
+
+    def _progress_leave(self) -> None:
+        if self._progress_depth <= 0:
+            return
+        self._progress_depth -= 1
+        if self._progress_depth != 0:
+            return
+        session = self._progress_session
+        if session is not None:
+            if not session.failed:
+                session.stop()
+            unbind_progress_session(session)
+            object.__setattr__(self, "_progress_session", None)
+
+    def _progress_drain(self) -> None:
+        while self._progress_depth > 0:
+            self._progress_leave()
+
+    def _progress_abort(self) -> None:
+        self._progress_drain()
 
     @model_validator(mode="before")
     @classmethod
@@ -162,22 +200,27 @@ class Models(BaseModel):
         raw_dir = ctx.get("yaml_dir")
         if isinstance(raw_dir, (str, Path)):
             yaml_dir = Path(raw_dir)
-        started_at = log_stage_start(
-            "models",
-            "load",
-            "regmodel",
-            ralf=self.ralf,
-            include_dirs=len(self.ralf_include_dirs),
-        )
-        regs = load_regmodel_from_ralf(
-            self.ralf,
-            yaml_dir=yaml_dir,
-            include_dirs=self.ralf_include_dirs,
-            base_offset=self.settings.reg_base_offset,
-        )
-        log_stage_done("models", "load", "regmodel", started_at, regs=len(regs))
-        object.__setattr__(self, "_regmodel", regs)
-        return self
+        self._progress_enter()
+        try:
+            started_at = log_stage_start(
+                "models",
+                "load",
+                "regmodel",
+                ralf=self.ralf,
+                include_dirs=len(self.ralf_include_dirs),
+            )
+            regs = load_regmodel_from_ralf(
+                self.ralf,
+                yaml_dir=yaml_dir,
+                include_dirs=self.ralf_include_dirs,
+                base_offset=self.settings.reg_base_offset,
+            )
+            log_stage_done("models", "load", "regmodel", started_at, regs=len(regs))
+            object.__setattr__(self, "_regmodel", regs)
+            return self
+        except BaseException:
+            self._progress_abort()
+            raise
 
     @property
     def regmodel(self) -> List[Reg]:
@@ -204,7 +247,8 @@ class Models(BaseModel):
             if cached_error is not None:
                 raise RuntimeError(cached_error)
             s = self.settings
-            with pll_mini_progress(self.tree):
+            self._progress_enter()
+            try:
                 started_at = log_stage_start(
                     "models",
                     "compute",
@@ -237,6 +281,10 @@ class Models(BaseModel):
                     started_at,
                     nodes=len(result.by_name),
                 )
+            finally:
+                self._progress_leave()
+                if self._progress_depth == 1:
+                    self._progress_drain()
             _TREE_RESOLVE_CACHE[key] = result
             self._tree_resolve = result
             return result
@@ -252,31 +300,37 @@ class Models(BaseModel):
                 self._config_plan = cached
                 return cached
             s = self.settings
-            started_at = log_stage_start(
-                "models",
-                "compute",
-                "config_plan",
-                nodes=len(self.tree.nodes),
-                regs=len(self._regmodel),
-            )
-            result = build_config_plan(
-                self.tree,
-                RegModelIndex(self.regmodel),
-                SettingsView(
-                    gate_reg_high_means_open=s.gate_reg_high_means_open,
-                    div_reg_high_means_reset=s.div_reg_high_means_reset,
-                    dto_reg_high_means_reset=s.dto_reg_high_means_reset,
-                ),
-                self.tree_resolve,
-            )
-            log_stage_done(
-                "models",
-                "compute",
-                "config_plan",
-                started_at,
-                pll_instances=len(result.pll_instances),
-                dev_steps=len(result.dev_steps),
-            )
+            self._progress_enter()
+            try:
+                started_at = log_stage_start(
+                    "models",
+                    "compute",
+                    "config_plan",
+                    nodes=len(self.tree.nodes),
+                    regs=len(self._regmodel),
+                )
+                result = build_config_plan(
+                    self.tree,
+                    RegModelIndex(self.regmodel),
+                    SettingsView(
+                        gate_reg_high_means_open=s.gate_reg_high_means_open,
+                        div_reg_high_means_reset=s.div_reg_high_means_reset,
+                        dto_reg_high_means_reset=s.dto_reg_high_means_reset,
+                    ),
+                    self.tree_resolve,
+                )
+                log_stage_done(
+                    "models",
+                    "compute",
+                    "config_plan",
+                    started_at,
+                    pll_instances=len(result.pll_instances),
+                    dev_steps=len(result.dev_steps),
+                )
+            finally:
+                self._progress_leave()
+                if self._progress_depth == 1:
+                    self._progress_drain()
             _CONFIG_PLAN_CACHE[key] = result
             self._config_plan = result
             return result
@@ -291,21 +345,26 @@ class Models(BaseModel):
             if cached is not None:
                 self._header_regs = cached
                 return list(cached)
-            started_at = log_stage_start(
-                "models",
-                "compute",
-                "header_regs",
-                regs=len(self._regmodel),
-            )
-            index = RegModelIndex(self.regmodel)
-            result = list(collect_used_regs(index, self.config_plan))
-            log_stage_done(
-                "models",
-                "compute",
-                "header_regs",
-                started_at,
-                regs=len(result),
-            )
+            self._progress_enter()
+            try:
+                started_at = log_stage_start(
+                    "models",
+                    "compute",
+                    "header_regs",
+                    regs=len(self._regmodel),
+                )
+                index = RegModelIndex(self.regmodel)
+                result = list(collect_used_regs(index, self.config_plan))
+                log_stage_done(
+                    "models",
+                    "compute",
+                    "header_regs",
+                    started_at,
+                    regs=len(result),
+                )
+            finally:
+                self._progress_leave()
+                self._progress_drain()
             _HEADER_REGS_CACHE[key] = result
             self._header_regs = result
             return list(result)

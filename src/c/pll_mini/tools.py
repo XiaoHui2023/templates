@@ -42,8 +42,10 @@ def log_stage_start(
     from ui import active_progress_session
 
     session = active_progress_session()
-    if session is not None and session.enabled:
-        return session.stage_start(component, action, label, **fields)
+    if session is not None:
+        started = session.stage_start(component, action, label, **fields)
+        if session.enabled:
+            return started
     print(
         f"[pll_mini] {component} {action} start: {label}"
         f"{_format_stage_fields(fields)}",
@@ -72,17 +74,10 @@ def log_stage_done(
     from ui import active_progress_session
 
     session = active_progress_session()
-    if session is not None and session.enabled:
+    if session is not None:
         session.stage_done(component, action, label, started_at, **fields)
-        if fields.get("failed"):
-            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-            print(
-                f"[pll_mini] {component} {action} done: {label}; "
-                f"elapsed_ms={elapsed_ms}{_format_stage_fields(fields)}",
-                file=sys.stderr,
-                flush=True,
-            )
-        return
+        if session.enabled:
+            return
     elapsed_ms = int((time.perf_counter() - started_at) * 1000)
     print(
         f"[pll_mini] {component} {action} done: {label}; "
