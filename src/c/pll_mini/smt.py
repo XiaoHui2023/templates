@@ -16,6 +16,7 @@ from nodes import (
 from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 from diagnose import (
     collect_debug_issues,
+    format_clock_tree_plain,
     format_debug_issues_summary,
     print_diagnostic_report,
 )
@@ -266,11 +267,17 @@ def format_solve_failure_detail(
         issues=len(issues),
     )
 
+    graph = format_clock_tree_plain(tree, issues=issues)
     summary = format_debug_issues_summary(issues)
+    sections: List[str] = []
     if summary:
-        return f"{summary}\n\n完整诊断图已输出到 stderr。"
+        sections.append(summary)
+    if graph:
+        sections.append(graph)
+    if sections:
+        return "\n\n".join(sections)
     if core:
-        return "约束冲突；完整诊断图已输出到 stderr。"
+        return "约束冲突；彩色诊断图已输出到 stderr。"
     return ""
 
 
@@ -428,11 +435,12 @@ def build_smt2(
             hint=f"节点 {name} 有效时前级 {parent_name} 必须有效",
         )
         if parent.kind == "mux":
-            builder.constraint(
-                f"(=> {act_c} (= {freq_c} {freq_p}))",
-                track=_track("route", name, "freq_eq", parent_name),
-                hint=f"节点 {name} 与前级 mux {parent_name} 同频",
-            )
+            if not isinstance(node, DivNode):
+                builder.constraint(
+                    f"(=> {act_c} (= {freq_c} {freq_p}))",
+                    track=_track("route", name, "freq_eq", parent_name),
+                    hint=f"节点 {name} 与前级 mux {parent_name} 同频",
+                )
         elif isinstance(parent, DivNode) and parent.div_kind == "cpu_gate":
             if out_group == CPU_GATE_PASS_THROUGH_GROUP:
                 pass_parent_name, _ = parse_source_endpoint(

@@ -18,7 +18,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
-from rich.tree import Tree
+from rich.tree import Tree as RichTree
 
 _FREQ_TOL_DEN = 100
 
@@ -449,7 +449,7 @@ def _node_rich_label(
 
 
 def _append_tree_children(
-    branch: Tree,
+    branch: RichTree,
     name: str,
     *,
     tree: Tree,
@@ -489,11 +489,13 @@ def build_clock_tree_rich(
     tree: Tree,
     *,
     issues: Sequence[DebugIssue],
-) -> Tree:
+) -> RichTree:
     edges = _source_parent_edges(tree)
     roots = _graph_roots(tree, edges)
     problem_nodes = _problem_nodes_from_issues(issues)
-    header = Tree(Text.assemble(("时钟树 ", "bold cyan"), (tree.name, "bold white")))
+    header = RichTree(
+        Text.assemble(("时钟树 ", "bold cyan"), (tree.name, "bold white"))
+    )
     for root in roots:
         node = tree.nodes[root]
         branch = header.add(
@@ -518,21 +520,6 @@ def _diagnostic_legend() -> Panel:
         "!               疑似分频约束问题"
     )
     return Panel(body, title="图例", border_style="dim", padding=(0, 1))
-
-
-def _target_from_div_issue(issue: DebugIssue) -> tuple[str, str] | None:
-    if not issue.headline.startswith("div "):
-        return None
-    parts = issue.headline.split()
-    if len(parts) < 2:
-        return None
-    div_name = parts[1]
-    if "->" not in issue.headline:
-        return None
-    target_name = issue.headline.rsplit("->", 1)[1].strip()
-    if not target_name:
-        return None
-    return div_name, target_name
 
 
 def _find_downstream_path(tree: Tree, start: str, target: str) -> List[str] | None:
@@ -578,68 +565,13 @@ def _full_path_source_to_target(
     return up_path
 
 
-def _node_panel_body(
-    name: str,
-    node: object,
-    *,
-    problem_nodes: set[str],
-) -> str:
-    lines = [f"[{_kind_tag(node)}]", _node_state_label(node)]
-    badges = _fixed_badges(node)
-    if badges:
-        lines.append(" ".join(f"{key}={value}" for key, value in badges))
-    title = f"! {name}" if name in problem_nodes else name
-    return "\n".join([title, *lines])
-
-
-def build_focus_path_groups(
+def format_clock_tree_plain(
     tree: Tree,
     *,
     issues: Sequence[DebugIssue],
-) -> Group | None:
-    problem_nodes = _problem_nodes_from_issues(issues)
-    blocks: List[object] = []
-    for issue in issues:
-        target = _target_from_div_issue(issue)
-        if target is None:
-            continue
-        div_name, target_name = target
-        if div_name not in tree.nodes or target_name not in tree.nodes:
-            continue
-        path = _full_path_source_to_target(
-            tree, via=div_name, target=target_name
-        )
-        if not path:
-            continue
-        flow: List[object] = [
-            Rule(
-                Text.assemble(
-                    ("路径 ", "cyan"),
-                    (path[0], "bold"),
-                    (" → ", "dim"),
-                    (path[-1], "bold"),
-                ),
-                style="cyan",
-            )
-        ]
-        for index, node_name in enumerate(path):
-            node = tree.nodes[node_name]
-            border = "red" if node_name in problem_nodes else "blue"
-            flow.append(
-                Panel(
-                    _node_panel_body(
-                        node_name,
-                        node,
-                        problem_nodes=problem_nodes,
-                    ),
-                    border_style=border,
-                    padding=(0, 1),
-                )
-            )
-            if index + 1 < len(path):
-                flow.append(Text("  ↓", style="dim"))
-        blocks.append(Group(*flow))
-    return Group(*blocks) if blocks else None
+) -> str:
+    """ASCII 时钟树，供错误正文与无 Rich 环境使用。"""
+    return _plain_tree_graph(tree, issues=issues)
 
 
 def build_debug_issues_rich(
@@ -676,9 +608,6 @@ def build_diagnostic_renderable(
             Panel(core_text, title="冲突约束", border_style="red", padding=(0, 1))
         )
     parts.append(build_clock_tree_rich(tree, issues=issues))
-    focus = build_focus_path_groups(tree, issues=issues)
-    if focus is not None:
-        parts.append(focus)
     issue_panels = build_debug_issues_rich(issues)
     if issue_panels is not None:
         parts.append(Rule("调试建议", style="cyan"))
@@ -726,28 +655,6 @@ def format_debug_issues_summary(issues: Sequence[DebugIssue]) -> str:
     return "调试建议：\n" + "\n".join(lines)
 
 
-def _format_route_tree(
-    tree: Tree,
-    path: Sequence[str],
-    *,
-    highlight: str | None = None,
-    route_label: str,
-) -> str:
-    if not path:
-        return ""
-    lines = [route_label]
-    for depth, name in enumerate(path):
-        node = tree.nodes[name]
-        indent = "   " * depth
-        branch = "`-- " if depth > 0 else ""
-        mark = " <- 分频无法满足" if name == highlight else ""
-        lines.append(
-            f"{indent}{branch}{name} [{_kind_tag(node)}] "
-            f"{_node_state_label(node)}{mark}"
-        )
-    return "\n".join(lines)
-
-
 def _issue_passthrough_freq_mismatch(
     clk_name: str,
     clk_hz: int,
@@ -776,6 +683,8 @@ def _issue_div_impossible(
     child_name: str,
     child_hz: int,
     period_tolerance: float,
+    *,
+    required_out_hz: int | None = None,
 ) -> DebugIssue:
     tol_lo, tol_hi, tol_den = _freq_tolerance_bounds(period_tolerance)
     tol_pct = period_tolerance * 100
@@ -785,31 +694,33 @@ def _issue_div_impossible(
         if div.ratio is not None
         else _allowed_ratio_text(div)
     )
+    want_out_hz = (
+        required_out_hz if required_out_hz is not None else child_hz
+    )
 
     detail_lines = [
         f"div {div_name}（{div.div_kind}，{ratio_label}）",
         f"在容差 {tol_pct:g}% 下，前级通过该 div 分频后够不到下游目标。",
     ]
+    if required_out_hz is not None and required_out_hz != child_hz:
+        detail_lines.append(
+            f"通过下游分频后 {child_name} 需要 {_hz_mhz(child_hz)}，"
+            f"该 div 输出应约为 {_hz_mhz(required_out_hz)}。"
+        )
 
     path = _full_path_source_to_target(
         tree, via=div_name, target=child_name
     )
     if path:
         detail_lines.append(
-            _format_route_tree(
-                tree,
-                path,
-                highlight=div_name,
-                route_label=(
-                    f"完整路线（{path[0]} -> {path[-1]}）："
-                ),
-            )
+            "传播路径仅示意一条可达路线，完整分叉见上方时钟树："
+            f" {' -> '.join(path)}"
         )
     else:
         detail_lines.extend(
             [
                 f"前级 {parent_name} = {_hz_mhz(parent_hz)}",
-                f"下游 {child_name} 需要 {_hz_mhz(child_hz)}",
+                f"下游 {child_name} 需要 {_hz_mhz(want_out_hz)}",
             ]
         )
 
@@ -828,7 +739,7 @@ def _issue_div_impossible(
     else:
         near = _nearest_ratio_examples(
             parent_hz,
-            child_hz,
+            want_out_hz,
             candidates[:64] if len(candidates) > 64 else candidates,
             tol_lo,
             tol_hi,
@@ -838,10 +749,10 @@ def _issue_div_impossible(
             detail_lines.append("接近目标的分频比举例：")
             detail_lines.extend(f"  - {line}" for line in near)
 
-    ideal = parent_hz / child_hz if child_hz > 0 else 0
+    ideal = parent_hz / want_out_hz if want_out_hz > 0 else 0
     if ideal >= 1:
         detail_lines.append(
-            f"理想整数比约为 {ideal:.4g}（{parent_name} / {child_name}），"
+            f"理想整数比约为 {ideal:.4g}（{parent_name} 到该 div 输出），"
             f"但受分频比范围与容差约束。"
         )
 
@@ -910,6 +821,63 @@ def _collect_clk_targets(tree: Tree) -> List[tuple[str, int]]:
     return out
 
 
+def _div_on_selected_mux_path(
+    tree: Tree,
+    div_name: str,
+    clk_name: str,
+) -> bool:
+    """div 在到达 clk 的路径上，且未被固定 sel 的 mux 排除在未选中分支时返回真。"""
+    path = _find_downstream_path(tree, div_name, clk_name)
+    if not path:
+        return False
+    for mux_name in path:
+        if mux_name == div_name:
+            continue
+        mux = tree.nodes.get(mux_name)
+        if not isinstance(mux, MuxNode) or mux.sel is None:
+            continue
+        sel_key = str(mux.sel)
+        arm_ref = mux.source.get(sel_key)
+        if not arm_ref:
+            return False
+        arm_name, _ = parse_source_endpoint(
+            arm_ref, ctx=f"mux {mux_name!r} sel {sel_key}"
+        )
+        arm_chain = _walk_upstream_chain(tree, arm_name)
+        if div_name not in arm_chain and div_name != arm_name:
+            return False
+    return True
+
+
+def _required_hz_at_node_output(
+    tree: Tree,
+    *,
+    node_name: str,
+    clk_name: str,
+    clk_hz: int,
+) -> int | None:
+    """从 clk 目标反推 node 输出应达到的理想频率；下游含未固定 ratio 的 div 时返回 None。"""
+    path = _find_downstream_path(tree, node_name, clk_name)
+    if path is None or node_name not in path:
+        return None
+    node_idx = path.index(node_name)
+    required = clk_hz
+    for i in range(len(path) - 1, node_idx, -1):
+        downstream = path[i]
+        node = tree.nodes[downstream]
+        if node.kind in ("gate", "inv", "cell", "clk"):
+            continue
+        if isinstance(node, MuxNode):
+            continue
+        if isinstance(node, DivNode):
+            if node.div_kind == "cpu_gate" or node.ratio is None:
+                return None
+            required *= node.ratio
+            continue
+        return None
+    return required
+
+
 def _collect_div_issues(
     tree: Tree,
     period_tolerance: float,
@@ -939,22 +907,50 @@ def _collect_div_issues(
         if parent_hz is None:
             continue
 
+        checked_any = False
+        satisfiable_any = False
+        last_failure: tuple[str, int, int] | None = None
         for clk_name, clk_hz in _collect_clk_targets(tree):
             if not _can_reach_downstream(tree, div_name, clk_name):
                 continue
+            if not _div_on_selected_mux_path(tree, div_name, clk_name):
+                continue
+            required_out = _required_hz_at_node_output(
+                tree,
+                node_name=div_name,
+                clk_name=clk_name,
+                clk_hz=clk_hz,
+            )
+            if required_out is None:
+                continue
+            checked_any = True
             if div.ratio is not None:
                 ok = _div_ratio_works(
-                    parent_hz, clk_hz, div.ratio, tol_lo, tol_hi, tol_den
+                    parent_hz,
+                    required_out,
+                    div.ratio,
+                    tol_lo,
+                    tol_hi,
+                    tol_den,
                 )
             else:
                 ok = any(
                     _div_ratio_works(
-                        parent_hz, clk_hz, ratio, tol_lo, tol_hi, tol_den
+                        parent_hz,
+                        required_out,
+                        ratio,
+                        tol_lo,
+                        tol_hi,
+                        tol_den,
                     )
                     for ratio in _ratio_candidates(div)[:64]
                 )
             if ok:
-                continue
+                satisfiable_any = True
+                break
+            last_failure = (clk_name, clk_hz, required_out)
+        if checked_any and not satisfiable_any and last_failure is not None:
+            clk_name, clk_hz, required_out = last_failure
             issues.append(
                 _issue_div_impossible(
                     tree,
@@ -965,15 +961,30 @@ def _collect_div_issues(
                     clk_name,
                     clk_hz,
                     period_tolerance,
+                    required_out_hz=required_out,
                 )
             )
     return issues
 
 
-def verify_upstream_diagnose(tree: Tree, period_tolerance: float) -> None:
+def verify_upstream_diagnose(
+    tree: Tree,
+    period_tolerance: float,
+    *,
+    expect_satisfiable: bool = False,
+) -> None:
     """供 example + jinja_build 验收；mux 等多路前级回溯与调试诊断不得抛异常。"""
     format_upstream_paths(tree)
     issues = collect_debug_issues(tree, period_tolerance)
+    if expect_satisfiable:
+        div_issues = [
+            issue for issue in issues if issue.headline.startswith("div ")
+        ]
+        if div_issues:
+            raise ValueError(
+                "求解已成功但诊断仍报告分频无法满足："
+                f"{div_issues[0].headline}"
+            )
     format_clock_tree_diagnostic_graph(tree, issues=issues)
 
 
@@ -1027,7 +1038,36 @@ def collect_debug_issues(
                     arm_hz = _fixed_hz(tree.nodes[n])
                     if arm_hz is not None:
                         break
-            if arm_hz is not None and arm_hz != clk_hz:
+            required_at_mux = _required_hz_at_node_output(
+                tree,
+                node_name=mux_name,
+                clk_name=clk_name,
+                clk_hz=clk_hz,
+            )
+            if arm_hz is not None and required_at_mux is not None:
+                mux_ok = _div_ratio_works(
+                    arm_hz,
+                    required_at_mux,
+                    1,
+                    tol_lo,
+                    tol_hi,
+                    tol_den,
+                )
+                if not mux_ok:
+                    issues.append(
+                        DebugIssue(
+                            headline=(
+                                f"mux {mux_name} 选中分支与 clk 目标不一致"
+                            ),
+                            detail=(
+                                f"mux {mux_name} 固定 sel={mux.sel}，"
+                                f"选中前级 {arm_name} 分支可达 {_hz_mhz(arm_hz)}；"
+                                f"但 {clk_name} 通过下游分频后要求 mux 输出约 "
+                                f"{_hz_mhz(required_at_mux)}。"
+                            ),
+                        )
+                    )
+            elif arm_hz is not None and arm_hz != clk_hz:
                 idx_mux = chain.index(mux_name)
                 after_mux = chain[:idx_mux]
                 if all(

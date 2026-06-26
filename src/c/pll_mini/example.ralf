@@ -73,3 +73,23 @@ block blk_gate0 {
     field en @0 { bits 1; access rw; }
   }
 }
+
+block blk_div_1188 {
+  bytes 4;
+
+  register ctrl @'h500 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_clk {
+  bytes 4;
+
+  register sel @'h504 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+}

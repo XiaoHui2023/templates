@@ -165,7 +165,7 @@ def resolve_tree(
         "upstream paths",
         nodes=len(tree.nodes),
     )
-    verify_upstream_diagnose(tree, period_tolerance)
+    verify_upstream_diagnose(tree, period_tolerance, expect_satisfiable=True)
     log_stage_done(
         "resolve",
         "diagnose",

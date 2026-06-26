@@ -80,6 +80,41 @@ tree:
         out_group: hclk
       freq: 15000000
 
+    src_27m:
+      kind: source
+      freq: 27000000
+
+    src_1188m:
+      kind: source
+      freq: 1188000000
+
+    div_1188:
+      kind: div
+      div_kind: div
+      source: src_1188m
+      regs:
+        rst: blk_div_1188.ctrl.rst
+        load: blk_div_1188.ctrl.load
+        div: blk_div_1188.ctrl.div
+
+    mux_clk:
+      kind: mux
+      source:
+        "0": src_27m
+        "1": div_1188
+      reg: blk_mux_clk.sel.sel
+
+    div_r2:
+      kind: div
+      div_kind: div_r
+      source: mux_clk
+      ratio: 2
+
+    clk_13m5:
+      kind: clk
+      source: div_r2
+      freq: 13500000
+
 settings:
   main_fn: chip_pll_config
   gate_reg_high_means_open: true
