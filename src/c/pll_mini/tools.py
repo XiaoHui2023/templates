@@ -16,6 +16,63 @@ _CONSOLVER_URL = "https://github.com/XiaoHui2023/consolver"
 _RALFCONV_URL = "https://github.com/XiaoHui2023/ralfconv"
 
 
+def _format_stage_fields(fields: Mapping[str, object]) -> str:
+    if not fields:
+        return ""
+    return "; " + "; ".join(f"{key}={value}" for key, value in fields.items())
+
+
+def log_stage_start(
+    component: str,
+    action: str,
+    label: str,
+    **fields: object,
+) -> float:
+    """Print a timed stage start line.
+
+    Args:
+        component: Log component name.
+        action: Action name within the component.
+        label: Human-readable stage label.
+        fields: Extra values appended to the line.
+
+    Returns:
+        float: Timer value for the matching completion line.
+    """
+    print(
+        f"[pll_mini] {component} {action} start: {label}"
+        f"{_format_stage_fields(fields)}",
+        file=sys.stderr,
+        flush=True,
+    )
+    return time.perf_counter()
+
+
+def log_stage_done(
+    component: str,
+    action: str,
+    label: str,
+    started_at: float,
+    **fields: object,
+) -> None:
+    """Print a timed stage completion line.
+
+    Args:
+        component: Log component name.
+        action: Action name within the component.
+        label: Human-readable stage label.
+        started_at: Timer value returned by the start logger.
+        fields: Extra values appended to the line.
+    """
+    elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+    print(
+        f"[pll_mini] {component} {action} done: {label}; "
+        f"elapsed_ms={elapsed_ms}{_format_stage_fields(fields)}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def bin_dir() -> Path:
     """返回 consolver 与 ralfconv 所在目录。"""
     root = _PKG_DIR / "bin"
@@ -77,13 +134,13 @@ def run_consolver_solve(
     exe = consolver_path()
     if not exe.is_file():
         raise _missing_tool_error("consolver", _CONSOLVER_URL, exe)
-    started_at = time.perf_counter()
     line_count = smt2_text.count("\n")
-    print(
-        f"[pll_mini] consolver solve start: {label}; "
-        f"lines={line_count}; timeout_ms={timeout_ms}",
-        file=sys.stderr,
-        flush=True,
+    started_at = log_stage_start(
+        "consolver",
+        "solve",
+        label,
+        lines=line_count,
+        timeout_ms=timeout_ms,
     )
     tmp_path: Path | None = None
     try:
@@ -112,13 +169,7 @@ def run_consolver_solve(
                 tmp_path.unlink()
             except OSError:
                 pass
-    elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-    print(
-        f"[pll_mini] consolver solve done: {label}; "
-        f"elapsed_ms={elapsed_ms}; returncode={proc.returncode}",
-        file=sys.stderr,
-        flush=True,
-    )
+    log_stage_done("consolver", "solve", label, started_at, returncode=proc.returncode)
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise RuntimeError(
@@ -172,6 +223,13 @@ def run_ralfconv_flat(
     ]
     for inc in include_dirs:
         cmd.extend(["-I", str(inc)])
+    started_at = log_stage_start(
+        "ralfconv",
+        "flat",
+        str(ralf_path),
+        base_offset=base_offset,
+        include_dirs=len(include_dirs),
+    )
     proc = subprocess.run(
         cmd,
         capture_output=True,
@@ -179,6 +237,13 @@ def run_ralfconv_flat(
         encoding="utf-8",
         errors="replace",
         check=False,
+    )
+    log_stage_done(
+        "ralfconv",
+        "flat",
+        str(ralf_path),
+        started_at,
+        returncode=proc.returncode,
     )
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()

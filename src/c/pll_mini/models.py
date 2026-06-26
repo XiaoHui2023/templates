@@ -21,10 +21,12 @@ from plan import ConfigPlan, SettingsView, build_config_plan, collect_used_regs
 from ralf_load import load_regmodel_from_ralf
 from regmodel import Reg, RegModelIndex
 from resolve import TreeResolve, resolve_tree
+from tools import log_stage_done, log_stage_start
 
 _ModelCacheKey = tuple[str, str, tuple[str, ...]]
 _CACHE_LOCK = threading.RLock()
 _TREE_RESOLVE_CACHE: dict[_ModelCacheKey, TreeResolve] = {}
+_TREE_RESOLVE_ERROR_CACHE: dict[_ModelCacheKey, str] = {}
 _CONFIG_PLAN_CACHE: dict[_ModelCacheKey, ConfigPlan] = {}
 _HEADER_REGS_CACHE: dict[_ModelCacheKey, List[Reg]] = {}
 
@@ -159,12 +161,20 @@ class Models(BaseModel):
         raw_dir = ctx.get("yaml_dir")
         if isinstance(raw_dir, (str, Path)):
             yaml_dir = Path(raw_dir)
+        started_at = log_stage_start(
+            "models",
+            "load",
+            "regmodel",
+            ralf=self.ralf,
+            include_dirs=len(self.ralf_include_dirs),
+        )
         regs = load_regmodel_from_ralf(
             self.ralf,
             yaml_dir=yaml_dir,
             include_dirs=self.ralf_include_dirs,
             base_offset=self.settings.reg_base_offset,
         )
+        log_stage_done("models", "load", "regmodel", started_at, regs=len(regs))
         object.__setattr__(self, "_regmodel", regs)
         return self
 
@@ -189,14 +199,41 @@ class Models(BaseModel):
             if cached is not None:
                 self._tree_resolve = cached
                 return cached
+            cached_error = _TREE_RESOLVE_ERROR_CACHE.get(key)
+            if cached_error is not None:
+                raise RuntimeError(cached_error)
             s = self.settings
-            result = resolve_tree(
-                self.tree,
-                pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
-                pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
-                consolver_timeout_ms=s.consolver_timeout_ms,
-                period_tolerance=s.period_tolerance,
-                reg_index=RegModelIndex(self.regmodel),
+            started_at = log_stage_start(
+                "models",
+                "compute",
+                "tree_resolve",
+                nodes=len(self.tree.nodes),
+            )
+            try:
+                result = resolve_tree(
+                    self.tree,
+                    pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
+                    pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
+                    consolver_timeout_ms=s.consolver_timeout_ms,
+                    period_tolerance=s.period_tolerance,
+                    reg_index=RegModelIndex(self.regmodel),
+                )
+            except RuntimeError as exc:
+                log_stage_done(
+                    "models",
+                    "compute",
+                    "tree_resolve",
+                    started_at,
+                    failed=True,
+                )
+                _TREE_RESOLVE_ERROR_CACHE[key] = str(exc)
+                raise
+            log_stage_done(
+                "models",
+                "compute",
+                "tree_resolve",
+                started_at,
+                nodes=len(result.by_name),
             )
             _TREE_RESOLVE_CACHE[key] = result
             self._tree_resolve = result
@@ -213,6 +250,13 @@ class Models(BaseModel):
                 self._config_plan = cached
                 return cached
             s = self.settings
+            started_at = log_stage_start(
+                "models",
+                "compute",
+                "config_plan",
+                nodes=len(self.tree.nodes),
+                regs=len(self._regmodel),
+            )
             result = build_config_plan(
                 self.tree,
                 RegModelIndex(self.regmodel),
@@ -222,6 +266,14 @@ class Models(BaseModel):
                     dto_reg_high_means_reset=s.dto_reg_high_means_reset,
                 ),
                 self.tree_resolve,
+            )
+            log_stage_done(
+                "models",
+                "compute",
+                "config_plan",
+                started_at,
+                pll_instances=len(result.pll_instances),
+                dev_steps=len(result.dev_steps),
             )
             _CONFIG_PLAN_CACHE[key] = result
             self._config_plan = result
@@ -237,8 +289,21 @@ class Models(BaseModel):
             if cached is not None:
                 self._header_regs = cached
                 return list(cached)
+            started_at = log_stage_start(
+                "models",
+                "compute",
+                "header_regs",
+                regs=len(self._regmodel),
+            )
             index = RegModelIndex(self.regmodel)
             result = list(collect_used_regs(index, self.config_plan))
+            log_stage_done(
+                "models",
+                "compute",
+                "header_regs",
+                started_at,
+                regs=len(result),
+            )
             _HEADER_REGS_CACHE[key] = result
             self._header_regs = result
             return list(result)

@@ -20,7 +20,7 @@ from diagnose import (
     format_node_path_cheatsheet,
     format_upstream_paths,
 )
-from tools import run_consolver_solve
+from tools import log_stage_done, log_stage_start, run_consolver_solve
 
 _SMT_SAFE = re.compile(r"[^a-zA-Z0-9_]")
 _FREQ_TOL_DEN = 100
@@ -122,18 +122,6 @@ class _Smt2Builder:
             tracked,
         )
 
-    def render_plain_omit(self, omit_track: str) -> str:
-        lines: List[str] = ["(set-logic QF_LIA)"]
-        lines.extend(self._declarations)
-        for expr, track, _hint in self._constraints:
-            if track == omit_track:
-                continue
-            lines.append(f"(assert {expr})")
-        lines.append("(check-sat)")
-        lines.append("(get-model)")
-        return "\n".join(lines) + "\n"
-
-
 def _div_freq_constraint_expr(
     *,
     active: str,
@@ -227,37 +215,12 @@ def _smt2_for_diagnosis(smt2_named: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def diagnose_by_relaxation(
-    builder: _Smt2Builder,
-    tracked: List[tuple[str, str, str]],
-    *,
-    timeout_ms: int | None,
-) -> List[str]:
-    """逐条去掉命名约束再求解；去掉后变 sat 的视为参与冲突。"""
-    critical: List[str] = []
-    for track, _expr, hint in tracked:
-        relaxed = builder.render_plain_omit(track)
-        try:
-            run_consolver_solve(
-                relaxed,
-                label=f"relax {track}",
-                timeout_ms=timeout_ms,
-            )
-        except RuntimeError:
-            continue
-        critical.append(hint)
-    return critical
-
-
 def format_solve_failure_detail(
     tree: Tree,
     *,
     period_tolerance: float,
     smt2_named: str,
     hints: Mapping[str, str],
-    builder: _Smt2Builder,
-    tracked: List[tuple[str, str, str]],
-    timeout_ms: int | None,
 ) -> str:
     sections: List[str] = []
 
@@ -269,16 +232,6 @@ def format_solve_failure_detail(
     core = format_unsat_diagnosis(smt2_named, hints)
     if core:
         sections.append(core)
-
-    if not core and tracked:
-        relaxed = diagnose_by_relaxation(
-            builder, tracked, timeout_ms=timeout_ms
-        )
-        if relaxed:
-            sections.append(
-                "求解器标出的冲突约束（去掉任一条即可满足）：\n"
-                + "\n".join(f"- {line}" for line in relaxed)
-            )
 
     paths = format_upstream_paths(tree)
     if paths:
@@ -333,18 +286,12 @@ def _raise_solve_failure(
     period_tolerance: float,
     smt2_named: str,
     hints: Mapping[str, str],
-    builder: _Smt2Builder,
-    tracked: List[tuple[str, str, str]],
-    timeout_ms: int | None,
 ) -> None:
     detail = format_solve_failure_detail(
         tree,
         period_tolerance=period_tolerance,
         smt2_named=smt2_named,
         hints=hints,
-        builder=builder,
-        tracked=tracked,
-        timeout_ms=timeout_ms,
     )
     if detail:
         raise RuntimeError(f"{exc}\n\n{detail}") from exc
@@ -357,8 +304,8 @@ def build_smt2(
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
     period_tolerance: float,
-) -> tuple[str, str, Dict[str, str], List[tuple[str, str, str]], _Smt2Builder]:
-    """编码时钟树约束；返回 consolver SMT、诊断 SMT、说明表、命名约束与 builder。"""
+) -> tuple[str, str, Dict[str, str], List[tuple[str, str, str]]]:
+    """编码时钟树约束；返回 consolver SMT、诊断 SMT、说明表与命名约束。"""
     builder = _Smt2Builder()
     node_names = sorted(tree.nodes.keys())
     tol_lo, tol_hi, tol_den = _freq_tolerance_bounds(period_tolerance)
@@ -688,7 +635,7 @@ def build_smt2(
     _ = pll_sc_fbdiv_max
 
     plain, named, hints, tracked = builder.finish()
-    return plain, named, hints, tracked, builder
+    return plain, named, hints, tracked
 
 
 def _model_bool(model: Mapping[str, object], sym: str) -> bool:
@@ -769,11 +716,25 @@ def solve_tree_constraints(
     timeout_ms: int | None = None,
 ) -> Tuple[Dict[str, bool], Dict[str, int], Dict[str, int], Dict[str, int], Dict[str, bool]]:
     """生成 SMT、调用 consolver 并解析模型。"""
-    smt2, smt2_named, hints, tracked, builder = build_smt2(
+    build_started_at = log_stage_start(
+        "smt",
+        "build",
+        "tree constraints",
+        nodes=len(tree.nodes),
+    )
+    smt2, smt2_named, hints, tracked = build_smt2(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
+    )
+    log_stage_done(
+        "smt",
+        "build",
+        "tree constraints",
+        build_started_at,
+        lines=smt2.count("\n"),
+        tracked=len(tracked),
     )
     try:
         model = run_consolver_solve(
@@ -788,8 +749,13 @@ def solve_tree_constraints(
             period_tolerance=period_tolerance,
             smt2_named=smt2_named,
             hints=hints,
-            builder=builder,
-            tracked=tracked,
-            timeout_ms=timeout_ms,
         )
-    return parse_solve_model(tree, model)
+    parse_started_at = log_stage_start(
+        "smt",
+        "parse",
+        "tree constraints",
+        model_items=len(model),
+    )
+    result = parse_solve_model(tree, model)
+    log_stage_done("smt", "parse", "tree constraints", parse_started_at)
+    return result
