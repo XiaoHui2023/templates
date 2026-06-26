@@ -7,6 +7,7 @@ from formulas import (
     DW_FBDIV_MAX,
     DW_FBDIV_MIN,
     INNO_FBDIV_HW_MAX,
+    INNO_FBDIV_SCALE,
 )
 from freq_model import (
     Port,
