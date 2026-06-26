@@ -275,7 +275,7 @@
 | 约束 | 说明 |
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
-| **cst_div** | **ratio** 等于 **fixed_ratio**，取值 1～64 |
+| **cst_div** | **ratio** 等于 **fixed_ratio**，大于 0 |
 | **cst_resolve_freq_from_src** | 继承 **div_base**，容差同 **div** |
 
 ### dto

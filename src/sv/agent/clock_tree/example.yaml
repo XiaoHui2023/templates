@@ -125,7 +125,7 @@ trees:
 
       div_r_0:
         kind: div_r
-        ratio: 2
+        ratio: 99
         source: cell_buf
         path: dut.div_r_0
 

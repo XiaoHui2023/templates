@@ -185,7 +185,7 @@ settings:
 | `kind` | `str` | `div` | |
 | `div_kind` | `str` | `div` | 取 `div`、`div_n`、`dto`、`dto_n`、`cpu_gate`、`div_r`。 |
 | `source` | `str` | | 前级引用。 |
-| `ratio` | `int` | | `div_r` 必填固定分频比 1～64；`cpu_gate` 可填 2、3、4、6；其它 **div_kind** 可填以固定分频比。 |
+| `ratio` | `int` | | `div_r` 必填固定分频比，大于 0，不受可配置 **div** 的 64 上限；`cpu_gate` 可填 2、3、4、6；其它 **div_kind** 可填以固定分频比，且不大于 64。 |
 | `regs` | `dict` | `{}` | 键由 `div_kind` 决定；`div_r` 须为空。 |
 
 **div_kind** 为 `div` 或 `div_n`：

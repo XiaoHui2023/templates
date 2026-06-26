@@ -28,6 +28,22 @@ _resolved_freq * div_freq_tol_hi >= f_hw * div_freq_tol_den
 
 **N** 与 **ratio**：**N** 为 0 时 **ratio** 为 1；**N** 大于 0 时 **ratio** 为 **N + 1**。反之 **ratio** 不大于 1 时 **N** 为 0，否则 **N** 为 **ratio − 1**。
 
+## div_r
+
+硅片固定分频，无寄存器；**ratio** 由配置指定，只要求大于 0，不受上一节 64 上限。
+
+| 参数 | 说明 |
+| --- | --- |
+| **f** | 本节点输出频率 |
+| **f_ref** | 前级节点频率 |
+| **ratio** | 固定分频比，大于 0 |
+
+```
+f_hw = f_ref / ratio
+```
+
+频率容差与 **div** 相同，由 **period_tolerance** 导出 **div_freq_tol_lo**、**div_freq_tol_hi**。
+
 ## cpu_gate
 
 | 参数 | 说明 |

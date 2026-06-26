@@ -250,7 +250,8 @@ class DivNode(NodeBase):
     ratio: Optional[int] = Field(
         None,
         ge=1,
-        description="分频比；div_r 必填；其余 div 省略表示随机化。",
+        description="分频比；div_r 必填固定值，大于 0，不受可配置 div 的 64 上限；"
+        "其余 div 省略表示随机化，填写时不大于 64。",
     )
     regs: Dict[str, str] = Field(
         default_factory=dict,

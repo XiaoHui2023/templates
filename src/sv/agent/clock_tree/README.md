@@ -222,7 +222,7 @@ settings:
 | `kind` | `str` | `div_r` | 等价于 `kind: div` 且 `div_kind: div_r`。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `source` | `str` | | 前级引用。 |
-| `ratio` | `int` | | 固定分频比，1～64。 |
+| `ratio` | `int` | | 固定分频比，大于 0；不受可配置 **div** 的 64 上限。 |
 
 ### Node - dto
 
