@@ -76,7 +76,7 @@ class Settings(BaseModel):
     consolver_timeout_ms: int | None = Field(
         None,
         ge=1,
-        description="consolver 求解超时，毫秒；省略则不限时。",
+        description="定向搜索求解超时，毫秒；省略则不限时。",
     )
     period_tolerance: float = Field(
         0.01,

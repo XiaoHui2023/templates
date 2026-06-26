@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Dict
 
 from pll_cfg import pll_cfg_from_solved
+from search import search_tree_constraints
 from solve_model import SolveModel
-from smt import solve_tree_constraints
 from tools import log_stage_done, log_stage_start
 from verify import raise_on_verify_issues, verify_solve_model
 
@@ -74,7 +74,7 @@ def resolve_tree(
     if not clk_nodes:
         raise ValueError("tree 须至少含一个 kind 为 clk 的节点")
 
-    model = solve_tree_constraints(
+    model = search_tree_constraints(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,

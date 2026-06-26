@@ -43,6 +43,100 @@ def div_hw_from_input(in_hz: int, ratio: int) -> tuple[int, int]:
     return freq_hw, rem
 
 
+def div_ratio_reaches_output(
+    in_hz: int,
+    want_out_hz: int,
+    ratio: int,
+    *,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> bool:
+    """给定输入频率与 ratio，是否存在 rem 使 want_out 在容差内接近 f_hw。"""
+    if ratio < 1 or in_hz <= 0 or want_out_hz <= 0:
+        return False
+    for rem in range(ratio):
+        hw_num = in_hz - rem
+        if hw_num <= 0 or hw_num % ratio != 0:
+            continue
+        freq_hw = hw_num // ratio
+        if freq_within_tolerance(
+            want_out_hz,
+            freq_hw,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        ):
+            return True
+    return False
+
+
+def find_div_ratio(
+    in_hz: int,
+    want_out_hz: int,
+    candidates: tuple[int, ...] | list[int],
+    *,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> int | None:
+    for ratio in candidates:
+        if div_ratio_reaches_output(
+            in_hz,
+            want_out_hz,
+            ratio,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        ):
+            return ratio
+    return None
+
+
+def dto_ratio_candidates_for_pair(
+    in_hz: int,
+    want_out_hz: int,
+    *,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> tuple[int, ...]:
+    """从 f_in 与目标 f_out 反推 dto 合法 ratio 候选，避免扫全 2^25。"""
+    if in_hz <= 0 or want_out_hz <= 0:
+        return ()
+    found: list[int] = []
+    hw_min = max(1, (want_out_hz * tol_lo + tol_den - 1) // tol_den)
+    hw_max = (want_out_hz * tol_hi) // tol_den
+    for freq_hw in range(hw_min, hw_max + 1):
+        if not freq_within_tolerance(
+            want_out_hz,
+            freq_hw,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        ):
+            continue
+        for rem in range(min(freq_hw, DTO_MAX_RATIO)):
+            num = in_hz - rem
+            if num <= 0 or num % freq_hw != 0:
+                continue
+            ratio = num // freq_hw
+            if ratio < 2 or ratio > DTO_MAX_RATIO or num != freq_hw * ratio:
+                continue
+            if rem >= ratio:
+                continue
+            if div_ratio_reaches_output(
+                in_hz,
+                want_out_hz,
+                ratio,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+            ):
+                found.append(ratio)
+    return tuple(dict.fromkeys(found))
+
+
 def inno_fbdiv_legal(fbdiv: int) -> bool:
     if 0 <= fbdiv <= 7:
         return False

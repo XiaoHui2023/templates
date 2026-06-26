@@ -12,7 +12,7 @@ def pll_cfg_from_solved(
     *,
     output_groups: list[str] | None = None,
 ) -> dict[str, int]:
-    """由 SMT 整数变量直接组装 PLL 寄存器配置，不再二次搜索。"""
+    """由求解得到的 PLL 整数变量组装寄存器配置。"""
     if pll_kind == "tci":
         clkf = vars_map["clkf"]
         return tci_pll_cfg_from_clkf(clkf)

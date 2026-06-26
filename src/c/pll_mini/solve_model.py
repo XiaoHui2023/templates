@@ -8,7 +8,7 @@ from freq_model import Port
 
 @dataclass(frozen=True)
 class SolveModel:
-    """consolver 模型解析结果。"""
+    """定向搜索模型解析结果。"""
 
     active: Dict[str, bool]
     port_freq: Dict[Port, int]
