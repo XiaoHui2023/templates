@@ -763,3 +763,108 @@ block blk_gate_deep {
     field en @0 { bits 1; access rw; }
   }
 }
+
+block blk_mux_hub_l0_a {
+  bytes 4;
+
+  register sel @'ha00 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_mux_hub_l0_b {
+  bytes 4;
+
+  register sel @'ha04 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_mux_hub_l1_a {
+  bytes 4;
+
+  register sel @'ha08 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_mux_hub_l1_b {
+  bytes 4;
+
+  register sel @'ha0c {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_mux_hub_l2_a {
+  bytes 4;
+
+  register sel @'ha10 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_mux_hub_l2_b {
+  bytes 4;
+
+  register sel @'ha14 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_mux_hub_l3 {
+  bytes 4;
+
+  register sel @'ha18 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_hub {
+  bytes 4;
+
+  register en @'ha1c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_div_hub_a {
+  bytes 4;
+
+  register ctrl @'ha20 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_div_hub_b {
+  bytes 4;
+
+  register ctrl @'ha24 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_div_hub_c {
+  bytes 4;
+
+  register ctrl @'ha28 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}

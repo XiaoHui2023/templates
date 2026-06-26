@@ -1,0 +1,54 @@
+# 快速正常样例：用于每次修改后的本地调试。
+# 只覆盖一条 source -> pll -> div -> gate -> clk 主路径，避免把压力岛放进快路径。
+
+ralf: example/normal.ralf
+
+tree:
+  name: normal
+  nodes:
+    xtal:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    pll_sc:
+      kind: pll
+      source: xtal
+      pll_kind: sc
+      freq: 60000000
+      regs:
+        lock: blk_pll_sc.stat.lock
+        vocpd: blk_pll_sc.pd.vocpd
+        postdivpd: blk_pll_sc.pd.postdivpd
+        dsmpd: blk_pll_sc.pd.dsmpd
+        pd: blk_pll_sc.pd.pd
+        bypass: blk_pll_sc.pd.bypass
+        refdiv: blk_pll_sc.div.refdiv
+        postdiv2: blk_pll_sc.div.postdiv2
+        postdiv1: blk_pll_sc.div.postdiv1
+        fbdiv: blk_pll_sc.div.fbdiv
+
+    div0:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div0.ctrl.rst
+        load: blk_div0.ctrl.load
+        div: blk_div0.ctrl.div
+
+    gate0:
+      kind: gate
+      source: div0
+      reg: blk_gate0.en.en
+
+    clk_out:
+      kind: clk
+      source: gate0
+      freq: 30000000
+      always_active: true
+
+settings:
+  main_fn: chip_pll_config
+  gate_reg_high_means_open: true
+  solve_timeout_ms: 30000

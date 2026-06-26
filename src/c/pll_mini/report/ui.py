@@ -231,15 +231,40 @@ class ProgressSession:
             console=self._console,
             refresh_per_second=10,
             transient=True,
+            screen=True,
         )
         self._live.start()
 
     def stop(self) -> None:
+        if not self.enabled:
+            self._live = None
+            self._overall = None
+            self._sub = None
+            return
         if self._live is not None:
+            if (
+                not self.failed
+                and self._overall is not None
+                and self._overall_task is not None
+            ):
+                self._overall.update(
+                    self._overall_task,
+                    completed=self._overall_total,
+                    description="完成",
+                )
+                self._refresh()
             self._live.stop()
             self._live = None
         self._overall = None
         self._sub = None
+        self._component_summary.clear()
+        self._sub_visible = False
+        self._active_subtree = None
+        try:
+            self._console.clear_live()
+        except Exception:
+            pass
+        self._console.show_cursor(True)
 
     def halt_for_output(self) -> None:
         """失败诊断等固定输出前结束 Live，避免与 Rich 面板叠行。"""

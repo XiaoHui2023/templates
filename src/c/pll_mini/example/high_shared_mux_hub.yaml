@@ -13,7 +13,7 @@
 #   deep_div   — gate_deep 后六路并行自由 div 与 clk，合并为单一子树
 #   div_share  — clk_share_a / b / c 共用 div_share，合并子树后共用一组 ratio
 
-ralf: example.ralf
+ralf: example/normal.ralf
 
 tree:
   name: main
@@ -753,7 +753,155 @@ tree:
       source: div_share
       freq: 30000000
 
+    src_hub_12m:
+      kind: source
+      source_kind: source
+      freq: 12000000
+
+    src_hub_24m_a:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    src_hub_24m_b:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    src_hub_32m:
+      kind: source
+      source_kind: source
+      freq: 32000000
+
+    src_hub_48m:
+      kind: source
+      source_kind: source
+      freq: 48000000
+
+    src_hub_64m:
+      kind: source
+      source_kind: source
+      freq: 64000000
+
+    src_hub_96m_a:
+      kind: source
+      source_kind: source
+      freq: 96000000
+
+    src_hub_96m_b:
+      kind: source
+      source_kind: source
+      freq: 96000000
+
+    mux_hub_l0_a:
+      kind: mux
+      source:
+        "0": src_hub_12m
+        "1": src_hub_24m_a
+        "2": src_hub_48m
+        "3": src_hub_96m_a
+      reg: blk_mux_hub_l0_a.sel.sel
+
+    mux_hub_l0_b:
+      kind: mux
+      source:
+        "0": src_hub_24m_b
+        "1": src_hub_32m
+        "2": src_hub_64m
+        "3": src_hub_96m_b
+      reg: blk_mux_hub_l0_b.sel.sel
+
+    mux_hub_l1_a:
+      kind: mux
+      source:
+        "0": mux_hub_l0_a
+        "1": src_hub_96m_b
+        "2": src_hub_48m
+        "3": src_hub_24m_a
+      reg: blk_mux_hub_l1_a.sel.sel
+
+    mux_hub_l1_b:
+      kind: mux
+      source:
+        "0": mux_hub_l0_b
+        "1": src_hub_96m_a
+        "2": src_hub_64m
+      reg: blk_mux_hub_l1_b.sel.sel
+
+    mux_hub_l2_a:
+      kind: mux
+      source:
+        "0": mux_hub_l1_a
+        "1": mux_hub_l1_b
+        "2": src_hub_24m_b
+        "3": src_hub_96m_a
+      reg: blk_mux_hub_l2_a.sel.sel
+
+    mux_hub_l2_b:
+      kind: mux
+      source:
+        "0": mux_hub_l1_b
+        "1": mux_hub_l1_a
+        "2": src_hub_48m
+        "3": src_hub_12m
+      reg: blk_mux_hub_l2_b.sel.sel
+
+    mux_hub_l3:
+      kind: mux
+      source:
+        "0": mux_hub_l2_a
+        "1": mux_hub_l2_b
+        "2": src_hub_96m_b
+      reg: blk_mux_hub_l3.sel.sel
+
+    gate_shared_hub:
+      kind: gate
+      source: mux_hub_l3
+      reg: blk_gate_hub.en.en
+
+    div_hub_a:
+      kind: div
+      div_kind: div
+      source: gate_shared_hub
+      regs:
+        rst: blk_div_hub_a.ctrl.rst
+        load: blk_div_hub_a.ctrl.load
+        div: blk_div_hub_a.ctrl.div
+
+    div_hub_b:
+      kind: div
+      div_kind: div
+      source: gate_shared_hub
+      regs:
+        rst: blk_div_hub_b.ctrl.rst
+        load: blk_div_hub_b.ctrl.load
+        div: blk_div_hub_b.ctrl.div
+
+    div_hub_c:
+      kind: div
+      div_kind: div
+      source: gate_shared_hub
+      regs:
+        rst: blk_div_hub_c.ctrl.rst
+        load: blk_div_hub_c.ctrl.load
+        div: blk_div_hub_c.ctrl.div
+
+    clk_hub_a:
+      kind: clk
+      source: div_hub_a
+      freq: 48000000
+
+    clk_hub_b:
+      kind: clk
+      source: div_hub_b
+      freq: 32000000
+
+    clk_hub_c:
+      kind: clk
+      source: div_hub_c
+      freq: 24000000
+
 settings:
-  main_fn: chip_pll_config
+  main_fn: chip_pll_config_high_shared_mux_hub
   gate_reg_high_means_open: true
   solve_timeout_ms: 180000

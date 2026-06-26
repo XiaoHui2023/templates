@@ -1,0 +1,30 @@
+# 故意无解：24 MHz 经过可配置整数分频后要求得到 25 MHz。
+# 期望失败阶段：tree_resolve / search。
+
+ralf: example/normal.ralf
+
+tree:
+  name: unsat
+  nodes:
+    xtal:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    div_impossible:
+      kind: div
+      div_kind: div
+      source: xtal
+      regs:
+        rst: blk_div0.ctrl.rst
+        load: blk_div0.ctrl.load
+        div: blk_div0.ctrl.div
+
+    clk_impossible:
+      kind: clk
+      source: div_impossible
+      freq: 25000000
+
+settings:
+  main_fn: chip_pll_config_unsat
+  solve_timeout_ms: 30000

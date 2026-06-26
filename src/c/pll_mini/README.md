@@ -5,7 +5,7 @@
 ## 示例
 
 ```yaml
-ralf: example.ralf
+ralf: example/normal.ralf
 tree:
   name: main
   nodes:

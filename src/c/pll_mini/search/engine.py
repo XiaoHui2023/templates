@@ -1063,18 +1063,14 @@ def _ref_div_want_out_candidates(
     pll = tree.nodes[pll_name]
     assert isinstance(pll, PllNode)
     if pll.pll_kind == "inno":
-        group_hz = _required_inno_group_hz(
-            tree, pll_name, targets, active, mux_sel, ratios
+        _ = (
+            pll_sc_fbdiv_min,
+            pll_sc_fbdiv_max,
+            tol_lo,
+            tol_hi,
+            tol_den,
         )
-        ref_cands = pll_ref_hz_candidates(
-            pll.pll_kind,
-            group_out_hz=group_hz,
-            fbdiv_min=pll_sc_fbdiv_min,
-            fbdiv_max=pll_sc_fbdiv_max,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
-        )
+        return ()
     else:
         out_hz = pll.freq or 0
         ref_cands = pll_ref_hz_candidates(
@@ -1195,20 +1191,7 @@ def _pll_accepts_ref_hz(
         )
         if not group_hz:
             return True
-        return (
-            search_pll_coefficients(
-                pll.pll_kind,
-                ref_hz,
-                0,
-                fbdiv_min=pll_sc_fbdiv_min,
-                fbdiv_max=pll_sc_fbdiv_max,
-                tol_lo=tol_lo,
-                tol_hi=tol_hi,
-                tol_den=tol_den,
-                group_out_hz=group_hz,
-            )
-            is not None
-        )
+        return ref_hz > 0 and all(hz > 0 for hz in group_hz.values())
     out_hz = pll.freq or 0
     if out_hz <= 0:
         return False
@@ -2113,33 +2096,18 @@ def _compute_pll_vars(
         if ref_hz <= 0:
             return None
         if node.pll_kind == "inno":
-            group_hz = {
-                group: port_freq.get(Port(name, group), 0)
-                for group in node.output_groups
-            }
-            coeffs = search_pll_coefficients(
-                node.pll_kind,
-                ref_hz,
-                0,
-                fbdiv_min=pll_sc_fbdiv_min,
-                fbdiv_max=pll_sc_fbdiv_max,
-                tol_lo=tol_lo,
-                tol_hi=tol_hi,
-                tol_den=tol_den,
-                group_out_hz=group_hz,
-            )
-        else:
-            out_hz = port_freq.get(Port(name, ""), node.freq or 0)
-            coeffs = search_pll_coefficients(
-                node.pll_kind,
-                ref_hz,
-                out_hz,
-                fbdiv_min=pll_sc_fbdiv_min,
-                fbdiv_max=pll_sc_fbdiv_max,
-                tol_lo=tol_lo,
-                tol_hi=tol_hi,
-                tol_den=tol_den,
-            )
+            continue
+        out_hz = port_freq.get(Port(name, ""), node.freq or 0)
+        coeffs = search_pll_coefficients(
+            node.pll_kind,
+            ref_hz,
+            out_hz,
+            fbdiv_min=pll_sc_fbdiv_min,
+            fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
         if coeffs is None:
             return None
         pll_vars[name] = coeffs

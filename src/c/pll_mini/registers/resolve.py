@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict
 
+from .fit_pll import fit_pll_vars
 from .pll_cfg import pll_cfg_from_solved
 from search.engine import search_tree_constraints, verify_search_partition
 from model.solve_model import SolveModel
@@ -82,6 +83,27 @@ def resolve_tree(
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
         timeout_ms=solve_timeout_ms,
+    )
+
+    fit_started_at = log_stage_start(
+        "resolve",
+        "fit",
+        "pll coefficients",
+        nodes=len(tree.nodes),
+    )
+    model = fit_pll_vars(
+        tree,
+        model,
+        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+        period_tolerance=period_tolerance,
+    )
+    log_stage_done(
+        "resolve",
+        "fit",
+        "pll coefficients",
+        fit_started_at,
+        pll=len(model.pll_vars),
     )
 
     verify_started_at = log_stage_start(
