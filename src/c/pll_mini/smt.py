@@ -16,9 +16,8 @@ from nodes import (
 from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 from diagnose import (
     collect_debug_issues,
-    format_debug_issues,
-    format_node_path_cheatsheet,
-    format_upstream_paths,
+    format_debug_issues_summary,
+    print_diagnostic_report,
 )
 from tools import log_stage_done, log_stage_start, run_consolver_solve
 
@@ -222,8 +221,6 @@ def format_solve_failure_detail(
     smt2_named: str,
     hints: Mapping[str, str],
 ) -> str:
-    sections: List[str] = []
-
     unsat_started_at = log_stage_start(
         "diagnose",
         "unsat_core",
@@ -238,8 +235,6 @@ def format_solve_failure_detail(
         unsat_started_at,
         found=bool(core),
     )
-    if core:
-        sections.append(core)
 
     issues_started_at = log_stage_start(
         "diagnose",
@@ -255,34 +250,28 @@ def format_solve_failure_detail(
         issues_started_at,
         issues=len(issues),
     )
-    debug_text = format_debug_issues(issues)
-    if debug_text:
-        sections.append(debug_text)
 
-    paths_started_at = log_stage_start(
+    render_started_at = log_stage_start(
         "diagnose",
         "format",
-        "upstream paths",
+        "tree graph",
         nodes=len(tree.nodes),
     )
-    paths = format_upstream_paths(tree)
+    print_diagnostic_report(tree, issues=issues, unsat_core=core or "")
     log_stage_done(
         "diagnose",
         "format",
-        "upstream paths",
-        paths_started_at,
-        lines=paths.count("\n") + 1 if paths else 0,
+        "tree graph",
+        render_started_at,
+        issues=len(issues),
     )
-    if paths:
-        sections.append("频率传播路径（clk 往前级）：\n" + paths)
 
-    cheatsheet = format_node_path_cheatsheet(tree)
-    if cheatsheet:
-        sections.append("当前 YAML 固定项（字段路径）：\n" + cheatsheet)
-
-    if not sections:
-        return ""
-    return "\n\n".join(sections)
+    summary = format_debug_issues_summary(issues)
+    if summary:
+        return f"{summary}\n\n完整诊断图已输出到 stderr。"
+    if core:
+        return "约束冲突；完整诊断图已输出到 stderr。"
+    return ""
 
 
 def format_unsat_diagnosis(

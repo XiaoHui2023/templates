@@ -14,6 +14,12 @@ from nodes import (
 )
 from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 
+from rich.console import Console, Group
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.text import Text
+from rich.tree import Tree
+
 _FREQ_TOL_DEN = 100
 
 
@@ -144,7 +150,7 @@ def _nearest_ratio_examples(
         mark = "可满足" if ok else "仍超出容差"
         rem_note = f"，余数 rem={rem}" if rem else ""
         lines.append(
-            f"分频比 {ratio} → 输出约 {_hz_mhz(freq_hw)}{rem_note}（{mark}）"
+            f"分频比 {ratio} -> 输出约 {_hz_mhz(freq_hw)}{rem_note}（{mark}）"
         )
         if len(lines) >= limit:
             break
@@ -259,6 +265,276 @@ def _node_state_label(node: object) -> str:
     return "频率未固定"
 
 
+def _fixed_badges(node: object) -> List[tuple[str, str]]:
+    badges: List[tuple[str, str]] = []
+    kind = getattr(node, "kind", None)
+    if kind == "source":
+        freq = getattr(node, "freq", 0)
+        if freq > 0:
+            badges.append(("freq", _hz_mhz(int(freq))))
+    elif isinstance(node, PllNode):
+        badges.append(("target", _hz_mhz(node.freq)))
+    elif isinstance(node, ClkNode) and node.freq is not None:
+        badges.append(("target", _hz_mhz(node.freq)))
+    elif isinstance(node, DivNode):
+        if node.ratio is not None:
+            badges.append(("ratio", str(node.ratio)))
+        elif node.div_kind in ("div", "div_n", "div_r"):
+            badges.append(("ratio", "1..64"))
+        elif node.div_kind in ("dto", "dto_n"):
+            badges.append(("ratio", "2..2^25"))
+        elif node.div_kind == "cpu_gate":
+            badges.append(("ratio", "2/3/4/6"))
+        else:
+            badges.append(("ratio", "solver"))
+    elif isinstance(node, MuxNode):
+        badges.append(("sel", str(node.sel) if node.sel is not None else "auto"))
+    elif isinstance(node, GateNode):
+        if node.open is None:
+            badges.append(("open", "auto"))
+        else:
+            badges.append(("open", "1" if node.open else "0"))
+    return badges
+
+
+def _node_plain_label(
+    name: str,
+    node: object,
+    *,
+    problem_nodes: set[str],
+) -> str:
+    mark = "! " if name in problem_nodes else ""
+    badges = " ".join(f"{key}={value}" for key, value in _fixed_badges(node))
+    suffix = f"  {badges}" if badges else ""
+    return f"{mark}{name} [{_kind_tag(node)}]{suffix}"
+
+
+def _source_parent_edges(tree: Tree) -> dict[str, List[tuple[str, str]]]:
+    edges: dict[str, List[tuple[str, str]]] = {name: [] for name in tree.nodes}
+    for child_name, child in tree.nodes.items():
+        if child.kind == "source":
+            continue
+        if isinstance(child, MuxNode):
+            for key, ref in child.source.items():
+                parent_name, _ = parse_source_endpoint(
+                    ref, ctx=f"mux {child_name!r}"
+                )
+                edge_label = f"sel={key}"
+                if child.sel is not None:
+                    edge_label += " *" if str(child.sel) == str(key) else ""
+                edges.setdefault(parent_name, []).append((child_name, edge_label))
+            continue
+        parent_name, out_group = parse_source_endpoint(
+            child.source, ctx=f"node {child_name!r} source"
+        )
+        edge_label = f"[{out_group}]" if out_group else ""
+        edges.setdefault(parent_name, []).append((child_name, edge_label))
+    for children in edges.values():
+        children.sort(key=lambda item: item[0])
+    return edges
+
+
+def _graph_roots(tree: Tree, edges: dict[str, List[tuple[str, str]]]) -> List[str]:
+    has_parent = {child for children in edges.values() for child, _ in children}
+    roots = [
+        name
+        for name, node in tree.nodes.items()
+        if node.kind == "source" or name not in has_parent
+    ]
+    return sorted(dict.fromkeys(roots))
+
+
+def _problem_nodes_from_issues(issues: Sequence[DebugIssue]) -> set[str]:
+    problem_nodes: set[str] = set()
+    for issue in issues:
+        if issue.headline.startswith("div "):
+            parts = issue.headline.split()
+            if len(parts) >= 2:
+                problem_nodes.add(parts[1])
+    return problem_nodes
+
+
+def _plain_tree_graph(
+    tree: Tree,
+    *,
+    issues: Sequence[DebugIssue],
+) -> str:
+    edges = _source_parent_edges(tree)
+    roots = _graph_roots(tree, edges)
+    problem_nodes = _problem_nodes_from_issues(issues)
+    lines = ["pll_mini diagnose", "clock tree"]
+
+    def walk(
+        name: str,
+        *,
+        prefix: str,
+        branch: str,
+        seen: set[str],
+        edge_label: str = "",
+    ) -> None:
+        node = tree.nodes[name]
+        edge = f"({edge_label}) " if edge_label else ""
+        lines.append(
+            f"{prefix}{branch}{edge}"
+            f"{_node_plain_label(name, node, problem_nodes=problem_nodes)}"
+        )
+        if name in seen:
+            lines[-1] += "  (cycle)"
+            return
+        next_seen = {*seen, name}
+        children = edges.get(name, [])
+        for idx, (child, child_edge) in enumerate(children):
+            is_last = idx + 1 == len(children)
+            child_branch = "`-- " if is_last else "+-- "
+            if not branch:
+                next_prefix = ""
+            elif branch == "`-- ":
+                next_prefix = "    "
+            else:
+                next_prefix = "|   "
+            child_prefix = prefix + next_prefix
+            walk(
+                child,
+                prefix=child_prefix,
+                branch=child_branch,
+                seen=next_seen,
+                edge_label=child_edge,
+            )
+
+    for root in roots:
+        walk(root, prefix="", branch="", seen=set())
+    lines.extend(
+        [
+            "",
+            "legend:",
+            "  freq            input source fixed frequency",
+            "  target          PLL/clk target frequency",
+            "  ratio/sel/open  fixed value or auto-solved",
+            "  !               divider constraint suspect",
+        ]
+    )
+    return "\n".join(lines)
+
+
+_DIAG_CONSOLE: Console | None = None
+
+
+def _diagnostic_console() -> Console:
+    global _DIAG_CONSOLE
+    if _DIAG_CONSOLE is None:
+        _DIAG_CONSOLE = Console(
+            stderr=True,
+            color_system="truecolor",
+            force_terminal=True,
+            legacy_windows=False,
+        )
+    return _DIAG_CONSOLE
+
+
+def _node_rich_label(
+    name: str,
+    node: object,
+    *,
+    problem_nodes: set[str],
+) -> Text:
+    label = Text()
+    if name in problem_nodes:
+        label.append("! ", style="bold red")
+    label.append(name, style="bold")
+    label.append(f" [{_kind_tag(node)}]", style="dim cyan")
+    for key, value in _fixed_badges(node):
+        label.append(f" {key}=", style="dim")
+        label.append(value, style="yellow")
+    return label
+
+
+def _append_tree_children(
+    branch: Tree,
+    name: str,
+    *,
+    tree: Tree,
+    edges: dict[str, List[tuple[str, str]]],
+    problem_nodes: set[str],
+    seen: set[str],
+) -> None:
+    for child_name, edge_label in edges.get(name, []):
+        if child_name in seen:
+            branch.add(Text("(cycle)", style="dim"))
+            continue
+        child_node = tree.nodes[child_name]
+        label = _node_rich_label(
+            child_name,
+            child_node,
+            problem_nodes=problem_nodes,
+        )
+        if edge_label:
+            label = Text.assemble(
+                ("(", "dim"),
+                (edge_label, "cyan"),
+                (") ", "dim"),
+                label,
+            )
+        child_branch = branch.add(label)
+        _append_tree_children(
+            child_branch,
+            child_name,
+            tree=tree,
+            edges=edges,
+            problem_nodes=problem_nodes,
+            seen=seen | {child_name},
+        )
+
+
+def build_clock_tree_rich(
+    tree: Tree,
+    *,
+    issues: Sequence[DebugIssue],
+) -> Tree:
+    edges = _source_parent_edges(tree)
+    roots = _graph_roots(tree, edges)
+    problem_nodes = _problem_nodes_from_issues(issues)
+    header = Tree(Text.assemble(("时钟树 ", "bold cyan"), (tree.name, "bold white")))
+    for root in roots:
+        node = tree.nodes[root]
+        branch = header.add(
+            _node_rich_label(root, node, problem_nodes=problem_nodes)
+        )
+        _append_tree_children(
+            branch,
+            root,
+            tree=tree,
+            edges=edges,
+            problem_nodes=problem_nodes,
+            seen={root},
+        )
+    return header
+
+
+def _diagnostic_legend() -> Panel:
+    body = (
+        "freq            输入源固定频率\n"
+        "target          PLL/clk 目标频率\n"
+        "ratio/sel/open  固定值或由求解器决定\n"
+        "!               疑似分频约束问题"
+    )
+    return Panel(body, title="图例", border_style="dim", padding=(0, 1))
+
+
+def _target_from_div_issue(issue: DebugIssue) -> tuple[str, str] | None:
+    if not issue.headline.startswith("div "):
+        return None
+    parts = issue.headline.split()
+    if len(parts) < 2:
+        return None
+    div_name = parts[1]
+    if "->" not in issue.headline:
+        return None
+    target_name = issue.headline.rsplit("->", 1)[1].strip()
+    if not target_name:
+        return None
+    return div_name, target_name
+
+
 def _find_downstream_path(tree: Tree, start: str, target: str) -> List[str] | None:
     if start == target:
         return [start]
@@ -302,6 +578,154 @@ def _full_path_source_to_target(
     return up_path
 
 
+def _node_panel_body(
+    name: str,
+    node: object,
+    *,
+    problem_nodes: set[str],
+) -> str:
+    lines = [f"[{_kind_tag(node)}]", _node_state_label(node)]
+    badges = _fixed_badges(node)
+    if badges:
+        lines.append(" ".join(f"{key}={value}" for key, value in badges))
+    title = f"! {name}" if name in problem_nodes else name
+    return "\n".join([title, *lines])
+
+
+def build_focus_path_groups(
+    tree: Tree,
+    *,
+    issues: Sequence[DebugIssue],
+) -> Group | None:
+    problem_nodes = _problem_nodes_from_issues(issues)
+    blocks: List[object] = []
+    for issue in issues:
+        target = _target_from_div_issue(issue)
+        if target is None:
+            continue
+        div_name, target_name = target
+        if div_name not in tree.nodes or target_name not in tree.nodes:
+            continue
+        path = _full_path_source_to_target(
+            tree, via=div_name, target=target_name
+        )
+        if not path:
+            continue
+        flow: List[object] = [
+            Rule(
+                Text.assemble(
+                    ("路径 ", "cyan"),
+                    (path[0], "bold"),
+                    (" → ", "dim"),
+                    (path[-1], "bold"),
+                ),
+                style="cyan",
+            )
+        ]
+        for index, node_name in enumerate(path):
+            node = tree.nodes[node_name]
+            border = "red" if node_name in problem_nodes else "blue"
+            flow.append(
+                Panel(
+                    _node_panel_body(
+                        node_name,
+                        node,
+                        problem_nodes=problem_nodes,
+                    ),
+                    border_style=border,
+                    padding=(0, 1),
+                )
+            )
+            if index + 1 < len(path):
+                flow.append(Text("  ↓", style="dim"))
+        blocks.append(Group(*flow))
+    return Group(*blocks) if blocks else None
+
+
+def build_debug_issues_rich(
+    issues: Sequence[DebugIssue],
+) -> Group | None:
+    if not issues:
+        return None
+    panels: List[Panel] = []
+    for index, issue in enumerate(issues, start=1):
+        border = "red" if issue.headline.startswith("div ") else "yellow"
+        panels.append(
+            Panel(
+                issue.detail,
+                title=f"[{index}] {issue.headline}",
+                border_style=border,
+                padding=(0, 1),
+            )
+        )
+    return Group(*panels)
+
+
+def build_diagnostic_renderable(
+    tree: Tree,
+    *,
+    issues: Sequence[DebugIssue],
+    unsat_core: str = "",
+) -> Group:
+    parts: List[object] = [
+        Rule("[bold]pll_mini 诊断[/bold]", style="cyan"),
+    ]
+    core_text = unsat_core.strip()
+    if core_text:
+        parts.append(
+            Panel(core_text, title="冲突约束", border_style="red", padding=(0, 1))
+        )
+    parts.append(build_clock_tree_rich(tree, issues=issues))
+    focus = build_focus_path_groups(tree, issues=issues)
+    if focus is not None:
+        parts.append(focus)
+    issue_panels = build_debug_issues_rich(issues)
+    if issue_panels is not None:
+        parts.append(Rule("调试建议", style="cyan"))
+        parts.append(issue_panels)
+    parts.append(_diagnostic_legend())
+    return Group(*parts)
+
+
+def print_diagnostic_report(
+    tree: Tree,
+    *,
+    issues: Sequence[DebugIssue],
+    unsat_core: str = "",
+) -> None:
+    """把彩色诊断图输出到 stderr。"""
+    _diagnostic_console().print(
+        build_diagnostic_renderable(
+            tree,
+            issues=issues,
+            unsat_core=unsat_core,
+        )
+    )
+
+
+def format_clock_tree_diagnostic_graph(
+    tree: Tree,
+    *,
+    issues: Sequence[DebugIssue],
+) -> str:
+    """纯文本回退，供无终端环境或验收调用。"""
+    try:
+        capture_console = Console(width=100, legacy_windows=False)
+        with capture_console.capture() as capture:
+            capture_console.print(build_clock_tree_rich(tree, issues=issues))
+            capture_console.print(_diagnostic_legend())
+        return capture.get().rstrip()
+    except Exception:
+        return _plain_tree_graph(tree, issues=issues)
+
+
+def format_debug_issues_summary(issues: Sequence[DebugIssue]) -> str:
+    if not issues:
+        return ""
+    lines = [f"[{index}] {issue.headline}" for index, issue in enumerate(issues, 1)]
+    return "调试建议：\n" + "\n".join(lines)
+
+
 def _format_route_tree(
     tree: Tree,
     path: Sequence[str],
@@ -315,8 +739,8 @@ def _format_route_tree(
     for depth, name in enumerate(path):
         node = tree.nodes[name]
         indent = "   " * depth
-        branch = "└─ " if depth > 0 else ""
-        mark = " ← 分频无法满足" if name == highlight else ""
+        branch = "`-- " if depth > 0 else ""
+        mark = " <- 分频无法满足" if name == highlight else ""
         lines.append(
             f"{indent}{branch}{name} [{_kind_tag(node)}] "
             f"{_node_state_label(node)}{mark}"
@@ -377,7 +801,7 @@ def _issue_div_impossible(
                 path,
                 highlight=div_name,
                 route_label=(
-                    f"完整路线（{path[0]} → {path[-1]}）："
+                    f"完整路线（{path[0]} -> {path[-1]}）："
                 ),
             )
         )
@@ -412,17 +836,17 @@ def _issue_div_impossible(
         )
         if near:
             detail_lines.append("接近目标的分频比举例：")
-            detail_lines.extend(f"  · {line}" for line in near)
+            detail_lines.extend(f"  - {line}" for line in near)
 
     ideal = parent_hz / child_hz if child_hz > 0 else 0
     if ideal >= 1:
         detail_lines.append(
-            f"理想整数比约为 {ideal:.4g}（{parent_name} ÷ {child_name}），"
+            f"理想整数比约为 {ideal:.4g}（{parent_name} / {child_name}），"
             f"但受分频比范围与容差约束。"
         )
 
     return DebugIssue(
-        headline=f"div {div_name} 分频无法满足：{path[0] if path else parent_name} → {child_name}",
+        headline=f"div {div_name} 分频无法满足：{path[0] if path else parent_name} -> {child_name}",
         detail="\n".join(detail_lines),
     )
 
@@ -549,7 +973,8 @@ def _collect_div_issues(
 def verify_upstream_diagnose(tree: Tree, period_tolerance: float) -> None:
     """供 example + jinja_build 验收；mux 等多路前级回溯与调试诊断不得抛异常。"""
     format_upstream_paths(tree)
-    collect_debug_issues(tree, period_tolerance)
+    issues = collect_debug_issues(tree, period_tolerance)
+    format_clock_tree_diagnostic_graph(tree, issues=issues)
 
 
 def collect_debug_issues(
