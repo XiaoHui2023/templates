@@ -373,7 +373,7 @@ class ProgressSession:
         self._active_component_total = len(components)
         self._component_summary = []
         self.plan_overall(component_count=len(components))
-        self._stage_text = f"search · partition · {len(components)} 个连通域"
+        self._stage_text = f"search · partition · {len(components)} 个子树"
         self._refresh()
 
     def show_active_component(self, tree: Tree, component: object) -> None:

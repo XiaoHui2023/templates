@@ -81,6 +81,125 @@ def _mux_selected_peer(tree: Tree, mux_name: str) -> str | None:
     return peer_name
 
 
+def is_static_frequency_anchor(
+    tree: Tree,
+    node_name: str,
+    *,
+    via_port: Port | None = None,
+) -> bool:
+    """从下游触及该节点时，是否视为固定频率边界并停止继续向上回溯。"""
+    if node_name not in tree.nodes:
+        return False
+    node = tree.nodes[node_name]
+    if node.kind == "source":
+        return True
+    if isinstance(node, PllNode):
+        if node.pll_kind == "inno":
+            return bool(via_port and via_port.group)
+        return node.freq is not None and node.freq > 0
+    return False
+
+
+def is_static_frequency_anchor_node(tree: Tree, node_name: str) -> bool:
+    """节点是否属于固定频率边界类型，用于子树合并时排除共享锚点。"""
+    if node_name not in tree.nodes:
+        return False
+    node = tree.nodes[node_name]
+    if node.kind == "source":
+        return True
+    if isinstance(node, PllNode):
+        return node.pll_kind == "inno" or (
+            node.freq is not None and node.freq > 0
+        )
+    return False
+
+
+def backward_required_nodes_bounded(
+    tree: Tree,
+    targets: List[Tuple[str, int]],
+) -> Set[str]:
+    """从 clk 目标反向收集节点，在 source / 固定 freq 的 pll / inno 输出端口处截断。"""
+    required: Set[str] = set()
+    stack: List[str] = [name for name, _hz in targets]
+    while stack:
+        name = stack.pop()
+        if name in required:
+            continue
+        if name not in tree.nodes:
+            continue
+        required.add(name)
+        node = tree.nodes[name]
+        if node.kind == "source":
+            continue
+        if isinstance(node, MuxNode):
+            if node.sel is not None:
+                peer = _mux_selected_peer(tree, name)
+                if peer is not None:
+                    stack.append(peer)
+            else:
+                for arm_ref in node.source.values():
+                    peer_name, _ = parse_source_endpoint(
+                        arm_ref, ctx=f"mux {name!r}"
+                    )
+                    stack.append(peer_name)
+            continue
+        for port in _upstream_peer_ports(tree, name):
+            parent_name = port.node
+            if is_static_frequency_anchor(tree, parent_name, via_port=port):
+                required.add(parent_name)
+                continue
+            parent = tree.nodes[parent_name]
+            if isinstance(parent, MuxNode):
+                stack.append(parent_name)
+                peer = _mux_selected_peer(tree, parent_name)
+                if peer is not None:
+                    stack.append(peer)
+            else:
+                stack.append(parent_name)
+    return required
+
+
+def backward_required_nodes_pll_ref(tree: Tree, pll_name: str) -> Set[str]:
+    """从 PLL 参考输入端向上收集节点，仅止于 source。"""
+    if pll_name not in tree.nodes:
+        return set()
+    pll = tree.nodes[pll_name]
+    if not isinstance(pll, PllNode):
+        return set()
+    required: Set[str] = {pll_name}
+    ref_name, _ = parse_source_endpoint(pll.source, ctx=f"{pll_name}.source")
+    stack: List[str] = [ref_name]
+    while stack:
+        name = stack.pop()
+        if name in required:
+            continue
+        if name not in tree.nodes:
+            continue
+        required.add(name)
+        node = tree.nodes[name]
+        if node.kind == "source":
+            continue
+        if isinstance(node, PllNode):
+            up_name, _ = parse_source_endpoint(node.source, ctx=f"{pll_name}.ref")
+            stack.append(up_name)
+            continue
+        if isinstance(node, MuxNode):
+            if node.sel is not None:
+                peer = _mux_selected_peer(tree, name)
+                if peer is not None:
+                    stack.append(peer)
+            else:
+                for arm_ref in node.source.values():
+                    peer_name, _ = parse_source_endpoint(
+                        arm_ref, ctx=f"mux {name!r}"
+                    )
+                    stack.append(peer_name)
+            continue
+        for port in _upstream_peer_ports(tree, name):
+            stack.append(port.node)
+    return required
+
+
 def backward_required_nodes(
     tree: Tree,
     targets: List[Tuple[str, int]],

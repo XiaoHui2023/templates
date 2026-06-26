@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 from pll_cfg import pll_cfg_from_solved
-from search import search_tree_constraints
+from search import search_tree_constraints, verify_search_partition
 from solve_model import SolveModel
 from tools import log_stage_done, log_stage_start
 from verify import raise_on_verify_issues, verify_solve_model
@@ -73,6 +73,8 @@ def resolve_tree(
     clk_nodes = [n for n in tree.nodes_ordered if n.kind == "clk"]
     if not clk_nodes:
         raise ValueError("tree 须至少含一个 kind 为 clk 的节点")
+
+    verify_search_partition(tree)
 
     model = search_tree_constraints(
         tree,

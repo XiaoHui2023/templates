@@ -16,10 +16,13 @@ from formulas import (
 from freq_model import (
     Port,
     backward_required_nodes,
+    backward_required_nodes_bounded,
+    backward_required_nodes_pll_ref,
     collect_freq_targets,
     is_cpu_gate_passthrough_group,
     is_mux_exclusive_peer,
     is_passthrough_kind,
+    is_static_frequency_anchor_node,
     output_ports,
     parent_port_for_child,
     parse_port_ref,
@@ -40,12 +43,14 @@ from tools import log_stage_done, log_stage_start
 
 @dataclass(frozen=True)
 class SearchComponent:
-    """一次顺序求解的子树：共享硬件连通域内的 clk 目标集合。"""
+    """一次顺序求解的子树：按固定频率边界切分后的最小求解单元。"""
 
     index: int
     total: int
     targets: tuple[tuple[str, int], ...]
     node_names: frozenset[str]
+    freq_anchors: frozenset[str] = frozenset()
+    pll_ref_for: str | None = None
 
 
 def search_tree_constraints(
@@ -104,7 +109,7 @@ def search_tree_constraints(
                 "search",
                 "component",
                 f"{component.index}/{component.total}",
-                clks=_component_clk_names(component),
+                clks=_component_label(component),
                 nodes=len(component.node_names),
                 tree_nodes=_format_node_list(component.node_names),
             )
@@ -119,16 +124,36 @@ def search_tree_constraints(
                 )
                 raise RuntimeError("时钟树约束求解超时或无法判定")
             try:
-                partial = _search_tree(
-                    tree,
-                    targets=list(component.targets),
-                    pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-                    pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-                    tol_lo=tol_lo,
-                    tol_hi=tol_hi,
-                    tol_den=tol_den,
-                    deadline=deadline,
-                )
+                if component.pll_ref_for is not None:
+                    partial = _search_pll_ref_tree(
+                        tree,
+                        pll_name=component.pll_ref_for,
+                        required=set(component.node_names),
+                        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                        deadline=deadline,
+                        compute_pll_vars=_pll_ref_needs_coeffs(
+                            tree, component.pll_ref_for
+                        ),
+                    )
+                else:
+                    partial = _search_tree(
+                        tree,
+                        targets=list(component.targets),
+                        required=set(component.node_names),
+                        pll_anchors=_non_inno_pll_anchors(
+                            tree, component.freq_anchors
+                        ),
+                        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                        deadline=deadline,
+                    )
             except RuntimeError as exc:
                 log_stage_done(
                     "search",
@@ -191,63 +216,172 @@ def partition_search_components(
     tree: Tree,
     targets: List[Tuple[str, int]],
 ) -> List[SearchComponent]:
-    """按硬件无向连通域把 clk 目标拆成多个顺序求解的子树。"""
+    """按固定频率边界切最小 clk 子树，合并共享可变节点的目标，并补 PLL 参考路径子树。"""
     if not targets:
         return []
-    adj = _build_undirected_adj(tree)
-    target_hz = dict(targets)
-    target_clks = set(target_hz)
-    reachable: Set[str] = set()
-    for clk_name in target_clks:
-        stack = [clk_name]
-        while stack:
-            name = stack.pop()
-            if name in reachable:
-                continue
-            if name not in tree.nodes:
-                continue
-            reachable.add(name)
-            for peer in adj.get(name, ()):
-                stack.append(peer)
 
-    components_raw: List[List[Tuple[str, int]]] = []
-    seen: Set[str] = set()
-    for start in sorted(reachable):
-        if start in seen:
-            continue
-        comp_nodes: Set[str] = set()
-        stack = [start]
-        while stack:
-            name = stack.pop()
-            if name in comp_nodes:
-                continue
-            comp_nodes.add(name)
-            seen.add(name)
-            for peer in adj.get(name, ()):
-                if peer in reachable and peer not in comp_nodes:
-                    stack.append(peer)
-        comp_targets = sorted(
-            (clk_name, target_hz[clk_name])
-            for clk_name in comp_nodes
-            if clk_name in target_clks
+    clk_components: List[SearchComponent] = []
+    plls_for_ref: Set[str] = set()
+    for clk_name, hz in sorted(targets, key=lambda item: item[0]):
+        required = backward_required_nodes_bounded(tree, [(clk_name, hz)])
+        anchors = frozenset(
+            name
+            for name in required
+            if is_static_frequency_anchor_node(tree, name)
         )
-        if comp_targets:
-            components_raw.append(comp_targets)
-
-    components_raw.sort(key=lambda items: items[0][0])
-    total = len(components_raw)
-    out: List[SearchComponent] = []
-    for index, comp_targets in enumerate(components_raw, start=1):
-        required = backward_required_nodes(tree, comp_targets)
-        out.append(
+        for name in required:
+            node = tree.nodes[name]
+            if isinstance(node, PllNode):
+                plls_for_ref.add(name)
+        clk_components.append(
             SearchComponent(
-                index=index,
-                total=total,
-                targets=tuple(comp_targets),
+                index=0,
+                total=0,
+                targets=((clk_name, hz),),
                 node_names=frozenset(required),
+                freq_anchors=anchors,
             )
         )
-    return out
+
+    merged_clk = _merge_overlapping_clk_components(tree, clk_components)
+
+    ref_components: List[SearchComponent] = []
+    for pll_name in sorted(plls_for_ref):
+        ref_required = backward_required_nodes_pll_ref(tree, pll_name)
+        if len(ref_required) <= 1:
+            continue
+        ref_components.append(
+            SearchComponent(
+                index=0,
+                total=0,
+                targets=(),
+                node_names=frozenset(ref_required),
+                pll_ref_for=pll_name,
+            )
+        )
+
+    combined = ref_components + merged_clk
+    total = len(combined)
+    return [
+        SearchComponent(
+            index=index,
+            total=total,
+            targets=comp.targets,
+            node_names=comp.node_names,
+            freq_anchors=comp.freq_anchors,
+            pll_ref_for=comp.pll_ref_for,
+        )
+        for index, comp in enumerate(combined, start=1)
+    ]
+
+
+def _non_inno_pll_anchors(
+    tree: Tree,
+    anchors: frozenset[str],
+) -> frozenset[str]:
+    return frozenset(
+        name
+        for name in anchors
+        if isinstance(tree.nodes.get(name), PllNode)
+        and tree.nodes[name].pll_kind != "inno"
+    )
+
+
+def _pll_ref_needs_coeffs(tree: Tree, pll_name: str) -> bool:
+    node = tree.nodes.get(pll_name)
+    return isinstance(node, PllNode) and node.pll_kind != "inno"
+
+
+def verify_search_partition(tree: Tree) -> int:
+    """验收：每个 clk 目标恰落在某一 clk 子树内，并返回子树总数。"""
+    targets = collect_freq_targets(tree)
+    components = partition_search_components(tree, targets)
+    if not components:
+        raise RuntimeError("时钟树子树划分为空")
+    clk_components = [c for c in components if c.pll_ref_for is None]
+    cover: Dict[str, int] = {}
+    for comp in clk_components:
+        for clk_name, _hz in comp.targets:
+            cover[clk_name] = cover.get(clk_name, 0) + 1
+    for clk_name, _hz in targets:
+        if cover.get(clk_name, 0) != 1:
+            raise RuntimeError(
+                f"clk 节点 {clk_name!r} 应恰出现在一个 clk 子树中，"
+                f"实际 {cover.get(clk_name, 0)} 次"
+            )
+    return len(components)
+
+
+def _mutable_component_nodes(tree: Tree, node_names: Set[str] | frozenset[str]) -> Set[str]:
+    return {
+        name
+        for name in node_names
+        if not is_static_frequency_anchor_node(tree, name)
+    }
+
+
+def _merge_overlapping_clk_components(
+    tree: Tree,
+    components: List[SearchComponent],
+) -> List[SearchComponent]:
+    """合并共享非锚点节点的 clk 子树，避免同一 div/mux 被独立求解出冲突配置。"""
+    if len(components) <= 1:
+        return components
+
+    parent = list(range(len(components)))
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        root_left = find(left)
+        root_right = find(right)
+        if root_left != root_right:
+            parent[root_right] = root_left
+
+    mutable_sets = [
+        _mutable_component_nodes(tree, comp.node_names) for comp in components
+    ]
+    for left in range(len(components)):
+        for right in range(left + 1, len(components)):
+            if mutable_sets[left] & mutable_sets[right]:
+                union(left, right)
+
+    groups: Dict[int, List[int]] = defaultdict(list)
+    for index in range(len(components)):
+        groups[find(index)].append(index)
+
+    merged: List[SearchComponent] = []
+    for indices in groups.values():
+        if len(indices) == 1:
+            merged.append(components[indices[0]])
+            continue
+        all_nodes: Set[str] = set()
+        all_anchors: Set[str] = set()
+        all_targets: List[Tuple[str, int]] = []
+        seen_targets: Set[Tuple[str, int]] = set()
+        for index in indices:
+            comp = components[index]
+            all_nodes |= comp.node_names
+            all_anchors |= comp.freq_anchors
+            for target in comp.targets:
+                if target not in seen_targets:
+                    seen_targets.add(target)
+                    all_targets.append(target)
+        merged.append(
+            SearchComponent(
+                index=0,
+                total=0,
+                targets=tuple(all_targets),
+                node_names=frozenset(all_nodes),
+                freq_anchors=frozenset(all_anchors),
+            )
+        )
+    merged.sort(key=lambda comp: comp.targets[0][0] if comp.targets else "")
+    return merged
 
 
 def merge_solve_models(tree: Tree, models: List[SolveModel]) -> SolveModel:
@@ -308,33 +442,22 @@ def merge_solve_models(tree: Tree, models: List[SolveModel]) -> SolveModel:
     )
 
 
-def _build_undirected_adj(tree: Tree) -> Dict[str, Set[str]]:
-    adj: Dict[str, Set[str]] = defaultdict(set)
-    for name, node in tree.nodes.items():
-        if node.kind == "source":
-            continue
-        if isinstance(node, MuxNode):
-            for arm_ref in node.source.values():
-                peer_name, _ = parse_source_endpoint(arm_ref, ctx=f"mux {name!r}")
-                adj[name].add(peer_name)
-                adj[peer_name].add(name)
-            continue
-        if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-            try:
-                parent_port = parent_port_for_child(tree, name)
-            except ValueError:
-                continue
-            parent_name = parent_port.node
-            adj[name].add(parent_name)
-            adj[parent_name].add(name)
-    return adj
-
-
 def _component_clk_names(component: SearchComponent) -> str:
     return ",".join(name for name, _ in component.targets)
 
 
+def _component_label(component: SearchComponent) -> str:
+    if component.pll_ref_for is not None:
+        return f"pll_ref:{component.pll_ref_for}"
+    return _component_clk_names(component)
+
+
 def _component_log_label(component: SearchComponent) -> str:
+    if component.pll_ref_for is not None:
+        return (
+            f"[{component.index}] pll_ref={component.pll_ref_for} "
+            f"nodes={len(component.node_names)}"
+        )
     return (
         f"[{component.index}] clks={_component_clk_names(component)} "
         f"nodes={len(component.node_names)}"
@@ -376,6 +499,8 @@ def _search_tree(
     tree: Tree,
     *,
     targets: List[Tuple[str, int]],
+    required: Set[str] | None = None,
+    pll_anchors: frozenset[str] = frozenset(),
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
     tol_lo: int,
@@ -383,7 +508,8 @@ def _search_tree(
     tol_den: int,
     deadline: float | None,
 ) -> SolveModel:
-    required = backward_required_nodes(tree, targets)
+    if required is None:
+        required = backward_required_nodes(tree, targets)
     free_muxes = _free_mux_nodes(tree, required)
     free_divs = _ordered_free_div_nodes(tree, required, targets)
 
@@ -441,6 +567,7 @@ def _search_tree(
             tol_lo=tol_lo,
             tol_hi=tol_hi,
             tol_den=tol_den,
+            skip_pll_names=pll_anchors,
         )
         if pll_vars is None:
             continue
@@ -455,6 +582,142 @@ def _search_tree(
         return model
 
     raise RuntimeError("时钟树约束互相矛盾，无解")
+
+
+def _search_pll_ref_tree(
+    tree: Tree,
+    *,
+    pll_name: str,
+    required: Set[str],
+    pll_sc_fbdiv_min: int,
+    pll_sc_fbdiv_max: int,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+    deadline: float | None,
+    compute_pll_vars: bool = True,
+) -> SolveModel:
+    free_muxes = _free_mux_nodes(tree, required)
+    ref_divs = _ordered_ref_path_div_nodes(tree, required, pll_name)
+
+    mux_sel: Dict[str, int] = {}
+    for name in required:
+        node = tree.nodes[name]
+        if isinstance(node, MuxNode) and node.sel is not None:
+            mux_sel[name] = node.sel
+
+    ratios: Dict[str, int] = {}
+    for name in required:
+        node = tree.nodes[name]
+        if isinstance(node, DivNode) and node.ratio is not None:
+            ratios[name] = node.ratio
+
+    for assignment in _iter_mux_assignments(tree, free_muxes):
+        if deadline is not None and time.perf_counter() > deadline:
+            raise RuntimeError("时钟树约束求解超时或无法判定")
+        trial_mux = {**mux_sel, **assignment}
+        active = _compute_active_pll_ref(tree, pll_name, trial_mux) & required
+        if pll_name not in active:
+            continue
+        for trial_ratios in _iter_ref_div_ratio_assignments(
+            tree, ref_divs, ratios
+        ):
+            port_freq = _propagate_port_freqs(
+                tree,
+                active=active,
+                mux_sel=trial_mux,
+                ratios=trial_ratios,
+                targets=[],
+                ref_path=True,
+            )
+            if port_freq is None:
+                continue
+            if compute_pll_vars:
+                pll_vars = _compute_pll_vars(
+                    tree,
+                    active=active,
+                    port_freq=port_freq,
+                    pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                    pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                    only_pll_names=frozenset({pll_name}),
+                )
+                if pll_vars is None or pll_name not in pll_vars:
+                    continue
+            else:
+                ref_port = parent_port_for_child(tree, pll_name)
+                if port_freq.get(ref_port, 0) <= 0:
+                    continue
+                pll_vars = {}
+            return _assemble_model(
+                tree,
+                active=active,
+                port_freq=port_freq,
+                mux_sel=trial_mux,
+                ratios=trial_ratios,
+                pll_vars=pll_vars,
+            )
+
+    raise RuntimeError("时钟树约束互相矛盾，无解")
+
+
+def _compute_active_pll_ref(
+    tree: Tree,
+    pll_name: str,
+    mux_sel: Dict[str, int],
+) -> Set[str]:
+    pll = tree.nodes[pll_name]
+    assert isinstance(pll, PllNode)
+    ref_name, _ = parse_source_endpoint(pll.source, ctx=f"{pll_name}.source")
+    active: Set[str] = set()
+    _mark_upstream_active(tree, ref_name, active, mux_sel)
+    active.add(pll_name)
+    return active
+
+
+def _ordered_ref_path_div_nodes(
+    tree: Tree,
+    required: Set[str],
+    pll_name: str,
+) -> List[str]:
+    out: List[str] = []
+    for name in sorted(required):
+        if name == pll_name:
+            continue
+        node = tree.nodes[name]
+        if not isinstance(node, DivNode):
+            continue
+        if node.ratio is not None or node.div_kind == "div_r":
+            continue
+        out.append(name)
+    return out
+
+
+def _iter_ref_div_ratio_assignments(
+    tree: Tree,
+    ref_divs: List[str],
+    base_ratios: Dict[str, int],
+) -> Iterator[Dict[str, int]]:
+    if not ref_divs:
+        yield dict(base_ratios)
+        return
+
+    div_name = ref_divs[0]
+    rest = ref_divs[1:]
+    node = tree.nodes[div_name]
+    assert isinstance(node, DivNode)
+    if node.div_kind == "cpu_gate":
+        ratio_candidates = sorted(CPU_GATE_RATIOS)
+    elif node.div_kind in ("dto", "dto_n"):
+        ratio_candidates = list(range(1, DTO_MAX_RATIO + 1))
+    else:
+        ratio_candidates = list(range(1, 65))
+
+    for ratio in ratio_candidates:
+        for tail in _iter_ref_div_ratio_assignments(tree, rest, base_ratios):
+            yield {**tail, div_name: ratio}
 
 
 def _free_mux_nodes(tree: Tree, required: Set[str]) -> List[str]:
@@ -1001,6 +1264,7 @@ def _propagate_port_freqs(
     mux_sel: Dict[str, int],
     ratios: Dict[str, int],
     targets: List[Tuple[str, int]],
+    ref_path: bool = False,
 ) -> Dict[Port, int] | None:
     port_freq: Dict[Port, int] = {}
     for name in tree.nodes:
@@ -1029,7 +1293,8 @@ def _propagate_port_freqs(
                 return None
             peer = parse_port_ref(arm, ctx=f"mux {name!r}")
             peer_hz = _resolve_port_freq(
-                tree, peer, active, mux_sel, ratios, targets, port_freq
+                tree, peer, active, mux_sel, ratios, targets, port_freq,
+                ref_path=ref_path,
             )
             if peer_hz is None:
                 return None
@@ -1037,7 +1302,8 @@ def _propagate_port_freqs(
         elif isinstance(node, DivNode):
             parent_port = parent_port_for_child(tree, name)
             f_in = _resolve_port_freq(
-                tree, parent_port, active, mux_sel, ratios, targets, port_freq
+                tree, parent_port, active, mux_sel, ratios, targets, port_freq,
+                ref_path=ref_path,
             )
             if f_in is None or f_in <= 0:
                 return None
@@ -1067,12 +1333,20 @@ def _propagate_port_freqs(
             else:
                 want = required.get("")
                 if want is None:
-                    return None
-                port_freq[Port(name, "")] = want
+                    if not ref_path:
+                        return None
+                    ratio = ratios.get(name, node.ratio)
+                    if ratio is None:
+                        return None
+                    f_hw, _ = div_hw_from_input(f_in, ratio)
+                    port_freq[Port(name, "")] = f_hw
+                else:
+                    port_freq[Port(name, "")] = want
         elif is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
             parent_port = parent_port_for_child(tree, name)
             parent_hz = _resolve_port_freq(
-                tree, parent_port, active, mux_sel, ratios, targets, port_freq
+                tree, parent_port, active, mux_sel, ratios, targets, port_freq,
+                ref_path=ref_path,
             )
             if parent_hz is None:
                 return None
@@ -1089,6 +1363,8 @@ def _resolve_port_freq(
     ratios: Dict[str, int],
     targets: List[Tuple[str, int]],
     cache: Dict[Port, int],
+    *,
+    ref_path: bool = False,
 ) -> int | None:
     if port in cache:
         return cache[port]
@@ -1118,7 +1394,8 @@ def _resolve_port_freq(
             return None
         peer = parse_port_ref(arm, ctx=f"mux {port.node!r}")
         hz = _resolve_port_freq(
-            tree, peer, active, mux_sel, ratios, targets, cache
+            tree, peer, active, mux_sel, ratios, targets, cache,
+            ref_path=ref_path,
         )
         if hz is None:
             return None
@@ -1127,7 +1404,8 @@ def _resolve_port_freq(
     if isinstance(node, DivNode):
         parent_port = parent_port_for_child(tree, port.node)
         f_in = _resolve_port_freq(
-            tree, parent_port, active, mux_sel, ratios, targets, cache
+            tree, parent_port, active, mux_sel, ratios, targets, cache,
+            ref_path=ref_path,
         )
         if f_in is None:
             return None
@@ -1155,12 +1433,19 @@ def _resolve_port_freq(
             tree, port.node, targets, active, mux_sel, ratios
         )
         hz = required.get("", 0)
+        if hz <= 0 and ref_path:
+            ratio = ratios.get(port.node, node.ratio)
+            if ratio is None:
+                return None
+            f_hw, _ = div_hw_from_input(f_in, ratio)
+            hz = f_hw
         cache[port] = hz
         return hz
     if is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
         parent_port = parent_port_for_child(tree, port.node)
         hz = _resolve_port_freq(
-            tree, parent_port, active, mux_sel, ratios, targets, cache
+            tree, parent_port, active, mux_sel, ratios, targets, cache,
+            ref_path=ref_path,
         )
         if hz is None:
             return None
@@ -1253,10 +1538,16 @@ def _compute_pll_vars(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
+    skip_pll_names: frozenset[str] = frozenset(),
+    only_pll_names: frozenset[str] | None = None,
 ) -> Dict[str, Dict[str, int]] | None:
     pll_vars: Dict[str, Dict[str, int]] = {}
     for name, node in tree.nodes.items():
         if name not in active or not isinstance(node, PllNode):
+            continue
+        if name in skip_pll_names:
+            continue
+        if only_pll_names is not None and name not in only_pll_names:
             continue
         ref_port = parent_port_for_child(tree, name)
         ref_hz = port_freq.get(ref_port, 0)
