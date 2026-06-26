@@ -18,7 +18,6 @@ from rich.progress import (
 )
 from rich.text import Text
 from rich.theme import Theme
-from rich.tree import Tree as RichTree
 
 from model.freq_graph import parent_port_for_child
 from model.nodes import ClkNode, DivNode, MuxNode, PllNode, Tree, parse_source_endpoint
@@ -74,51 +73,51 @@ def _format_fields(fields: Mapping[str, object]) -> str:
     return " · ".join(f"{key}={value}" for key, value in fields.items())
 
 
-def _downstream_children_in_set(
+def _collect_parents_in_set(
     tree: Tree,
-    name: str,
     names_set: set[str],
-) -> list[str]:
-    children: list[str] = []
-    for other_name in names_set:
-        if other_name == name:
-            continue
-        other = tree.nodes[other_name]
-        if other.kind == "source":
-            continue
-        if isinstance(other, MuxNode):
-            for arm in other.source.values():
-                arm_name, _ = parse_source_endpoint(arm, ctx="child")
-                if arm_name == name:
-                    children.append(other_name)
-            continue
-        try:
-            parent = parent_port_for_child(tree, other_name)
-        except ValueError:
-            continue
-        if parent.node == name:
-            children.append(other_name)
-    return sorted(children)
-
-
-def _component_roots(tree: Tree, names_set: set[str]) -> list[str]:
-    roots: list[str] = []
-    for name in sorted(names_set):
+) -> dict[str, tuple[str, ...]]:
+    parents: dict[str, list[str]] = {name: [] for name in names_set}
+    for name in names_set:
         node = tree.nodes[name]
         if node.kind == "source":
-            roots.append(name)
+            continue
+        if isinstance(node, MuxNode):
+            for arm in node.source.values():
+                arm_name, _ = parse_source_endpoint(arm, ctx="parent")
+                if arm_name in names_set:
+                    parents[name].append(arm_name)
             continue
         try:
             parent = parent_port_for_child(tree, name)
-            parent_name = parent.node
         except ValueError:
-            roots.append(name)
             continue
-        if parent_name not in names_set:
-            roots.append(name)
-    if not roots:
-        return sorted(names_set)[:1]
-    return sorted(dict.fromkeys(roots))
+        if parent.node in names_set:
+            parents[name].append(parent.node)
+    return {
+        name: tuple(sorted(dict.fromkeys(items)))
+        for name, items in parents.items()
+    }
+
+
+def _longest_path_layers(
+    names_set: set[str],
+    parents: Mapping[str, tuple[str, ...]],
+) -> dict[str, int]:
+    layers = {name: 0 for name in names_set}
+    for _ in range(len(names_set)):
+        changed = False
+        for name in names_set:
+            for parent in parents.get(name, ()):
+                if parent not in names_set:
+                    continue
+                candidate = layers[parent] + 1
+                if candidate > layers[name]:
+                    layers[name] = candidate
+                    changed = True
+        if not changed:
+            break
+    return layers
 
 
 def _node_tree_label(
@@ -148,34 +147,162 @@ def _node_tree_label(
     return label
 
 
-def build_component_subtree(
+def _node_plain_tag(
+    tree: Tree,
+    name: str,
+    target_hz: Mapping[str, int],
+) -> str:
+    node = tree.nodes[name]
+    kind = getattr(node, "kind", "?")
+    if isinstance(node, DivNode):
+        kind = node.div_kind
+    parts = [name, f"[{kind}]"]
+    if name in target_hz:
+        parts.append(f"→{_hz_mhz(target_hz[name])}")
+    elif isinstance(node, ClkNode) and node.freq > 0:
+        parts.append(f"→{_hz_mhz(node.freq)}")
+    elif isinstance(node, PllNode) and node.freq is not None and node.freq > 0:
+        parts.append(f"→{_hz_mhz(node.freq)}")
+    elif isinstance(node, DivNode) and node.ratio is not None:
+        parts.append(f"ratio={node.ratio}")
+    elif isinstance(node, MuxNode) and node.sel is not None:
+        parts.append(f"sel={node.sel}")
+    return " ".join(parts)
+
+
+def _append_node_label(
+    line: Text,
+    tree: Tree,
+    name: str,
+    target_hz: Mapping[str, int],
+) -> None:
+    line.append_text(_node_tree_label(tree, name, target_hz))
+
+
+def _append_edge_line(
+    out: Text,
+    *,
+    indent: str,
+    left: Text,
+    arrow: str,
+    right: Text | None = None,
+) -> None:
+    out.append(indent)
+    out.append_text(left)
+    out.append(arrow, style="progress.dim")
+    if right is not None:
+        out.append_text(right)
+    out.append("\n")
+
+
+def _render_fan_in_block(
+    out: Text,
+    tree: Tree,
+    target_hz: Mapping[str, int],
+    block: Sequence[tuple[str, str]],
+    dst: str,
+) -> None:
+    width = max(len(_node_plain_tag(tree, edge_src, target_hz)) for edge_src, _ in block)
+    right = Text()
+    _append_node_label(right, tree, dst, target_hz)
+    for edge_index, (edge_src, _) in enumerate(block):
+        left = Text()
+        _append_node_label(left, tree, edge_src, target_hz)
+        pad = " " * max(0, width - len(_node_plain_tag(tree, edge_src, target_hz)))
+        if edge_index < len(block) - 1:
+            _append_edge_line(out, indent=f"  {pad}", left=left, arrow=" ─┐\n")
+        else:
+            _append_edge_line(out, indent=f"  {pad}", left=left, arrow=" ─┼→ ", right=right)
+    out.append("\n")
+
+
+def _render_fan_out_block(
+    out: Text,
+    tree: Tree,
+    target_hz: Mapping[str, int],
+    block: Sequence[tuple[str, str]],
+    src: str,
+) -> None:
+    left = Text()
+    _append_node_label(left, tree, src, target_hz)
+    src_tag = _node_plain_tag(tree, src, target_hz)
+    for edge_index, (_, dst) in enumerate(block):
+        right = Text()
+        _append_node_label(right, tree, dst, target_hz)
+        if edge_index == 0:
+            _append_edge_line(out, indent="  ", left=left, arrow=" ─┬→ ", right=right)
+            continue
+        branch = "├→ " if edge_index < len(block) - 1 else "└→ "
+        pad = " " * len(src_tag)
+        _append_edge_line(out, indent=f"  {pad} ", left=Text(), arrow=branch, right=right)
+
+
+def build_component_graph(
     tree: Tree,
     *,
     node_names: frozenset[str] | set[str],
     targets: Sequence[tuple[str, int]],
-) -> RichTree:
+) -> Text:
     names_set = set(node_names)
     target_hz = dict(targets)
-    rich_root = RichTree(Text("时钟连通域", style="bold progress.title"), guide_style="progress.dim")
-    seen: set[str] = set()
+    parents = _collect_parents_in_set(tree, names_set)
+    layers = _longest_path_layers(names_set, parents)
+    out = Text("时钟连通域\n", style="bold progress.title")
 
-    def attach(parent: RichTree, name: str) -> None:
-        if name in seen:
-            return
-        seen.add(name)
-        branch = parent.add(_node_tree_label(tree, name, target_hz))
-        for child in _downstream_children_in_set(tree, name, names_set):
-            attach(branch, child)
+    single_edges: list[tuple[str, str]] = []
+    has_fan_in = False
+    for dst in sorted(names_set, key=lambda name: (layers.get(name, 0), name)):
+        srcs = list(parents.get(dst, ()))
+        if len(srcs) > 1:
+            has_fan_in = True
+            block = [(src, dst) for src in srcs]
+            _render_fan_in_block(out, tree, target_hz, block, dst)
+        elif len(srcs) == 1:
+            single_edges.append((srcs[0], dst))
 
-    for root in _component_roots(tree, names_set):
-        attach(rich_root, root)
-    for orphan in sorted(names_set - seen):
-        attach(rich_root, orphan)
-    return rich_root
+    if not has_fan_in and not single_edges:
+        for name in sorted(names_set):
+            line = Text("  ")
+            _append_node_label(line, tree, name, target_hz)
+            out.append_text(line)
+            out.append("\n")
+        return out
+
+    single_edges.sort(
+        key=lambda item: (layers[item[0]], item[0], layers[item[1]], item[1])
+    )
+    index = 0
+    while index < len(single_edges):
+        src, dst = single_edges[index]
+        fan_out_end = index + 1
+        dst_layer = layers[dst]
+        while fan_out_end < len(single_edges):
+            next_src, next_dst = single_edges[fan_out_end]
+            if next_src != src or layers[next_dst] != dst_layer:
+                break
+            fan_out_end += 1
+        if fan_out_end - index > 1:
+            _render_fan_out_block(
+                out,
+                tree,
+                target_hz,
+                single_edges[index:fan_out_end],
+                src,
+            )
+            index = fan_out_end
+            continue
+
+        left = Text()
+        right = Text()
+        _append_node_label(left, tree, src, target_hz)
+        _append_node_label(right, tree, dst, target_hz)
+        _append_edge_line(out, indent="  ", left=left, arrow=" → ", right=right)
+        index += 1
+    return out
 
 
 class ProgressSession:
-    """Rich 动态进度：大进度条 + 子树小进度 + 连通域树图。"""
+    """Rich 动态进度：大进度条 + 子树小进度 + 连通域有向图。"""
 
     def __init__(self, tree: Tree | None = None) -> None:
         self._tree = tree
@@ -201,8 +328,16 @@ class ProgressSession:
         self._active_component_index = 0
         self._active_component_total = 0
         self._active_component_clks = ""
-        self._active_subtree: RichTree | None = None
+        self._active_graph: Text | None = None
         self._sub_visible = False
+        self._search_active = False
+        self._search_kind = ""
+        self._search_phase = ""
+        self._search_detail = ""
+        self._search_current = 0
+        self._search_total = 0
+        self._search_progress: Progress | None = None
+        self._search_task: int | None = None
 
     def start(self) -> None:
         if not self.enabled:
@@ -259,7 +394,8 @@ class ProgressSession:
         self._sub = None
         self._component_summary.clear()
         self._sub_visible = False
-        self._active_subtree = None
+        self._active_graph = None
+        self._clear_search_progress()
         try:
             self._console.clear_live()
         except Exception:
@@ -395,9 +531,124 @@ class ProgressSession:
         self._stage_text = f"search · partition · {len(components)} 个子树"
         self._refresh()
 
+    def begin_component_search(
+        self,
+        *,
+        kind: str,
+        mux_total: int,
+        free_muxes: Sequence[str],
+    ) -> None:
+        if not self.enabled:
+            return
+        self.end_component_search()
+        self._search_active = True
+        self._search_kind = kind
+        self._search_phase = "准备"
+        self._search_detail = ""
+        self._search_current = 0
+        self._search_total = max(0, mux_total)
+        if self._search_progress is None:
+            self._search_progress = Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.stage]{task.description}"),
+                BarColumn(bar_width=28),
+                TaskProgressColumn(),
+                console=self._console,
+                transient=True,
+            )
+        label = "PLL 参考路径" if kind == "pll_ref" else "子树求解"
+        if mux_total > 0:
+            desc = f"{label} · mux枚举 0/{mux_total}"
+        else:
+            desc = f"{label} · 准备"
+        if self._search_task is None:
+            self._search_task = self._search_progress.add_task(
+                desc,
+                total=max(1, mux_total),
+                completed=0,
+            )
+        else:
+            self._search_progress.update(
+                self._search_task,
+                description=desc,
+                total=max(1, mux_total),
+                completed=0,
+            )
+        mux_hint = ",".join(free_muxes[:3])
+        if len(free_muxes) > 3:
+            mux_hint = f"{mux_hint},…"
+        if mux_hint:
+            self._search_detail = f"自由 mux: {mux_hint}"
+        self._refresh()
+
+    def tick_component_search(
+        self,
+        phase: str,
+        *,
+        current: int | None = None,
+        total: int | None = None,
+        detail: str = "",
+        force: bool = False,
+    ) -> None:
+        if not self.enabled or not self._search_active:
+            return
+        self._search_phase = phase
+        if detail:
+            self._search_detail = detail
+        if current is not None:
+            self._search_current = current
+        if total is not None and total > 0:
+            self._search_total = total
+        if self._search_progress is None or self._search_task is None:
+            self._refresh()
+            return
+        label = "PLL 参考路径" if self._search_kind == "pll_ref" else "子树求解"
+        if self._search_total > 0 and current is not None:
+            desc = f"{label} · {phase} {current}/{self._search_total}"
+            self._search_progress.update(
+                self._search_task,
+                description=desc,
+                completed=current,
+                total=self._search_total,
+            )
+        else:
+            desc = f"{label} · {phase}"
+            self._search_progress.update(
+                self._search_task,
+                description=desc,
+                completed=0,
+                total=1,
+            )
+        self._refresh()
+
+    def end_component_search(self) -> None:
+        self._search_active = False
+        self._search_phase = ""
+        self._search_detail = ""
+        self._search_current = 0
+        self._search_total = 0
+        if self._search_progress is not None and self._search_task is not None:
+            self._search_progress.update(
+                self._search_task,
+                description="",
+                completed=0,
+                total=1,
+            )
+        self._refresh()
+
+    def _clear_search_progress(self) -> None:
+        self._search_active = False
+        self._search_phase = ""
+        self._search_detail = ""
+        self._search_current = 0
+        self._search_total = 0
+        self._search_progress = None
+        self._search_task = None
+
     def show_active_component(self, tree: Tree, component: object) -> None:
         if not self.enabled:
             return
+        self.end_component_search()
         self._tree = tree
         index = int(getattr(component, "index", 0))
         total = int(getattr(component, "total", 0))
@@ -407,7 +658,7 @@ class ProgressSession:
         self._active_component_index = index
         self._active_component_total = total
         self._active_component_clks = clks
-        self._active_subtree = build_component_subtree(
+        self._active_graph = build_component_graph(
             tree,
             node_names=node_names,
             targets=targets,
@@ -426,8 +677,6 @@ class ProgressSession:
                 total=total,
                 completed=index - 1,
             )
-        self._stage_text = f"search · component · {index}/{total}"
-        self._stage_fields = f"clks={clks} · nodes={len(node_names)}"
         self._refresh()
 
     def _begin_component_stage(self, label: str, fields: Mapping[str, object]) -> None:
@@ -469,8 +718,15 @@ class ProgressSession:
             )
         if self._sub_visible and self._sub is not None:
             body: list[object] = [self._sub]
-            if self._active_subtree is not None:
-                body.append(self._active_subtree)
+            if self._search_active and self._search_progress is not None:
+                body.append(self._search_progress)
+                if self._search_phase or self._search_detail:
+                    step_line = self._search_phase or "求解"
+                    if self._search_detail:
+                        step_line = f"{step_line}  [progress.dim]{self._search_detail}[/]"
+                    body.append(Text.from_markup(step_line, style="progress.stage"))
+            if self._active_graph is not None:
+                body.append(self._active_graph)
             parts.append(
                 Panel(
                     Group(*body),
@@ -492,10 +748,11 @@ class ProgressSession:
                     padding=(0, 1),
                 )
             )
-        stage_line = self._stage_text
-        if self._stage_fields:
-            stage_line = f"{stage_line}  [progress.dim]{self._stage_fields}[/]"
-        parts.append(Text.from_markup(stage_line, style="progress.stage"))
+        if not (self._sub_visible and self._active_graph is not None):
+            stage_line = self._stage_text
+            if self._stage_fields:
+                stage_line = f"{stage_line}  [progress.dim]{self._stage_fields}[/]"
+            parts.append(Text.from_markup(stage_line, style="progress.stage"))
         return Group(*parts)
 
     def _refresh(self) -> None:

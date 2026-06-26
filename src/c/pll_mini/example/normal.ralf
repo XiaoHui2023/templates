@@ -827,6 +827,15 @@ block blk_mux_hub_l3 {
   }
 }
 
+block blk_mux_extreme_l0 {
+  bytes 4;
+
+  register sel @'ha2c {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
 block blk_gate_hub {
   bytes 4;
 

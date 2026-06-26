@@ -10,6 +10,8 @@
 #   ref_mux    — 枢纽 mux_ref_mid 四路 × mux_ref_tail 三路叠在 gate_ref 前，放大 inno 内层 ref_mux_iters；
 #                mux_stress_ref 三路、mux_stress_inno_ref 四路；inno 岛 mux_stress_inno_a/b 双路输出 mux
 #   mux_combo  — mux_ms0×mux_ms1×mux_ms2×mux_ms3，四×四×三×四 = 192 路组合枚举
+#   extreme    — mux_hub 七级共享枢纽后追加 mux_extreme_l0，只有选中高位分支才可达 96 MHz；
+#                单个合并子树理论 mux 组合 9216 × 4 = 36864
 #   deep_div   — gate_deep 后六路并行自由 div 与 clk，合并为单一子树
 #   div_share  — clk_share_a / b / c 共用 div_share，合并子树后共用一组 ratio
 
@@ -854,9 +856,18 @@ tree:
         "2": src_hub_96m_b
       reg: blk_mux_hub_l3.sel.sel
 
+    mux_extreme_l0:
+      kind: mux
+      source:
+        "0": src_hub_12m
+        "1": src_hub_24m_a
+        "2": src_hub_64m
+        "3": mux_hub_l3
+      reg: blk_mux_extreme_l0.sel.sel
+
     gate_shared_hub:
       kind: gate
-      source: mux_hub_l3
+      source: mux_extreme_l0
       reg: blk_gate_hub.en.en
 
     div_hub_a:
@@ -902,6 +913,6 @@ tree:
       freq: 24000000
 
 settings:
-  main_fn: chip_pll_config_high_shared_mux_hub
+  main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true
   solve_timeout_ms: 180000

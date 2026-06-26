@@ -41,6 +41,7 @@ from registers.pll_search import pll_ref_hz_candidates, search_pll_coefficients
 from model.solve_model import SolveModel
 from load.tools import log_stage_done, log_stage_start
 from model.topology import bind_tree_topology, clear_tree_topology
+from search.progress import ComponentSearchReporter
 
 
 @dataclass(frozen=True)
@@ -113,8 +114,6 @@ def search_tree_constraints(
                 "component",
                 f"{component.index}/{component.total}",
                 clks=_component_label(component),
-                nodes=len(component.node_names),
-                tree_nodes=_format_node_list(component.node_names),
             )
             if deadline is not None and time.perf_counter() > deadline:
                 log_stage_done(
@@ -511,10 +510,6 @@ def _component_log_label(component: SearchComponent) -> str:
     )
 
 
-def _format_node_list(node_names: Set[str] | frozenset[str]) -> str:
-    return ",".join(sorted(node_names))
-
-
 def _raise_component_failure(
     tree: Tree,
     *,
@@ -614,104 +609,114 @@ def _search_tree(
         if isinstance(node, DivNode) and node.ratio is not None:
             ratios[name] = node.ratio
 
-    for assignment in _iter_mux_assignments(
-        tree, free_muxes, targets=targets, fixed_mux_sel=mux_sel
-    ):
-        if deadline is not None and time.perf_counter() > deadline:
-            raise RuntimeError("时钟树约束求解超时或无法判定")
-        trial_mux = {**mux_sel, **assignment}
-        if not _mux_assignments_compatible(tree, targets, trial_mux):
-            continue
-        active = _compute_active(tree, targets, trial_mux)
-        if not _active_covers_targets(tree, targets, active, trial_mux):
-            continue
-        trial_ratios = dict(ratios)
-        if not _assign_div_ratios(
-            tree,
-            free_divs,
-            targets,
-            active,
-            trial_mux,
-            trial_ratios,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
+    reporter = ComponentSearchReporter(tree, free_muxes)
+    try:
+        for assignment in _iter_mux_assignments(
+            tree, free_muxes, targets=targets, fixed_mux_sel=mux_sel
         ):
-            continue
-        ref_muxes, ref_divs = _collect_inno_ref_path_vars(tree, active)
-        ref_mux_free = [
-            name
-            for name in ref_muxes
-            if isinstance(tree.nodes[name], MuxNode) and tree.nodes[name].sel is None
-        ]
-        ref_mux_iters = _iter_mux_assignments(
-            tree, ref_mux_free, targets=targets, fixed_mux_sel=trial_mux
-        )
-        pll_name = _ref_path_pll_name(tree, ref_divs)
-        solved = False
-        for ref_mux_assignment in ref_mux_iters:
-            trial_mux_full = {**trial_mux, **ref_mux_assignment}
-            active_full = _compute_active(tree, targets, trial_mux_full)
-            if not _active_covers_targets(
-                tree, targets, active_full, trial_mux_full
-            ):
+            reporter.mux_trial(assignment)
+            if deadline is not None and time.perf_counter() > deadline:
+                raise RuntimeError("时钟树约束求解超时或无法判定")
+            trial_mux = {**mux_sel, **assignment}
+            if not _mux_assignments_compatible(tree, targets, trial_mux):
                 continue
-            ref_div_iter = _iter_ref_div_ratio_assignments(
+            active = _compute_active(tree, targets, trial_mux)
+            if not _active_covers_targets(tree, targets, active, trial_mux):
+                continue
+            trial_ratios = dict(ratios)
+            if not _assign_div_ratios(
                 tree,
-                ref_divs,
+                free_divs,
+                targets,
+                active,
+                trial_mux,
                 trial_ratios,
-                pll_name=pll_name,
-                targets=targets,
-                active=active_full,
-                mux_sel=trial_mux_full,
-                pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-                pll_sc_fbdiv_max=pll_sc_fbdiv_max,
                 tol_lo=tol_lo,
                 tol_hi=tol_hi,
                 tol_den=tol_den,
+            ):
+                continue
+            ref_muxes, ref_divs = _collect_inno_ref_path_vars(tree, active)
+            ref_mux_free = [
+                name
+                for name in ref_muxes
+                if isinstance(tree.nodes[name], MuxNode) and tree.nodes[name].sel is None
+            ]
+            ref_mux_iters = _iter_mux_assignments(
+                tree, ref_mux_free, targets=targets, fixed_mux_sel=trial_mux
             )
-            for ref_ratio_pack in ref_div_iter:
-                trial_ratios_full = {**trial_ratios, **ref_ratio_pack}
-                port_freq = _propagate_port_freqs(
+            pll_name = _ref_path_pll_name(tree, ref_divs)
+            solved = False
+            reporter.set_trial_mux(trial_mux)
+            if ref_mux_free:
+                reporter.begin_ref_mux(tree, ref_mux_free)
+            for ref_mux_assignment in ref_mux_iters:
+                if ref_mux_free:
+                    reporter.ref_mux_trial(ref_mux_assignment)
+                trial_mux_full = {**trial_mux, **ref_mux_assignment}
+                active_full = _compute_active(tree, targets, trial_mux_full)
+                if not _active_covers_targets(
+                    tree, targets, active_full, trial_mux_full
+                ):
+                    continue
+                ref_div_iter = _iter_ref_div_ratio_assignments(
                     tree,
+                    ref_divs,
+                    trial_ratios,
+                    pll_name=pll_name,
+                    targets=targets,
                     active=active_full,
                     mux_sel=trial_mux_full,
-                    ratios=trial_ratios_full,
-                    targets=targets,
-                    ref_path=bool(ref_divs),
-                )
-                if port_freq is None:
-                    continue
-                if not _clk_targets_match(targets, port_freq):
-                    continue
-                pll_vars = _compute_pll_vars(
-                    tree,
-                    active=active_full,
-                    port_freq=port_freq,
                     pll_sc_fbdiv_min=pll_sc_fbdiv_min,
                     pll_sc_fbdiv_max=pll_sc_fbdiv_max,
                     tol_lo=tol_lo,
                     tol_hi=tol_hi,
                     tol_den=tol_den,
-                    skip_pll_names=pll_anchors,
                 )
-                if pll_vars is None:
-                    continue
-                model = _assemble_model(
-                    tree,
-                    active=active_full,
-                    port_freq=port_freq,
-                    mux_sel=trial_mux_full,
-                    ratios=trial_ratios_full,
-                    pll_vars=pll_vars,
-                    export_nodes=required,
-                )
-                solved = True
-                break
+                for ref_ratio_pack in ref_div_iter:
+                    trial_ratios_full = {**trial_ratios, **ref_ratio_pack}
+                    port_freq = _propagate_port_freqs(
+                        tree,
+                        active=active_full,
+                        mux_sel=trial_mux_full,
+                        ratios=trial_ratios_full,
+                        targets=targets,
+                        ref_path=bool(ref_divs),
+                    )
+                    if port_freq is None:
+                        continue
+                    if not _clk_targets_match(targets, port_freq):
+                        continue
+                    pll_vars = _compute_pll_vars(
+                        tree,
+                        active=active_full,
+                        port_freq=port_freq,
+                        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                        skip_pll_names=pll_anchors,
+                    )
+                    if pll_vars is None:
+                        continue
+                    model = _assemble_model(
+                        tree,
+                        active=active_full,
+                        port_freq=port_freq,
+                        mux_sel=trial_mux_full,
+                        ratios=trial_ratios_full,
+                        pll_vars=pll_vars,
+                        export_nodes=required,
+                    )
+                    solved = True
+                    break
+                if solved:
+                    break
             if solved:
-                break
-        if solved:
-            return model
+                return model
+    finally:
+        reporter.end()
 
     raise RuntimeError("时钟树约束互相矛盾，无解")
 
@@ -744,68 +749,72 @@ def _search_pll_ref_tree(
         if isinstance(node, DivNode) and node.ratio is not None:
             ratios[name] = node.ratio
 
-
-    for assignment in _iter_mux_assignments(
-        tree, free_muxes, fixed_mux_sel=mux_sel
-    ):
-        if deadline is not None and time.perf_counter() > deadline:
-            raise RuntimeError("时钟树约束求解超时或无法判定")
-        trial_mux = {**mux_sel, **assignment}
-        active = _compute_active_pll_ref(tree, pll_name, trial_mux) & required
-        if pll_name not in active:
-            continue
-        for trial_ratios in _iter_ref_div_ratio_assignments(
-            tree,
-            ref_divs,
-            ratios,
-            pll_name=pll_name,
-            targets=[],
-            active=active,
-            mux_sel=trial_mux,
-            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
+    reporter = ComponentSearchReporter(tree, free_muxes, pll_ref=True)
+    try:
+        for assignment in _iter_mux_assignments(
+            tree, free_muxes, fixed_mux_sel=mux_sel
         ):
-            port_freq = _propagate_port_freqs(
+            reporter.mux_trial(assignment)
+            if deadline is not None and time.perf_counter() > deadline:
+                raise RuntimeError("时钟树约束求解超时或无法判定")
+            trial_mux = {**mux_sel, **assignment}
+            active = _compute_active_pll_ref(tree, pll_name, trial_mux) & required
+            if pll_name not in active:
+                continue
+            for trial_ratios in _iter_ref_div_ratio_assignments(
                 tree,
+                ref_divs,
+                ratios,
+                pll_name=pll_name,
+                targets=[],
                 active=active,
                 mux_sel=trial_mux,
-                ratios=trial_ratios,
-                targets=[],
-                ref_path=True,
-            )
-            if port_freq is None:
-                continue
-            if compute_pll_vars:
-                pll_vars = _compute_pll_vars(
+                pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+            ):
+                port_freq = _propagate_port_freqs(
+                    tree,
+                    active=active,
+                    mux_sel=trial_mux,
+                    ratios=trial_ratios,
+                    targets=[],
+                    ref_path=True,
+                )
+                if port_freq is None:
+                    continue
+                if compute_pll_vars:
+                    pll_vars = _compute_pll_vars(
+                        tree,
+                        active=active,
+                        port_freq=port_freq,
+                        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                        only_pll_names=frozenset({pll_name}),
+                    )
+                    if pll_vars is None or pll_name not in pll_vars:
+                        continue
+                else:
+                    ref_port = parent_port_for_child(tree, pll_name)
+                    if port_freq.get(ref_port, 0) <= 0:
+                        continue
+                    pll_vars = {}
+                return _assemble_model(
                     tree,
                     active=active,
                     port_freq=port_freq,
-                    pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-                    pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-                    tol_lo=tol_lo,
-                    tol_hi=tol_hi,
-                    tol_den=tol_den,
-                    only_pll_names=frozenset({pll_name}),
+                    mux_sel=trial_mux,
+                    ratios=trial_ratios,
+                    pll_vars=pll_vars,
+                    export_nodes=required,
                 )
-                if pll_vars is None or pll_name not in pll_vars:
-                    continue
-            else:
-                ref_port = parent_port_for_child(tree, pll_name)
-                if port_freq.get(ref_port, 0) <= 0:
-                    continue
-                pll_vars = {}
-            return _assemble_model(
-                tree,
-                active=active,
-                port_freq=port_freq,
-                mux_sel=trial_mux,
-                ratios=trial_ratios,
-                pll_vars=pll_vars,
-                export_nodes=required,
-            )
+    finally:
+        reporter.end()
 
     raise RuntimeError("时钟树约束互相矛盾，无解")
 
