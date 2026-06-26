@@ -224,23 +224,61 @@ def format_solve_failure_detail(
 ) -> str:
     sections: List[str] = []
 
+    unsat_started_at = log_stage_start(
+        "diagnose",
+        "unsat_core",
+        "z3 unsat core",
+        hints=len(hints),
+    )
+    core = format_unsat_diagnosis(smt2_named, hints)
+    log_stage_done(
+        "diagnose",
+        "unsat_core",
+        "z3 unsat core",
+        unsat_started_at,
+        found=bool(core),
+    )
+    if core:
+        sections.append(core)
+
+    issues_started_at = log_stage_start(
+        "diagnose",
+        "collect",
+        "debug issues",
+        nodes=len(tree.nodes),
+    )
     issues = collect_debug_issues(tree, period_tolerance)
+    log_stage_done(
+        "diagnose",
+        "collect",
+        "debug issues",
+        issues_started_at,
+        issues=len(issues),
+    )
     debug_text = format_debug_issues(issues)
     if debug_text:
         sections.append(debug_text)
 
-    core = format_unsat_diagnosis(smt2_named, hints)
-    if core:
-        sections.append(core)
-
+    paths_started_at = log_stage_start(
+        "diagnose",
+        "format",
+        "upstream paths",
+        nodes=len(tree.nodes),
+    )
     paths = format_upstream_paths(tree)
+    log_stage_done(
+        "diagnose",
+        "format",
+        "upstream paths",
+        paths_started_at,
+        lines=paths.count("\n") + 1 if paths else 0,
+    )
     if paths:
         sections.append("频率传播路径（clk 往前级）：\n" + paths)
 
-    sections.append(
-        "当前 YAML 固定项（字段路径）：\n"
-        + format_node_path_cheatsheet(tree)
-    )
+    cheatsheet = format_node_path_cheatsheet(tree)
+    if cheatsheet:
+        sections.append("当前 YAML 固定项（字段路径）：\n" + cheatsheet)
 
     if not sections:
         return ""

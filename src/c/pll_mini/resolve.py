@@ -19,6 +19,7 @@ from nodes import (
 )
 from regmodel import RegModelIndex, reg_bound_max
 from smt import solve_tree_constraints
+from tools import log_stage_done, log_stage_start
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,12 @@ def resolve_tree(
         timeout_ms=consolver_timeout_ms,
     )
 
+    resolve_started_at = log_stage_start(
+        "resolve",
+        "nodes",
+        "tree",
+        nodes=len(tree.nodes),
+    )
     resolved: Dict[str, ResolvedNode] = {}
     for node_name, node in tree.nodes.items():
         on_path = active_map.get(node_name, False)
@@ -140,9 +147,29 @@ def resolve_tree(
             pll_cfg=pll_cfg,
         )
 
+    log_stage_done(
+        "resolve",
+        "nodes",
+        "tree",
+        resolve_started_at,
+        nodes=len(resolved),
+    )
+
     result = TreeResolve(
         by_name=resolved,
         clk_names=tuple(n.name for n in clk_nodes),
     )
+    diagnose_started_at = log_stage_start(
+        "resolve",
+        "diagnose",
+        "upstream paths",
+        nodes=len(tree.nodes),
+    )
     verify_upstream_diagnose(tree, period_tolerance)
+    log_stage_done(
+        "resolve",
+        "diagnose",
+        "upstream paths",
+        diagnose_started_at,
+    )
     return result

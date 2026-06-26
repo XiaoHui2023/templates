@@ -19,11 +19,10 @@ _FREQ_TOL_DEN = 100
 
 @dataclass(frozen=True)
 class DebugIssue:
-    """一条可操作的调试说明。"""
+    """一条调试说明。"""
 
     headline: str
     detail: str
-    fixes: tuple[str, ...]
 
 
 def _freq_tolerance_bounds(
@@ -222,6 +221,109 @@ def _is_passthrough_kind(kind: str) -> bool:
     return kind in ("gate", "inv", "cell", "clk")
 
 
+def _kind_tag(node: object) -> str:
+    if isinstance(node, DivNode):
+        return node.div_kind
+    if isinstance(node, MuxNode):
+        return "mux"
+    return str(getattr(node, "kind", "?"))
+
+
+def _node_state_label(node: object) -> str:
+    kind = getattr(node, "kind", None)
+    if kind == "source":
+        freq = getattr(node, "freq", 0)
+        if freq > 0:
+            return f"固定 {_hz_mhz(int(freq))}"
+        return "频率未固定"
+    if isinstance(node, PllNode):
+        return f"固定 {_hz_mhz(node.freq)}"
+    if isinstance(node, ClkNode):
+        if node.freq is not None:
+            return f"目标固定 {_hz_mhz(node.freq)}"
+        return "频率未固定"
+    if isinstance(node, DivNode):
+        if node.ratio is not None:
+            return f"分频比固定 {node.ratio}"
+        return f"分频比未固定（{_allowed_ratio_text(node)}）"
+    if isinstance(node, MuxNode):
+        if node.sel is not None:
+            return f"sel 固定 {node.sel}"
+        return "sel 未固定"
+    if isinstance(node, GateNode):
+        if node.open is not None:
+            return "固定开" if node.open else "固定关"
+        return "开关未固定"
+    if kind in ("gate", "inv", "cell"):
+        return "透传，频率未固定"
+    return "频率未固定"
+
+
+def _find_downstream_path(tree: Tree, start: str, target: str) -> List[str] | None:
+    if start == target:
+        return [start]
+    parent_of: dict[str, str] = {}
+    queue = [start]
+    seen = {start}
+    while queue:
+        name = queue.pop(0)
+        for child in _downstream_nodes(tree, name):
+            if child in seen:
+                continue
+            seen.add(child)
+            parent_of[child] = name
+            if child == target:
+                path = [target]
+                cur = name
+                while True:
+                    path.append(cur)
+                    if cur == start:
+                        break
+                    cur = parent_of[cur]
+                path.reverse()
+                return path
+            queue.append(child)
+    return None
+
+
+def _full_path_source_to_target(
+    tree: Tree,
+    *,
+    via: str,
+    target: str,
+) -> List[str]:
+    up_chain = _walk_upstream_chain(tree, via)
+    up_path = list(reversed(up_chain))
+    down_path = _find_downstream_path(tree, via, target)
+    if down_path is None:
+        return up_path
+    if len(down_path) > 1:
+        return up_path + down_path[1:]
+    return up_path
+
+
+def _format_route_tree(
+    tree: Tree,
+    path: Sequence[str],
+    *,
+    highlight: str | None = None,
+    route_label: str,
+) -> str:
+    if not path:
+        return ""
+    lines = [route_label]
+    for depth, name in enumerate(path):
+        node = tree.nodes[name]
+        indent = "   " * depth
+        branch = "└─ " if depth > 0 else ""
+        mark = " ← 分频无法满足" if name == highlight else ""
+        lines.append(
+            f"{indent}{branch}{name} [{_kind_tag(node)}] "
+            f"{_node_state_label(node)}{mark}"
+        )
+    return "\n".join(lines)
+
+
 def _issue_passthrough_freq_mismatch(
     clk_name: str,
     clk_hz: int,
@@ -235,23 +337,14 @@ def _issue_passthrough_freq_mismatch(
         f"同一路径上 pll {pll_name} 固定 {_hz_mhz(pll_hz)}；"
         f"中间 {mid} 只透传频率，两处数值必须相同。"
     )
-    fixes = (
-        f"把 {_yaml_freq(clk_name)} 改为 {pll_hz}",
-        f"或把 {_yaml_freq(pll_name)} 改为 {clk_hz}",
-    )
-    if between:
-        fixes = (
-            *fixes,
-            f"或在中间插入 div 节点做分频，而不是直接透传",
-        )
     return DebugIssue(
         headline=f"透传路径频率不一致：{clk_name} 与 {pll_name}",
         detail=detail,
-        fixes=fixes,
     )
 
 
 def _issue_div_impossible(
+    tree: Tree,
     div_name: str,
     div: DivNode,
     parent_name: str,
@@ -271,12 +364,31 @@ def _issue_div_impossible(
 
     detail_lines = [
         f"div {div_name}（{div.div_kind}，{ratio_label}）",
-        f"前级 {parent_name} = {_hz_mhz(parent_hz)}",
-        f"下游 {child_name} 需要 {_hz_mhz(child_hz)}",
         f"在容差 {tol_pct:g}% 下，前级通过该 div 分频后够不到下游目标。",
     ]
 
-    fixes: List[str] = []
+    path = _full_path_source_to_target(
+        tree, via=div_name, target=child_name
+    )
+    if path:
+        detail_lines.append(
+            _format_route_tree(
+                tree,
+                path,
+                highlight=div_name,
+                route_label=(
+                    f"完整路线（{path[0]} → {path[-1]}）："
+                ),
+            )
+        )
+    else:
+        detail_lines.extend(
+            [
+                f"前级 {parent_name} = {_hz_mhz(parent_hz)}",
+                f"下游 {child_name} 需要 {_hz_mhz(child_hz)}",
+            ]
+        )
+
     if div.ratio is not None:
         bands = _div_output_bands(
             parent_hz, div.ratio, tol_lo, tol_hi, tol_den
@@ -289,15 +401,6 @@ def _issue_div_impossible(
             detail_lines.append(
                 f"在分频比 {div.ratio} 下，可达输出范围为：{band_text}。"
             )
-            best_lo, best_hi = bands[0][1], bands[0][2]
-            fixes.append(
-                f"把 {_yaml_freq(child_name)} 调到 {best_lo}～{best_hi} 之间"
-            )
-            approx_parent = child_hz * div.ratio
-            fixes.append(
-                f"或把 {_yaml_freq(parent_name)} 调到约 {approx_parent}"
-            )
-        fixes.append(f"或删除 {_yaml_ratio(div_name)}，让求解器自动选分频比")
     else:
         near = _nearest_ratio_examples(
             parent_hz,
@@ -310,34 +413,6 @@ def _issue_div_impossible(
         if near:
             detail_lines.append("接近目标的分频比举例：")
             detail_lines.extend(f"  · {line}" for line in near)
-            scored: List[tuple[int, int, int]] = []
-            for ratio in candidates[:64]:
-                for rem in range(ratio):
-                    hw_num = parent_hz - rem
-                    if hw_num <= 0 or hw_num % ratio != 0:
-                        continue
-                    freq_hw = hw_num // ratio
-                    if freq_hw <= 0:
-                        continue
-                    scored.append(
-                        (abs(freq_hw - child_hz), ratio, freq_hw)
-                    )
-            if scored:
-                _err, best_ratio, best_hw = min(scored, key=lambda item: item[0])
-                fixes.insert(
-                    0,
-                    f"把 {_yaml_freq(child_name)} 改为 {best_hw}"
-                    f"（分频比 {best_ratio} 时最接近）",
-                )
-                fixes.insert(
-                    1,
-                    f"或把 {_yaml_freq(parent_name)} 改为约 {child_hz * best_ratio}",
-                )
-        fixes.append(
-            f"调整 {_yaml_freq(child_name)} 或 {_yaml_freq(parent_name)}，"
-            f"使二者之比落在合法分频比与容差内"
-        )
-        fixes.append(f"或增大 settings.period_tolerance（当前 {period_tolerance}）")
 
     ideal = parent_hz / child_hz if child_hz > 0 else 0
     if ideal >= 1:
@@ -347,9 +422,8 @@ def _issue_div_impossible(
         )
 
     return DebugIssue(
-        headline=f"div {div_name} 分频无法满足：{parent_name} → {child_name}",
+        headline=f"div {div_name} 分频无法满足：{path[0] if path else parent_name} → {child_name}",
         detail="\n".join(detail_lines),
-        fixes=tuple(fixes),
     )
 
 
@@ -459,6 +533,7 @@ def _collect_div_issues(
                 continue
             issues.append(
                 _issue_div_impossible(
+                    tree,
                     div_name,
                     div,
                     parent_name,
@@ -544,57 +619,8 @@ def collect_debug_issues(
                                 f"但 {clk_name} 要求 {_hz_mhz(clk_hz)}，"
                                 f"中间 {', '.join(after_mux) or '无'} 只透传。"
                             ),
-                            fixes=(
-                                f"把 {_yaml_freq(clk_name)} 改为 {arm_hz}",
-                                f"或把 {_yaml_mux_sel(mux_name)} 改到能分出"
-                                f" {clk_hz} Hz 的分支",
-                                f"或在 mux 与 {clk_name} 之间加 div",
-                            ),
                         )
                     )
-
-    for mux_name, mux in tree.nodes.items():
-        if not isinstance(mux, MuxNode) or mux.sel is not None:
-            continue
-        downstream_clks: List[tuple[str, int]] = []
-        for clk_name, clk in tree.nodes.items():
-            if not isinstance(clk, ClkNode) or clk.freq is None:
-                continue
-            if mux_name in _walk_upstream_chain(tree, clk_name):
-                downstream_clks.append((clk_name, clk.freq))
-        if not downstream_clks:
-            continue
-        branch_hz: List[str] = []
-        for key, arm_ref in sorted(mux.source.items(), key=lambda kv: int(kv[0])):
-            arm_name, _ = parse_source_endpoint(
-                arm_ref, ctx=f"mux {mux_name!r}"
-            )
-            hz = _fixed_hz(tree.nodes[arm_name])
-            if hz is None:
-                sub = _walk_upstream_chain(tree, arm_name)
-                for n in sub:
-                    hz = _fixed_hz(tree.nodes[n])
-                    if hz is not None:
-                        break
-            label = _hz_mhz(hz) if hz is not None else "频率未固定"
-            branch_hz.append(f"sel={key} → {arm_name}（{label}）")
-        clk_desc = "、".join(
-            f"{n}={_hz_mhz(h)}" for n, h in downstream_clks
-        )
-        issues.append(
-            DebugIssue(
-                headline=f"mux {mux_name} 未固定 sel，与下游 clk 频率可能冲突",
-                detail=(
-                    f"下游固定频率：{clk_desc}。\n"
-                    f"各分支前级：{'；'.join(branch_hz)}。\n"
-                    f"sel 未写死时，求解器要在分支间同时满足下游目标。"
-                ),
-                fixes=(
-                    f"为 {_yaml_mux_sel(mux_name)} 指定能达成目标频率的分支",
-                    "或放宽/删除下游 clk 的 freq",
-                ),
-            )
-        )
 
     issues.extend(
         _collect_div_issues(tree, period_tolerance, tol_lo, tol_hi, tol_den)
@@ -620,11 +646,9 @@ def format_debug_issues(issues: Sequence[DebugIssue]) -> str:
         return ""
     blocks: List[str] = []
     for index, issue in enumerate(issues, start=1):
-        fix_lines = "\n".join(f"    · {fix}" for fix in issue.fixes)
         blocks.append(
             f"[{index}] {issue.headline}\n"
-            f"  {issue.detail.replace(chr(10), chr(10) + '  ')}\n"
-            f"  可尝试：\n{fix_lines}"
+            f"  {issue.detail.replace(chr(10), chr(10) + '  ')}"
         )
     return "调试建议：\n" + "\n\n".join(blocks)
 
@@ -669,5 +693,5 @@ def format_node_path_cheatsheet(tree: Tree) -> str:
         elif isinstance(node, GateNode) and node.open is not None:
             lines.append(f"- tree.nodes.{name}.open = {int(node.open)}")
     if not lines:
-        return "- 未在 YAML 中固定频率、分频比或 mux sel"
+        return ""
     return "\n".join(lines)

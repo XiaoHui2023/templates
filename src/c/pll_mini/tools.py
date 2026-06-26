@@ -175,9 +175,22 @@ def run_consolver_solve(
         raise RuntimeError(
             f"consolver 退出码 {proc.returncode}: {detail or '无输出'}"
         )
+    parse_started_at = log_stage_start(
+        "consolver",
+        "parse",
+        label,
+        stdout_bytes=len(proc.stdout),
+    )
     try:
         payload = json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
+        log_stage_done(
+            "consolver",
+            "parse",
+            label,
+            parse_started_at,
+            failed=True,
+        )
         raise RuntimeError(
             f"consolver 输出不是合法 JSON: {proc.stdout[:200]!r}"
         ) from exc
@@ -193,10 +206,32 @@ def run_consolver_solve(
         detail = f"{headline}"
         if reason:
             detail = f"{detail}；{reason}"
+        log_stage_done(
+            "consolver",
+            "parse",
+            label,
+            parse_started_at,
+            status=status,
+        )
         raise RuntimeError(detail)
     model = payload.get("model")
     if not isinstance(model, dict):
+        log_stage_done(
+            "consolver",
+            "parse",
+            label,
+            parse_started_at,
+            failed=True,
+        )
         raise RuntimeError(f"consolver 返回缺少 model 字段: {payload!r}")
+    log_stage_done(
+        "consolver",
+        "parse",
+        label,
+        parse_started_at,
+        status=status,
+        model_items=len(model),
+    )
     return model
 
 
