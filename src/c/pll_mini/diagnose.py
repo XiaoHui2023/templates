@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Mapping, Sequence
+from typing import List, Mapping, Sequence, Set
 
 from formulas import (
     DTO_MAX_RATIO,
@@ -403,8 +403,10 @@ def print_diagnostic_report(
     *,
     issues: Sequence[DiagnosticIssue],
     unsat_core: str = "",
+    headline: str = "",
 ) -> None:
-    parts: List[object] = [Rule("[bold]pll_mini 诊断[/bold]", style="cyan")]
+    title = headline.strip() or "pll_mini 诊断"
+    parts: List[object] = [Rule(f"[bold]{title}[/bold]", style="cyan")]
     core_text = unsat_core.strip()
     if core_text:
         parts.append(
@@ -430,6 +432,68 @@ def print_diagnostic_report(
             )
         )
     _console().print(Group(*parts))
+
+
+def format_search_component_failure(
+    tree: Tree,
+    *,
+    period_tolerance: float,
+    component_index: int,
+    component_total: int,
+    component_targets: Sequence[tuple[str, int]],
+    component_nodes: Set[str],
+) -> str:
+    """子树定向搜索失败时的静态诊断与路径图。"""
+    static_started_at = log_stage_start(
+        "diagnose",
+        "collect",
+        f"component {component_index}/{component_total}",
+        clks=len(component_targets),
+        nodes=len(component_nodes),
+    )
+    issues = collect_static_issues(tree, period_tolerance)
+    scoped: List[DiagnosticIssue] = []
+    for issue in issues:
+        if not issue.path_nodes:
+            scoped.append(issue)
+            continue
+        if component_nodes.intersection(issue.path_nodes):
+            scoped.append(issue)
+    if not scoped:
+        scoped = list(issues)
+    log_stage_done(
+        "diagnose",
+        "collect",
+        f"component {component_index}/{component_total}",
+        static_started_at,
+        issues=len(scoped),
+    )
+    render_started_at = log_stage_start(
+        "diagnose",
+        "format",
+        f"component {component_index}/{component_total}",
+        nodes=len(component_nodes),
+    )
+    clk_list = ", ".join(name for name, _ in component_targets)
+    print_diagnostic_report(
+        tree,
+        issues=scoped,
+        headline=(
+            f"子树 {component_index}/{component_total} 求解失败"
+            f"（clk: {clk_list}）"
+        ),
+    )
+    log_stage_done(
+        "diagnose",
+        "format",
+        f"component {component_index}/{component_total}",
+        render_started_at,
+        issues=len(scoped),
+    )
+    detail_text = format_diagnostic_issues(scoped)
+    if detail_text:
+        return f"{detail_text}\n\n路径子树见 stderr。"
+    return ""
 
 
 def format_solve_failure_detail(

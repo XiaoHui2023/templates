@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import time
+from collections import defaultdict
+from dataclasses import dataclass
 from typing import Dict, Iterator, List, Set, Tuple
 
 from formulas import (
@@ -36,6 +38,16 @@ from solve_model import SolveModel
 from tools import log_stage_done, log_stage_start
 
 
+@dataclass(frozen=True)
+class SearchComponent:
+    """一次顺序求解的子树：共享硬件连通域内的 clk 目标集合。"""
+
+    index: int
+    total: int
+    targets: tuple[tuple[str, int], ...]
+    node_names: frozenset[str]
+
+
 def search_tree_constraints(
     tree: Tree,
     *,
@@ -63,15 +75,90 @@ def search_tree_constraints(
         targets=len(targets),
     )
     try:
-        model = _search_tree(
-            tree,
-            targets=targets,
-            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
-            deadline=deadline,
+        components = partition_search_components(tree, targets)
+        partition_started = log_stage_start(
+            "search",
+            "partition",
+            "clock components",
+            components=len(components),
+        )
+        comp_labels = "; ".join(_component_log_label(c) for c in components)
+        log_stage_done(
+            "search",
+            "partition",
+            "clock components",
+            partition_started,
+            components=len(components),
+            trees=comp_labels,
+        )
+        partial_models: List[SolveModel] = []
+        for component in components:
+            comp_started = log_stage_start(
+                "search",
+                "component",
+                f"{component.index}/{component.total}",
+                clks=_component_clk_names(component),
+                nodes=len(component.node_names),
+                tree_nodes=_format_node_list(component.node_names),
+            )
+            if deadline is not None and time.perf_counter() > deadline:
+                log_stage_done(
+                    "search",
+                    "component",
+                    f"{component.index}/{component.total}",
+                    comp_started,
+                    failed=True,
+                    progress=f"{component.index - 1}/{component.total}",
+                )
+                raise RuntimeError("时钟树约束求解超时或无法判定")
+            try:
+                partial = _search_tree(
+                    tree,
+                    targets=list(component.targets),
+                    pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                    pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                    deadline=deadline,
+                )
+            except RuntimeError as exc:
+                log_stage_done(
+                    "search",
+                    "component",
+                    f"{component.index}/{component.total}",
+                    comp_started,
+                    failed=True,
+                    progress=f"{component.index - 1}/{component.total}",
+                )
+                _raise_component_failure(
+                    tree,
+                    component=component,
+                    period_tolerance=period_tolerance,
+                    cause=exc,
+                )
+            log_stage_done(
+                "search",
+                "component",
+                f"{component.index}/{component.total}",
+                comp_started,
+                status="ok",
+                progress=f"{component.index}/{component.total}",
+            )
+            partial_models.append(partial)
+        merge_started = log_stage_start(
+            "search",
+            "merge",
+            "component models",
+            components=len(partial_models),
+        )
+        model = merge_solve_models(tree, partial_models)
+        log_stage_done(
+            "search",
+            "merge",
+            "component models",
+            merge_started,
+            progress=f"{len(partial_models)}/{len(components)}",
         )
     except RuntimeError:
         log_stage_done(
@@ -88,8 +175,194 @@ def search_tree_constraints(
         "tree constraints",
         started_at,
         model_items=len(model.port_freq),
+        components=len(components),
     )
     return model
+
+
+def partition_search_components(
+    tree: Tree,
+    targets: List[Tuple[str, int]],
+) -> List[SearchComponent]:
+    """按硬件无向连通域把 clk 目标拆成多个顺序求解的子树。"""
+    if not targets:
+        return []
+    adj = _build_undirected_adj(tree)
+    target_hz = dict(targets)
+    target_clks = set(target_hz)
+    reachable: Set[str] = set()
+    for clk_name in target_clks:
+        stack = [clk_name]
+        while stack:
+            name = stack.pop()
+            if name in reachable:
+                continue
+            if name not in tree.nodes:
+                continue
+            reachable.add(name)
+            for peer in adj.get(name, ()):
+                stack.append(peer)
+
+    components_raw: List[List[Tuple[str, int]]] = []
+    seen: Set[str] = set()
+    for start in sorted(reachable):
+        if start in seen:
+            continue
+        comp_nodes: Set[str] = set()
+        stack = [start]
+        while stack:
+            name = stack.pop()
+            if name in comp_nodes:
+                continue
+            comp_nodes.add(name)
+            seen.add(name)
+            for peer in adj.get(name, ()):
+                if peer in reachable and peer not in comp_nodes:
+                    stack.append(peer)
+        comp_targets = sorted(
+            (clk_name, target_hz[clk_name])
+            for clk_name in comp_nodes
+            if clk_name in target_clks
+        )
+        if comp_targets:
+            components_raw.append(comp_targets)
+
+    components_raw.sort(key=lambda items: items[0][0])
+    total = len(components_raw)
+    out: List[SearchComponent] = []
+    for index, comp_targets in enumerate(components_raw, start=1):
+        required = backward_required_nodes(tree, comp_targets)
+        out.append(
+            SearchComponent(
+                index=index,
+                total=total,
+                targets=tuple(comp_targets),
+                node_names=frozenset(required),
+            )
+        )
+    return out
+
+
+def merge_solve_models(tree: Tree, models: List[SolveModel]) -> SolveModel:
+    if not models:
+        raise RuntimeError("时钟树约束互相矛盾，无解")
+    if len(models) == 1:
+        return models[0]
+
+    active: Dict[str, bool] = {name: False for name in tree.nodes}
+    port_freq: Dict[Port, int] = {}
+    mux_sel: Dict[str, int] = {}
+    ratios: Dict[str, int] = {}
+    gate_open: Dict[str, bool] = {}
+    pll_vars: Dict[str, Dict[str, int]] = {}
+
+    for partial in models:
+        for name, on in partial.active.items():
+            if on:
+                active[name] = True
+        for port, hz in partial.port_freq.items():
+            if partial.active.get(port.node, False):
+                port_freq[port] = hz
+        for name, sel in partial.mux_sel.items():
+            if partial.active.get(name, False):
+                mux_sel[name] = sel
+        for name, ratio in partial.ratios.items():
+            if partial.active.get(name, False):
+                ratios[name] = ratio
+        for name, opened in partial.gate_open.items():
+            if partial.active.get(name, False):
+                gate_open[name] = opened
+        for name, coeffs in partial.pll_vars.items():
+            if partial.active.get(name, False):
+                pll_vars[name] = coeffs
+
+    for name in tree.nodes:
+        if name not in active:
+            active[name] = False
+        for port in output_ports(tree, name):
+            if port not in port_freq:
+                port_freq[port] = 0
+        node = tree.nodes[name]
+        if isinstance(node, GateNode) and name not in gate_open:
+            if node.open == 0:
+                gate_open[name] = False
+            elif node.open == 1:
+                gate_open[name] = True
+            else:
+                gate_open[name] = active.get(name, False)
+
+    return SolveModel(
+        active=active,
+        port_freq=port_freq,
+        ratios=ratios,
+        mux_sel=mux_sel,
+        gate_open=gate_open,
+        pll_vars=pll_vars,
+    )
+
+
+def _build_undirected_adj(tree: Tree) -> Dict[str, Set[str]]:
+    adj: Dict[str, Set[str]] = defaultdict(set)
+    for name, node in tree.nodes.items():
+        if node.kind == "source":
+            continue
+        if isinstance(node, MuxNode):
+            for arm_ref in node.source.values():
+                peer_name, _ = parse_source_endpoint(arm_ref, ctx=f"mux {name!r}")
+                adj[name].add(peer_name)
+                adj[peer_name].add(name)
+            continue
+        if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+            try:
+                parent_port = parent_port_for_child(tree, name)
+            except ValueError:
+                continue
+            parent_name = parent_port.node
+            adj[name].add(parent_name)
+            adj[parent_name].add(name)
+    return adj
+
+
+def _component_clk_names(component: SearchComponent) -> str:
+    return ",".join(name for name, _ in component.targets)
+
+
+def _component_log_label(component: SearchComponent) -> str:
+    return (
+        f"[{component.index}] clks={_component_clk_names(component)} "
+        f"nodes={len(component.node_names)}"
+    )
+
+
+def _format_node_list(node_names: Set[str] | frozenset[str]) -> str:
+    return ",".join(sorted(node_names))
+
+
+def _raise_component_failure(
+    tree: Tree,
+    *,
+    component: SearchComponent,
+    period_tolerance: float,
+    cause: RuntimeError,
+) -> None:
+    from diagnose import format_search_component_failure
+
+    clks = _component_clk_names(component)
+    headline = (
+        f"子树 {component.index}/{component.total} 求解失败"
+        f"（clk: {clks}）: {cause}"
+    )
+    detail = format_search_component_failure(
+        tree,
+        period_tolerance=period_tolerance,
+        component_index=component.index,
+        component_total=component.total,
+        component_targets=list(component.targets),
+        component_nodes=set(component.node_names),
+    )
+    if detail:
+        raise RuntimeError(f"{headline}\n\n{detail}") from cause
+    raise RuntimeError(headline) from cause
 
 
 def _search_tree(
