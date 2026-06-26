@@ -16,8 +16,7 @@ from nodes import (
 from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 from diagnose import (
     collect_debug_issues,
-    format_clock_tree_plain,
-    format_debug_issues_summary,
+    format_debug_issues,
     print_diagnostic_report,
 )
 from tools import log_stage_done, log_stage_start, run_consolver_solve
@@ -267,15 +266,9 @@ def format_solve_failure_detail(
         issues=len(issues),
     )
 
-    graph = format_clock_tree_plain(tree, issues=issues)
-    summary = format_debug_issues_summary(issues)
-    sections: List[str] = []
-    if summary:
-        sections.append(summary)
-    if graph:
-        sections.append(graph)
-    if sections:
-        return "\n\n".join(sections)
+    detail_text = format_debug_issues(issues)
+    if detail_text:
+        return f"{detail_text}\n\n路径子树见 stderr。"
     if core:
         return "约束冲突；彩色诊断图已输出到 stderr。"
     return ""

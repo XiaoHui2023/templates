@@ -29,6 +29,7 @@ class DebugIssue:
 
     headline: str
     detail: str
+    path_nodes: tuple[str, ...] = ()
 
 
 def _freq_tolerance_bounds(
@@ -309,41 +310,6 @@ def _node_plain_label(
     return f"{mark}{name} [{_kind_tag(node)}]{suffix}"
 
 
-def _source_parent_edges(tree: Tree) -> dict[str, List[tuple[str, str]]]:
-    edges: dict[str, List[tuple[str, str]]] = {name: [] for name in tree.nodes}
-    for child_name, child in tree.nodes.items():
-        if child.kind == "source":
-            continue
-        if isinstance(child, MuxNode):
-            for key, ref in child.source.items():
-                parent_name, _ = parse_source_endpoint(
-                    ref, ctx=f"mux {child_name!r}"
-                )
-                edge_label = f"sel={key}"
-                if child.sel is not None:
-                    edge_label += " *" if str(child.sel) == str(key) else ""
-                edges.setdefault(parent_name, []).append((child_name, edge_label))
-            continue
-        parent_name, out_group = parse_source_endpoint(
-            child.source, ctx=f"node {child_name!r} source"
-        )
-        edge_label = f"[{out_group}]" if out_group else ""
-        edges.setdefault(parent_name, []).append((child_name, edge_label))
-    for children in edges.values():
-        children.sort(key=lambda item: item[0])
-    return edges
-
-
-def _graph_roots(tree: Tree, edges: dict[str, List[tuple[str, str]]]) -> List[str]:
-    has_parent = {child for children in edges.values() for child, _ in children}
-    roots = [
-        name
-        for name, node in tree.nodes.items()
-        if node.kind == "source" or name not in has_parent
-    ]
-    return sorted(dict.fromkeys(roots))
-
-
 def _problem_nodes_from_issues(issues: Sequence[DebugIssue]) -> set[str]:
     problem_nodes: set[str] = set()
     for issue in issues:
@@ -354,65 +320,28 @@ def _problem_nodes_from_issues(issues: Sequence[DebugIssue]) -> set[str]:
     return problem_nodes
 
 
-def _plain_tree_graph(
+def _plain_path_graph(
     tree: Tree,
+    path_nodes: Sequence[str],
     *,
     issues: Sequence[DebugIssue],
 ) -> str:
-    edges = _source_parent_edges(tree)
-    roots = _graph_roots(tree, edges)
+    if not path_nodes:
+        return ""
     problem_nodes = _problem_nodes_from_issues(issues)
-    lines = ["pll_mini diagnose", "clock tree"]
-
-    def walk(
-        name: str,
-        *,
-        prefix: str,
-        branch: str,
-        seen: set[str],
-        edge_label: str = "",
-    ) -> None:
+    lines = ["相关路径:"]
+    for index, name in enumerate(path_nodes):
         node = tree.nodes[name]
-        edge = f"({edge_label}) " if edge_label else ""
+        if index == 0:
+            lines.append(
+                _node_plain_label(name, node, problem_nodes=problem_nodes)
+            )
+            continue
+        indent = "    " * (index - 1)
         lines.append(
-            f"{prefix}{branch}{edge}"
+            f"{indent}`-- "
             f"{_node_plain_label(name, node, problem_nodes=problem_nodes)}"
         )
-        if name in seen:
-            lines[-1] += "  (cycle)"
-            return
-        next_seen = {*seen, name}
-        children = edges.get(name, [])
-        for idx, (child, child_edge) in enumerate(children):
-            is_last = idx + 1 == len(children)
-            child_branch = "`-- " if is_last else "+-- "
-            if not branch:
-                next_prefix = ""
-            elif branch == "`-- ":
-                next_prefix = "    "
-            else:
-                next_prefix = "|   "
-            child_prefix = prefix + next_prefix
-            walk(
-                child,
-                prefix=child_prefix,
-                branch=child_branch,
-                seen=next_seen,
-                edge_label=child_edge,
-            )
-
-    for root in roots:
-        walk(root, prefix="", branch="", seen=set())
-    lines.extend(
-        [
-            "",
-            "legend:",
-            "  freq            input source fixed frequency",
-            "  target          PLL/clk target frequency",
-            "  ratio/sel/open  fixed value or auto-solved",
-            "  !               divider constraint suspect",
-        ]
-    )
     return "\n".join(lines)
 
 
@@ -448,68 +377,36 @@ def _node_rich_label(
     return label
 
 
-def _append_tree_children(
-    branch: RichTree,
-    name: str,
-    *,
+def build_path_clock_tree_rich(
     tree: Tree,
-    edges: dict[str, List[tuple[str, str]]],
-    problem_nodes: set[str],
-    seen: set[str],
-) -> None:
-    for child_name, edge_label in edges.get(name, []):
-        if child_name in seen:
-            branch.add(Text("(cycle)", style="dim"))
-            continue
-        child_node = tree.nodes[child_name]
-        label = _node_rich_label(
-            child_name,
-            child_node,
-            problem_nodes=problem_nodes,
-        )
-        if edge_label:
-            label = Text.assemble(
-                ("(", "dim"),
-                (edge_label, "cyan"),
-                (") ", "dim"),
-                label,
-            )
-        child_branch = branch.add(label)
-        _append_tree_children(
-            child_branch,
-            child_name,
-            tree=tree,
-            edges=edges,
-            problem_nodes=problem_nodes,
-            seen=seen | {child_name},
-        )
-
-
-def build_clock_tree_rich(
-    tree: Tree,
+    path_nodes: Sequence[str],
     *,
     issues: Sequence[DebugIssue],
-) -> RichTree:
-    edges = _source_parent_edges(tree)
-    roots = _graph_roots(tree, edges)
+) -> RichTree | None:
+    if not path_nodes:
+        return None
     problem_nodes = _problem_nodes_from_issues(issues)
-    header = RichTree(
-        Text.assemble(("时钟树 ", "bold cyan"), (tree.name, "bold white"))
+    root_name = path_nodes[0]
+    root = RichTree(
+        Text("相关路径", style="bold cyan"),
+        guide_style="dim",
     )
-    for root in roots:
-        node = tree.nodes[root]
-        branch = header.add(
-            _node_rich_label(root, node, problem_nodes=problem_nodes)
-        )
-        _append_tree_children(
-            branch,
-            root,
-            tree=tree,
-            edges=edges,
+    branch = root.add(
+        _node_rich_label(
+            root_name,
+            tree.nodes[root_name],
             problem_nodes=problem_nodes,
-            seen={root},
         )
-    return header
+    )
+    for name in path_nodes[1:]:
+        branch = branch.add(
+            _node_rich_label(
+                name,
+                tree.nodes[name],
+                problem_nodes=problem_nodes,
+            )
+        )
+    return root
 
 
 def _diagnostic_legend() -> Panel:
@@ -570,11 +467,21 @@ def format_clock_tree_plain(
     *,
     issues: Sequence[DebugIssue],
 ) -> str:
-    """ASCII 时钟树，供错误正文与无 Rich 环境使用。"""
-    return _plain_tree_graph(tree, issues=issues)
+    """仅输出与错误相关的路径子树，供错误正文与无 Rich 环境使用。"""
+    if not issues:
+        return ""
+    blocks: List[str] = []
+    for issue in issues:
+        if not issue.path_nodes:
+            continue
+        block = _plain_path_graph(tree, issue.path_nodes, issues=issues)
+        if block:
+            blocks.append(block)
+    return "\n\n".join(blocks)
 
 
 def build_debug_issues_rich(
+    tree: Tree,
     issues: Sequence[DebugIssue],
 ) -> Group | None:
     if not issues:
@@ -582,9 +489,18 @@ def build_debug_issues_rich(
     panels: List[Panel] = []
     for index, issue in enumerate(issues, start=1):
         border = "red" if issue.headline.startswith("div ") else "yellow"
+        body_parts: List[object] = []
+        path_tree = build_path_clock_tree_rich(
+            tree,
+            issue.path_nodes,
+            issues=issues,
+        )
+        if path_tree is not None:
+            body_parts.append(path_tree)
+        body_parts.append(issue.detail)
         panels.append(
             Panel(
-                issue.detail,
+                Group(*body_parts),
                 title=f"[{index}] {issue.headline}",
                 border_style=border,
                 padding=(0, 1),
@@ -607,12 +523,11 @@ def build_diagnostic_renderable(
         parts.append(
             Panel(core_text, title="冲突约束", border_style="red", padding=(0, 1))
         )
-    parts.append(build_clock_tree_rich(tree, issues=issues))
-    issue_panels = build_debug_issues_rich(issues)
+    issue_panels = build_debug_issues_rich(tree, issues)
     if issue_panels is not None:
         parts.append(Rule("调试建议", style="cyan"))
         parts.append(issue_panels)
-    parts.append(_diagnostic_legend())
+        parts.append(_diagnostic_legend())
     return Group(*parts)
 
 
@@ -638,14 +553,18 @@ def format_clock_tree_diagnostic_graph(
     issues: Sequence[DebugIssue],
 ) -> str:
     """纯文本回退，供无终端环境或验收调用。"""
+    if not issues:
+        return ""
     try:
         capture_console = Console(width=100, legacy_windows=False)
         with capture_console.capture() as capture:
-            capture_console.print(build_clock_tree_rich(tree, issues=issues))
-            capture_console.print(_diagnostic_legend())
+            issue_panels = build_debug_issues_rich(tree, issues)
+            if issue_panels is not None:
+                capture_console.print(issue_panels)
+                capture_console.print(_diagnostic_legend())
         return capture.get().rstrip()
     except Exception:
-        return _plain_tree_graph(tree, issues=issues)
+        return format_clock_tree_plain(tree, issues=issues)
 
 
 def format_debug_issues_summary(issues: Sequence[DebugIssue]) -> str:
@@ -661,6 +580,8 @@ def _issue_passthrough_freq_mismatch(
     pll_name: str,
     pll_hz: int,
     between: Sequence[str],
+    *,
+    path_nodes: Sequence[str],
 ) -> DebugIssue:
     mid = "、".join(between) if between else "无"
     detail = (
@@ -671,6 +592,7 @@ def _issue_passthrough_freq_mismatch(
     return DebugIssue(
         headline=f"透传路径频率不一致：{clk_name} 与 {pll_name}",
         detail=detail,
+        path_nodes=tuple(path_nodes),
     )
 
 
@@ -711,12 +633,7 @@ def _issue_div_impossible(
     path = _full_path_source_to_target(
         tree, via=div_name, target=child_name
     )
-    if path:
-        detail_lines.append(
-            "传播路径仅示意一条可达路线，完整分叉见上方时钟树："
-            f" {' -> '.join(path)}"
-        )
-    else:
+    if not path:
         detail_lines.extend(
             [
                 f"前级 {parent_name} = {_hz_mhz(parent_hz)}",
@@ -759,6 +676,7 @@ def _issue_div_impossible(
     return DebugIssue(
         headline=f"div {div_name} 分频无法满足：{path[0] if path else parent_name} -> {child_name}",
         detail="\n".join(detail_lines),
+        path_nodes=tuple(path),
     )
 
 
@@ -876,6 +794,37 @@ def _required_hz_at_node_output(
             continue
         return None
     return required
+
+
+def _pll_to_clk_path_nodes(
+    chain: Sequence[str],
+    *,
+    clk_name: str,
+    pll_name: str,
+) -> tuple[str, ...]:
+    idx_clk = chain.index(clk_name)
+    idx_pll = chain.index(pll_name)
+    between = chain[idx_clk + 1 : idx_pll]
+    path = list(reversed(chain[idx_pll:])) + list(reversed(between)) + [clk_name]
+    return tuple(path)
+
+
+def _mux_to_clk_path_nodes(
+    tree: Tree,
+    *,
+    mux_name: str,
+    arm_name: str,
+    clk_name: str,
+) -> tuple[str, ...]:
+    chain = _walk_upstream_chain(tree, clk_name)
+    idx_mux = chain.index(mux_name)
+    down_part = list(reversed(chain[: idx_mux + 1]))
+    up_part = list(reversed(_walk_upstream_chain(tree, arm_name)))
+    if down_part and up_part:
+        return tuple(up_part + down_part[1:])
+    if down_part:
+        return tuple(down_part)
+    return tuple(up_part)
 
 
 def _collect_div_issues(
@@ -1016,7 +965,16 @@ def collect_debug_issues(
                 continue
             issues.append(
                 _issue_passthrough_freq_mismatch(
-                    clk_name, clk_hz, pll_name, pll.freq, between
+                    clk_name,
+                    clk_hz,
+                    pll_name,
+                    pll.freq,
+                    between,
+                    path_nodes=_pll_to_clk_path_nodes(
+                        chain,
+                        clk_name=clk_name,
+                        pll_name=pll_name,
+                    ),
                 )
             )
 
@@ -1065,6 +1023,12 @@ def collect_debug_issues(
                                 f"但 {clk_name} 通过下游分频后要求 mux 输出约 "
                                 f"{_hz_mhz(required_at_mux)}。"
                             ),
+                            path_nodes=_mux_to_clk_path_nodes(
+                                tree,
+                                mux_name=mux_name,
+                                arm_name=arm_name,
+                                clk_name=clk_name,
+                            ),
                         )
                     )
             elif arm_hz is not None and arm_hz != clk_hz:
@@ -1083,6 +1047,12 @@ def collect_debug_issues(
                                 f"选中前级 {arm_name} 分支可达 {_hz_mhz(arm_hz)}；"
                                 f"但 {clk_name} 要求 {_hz_mhz(clk_hz)}，"
                                 f"中间 {', '.join(after_mux) or '无'} 只透传。"
+                            ),
+                            path_nodes=_mux_to_clk_path_nodes(
+                                tree,
+                                mux_name=mux_name,
+                                arm_name=arm_name,
+                                clk_name=clk_name,
                             ),
                         )
                     )
