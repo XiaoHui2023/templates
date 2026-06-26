@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
 
-from formulas import dto_ratio_to_step
-from nodes import DivNode, GateNode, MuxNode, PllNode, Tree
-from resolve import ResolvedNode, TreeResolve
-from regmodel import (
+from .formulas import dto_ratio_to_step
+from model.nodes import DivNode, GateNode, MuxNode, PllNode, Tree
+from .resolve import ResolvedNode, TreeResolve
+from load.regmodel import (
     FieldRef,
     Reg,
     RegModelIndex,
@@ -531,7 +531,7 @@ def expand_div_patches(
     if node.div_kind == "cpu_gate":
         return expand_cpu_gate_patches(index, node, settings, resolved)
 
-    from formulas import div_ratio_to_n
+    from .formulas import div_ratio_to_n
 
     patches = [
         _reset_release_patch(
@@ -600,7 +600,7 @@ def expand_cpu_gate_patches(
     settings: SettingsView,
     resolved: ResolvedNode,
 ) -> List[_FieldPatch]:
-    from formulas import cpu_gate_ratio_to_n
+    from .formulas import cpu_gate_ratio_to_n
 
     patches = [
         _reset_release_patch(
@@ -721,7 +721,7 @@ def build_config_plan(
     resolved: TreeResolve,
 ) -> ConfigPlan:
     """Build PLL kind plans, instances, and non-PLL register write steps."""
-    from pll_kind_plan import build_pll_plan
+    from .pll_kind_plan import build_pll_plan
 
     pll_bundle = build_pll_plan(tree, index, resolved)
     dev_patches: List[_FieldPatch] = []

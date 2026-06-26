@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Sequence
 
-from nodes import PllNode, Tree
-from plan import (
+from model.nodes import PllNode, Tree
+from .plan import (
     PLL_DW_ORDER,
     PLL_SC_DIV_KEYS,
     PLL_SC_PD_KEYS,
@@ -12,9 +12,9 @@ from plan import (
     PLL_TCI_DIV_KEYS,
     _pll_lock_view,
 )
-from regmodel import FieldRef, RegModelIndex
+from load.regmodel import FieldRef, RegModelIndex
 from reg_paths import reg_key_to_c_ident
-from resolve import TreeResolve
+from .resolve import TreeResolve
 
 PllGroupKey = str
 

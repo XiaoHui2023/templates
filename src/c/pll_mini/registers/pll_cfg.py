@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from formulas import tci_pll_cfg_from_clkf
+from .formulas import tci_pll_cfg_from_clkf
 from reg_paths import INNO_PLL_OUTPUT_GROUPS, inno_postdiv_reg_keys as _inno_keys
 
 __all__ = ["pll_cfg_from_solved"]

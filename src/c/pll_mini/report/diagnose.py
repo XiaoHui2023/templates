@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Mapping, Sequence, Set
+from typing import List, Sequence, Set
 
-from formulas import (
+from registers.formulas import (
     DTO_MAX_RATIO,
     freq_tolerance_bounds,
     freq_within_tolerance,
 )
-from freq_model import (
+from model.freq_graph import (
     collect_freq_targets,
     output_ports,
     parent_port_for_child,
     walk_path_upstream,
 )
-from nodes import (
+from model.nodes import (
     ClkNode,
     DivNode,
     MuxNode,
@@ -22,9 +22,8 @@ from nodes import (
     Tree,
     parse_source_endpoint,
 )
-from smt import format_unsat_diagnosis
-from tools import log_stage_done, log_stage_start
-from verify import VerifyIssue
+from load.tools import log_stage_done, log_stage_start
+from model.verify import VerifyIssue
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -405,7 +404,7 @@ def print_diagnostic_report(
     unsat_core: str = "",
     headline: str = "",
 ) -> None:
-    from ui import active_progress_session
+    from report.ui import active_progress_session
 
     session = active_progress_session()
     if session is not None:
@@ -499,66 +498,6 @@ def format_search_component_failure(
     detail_text = format_diagnostic_issues(scoped)
     if detail_text:
         return f"{detail_text}\n\n路径子树见 stderr。"
-    return ""
-
-
-def format_solve_failure_detail(
-    tree: Tree,
-    *,
-    period_tolerance: float,
-    smt2_named: str,
-    hints: Mapping[str, str],
-) -> str:
-    unsat_started_at = log_stage_start(
-        "diagnose",
-        "unsat_core",
-        "z3 unsat core",
-        hints=len(hints),
-    )
-    core = format_unsat_diagnosis(smt2_named, hints)
-    log_stage_done(
-        "diagnose",
-        "unsat_core",
-        "z3 unsat core",
-        unsat_started_at,
-        found=bool(core),
-    )
-
-    static_started_at = log_stage_start(
-        "diagnose",
-        "collect",
-        "static issues",
-        nodes=len(tree.nodes),
-    )
-    issues = collect_static_issues(tree, period_tolerance)
-    log_stage_done(
-        "diagnose",
-        "collect",
-        "static issues",
-        static_started_at,
-        issues=len(issues),
-    )
-
-    render_started_at = log_stage_start(
-        "diagnose",
-        "format",
-        "tree graph",
-        nodes=len(tree.nodes),
-    )
-    print_diagnostic_report(tree, issues=issues, unsat_core=core or "")
-    log_stage_done(
-        "diagnose",
-        "format",
-        "tree graph",
-        render_started_at,
-        issues=len(issues),
-    )
-
-    detail_text = format_diagnostic_issues(issues)
-    if detail_text:
-        return f"{detail_text}\n\n路径子树见 stderr。"
-    if core:
-        return "约束冲突；彩色诊断图已输出到 stderr。"
     return ""
 
 

@@ -210,7 +210,7 @@ def normalize_pll_kind(value: object) -> str:
 
 
 def validate_reg_path(path: str, *, ctx: str) -> None:
-    from regmodel import parse_field_path
+    from load.regmodel import parse_field_path
 
     parse_field_path(path, ctx=ctx)
 

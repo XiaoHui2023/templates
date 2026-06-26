@@ -4,10 +4,10 @@ import json
 from pathlib import Path
 from typing import List, Sequence
 
-from regmodel import Reg, RegField
-from tools import run_ralfconv_flat
+from .regmodel import Reg, RegField
+from .tools import run_ralfconv_flat
 
-_PKG_DIR = Path(__file__).resolve().parent
+_PKG_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _resolve_ralf_path(raw: str, *, yaml_dir: Path | None) -> Path:
@@ -17,7 +17,7 @@ def _resolve_ralf_path(raw: str, *, yaml_dir: Path | None) -> Path:
     candidates: list[Path] = []
     if yaml_dir is not None:
         candidates.append(yaml_dir / path)
-    candidates.append(_PKG_DIR / path)
+    candidates.append(_PKG_ROOT / path)
     for cand in candidates:
         if cand.is_file():
             return cand.resolve()

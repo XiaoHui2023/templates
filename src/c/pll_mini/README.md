@@ -49,7 +49,7 @@ settings:
 | `dto_reg_high_means_reset` | `bool` | `false` | dto 的 rst 写 1 是否表示复位。 |
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
-| `consolver_timeout_ms` | `int` | | consolver 求解超时，毫秒。 |
+| `solve_timeout_ms` | `int` | | 定向搜索求解超时，毫秒。 |
 | `period_tolerance` | `float` | `0.01` | 分频求解相对频率容差。 |
 | `reg_base_offset` | `int` | `0` | 寄存器整体偏移地址。 |
 

@@ -3,19 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict
 
-from pll_cfg import pll_cfg_from_solved
-from search import search_tree_constraints, verify_search_partition
-from solve_model import SolveModel
-from tools import log_stage_done, log_stage_start
-from verify import raise_on_verify_issues, verify_solve_model
+from .pll_cfg import pll_cfg_from_solved
+from search.engine import search_tree_constraints, verify_search_partition
+from model.solve_model import SolveModel
+from load.tools import log_stage_done, log_stage_start
+from model.verify import raise_on_verify_issues, verify_solve_model
 
-from nodes import (
+from model.nodes import (
     DivNode,
     GateNode,
     PllNode,
     Tree,
 )
-from freq_model import Port, output_ports
+from model.freq_graph import Port, output_ports
 from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 
 
@@ -66,7 +66,7 @@ def resolve_tree(
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
     period_tolerance: float,
-    consolver_timeout_ms: int | None = None,
+    solve_timeout_ms: int | None = None,
     reg_index: object | None = None,
 ) -> TreeResolve:
     _ = reg_index
@@ -81,7 +81,7 @@ def resolve_tree(
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
-        timeout_ms=consolver_timeout_ms,
+        timeout_ms=solve_timeout_ms,
     )
 
     verify_started_at = log_stage_start(

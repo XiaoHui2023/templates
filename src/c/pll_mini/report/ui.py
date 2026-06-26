@@ -20,8 +20,8 @@ from rich.text import Text
 from rich.theme import Theme
 from rich.tree import Tree as RichTree
 
-from freq_model import parent_port_for_child
-from nodes import ClkNode, DivNode, MuxNode, PllNode, Tree, parse_source_endpoint
+from model.freq_graph import parent_port_for_child
+from model.nodes import ClkNode, DivNode, MuxNode, PllNode, Tree, parse_source_endpoint
 
 _THEME = Theme(
     {
@@ -291,12 +291,6 @@ class ProgressSession:
                 self._overall.update(
                     self._overall_task,
                     description="加载寄存器模型",
-                )
-        elif component == "consolver" and action == "solve":
-            if self._overall is not None and self._overall_task is not None:
-                self._overall.update(
-                    self._overall_task,
-                    description="SMT 约束求解",
                 )
         elif component == "diagnose":
             self._sub_visible = False

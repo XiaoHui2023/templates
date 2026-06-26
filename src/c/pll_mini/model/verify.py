@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Sequence
 
-from formulas import (
+from registers.formulas import (
     div_hw_from_input,
     freq_tolerance_bounds,
     freq_within_tolerance,
@@ -12,7 +12,7 @@ from formulas import (
     pll_sc_actual_hz,
     pll_tci_actual_hz,
 )
-from freq_model import (
+from .freq_graph import (
     Port,
     collect_freq_targets,
     is_cpu_gate_passthrough_group,
@@ -22,8 +22,8 @@ from freq_model import (
     port_label,
     walk_path_upstream,
 )
-from nodes import ClkNode, DivNode, MuxNode, PllNode, Tree
-from solve_model import SolveModel
+from .nodes import ClkNode, DivNode, MuxNode, PllNode, Tree
+from .solve_model import SolveModel
 
 
 @dataclass(frozen=True)
@@ -265,6 +265,8 @@ def verify_solve_model(
                         f_ref, fbdiv, refdiv, p1, p2
                     )
                     f_out = model.port_hz(port)
+                    if f_out <= 0:
+                        continue
                     if not freq_within_tolerance(
                         f_out,
                         f_actual,
@@ -365,7 +367,7 @@ def raise_on_verify_issues(
 ) -> None:
     if not issues:
         return
-    from diagnose import diagnostic_from_verify, format_verify_issues, print_diagnostic_report
+    from report.diagnose import diagnostic_from_verify, format_verify_issues, print_diagnostic_report
 
     diag = [diagnostic_from_verify(item) for item in issues]
     print_diagnostic_report(tree, issues=diag)

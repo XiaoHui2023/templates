@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict
 
-from freq_model import Port
+from .freq_graph import Port
 
 
 @dataclass(frozen=True)

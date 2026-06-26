@@ -16,13 +16,13 @@ from pydantic import (
 
 _C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-from nodes import Tree
-from plan import ConfigPlan, SettingsView, build_config_plan, collect_used_regs
-from ralf_load import load_regmodel_from_ralf
-from regmodel import Reg, RegModelIndex
-from resolve import TreeResolve, resolve_tree
-from tools import log_stage_done, log_stage_start
-from ui import (
+from model.nodes import Tree
+from registers.plan import ConfigPlan, SettingsView, build_config_plan, collect_used_regs
+from load.ralf_load import load_regmodel_from_ralf
+from load.regmodel import Reg, RegModelIndex
+from registers.resolve import TreeResolve, resolve_tree
+from load.tools import log_stage_done, log_stage_start
+from report.ui import (
     ProgressSession,
     active_progress_session,
     bind_progress_session,
@@ -79,7 +79,7 @@ class Settings(BaseModel):
         le=4095,
         description="允许 PLL SC FBDIV 上限。",
     )
-    consolver_timeout_ms: int | None = Field(
+    solve_timeout_ms: int | None = Field(
         None,
         ge=1,
         description="定向搜索求解超时，毫秒；省略则不限时。",
@@ -260,7 +260,7 @@ class Models(BaseModel):
                         self.tree,
                         pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
                         pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
-                        consolver_timeout_ms=s.consolver_timeout_ms,
+                        solve_timeout_ms=s.solve_timeout_ms,
                         period_tolerance=s.period_tolerance,
                         reg_index=RegModelIndex(self.regmodel),
                     )

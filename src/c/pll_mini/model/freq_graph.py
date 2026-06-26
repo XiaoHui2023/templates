@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
 
-from nodes import (
+from .nodes import (
     ClkNode,
     DivNode,
     MuxNode,
@@ -23,17 +23,6 @@ class Port:
 
     node: str
     group: str = ""
-
-    def sym_suffix(self) -> str:
-        if self.group:
-            return f"{self.node}_{self.group}"
-        return self.node
-
-
-def port_freq_sym(port: Port, *, prefix: str = "f") -> str:
-    from smt_encode import safe_ident
-
-    return f"{prefix}_{safe_ident(port.sym_suffix())}"
 
 
 def output_ports(tree: Tree, node_name: str) -> List[Port]:
@@ -131,6 +120,11 @@ def backward_required_nodes_bounded(
         node = tree.nodes[name]
         if node.kind == "source":
             continue
+        if isinstance(node, PllNode):
+            if node.pll_kind == "inno":
+                continue
+            if node.freq is not None and node.freq > 0:
+                continue
         if isinstance(node, MuxNode):
             if node.sel is not None:
                 peer = _mux_selected_peer(tree, name)
@@ -263,13 +257,6 @@ def passthrough_kinds() -> frozenset[str]:
 
 def is_passthrough_kind(kind: str) -> bool:
     return kind in passthrough_kinds()
-
-
-def cpu_gate_output_port_freq_sym(
-    div_name: str,
-    out_group: str,
-) -> str:
-    return port_freq_sym(Port(div_name, out_group))
 
 
 def walk_path_upstream(

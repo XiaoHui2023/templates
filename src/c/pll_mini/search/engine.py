@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Set, Tuple
 
-from formulas import (
+from registers.formulas import (
     CPU_GATE_RATIOS,
     DTO_MAX_RATIO,
     div_hw_from_input,
@@ -13,7 +13,7 @@ from formulas import (
     find_div_ratio,
     freq_tolerance_bounds,
 )
-from freq_model import (
+from model.freq_graph import (
     Port,
     backward_required_nodes,
     backward_required_nodes_bounded,
@@ -23,11 +23,12 @@ from freq_model import (
     is_mux_exclusive_peer,
     is_passthrough_kind,
     is_static_frequency_anchor_node,
+    is_static_frequency_anchor,
     output_ports,
     parent_port_for_child,
     parse_port_ref,
 )
-from nodes import (
+from model.nodes import (
     ClkNode,
     DivNode,
     GateNode,
@@ -36,9 +37,10 @@ from nodes import (
     Tree,
     parse_source_endpoint,
 )
-from pll_search import search_pll_coefficients
-from solve_model import SolveModel
-from tools import log_stage_done, log_stage_start
+from registers.pll_search import pll_ref_hz_candidates, search_pll_coefficients
+from model.solve_model import SolveModel
+from load.tools import log_stage_done, log_stage_start
+from model.topology import bind_tree_topology, clear_tree_topology
 
 
 @dataclass(frozen=True)
@@ -79,9 +81,10 @@ def search_tree_constraints(
         nodes=len(tree.nodes),
         targets=len(targets),
     )
+    bind_tree_topology(tree)
     try:
         components = partition_search_components(tree, targets)
-        from ui import active_progress_session
+        from report.ui import active_progress_session
 
         progress = active_progress_session()
         if progress is not None:
@@ -185,6 +188,15 @@ def search_tree_constraints(
             components=len(partial_models),
         )
         model = merge_solve_models(tree, partial_models)
+        model = _recompute_merged_pll_vars(
+            tree,
+            model,
+            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
         log_stage_done(
             "search",
             "merge",
@@ -201,6 +213,8 @@ def search_tree_constraints(
             failed=True,
         )
         raise
+    finally:
+        clear_tree_topology()
     log_stage_done(
         "search",
         "solve",
@@ -442,6 +456,39 @@ def merge_solve_models(tree: Tree, models: List[SolveModel]) -> SolveModel:
     )
 
 
+def _recompute_merged_pll_vars(
+    tree: Tree,
+    model: SolveModel,
+    *,
+    pll_sc_fbdiv_min: int,
+    pll_sc_fbdiv_max: int,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> SolveModel:
+    active = {name for name, on in model.active.items() if on}
+    pll_vars = _compute_pll_vars(
+        tree,
+        active=active,
+        port_freq=model.port_freq,
+        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+        tol_lo=tol_lo,
+        tol_hi=tol_hi,
+        tol_den=tol_den,
+    )
+    if pll_vars is None:
+        raise RuntimeError("合并后端口频率无法配出合法 PLL 系数")
+    return SolveModel(
+        active=model.active,
+        port_freq=model.port_freq,
+        ratios=model.ratios,
+        mux_sel=model.mux_sel,
+        gate_open=model.gate_open,
+        pll_vars=pll_vars,
+    )
+
+
 def _component_clk_names(component: SearchComponent) -> str:
     return ",".join(name for name, _ in component.targets)
 
@@ -475,7 +522,7 @@ def _raise_component_failure(
     period_tolerance: float,
     cause: RuntimeError,
 ) -> None:
-    from diagnose import format_search_component_failure
+    from report.diagnose import format_search_component_failure
 
     clks = _component_clk_names(component)
     headline = (
@@ -493,6 +540,48 @@ def _raise_component_failure(
     if detail:
         raise RuntimeError(f"{headline}\n\n{detail}") from cause
     raise RuntimeError(headline) from cause
+
+
+def _collect_inno_ref_path_vars(
+    tree: Tree,
+    active: Set[str],
+) -> Tuple[List[str], List[str]]:
+    ref_muxes: List[str] = []
+    ref_divs: List[str] = []
+    mux_seen: Set[str] = set()
+    div_seen: Set[str] = set()
+    for pll_name in sorted(active):
+        node = tree.nodes.get(pll_name)
+        if not isinstance(node, PllNode) or node.pll_kind != "inno":
+            continue
+        ref_name, _ = parse_source_endpoint(node.source, ctx=f"{pll_name}.source")
+        name = ref_name
+        visited: Set[str] = set()
+        while name not in visited:
+            visited.add(name)
+            if name not in active:
+                break
+            ref_node = tree.nodes[name]
+            if isinstance(ref_node, MuxNode):
+                if ref_node.sel is None and name not in mux_seen:
+                    mux_seen.add(name)
+                    ref_muxes.append(name)
+            elif isinstance(ref_node, DivNode):
+                if (
+                    ref_node.ratio is None
+                    and ref_node.div_kind != "div_r"
+                    and name not in div_seen
+                ):
+                    div_seen.add(name)
+                    ref_divs.append(name)
+            if ref_node.kind == "source":
+                break
+            try:
+                parent_port = parent_port_for_child(tree, name)
+            except ValueError:
+                break
+            name = parent_port.node
+    return ref_muxes, ref_divs
 
 
 def _search_tree(
@@ -525,7 +614,9 @@ def _search_tree(
         if isinstance(node, DivNode) and node.ratio is not None:
             ratios[name] = node.ratio
 
-    for assignment in _iter_mux_assignments(tree, free_muxes):
+    for assignment in _iter_mux_assignments(
+        tree, free_muxes, targets=targets, fixed_mux_sel=mux_sel
+    ):
         if deadline is not None and time.perf_counter() > deadline:
             raise RuntimeError("时钟树约束求解超时或无法判定")
         trial_mux = {**mux_sel, **assignment}
@@ -547,39 +638,80 @@ def _search_tree(
             tol_den=tol_den,
         ):
             continue
-        port_freq = _propagate_port_freqs(
-            tree,
-            active=active,
-            mux_sel=trial_mux,
-            ratios=trial_ratios,
-            targets=targets,
+        ref_muxes, ref_divs = _collect_inno_ref_path_vars(tree, active)
+        ref_mux_free = [
+            name
+            for name in ref_muxes
+            if isinstance(tree.nodes[name], MuxNode) and tree.nodes[name].sel is None
+        ]
+        ref_mux_iters = _iter_mux_assignments(
+            tree, ref_mux_free, targets=targets, fixed_mux_sel=trial_mux
         )
-        if port_freq is None:
-            continue
-        if not _clk_targets_match(targets, port_freq):
-            continue
-        pll_vars = _compute_pll_vars(
-            tree,
-            active=active,
-            port_freq=port_freq,
-            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
-            skip_pll_names=pll_anchors,
-        )
-        if pll_vars is None:
-            continue
-        model = _assemble_model(
-            tree,
-            active=active,
-            port_freq=port_freq,
-            mux_sel=trial_mux,
-            ratios=trial_ratios,
-            pll_vars=pll_vars,
-        )
-        return model
+        pll_name = _ref_path_pll_name(tree, ref_divs)
+        solved = False
+        for ref_mux_assignment in ref_mux_iters:
+            trial_mux_full = {**trial_mux, **ref_mux_assignment}
+            active_full = _compute_active(tree, targets, trial_mux_full)
+            if not _active_covers_targets(
+                tree, targets, active_full, trial_mux_full
+            ):
+                continue
+            ref_div_iter = _iter_ref_div_ratio_assignments(
+                tree,
+                ref_divs,
+                trial_ratios,
+                pll_name=pll_name,
+                targets=targets,
+                active=active_full,
+                mux_sel=trial_mux_full,
+                pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+            )
+            for ref_ratio_pack in ref_div_iter:
+                trial_ratios_full = {**trial_ratios, **ref_ratio_pack}
+                port_freq = _propagate_port_freqs(
+                    tree,
+                    active=active_full,
+                    mux_sel=trial_mux_full,
+                    ratios=trial_ratios_full,
+                    targets=targets,
+                    ref_path=bool(ref_divs),
+                )
+                if port_freq is None:
+                    continue
+                if not _clk_targets_match(targets, port_freq):
+                    continue
+                pll_vars = _compute_pll_vars(
+                    tree,
+                    active=active_full,
+                    port_freq=port_freq,
+                    pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                    pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                    skip_pll_names=pll_anchors,
+                )
+                if pll_vars is None:
+                    continue
+                model = _assemble_model(
+                    tree,
+                    active=active_full,
+                    port_freq=port_freq,
+                    mux_sel=trial_mux_full,
+                    ratios=trial_ratios_full,
+                    pll_vars=pll_vars,
+                    export_nodes=required,
+                )
+                solved = True
+                break
+            if solved:
+                break
+        if solved:
+            return model
 
     raise RuntimeError("时钟树约束互相矛盾，无解")
 
@@ -612,7 +744,10 @@ def _search_pll_ref_tree(
         if isinstance(node, DivNode) and node.ratio is not None:
             ratios[name] = node.ratio
 
-    for assignment in _iter_mux_assignments(tree, free_muxes):
+
+    for assignment in _iter_mux_assignments(
+        tree, free_muxes, fixed_mux_sel=mux_sel
+    ):
         if deadline is not None and time.perf_counter() > deadline:
             raise RuntimeError("时钟树约束求解超时或无法判定")
         trial_mux = {**mux_sel, **assignment}
@@ -620,7 +755,18 @@ def _search_pll_ref_tree(
         if pll_name not in active:
             continue
         for trial_ratios in _iter_ref_div_ratio_assignments(
-            tree, ref_divs, ratios
+            tree,
+            ref_divs,
+            ratios,
+            pll_name=pll_name,
+            targets=[],
+            active=active,
+            mux_sel=trial_mux,
+            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
         ):
             port_freq = _propagate_port_freqs(
                 tree,
@@ -658,6 +804,7 @@ def _search_pll_ref_tree(
                 mux_sel=trial_mux,
                 ratios=trial_ratios,
                 pll_vars=pll_vars,
+                export_nodes=required,
             )
 
     raise RuntimeError("时钟树约束互相矛盾，无解")
@@ -682,6 +829,20 @@ def _ordered_ref_path_div_nodes(
     required: Set[str],
     pll_name: str,
 ) -> List[str]:
+    free = _ordered_ref_path_div_nodes_unsorted(tree, required, pll_name)
+
+    def depth_to_pll(name: str) -> int:
+        path = _find_downstream_path(tree, name, pll_name)
+        return len(path) if path else 0
+
+    return sorted(free, key=depth_to_pll, reverse=True)
+
+
+def _ordered_ref_path_div_nodes_unsorted(
+    tree: Tree,
+    required: Set[str],
+    pll_name: str,
+) -> List[str]:
     out: List[str] = []
     for name in sorted(required):
         if name == pll_name:
@@ -695,29 +856,375 @@ def _ordered_ref_path_div_nodes(
     return out
 
 
+def _ref_path_pll_name(tree: Tree, ref_divs: List[str]) -> str | None:
+    for name, node in tree.nodes.items():
+        if isinstance(node, PllNode) and node.pll_kind == "inno":
+            for div_name in ref_divs:
+                if _find_downstream_path(tree, div_name, name) is not None:
+                    return name
+    return None
+
+
 def _iter_ref_div_ratio_assignments(
     tree: Tree,
     ref_divs: List[str],
     base_ratios: Dict[str, int],
+    *,
+    pll_name: str | None,
+    targets: List[Tuple[str, int]],
+    active: Set[str],
+    mux_sel: Dict[str, int],
+    pll_sc_fbdiv_min: int,
+    pll_sc_fbdiv_max: int,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
 ) -> Iterator[Dict[str, int]]:
     if not ref_divs:
         yield dict(base_ratios)
         return
 
-    div_name = ref_divs[0]
-    rest = ref_divs[1:]
+    ordered = list(ref_divs)
+    if pll_name is not None:
+
+        def depth_to_pll(name: str) -> int:
+            path = _find_downstream_path(tree, name, pll_name)
+            return len(path) if path else 0
+
+        ordered = sorted(ref_divs, key=depth_to_pll, reverse=True)
+
+    div_name = ordered[0]
+    rest = ordered[1:]
+    candidates = _ref_div_ratio_candidates(
+        tree,
+        div_name,
+        pll_name=pll_name,
+        targets=targets,
+        active=active,
+        mux_sel=mux_sel,
+        base_ratios=base_ratios,
+        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+        tol_lo=tol_lo,
+        tol_hi=tol_hi,
+        tol_den=tol_den,
+    )
+    if not candidates:
+        return
+
+    for ratio in candidates:
+        trial = {**base_ratios, div_name: ratio}
+        yield from _iter_ref_div_ratio_assignments(
+            tree,
+            rest,
+            trial,
+            pll_name=pll_name,
+            targets=targets,
+            active=active,
+            mux_sel=mux_sel,
+            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+
+
+def _ref_div_ratio_candidates(
+    tree: Tree,
+    div_name: str,
+    *,
+    pll_name: str | None,
+    targets: List[Tuple[str, int]],
+    active: Set[str],
+    mux_sel: Dict[str, int],
+    base_ratios: Dict[str, int],
+    pll_sc_fbdiv_min: int,
+    pll_sc_fbdiv_max: int,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> List[int]:
     node = tree.nodes[div_name]
     assert isinstance(node, DivNode)
-    if node.div_kind == "cpu_gate":
-        ratio_candidates = sorted(CPU_GATE_RATIOS)
-    elif node.div_kind in ("dto", "dto_n"):
-        ratio_candidates = list(range(1, DTO_MAX_RATIO + 1))
-    else:
-        ratio_candidates = list(range(1, 65))
+    if node.ratio is not None:
+        return [node.ratio]
+    if node.div_kind == "div_r":
+        return []
 
-    for ratio in ratio_candidates:
-        for tail in _iter_ref_div_ratio_assignments(tree, rest, base_ratios):
-            yield {**tail, div_name: ratio}
+    f_in = _ref_parent_hz_for_div(tree, div_name, active, mux_sel, base_ratios)
+    if f_in is None or f_in <= 0:
+        return []
+
+    want_outs: tuple[int, ...] = ()
+    if pll_name is not None:
+        want_outs = _ref_div_want_out_candidates(
+            tree,
+            div_name,
+            pll_name,
+            targets=targets,
+            active=active,
+            mux_sel=mux_sel,
+            ratios=base_ratios,
+            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+
+    found: List[int] = []
+    if node.div_kind in ("div", "div_n"):
+        scan = want_outs or (0,)
+        for want_out in scan:
+            if want_out <= 0:
+                for ratio in range(1, 65):
+                    if ratio not in found:
+                        found.append(ratio)
+                break
+            ratio = find_div_ratio(
+                f_in,
+                want_out,
+                range(1, 65),
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+            )
+            if ratio is not None and ratio not in found:
+                found.append(ratio)
+        return found or list(range(1, 65))
+    if node.div_kind == "cpu_gate":
+        scan = want_outs or (0,)
+        for want_out in scan:
+            if want_out <= 0:
+                return sorted(CPU_GATE_RATIOS)
+            ratio = find_div_ratio(
+                f_in,
+                want_out,
+                sorted(CPU_GATE_RATIOS),
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+            )
+            if ratio is not None and ratio not in found:
+                found.append(ratio)
+        return found or sorted(CPU_GATE_RATIOS)
+    if node.div_kind in ("dto", "dto_n"):
+        if pll_name is None:
+            return list(range(2, min(65, DTO_MAX_RATIO + 1)))
+        found = []
+        for ratio in range(2, min(65, DTO_MAX_RATIO + 1)):
+            f_hw, _ = div_hw_from_input(f_in, ratio)
+            if _pll_accepts_ref_hz(
+                tree,
+                pll_name,
+                f_hw,
+                targets=targets,
+                active=active,
+                mux_sel=mux_sel,
+                ratios=base_ratios,
+                pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+            ):
+                found.append(ratio)
+        if not found and want_outs:
+            for want_out in want_outs[:16]:
+                for ratio in dto_ratio_candidates_for_pair(
+                    f_in,
+                    want_out,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                ):
+                    if ratio not in found:
+                        found.append(ratio)
+        return found
+    return []
+
+
+def _ref_div_want_out_candidates(
+    tree: Tree,
+    div_name: str,
+    pll_name: str,
+    *,
+    targets: List[Tuple[str, int]],
+    active: Set[str],
+    mux_sel: Dict[str, int],
+    ratios: Dict[str, int],
+    pll_sc_fbdiv_min: int,
+    pll_sc_fbdiv_max: int,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> tuple[int, ...]:
+    pll = tree.nodes[pll_name]
+    assert isinstance(pll, PllNode)
+    if pll.pll_kind == "inno":
+        group_hz = _required_inno_group_hz(
+            tree, pll_name, targets, active, mux_sel, ratios
+        )
+        ref_cands = pll_ref_hz_candidates(
+            pll.pll_kind,
+            group_out_hz=group_hz,
+            fbdiv_min=pll_sc_fbdiv_min,
+            fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+    else:
+        out_hz = pll.freq or 0
+        ref_cands = pll_ref_hz_candidates(
+            pll.pll_kind,
+            out_hz=out_hz,
+            fbdiv_min=pll_sc_fbdiv_min,
+            fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+    if not ref_cands:
+        return ()
+
+    path = _find_downstream_path(tree, div_name, pll_name)
+    if path is None:
+        return ref_cands
+
+    want_outs: set[int] = set()
+    idx = path.index(div_name)
+    for ref_hz in ref_cands:
+        hz = ref_hz
+        for downstream in reversed(path[idx + 1 :]):
+            if downstream == pll_name:
+                continue
+            dnode = tree.nodes[downstream]
+            if not isinstance(dnode, DivNode):
+                continue
+            ratio = dnode.ratio if dnode.ratio is not None else ratios.get(downstream)
+            if ratio is None:
+                hz = 0
+                break
+            hz *= ratio
+        if hz > 0:
+            want_outs.add(hz)
+    cands = tuple(sorted(want_outs))
+    if len(cands) > 24:
+        step = max(1, len(cands) // 24)
+        cands = cands[::step][:24]
+    return cands
+
+
+def _ref_parent_hz_for_div(
+    tree: Tree,
+    div_name: str,
+    active: Set[str],
+    mux_sel: Dict[str, int],
+    ratios: Dict[str, int],
+) -> int | None:
+    parent_port = parent_port_for_child(tree, div_name)
+    return _ref_hz_at_port(tree, parent_port, active, mux_sel, ratios)
+
+
+def _ref_hz_at_port(
+    tree: Tree,
+    port: Port,
+    active: Set[str],
+    mux_sel: Dict[str, int],
+    ratios: Dict[str, int],
+) -> int | None:
+    if port.node not in active:
+        return None
+    node = tree.nodes[port.node]
+    if node.kind == "source":
+        return node.freq
+    if isinstance(node, MuxNode):
+        sel = mux_sel.get(port.node, node.sel)
+        if sel is None:
+            return None
+        arm = node.source.get(str(sel))
+        if not arm:
+            return None
+        peer = parse_port_ref(arm, ctx=f"mux {port.node!r}")
+        return _ref_hz_at_port(tree, peer, active, mux_sel, ratios)
+    if isinstance(node, DivNode):
+        parent_port = parent_port_for_child(tree, port.node)
+        f_in = _ref_hz_at_port(tree, parent_port, active, mux_sel, ratios)
+        if f_in is None or f_in <= 0:
+            return None
+        ratio = node.ratio if node.ratio is not None else ratios.get(port.node)
+        if ratio is None:
+            return None
+        f_hw, _ = div_hw_from_input(f_in, ratio)
+        if node.div_kind == "cpu_gate" and is_cpu_gate_passthrough_group(
+            port.group
+        ):
+            return f_in
+        return f_hw
+    if is_passthrough_kind(node.kind):
+        parent_port = parent_port_for_child(tree, port.node)
+        return _ref_hz_at_port(tree, parent_port, active, mux_sel, ratios)
+    return None
+
+
+def _pll_accepts_ref_hz(
+    tree: Tree,
+    pll_name: str,
+    ref_hz: int,
+    *,
+    targets: List[Tuple[str, int]],
+    active: Set[str],
+    mux_sel: Dict[str, int],
+    ratios: Dict[str, int],
+    pll_sc_fbdiv_min: int,
+    pll_sc_fbdiv_max: int,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> bool:
+    if ref_hz <= 0:
+        return False
+    pll = tree.nodes[pll_name]
+    if not isinstance(pll, PllNode):
+        return False
+    if pll.pll_kind == "inno":
+        group_hz = _required_inno_group_hz(
+            tree, pll_name, targets, active, mux_sel, ratios
+        )
+        if not group_hz:
+            return True
+        return (
+            search_pll_coefficients(
+                pll.pll_kind,
+                ref_hz,
+                0,
+                fbdiv_min=pll_sc_fbdiv_min,
+                fbdiv_max=pll_sc_fbdiv_max,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+                group_out_hz=group_hz,
+            )
+            is not None
+        )
+    out_hz = pll.freq or 0
+    if out_hz <= 0:
+        return False
+    return (
+        search_pll_coefficients(
+            pll.pll_kind,
+            ref_hz,
+            out_hz,
+            fbdiv_min=pll_sc_fbdiv_min,
+            fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+        is not None
+    )
 
 
 def _free_mux_nodes(tree: Tree, required: Set[str]) -> List[str]:
@@ -758,19 +1265,33 @@ def _ordered_free_div_nodes(
 def _iter_mux_assignments(
     tree: Tree,
     free_muxes: List[str],
+    *,
+    targets: List[Tuple[str, int]] | None = None,
+    fixed_mux_sel: Dict[str, int] | None = None,
 ) -> Iterator[Dict[str, int]]:
+    fixed = fixed_mux_sel or {}
+
+    def recurse(rest: List[str], partial: Dict[str, int]) -> Iterator[Dict[str, int]]:
+        if not rest:
+            if targets and not _mux_assignments_compatible(
+                tree, targets, {**fixed, **partial}
+            ):
+                return
+            yield partial
+            return
+
+        mux_name = rest[0]
+        node = tree.nodes[mux_name]
+        assert isinstance(node, MuxNode)
+        keys = sorted(node.source.keys(), key=lambda k: int(k))
+        for key in keys:
+            trial = {**partial, mux_name: int(key)}
+            yield from recurse(rest[1:], trial)
+
     if not free_muxes:
         yield {}
         return
-
-    mux_name = free_muxes[0]
-    rest = free_muxes[1:]
-    node = tree.nodes[mux_name]
-    assert isinstance(node, MuxNode)
-    keys = sorted(node.source.keys(), key=lambda k: int(k))
-    for key in keys:
-        for tail in _iter_mux_assignments(tree, rest):
-            yield {mux_name: int(key), **tail}
+    yield from recurse(free_muxes, {})
 
 
 def _mux_assignments_compatible(
@@ -798,6 +1319,11 @@ def _walk_upstream(
             return None
         if node.kind == "source":
             return chain
+        if isinstance(node, PllNode):
+            if node.pll_kind == "inno":
+                return chain
+            if node.freq is not None and node.freq > 0:
+                return chain
         if isinstance(node, MuxNode):
             sel = mux_sel.get(name, node.sel)
             if sel is None:
@@ -838,6 +1364,8 @@ def _walk_upstream(
             continue
         seen.add(parent_name)
         chain.append(parent_name)
+        if is_static_frequency_anchor(tree, parent_name, via_port=parent_port):
+            return chain
         name = parent_name
 
 
@@ -867,6 +1395,11 @@ def _compute_active(
             if is_mux_exclusive_peer(tree, name, peer_name):
                 continue
             _mark_upstream_active(tree, peer_name, active, mux_sel)
+    for name in list(active):
+        node = tree.nodes[name]
+        if isinstance(node, PllNode) and node.pll_kind == "inno":
+            ref_name, _ = parse_source_endpoint(node.source, ctx=f"{name}.source")
+            _mark_upstream_active(tree, ref_name, active, mux_sel)
     return active
 
 
@@ -1211,6 +1744,12 @@ def _clk_uses_cpu_gate_port(
 
 
 def _find_downstream_path(tree: Tree, start: str, target: str) -> List[str] | None:
+    from model.topology import active_tree_topology
+
+    topo = active_tree_topology()
+    if topo is not None:
+        path = topo.find_downstream_path(start, target)
+        return list(path) if path is not None else None
     if start == target:
         return [start]
     parent_of: Dict[str, str] = {}
@@ -1238,6 +1777,11 @@ def _find_downstream_path(tree: Tree, start: str, target: str) -> List[str] | No
 
 
 def _downstream_children(tree: Tree, name: str) -> List[str]:
+    from model.topology import active_tree_topology
+
+    topo = active_tree_topology()
+    if topo is not None:
+        return list(topo.downstream_children(name))
     children: List[str] = []
     for other_name, other in tree.nodes.items():
         if other_name == name or other.kind == "source":
@@ -1332,14 +1876,14 @@ def _propagate_port_freqs(
                         port_freq[port] = divided_hz
             else:
                 want = required.get("")
-                if want is None:
-                    if not ref_path:
-                        return None
+                if ref_path:
                     ratio = ratios.get(name, node.ratio)
                     if ratio is None:
                         return None
                     f_hw, _ = div_hw_from_input(f_in, ratio)
                     port_freq[Port(name, "")] = f_hw
+                elif want is None:
+                    return None
                 else:
                     port_freq[Port(name, "")] = want
         elif is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
@@ -1432,13 +1976,16 @@ def _resolve_port_freq(
         required = _required_div_outputs(
             tree, port.node, targets, active, mux_sel, ratios
         )
-        hz = required.get("", 0)
-        if hz <= 0 and ref_path:
+        if ref_path:
             ratio = ratios.get(port.node, node.ratio)
             if ratio is None:
                 return None
             f_hw, _ = div_hw_from_input(f_in, ratio)
             hz = f_hw
+        else:
+            hz = required.get("", 0)
+            if hz <= 0:
+                return None
         cache[port] = hz
         return hz
     if is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
@@ -1467,7 +2014,9 @@ def _required_inno_group_hz(
     assert isinstance(pll, PllNode)
     for group in pll.output_groups:
         for clk_name, clk_hz in targets:
-            if not _clk_reaches_pll_group(tree, pll_name, group, clk_name):
+            if not _clk_reaches_pll_group(
+                tree, pll_name, group, clk_name, mux_sel
+            ):
                 continue
             req = clk_hz
             path = _find_downstream_path(tree, pll_name, clk_name)
@@ -1502,20 +2051,30 @@ def _clk_reaches_pll_group(
     pll_name: str,
     group: str,
     clk_name: str,
+    mux_sel: Dict[str, int],
 ) -> bool:
-    path = _find_downstream_path(tree, pll_name, clk_name)
-    if path is None:
+    chain = _walk_upstream(tree, clk_name, mux_sel)
+    if chain is None or pll_name not in chain:
         return False
-    if group:
-        first = path[1] if len(path) > 1 else ""
-        if first:
-            clk_node = tree.nodes[clk_name]
-            parent_name, parent_group = parse_source_endpoint(
-                clk_node.source, ctx=f"clk {clk_name!r}"
-            )
-            if parent_name == pll_name:
-                return parent_group == group
-    return True
+    idx = chain.index(pll_name)
+    if idx <= 0:
+        return False
+    upstream = chain[idx - 1]
+    upstream_node = tree.nodes[upstream]
+    if isinstance(upstream_node, MuxNode):
+        sel = mux_sel.get(upstream, upstream_node.sel)
+        if sel is None:
+            return False
+        arm = upstream_node.source.get(str(sel))
+        if not arm:
+            return False
+        dev, grp = parse_source_endpoint(arm, ctx=f"mux {upstream!r}")
+        return dev == pll_name and grp == group
+    try:
+        parent_port = parent_port_for_child(tree, upstream)
+    except ValueError:
+        return False
+    return parent_port.node == pll_name and parent_port.group == group
 
 
 def _clk_targets_match(
@@ -1595,9 +2154,12 @@ def _assemble_model(
     mux_sel: Dict[str, int],
     ratios: Dict[str, int],
     pll_vars: Dict[str, Dict[str, int]],
+    export_nodes: Set[str],
 ) -> SolveModel:
     gate_open: Dict[str, bool] = {}
     for name, node in tree.nodes.items():
+        if name not in export_nodes:
+            continue
         if isinstance(node, GateNode):
             if node.open == 0:
                 gate_open[name] = False
@@ -1606,17 +2168,33 @@ def _assemble_model(
             else:
                 gate_open[name] = name in active
 
-    active_map = {name: name in active for name in tree.nodes}
+    active_map = {name: False for name in tree.nodes}
+    for name in export_nodes:
+        if name in active:
+            active_map[name] = True
     mux_map = {
         name: sel
         for name, sel in mux_sel.items()
-        if isinstance(tree.nodes[name], MuxNode)
+        if name in export_nodes and isinstance(tree.nodes[name], MuxNode)
+    }
+    export_port_freq = {
+        port: hz
+        for port, hz in port_freq.items()
+        if port.node in export_nodes
+    }
+    export_ratios = {
+        name: ratio for name, ratio in ratios.items() if name in export_nodes
+    }
+    export_pll_vars = {
+        name: coeffs
+        for name, coeffs in pll_vars.items()
+        if name in export_nodes
     }
     return SolveModel(
         active=active_map,
-        port_freq=dict(port_freq),
-        ratios=dict(ratios),
+        port_freq=export_port_freq,
+        ratios=export_ratios,
         mux_sel=mux_map,
         gate_open=gate_open,
-        pll_vars=pll_vars,
+        pll_vars=export_pll_vars,
     )
