@@ -234,14 +234,15 @@ def _validate_pll_freq_cfg(
     by_freq: dict[int, dict[str, int]] = {}
     for node in nodes:
         state = resolved.by_name[node.name]
+        out_hz = state.resolved_freq
         cfg = dict(state.pll_cfg)
-        prev = by_freq.get(node.freq)
+        prev = by_freq.get(out_hz)
         if prev is not None and prev != cfg:
             raise ValueError(
-                f"{label} 输出频率 {node.freq} Hz 在节点 {node.name!r} "
+                f"{label} 输出频率 {out_hz} Hz 在节点 {node.name!r} "
                 f"与先前节点推算的分频不一致"
             )
-        by_freq[node.freq] = cfg
+        by_freq[out_hz] = cfg
     return by_freq
 
 
@@ -713,7 +714,7 @@ def build_pll_plan(
                     addr_args=_instance_addr_args(
                         node, index, slot_specs
                     ),
-                    freq_hz=node.freq,
+                    freq_hz=resolved.by_name[node.name].resolved_freq,
                     wait_lock=True,
                     lock_addr_macro=lock_addr_macro,
                     lock_mask_hex=lock_mask_hex,

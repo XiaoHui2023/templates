@@ -1,9 +1,24 @@
 from __future__ import annotations
 
-import re
 from typing import Dict, List, Mapping, Tuple
 
-from formulas import DTO_MAX_RATIO
+from formulas import (
+    DTO_MAX_RATIO,
+    DW_FBDIV_MAX,
+    DW_FBDIV_MIN,
+    INNO_FBDIV_HW_MAX,
+)
+from freq_model import (
+    Port,
+    backward_required_nodes,
+    collect_freq_targets,
+    is_cpu_gate_passthrough_group,
+    is_mux_exclusive_peer,
+    output_ports,
+    parent_port_for_child,
+    parse_port_ref,
+    port_freq_sym,
+)
 from nodes import (
     ClkNode,
     DivNode,
@@ -11,52 +26,24 @@ from nodes import (
     MuxNode,
     PllNode,
     Tree,
-    parse_source_endpoint,
 )
-from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
-from diagnose import (
-    collect_debug_issues,
-    format_debug_issues,
-    print_diagnostic_report,
+from reg_paths import INNO_PLL_OUTPUT_GROUPS
+from smt_encode import (
+    Smt2Builder,
+    div_freq_constraint_expr,
+    freq_tolerance_bounds,
+    ite_chain,
+    pll_product_freq_constraint_expr,
+    sym,
+    track,
 )
-from tools import log_stage_done, log_stage_start, run_consolver_solve
+from solve_model import SolveModel
 
-_SMT_SAFE = re.compile(r"[^a-zA-Z0-9_]")
-_FREQ_TOL_DEN = 100
-_DIAG_SKIP_LINES = frozenset({"(check-sat)", "(get-model)"})
-
-
-def _sym(node_name: str, suffix: str) -> str:
-    base = _SMT_SAFE.sub("_", node_name)
-    if base and base[0].isdigit():
-        base = f"n_{base}"
-    return f"{suffix}_{base}"
-
-
-def _track(*parts: str) -> str:
-    raw = "_".join(parts)
-    track = _SMT_SAFE.sub("_", raw)
-    if track and track[0].isdigit():
-        track = f"t_{track}"
-    return track
-
-
-def _ite_chain(pairs: List[Tuple[str, str]], default: str) -> str:
-    if not pairs:
-        return default
-    expr = default
-    for cond, val in reversed(pairs):
-        expr = f"(ite {cond} {val} {expr})"
-    return expr
-
-
-def _freq_tolerance_bounds(period_tolerance: float) -> tuple[int, int, int]:
-    tol_num = round(period_tolerance * _FREQ_TOL_DEN)
-    return _FREQ_TOL_DEN - tol_num, _FREQ_TOL_DEN + tol_num, _FREQ_TOL_DEN
+_DIV_RATIO_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate"})
 
 
 def _div_needs_ratio_var(node: DivNode) -> bool:
-    return node.div_kind in ("div", "div_n", "dto", "dto_n", "cpu_gate")
+    return node.div_kind in _DIV_RATIO_KINDS
 
 
 def _finite_ratio_values(node: DivNode) -> tuple[int, ...] | None:
@@ -69,136 +56,677 @@ def _finite_ratio_values(node: DivNode) -> tuple[int, ...] | None:
     return None
 
 
-class _Smt2Builder:
-    def __init__(self) -> None:
-        self._declarations: List[str] = []
-        self._constraints: List[tuple[str, str | None, str | None]] = []
+def _inno_fbdiv_legal_expr(fbdiv: str) -> str:
+    banned = " ".join(f"(= {fbdiv} {value})" for value in list(range(8)) + [11])
+    return f"(not (or {banned}))"
 
-    def declare(self, text: str) -> None:
-        self._declarations.append(text)
 
-    def constraint(
-        self,
-        expr: str,
-        *,
-        track: str | None = None,
-        hint: str | None = None,
-    ) -> None:
-        self._constraints.append((expr, track, hint))
+def build_smt2(
+    tree: Tree,
+    *,
+    pll_sc_fbdiv_min: int,
+    pll_sc_fbdiv_max: int,
+    period_tolerance: float,
+) -> tuple[str, str, Dict[str, str], List[tuple[str, str, str]]]:
+    targets = collect_freq_targets(tree)
+    if not targets:
+        raise ValueError("须至少有一个带正频率的 clk 节点")
 
-    def _render(self, *, named_tracks: bool) -> str:
-        lines: List[str] = []
-        if named_tracks:
-            lines.append("(set-option :produce-unsat-cores true)")
-        lines.append("(set-logic QF_LIA)")
-        lines.extend(self._declarations)
-        for expr, track, _hint in self._constraints:
-            if named_tracks and track is not None:
-                lines.append(f"(assert (! {expr} :named {track}))")
+    required = backward_required_nodes(tree, targets)
+    builder = Smt2Builder()
+    tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
+    tol_pct = period_tolerance * 100
+
+    for name in sorted(tree.nodes.keys()):
+        builder.declare(f"(declare-const {sym(name, 'active')} Bool)")
+        if name not in required:
+            builder.constraint(
+                f"(not {sym(name, 'active')})",
+                track_id=track("node", name, "not_required"),
+                hint=f"节点 {name} 不在任何频率目标路径上，保持无效",
+            )
+            continue
+
+        for port in output_ports(tree, name):
+            builder.declare(f"(declare-const {port_freq_sym(port)} Int)")
+
+        node = tree.nodes[name]
+        if isinstance(node, MuxNode):
+            keys = sorted(node.source.keys(), key=lambda k: int(k))
+            max_sel = max(int(k) for k in keys)
+            builder.declare(f"(declare-const {sym(name, 'sel')} Int)")
+            if node.sel is not None:
+                builder.constraint(
+                    f"(= {sym(name, 'sel')} {node.sel})",
+                    track_id=track("mux", name, "sel", str(node.sel)),
+                    hint=f"mux {name} 固定 sel={node.sel}",
+                )
             else:
-                lines.append(f"(assert {expr})")
-        lines.append("(check-sat)")
-        lines.append("(get-model)")
-        return "\n".join(lines) + "\n"
+                builder.constraint(f"(>= {sym(name, 'sel')} 0)")
+                builder.constraint(f"(<= {sym(name, 'sel')} {max_sel})")
 
-    def finish(
-        self,
-    ) -> tuple[str, str, Dict[str, str], List[tuple[str, str, str]]]:
-        hints = {
-            track: hint
-            for _expr, track, hint in self._constraints
-            if track is not None and hint is not None
+        if isinstance(node, DivNode) and _div_needs_ratio_var(node):
+            builder.declare(f"(declare-const {sym(name, 'ratio')} Int)")
+            if node.ratio is not None:
+                builder.constraint(
+                    f"(= {sym(name, 'ratio')} {node.ratio})",
+                    track_id=track("div", name, "ratio", str(node.ratio)),
+                    hint=f"div {name} 固定分频比 {node.ratio}",
+                )
+        if isinstance(node, DivNode):
+            builder.declare(f"(declare-const {sym(name, 'freq_hw')} Int)")
+            builder.declare(f"(declare-const {sym(name, 'rem')} Int)")
+
+        if isinstance(node, GateNode):
+            builder.declare(f"(declare-const {sym(name, 'gate_open')} Bool)")
+            if node.open is not None:
+                lit = "true" if node.open else "false"
+                state = "打开" if node.open else "关闭"
+                builder.constraint(
+                    f"(= {sym(name, 'gate_open')} {lit})",
+                    track_id=track("gate", name, "open", lit),
+                    hint=f"gate {name} 固定为{state}",
+                )
+
+        if isinstance(node, PllNode):
+            _declare_pll_vars(builder, node, pll_sc_fbdiv_min, pll_sc_fbdiv_max)
+
+    for name in sorted(required):
+        node = tree.nodes[name]
+        act = sym(name, "active")
+
+        if node.kind == "source" and node.freq > 0:
+            port = Port(name, "")
+            builder.constraint(
+                f"(=> {act} (= {port_freq_sym(port)} {node.freq}))",
+                track_id=track("source", name, "freq"),
+                hint=f"source {name} 有效时 = {node.freq} Hz",
+            )
+        elif isinstance(node, ClkNode):
+            builder.constraint(act)
+            port = Port(name, "")
+            if node.freq is not None and node.freq > 0:
+                builder.constraint(
+                    f"(= {port_freq_sym(port)} {node.freq})",
+                    track_id=track("clk", name, "freq"),
+                    hint=f"clk {name} 目标 {node.freq} Hz",
+                )
+        elif isinstance(node, PllNode) and node.freq is not None and node.pll_kind != "inno":
+            port = Port(name, "")
+            builder.constraint(
+                f"(=> {act} (= {port_freq_sym(port)} {node.freq}))",
+                track_id=track("pll", name, "yaml_freq"),
+                hint=f"pll {name} 目标 {node.freq} Hz",
+            )
+        elif isinstance(node, PllNode) and node.pll_kind == "inno" and node.freq is not None:
+            port = Port(name, INNO_PLL_OUTPUT_GROUPS[0])
+            builder.constraint(
+                f"(=> {act} (= {port_freq_sym(port)} {node.freq}))",
+                track_id=track("pll", name, "yaml_freq", "0"),
+                hint=f"pll inno {name} 输出[0] 目标 {node.freq} Hz",
+            )
+
+    for name in sorted(required):
+        node = tree.nodes[name]
+        if node.kind in ("source", "mux"):
+            continue
+        act_c = sym(name, "active")
+        parent_port = parent_port_for_child(tree, name)
+        act_p = sym(parent_port.node, "active")
+        builder.constraint(
+            f"(=> {act_c} {act_p})",
+            track_id=track("route", name, "parent_active", parent_port.node),
+            hint=f"{name} 有效时前级 {parent_port.node} 必须有效",
+        )
+
+        if isinstance(node, DivNode):
+            continue
+        if isinstance(node, PllNode):
+            continue
+
+        child_ports = output_ports(tree, name)
+        if not child_ports:
+            continue
+        child_out = port_freq_sym(child_ports[0])
+        parent_f = port_freq_sym(parent_port)
+        if node.kind in ("gate", "inv", "cell", "clk"):
+            builder.constraint(
+                f"(=> {act_c} (= {child_out} {parent_f}))",
+                track_id=track("route", name, "passthrough"),
+                hint=f"{name} 透传前级 {parent_port.node} 频率",
+            )
+
+    _encode_mux_nodes(builder, tree, required)
+    _encode_div_nodes(builder, tree, required, tol_lo, tol_hi, tol_den, tol_pct)
+    _encode_pll_nodes(
+        builder,
+        tree,
+        required,
+        tol_lo,
+        tol_hi,
+        tol_den,
+        tol_pct,
+        pll_sc_fbdiv_min,
+        pll_sc_fbdiv_max,
+    )
+    _encode_gate_nodes(builder, tree, required)
+    _encode_cpu_gate_ports(builder, tree, required, tol_lo, tol_hi, tol_den, tol_pct)
+    _encode_leaf_source_active(builder, tree, required)
+
+    for name in sorted(required):
+        act = sym(name, "active")
+        for port in output_ports(tree, name):
+            f_sym = port_freq_sym(port)
+            builder.constraint(
+                f"(=> {act} (> {f_sym} 0))",
+                track_id=track("port", name, port.group or "0", "positive"),
+                hint=f"{name} 有效时输出频率为正",
+            )
+            builder.constraint(
+                f"(=> (not {act}) (= {f_sym} 0))",
+                track_id=track("port", name, port.group or "0", "zero"),
+                hint=f"{name} 无效时输出频率为 0",
+            )
+
+    return builder.finish()
+
+
+def _declare_pll_vars(
+    builder: Smt2Builder,
+    node: PllNode,
+    fbdiv_min: int,
+    fbdiv_max: int,
+) -> None:
+    name = node.name
+    kind = node.pll_kind
+    if kind == "tci":
+        builder.declare(f"(declare-const {sym(name, 'clkf')} Int)")
+        builder.declare(f"(declare-const {sym(name, 'freq_hw')} Int)")
+        return
+    if kind == "sc":
+        for suffix in ("fbdiv", "refdiv", "postdiv1", "postdiv2", "product", "freq_hw", "rem"):
+            builder.declare(f"(declare-const {sym(name, suffix)} Int)")
+        return
+    if kind == "dw":
+        for suffix in ("fbdiv", "p", "postdiv", "freq_hw", "rem"):
+            builder.declare(f"(declare-const {sym(name, suffix)} Int)")
+        return
+    if kind == "inno":
+        builder.declare(f"(declare-const {sym(name, 'fbdiv')} Int)")
+        builder.declare(f"(declare-const {sym(name, 'refdiv')} Int)")
+        for group_id in node.output_groups:
+            for suffix in ("postdiv1", "postdiv2", "product", "freq_hw", "rem"):
+                builder.declare(
+                    f"(declare-const {sym(name, f'{suffix}_{group_id}')} Int)"
+                )
+
+
+def _encode_mux_nodes(
+    builder: Smt2Builder,
+    tree: Tree,
+    required: set[str],
+) -> None:
+    for name in sorted(required):
+        node = tree.nodes[name]
+        if not isinstance(node, MuxNode):
+            continue
+        act_m = sym(name, "active")
+        sel_m = sym(name, "sel")
+        out_sym = port_freq_sym(Port(name, ""))
+        keys = sorted(node.source.keys(), key=lambda k: int(k))
+        freq_arms: List[Tuple[str, str]] = []
+        for key in keys:
+            peer_port = parse_port_ref(
+                node.source[key], ctx=f"mux {name!r}"
+            )
+            cond = f"(= {sel_m} {key})"
+            freq_arms.append((cond, port_freq_sym(peer_port)))
+            peer_act = sym(peer_port.node, "active")
+            builder.constraint(
+                f"(=> (and {act_m} {cond}) {peer_act})",
+                track_id=track("mux", name, "arm_active", key),
+                hint=f"mux {name} 选 {key} 时前级 {peer_port.node} 有效",
+            )
+            if node.sel is None and is_mux_exclusive_peer(
+                tree, name, peer_port.node
+            ):
+                builder.constraint(
+                    f"(=> (not (and {act_m} {cond})) (not {peer_act}))",
+                    track_id=track("mux", name, "arm_off", key),
+                    hint=(
+                        f"mux {name} 未选 {key} 时"
+                        f"独占臂 {peer_port.node} 无效"
+                    ),
+                )
+        default_port = parse_port_ref(
+            node.source[keys[0]], ctx=f"mux {name!r}"
+        )
+        builder.constraint(
+            f"(=> {act_m} (= {out_sym} "
+            f"{ite_chain(freq_arms, port_freq_sym(default_port))}))",
+            track_id=track("mux", name, "freq_select"),
+            hint=f"mux {name} 输出频率跟随 sel 所选前级",
+        )
+
+
+def _encode_div_nodes(
+    builder: Smt2Builder,
+    tree: Tree,
+    required: set[str],
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+    tol_pct: float,
+) -> None:
+    for name in sorted(required):
+        node = tree.nodes[name]
+        if not isinstance(node, DivNode) or node.div_kind == "cpu_gate":
+            continue
+        parent_port = parent_port_for_child(tree, name)
+        act_d = sym(name, "active")
+        freq_in = port_freq_sym(parent_port)
+        out_port = Port(name, "")
+        freq_out = port_freq_sym(out_port)
+        freq_hw = sym(name, "freq_hw")
+        rem = sym(name, "rem")
+        hint = (
+            f"div {name}：f_out 由 f_ref/ratio 整除分频，"
+            f"容差 {tol_pct:g}%"
+        )
+        if node.div_kind in ("div", "div_n"):
+            ratio_sym = sym(name, "ratio")
+            values = _finite_ratio_values(node)
+            if values is None:
+                builder.constraint(f"(and (>= {ratio_sym} 1) (<= {ratio_sym} 64))")
+            else:
+                allowed = " ".join(f"(= {ratio_sym} {v})" for v in values)
+                builder.constraint(f"(or {allowed})")
+            builder.constraint(
+                div_freq_constraint_expr(
+                    active=act_d,
+                    freq_in=freq_in,
+                    freq_out=freq_out,
+                    ratio=ratio_sym,
+                    freq_hw=freq_hw,
+                    rem=rem,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                ),
+                track_id=track("div", name, "freq"),
+                hint=hint,
+            )
+        elif node.div_kind in ("dto", "dto_n"):
+            ratio_sym = sym(name, "ratio")
+            builder.constraint(
+                f"(and (>= {ratio_sym} 2) (<= {ratio_sym} {DTO_MAX_RATIO}))"
+            )
+            builder.constraint(
+                div_freq_constraint_expr(
+                    active=act_d,
+                    freq_in=freq_in,
+                    freq_out=freq_out,
+                    ratio=ratio_sym,
+                    freq_hw=freq_hw,
+                    rem=rem,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                ),
+                track_id=track("div", name, "freq"),
+                hint=hint,
+            )
+        elif node.div_kind == "div_r":
+            ratio = node.ratio
+            assert ratio is not None
+            builder.constraint(
+                div_freq_constraint_expr(
+                    active=act_d,
+                    freq_in=freq_in,
+                    freq_out=freq_out,
+                    ratio=str(ratio),
+                    freq_hw=freq_hw,
+                    rem=rem,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                ),
+                track_id=track("div", name, "freq"),
+                hint=f"div_r {name} 固定 ratio={ratio}，容差 {tol_pct:g}%",
+            )
+
+
+def _encode_cpu_gate_ports(
+    builder: Smt2Builder,
+    tree: Tree,
+    required: set[str],
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+    tol_pct: float,
+) -> None:
+    for name in sorted(required):
+        node = tree.nodes[name]
+        if not isinstance(node, DivNode) or node.div_kind != "cpu_gate":
+            continue
+        parent_port = parent_port_for_child(tree, name)
+        act_d = sym(name, "active")
+        freq_in = port_freq_sym(parent_port)
+        ratio_sym = sym(name, "ratio")
+        values = _finite_ratio_values(node)
+        assert values is not None
+        allowed = " ".join(f"(= {ratio_sym} {v})" for v in values)
+        builder.constraint(f"(or {allowed})")
+        freq_hw = sym(name, "freq_hw")
+        rem = sym(name, "rem")
+        for port in output_ports(tree, name):
+            freq_out = port_freq_sym(port)
+            if is_cpu_gate_passthrough_group(port.group):
+                builder.constraint(
+                    f"(=> {act_d} (= {freq_out} {freq_in}))",
+                    track_id=track("cpu_gate", name, port.group, "pass"),
+                    hint=f"cpu_gate {name}[{port.group}] 与前级同频",
+                )
+            else:
+                builder.constraint(
+                    div_freq_constraint_expr(
+                        active=act_d,
+                        freq_in=freq_in,
+                        freq_out=freq_out,
+                        ratio=ratio_sym,
+                        freq_hw=freq_hw,
+                        rem=rem,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                    ),
+                    track_id=track("cpu_gate", name, port.group, "div"),
+                    hint=(
+                        f"cpu_gate {name}[{port.group}] 分频，"
+                        f"容差 {tol_pct:g}%"
+                    ),
+                )
+
+
+def _encode_pll_nodes(
+    builder: Smt2Builder,
+    tree: Tree,
+    required: set[str],
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+    tol_pct: float,
+    fbdiv_min: int,
+    fbdiv_max: int,
+) -> None:
+    for name in sorted(required):
+        node = tree.nodes[name]
+        if not isinstance(node, PllNode):
+            continue
+        act = sym(name, "active")
+        ref_port = parent_port_for_child(tree, name)
+        freq_ref = port_freq_sym(ref_port)
+        kind = node.pll_kind
+
+        if kind == "tci":
+            clkf = sym(name, "clkf")
+            out_sym = port_freq_sym(Port(name, ""))
+            builder.constraint(f"(=> {act} (>= {clkf} 1))")
+            builder.constraint(
+                f"(=> {act} (= {out_sym} (* {freq_ref} {clkf})))",
+                track_id=track("pll", name, "tci"),
+                hint=f"pll tci {name}：f_out = f_ref × clkf",
+            )
+        elif kind == "sc":
+            fbdiv = sym(name, "fbdiv")
+            refdiv = sym(name, "refdiv")
+            p1 = sym(name, "postdiv1")
+            p2 = sym(name, "postdiv2")
+            product = sym(name, "product")
+            freq_hw = sym(name, "freq_hw")
+            rem = sym(name, "rem")
+            out_sym = port_freq_sym(Port(name, ""))
+            builder.constraint(
+                f"(and (>= {fbdiv} {fbdiv_min}) (<= {fbdiv} {fbdiv_max}))"
+            )
+            builder.constraint(f"(and (>= {refdiv} 1) (<= {refdiv} 63))")
+            builder.constraint(f"(and (>= {p1} 1) (<= {p1} 7))")
+            builder.constraint(f"(and (>= {p2} 1) (<= {p2} 7))")
+            builder.constraint(
+                f"(= {product} (* {refdiv} (* {p1} {p2})))"
+            )
+            builder.constraint(
+                pll_product_freq_constraint_expr(
+                    active=act,
+                    freq_ref=freq_ref,
+                    freq_out=out_sym,
+                    fbdiv=fbdiv,
+                    product=product,
+                    freq_hw=freq_hw,
+                    rem=rem,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                ),
+                track_id=track("pll", name, "sc"),
+                hint=(
+                    f"pll sc {name}：f_out ≈ f_ref×fbdiv/(refdiv×postdiv1×postdiv2)，"
+                    f"容差 {tol_pct:g}%"
+                ),
+            )
+        elif kind == "dw":
+            fbdiv = sym(name, "fbdiv")
+            p = sym(name, "p")
+            postdiv = sym(name, "postdiv")
+            freq_hw = sym(name, "freq_hw")
+            rem = sym(name, "rem")
+            out_sym = port_freq_sym(Port(name, ""))
+            builder.constraint(
+                f"(and (>= {fbdiv} {DW_FBDIV_MIN}) (<= {fbdiv} {DW_FBDIV_MAX}))"
+            )
+            builder.constraint(f"(and (>= {p} 0) (<= {p} 7))")
+            builder.constraint(f"(= {postdiv} (+ {p} 1))")
+            builder.constraint(
+                pll_product_freq_constraint_expr(
+                    active=act,
+                    freq_ref=freq_ref,
+                    freq_out=out_sym,
+                    fbdiv=fbdiv,
+                    product=postdiv,
+                    freq_hw=freq_hw,
+                    rem=rem,
+                    tol_lo=tol_lo,
+                    tol_hi=tol_hi,
+                    tol_den=tol_den,
+                ),
+                track_id=track("pll", name, "dw"),
+                hint=f"pll dw {name}：f_out ≈ f_ref×fbdiv/(p+1)，容差 {tol_pct:g}%",
+            )
+        elif kind == "inno":
+            fbdiv = sym(name, "fbdiv")
+            refdiv = sym(name, "refdiv")
+            builder.constraint(f"(and (>= {refdiv} 1) (<= {refdiv} 63))")
+            builder.constraint(f"(and (>= {fbdiv} 1) (<= {fbdiv} {INNO_FBDIV_HW_MAX}))")
+            builder.constraint(_inno_fbdiv_legal_expr(fbdiv))
+            for group_id in node.output_groups:
+                p1 = sym(name, f"postdiv1_{group_id}")
+                p2 = sym(name, f"postdiv2_{group_id}")
+                product = sym(name, f"product_{group_id}")
+                freq_hw = sym(name, f"freq_hw_{group_id}")
+                rem = sym(name, f"rem_{group_id}")
+                out_sym = port_freq_sym(Port(name, group_id))
+                builder.constraint(f"(and (>= {p1} 1) (<= {p1} 7))")
+                builder.constraint(f"(and (>= {p2} 1) (<= {p2} 7))")
+                scale = INNO_FBDIV_SCALE
+                builder.constraint(
+                    f"(= {product} (* {scale} (* {refdiv} (* {p1} {p2}))))"
+                )
+                builder.constraint(
+                    pll_product_freq_constraint_expr(
+                        active=act,
+                        freq_ref=freq_ref,
+                        freq_out=out_sym,
+                        fbdiv=fbdiv,
+                        product=product,
+                        freq_hw=freq_hw,
+                        rem=rem,
+                        tol_lo=tol_lo,
+                        tol_hi=tol_hi,
+                        tol_den=tol_den,
+                    ),
+                    track_id=track("pll", name, "inno", group_id),
+                    hint=(
+                        f"pll inno {name}[{group_id}]："
+                        f"f_out ≈ f_ref×fbdiv/(4×refdiv×postdiv1×postdiv2)，"
+                        f"容差 {tol_pct:g}%"
+                    ),
+                )
+
+
+def _encode_leaf_source_active(
+    builder: Smt2Builder,
+    tree: Tree,
+    required: set[str],
+) -> None:
+    from freq_model import _downstream_children
+
+    for name in sorted(required):
+        if tree.nodes[name].kind != "source":
+            continue
+        children = _downstream_children(tree, name)
+        if len(children) != 1:
+            continue
+        act = sym(name, "active")
+        child_act = sym(children[0], "active")
+        builder.constraint(
+            f"(= {act} {child_act})",
+            track_id=track("source", name, "follow_child"),
+            hint=f"source {name} 仅驱动 {children[0]}，有效性一致",
+        )
+
+
+def _encode_gate_nodes(
+    builder: Smt2Builder,
+    tree: Tree,
+    required: set[str],
+) -> None:
+    for name in sorted(required):
+        node = tree.nodes[name]
+        if not isinstance(node, GateNode):
+            continue
+        builder.constraint(
+            f"(=> {sym(name, 'active')} {sym(name, 'gate_open')})",
+            track_id=track("gate", name, "must_open"),
+            hint=f"gate {name} 有效时必须打开",
+        )
+
+
+def _model_bool(model: Mapping[str, object], sym_name: str) -> bool:
+    val = model.get(sym_name)
+    if val is True:
+        return True
+    if val is False:
+        return False
+    if isinstance(val, int):
+        return val != 0
+    raise ValueError(f"模型变量 {sym_name!r} 不是布尔值: {val!r}")
+
+
+def _model_int(model: Mapping[str, object], sym_name: str) -> int:
+    val = model.get(sym_name)
+    if isinstance(val, bool):
+        return int(val)
+    if isinstance(val, int):
+        return val
+    if isinstance(val, dict) and "value" in val:
+        inner = val["value"]
+        if isinstance(inner, int):
+            return inner
+    raise ValueError(f"模型变量 {sym_name!r} 不是整数: {val!r}")
+
+
+def _extract_pll_vars(node: PllNode, model: Mapping[str, object]) -> dict[str, int]:
+    name = node.name
+    kind = node.pll_kind
+    if kind == "tci":
+        return {"clkf": _model_int(model, sym(name, "clkf"))}
+    if kind == "sc":
+        return {
+            "fbdiv": _model_int(model, sym(name, "fbdiv")),
+            "refdiv": _model_int(model, sym(name, "refdiv")),
+            "postdiv1": _model_int(model, sym(name, "postdiv1")),
+            "postdiv2": _model_int(model, sym(name, "postdiv2")),
         }
-        tracked = [
-            (track, expr, hint)
-            for expr, track, hint in self._constraints
-            if track is not None and hint is not None
-        ]
-        return (
-            self._render(named_tracks=False),
-            self._render(named_tracks=True),
-            hints,
-            tracked,
-        )
+    if kind == "dw":
+        return {
+            "fbdiv": _model_int(model, sym(name, "fbdiv")),
+            "p": _model_int(model, sym(name, "p")),
+        }
+    if kind == "inno":
+        out: dict[str, int] = {
+            "fbdiv": _model_int(model, sym(name, "fbdiv")),
+            "refdiv": _model_int(model, sym(name, "refdiv")),
+        }
+        for group_id in node.output_groups:
+            out[f"postdiv1_{group_id}"] = _model_int(
+                model, sym(name, f"postdiv1_{group_id}")
+            )
+            out[f"postdiv2_{group_id}"] = _model_int(
+                model, sym(name, f"postdiv2_{group_id}")
+            )
+        return out
+    raise ValueError(f"未知 pll_kind {kind!r}")
 
-def _div_freq_constraint_expr(
-    *,
-    active: str,
-    freq_in: str,
-    freq_out: str,
-    ratio: str,
-    freq_hw: str,
-    rem: str,
-    tol_lo: int,
-    tol_hi: int,
-    tol_den: int,
-) -> str:
-    relation = _div_freq_relation_expr(
-        freq_in=freq_in,
-        freq_out=freq_out,
-        ratio=ratio,
-        freq_hw=freq_hw,
-        rem=rem,
-        tol_lo=tol_lo,
-        tol_hi=tol_hi,
-        tol_den=tol_den,
+
+def parse_solve_model(tree: Tree, model: Mapping[str, object]) -> SolveModel:
+    active: Dict[str, bool] = {}
+    port_freq: Dict[Port, int] = {}
+    ratios: Dict[str, int] = {}
+    mux_sel: Dict[str, int] = {}
+    gate_open: Dict[str, bool] = {}
+    pll_vars: Dict[str, Dict[str, int]] = {}
+
+    for name, node in tree.nodes.items():
+        active[name] = _model_bool(model, sym(name, "active"))
+        if not active[name]:
+            continue
+        for port in output_ports(tree, name):
+            port_freq[port] = _model_int(model, port_freq_sym(port))
+        if isinstance(node, MuxNode):
+            mux_sel[name] = (
+                node.sel
+                if node.sel is not None
+                else _model_int(model, sym(name, "sel"))
+            )
+        if isinstance(node, DivNode):
+            if _div_needs_ratio_var(node):
+                ratios[name] = (
+                    node.ratio
+                    if node.ratio is not None
+                    else _model_int(model, sym(name, "ratio"))
+                )
+            elif node.div_kind == "div_r" and node.ratio is not None:
+                ratios[name] = node.ratio
+        if isinstance(node, GateNode):
+            gate_open[name] = (
+                node.open != 0
+                if node.open is not None
+                else _model_bool(model, sym(name, "gate_open"))
+            )
+        if isinstance(node, PllNode):
+            pll_vars[name] = _extract_pll_vars(node, model)
+
+    return SolveModel(
+        active=active,
+        port_freq=port_freq,
+        ratios=ratios,
+        mux_sel=mux_sel,
+        gate_open=gate_open,
+        pll_vars=pll_vars,
     )
-    return f"(=> {active} {relation})"
 
 
-def _div_freq_relation_expr(
-    *,
-    freq_in: str,
-    freq_out: str,
-    ratio: str,
-    freq_hw: str,
-    rem: str,
-    tol_lo: int,
-    tol_hi: int,
-    tol_den: int,
-) -> str:
-    return (
-        f"(and "
-        f"(> {freq_hw} 0) "
-        f"(>= {rem} 0) "
-        f"(< {rem} {ratio}) "
-        f"(= {freq_in} (+ (* {freq_hw} {ratio}) {rem})) "
-        f"(<= (* {freq_out} {tol_lo}) (* {freq_hw} {tol_den})) "
-        f"(>= (* {freq_out} {tol_hi}) (* {freq_hw} {tol_den}))"
-        f")"
-    )
-
-
-def _finite_ratio_freq_constraint_expr(
-    *,
-    active: str,
-    freq_in: str,
-    freq_out: str,
-    ratio_sym: str,
-    values: tuple[int, ...],
-    freq_hw: str,
-    rem: str,
-    tol_lo: int,
-    tol_hi: int,
-    tol_den: int,
-) -> str:
-    arms = [
-        "(and "
-        f"(= {ratio_sym} {value}) "
-        + _div_freq_relation_expr(
-            freq_in=freq_in,
-            freq_out=freq_out,
-            ratio=str(value),
-            freq_hw=freq_hw,
-            rem=rem,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
-        )
-        + ")"
-        for value in values
-    ]
-    return f"(=> {active} (or {' '.join(arms)}))"
+_DIAG_SKIP_LINES = frozenset({"(check-sat)", "(get-model)"})
 
 
 def _smt2_for_diagnosis(smt2_named: str) -> str:
@@ -207,78 +735,14 @@ def _smt2_for_diagnosis(smt2_named: str) -> str:
         stripped = line.strip()
         if stripped in _DIAG_SKIP_LINES:
             continue
-        if stripped == "(set-logic QF_LIA)":
-            lines.append("(set-logic QF_NIA)")
-            continue
         lines.append(line)
     return "\n".join(lines) + "\n"
-
-
-def format_solve_failure_detail(
-    tree: Tree,
-    *,
-    period_tolerance: float,
-    smt2_named: str,
-    hints: Mapping[str, str],
-) -> str:
-    unsat_started_at = log_stage_start(
-        "diagnose",
-        "unsat_core",
-        "z3 unsat core",
-        hints=len(hints),
-    )
-    core = format_unsat_diagnosis(smt2_named, hints)
-    log_stage_done(
-        "diagnose",
-        "unsat_core",
-        "z3 unsat core",
-        unsat_started_at,
-        found=bool(core),
-    )
-
-    issues_started_at = log_stage_start(
-        "diagnose",
-        "collect",
-        "debug issues",
-        nodes=len(tree.nodes),
-    )
-    issues = collect_debug_issues(tree, period_tolerance)
-    log_stage_done(
-        "diagnose",
-        "collect",
-        "debug issues",
-        issues_started_at,
-        issues=len(issues),
-    )
-
-    render_started_at = log_stage_start(
-        "diagnose",
-        "format",
-        "tree graph",
-        nodes=len(tree.nodes),
-    )
-    print_diagnostic_report(tree, issues=issues, unsat_core=core or "")
-    log_stage_done(
-        "diagnose",
-        "format",
-        "tree graph",
-        render_started_at,
-        issues=len(issues),
-    )
-
-    detail_text = format_debug_issues(issues)
-    if detail_text:
-        return f"{detail_text}\n\n路径子树见 stderr。"
-    if core:
-        return "约束冲突；彩色诊断图已输出到 stderr。"
-    return ""
 
 
 def format_unsat_diagnosis(
     smt2_named: str,
     hints: Mapping[str, str],
 ) -> str:
-    """用 Z3 从命名约束中提取不可满足核心，生成可读说明。"""
     try:
         from z3 import Solver, unsat
     except ImportError:
@@ -292,447 +756,18 @@ def format_unsat_diagnosis(
     if solver.check() != unsat:
         return ""
 
-    core = [str(track) for track in solver.unsat_core()]
+    core = [str(track_id) for track_id in solver.unsat_core()]
     if not core:
         return ""
 
     lines: List[str] = []
-    for track in core:
-        hint = hints.get(track)
+    for track_id in core:
+        hint = hints.get(track_id)
         if hint:
             lines.append(f"- {hint}")
         else:
-            lines.append(f"- 约束 {track}")
+            lines.append(f"- 约束 {track_id}")
     return "冲突约束：\n" + "\n".join(lines)
-
-
-def _raise_solve_failure(
-    exc: RuntimeError,
-    *,
-    tree: Tree,
-    period_tolerance: float,
-    smt2_named: str,
-    hints: Mapping[str, str],
-) -> None:
-    detail = format_solve_failure_detail(
-        tree,
-        period_tolerance=period_tolerance,
-        smt2_named=smt2_named,
-        hints=hints,
-    )
-    if detail:
-        raise RuntimeError(f"{exc}\n\n{detail}") from exc
-    raise exc
-
-
-def build_smt2(
-    tree: Tree,
-    *,
-    pll_sc_fbdiv_min: int,
-    pll_sc_fbdiv_max: int,
-    period_tolerance: float,
-) -> tuple[str, str, Dict[str, str], List[tuple[str, str, str]]]:
-    """编码时钟树约束；返回 consolver SMT、诊断 SMT、说明表与命名约束。"""
-    builder = _Smt2Builder()
-    node_names = sorted(tree.nodes.keys())
-    tol_lo, tol_hi, tol_den = _freq_tolerance_bounds(period_tolerance)
-    tol_pct = period_tolerance * 100
-
-    for name in node_names:
-        builder.declare(f"(declare-const {_sym(name, 'active')} Bool)")
-        builder.declare(f"(declare-const {_sym(name, 'freq')} Int)")
-        node = tree.nodes[name]
-        if isinstance(node, MuxNode):
-            keys = sorted(node.source.keys(), key=lambda k: int(k))
-            max_sel = max(int(k) for k in keys)
-            builder.declare(f"(declare-const {_sym(name, 'sel')} Int)")
-            if node.sel is not None:
-                builder.constraint(
-                    f"(= {_sym(name, 'sel')} {node.sel})",
-                    track=_track("mux", name, "sel", str(node.sel)),
-                    hint=f"mux 节点 {name} 固定选择值 {node.sel}",
-                )
-            else:
-                builder.constraint(f"(>= {_sym(name, 'sel')} 0)")
-                builder.constraint(f"(<= {_sym(name, 'sel')} {max_sel})")
-        if isinstance(node, DivNode) and _div_needs_ratio_var(node):
-            builder.declare(f"(declare-const {_sym(name, 'ratio')} Int)")
-            if node.ratio is not None:
-                builder.constraint(
-                    f"(= {_sym(name, 'ratio')} {node.ratio})",
-                    track=_track("div", name, "ratio", str(node.ratio)),
-                    hint=f"div 节点 {name} 固定分频比 {node.ratio}",
-                )
-        if isinstance(node, DivNode):
-            builder.declare(f"(declare-const {_sym(name, 'freq_hw')} Int)")
-            builder.declare(f"(declare-const {_sym(name, 'rem')} Int)")
-        if isinstance(node, GateNode):
-            builder.declare(f"(declare-const {_sym(name, 'gate_open')} Bool)")
-            if node.open is not None:
-                lit = "true" if node.open else "false"
-                state = "打开" if node.open else "关闭"
-                builder.constraint(
-                    f"(= {_sym(name, 'gate_open')} {lit})",
-                    track=_track("gate", name, "open", lit),
-                    hint=f"gate 节点 {name} 固定为{state}",
-                )
-
-    for name in node_names:
-        node = tree.nodes[name]
-        if node.kind == "source":
-            if node.freq > 0:
-                builder.constraint(
-                    _sym(name, "active"),
-                    track=_track("source", name, "active"),
-                    hint=f"source 节点 {name} 始终有效",
-                )
-                builder.constraint(
-                    f"(= {_sym(name, 'freq')} {node.freq})",
-                    track=_track("source", name, "freq", str(node.freq)),
-                    hint=f"source 节点 {name} 频率固定为 {node.freq} Hz",
-                )
-        elif isinstance(node, ClkNode):
-            builder.constraint(
-                _sym(name, "active"),
-                track=_track("clk", name, "active"),
-                hint=f"clk 节点 {name} 始终有效",
-            )
-            if node.freq is not None:
-                builder.constraint(
-                    f"(= {_sym(name, 'freq')} {node.freq})",
-                    track=_track("clk", name, "freq", str(node.freq)),
-                    hint=f"clk 节点 {name} 目标频率 {node.freq} Hz",
-                )
-        elif isinstance(node, PllNode):
-            builder.constraint(
-                f"(=> {_sym(name, 'active')} (= {_sym(name, 'freq')} {node.freq}))",
-                track=_track("pll", name, "freq", str(node.freq)),
-                hint=f"pll 节点 {name} 有效时输出频率应为 {node.freq} Hz",
-            )
-
-    for name in node_names:
-        node = tree.nodes[name]
-        if node.kind in ("source", "mux"):
-            continue
-        parent_name, out_group = parse_source_endpoint(
-            node.source, ctx=f"节点 {name!r} source"
-        )
-        parent = tree.nodes[parent_name]
-        act_c = _sym(name, "active")
-        act_p = _sym(parent_name, "active")
-        freq_c = _sym(name, "freq")
-        freq_p = _sym(parent_name, "freq")
-        builder.constraint(
-            f"(=> {act_c} {act_p})",
-            track=_track("route", name, "parent_active", parent_name),
-            hint=f"节点 {name} 有效时前级 {parent_name} 必须有效",
-        )
-        if parent.kind == "mux":
-            if not isinstance(node, DivNode):
-                builder.constraint(
-                    f"(=> {act_c} (= {freq_c} {freq_p}))",
-                    track=_track("route", name, "freq_eq", parent_name),
-                    hint=f"节点 {name} 与前级 mux {parent_name} 同频",
-                )
-        elif isinstance(parent, DivNode) and parent.div_kind == "cpu_gate":
-            if out_group == CPU_GATE_PASS_THROUGH_GROUP:
-                pass_parent_name, _ = parse_source_endpoint(
-                    parent.source, ctx=f"cpu_gate {parent_name!r} source"
-                )
-                freq_pass = _sym(pass_parent_name, "freq")
-                builder.constraint(
-                    f"(=> {act_c} (= {freq_c} {freq_pass}))",
-                    track=_track("route", name, "freq_pass", pass_parent_name),
-                    hint=(
-                        f"节点 {name} 取自 cpu_gate {parent_name}"
-                        f"[{CPU_GATE_PASS_THROUGH_GROUP}]，"
-                        f"与 {pass_parent_name} 同频"
-                    ),
-                )
-            else:
-                builder.constraint(
-                    f"(=> {act_c} (= {freq_c} {freq_p}))",
-                    track=_track("route", name, "freq_eq", parent_name),
-                    hint=f"节点 {name} 与前级 cpu_gate {parent_name} 同频",
-                )
-        elif node.kind in ("gate", "inv", "cell", "clk"):
-            builder.constraint(
-                f"(=> {act_c} (= {freq_c} {freq_p}))",
-                track=_track("route", name, "freq_eq", parent_name),
-                hint=f"节点 {name} 与前级 {parent_name} 同频",
-            )
-        elif node.kind == "pll":
-            pass
-        elif isinstance(node, DivNode):
-            pass
-
-    for name in node_names:
-        node = tree.nodes[name]
-        if not isinstance(node, MuxNode):
-            continue
-        act_m = _sym(name, "active")
-        freq_m = _sym(name, "freq")
-        sel_m = _sym(name, "sel")
-        keys = sorted(node.source.keys(), key=lambda k: int(k))
-        peer_names: List[str] = []
-        freq_arms: List[Tuple[str, str]] = []
-        active_arms: List[str] = []
-        for key in keys:
-            peer_ref = node.source[key]
-            peer_name, _ = parse_source_endpoint(
-                peer_ref, ctx=f"mux {name!r}"
-            )
-            peer_names.append(peer_name)
-            cond = f"(= {sel_m} {key})"
-            freq_arms.append((cond, _sym(peer_name, "freq")))
-            active_arms.append(
-                f"(and {cond} {_sym(peer_name, 'active')})"
-            )
-        default_peer = peer_names[0]
-        builder.constraint(
-            f"(=> {act_m} (= {freq_m} "
-            f"{_ite_chain(freq_arms, _sym(default_peer, 'freq'))}))",
-            track=_track("mux", name, "freq_select"),
-            hint=f"mux 节点 {name} 输出频率跟随当前选择的前级",
-        )
-        builder.constraint(
-            f"(=> {act_m} (or {' '.join(active_arms)}))",
-            track=_track("mux", name, "active_select"),
-            hint=f"mux 节点 {name} 所选前级分支必须有效",
-        )
-
-    for name in node_names:
-        node = tree.nodes[name]
-        if not isinstance(node, DivNode):
-            continue
-        parent_name, _ = parse_source_endpoint(
-            node.source, ctx="div"
-        )
-        act_d = _sym(name, "active")
-        freq_d = _sym(name, "freq")
-        freq_in = _sym(parent_name, "freq")
-        freq_hw = _sym(name, "freq_hw")
-        rem = _sym(name, "rem")
-        div_freq_hint = (
-            f"div 节点 {name}：前级 {parent_name} 频率分频后"
-            f"应满足输出频率，容差 {tol_pct:g}%"
-        )
-        if node.div_kind in ("div", "div_n"):
-            ratio = _sym(name, "ratio")
-            values = _finite_ratio_values(node)
-            if values is None:
-                builder.constraint(
-                    f"(and (>= {ratio} 1) (<= {ratio} 64))",
-                    track=_track("div", name, "ratio_range"),
-                    hint=f"div 节点 {name} 分频比范围 1～64",
-                )
-                builder.constraint(
-                    _div_freq_constraint_expr(
-                        active=act_d,
-                        freq_in=freq_in,
-                        freq_out=freq_d,
-                        ratio=ratio,
-                        freq_hw=freq_hw,
-                        rem=rem,
-                        tol_lo=tol_lo,
-                        tol_hi=tol_hi,
-                        tol_den=tol_den,
-                    ),
-                    track=_track("div", name, "freq_relation"),
-                    hint=div_freq_hint,
-                )
-            else:
-                allowed = " ".join(f"(= {ratio} {value})" for value in values)
-                builder.constraint(
-                    f"(or {allowed})",
-                    track=_track("div", name, "ratio_range"),
-                    hint=f"div 节点 {name} 分频比范围 1～64",
-                )
-                builder.constraint(
-                    _finite_ratio_freq_constraint_expr(
-                        active=act_d,
-                        freq_in=freq_in,
-                        freq_out=freq_d,
-                        ratio_sym=ratio,
-                        values=values,
-                        freq_hw=freq_hw,
-                        rem=rem,
-                        tol_lo=tol_lo,
-                        tol_hi=tol_hi,
-                        tol_den=tol_den,
-                    ),
-                    track=_track("div", name, "freq_relation"),
-                    hint=div_freq_hint,
-                )
-        elif node.div_kind in ("dto", "dto_n"):
-            ratio = _sym(name, "ratio")
-            builder.constraint(
-                f"(and (>= {ratio} 2) (<= {ratio} {DTO_MAX_RATIO}))",
-                track=_track("div", name, "ratio_range"),
-                hint=f"dto 节点 {name} 分频比范围 2～{DTO_MAX_RATIO}",
-            )
-            builder.constraint(
-                _div_freq_constraint_expr(
-                    active=act_d,
-                    freq_in=freq_in,
-                    freq_out=freq_d,
-                    ratio=ratio,
-                    freq_hw=freq_hw,
-                    rem=rem,
-                    tol_lo=tol_lo,
-                    tol_hi=tol_hi,
-                    tol_den=tol_den,
-                ),
-                track=_track("div", name, "freq_relation"),
-                hint=div_freq_hint,
-            )
-        elif node.div_kind == "div_r":
-            ratio = node.ratio
-            assert ratio is not None
-            builder.constraint(
-                _div_freq_constraint_expr(
-                    active=act_d,
-                    freq_in=freq_in,
-                    freq_out=freq_d,
-                    ratio=str(ratio),
-                    freq_hw=freq_hw,
-                    rem=rem,
-                    tol_lo=tol_lo,
-                    tol_hi=tol_hi,
-                    tol_den=tol_den,
-                ),
-                track=_track("div", name, "freq_relation"),
-                hint=(
-                    f"div_r 节点 {name} 固定分频比 {ratio}，"
-                    f"前级频率分频后应满足输出频率，容差 {tol_pct:g}%"
-                ),
-            )
-        elif node.div_kind == "cpu_gate":
-            ratio = _sym(name, "ratio")
-            values = _finite_ratio_values(node)
-            assert values is not None
-            ratio_allowed = " ".join(f"(= {ratio} {value})" for value in values)
-            builder.constraint(
-                f"(or {ratio_allowed})",
-                track=_track("div", name, "ratio_range"),
-                hint=f"cpu_gate 节点 {name} 分频比只能是 2、3、4、6",
-            )
-            builder.constraint(
-                _finite_ratio_freq_constraint_expr(
-                    active=act_d,
-                    freq_in=freq_in,
-                    freq_out=freq_d,
-                    ratio_sym=ratio,
-                    values=values,
-                    freq_hw=freq_hw,
-                    rem=rem,
-                    tol_lo=tol_lo,
-                    tol_hi=tol_hi,
-                    tol_den=tol_den,
-                ),
-                track=_track("div", name, "freq_relation"),
-                hint=div_freq_hint,
-            )
-
-    for name in node_names:
-        node = tree.nodes[name]
-        if isinstance(node, GateNode):
-            act_g = _sym(name, "active")
-            open_g = _sym(name, "gate_open")
-            builder.constraint(
-                f"(=> {act_g} {open_g})",
-                track=_track("gate", name, "must_open"),
-                hint=f"gate 节点 {name} 有效时必须打开",
-            )
-
-    for name in node_names:
-        act = _sym(name, "active")
-        freq = _sym(name, "freq")
-        builder.constraint(
-            f"(=> {act} (> {freq} 0))",
-            track=_track("node", name, "active_positive_freq"),
-            hint=f"节点 {name} 有效时频率必须为正",
-        )
-        builder.constraint(
-            f"(=> (not {act}) (= {freq} 0))",
-            track=_track("node", name, "inactive_zero_freq"),
-            hint=f"节点 {name} 无效时频率为 0",
-        )
-
-    _ = pll_sc_fbdiv_min
-    _ = pll_sc_fbdiv_max
-
-    plain, named, hints, tracked = builder.finish()
-    return plain, named, hints, tracked
-
-
-def _model_bool(model: Mapping[str, object], sym: str) -> bool:
-    val = model.get(sym)
-    if val is True:
-        return True
-    if val is False:
-        return False
-    if isinstance(val, int):
-        return val != 0
-    raise ValueError(f"模型变量 {sym!r} 不是布尔值: {val!r}")
-
-
-def _model_int(model: Mapping[str, object], sym: str) -> int:
-    val = model.get(sym)
-    if isinstance(val, bool):
-        return int(val)
-    if isinstance(val, int):
-        return val
-    if isinstance(val, dict) and "value" in val:
-        inner = val["value"]
-        if isinstance(inner, int):
-            return inner
-    raise ValueError(f"模型变量 {sym!r} 不是整数: {val!r}")
-
-
-def parse_solve_model(
-    tree: Tree,
-    model: Mapping[str, object],
-) -> Tuple[
-    Dict[str, bool],
-    Dict[str, int],
-    Dict[str, int],
-    Dict[str, int],
-    Dict[str, bool],
-]:
-    """从 consolver 模型解析 active、freq、ratio、mux_sel、gate_open。"""
-    active: Dict[str, bool] = {}
-    freq: Dict[str, int] = {}
-    ratios: Dict[str, int] = {}
-    mux_sel: Dict[str, int] = {}
-    gate_open: Dict[str, bool] = {}
-
-    for name, node in tree.nodes.items():
-        active[name] = _model_bool(model, _sym(name, "active"))
-        freq[name] = _model_int(model, _sym(name, "freq"))
-        if isinstance(node, MuxNode):
-            mux_sel[name] = (
-                node.sel
-                if node.sel is not None
-                else _model_int(model, _sym(name, "sel"))
-            )
-        if isinstance(node, DivNode):
-            if _div_needs_ratio_var(node):
-                ratios[name] = (
-                    node.ratio
-                    if node.ratio is not None
-                    else _model_int(model, _sym(name, "ratio"))
-                )
-            elif node.div_kind == "div_r" and node.ratio is not None:
-                ratios[name] = node.ratio
-        if isinstance(node, GateNode):
-            gate_open[name] = (
-                node.open != 0
-                if node.open is not None
-                else _model_bool(model, _sym(name, "gate_open"))
-            )
-
-    return active, freq, ratios, mux_sel, gate_open
 
 
 def solve_tree_constraints(
@@ -742,8 +777,10 @@ def solve_tree_constraints(
     pll_sc_fbdiv_max: int,
     period_tolerance: float,
     timeout_ms: int | None = None,
-) -> Tuple[Dict[str, bool], Dict[str, int], Dict[str, int], Dict[str, int], Dict[str, bool]]:
-    """生成 SMT、调用 consolver 并解析模型。"""
+) -> SolveModel:
+    from diagnose import format_solve_failure_detail
+    from tools import log_stage_done, log_stage_start, run_consolver_solve
+
     build_started_at = log_stage_start(
         "smt",
         "build",
@@ -771,13 +808,15 @@ def solve_tree_constraints(
             timeout_ms=timeout_ms,
         )
     except RuntimeError as exc:
-        _raise_solve_failure(
-            exc,
-            tree=tree,
+        detail = format_solve_failure_detail(
+            tree,
             period_tolerance=period_tolerance,
             smt2_named=smt2_named,
             hints=hints,
         )
+        if detail:
+            raise RuntimeError(f"{exc}\n\n{detail}") from exc
+        raise
     parse_started_at = log_stage_start(
         "smt",
         "parse",

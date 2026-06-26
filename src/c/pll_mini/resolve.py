@@ -1,25 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict
 
-from formulas import (
-    INNO_FBDIV_HW_MAX,
-    dw_pll_cfg,
-    inno_pll_cfg,
-    sc_pll_cfg,
-    tci_divisors,
-)
-from diagnose import verify_upstream_diagnose
+from pll_cfg import pll_cfg_from_solved
+from solve_model import SolveModel
+from smt import solve_tree_constraints
+from tools import log_stage_done, log_stage_start
+from verify import raise_on_verify_issues, verify_solve_model
+
 from nodes import (
+    DivNode,
     GateNode,
     PllNode,
     Tree,
-    parse_source_endpoint,
 )
-from regmodel import RegModelIndex, reg_bound_max
-from smt import solve_tree_constraints
-from tools import log_stage_done, log_stage_start
+from freq_model import Port, output_ports
+from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 
 
 @dataclass(frozen=True)
@@ -28,6 +25,7 @@ class ResolvedNode:
     kind: str
     active: bool
     resolved_freq: int
+    port_freqs: Dict[str, int]
     ratio: int
     mux_sel: int
     gate_open: bool
@@ -37,44 +35,29 @@ class ResolvedNode:
 @dataclass(frozen=True)
 class TreeResolve:
     by_name: Dict[str, ResolvedNode]
-    clk_names: Tuple[str, ...]
+    clk_names: tuple[str, ...]
+    solve_model: SolveModel
 
 
-def _inno_fbdiv_max(node: PllNode, reg_index: RegModelIndex | None) -> int:
-    if reg_index is None or "fbdiv" not in node.regs:
-        return INNO_FBDIV_HW_MAX
-    ref = reg_index.resolve(
-        node.regs["fbdiv"],
-        ctx=f"pll node {node.name!r} regs.fbdiv",
-    )
-    return reg_bound_max(ref)
-
-
-def _compute_pll_cfg(
-    node: PllNode,
-    ref_hz: int,
-    *,
-    fbdiv_min: int,
-    fbdiv_max: int,
-    reg_index: RegModelIndex | None = None,
-) -> Dict[str, int]:
-    out_hz = node.freq
-    if node.pll_kind == "tci":
-        return tci_divisors(out_hz, ref_hz)
-    if node.pll_kind == "sc":
-        return sc_pll_cfg(
-            out_hz, ref_hz, fbdiv_min=fbdiv_min, fbdiv_max=fbdiv_max
-        )
-    if node.pll_kind == "dw":
-        return dw_pll_cfg(out_hz, ref_hz)
-    if node.pll_kind == "inno":
-        return inno_pll_cfg(
-            out_hz,
-            ref_hz,
-            output_groups=node.output_groups,
-            fbdiv_max=_inno_fbdiv_max(node, reg_index),
-        )
-    raise ValueError(f"未知 pll_kind {node.pll_kind!r}")
+def _primary_port_freq(
+    node: object,
+    port_freqs: Dict[str, int],
+) -> int:
+    if isinstance(node, DivNode) and node.div_kind == "cpu_gate":
+        for key in ("hclk", "hclk_en"):
+            if key in port_freqs:
+                return port_freqs[key]
+    groups = getattr(node, "output_groups", None) or []
+    for group in groups:
+        if group == CPU_GATE_PASS_THROUGH_GROUP:
+            continue
+        if group in port_freqs:
+            return port_freqs[group]
+    if "" in port_freqs:
+        return port_freqs[""]
+    if port_freqs:
+        return next(iter(port_freqs.values()))
+    return 0
 
 
 def resolve_tree(
@@ -84,18 +67,37 @@ def resolve_tree(
     pll_sc_fbdiv_max: int,
     period_tolerance: float,
     consolver_timeout_ms: int | None = None,
-    reg_index: RegModelIndex | None = None,
+    reg_index: object | None = None,
 ) -> TreeResolve:
+    _ = reg_index
     clk_nodes = [n for n in tree.nodes_ordered if n.kind == "clk"]
     if not clk_nodes:
         raise ValueError("tree 须至少含一个 kind 为 clk 的节点")
 
-    active_map, freq_map, ratios, mux_sel, gate_open = solve_tree_constraints(
+    model = solve_tree_constraints(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
         timeout_ms=consolver_timeout_ms,
+    )
+
+    verify_started_at = log_stage_start(
+        "resolve",
+        "verify",
+        "formula replay",
+        nodes=len(tree.nodes),
+    )
+    issues = verify_solve_model(
+        tree, model, period_tolerance=period_tolerance
+    )
+    raise_on_verify_issues(tree, issues)
+    log_stage_done(
+        "resolve",
+        "verify",
+        "formula replay",
+        verify_started_at,
+        issues=0,
     )
 
     resolve_started_at = log_stage_start(
@@ -106,41 +108,35 @@ def resolve_tree(
     )
     resolved: Dict[str, ResolvedNode] = {}
     for node_name, node in tree.nodes.items():
-        on_path = active_map.get(node_name, False)
-        ratio = ratios.get(node_name, 0)
-        sel = mux_sel.get(node_name, 0)
-        gate_is_open = gate_open.get(node_name, False)
+        on_path = model.active.get(node_name, False)
+        ratio = model.ratios.get(node_name, 0)
+        sel = model.mux_sel.get(node_name, 0)
+        gate_is_open = model.gate_open.get(node_name, False)
         if isinstance(node, GateNode):
             gate_is_open = on_path and gate_is_open
+
         pll_cfg: Dict[str, int] = {}
-
         if isinstance(node, PllNode) and on_path:
-            parent_name, _ = parse_source_endpoint(
-                node.source, ctx="pll"
-            )
-            ref_hz = freq_map.get(parent_name, 0)
-            if ref_hz <= 0:
-                raise ValueError(
-                    f"pll 节点 {node_name!r} 参考频率无效"
-                )
-            pll_cfg = _compute_pll_cfg(
-                node,
-                ref_hz,
-                fbdiv_min=pll_sc_fbdiv_min,
-                fbdiv_max=pll_sc_fbdiv_max,
-                reg_index=reg_index,
+            vars_map = model.pll_vars.get(node_name, {})
+            pll_cfg = pll_cfg_from_solved(
+                node.pll_kind,
+                vars_map,
+                output_groups=node.output_groups,
             )
 
-        resolved_freq = freq_map.get(node_name, 0)
-        is_active = on_path and (
-            resolved_freq > 0 if node.kind != "pll" else node.freq > 0
-        )
+        port_freqs: Dict[str, int] = {}
+        for port in output_ports(tree, node_name):
+            hz = model.port_hz(port)
+            key = port.group if port.group else ""
+            port_freqs[key] = hz
+        primary = _primary_port_freq(node, port_freqs)
 
         resolved[node_name] = ResolvedNode(
             name=node_name,
             kind=node.kind,
-            active=is_active,
-            resolved_freq=resolved_freq,
+            active=on_path,
+            resolved_freq=primary,
+            port_freqs=port_freqs,
             ratio=ratio,
             mux_sel=sel,
             gate_open=gate_is_open,
@@ -155,21 +151,8 @@ def resolve_tree(
         nodes=len(resolved),
     )
 
-    result = TreeResolve(
+    return TreeResolve(
         by_name=resolved,
         clk_names=tuple(n.name for n in clk_nodes),
+        solve_model=model,
     )
-    diagnose_started_at = log_stage_start(
-        "resolve",
-        "diagnose",
-        "upstream paths",
-        nodes=len(tree.nodes),
-    )
-    verify_upstream_diagnose(tree, period_tolerance, expect_satisfiable=True)
-    log_stage_done(
-        "resolve",
-        "diagnose",
-        "upstream paths",
-        diagnose_started_at,
-    )
-    return result

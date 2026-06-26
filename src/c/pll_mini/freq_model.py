@@ -1,0 +1,305 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, List, Set, Tuple
+
+from nodes import (
+    ClkNode,
+    DivNode,
+    MuxNode,
+    PllNode,
+    Tree,
+    parse_source_endpoint,
+)
+from reg_paths import (
+    CPU_GATE_PASS_THROUGH_GROUP,
+    node_output_groups,
+)
+
+
+@dataclass(frozen=True, order=True)
+class Port:
+    """节点输出端口；单路输出时 group 为空字符串。"""
+
+    node: str
+    group: str = ""
+
+    def sym_suffix(self) -> str:
+        if self.group:
+            return f"{self.node}_{self.group}"
+        return self.node
+
+
+def port_freq_sym(port: Port, *, prefix: str = "f") -> str:
+    from smt_encode import safe_ident
+
+    return f"{prefix}_{safe_ident(port.sym_suffix())}"
+
+
+def output_ports(tree: Tree, node_name: str) -> List[Port]:
+    node = tree.nodes[node_name]
+    groups = node_output_groups(node)
+    if groups:
+        return [Port(node_name, group) for group in groups]
+    return [Port(node_name, "")]
+
+
+def parse_port_ref(raw: str, *, ctx: str) -> Port:
+    device, out_group = parse_source_endpoint(raw, ctx=ctx)
+    return Port(device, out_group)
+
+
+def collect_freq_targets(tree: Tree) -> List[Tuple[str, int]]:
+    """带正频率约束的 clk 节点。"""
+    out: List[Tuple[str, int]] = []
+    for name, node in tree.nodes.items():
+        if isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
+            out.append((name, node.freq))
+    return out
+
+
+def _upstream_peer_ports(tree: Tree, node_name: str) -> List[Port]:
+    node = tree.nodes[node_name]
+    if node.kind == "source":
+        return []
+    if isinstance(node, MuxNode):
+        return []
+    if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+        return [parse_port_ref(node.source, ctx=f"{node_name}.source")]
+    return []
+
+
+def _mux_selected_peer(tree: Tree, mux_name: str) -> str | None:
+    mux = tree.nodes[mux_name]
+    if not isinstance(mux, MuxNode) or mux.sel is None:
+        return None
+    key = str(mux.sel)
+    arm_ref = mux.source.get(key)
+    if not arm_ref:
+        return None
+    peer_name, _ = parse_source_endpoint(arm_ref, ctx=f"mux {mux_name!r}")
+    return peer_name
+
+
+def backward_required_nodes(
+    tree: Tree,
+    targets: List[Tuple[str, int]],
+) -> Set[str]:
+    """从频率目标 clk 反向标记须参与求解的节点。"""
+    required: Set[str] = set()
+    stack: List[str] = [name for name, _hz in targets]
+    while stack:
+        name = stack.pop()
+        if name in required:
+            continue
+        if name not in tree.nodes:
+            continue
+        required.add(name)
+        node = tree.nodes[name]
+        if node.kind == "source":
+            continue
+        if isinstance(node, MuxNode):
+            if node.sel is not None:
+                peer = _mux_selected_peer(tree, name)
+                if peer is not None:
+                    stack.append(peer)
+            else:
+                for arm_ref in node.source.values():
+                    peer_name, _ = parse_source_endpoint(
+                        arm_ref, ctx=f"mux {name!r}"
+                    )
+                    stack.append(peer_name)
+            continue
+        for port in _upstream_peer_ports(tree, name):
+            parent = tree.nodes[port.node]
+            if isinstance(parent, MuxNode):
+                stack.append(port.node)
+                peer = _mux_selected_peer(tree, port.node)
+                if peer is not None:
+                    stack.append(peer)
+            else:
+                stack.append(port.node)
+    return required
+
+
+def child_input_port(child_name: str) -> Port:
+    """子节点消费的前级输出端口在子节点侧的输入频率符号与父端口相同。"""
+    return Port(child_name, "__in")
+
+
+def parent_port_for_child(tree: Tree, child_name: str) -> Port:
+    node = tree.nodes[child_name]
+    if node.kind == "source":
+        raise ValueError(f"source 节点 {child_name!r} 无前级")
+    if isinstance(node, MuxNode):
+        raise ValueError(f"mux 节点 {child_name!r} 用 mux 专用约束")
+    if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+        return parse_port_ref(node.source, ctx=f"{child_name}.source")
+    raise ValueError(f"节点 {child_name!r} 无前级引用")
+
+
+def passthrough_kinds() -> frozenset[str]:
+    return frozenset({"gate", "inv", "cell"})
+
+
+def is_passthrough_kind(kind: str) -> bool:
+    return kind in passthrough_kinds()
+
+
+def cpu_gate_output_port_freq_sym(
+    div_name: str,
+    out_group: str,
+) -> str:
+    return port_freq_sym(Port(div_name, out_group))
+
+
+def walk_path_upstream(
+    tree: Tree,
+    start: str,
+    *,
+    stop_at: str | None = None,
+) -> List[str]:
+    """从 start 沿 source 向上走到 source 或 stop_at。"""
+    chain = [start]
+    name = start
+    seen = {start}
+    while True:
+        if stop_at is not None and name == stop_at:
+            break
+        node = tree.nodes[name]
+        if node.kind == "source":
+            break
+        if isinstance(node, MuxNode):
+            peer = _mux_selected_peer(tree, name)
+            if peer is None or peer in seen:
+                break
+            seen.add(peer)
+            chain.append(peer)
+            name = peer
+            continue
+        parent_port = parent_port_for_child(tree, name)
+        parent_name = parent_port.node
+        if parent_name in seen:
+            break
+        parent = tree.nodes[parent_name]
+        if isinstance(parent, MuxNode):
+            seen.add(parent_name)
+            chain.append(parent_name)
+            peer = _mux_selected_peer(tree, parent_name)
+            if peer is None or peer in seen:
+                break
+            seen.add(peer)
+            chain.append(peer)
+            name = peer
+            continue
+        seen.add(parent_name)
+        chain.append(parent_name)
+        name = parent_name
+    return chain
+
+
+def path_between_ports(
+    tree: Tree,
+    *,
+    from_port: Port,
+    to_clk: str,
+) -> List[str]:
+    """从父端口所在节点到目标 clk 的下游路径节点名列表。"""
+    down = _downstream_path(tree, from_port.node, to_clk)
+    if down is None:
+        return walk_path_upstream(tree, to_clk)
+    up = list(reversed(walk_path_upstream(tree, to_clk, stop_at=from_port.node)))
+    if from_port.node in up:
+        idx = up.index(from_port.node)
+        return up[idx:] + down[1:]
+    return up + down
+
+
+def _downstream_path(tree: Tree, start: str, target: str) -> List[str] | None:
+    if start == target:
+        return [start]
+    parent_of: Dict[str, str] = {}
+    queue = [start]
+    seen = {start}
+    while queue:
+        name = queue.pop(0)
+        for child in _downstream_children(tree, name):
+            if child in seen:
+                continue
+            seen.add(child)
+            parent_of[child] = name
+            if child == target:
+                path = [target]
+                cur = name
+                while True:
+                    path.append(cur)
+                    if cur == start:
+                        break
+                    cur = parent_of[cur]
+                path.reverse()
+                return path
+            queue.append(child)
+    return None
+
+
+def _downstream_children(tree: Tree, name: str) -> List[str]:
+    children: List[str] = []
+    for other_name, other in tree.nodes.items():
+        if other_name == name:
+            continue
+        if isinstance(other, MuxNode):
+            for arm_ref in other.source.values():
+                arm_name, _ = parse_source_endpoint(
+                    arm_ref, ctx=f"downstream mux {other_name!r}"
+                )
+                if arm_name == name:
+                    children.append(other_name)
+            continue
+        if other.kind == "source":
+            continue
+        try:
+            parent_port = parent_port_for_child(tree, other_name)
+        except ValueError:
+            continue
+        if parent_port.node == name:
+            children.append(other_name)
+    return children
+
+
+def port_label(port: Port, tree: Tree) -> str:
+    node = tree.nodes[port.node]
+    kind = getattr(node, "kind", "?")
+    if port.group:
+        return f"{port.node}[{port.group}] ({kind})"
+    return f"{port.node} ({kind})"
+
+
+def is_cpu_gate_passthrough_group(group: str) -> bool:
+    return group == CPU_GATE_PASS_THROUGH_GROUP
+
+
+def reaches_clk_without_mux(
+    tree: Tree,
+    start: str,
+    *,
+    skip_mux: str,
+) -> bool:
+    targets = {name for name, _ in collect_freq_targets(tree)}
+    seen: set[str] = set()
+    stack = [start]
+    while stack:
+        name = stack.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        if name in targets:
+            return True
+        for child in _downstream_children(tree, name):
+            if child == skip_mux:
+                continue
+            stack.append(child)
+    return False
+
+
+def is_mux_exclusive_peer(tree: Tree, mux_name: str, peer_name: str) -> bool:
+    return not reaches_clk_without_mux(tree, peer_name, skip_mux=mux_name)

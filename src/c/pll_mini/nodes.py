@@ -334,7 +334,10 @@ class ClockSourceNode(NodeBase):
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
-    freq: int = Field(..., ge=1, description="目标输出频率，单位 Hz。")
+    freq: Optional[int] = Field(
+        default=None,
+        description="目标输出频率，单位 Hz；inno 可省略，由各路下游 clk 约束。",
+    )
     source: str = Field(..., min_length=1, description="参考时钟前级引用。")
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno。")
     regs: Dict[str, str] = Field(
@@ -342,10 +345,24 @@ class PllNode(NodeBase):
         description="非空时键须与 pll_kind 允许集合完全一致。",
     )
 
+    @model_validator(mode="after")
+    def _validate_pll_freq(self) -> PllNode:
+        if self.pll_kind != "inno":
+            if self.freq is None or self.freq < 1:
+                raise ValueError(
+                    f"pll 节点 {self.name!r} pll_kind 为 {self.pll_kind!r} 时"
+                    f"须填写大于 0 的 freq"
+                )
+        elif self.freq is not None and self.freq < 1:
+            raise ValueError(
+                f"pll 节点 {self.name!r} freq 若填写须大于 0"
+            )
+        return self
+
     @field_validator("freq", mode="before")
     @classmethod
-    def _coerce_freq(cls, value: Any) -> Any:
-        return _coerce_required_freq(value)
+    def _coerce_pll_freq(cls, value: Any) -> Any:
+        return _coerce_optional_int(value)
 
     @field_validator("pll_kind", mode="before")
     @classmethod
