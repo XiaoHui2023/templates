@@ -405,6 +405,12 @@ def print_diagnostic_report(
     unsat_core: str = "",
     headline: str = "",
 ) -> None:
+    from ui import active_progress_session
+
+    session = active_progress_session()
+    if session is not None:
+        session.failed = True
+        session.halt_for_output()
     title = headline.strip() or "pll_mini 诊断"
     parts: List[object] = [Rule(f"[bold]{title}[/bold]", style="cyan")]
     core_text = unsat_core.strip()

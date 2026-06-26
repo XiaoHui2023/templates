@@ -76,6 +76,11 @@ def search_tree_constraints(
     )
     try:
         components = partition_search_components(tree, targets)
+        from ui import active_progress_session
+
+        progress = active_progress_session()
+        if progress is not None:
+            progress.show_partition_preview(tree, components)
         partition_started = log_stage_start(
             "search",
             "partition",
@@ -93,6 +98,8 @@ def search_tree_constraints(
         )
         partial_models: List[SolveModel] = []
         for component in components:
+            if progress is not None:
+                progress.show_active_component(tree, component)
             comp_started = log_stage_start(
                 "search",
                 "component",

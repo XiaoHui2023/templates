@@ -39,6 +39,11 @@ def log_stage_start(
     Returns:
         float: Timer value for the matching completion line.
     """
+    from ui import active_progress_session
+
+    session = active_progress_session()
+    if session is not None and session.enabled:
+        return session.stage_start(component, action, label, **fields)
     print(
         f"[pll_mini] {component} {action} start: {label}"
         f"{_format_stage_fields(fields)}",
@@ -64,6 +69,20 @@ def log_stage_done(
         started_at: Timer value returned by the start logger.
         fields: Extra values appended to the line.
     """
+    from ui import active_progress_session
+
+    session = active_progress_session()
+    if session is not None and session.enabled:
+        session.stage_done(component, action, label, started_at, **fields)
+        if fields.get("failed"):
+            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+            print(
+                f"[pll_mini] {component} {action} done: {label}; "
+                f"elapsed_ms={elapsed_ms}{_format_stage_fields(fields)}",
+                file=sys.stderr,
+                flush=True,
+            )
+        return
     elapsed_ms = int((time.perf_counter() - started_at) * 1000)
     print(
         f"[pll_mini] {component} {action} done: {label}; "

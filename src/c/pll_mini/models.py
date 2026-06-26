@@ -22,6 +22,7 @@ from ralf_load import load_regmodel_from_ralf
 from regmodel import Reg, RegModelIndex
 from resolve import TreeResolve, resolve_tree
 from tools import log_stage_done, log_stage_start
+from ui import pll_mini_progress
 
 _ModelCacheKey = tuple[str, str, tuple[str, ...]]
 _CACHE_LOCK = threading.RLock()
@@ -203,38 +204,39 @@ class Models(BaseModel):
             if cached_error is not None:
                 raise RuntimeError(cached_error)
             s = self.settings
-            started_at = log_stage_start(
-                "models",
-                "compute",
-                "tree_resolve",
-                nodes=len(self.tree.nodes),
-            )
-            try:
-                result = resolve_tree(
-                    self.tree,
-                    pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
-                    pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
-                    consolver_timeout_ms=s.consolver_timeout_ms,
-                    period_tolerance=s.period_tolerance,
-                    reg_index=RegModelIndex(self.regmodel),
+            with pll_mini_progress(self.tree):
+                started_at = log_stage_start(
+                    "models",
+                    "compute",
+                    "tree_resolve",
+                    nodes=len(self.tree.nodes),
                 )
-            except RuntimeError as exc:
+                try:
+                    result = resolve_tree(
+                        self.tree,
+                        pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
+                        pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
+                        consolver_timeout_ms=s.consolver_timeout_ms,
+                        period_tolerance=s.period_tolerance,
+                        reg_index=RegModelIndex(self.regmodel),
+                    )
+                except RuntimeError as exc:
+                    log_stage_done(
+                        "models",
+                        "compute",
+                        "tree_resolve",
+                        started_at,
+                        failed=True,
+                    )
+                    _TREE_RESOLVE_ERROR_CACHE[key] = str(exc)
+                    raise
                 log_stage_done(
                     "models",
                     "compute",
                     "tree_resolve",
                     started_at,
-                    failed=True,
+                    nodes=len(result.by_name),
                 )
-                _TREE_RESOLVE_ERROR_CACHE[key] = str(exc)
-                raise
-            log_stage_done(
-                "models",
-                "compute",
-                "tree_resolve",
-                started_at,
-                nodes=len(result.by_name),
-            )
             _TREE_RESOLVE_CACHE[key] = result
             self._tree_resolve = result
             return result
