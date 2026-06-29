@@ -63,12 +63,12 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 void {{ settings.main_fn }}(void)
 {
     unsigned int i;
-{% for inst in config_plan.pll_instances %}
+{%- for inst in config_plan.pll_instances %}
     {{ inst.fn_name }}({{ inst.c_call_args }});
-{% endfor %}
-{% for inst in config_plan.pll_instances if inst.wait_lock %}
+{%- endfor %}
+{%- for inst in config_plan.pll_instances if inst.wait_lock %}
     pll_mini_wait_lock({% if config_plan.fixed_wait_lock_mask_hex %}{{ inst.lock_addr_macro }}{% else %}{{ inst.lock_addr_macro }}, {{ inst.lock_mask_hex }}{% endif %});
-{% endfor %}
+{%- endfor %}
     for (i = 0; i < sizeof(pll_mini_config_steps) / sizeof(pll_mini_config_steps[0]); i++) {
         const pll_mini_config_step_t *step = &pll_mini_config_steps[i];
 
