@@ -51,6 +51,7 @@ class PllWriteTemplate:
     addr_param: str
     parts: tuple[PllWritePartTemplate, ...]
     reg_path: str
+    slot_id: str
 
     @property
     def value_var(self) -> str:
@@ -350,6 +351,16 @@ def _unique_slot_specs_in_order(
     return tuple(ordered)
 
 
+def _slot_id_for_reg_key(
+    key: str,
+    slot_specs: tuple[PllSlotSpec, ...],
+) -> str:
+    for slot_id, keys in slot_specs:
+        if key in keys:
+            return slot_id
+    raise ValueError(f"pll 逻辑键 {key!r} 不在 slot_specs 中")
+
+
 def _group_reg_write_templates(
     index: RegModelIndex,
     template_node: PllNode,
@@ -384,6 +395,7 @@ def _group_reg_write_templates(
                 _slot_param_name(slot_id),
                 tuple(parts),
                 reg_path,
+                slot_id,
             ),
         )
     return tuple(
@@ -391,6 +403,7 @@ def _group_reg_write_templates(
             _slot_param_name(f"{slot_id}_{idx}"),
             tuple(parts),
             reg_path,
+            f"{slot_id}_{idx}",
         )
         for idx, (reg_path, parts) in enumerate(groups)
     )
@@ -431,16 +444,20 @@ def _tci_write_templates(
     index: RegModelIndex,
     template_node: PllNode,
 ) -> tuple[PllWriteTemplate, ...]:
+    slot_specs = _unique_slot_specs_in_order(
+        _kind_write_slot_specs("tci", template_node, index, [])
+    )
     templates: list[PllWriteTemplate] = []
 
     def _append_field_write(key: str, value_expr: str, comment: str) -> None:
+        sid = _slot_id_for_reg_key(key, slot_specs)
         ref = index.resolve(
             template_node.regs[key],
             ctx=f"pll node {template_node.name!r} regs[{key!r}]",
         )
         templates.append(
             PllWriteTemplate(
-                _slot_param_name(f"tci_{key}"),
+                _slot_param_name(sid),
                 (
                     PllWritePartTemplate(
                         ref.effective_lsb,
@@ -450,6 +467,7 @@ def _tci_write_templates(
                     ),
                 ),
                 ref.reg.path,
+                sid,
             )
         )
 
@@ -491,6 +509,7 @@ def _dw_write_templates(
                 _slot_param_name(slot_id),
                 tuple(parts),
                 reg_path,
+                slot_id,
             )
         )
     return tuple(templates)
@@ -520,6 +539,7 @@ def _inno_write_templates(
                 ),
             ),
             pd_ref.reg.path,
+            "inno_pd",
         )
     )
     templates.extend(
@@ -544,6 +564,7 @@ def _inno_write_templates(
                 ),
             ),
             pd_ref.reg.path,
+            "inno_pd",
         )
     )
     if not output_groups:
@@ -631,7 +652,7 @@ def _consolidate_pll_addr_params(
     template_node: PllNode,
     index: RegModelIndex,
 ) -> tuple[tuple[PllWriteTemplate, ...], tuple[str, ...], tuple[str, ...]]:
-    """按物理寄存器与地址宏合并形参；仅一路时命名为 {pll_kind}_addr。"""
+    """模板节点上地址宏相同的槽合并为一个形参；调用处按 slot_id 取各实例自己的宏。"""
     path_to_macro: dict[str, str] = {}
     macro_order: list[str] = []
     macro_to_first_param: dict[str, str] = {}
@@ -663,26 +684,21 @@ def _consolidate_pll_addr_params(
                 macro_to_canonical[macro],
                 wt.parts,
                 wt.reg_path,
+                wt.slot_id,
             )
         )
 
     addr_params: list[str] = []
-    seen: set[str] = set()
+    param_to_slot: dict[str, str] = {}
     for wt in remapped:
-        if wt.addr_param in seen:
+        if wt.addr_param in param_to_slot:
             continue
-        seen.add(wt.addr_param)
+        param_to_slot[wt.addr_param] = wt.slot_id
         addr_params.append(wt.addr_param)
 
-    macro_to_rep_path: dict[str, str] = {}
-    for wt in write_templates:
-        macro = path_to_macro[wt.reg_path]
-        macro_to_rep_path.setdefault(macro, wt.reg_path)
-    canonical_reg_paths = tuple(
-        macro_to_rep_path[macro] for macro in macro_order
-    )
+    addr_param_slot_ids = tuple(param_to_slot[p] for p in addr_params)
 
-    return tuple(remapped), tuple(addr_params), canonical_reg_paths
+    return tuple(remapped), tuple(addr_params), addr_param_slot_ids
 
 
 def _freq_branches(
@@ -699,25 +715,26 @@ def _freq_branches(
     return tuple(branches)
 
 
-def _instance_canonical_addr_args(
+def _instance_addr_args_by_slots(
     node: PllNode,
     index: RegModelIndex,
-    canonical_reg_paths: Sequence[str],
+    addr_param_slot_ids: Sequence[str],
     slot_specs: tuple[PllSlotSpec, ...],
 ) -> tuple[str, ...]:
-    path_to_macro: dict[str, str] = {}
-    for _slot_id, keys in slot_specs:
+    slot_to_keys = {slot_id: keys for slot_id, keys in slot_specs}
+    args: list[str] = []
+    for slot_id in addr_param_slot_ids:
+        keys = slot_to_keys.get(slot_id)
+        if keys is None:
+            raise ValueError(
+                f"pll 节点 {node.name!r} 写槽 {slot_id!r} 与型号模板不一致"
+            )
         ref = index.resolve(
             node.regs[keys[0]],
             ctx=f"pll node {node.name!r} regs[{keys[0]!r}]",
         )
-        path_to_macro.setdefault(ref.reg.path, ref.reg.addr_macro)
-    missing = [rp for rp in canonical_reg_paths if rp not in path_to_macro]
-    if missing:
-        raise ValueError(
-            f"pll 节点 {node.name!r} 缺少寄存器路径 {missing!r} 的地址宏"
-        )
-    return tuple(path_to_macro[rp] for rp in canonical_reg_paths)
+        args.append(ref.reg.addr_macro)
+    return tuple(args)
 
 
 def _collect_active_pll_nodes(
@@ -757,7 +774,7 @@ def build_pll_plan(
         write_templates_raw = _kind_write_templates(
             pll_kind, output_groups, index, template_node
         )
-        write_templates, addr_params, canonical_reg_paths = (
+        write_templates, addr_params, addr_param_slot_ids = (
             _consolidate_pll_addr_params(
                 pll_kind, write_templates_raw, template_node, index
             )
@@ -799,8 +816,8 @@ def build_pll_plan(
                 PllInstancePlan(
                     node_name=node.name,
                     fn_name=fn_name,
-                    addr_args=_instance_canonical_addr_args(
-                        node, index, canonical_reg_paths, slot_specs
+                    addr_args=_instance_addr_args_by_slots(
+                        node, index, addr_param_slot_ids, slot_specs
                     ),
                     freq_hz=resolved.by_name[node.name].resolved_freq,
                     wait_lock=True,
