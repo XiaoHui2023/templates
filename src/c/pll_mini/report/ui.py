@@ -256,12 +256,13 @@ def build_component_graph(
     *,
     node_names: frozenset[str] | set[str],
     targets: Sequence[tuple[str, int]],
+    heading: str = "时钟连通域",
 ) -> Text:
     names_set = set(node_names)
     target_hz = dict(targets)
     parents = _collect_parents_in_set(tree, names_set)
     layers = _longest_path_layers(names_set, parents)
-    out = Text("时钟连通域\n", style="bold progress.title")
+    out = Text(f"{heading}\n", style="bold progress.title")
 
     single_edges: list[tuple[str, str]] = []
     has_fan_in = False

@@ -404,6 +404,7 @@ def print_diagnostic_report(
     unsat_core: str = "",
     headline: str = "",
     component_graph: Text | None = None,
+    component_graph_title: str = "相关路径",
 ) -> None:
     from report.ui import active_progress_session
 
@@ -417,7 +418,7 @@ def print_diagnostic_report(
         parts.append(
             Panel(
                 component_graph,
-                title="连通域",
+                title=component_graph_title,
                 border_style="cyan",
                 padding=(0, 1),
             )
@@ -429,13 +430,14 @@ def print_diagnostic_report(
         )
     for index, issue in enumerate(issues, start=1):
         body: List[object] = []
-        path_tree = build_issue_path_tree(
-            tree,
-            issue.path_nodes,
-            focus=issue.path_nodes[-1] if issue.path_nodes else None,
-        )
-        if path_tree is not None:
-            body.append(path_tree)
+        if component_graph is None:
+            path_tree = build_issue_path_tree(
+                tree,
+                issue.path_nodes,
+                focus=issue.path_nodes[-1] if issue.path_nodes else None,
+            )
+            if path_tree is not None:
+                body.append(path_tree)
         body.append(Text(f"公式：{issue.formula}", style="dim"))
         body.append(issue.detail)
         parts.append(
@@ -462,12 +464,6 @@ def format_search_component_failure(
     """子树定向搜索失败时的静态诊断与路径图。"""
     from report.ui import build_component_graph, render_rich_text_plain
 
-    component_graph = build_component_graph(
-        tree,
-        node_names=component_nodes,
-        targets=component_targets,
-    )
-    graph_plain = render_rich_text_plain(component_graph)
     static_started_at = log_stage_start(
         "diagnose",
         "collect",
@@ -498,6 +494,16 @@ def format_search_component_failure(
         static_started_at,
         issues=len(scoped),
     )
+    component_graph: Text | None = None
+    graph_plain = ""
+    if component_nodes:
+        component_graph = build_component_graph(
+            tree,
+            node_names=component_nodes,
+            targets=component_targets,
+            heading="相关路径",
+        )
+        graph_plain = render_rich_text_plain(component_graph)
     render_started_at = log_stage_start(
         "diagnose",
         "format",
@@ -527,7 +533,7 @@ def format_search_component_failure(
     detail_text = format_diagnostic_issues(scoped)
     blocks: List[str] = []
     if graph_plain:
-        blocks.append(f"连通域：\n{graph_plain}")
+        blocks.append(f"相关路径：\n{graph_plain}")
     if search_summary:
         blocks.append(f"搜索：{search_summary}")
     if detail_text:
@@ -547,11 +553,6 @@ def _fallback_component_issues(
 ) -> List[DiagnosticIssue]:
     issues: List[DiagnosticIssue] = []
     for clk_name, clk_hz in component_targets:
-        path = tuple(
-            name
-            for name in reversed(walk_path_upstream(tree, clk_name))
-            if name in component_nodes
-        )
         issues.append(
             DiagnosticIssue(
                 headline=f"{clk_name} 目标频率无可行组合",
@@ -561,7 +562,6 @@ def _fallback_component_issues(
                     "当前子树搜索已穷尽候选组合，未找到同时满足路径连接、"
                     "分频范围、PLL 系数范围与目标频率的配置。"
                 ),
-                path_nodes=path,
             )
         )
     if issues:
@@ -573,11 +573,6 @@ def _fallback_component_issues(
         if isinstance(tree.nodes.get(name), PllNode)
     ]
     for pll_name in focus_nodes[:1]:
-        path = tuple(
-            name
-            for name in reversed(walk_path_upstream(tree, pll_name))
-            if name in component_nodes
-        )
         issues.append(
             DiagnosticIssue(
                 headline=f"{pll_name} 参考路径无可行组合",
@@ -586,7 +581,6 @@ def _fallback_component_issues(
                     f"PLL {pll_name} 的参考路径搜索已穷尽候选 mux/div 组合；"
                     "未找到能继续配出合法 PLL 系数的参考频率。"
                 ),
-                path_nodes=path,
             )
         )
     if issues:
@@ -597,7 +591,6 @@ def _fallback_component_issues(
             headline="子树目标无可行组合",
             formula="子树内所有目标必须共享一组一致的 mux、div、gate 与 PLL 配置",
             detail="当前子树搜索已穷尽候选组合，但没有找到满足全部目标的配置。",
-            path_nodes=tuple(sorted(component_nodes)),
         )
     ]
 
