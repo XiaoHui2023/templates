@@ -18,6 +18,7 @@ from model.freq_graph import (
     backward_required_nodes,
     backward_required_nodes_bounded,
     backward_required_nodes_pll_ref,
+    clk_driven_by_port,
     collect_freq_targets,
     is_cpu_gate_passthrough_group,
     is_mux_exclusive_peer,
@@ -27,6 +28,7 @@ from model.freq_graph import (
     output_ports,
     parent_port_for_child,
     parse_port_ref,
+    resolve_upstream_port,
 )
 from model.nodes import (
     ClkNode,
@@ -1720,7 +1722,9 @@ def _required_div_outputs(
             if is_cpu_gate_passthrough_group(port.group):
                 continue
             for clk_name, clk_hz in targets:
-                if not _clk_uses_cpu_gate_port(tree, clk_name, div_name, port.group):
+                if not clk_driven_by_port(
+                    tree, clk_name, Port(div_name, port.group)
+                ):
                     continue
                 req = _inverse_required_at_div_output(
                     tree,
@@ -1787,11 +1791,12 @@ def _inverse_required_at_div_output(
             if ratio is None:
                 return None
             if node.div_kind == "cpu_gate" and downstream != div_name:
-                clk_node = tree.nodes[clk_name]
-                _, clk_group = parse_source_endpoint(
-                    clk_node.source, ctx=f"clk {clk_name!r}"
-                )
-                if is_cpu_gate_passthrough_group(clk_group):
+                upstream = resolve_upstream_port(tree, clk_name)
+                if (
+                    upstream is not None
+                    and upstream.node == downstream
+                    and is_cpu_gate_passthrough_group(upstream.group)
+                ):
                     continue
                 req *= ratio
             elif node.div_kind != "cpu_gate":
@@ -1836,21 +1841,6 @@ def _pick_div_ratio(
 
 def _reachable_downstream(tree: Tree, start: str, target: str) -> bool:
     return _find_downstream_path(tree, start, target) is not None
-
-
-def _clk_uses_cpu_gate_port(
-    tree: Tree,
-    clk_name: str,
-    cpu_gate_name: str,
-    group: str,
-) -> bool:
-    clk_node = tree.nodes[clk_name]
-    if not isinstance(clk_node, ClkNode):
-        return False
-    parent_name, parent_group = parse_source_endpoint(
-        clk_node.source, ctx=f"clk {clk_name!r}"
-    )
-    return parent_name == cpu_gate_name and parent_group == group
 
 
 def _find_downstream_path(tree: Tree, start: str, target: str) -> List[str] | None:

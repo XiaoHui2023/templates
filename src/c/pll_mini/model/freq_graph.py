@@ -6,6 +6,7 @@ from typing import Dict, List, Set, Tuple
 from .nodes import (
     ClkNode,
     DivNode,
+    GateNode,
     MuxNode,
     PllNode,
     Tree,
@@ -257,6 +258,55 @@ def passthrough_kinds() -> frozenset[str]:
 
 def is_passthrough_kind(kind: str) -> bool:
     return kind in passthrough_kinds()
+
+
+def is_frequency_transparent_kind(kind: str) -> bool:
+    """频率约束上 f_out = f_in 的节点；含 gate、inv、cell。"""
+    return is_passthrough_kind(kind) or kind == "gate"
+
+
+def resolve_upstream_port(tree: Tree, start: str) -> Port | None:
+    """从 start 沿频率透明链向上，解析实际驱动它的前级输出端口。"""
+    cur = start
+    seen: Set[str] = set()
+    while cur not in seen:
+        seen.add(cur)
+        node = tree.nodes.get(cur)
+        if node is None:
+            return None
+        if node.kind == "source":
+            return Port(cur, "")
+        if isinstance(node, MuxNode):
+            return Port(cur, "")
+        if isinstance(node, ClkNode):
+            source_ref = node.source
+        elif is_frequency_transparent_kind(node.kind):
+            source_ref = node.source
+        elif isinstance(node, (DivNode, PllNode)):
+            source_ref = node.source
+        else:
+            return None
+        parent_name, parent_group = parse_source_endpoint(
+            source_ref, ctx=f"{node.kind} {cur!r}"
+        )
+        parent = tree.nodes.get(parent_name)
+        if parent is None:
+            return None
+        if isinstance(parent, (DivNode, PllNode)) or parent.kind == "source":
+            return Port(parent_name, parent_group)
+        if isinstance(parent, MuxNode):
+            return Port(parent_name, "")
+        if is_frequency_transparent_kind(parent.kind):
+            cur = parent_name
+            continue
+        return None
+    return None
+
+
+def clk_driven_by_port(tree: Tree, clk_name: str, port: Port) -> bool:
+    """clk 经频率透明链是否由指定端口驱动。"""
+    resolved = resolve_upstream_port(tree, clk_name)
+    return resolved == port
 
 
 def walk_path_upstream(

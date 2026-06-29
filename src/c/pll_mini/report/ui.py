@@ -136,7 +136,7 @@ def _node_tree_label(
     label.append(f" [{kind}]", style="tree.kind")
     if name in target_hz:
         label.append(f" → {_hz_mhz(target_hz[name])}", style="tree.target")
-    elif isinstance(node, ClkNode) and node.freq > 0:
+    elif isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
         label.append(f" → {_hz_mhz(node.freq)}", style="tree.target")
     elif isinstance(node, PllNode) and node.freq is not None and node.freq > 0:
         label.append(f" → {_hz_mhz(node.freq)}", style="tree.target")
@@ -159,7 +159,7 @@ def _node_plain_tag(
     parts = [name, f"[{kind}]"]
     if name in target_hz:
         parts.append(f"→{_hz_mhz(target_hz[name])}")
-    elif isinstance(node, ClkNode) and node.freq > 0:
+    elif isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
         parts.append(f"→{_hz_mhz(node.freq)}")
     elif isinstance(node, PllNode) and node.freq is not None and node.freq > 0:
         parts.append(f"→{_hz_mhz(node.freq)}")

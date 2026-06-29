@@ -16,6 +16,11 @@ from pydantic import (
     model_validator,
 )
 
+from model.source_ref import (
+    normalize_source_endpoint_input,
+    parse_source_endpoint,
+    validate_nodes_source_refs,
+)
 from reg_paths import (
     CPU_GATE_OUTPUT_GROUPS,
     INNO_PLL_OUTPUT_GROUPS,
@@ -39,22 +44,12 @@ InvKind = Literal["inv", "inv_mux", "inv_cell"]
 SourceKind = Literal["source", "pad", "vdd", "gnd"]
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
-_SOURCE_ENDPOINT = re.compile(
-    r"^(?P<device>[A-Za-z_][A-Za-z0-9_$]*)(?:\[(?P<group>[^\]]+)\])?$"
-)
-_GROUP_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 _NODE_KIND_ALIASES: dict[str, str] = {
     "clock": "clk",
 }
 _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
 _CPU_GATE_RATIOS = frozenset({2, 3, 4, 6})
 _SOURCE_REF_KINDS = frozenset({"gate", "div", "inv", "cell", "clk", "pll"})
-
-
-def normalize_source_endpoint_input(raw: Any, *, ctx: str) -> str:
-    if isinstance(raw, str):
-        return raw.strip()
-    raise ValueError(f"{ctx} 前级引用 {raw!r} 须为字符串")
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -101,24 +96,6 @@ def _coerce_optional_int(value: Any) -> Optional[int]:
     if value is None or value == "":
         return None
     return int(value)
-
-
-def parse_source_endpoint(raw: Any, *, ctx: str) -> tuple[str, str]:
-    text = normalize_source_endpoint_input(raw, ctx=ctx)
-    match = _SOURCE_ENDPOINT.match(text)
-    if not match:
-        raise ValueError(
-            f"{ctx} 前级引用 {raw!r} 须为器件名或 器件名[输出名] 形式"
-        )
-    device = match.group("device")
-    group_text = match.group("group")
-    out_group = group_text if group_text is not None else ""
-    if out_group and not _GROUP_KEY_RE.match(out_group):
-        raise ValueError(
-            f"{ctx} 前级引用 {raw!r} 中输出名 {out_group!r} "
-            f"须为合法 SystemVerilog 名字"
-        )
-    return device, out_group
 
 
 class NodeBase(BaseModel):
@@ -643,57 +620,11 @@ def build_children_map(nodes: Dict[str, Node]) -> Dict[str, List[str]]:
     return children
 
 
-def _validate_source_ref(
-    raw: str,
-    nodes: Dict[str, Node],
-    *,
-    ctx: str,
-) -> None:
-    device, out_group = parse_source_endpoint(raw, ctx=ctx)
-    if device not in nodes:
-        raise ValueError(
-            f"{ctx} 引用器件 {device!r} 不在 nodes 中"
-        )
-    peer = nodes[device]
-    groups = node_output_groups(peer)
-    if not groups:
-        if out_group:
-            raise ValueError(
-                f"{ctx} 引用 {raw!r}：器件 {device!r} 仅单路输出，不可写方括号"
-            )
-        return
-    if not out_group:
-        raise ValueError(
-            f"{ctx} 引用 {raw!r}：器件 {device!r} 有多路输出，须写 器件名[输出名]"
-        )
-    if out_group not in groups:
-        raise ValueError(
-            f"{ctx} 引用 {raw!r}：输出名 {out_group!r} 不在器件 {device!r} "
-            f"允许集合 {groups!r} 中"
-        )
-
-
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
     """校验 source、mux.source 等前级引用与输出名。
 
     Raises:
         ValueError: 引用节点不存在或输出名非法时。
     """
-    for key, node in nodes.items():
-        if node.name != key:
-            raise ValueError(
-                f"nodes[{key!r}] 的 name 字段 {node.name!r} 须与字典键一致"
-            )
-        if node.kind == "mux":
-            for mux_key, peer in node.source.items():
-                _validate_source_ref(
-                    peer,
-                    nodes,
-                    ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
-                )
-        elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-            _validate_source_ref(
-                node.source,
-                nodes,
-                ctx=f"节点 {node.name!r} source",
-            )
+    validate_nodes_source_refs(nodes)
+
