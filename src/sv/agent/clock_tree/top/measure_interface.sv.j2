@@ -242,6 +242,15 @@ interface {{ settings.class_prefix }}measure_interface #(
         set_measure_en(1'b0);
     endfunction
 
+    // 一次完成频率测量：开启、等待频率稳定、关闭；结果读 meas.last_freq_hz 等
+    task automatic measure_freq_hz();
+        bit ok;
+
+        start_measure();
+        wait_measure_stable(1'b1, 1'b0, ok);
+        stop_measure();
+    endtask
+
     // 轮询活动确认与频率、占空比稳定
     // need_freq — 为真时等待 freq_stable
     // need_duty — 为真时等待 duty_stable

@@ -17,7 +17,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 
     longint frequence;
     int enabled;
-    bit _always_active;
+    bit _stable;
 {%- if enable_node_fix %}
     bit unfix_frequence;
     bit unfix_enabled;
@@ -31,7 +31,8 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         frequence >= 0 -> frequence == _resolved_freq;
         enabled >= 0 -> enabled == _resolved_active;
 {%- endif %}
-        _always_active -> enabled == 1;
+        _stable -> enabled == 1;
+        _stable -> frequence == _resolved_freq;
         !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
         !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};
     }
@@ -40,7 +41,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         super.new(name);
         frequence = -1;
         enabled = -1;
-        _always_active = 1'b0;
+        _stable = 1'b0;
 {%- if enable_node_fix %}
         unfix_frequence = 1'b1;
         unfix_enabled = 1'b1;

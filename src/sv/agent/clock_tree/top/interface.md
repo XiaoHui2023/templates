@@ -57,6 +57,10 @@
 | --- | --- | --- | --- |
 | **hz** | input | int | 最低频率，Hz |
 
+### measure_freq_hz
+
+一次完成频率测量：调用 **start_measure**、**wait_measure_stable** 仅等待 **freq_stable**，再 **stop_measure**。最低频率与超时由 **MIN_FREQ_HZ** 参数及 agent 已写入的 **set_min_freq_hz** 决定。频率读 **last_freq_hz**，是否有效读 **last_valid**；失败时 **inactive** 或 **timed_out** 为 1。
+
 ### wait_measure_stable
 
 先轮询 **activity_ok** 或 **inactive**，最长 **active_timeout_ns_rt**；活动阶段自测量起点或上一边沿起超过一个最低频率周期仍无边沿则 **inactive** 为 1。活动已确认后再轮询 **freq_stable** 与 **duty_stable**，最长 **stable_timeout_ns_rt**。活动已确认但稳定阶段超时则置 **timed_out**。
@@ -135,6 +139,10 @@
 | 参数 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |
 | **hz** | input | int | 最低频率，Hz |
+
+### measure_freq_hz
+
+一次完成频率测量：调用 **start_measure**、**wait_measure_stable** 仅等待 **freq_stable**，再 **stop_measure**。最低频率与超时由 **MIN_FREQ_HZ** 参数及 agent 已写入的 **set_min_freq_hz** 决定。频率读 **last_freq_hz**，是否有效读 **last_valid**；失败时 **inactive** 或 **timed_out** 为 1。
 
 ### wait_measure_stable
 

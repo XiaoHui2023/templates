@@ -48,6 +48,11 @@ interface {{ settings.class_prefix }}interface #(
         meas.set_min_freq_hz(hz);
     endfunction
 
+    // 一次完成频率测量：开启、等待频率稳定、关闭；结果读 meas.last_freq_hz 等
+    task automatic measure_freq_hz();
+        meas.measure_freq_hz();
+    endtask
+
     // 轮询活动确认与频率、占空比稳定
     // need_freq — 为真时等待 freq_stable
     // need_duty — 为真时等待 duty_stable

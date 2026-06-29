@@ -442,9 +442,10 @@ class ClkNode(NodeBase):
         "正数同时指定频率与使能；负数仅不约束 _resolved_freq。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
-    always_active: bool = Field(
+    stable: bool = Field(
         default=False,
-        description="为真时该时钟节点全程保持有效；low_power 不关断。",
+        description="为真时表示稳定时钟：须填写正整数 freq，频率与使能由 trees 约束固定；"
+        "low_power 不关断，test_route 不参与探测。",
     )
 
     @field_validator("freq", mode="before")
@@ -505,6 +506,10 @@ class ClkNode(NodeBase):
             raise ValueError(
                 f"clk 节点 {self.name!r} freq {self.freq} "
                 f"超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}"
+            )
+        if self.stable and (self.freq is None or self.freq <= 0):
+            raise ValueError(
+                f"clk 节点 {self.name!r} stable 为真时必须填写正整数 freq"
             )
         return self
 

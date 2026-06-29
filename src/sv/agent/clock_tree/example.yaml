@@ -144,7 +144,7 @@ trees:
       clk_out:
         kind: clk
         freq: 100000000
-        always_active: true
+        stable: true
         path: dut.clk_out
         source: dto0
 
