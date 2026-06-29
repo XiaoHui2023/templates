@@ -36,7 +36,7 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
     unsigned int {{ name }};
 {%- endfor %}
 {%- for value_var in kind.addr_value_vars %}
-    unsigned int {{ value_var }} = 0;
+    unsigned int {{ value_var }};
 {%- endfor %}
     switch (out_freq_hz) {
 {%- for branch in kind.freq_branches %}
@@ -49,6 +49,9 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
     default:
         return;
     }
+{%- for addr_param in kind.addr_params %}
+    cpu_config_read(&{{ kind.addr_value_vars[loop.index0] }}, {{ addr_param }});
+{%- endfor %}
 {%- for write in kind.write_templates %}
 
     {{ write.c_value_update_stmt }}
