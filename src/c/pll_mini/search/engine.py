@@ -16,18 +16,21 @@ from registers.formulas import (
 from model.freq_graph import (
     Port,
     backward_required_nodes,
-    backward_required_nodes_bounded,
     backward_required_nodes_pll_ref,
+    backward_required_nodes_for_partition,
     clk_driven_by_port,
     collect_freq_targets,
     is_cpu_gate_passthrough_group,
+    is_merge_exempt_for_partition,
     is_mux_exclusive_peer,
     is_passthrough_kind,
+    is_propagation_boundary_node,
     is_static_frequency_anchor_node,
     is_static_frequency_anchor,
     output_ports,
     parent_port_for_child,
     parse_port_ref,
+    propagate_determined_ports,
     resolve_upstream_port,
 )
 from model.nodes import (
@@ -64,6 +67,11 @@ class SearchComponent:
     node_names: frozenset[str]
     freq_anchors: frozenset[str] = frozenset()
     pll_ref_for: str | None = None
+    port_anchors: frozenset[tuple[Port, int]] = frozenset()
+
+
+def _port_anchors_map(component: SearchComponent) -> Dict[Port, int]:
+    return dict(component.port_anchors)
 
 
 def search_tree_constraints(
@@ -165,6 +173,7 @@ def search_tree_constraints(
                         pll_anchors=_non_inno_pll_anchors(
                             tree, component.freq_anchors
                         ),
+                        port_anchors=_port_anchors_map(component),
                         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
                         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
                         tol_lo=tol_lo,
@@ -267,11 +276,18 @@ def partition_search_components(
     if not targets:
         return []
 
+    determined_ports = propagate_determined_ports(tree, targets)
+
     clk_components: List[SearchComponent] = []
     plls_for_ref: Set[str] = set()
     for clk_name, hz in sorted(targets, key=lambda item: item[0]):
-        required = backward_required_nodes_bounded(tree, [(clk_name, hz)])
-        anchors = frozenset(
+        required, anchors = backward_required_nodes_for_partition(
+            tree,
+            [(clk_name, hz)],
+            all_targets=targets,
+            determined_ports=determined_ports,
+        )
+        anchor_nodes = frozenset(
             name
             for name in required
             if is_static_frequency_anchor_node(tree, name)
@@ -286,11 +302,14 @@ def partition_search_components(
                 total=0,
                 targets=((clk_name, hz),),
                 node_names=frozenset(required),
-                freq_anchors=anchors,
+                freq_anchors=anchor_nodes,
+                port_anchors=frozenset(anchors.items()),
             )
         )
 
-    merged_clk = _merge_overlapping_clk_components(tree, clk_components)
+    merged_clk = _merge_overlapping_clk_components(
+        tree, clk_components, determined_ports=determined_ports
+    )
 
     ref_components: List[SearchComponent] = []
     for pll_name in sorted(plls_for_ref):
@@ -317,6 +336,7 @@ def partition_search_components(
             node_names=comp.node_names,
             freq_anchors=comp.freq_anchors,
             pll_ref_for=comp.pll_ref_for,
+            port_anchors=comp.port_anchors,
         )
         for index, comp in enumerate(combined, start=1)
     ]
@@ -340,6 +360,8 @@ def _pll_ref_needs_coeffs(tree: Tree, pll_name: str) -> bool:
 
 
 DUAL_PATH_CLK_PREFIX = "clk_dual_"
+HUB_FORK_CLK_PREFIX = "clk_hub_"
+HUB_FORK_GATE = "gate_hub"
 
 
 def verify_search_partition(tree: Tree) -> int:
@@ -360,32 +382,29 @@ def verify_search_partition(tree: Tree) -> int:
                 f"实际 {cover.get(clk_name, 0)} 次"
             )
     _verify_dual_path_partition_independence(tree, clk_components)
+    _verify_hub_fork_partition(tree, clk_components)
     return len(components)
 
 
 def _is_partition_merge_exempt_node(tree: Tree, node_name: str) -> bool:
-    """无寄存器或配置已写死的节点不参与 clk 子树合并判定。"""
-    if is_static_frequency_anchor_node(tree, node_name):
-        return True
-    node = tree.nodes.get(node_name)
-    if node is None:
-        return True
-    if node.kind in ("inv", "cell"):
-        return True
-    if isinstance(node, GateNode) and node.open in (0, 1):
-        return True
-    if isinstance(node, MuxNode) and node.sel is not None:
-        return True
-    if isinstance(node, DivNode) and node.div_kind == "div_r" and node.ratio is not None:
-        return True
-    return False
+    return is_merge_exempt_for_partition(tree, node_name)
 
 
-def _mutable_component_nodes(tree: Tree, node_names: Set[str] | frozenset[str]) -> Set[str]:
+def _mutable_component_nodes(
+    tree: Tree,
+    node_names: Set[str] | frozenset[str],
+    *,
+    determined_ports: Dict[Port, int] | None = None,
+) -> Set[str]:
+    anchors = determined_ports or {}
     return {
         name
         for name in node_names
         if not _is_partition_merge_exempt_node(tree, name)
+        and not (
+            is_propagation_boundary_node(tree, name)
+            and Port(name, "") in anchors
+        )
     }
 
 
@@ -424,9 +443,50 @@ def _verify_dual_path_partition_independence(
                 )
 
 
+def _verify_hub_fork_partition(
+    tree: Tree,
+    clk_components: List[SearchComponent],
+) -> None:
+    """hub_fork 压力岛：支路 clk 在 gate_hub 截断，不含另一路 div。"""
+    hub_targets = [
+        comp
+        for comp in clk_components
+        if comp.targets and comp.targets[0][0].startswith(HUB_FORK_CLK_PREFIX)
+    ]
+    if not hub_targets:
+        return
+    for comp in hub_targets:
+        clk_name = comp.targets[0][0]
+        if clk_name == "clk_hub_a":
+            if "div_hub_a" not in comp.node_names:
+                raise RuntimeError(
+                    "clk_hub_a 子树应包含 div_hub_a"
+                )
+            if comp.port_anchors:
+                raise RuntimeError(
+                    "clk_hub_a 子树不应在 gate_hub 注入传播锚点"
+                )
+        elif clk_name == "clk_hub_b":
+            if "div_hub_a" in comp.node_names:
+                raise RuntimeError(
+                    "clk_hub_b 子树不应包含 div_hub_a"
+                )
+            anchor_ports = {port.node for port, _ in comp.port_anchors}
+            if HUB_FORK_GATE not in anchor_ports:
+                raise RuntimeError(
+                    f"clk_hub_b 子树应在 {HUB_FORK_GATE!r} 注入传播锚点"
+                )
+        else:
+            raise RuntimeError(
+                f"未知 hub_fork clk {clk_name!r}"
+            )
+
+
 def _merge_overlapping_clk_components(
     tree: Tree,
     components: List[SearchComponent],
+    *,
+    determined_ports: Dict[Port, int] | None = None,
 ) -> List[SearchComponent]:
     """合并共享非锚点节点的 clk 子树，避免同一 div/mux 被独立求解出冲突配置。"""
     if len(components) <= 1:
@@ -447,7 +507,10 @@ def _merge_overlapping_clk_components(
             parent[root_right] = root_left
 
     mutable_sets = [
-        _mutable_component_nodes(tree, comp.node_names) for comp in components
+        _mutable_component_nodes(
+            tree, comp.node_names, determined_ports=determined_ports
+        )
+        for comp in components
     ]
     for left in range(len(components)):
         for right in range(left + 1, len(components)):
@@ -465,12 +528,14 @@ def _merge_overlapping_clk_components(
             continue
         all_nodes: Set[str] = set()
         all_anchors: Set[str] = set()
+        all_port_anchors: Dict[Port, int] = {}
         all_targets: List[Tuple[str, int]] = []
         seen_targets: Set[Tuple[str, int]] = set()
         for index in indices:
             comp = components[index]
             all_nodes |= comp.node_names
             all_anchors |= comp.freq_anchors
+            all_port_anchors.update(comp.port_anchors)
             for target in comp.targets:
                 if target not in seen_targets:
                     seen_targets.add(target)
@@ -482,6 +547,7 @@ def _merge_overlapping_clk_components(
                 targets=tuple(all_targets),
                 node_names=frozenset(all_nodes),
                 freq_anchors=frozenset(all_anchors),
+                port_anchors=frozenset(all_port_anchors.items()),
             )
         )
     merged.sort(key=lambda comp: comp.targets[0][0] if comp.targets else "")
@@ -746,6 +812,7 @@ def _search_tree(
     targets: List[Tuple[str, int]],
     required: Set[str] | None = None,
     pll_anchors: frozenset[str] = frozenset(),
+    port_anchors: Dict[Port, int] | None = None,
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
     tol_lo: int,
@@ -755,6 +822,7 @@ def _search_tree(
 ) -> SolveModel:
     if required is None:
         required = backward_required_nodes(tree, targets)
+    anchors = port_anchors or {}
     free_muxes = _free_mux_nodes(tree, required)
     free_divs = _ordered_free_div_nodes(tree, required, targets)
 
@@ -780,10 +848,16 @@ def _search_tree(
             if deadline is not None and time.perf_counter() > deadline:
                 raise RuntimeError("时钟树约束求解超时或无法判定")
             trial_mux = {**mux_sel, **assignment}
-            if not _mux_assignments_compatible(tree, targets, trial_mux):
+            if not _mux_assignments_compatible(
+                tree, targets, trial_mux, required=required
+            ):
                 continue
-            active = _compute_active(tree, targets, trial_mux)
-            if not _active_covers_targets(tree, targets, active, trial_mux):
+            active = _compute_active(
+                tree, targets, trial_mux, required=required
+            )
+            if not _active_covers_targets(
+                tree, targets, active, trial_mux, required=required
+            ):
                 continue
             trial_ratios = dict(ratios)
             if not _assign_div_ratios(
@@ -796,6 +870,7 @@ def _search_tree(
                 tol_lo=tol_lo,
                 tol_hi=tol_hi,
                 tol_den=tol_den,
+                port_anchors=anchors,
             ):
                 continue
             ref_muxes, ref_divs = _collect_inno_ref_path_vars(tree, active)
@@ -816,9 +891,15 @@ def _search_tree(
                 if ref_mux_free:
                     reporter.ref_mux_trial(ref_mux_assignment)
                 trial_mux_full = {**trial_mux, **ref_mux_assignment}
-                active_full = _compute_active(tree, targets, trial_mux_full)
+                active_full = _compute_active(
+                    tree, targets, trial_mux_full, required=required
+                )
                 if not _active_covers_targets(
-                    tree, targets, active_full, trial_mux_full
+                    tree,
+                    targets,
+                    active_full,
+                    trial_mux_full,
+                    required=required,
                 ):
                     continue
                 ref_div_iter = _iter_ref_div_ratio_assignments(
@@ -844,6 +925,7 @@ def _search_tree(
                         ratios=trial_ratios_full,
                         targets=targets,
                         ref_path=bool(ref_divs),
+                        port_anchors=anchors,
                     )
                     if port_freq is None:
                         continue
@@ -1467,9 +1549,11 @@ def _mux_assignments_compatible(
     tree: Tree,
     targets: List[Tuple[str, int]],
     mux_sel: Dict[str, int],
+    *,
+    required: Set[str] | None = None,
 ) -> bool:
     for clk_name, _ in targets:
-        if _walk_upstream(tree, clk_name, mux_sel) is None:
+        if _walk_upstream(tree, clk_name, mux_sel, required=required) is None:
             return False
     return True
 
@@ -1478,6 +1562,8 @@ def _walk_upstream(
     tree: Tree,
     start: str,
     mux_sel: Dict[str, int],
+    *,
+    required: Set[str] | None = None,
 ) -> List[str] | None:
     chain = [start]
     name = start
@@ -1512,6 +1598,8 @@ def _walk_upstream(
         except ValueError:
             return None
         parent_name = parent_port.node
+        if required is not None and parent_name not in required:
+            return chain
         if parent_name in seen:
             return None
         parent = tree.nodes[parent_name]
@@ -1542,10 +1630,12 @@ def _compute_active(
     tree: Tree,
     targets: List[Tuple[str, int]],
     mux_sel: Dict[str, int],
+    *,
+    required: Set[str] | None = None,
 ) -> Set[str]:
     active: Set[str] = set()
     for clk_name, _ in targets:
-        chain = _walk_upstream(tree, clk_name, mux_sel)
+        chain = _walk_upstream(tree, clk_name, mux_sel, required=required)
         if chain is None:
             continue
         for name in chain:
@@ -1563,12 +1653,16 @@ def _compute_active(
             active.add(peer_name)
             if is_mux_exclusive_peer(tree, name, peer_name):
                 continue
-            _mark_upstream_active(tree, peer_name, active, mux_sel)
+            _mark_upstream_active(
+                tree, peer_name, active, mux_sel, required=required
+            )
     for name in list(active):
         node = tree.nodes[name]
         if isinstance(node, PllNode) and node.pll_kind == "inno":
             ref_name, _ = parse_source_endpoint(node.source, ctx=f"{name}.source")
-            _mark_upstream_active(tree, ref_name, active, mux_sel)
+            _mark_upstream_active(
+                tree, ref_name, active, mux_sel, required=required
+            )
     return active
 
 
@@ -1577,6 +1671,8 @@ def _mark_upstream_active(
     start: str,
     active: Set[str],
     mux_sel: Dict[str, int],
+    *,
+    required: Set[str] | None = None,
 ) -> None:
     stack = [start]
     seen = set(active)
@@ -1605,6 +1701,8 @@ def _mark_upstream_active(
             parent_port = parent_port_for_child(tree, name)
         except ValueError:
             continue
+        if required is not None and parent_port.node not in required:
+            continue
         stack.append(parent_port.node)
 
 
@@ -1613,11 +1711,13 @@ def _active_covers_targets(
     targets: List[Tuple[str, int]],
     active: Set[str],
     mux_sel: Dict[str, int],
+    *,
+    required: Set[str] | None = None,
 ) -> bool:
     for clk_name, _ in targets:
         if clk_name not in active:
             return False
-        if _walk_upstream(tree, clk_name, mux_sel) is None:
+        if _walk_upstream(tree, clk_name, mux_sel, required=required) is None:
             return False
     return True
 
@@ -1633,6 +1733,7 @@ def _assign_div_ratios(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
+    port_anchors: Dict[Port, int] | None = None,
 ) -> bool:
     for div_name in free_divs:
         if div_name not in active:
@@ -1647,6 +1748,7 @@ def _assign_div_ratios(
             active,
             mux_sel,
             ratios,
+            port_anchors=port_anchors,
         )
         if f_in is None or f_in <= 0:
             return False
@@ -1693,6 +1795,8 @@ def _required_parent_hz_for_div(
     active: Set[str],
     mux_sel: Dict[str, int],
     ratios: Dict[str, int],
+    *,
+    port_anchors: Dict[Port, int] | None = None,
 ) -> int | None:
     parent_port = parent_port_for_child(tree, div_name)
     return _node_output_hz(
@@ -1703,6 +1807,7 @@ def _required_parent_hz_for_div(
         active,
         mux_sel,
         ratios,
+        port_anchors=port_anchors,
     )
 
 
@@ -1714,8 +1819,16 @@ def _node_output_hz(
     active: Set[str],
     mux_sel: Dict[str, int],
     ratios: Dict[str, int],
+    *,
+    port_anchors: Dict[Port, int] | None = None,
 ) -> int | None:
+    anchors = port_anchors or {}
     if node_name not in active:
+        anchored = anchors.get(Port(node_name, group))
+        if anchored is None and group:
+            anchored = anchors.get(Port(node_name, ""))
+        if anchored is not None:
+            return anchored
         return None
     node = tree.nodes[node_name]
     if node.kind == "source":
@@ -1748,9 +1861,15 @@ def _node_output_hz(
             active,
             mux_sel,
             ratios,
+            port_anchors=anchors,
         )
     if is_passthrough_kind(node.kind):
         parent_port = parent_port_for_child(tree, node_name)
+        anchored = anchors.get(Port(node_name, group))
+        if anchored is None and group:
+            anchored = anchors.get(Port(node_name, ""))
+        if anchored is not None:
+            return anchored
         return _node_output_hz(
             tree,
             parent_port.node,
@@ -1759,6 +1878,7 @@ def _node_output_hz(
             active,
             mux_sel,
             ratios,
+            port_anchors=anchors,
         )
     return None
 
@@ -1966,7 +2086,9 @@ def _propagate_port_freqs(
     ratios: Dict[str, int],
     targets: List[Tuple[str, int]],
     ref_path: bool = False,
+    port_anchors: Dict[Port, int] | None = None,
 ) -> Dict[Port, int] | None:
+    anchors = port_anchors or {}
     port_freq: Dict[Port, int] = {}
     for name in tree.nodes:
         if name not in active:
@@ -1996,6 +2118,7 @@ def _propagate_port_freqs(
             peer_hz = _resolve_port_freq(
                 tree, peer, active, mux_sel, ratios, targets, port_freq,
                 ref_path=ref_path,
+                port_anchors=anchors,
             )
             if peer_hz is None:
                 return None
@@ -2005,6 +2128,7 @@ def _propagate_port_freqs(
             f_in = _resolve_port_freq(
                 tree, parent_port, active, mux_sel, ratios, targets, port_freq,
                 ref_path=ref_path,
+                port_anchors=anchors,
             )
             if f_in is None or f_in <= 0:
                 return None
@@ -2045,9 +2169,15 @@ def _propagate_port_freqs(
                     port_freq[Port(name, "")] = want
         elif is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
             parent_port = parent_port_for_child(tree, name)
+            anchored = anchors.get(Port(name, ""))
+            if parent_port.node not in active and anchored is not None:
+                for port in output_ports(tree, name):
+                    port_freq[port] = anchored
+                continue
             parent_hz = _resolve_port_freq(
                 tree, parent_port, active, mux_sel, ratios, targets, port_freq,
                 ref_path=ref_path,
+                port_anchors=anchors,
             )
             if parent_hz is None:
                 return None
@@ -2066,10 +2196,18 @@ def _resolve_port_freq(
     cache: Dict[Port, int],
     *,
     ref_path: bool = False,
+    port_anchors: Dict[Port, int] | None = None,
 ) -> int | None:
+    anchors = port_anchors or {}
     if port in cache:
         return cache[port]
     if port.node not in active:
+        anchored = anchors.get(port)
+        if anchored is None and port.group:
+            anchored = anchors.get(Port(port.node, ""))
+        if anchored is not None:
+            cache[port] = anchored
+            return anchored
         cache[port] = 0
         return 0
     node = tree.nodes[port.node]
@@ -2097,6 +2235,7 @@ def _resolve_port_freq(
         hz = _resolve_port_freq(
             tree, peer, active, mux_sel, ratios, targets, cache,
             ref_path=ref_path,
+            port_anchors=anchors,
         )
         if hz is None:
             return None
@@ -2107,6 +2246,7 @@ def _resolve_port_freq(
         f_in = _resolve_port_freq(
             tree, parent_port, active, mux_sel, ratios, targets, cache,
             ref_path=ref_path,
+            port_anchors=anchors,
         )
         if f_in is None:
             return None
@@ -2146,10 +2286,17 @@ def _resolve_port_freq(
         cache[port] = hz
         return hz
     if is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
+        anchored = anchors.get(port)
+        if anchored is None and port.group:
+            anchored = anchors.get(Port(port.node, ""))
+        if anchored is not None:
+            cache[port] = anchored
+            return anchored
         parent_port = parent_port_for_child(tree, port.node)
         hz = _resolve_port_freq(
             tree, parent_port, active, mux_sel, ratios, targets, cache,
             ref_path=ref_path,
+            port_anchors=anchors,
         )
         if hz is None:
             return None

@@ -104,13 +104,228 @@ def is_static_frequency_anchor_node(tree: Tree, node_name: str) -> bool:
     return False
 
 
+def is_propagation_boundary_node(tree: Tree, node_name: str) -> bool:
+    """频率透传 hub，可作为传播锚点切断上游子树。"""
+    if node_name not in tree.nodes:
+        return False
+    node = tree.nodes[node_name]
+    if is_passthrough_kind(node.kind):
+        return True
+    if isinstance(node, GateNode) and node.open != 0:
+        return True
+    return False
+
+
+def is_merge_exempt_for_partition(tree: Tree, node_name: str) -> bool:
+    """无寄存器或配置已写死的节点不参与 clk 子树合并判定。"""
+    if is_static_frequency_anchor_node(tree, node_name):
+        return True
+    node = tree.nodes.get(node_name)
+    if node is None:
+        return True
+    if node.kind in ("inv", "cell"):
+        return True
+    if isinstance(node, GateNode) and node.open in (0, 1):
+        return True
+    if isinstance(node, MuxNode) and node.sel is not None:
+        return True
+    if isinstance(node, DivNode) and node.div_kind == "div_r" and node.ratio is not None:
+        return True
+    return False
+
+
+def inverse_hz_at_node_from_clk(
+    tree: Tree,
+    clk_name: str,
+    clk_hz: int,
+    node_name: str,
+) -> int | None:
+    """从 clk 目标反推 node 输出 Hz；路径上仅允许透传与 ratio 已写的 div。"""
+    path = _downstream_path(tree, node_name, clk_name)
+    if path is None:
+        return None
+    req = clk_hz
+    idx = path.index(node_name)
+    for downstream in reversed(path[idx + 1 :]):
+        node = tree.nodes[downstream]
+        if node.kind in ("gate", "inv", "cell", "clk"):
+            continue
+        if isinstance(node, MuxNode):
+            continue
+        if isinstance(node, DivNode):
+            ratio = node.ratio
+            if ratio is None:
+                return None
+            if node.div_kind == "cpu_gate":
+                upstream = resolve_upstream_port(tree, clk_name)
+                if (
+                    upstream is not None
+                    and upstream.node == downstream
+                    and is_cpu_gate_passthrough_group(upstream.group)
+                ):
+                    continue
+            if node.div_kind != "cpu_gate" or downstream != node_name:
+                req *= ratio
+    return req if req > 0 else None
+
+
+def propagate_determined_ports(
+    tree: Tree,
+    targets: List[Tuple[str, int]],
+) -> Dict[Port, int]:
+    """分区前标注可由某 clk 目标反推确定 Hz 的透传 hub 输出端口。"""
+    determined: Dict[Port, int] = {}
+    conflicts: Set[Port] = set()
+    for clk_name, clk_hz in targets:
+        for node_name in _transparent_upstream_chain_from_clk(tree, clk_name):
+            if not is_propagation_boundary_node(tree, node_name):
+                continue
+            hz = inverse_hz_at_node_from_clk(tree, clk_name, clk_hz, node_name)
+            if hz is None:
+                continue
+            port = Port(node_name, "")
+            if port in conflicts:
+                continue
+            prev = determined.get(port)
+            if prev is not None and prev != hz:
+                conflicts.add(port)
+                determined.pop(port, None)
+            else:
+                determined[port] = hz
+    return determined
+
+
+def _transparent_upstream_chain_from_clk(tree: Tree, clk_name: str) -> List[str]:
+    chain = [clk_name]
+    name = clk_name
+    seen = {clk_name}
+    while True:
+        node = tree.nodes[name]
+        if node.kind == "source":
+            break
+        if isinstance(node, PllNode):
+            if node.pll_kind == "inno":
+                break
+            if node.freq is not None and node.freq > 0:
+                break
+        if isinstance(node, MuxNode):
+            break
+        if isinstance(node, DivNode):
+            if node.ratio is None and node.div_kind != "div_r":
+                break
+        if isinstance(node, GateNode) and node.open == 0:
+            break
+        try:
+            parent_port = parent_port_for_child(tree, name)
+        except ValueError:
+            break
+        parent_name = parent_port.node
+        if parent_name in seen:
+            break
+        if is_static_frequency_anchor(tree, parent_name, via_port=parent_port):
+            chain.append(parent_name)
+            break
+        parent = tree.nodes[parent_name]
+        if isinstance(parent, MuxNode):
+            break
+        seen.add(parent_name)
+        chain.append(parent_name)
+        name = parent_name
+    return chain
+
+
+def _has_sibling_branch_at_hub(
+    tree: Tree,
+    hub: str,
+    clk_det: str,
+    clk_cur: str,
+) -> bool:
+    if clk_det == clk_cur:
+        return False
+    path_det = _downstream_path(tree, hub, clk_det)
+    path_cur = _downstream_path(tree, hub, clk_cur)
+    if path_det is None or path_cur is None:
+        return False
+    if len(path_det) < 2 or len(path_cur) < 2:
+        return path_det != path_cur
+    return path_det[1] != path_cur[1]
+
+
+def _transparent_path_between(tree: Tree, hub: str, clk_name: str) -> bool:
+    path = _downstream_path(tree, hub, clk_name)
+    if path is None or len(path) < 2:
+        return False
+    for mid in path[1:-1]:
+        node = tree.nodes[mid]
+        if isinstance(node, ClkNode):
+            continue
+        if not is_passthrough_kind(node.kind):
+            if isinstance(node, GateNode) and node.open != 0:
+                continue
+            return False
+    return True
+
+
+def should_cut_upstream_at_node(
+    tree: Tree,
+    node_name: str,
+    component_targets: List[Tuple[str, int]],
+    all_targets: List[Tuple[str, int]],
+    determined_ports: Dict[Port, int],
+) -> bool:
+    """另一路 clk 已确定 hub 频率时，当前目标子树在 hub 处截断、不再向上游搜索。"""
+    if not is_propagation_boundary_node(tree, node_name):
+        return False
+    port = Port(node_name, "")
+    hz_det = determined_ports.get(port)
+    if hz_det is None:
+        return False
+    for clk_name, clk_hz in component_targets:
+        inv = inverse_hz_at_node_from_clk(tree, clk_name, clk_hz, node_name)
+        if inv == hz_det and _transparent_path_between(tree, node_name, clk_name):
+            return False
+    component_clks = {name for name, _ in component_targets}
+    for clk_name, clk_hz in all_targets:
+        if clk_name in component_clks:
+            continue
+        if _downstream_path(tree, node_name, clk_name) is None:
+            continue
+        if inverse_hz_at_node_from_clk(tree, clk_name, clk_hz, node_name) != hz_det:
+            continue
+        for comp_clk, _ in component_targets:
+            if _has_sibling_branch_at_hub(tree, node_name, clk_name, comp_clk):
+                return True
+    return False
+
+
 def backward_required_nodes_bounded(
     tree: Tree,
     targets: List[Tuple[str, int]],
+    *,
+    all_targets: List[Tuple[str, int]] | None = None,
+    determined_ports: Dict[Port, int] | None = None,
 ) -> Set[str]:
     """从 clk 目标反向收集节点，在 source / 固定 freq 的 pll / inno 输出端口处截断。"""
+    required, _anchors = backward_required_nodes_for_partition(
+        tree,
+        targets,
+        all_targets=all_targets or targets,
+        determined_ports=determined_ports or {},
+    )
+    return required
+
+
+def backward_required_nodes_for_partition(
+    tree: Tree,
+    component_targets: List[Tuple[str, int]],
+    *,
+    all_targets: List[Tuple[str, int]],
+    determined_ports: Dict[Port, int],
+) -> Tuple[Set[str], Dict[Port, int]]:
+    """反向收集参与求解的节点；在传播锚点 hub 处截断并返回注入频率。"""
     required: Set[str] = set()
-    stack: List[str] = [name for name, _hz in targets]
+    port_anchors: Dict[Port, int] = {}
+    stack: List[str] = [name for name, _hz in component_targets]
     while stack:
         name = stack.pop()
         if name in required:
@@ -126,6 +341,18 @@ def backward_required_nodes_bounded(
                 continue
             if node.freq is not None and node.freq > 0:
                 continue
+        if should_cut_upstream_at_node(
+            tree,
+            name,
+            component_targets,
+            all_targets,
+            determined_ports,
+        ):
+            port = Port(name, "")
+            hz = determined_ports.get(port)
+            if hz is not None:
+                port_anchors[port] = hz
+            continue
         if isinstance(node, MuxNode):
             if node.sel is not None:
                 peer = _mux_selected_peer(tree, name)
@@ -151,7 +378,7 @@ def backward_required_nodes_bounded(
                     stack.append(peer)
             else:
                 stack.append(parent_name)
-    return required
+    return required, port_anchors
 
 
 def backward_required_nodes_pll_ref(tree: Tree, pll_name: str) -> Set[str]:

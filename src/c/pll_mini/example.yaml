@@ -7,6 +7,7 @@
 #   mux        mux_ref 可搜索 sel；其余 mux 预填 sel
 #   gate       寄存器门控；gate_hclk 透传链；gate_mbist open=0
 #   dual_path  pll_sc→div→gate 与 xtal→gate 进 mux→gate→clk_dual_0
+#   hub_fork   pll_sc→div_hub_a→gate_hub 分叉 clk_hub_a 与 div_hub_b→clk_hub_b
 #   inv        inv / inv_mux / inv_cell
 #   cell       buf
 #   clk        有频率 / 无频率 / always_active
@@ -363,6 +364,39 @@ tree:
       kind: clk
       source: gate_dual_out_0
       freq: 30000000
+
+    div_hub_a:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_hub_a.ctrl.rst
+        load: blk_div_hub_a.ctrl.load
+        div: blk_div_hub_a.ctrl.div
+
+    gate_hub:
+      kind: gate
+      source: div_hub_a
+      reg: blk_gate_hub.en.en
+
+    clk_hub_a:
+      kind: clk
+      source: gate_hub
+      freq: 30000000
+
+    div_hub_b:
+      kind: div
+      div_kind: div
+      source: gate_hub
+      regs:
+        rst: blk_div_hub_b.ctrl.rst
+        load: blk_div_hub_b.ctrl.load
+        div: blk_div_hub_b.ctrl.div
+
+    clk_hub_b:
+      kind: clk
+      source: div_hub_b
+      freq: 15000000
 
 settings:
   main_fn: chip_pll_config
