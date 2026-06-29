@@ -4,7 +4,6 @@ SC_FBDIV_HW_MIN = 1
 SC_FBDIV_HW_MAX = 4095
 DW_FBDIV_MIN = 1
 DW_FBDIV_MAX = 1023
-INNO_FBDIV_SCALE = 4
 INNO_FBDIV_HW_MAX = 4095
 DTO_MAX_RATIO = 1 << 25
 FREQ_TOL_DEN = 100
@@ -229,7 +228,7 @@ def pll_inno_actual_hz(
     postdiv1: int,
     postdiv2: int,
 ) -> int:
-    product = INNO_FBDIV_SCALE * refdiv * postdiv1 * postdiv2
+    product = refdiv * postdiv1 * postdiv2
     if ref_hz <= 0 or product < 1 or fbdiv < 1:
         return 0
     return (ref_hz * fbdiv) // product

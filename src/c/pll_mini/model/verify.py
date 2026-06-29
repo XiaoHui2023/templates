@@ -278,7 +278,7 @@ def verify_solve_model(
                             _pll_issue(
                                 name,
                                 f"inno[{port.group}]",
-                                "f_out ≈ f_ref×fbdiv/(4×refdiv×postdiv1×postdiv2)",
+                                "f_out ≈ f_ref×fbdiv/(refdiv×postdiv1×postdiv2)",
                                 f_ref,
                                 f_out,
                                 f_actual,
