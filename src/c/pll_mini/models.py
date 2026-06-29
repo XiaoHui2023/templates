@@ -17,7 +17,14 @@ from pydantic import (
 _C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 from model.nodes import Tree
-from registers.plan import ConfigPlan, SettingsView, build_config_plan, collect_used_regs
+from registers.plan import (
+    ConfigPlan,
+    HeaderAddressPlan,
+    SettingsView,
+    build_config_plan,
+    build_header_address_plan,
+    collect_used_regs,
+)
 from load.ralf_load import load_regmodel_from_ralf
 from load.regmodel import Reg, RegModelIndex
 from registers.resolve import TreeResolve, resolve_tree
@@ -35,6 +42,7 @@ _TREE_RESOLVE_CACHE: dict[_ModelCacheKey, TreeResolve] = {}
 _TREE_RESOLVE_ERROR_CACHE: dict[_ModelCacheKey, str] = {}
 _CONFIG_PLAN_CACHE: dict[_ModelCacheKey, ConfigPlan] = {}
 _HEADER_REGS_CACHE: dict[_ModelCacheKey, List[Reg]] = {}
+_HEADER_ADDRESS_PLAN_CACHE: dict[_ModelCacheKey, HeaderAddressPlan] = {}
 
 
 class Settings(BaseModel):
@@ -135,6 +143,7 @@ class Models(BaseModel):
     _tree_resolve: TreeResolve | None = PrivateAttr(default=None)
     _config_plan: ConfigPlan | None = PrivateAttr(default=None)
     _header_regs: List[Reg] | None = PrivateAttr(default=None)
+    _header_address_plan: HeaderAddressPlan | None = PrivateAttr(default=None)
     _progress_depth: int = PrivateAttr(default=0)
     _progress_session: ProgressSession | None = PrivateAttr(default=None)
 
@@ -213,7 +222,7 @@ class Models(BaseModel):
                 self.ralf,
                 yaml_dir=yaml_dir,
                 include_dirs=self.ralf_include_dirs,
-                base_offset=self.settings.reg_base_offset,
+                base_offset=0,
             )
             log_stage_done("models", "load", "regmodel", started_at, regs=len(regs))
             object.__setattr__(self, "_regmodel", regs)
@@ -368,6 +377,25 @@ class Models(BaseModel):
             _HEADER_REGS_CACHE[key] = result
             self._header_regs = result
             return list(result)
+
+    @property
+    def header_address_plan(self) -> HeaderAddressPlan:
+        with _CACHE_LOCK:
+            if self._header_address_plan is not None:
+                return self._header_address_plan
+            key = self._cache_key()
+            cached = _HEADER_ADDRESS_PLAN_CACHE.get(key)
+            if cached is not None:
+                self._header_address_plan = cached
+                return cached
+            result = build_header_address_plan(
+                self.header_regs,
+                reg_base_offset=self.settings.reg_base_offset,
+                header_guard=self.settings.header_guard,
+            )
+            _HEADER_ADDRESS_PLAN_CACHE[key] = result
+            self._header_address_plan = result
+            return result
 
     @classmethod
     def model_validate_with_yaml_dir(

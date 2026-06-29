@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Sequence
 
 from .formulas import dto_ratio_to_step
 from model.nodes import DivNode, GateNode, MuxNode, PllNode, Tree
@@ -692,6 +692,52 @@ def _with_step_indexes(steps: List[RegWriteStep]) -> tuple[RegWriteStep, ...]:
         )
         for s in indexed
     )
+
+
+@dataclass(frozen=True)
+class HeaderRegAddress:
+    """C 头文件中单个寄存器地址宏。"""
+
+    reg: Reg
+    addr_expr: str
+
+
+@dataclass(frozen=True)
+class HeaderAddressPlan:
+    """pll_mini.h 地址宏生成计划。"""
+
+    reg_base_macro: str
+    reg_base_hex: str
+    regs: tuple[HeaderRegAddress, ...]
+
+
+def global_reg_base_macro(header_guard: str) -> str:
+    """由头文件 guard 名推导全局寄存器基址宏名。"""
+    if header_guard.endswith("_H"):
+        return f"{header_guard[:-2]}_REG_BASE"
+    return f"{header_guard}_REG_BASE"
+
+
+def build_header_address_plan(
+    regs: Sequence[Reg],
+    *,
+    reg_base_offset: int,
+    header_guard: str,
+) -> HeaderAddressPlan:
+    """全局基址宏 + 各寄存器地址，地址为基址与 RALF 偏移常量之和。"""
+    reg_base_macro = global_reg_base_macro(header_guard)
+    reg_base_hex = f"0x{reg_base_offset:X}"
+    if not regs:
+        return HeaderAddressPlan(reg_base_macro, reg_base_hex, ())
+
+    header_regs = tuple(
+        HeaderRegAddress(
+            reg=reg,
+            addr_expr=f"{reg_base_macro} + 0x{reg.address:X}",
+        )
+        for reg in regs
+    )
+    return HeaderAddressPlan(reg_base_macro, reg_base_hex, header_regs)
 
 
 def collect_used_regs(

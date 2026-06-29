@@ -1,15 +1,16 @@
 #ifndef {{ settings.header_guard }}
 #define {{ settings.header_guard }}
 
-{% set ns = namespace(addr_name_width=0) -%}
-{% for reg in header_regs -%}
-{% if reg.addr_macro | length > ns.addr_name_width -%}
-{% set ns.addr_name_width = reg.addr_macro | length -%}
+{% set ns = namespace(name_width=header_address_plan.reg_base_macro | length) -%}
+{% for item in header_address_plan.regs -%}
+{% if item.reg.addr_macro | length > ns.name_width -%}
+{% set ns.name_width = item.reg.addr_macro | length -%}
 {% endif -%}
 {% endfor -%}
-{% for reg in header_regs -%}
-#define {{ reg.addr_macro.ljust(ns.addr_name_width) }} {{ reg.address_hex }}
-{% endfor %}
+#define {{ header_address_plan.reg_base_macro.ljust(ns.name_width) }} {{ header_address_plan.reg_base_hex }}
+{%- for item in header_address_plan.regs %}
+#define {{ item.reg.addr_macro.ljust(ns.name_width) }} {{ item.addr_expr }}
+{%- endfor %}
 
 typedef struct {
     unsigned long addr;
