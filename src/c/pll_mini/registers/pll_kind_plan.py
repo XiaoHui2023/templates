@@ -629,59 +629,85 @@ def _kind_write_templates(
     raise ValueError(f"unknown pll_kind {pll_kind!r}")
 
 
-def _macro_for_reg_path(
-    node: PllNode,
+def _slot_macro_maps(
+    nodes: Sequence[PllNode],
     index: RegModelIndex,
-    reg_path: str,
-) -> str:
-    for key in sorted(node.regs.keys()):
-        ref = index.resolve(
-            node.regs[key],
-            ctx=f"pll node {node.name!r} regs[{key!r}]",
-        )
-        if ref.reg.path == reg_path:
-            return ref.reg.addr_macro
-    raise ValueError(
-        f"pll 节点 {node.name!r} 上找不到寄存器路径 {reg_path!r}"
-    )
+    slot_specs: tuple[PllSlotSpec, ...],
+) -> tuple[list[dict[str, str]], tuple[str, ...]]:
+    slot_order = tuple(slot_id for slot_id, _ in slot_specs)
+    maps: list[dict[str, str]] = []
+    for node in nodes:
+        macros: dict[str, str] = {}
+        for slot_id, keys in slot_specs:
+            ref = index.resolve(
+                node.regs[keys[0]],
+                ctx=f"pll node {node.name!r} regs[{keys[0]!r}]",
+            )
+            macros[slot_id] = ref.reg.addr_macro
+        maps.append(macros)
+    return maps, slot_order
+
+
+def _slot_to_rep_min_params(
+    macro_maps: Sequence[dict[str, str]],
+    slot_order: Sequence[str],
+) -> dict[str, str]:
+    """两槽仅在每个实例上地址宏都相同时合并，使形参个数最少。"""
+    parent: dict[str, str] = {sid: sid for sid in slot_order}
+
+    def find(sid: str) -> str:
+        while parent[sid] != sid:
+            parent[sid] = parent[parent[sid]]
+            sid = parent[sid]
+        return sid
+
+    def unite(a: str, b: str) -> None:
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            return
+        if slot_order.index(ra) > slot_order.index(rb):
+            ra, rb = rb, ra
+        parent[rb] = ra
+
+    for i, slot_a in enumerate(slot_order):
+        for slot_b in slot_order[i + 1 :]:
+            if all(mm[slot_a] == mm[slot_b] for mm in macro_maps):
+                unite(slot_a, slot_b)
+
+    return {sid: find(sid) for sid in slot_order}
 
 
 def _consolidate_pll_addr_params(
     pll_kind: str,
     write_templates: tuple[PllWriteTemplate, ...],
-    template_node: PllNode,
+    nodes: Sequence[PllNode],
     index: RegModelIndex,
+    slot_specs: tuple[PllSlotSpec, ...],
 ) -> tuple[tuple[PllWriteTemplate, ...], tuple[str, ...], tuple[str, ...]]:
-    """模板节点上地址宏相同的槽合并为一个形参；调用处按 slot_id 取各实例自己的宏。"""
-    path_to_macro: dict[str, str] = {}
-    macro_order: list[str] = []
-    macro_to_first_param: dict[str, str] = {}
+    """同型号全部实例上地址宏一致的槽合并；调用处按代表槽取各实例自己的宏。"""
+    macro_maps, slot_order = _slot_macro_maps(nodes, index, slot_specs)
+    slot_to_rep = _slot_to_rep_min_params(macro_maps, slot_order)
 
+    rep_order: list[str] = []
     for wt in write_templates:
-        reg_path = wt.reg_path
-        if reg_path not in path_to_macro:
-            path_to_macro[reg_path] = _macro_for_reg_path(
-                template_node, index, reg_path
-            )
-        macro = path_to_macro[reg_path]
-        if macro not in macro_to_first_param:
-            macro_order.append(macro)
-            macro_to_first_param[macro] = wt.addr_param
+        rep = slot_to_rep[wt.slot_id]
+        if rep not in rep_order:
+            rep_order.append(rep)
 
-    n_unique = len(macro_order)
-    macro_to_canonical: dict[str, str] = {}
-    for macro in macro_order:
+    n_unique = len(rep_order)
+    rep_to_param: dict[str, str] = {}
+    for rep in rep_order:
         if n_unique == 1:
-            macro_to_canonical[macro] = f"{pll_kind}_addr"
+            rep_to_param[rep] = f"{pll_kind}_addr"
         else:
-            macro_to_canonical[macro] = macro_to_first_param[macro]
+            rep_to_param[rep] = _slot_param_name(rep)
 
     remapped: list[PllWriteTemplate] = []
     for wt in write_templates:
-        macro = path_to_macro[wt.reg_path]
+        rep = slot_to_rep[wt.slot_id]
         remapped.append(
             PllWriteTemplate(
-                macro_to_canonical[macro],
+                rep_to_param[rep],
                 wt.parts,
                 wt.reg_path,
                 wt.slot_id,
@@ -693,7 +719,7 @@ def _consolidate_pll_addr_params(
     for wt in remapped:
         if wt.addr_param in param_to_slot:
             continue
-        param_to_slot[wt.addr_param] = wt.slot_id
+        param_to_slot[wt.addr_param] = slot_to_rep[wt.slot_id]
         addr_params.append(wt.addr_param)
 
     addr_param_slot_ids = tuple(param_to_slot[p] for p in addr_params)
@@ -771,12 +797,15 @@ def build_pll_plan(
         cfg_by_freq = _validate_pll_freq_cfg(group_key, nodes, resolved)
         template_node = nodes[0]
         output_groups = template_node.output_groups
+        slot_specs = _unique_slot_specs_in_order(
+            _kind_write_slot_specs(pll_kind, template_node, index, output_groups)
+        )
         write_templates_raw = _kind_write_templates(
             pll_kind, output_groups, index, template_node
         )
         write_templates, addr_params, addr_param_slot_ids = (
             _consolidate_pll_addr_params(
-                pll_kind, write_templates_raw, template_node, index
+                pll_kind, write_templates_raw, nodes, index, slot_specs
             )
         )
         cfg_logical_keys = _cfg_var_names_for_kind(
@@ -784,9 +813,6 @@ def build_pll_plan(
         )
         cfg_var_names = tuple(
             reg_key_to_c_ident(name) for name in cfg_logical_keys
-        )
-        slot_specs = _unique_slot_specs_in_order(
-            _kind_write_slot_specs(pll_kind, template_node, index, output_groups)
         )
         slot_ids = tuple(spec[0] for spec in slot_specs)
         _, lock_mask_hex = _pll_lock_view(index, template_node)
