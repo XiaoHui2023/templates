@@ -144,10 +144,14 @@ f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 | **refdiv** | 参考分频，1～63；两路共用 |
 | **postdiv1** | 后分频 1，1～7；每路独立 |
 | **postdiv2** | 后分频 2，1～7；每路独立 |
+| **postdiv1_reg** | **postdiv1** 寄存器写入值，0～6；每路独立 |
+| **postdiv2_reg** | **postdiv2** 寄存器写入值，0～6；每路独立 |
 
 ```
-f_actual = f_ref × fbdiv / 4 / refdiv / postdiv1 / postdiv2
+f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 ```
+
+**postdiv1** 为 **postdiv1_reg + 1**；**postdiv2** 为 **postdiv2_reg + 1**。分频为 1 时写入 0。
 
 **fbdiv**、**refdiv** 两路共用；每路各有 **postdiv1**、**postdiv2**。
 

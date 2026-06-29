@@ -44,6 +44,14 @@ from model.topology import bind_tree_topology, clear_tree_topology
 from search.progress import ComponentSearchReporter
 
 
+class ComponentSearchFailure(RuntimeError):
+    """子树搜索失败；search_summary 记录枚举耗尽时的上下文。"""
+
+    def __init__(self, message: str, *, search_summary: str = "") -> None:
+        super().__init__(message)
+        self.search_summary = search_summary
+
+
 @dataclass(frozen=True)
 class SearchComponent:
     """一次顺序求解的子树：按固定频率边界切分后的最小求解单元。"""
@@ -116,6 +124,12 @@ def search_tree_constraints(
                 clks=_component_label(component),
             )
             if deadline is not None and time.perf_counter() > deadline:
+                failure_exc = _build_component_failure_exception(
+                    tree,
+                    component=component,
+                    period_tolerance=period_tolerance,
+                    cause=RuntimeError("时钟树约束求解超时或无法判定"),
+                )
                 log_stage_done(
                     "search",
                     "component",
@@ -124,7 +138,7 @@ def search_tree_constraints(
                     failed=True,
                     progress=f"{component.index - 1}/{component.total}",
                 )
-                raise RuntimeError("时钟树约束求解超时或无法判定")
+                raise failure_exc
             try:
                 if component.pll_ref_for is not None:
                     partial = _search_pll_ref_tree(
@@ -157,6 +171,12 @@ def search_tree_constraints(
                         deadline=deadline,
                     )
             except RuntimeError as exc:
+                failure_exc = _build_component_failure_exception(
+                    tree,
+                    component=component,
+                    period_tolerance=period_tolerance,
+                    cause=exc,
+                )
                 log_stage_done(
                     "search",
                     "component",
@@ -165,12 +185,7 @@ def search_tree_constraints(
                     failed=True,
                     progress=f"{component.index - 1}/{component.total}",
                 )
-                _raise_component_failure(
-                    tree,
-                    component=component,
-                    period_tolerance=period_tolerance,
-                    cause=exc,
-                )
+                raise failure_exc
             log_stage_done(
                 "search",
                 "component",
@@ -198,6 +213,12 @@ def search_tree_constraints(
                 tol_den=tol_den,
             )
         except RuntimeError as exc:
+            failure_exc = _build_merge_failure_exception(
+                tree,
+                components=components,
+                period_tolerance=period_tolerance,
+                cause=exc,
+            )
             log_stage_done(
                 "search",
                 "merge",
@@ -206,12 +227,7 @@ def search_tree_constraints(
                 failed=True,
                 progress=f"{len(partial_models)}/{len(components)}",
             )
-            _raise_merge_failure(
-                tree,
-                components=components,
-                period_tolerance=period_tolerance,
-                cause=exc,
-            )
+            raise failure_exc
         log_stage_done(
             "search",
             "merge",
@@ -526,16 +542,17 @@ def _component_log_label(component: SearchComponent) -> str:
     )
 
 
-def _raise_component_failure(
+def _build_component_failure_exception(
     tree: Tree,
     *,
     component: SearchComponent,
     period_tolerance: float,
     cause: RuntimeError,
-) -> None:
+) -> RuntimeError:
     from report.diagnose import format_search_component_failure
 
     clks = _component_clk_names(component)
+    search_summary = getattr(cause, "search_summary", "")
     headline = (
         f"子树 {component.index}/{component.total} 求解失败"
         f"（clk: {clks}）: {cause}"
@@ -547,19 +564,21 @@ def _raise_component_failure(
         component_total=component.total,
         component_targets=list(component.targets),
         component_nodes=set(component.node_names),
+        search_summary=search_summary,
     )
-    if detail:
-        raise RuntimeError(f"{headline}\n\n{detail}") from cause
-    raise RuntimeError(headline) from cause
+    message = f"{headline}\n\n{detail}" if detail else headline
+    exc = RuntimeError(message)
+    exc.__suppress_context__ = True
+    return exc
 
 
-def _raise_merge_failure(
+def _build_merge_failure_exception(
     tree: Tree,
     *,
     components: List[SearchComponent],
     period_tolerance: float,
     cause: RuntimeError,
-) -> None:
+) -> RuntimeError:
     targets: List[Tuple[str, int]] = []
     nodes: Set[str] = set()
     for component in components:
@@ -574,6 +593,7 @@ def _raise_merge_failure(
     headline = f"子树合并后求解失败：{cause}"
     from report.diagnose import format_search_component_failure
 
+    search_summary = getattr(cause, "search_summary", "")
     detail = format_search_component_failure(
         tree,
         period_tolerance=period_tolerance,
@@ -581,10 +601,42 @@ def _raise_merge_failure(
         component_total=component.total,
         component_targets=list(component.targets),
         component_nodes=set(component.node_names),
+        search_summary=search_summary,
     )
-    if detail:
-        raise RuntimeError(f"{headline}\n\n{detail}") from cause
-    raise RuntimeError(headline) from cause
+    message = f"{headline}\n\n{detail}" if detail else headline
+    exc = RuntimeError(message)
+    exc.__suppress_context__ = True
+    return exc
+
+
+def _raise_component_failure(
+    tree: Tree,
+    *,
+    component: SearchComponent,
+    period_tolerance: float,
+    cause: RuntimeError,
+) -> None:
+    raise _build_component_failure_exception(
+        tree,
+        component=component,
+        period_tolerance=period_tolerance,
+        cause=cause,
+    )
+
+
+def _raise_merge_failure(
+    tree: Tree,
+    *,
+    components: List[SearchComponent],
+    period_tolerance: float,
+    cause: RuntimeError,
+) -> None:
+    raise _build_merge_failure_exception(
+        tree,
+        components=components,
+        period_tolerance=period_tolerance,
+        cause=cause,
+    )
 
 
 def _collect_inno_ref_path_vars(
@@ -660,6 +712,7 @@ def _search_tree(
             ratios[name] = node.ratio
 
     reporter = ComponentSearchReporter(tree, free_muxes)
+    search_summary = ""
     try:
         for assignment in _iter_mux_assignments(
             tree, free_muxes, targets=targets, fixed_mux_sel=mux_sel
@@ -766,9 +819,16 @@ def _search_tree(
             if solved:
                 return model
     finally:
+        search_summary = reporter.exhaustion_summary(
+            free_muxes=free_muxes,
+            free_divs=free_divs,
+        )
         reporter.end()
 
-    raise RuntimeError("时钟树约束互相矛盾，无解")
+    raise ComponentSearchFailure(
+        "时钟树约束互相矛盾，无解",
+        search_summary=search_summary,
+    )
 
 
 def _search_pll_ref_tree(
@@ -800,6 +860,7 @@ def _search_pll_ref_tree(
             ratios[name] = node.ratio
 
     reporter = ComponentSearchReporter(tree, free_muxes, pll_ref=True)
+    search_summary = ""
     try:
         for assignment in _iter_mux_assignments(
             tree, free_muxes, fixed_mux_sel=mux_sel
@@ -864,9 +925,16 @@ def _search_pll_ref_tree(
                     export_nodes=required,
                 )
     finally:
+        search_summary = reporter.exhaustion_summary(
+            free_muxes=free_muxes,
+            free_divs=ref_divs,
+        )
         reporter.end()
 
-    raise RuntimeError("时钟树约束互相矛盾，无解")
+    raise ComponentSearchFailure(
+        "时钟树约束互相矛盾，无解",
+        search_summary=search_summary,
+    )
 
 
 def _compute_active_pll_ref(

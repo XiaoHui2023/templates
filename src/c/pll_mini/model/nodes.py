@@ -54,28 +54,7 @@ _SOURCE_REF_KINDS = frozenset({"gate", "div", "inv", "cell", "clk", "pll"})
 def normalize_source_endpoint_input(raw: Any, *, ctx: str) -> str:
     if isinstance(raw, str):
         return raw.strip()
-    if isinstance(raw, dict):
-        if "name" not in raw:
-            raise ValueError(
-                f"{ctx} 前级引用 {raw!r} 须为字符串或含 name 字段的对象"
-            )
-        name = raw["name"]
-        if not isinstance(name, str) or not name:
-            raise ValueError(f"{ctx} 前级引用 name 应为非空字符串")
-        out_group = raw.get("out_group", "")
-        if out_group is None:
-            out_group = ""
-        if not isinstance(out_group, (str, int)):
-            raise ValueError(
-                f"{ctx} 前级引用 out_group 应为字符串或整数，得到 {out_group!r}"
-            )
-        out_text = str(out_group).strip()
-        if out_text:
-            return f"{name}[{out_text}]"
-        return name
-    raise ValueError(
-        f"{ctx} 前级引用 {raw!r} 须为字符串或含 name 字段的对象"
-    )
+    raise ValueError(f"{ctx} 前级引用 {raw!r} 须为字符串")
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:

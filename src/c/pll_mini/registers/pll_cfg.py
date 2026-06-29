@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .formulas import tci_pll_cfg_from_clkf
+from .formulas import inno_postdiv_to_reg, tci_pll_cfg_from_clkf
 from reg_paths import INNO_PLL_OUTPUT_GROUPS, inno_postdiv_reg_keys as _inno_keys
 
 __all__ = ["pll_cfg_from_solved"]
@@ -52,7 +52,11 @@ def pll_cfg_from_solved(
         groups = output_groups or list(INNO_PLL_OUTPUT_GROUPS)
         for group_id in groups:
             p1_key, p2_key = _inno_keys(group_id)
-            cfg[p1_key] = vars_map[f"postdiv1_{group_id}"]
-            cfg[p2_key] = vars_map[f"postdiv2_{group_id}"]
+            cfg[p1_key] = inno_postdiv_to_reg(
+                vars_map[f"postdiv1_{group_id}"]
+            )
+            cfg[p2_key] = inno_postdiv_to_reg(
+                vars_map[f"postdiv2_{group_id}"]
+            )
         return cfg
     raise ValueError(f"未知 pll_kind {pll_kind!r}")

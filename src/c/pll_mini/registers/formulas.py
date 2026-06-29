@@ -212,6 +212,16 @@ def pll_dw_actual_hz(ref_hz: int, fbdiv: int, p: int) -> int:
     return (ref_hz * fbdiv) // postdiv
 
 
+def inno_postdiv_to_reg(postdiv: int) -> int:
+    if postdiv < 1 or postdiv > 7:
+        raise ValueError(f"inno postdiv {postdiv} 应在 1～7")
+    return postdiv - 1
+
+
+def inno_postdiv_from_reg(reg: int) -> int:
+    return reg + 1
+
+
 def pll_inno_actual_hz(
     ref_hz: int,
     fbdiv: int,

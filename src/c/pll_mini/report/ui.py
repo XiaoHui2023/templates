@@ -210,10 +210,9 @@ def _render_fan_in_block(
         _append_node_label(left, tree, edge_src, target_hz)
         pad = " " * max(0, width - len(_node_plain_tag(tree, edge_src, target_hz)))
         if edge_index < len(block) - 1:
-            _append_edge_line(out, indent=f"  {pad}", left=left, arrow=" ─┐\n")
+            _append_edge_line(out, indent=f"  {pad}", left=left, arrow=" ─┐")
         else:
             _append_edge_line(out, indent=f"  {pad}", left=left, arrow=" ─┼→ ", right=right)
-    out.append("\n")
 
 
 def _render_fan_out_block(
@@ -235,6 +234,21 @@ def _render_fan_out_block(
         branch = "├→ " if edge_index < len(block) - 1 else "└→ "
         pad = " " * len(src_tag)
         _append_edge_line(out, indent=f"  {pad} ", left=Text(), arrow=branch, right=right)
+
+
+def render_rich_text_plain(text: Text, *, width: int = 100) -> str:
+    """把 Rich Text 收成无 ANSI 的纯文本，便于写入异常消息。"""
+    from io import StringIO
+
+    buffer = StringIO()
+    Console(
+        file=buffer,
+        force_terminal=False,
+        no_color=True,
+        width=width,
+        legacy_windows=False,
+    ).print(text, end="")
+    return buffer.getvalue().rstrip("\n")
 
 
 def build_component_graph(

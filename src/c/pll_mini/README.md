@@ -146,7 +146,7 @@ settings:
 
 #### inno
 
-固定两路输出，组内共用 **lock**、**pd**、**refdiv**、**fbdiv**，每路各有 **postdiv1**、**postdiv2**。
+固定两路输出，组内共用 **lock**、**pd**、**refdiv**、**fbdiv**，每路各有 **postdiv1**、**postdiv2**。求解按实际分频 1～7 搜系数；写入 **postdiv1**、**postdiv2** 寄存器时为实际分频减 1，分频为 1 时写入 0。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -154,10 +154,10 @@ settings:
 | `regs.pd` | `str` | | 掉电控制。 |
 | `regs.refdiv` | `str` | | 参考分频系数。 |
 | `regs.fbdiv` | `str` | | 反馈分频系数。 |
-| `regs.postdiv1[0]` | `str` | | 第 0 路后级分频 1 系数。 |
-| `regs.postdiv2[0]` | `str` | | 第 0 路后级分频 2 系数。 |
-| `regs.postdiv1[1]` | `str` | | 第 1 路后级分频 1 系数。 |
-| `regs.postdiv2[1]` | `str` | | 第 1 路后级分频 2 系数。 |
+| `regs.postdiv1[0]` | `str` | | 第 0 路后级分频 1 寄存器写入值，0～6。 |
+| `regs.postdiv2[0]` | `str` | | 第 0 路后级分频 2 寄存器写入值，0～6。 |
+| `regs.postdiv1[1]` | `str` | | 第 1 路后级分频 1 寄存器写入值，0～6。 |
+| `regs.postdiv2[1]` | `str` | | 第 1 路后级分频 2 寄存器写入值，0～6。 |
 
 ### Node - clk
 

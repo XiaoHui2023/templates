@@ -282,16 +282,12 @@ tree:
 
     clk_hclk:
       kind: clk
-      source:
-        name: cpu_gate0
-        out_group: hclk
+      source: cpu_gate0[hclk]
       freq: 15000000
 
     clk_arm:
       kind: clk
-      source:
-        name: cpu_gate0
-        out_group: clk_arm_core
+      source: cpu_gate0[clk_arm_core]
       freq: 30000000
 
     clk_tci:

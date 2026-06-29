@@ -18,8 +18,6 @@ class {{ settings.class_prefix }}pll_cfg;
     localparam int SC_FBDIV_PREF_MAX = {{ settings.pll_sc_fbdiv_max }};
     localparam int DW_FBDIV_MIN = 1;
     localparam int DW_FBDIV_MAX = 1023;
-    localparam int INNO_FBDIV_SCALE = 4;
-
     {{ settings.class_prefix }}reg_rw rw;
     protected longint cfg_ref_hz[string];
     protected longint cfg_out_hz[string];
@@ -375,13 +373,13 @@ function void {{ settings.class_prefix }}pll_cfg::inno_shared_divisors(
         return;
     have_best = 0;
     for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
-        fbdiv_r = real'(out_hz) * real'(refdiv_try) * real'(INNO_FBDIV_SCALE) / real'(ref_hz);
+        fbdiv_r = real'(out_hz) * real'(refdiv_try) / real'(ref_hz);
         fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
         if (fbdiv_i < 1 || fbdiv_i > fbdiv_max)
             continue;
         if (!{{ settings.class_prefix }}inno_fbdiv_legal(fbdiv_i))
             continue;
-        actual_hz = (ref_hz * fbdiv_i) / (INNO_FBDIV_SCALE * refdiv_try);
+        actual_hz = (ref_hz * fbdiv_i) / refdiv_try;
         err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
         if (!have_best || err < best_err) begin
             best_err = err;
@@ -422,7 +420,7 @@ function void {{ settings.class_prefix }}pll_cfg::inno_postdivisors(
             product = refdiv * postdiv1_try * postdiv2_try;
             if (product < 1)
                 continue;
-            actual_hz = (ref_hz * fbdiv) / (INNO_FBDIV_SCALE * product);
+            actual_hz = (ref_hz * fbdiv) / product;
             err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
             if (!have_best || err < best_err) begin
                 best_err = err;
@@ -463,7 +461,7 @@ task {{ settings.class_prefix }}pll_cfg::configure_inno_postdiv(
     int vals[$];
 
     binds = '{f_postdiv1, f_postdiv2};
-    vals = '{postdiv1, postdiv2};
+    vals = '{postdiv1 - 1, postdiv2 - 1};
     rw.apply(binds, vals);
 endtask
 

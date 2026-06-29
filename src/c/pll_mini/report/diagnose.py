@@ -403,6 +403,7 @@ def print_diagnostic_report(
     issues: Sequence[DiagnosticIssue],
     unsat_core: str = "",
     headline: str = "",
+    component_graph: Text | None = None,
 ) -> None:
     from report.ui import active_progress_session
 
@@ -412,6 +413,15 @@ def print_diagnostic_report(
         session.halt_for_output()
     title = headline.strip() or "pll_mini 诊断"
     parts: List[object] = [Rule(f"[bold]{title}[/bold]", style="cyan")]
+    if component_graph is not None:
+        parts.append(
+            Panel(
+                component_graph,
+                title="连通域",
+                border_style="cyan",
+                padding=(0, 1),
+            )
+        )
     core_text = unsat_core.strip()
     if core_text:
         parts.append(
@@ -447,8 +457,17 @@ def format_search_component_failure(
     component_total: int,
     component_targets: Sequence[tuple[str, int]],
     component_nodes: Set[str],
+    search_summary: str = "",
 ) -> str:
     """子树定向搜索失败时的静态诊断与路径图。"""
+    from report.ui import build_component_graph, render_rich_text_plain
+
+    component_graph = build_component_graph(
+        tree,
+        node_names=component_nodes,
+        targets=component_targets,
+    )
+    graph_plain = render_rich_text_plain(component_graph)
     static_started_at = log_stage_start(
         "diagnose",
         "collect",
@@ -486,13 +505,17 @@ def format_search_component_failure(
         nodes=len(component_nodes),
     )
     clk_list = ", ".join(name for name, _ in component_targets)
+    report_headline = (
+        f"子树 {component_index}/{component_total} 求解失败"
+        f"（clk: {clk_list}）"
+    )
+    if search_summary:
+        report_headline = f"{report_headline}: {search_summary}"
     print_diagnostic_report(
         tree,
         issues=scoped,
-        headline=(
-            f"子树 {component_index}/{component_total} 求解失败"
-            f"（clk: {clk_list}）"
-        ),
+        headline=report_headline,
+        component_graph=component_graph,
     )
     log_stage_done(
         "diagnose",
@@ -502,9 +525,18 @@ def format_search_component_failure(
         issues=len(scoped),
     )
     detail_text = format_diagnostic_issues(scoped)
+    blocks: List[str] = []
+    if graph_plain:
+        blocks.append(f"连通域：\n{graph_plain}")
+    if search_summary:
+        blocks.append(f"搜索：{search_summary}")
     if detail_text:
-        return f"{detail_text}\n\n路径子树见 stderr。"
-    return ""
+        blocks.append(detail_text)
+    if not blocks:
+        blocks.append(
+            "诊断：当前子树搜索已穷尽候选组合，但没有找到满足全部目标的配置。"
+        )
+    return "\n\n".join(blocks)
 
 
 def _fallback_component_issues(

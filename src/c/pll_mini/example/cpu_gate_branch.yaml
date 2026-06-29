@@ -1,0 +1,130 @@
+# CPU core 分支拓扑回归：
+# - 两级 mux 选出 729 MHz 主路径。
+# - cpu_gate 的 hclk_en / hclk 分频输出分别供 clken 与 clk。
+# - clk_arm_core 透传到 open=0 gate，后级无频率目标且不参与求解。
+
+ralf: example/normal.ralf
+
+tree:
+  name: cpu_gate_branch
+  nodes:
+    clock_pll_CPU:
+      kind: source
+      source_kind: source
+      freq: 729000000
+
+    clock_start:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    CPU_core_clk_gate0:
+      kind: gate
+      source: clock_pll_CPU
+
+    cpu_core_clk_div:
+      kind: div
+      div_kind: div
+      source: CPU_core_clk_gate0
+      ratio: 1
+
+    cpu_core_clk_sel1:
+      kind: mux
+      source:
+        "0": CPU_core_clk_gate0
+        "1": cpu_core_clk_div
+
+    cpu_core_clk_gate1:
+      kind: gate
+      source: clock_start
+
+    cpu_core_clk_sel0:
+      kind: mux
+      source:
+        "0": cpu_core_clk_gate1
+        "1": cpu_core_clk_sel1
+
+    cpu_core_clk_gate2:
+      kind: gate
+      source: cpu_core_clk_sel0
+
+    cpu_core_clk_occ_clk_cell:
+      kind: cell
+      cell_kind: occ
+      source: cpu_core_clk_gate2
+
+    cpu_core_clk:
+      kind: clk
+      source: cpu_core_clk_occ_clk_cell
+      freq: 729000000
+
+    a7_clk_occ_clk_cell:
+      kind: cell
+      cell_kind: occ
+      source: cpu_core_clk_occ_clk_cell
+
+    a7_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist
+      source: a7_clk_occ_clk_cell
+
+    a7_core_clk:
+      kind: clk
+      source: a7_clk_bist_clk_cell
+      freq: 729000000
+
+    a7_clk_bist_occ_clk_cell:
+      kind: cell
+      cell_kind: bist_occ
+      source: a7_clk_occ_clk_cell
+
+    cpu_debug_clk_div:
+      kind: div
+      div_kind: cpu_gate
+      source: cpu_core_clk_sel0
+
+    cpu_debug_clken:
+      kind: clk
+      source: cpu_debug_clk_div[hclk_en]
+      freq: 121500000
+
+    cpu_debug_clk_gate2:
+      kind: gate
+      source: cpu_debug_clk_div[hclk]
+
+    cpu_debug_clk:
+      kind: clk
+      source: cpu_debug_clk_gate2
+      freq: 121500000
+
+    cpu_axi_clk_div:
+      kind: div
+      div_kind: cpu_gate
+      source: cpu_core_clk_sel0
+
+    cpu_axi_clken:
+      kind: clk
+      source: cpu_axi_clk_div[hclk_en]
+      freq: 365000000
+
+    cpu_axi_clk_gate2:
+      kind: gate
+      source: cpu_axi_clk_div[hclk]
+
+    cpu_axi_clk:
+      kind: clk
+      source: cpu_axi_clk_gate2
+      freq: 365000000
+
+    ca7_mbist_mode:
+      kind: gate
+      source: cpu_axi_clk_div[clk_arm_core]
+      open: 0
+
+    o_ca7_mbist_clk:
+      kind: clk
+      source: ca7_mbist_mode
+
+settings:
+  main_fn: chip_pll_config
+  solve_timeout_ms: 30000

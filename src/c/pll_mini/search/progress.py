@@ -113,6 +113,25 @@ class ComponentSearchReporter:
         if self._session is not None:
             self._session.end_component_search()
 
+    def exhaustion_summary(
+        self,
+        *,
+        free_muxes: Sequence[str],
+        free_divs: Sequence[str],
+    ) -> str:
+        parts: List[str] = []
+        if self._mux_total > 0:
+            parts.append(f"mux 枚举 {self._mux_current}/{self._mux_total}")
+        elif free_muxes:
+            parts.append(f"自由 mux: {', '.join(free_muxes)}")
+        if free_divs:
+            parts.append(f"自由 div: {', '.join(free_divs)}")
+        if self._pll_ref:
+            parts.append("PLL 参考路径")
+        if not parts:
+            return "已穷尽候选 mux、分频与 PLL 组合"
+        return "；".join(parts)
+
     def _emit(
         self,
         phase: str,
