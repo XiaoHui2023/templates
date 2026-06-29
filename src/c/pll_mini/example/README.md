@@ -23,7 +23,7 @@ check.bat
 | --- | --- |
 | `normal.yaml` | 健全检查；各 kind 至少一条可解路径。 |
 | `cpu_gate_branch.yaml` | **cpu_gate** 多输出、晶振→PLL→分频、**gate** 透传、无频率 **clk**。 |
-| `extreme.yaml` | 可解极限压力；多层 mux 组合。 |
+| `extreme.yaml` | 可解极限压力；多层 mux 组合；**dual_path** 八路与 **pll_sc** / **xtal** 两路进 mux。 |
 | `unsat.yaml` | 故意无解。 |
 | `reg_missing_field.yaml` | 寄存器 field 缺失。 |
 | `reg_bit_range.yaml` | 寄存器 bit slice 越界。 |

@@ -327,6 +327,42 @@ tree:
       source: div_ref
       freq: 24000000
 
+    div_dual_0:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_0.ctrl.rst
+        load: blk_div_dual_0.ctrl.load
+        div: blk_div_dual_0.ctrl.div
+
+    gate_dual_pll_0:
+      kind: gate
+      source: div_dual_0
+      reg: blk_gate_dual_pll_0.en.en
+
+    gate_dual_xt_0:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_0.en.en
+
+    mux_dual_0:
+      kind: mux
+      source:
+        "0": gate_dual_pll_0
+        "1": gate_dual_xt_0
+      reg: blk_mux_dual_0.sel.sel
+
+    gate_dual_out_0:
+      kind: gate
+      source: mux_dual_0
+      reg: blk_gate_dual_out_0.en.en
+
+    clk_dual_0:
+      kind: clk
+      source: gate_dual_out_0
+      freq: 30000000
+
 settings:
   main_fn: chip_pll_config
   gate_reg_high_means_open: true

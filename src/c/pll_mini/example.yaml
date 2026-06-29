@@ -6,6 +6,7 @@
 #   div        div / div_n / div_r / dto / dto_n / cpu_gate
 #   mux        mux_ref 可搜索 sel；其余 mux 预填 sel
 #   gate       寄存器门控；gate_hclk 透传链；gate_mbist open=0
+#   dual_path  pll_sc→div→gate 与 xtal→gate 进 mux→gate→clk_dual_0
 #   inv        inv / inv_mux / inv_cell
 #   cell       buf
 #   clk        有频率 / 无频率 / always_active
@@ -326,6 +327,42 @@ tree:
       kind: clk
       source: div_ref
       freq: 24000000
+
+    div_dual_0:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_0.ctrl.rst
+        load: blk_div_dual_0.ctrl.load
+        div: blk_div_dual_0.ctrl.div
+
+    gate_dual_pll_0:
+      kind: gate
+      source: div_dual_0
+      reg: blk_gate_dual_pll_0.en.en
+
+    gate_dual_xt_0:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_0.en.en
+
+    mux_dual_0:
+      kind: mux
+      source:
+        "0": gate_dual_pll_0
+        "1": gate_dual_xt_0
+      reg: blk_mux_dual_0.sel.sel
+
+    gate_dual_out_0:
+      kind: gate
+      source: mux_dual_0
+      reg: blk_gate_dual_out_0.en.en
+
+    clk_dual_0:
+      kind: clk
+      source: gate_dual_out_0
+      freq: 30000000
 
 settings:
   main_fn: chip_pll_config

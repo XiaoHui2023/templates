@@ -877,3 +877,371 @@ block blk_div_hub_c {
     field div @8 { bits 8; access rw; }
   }
 }
+block blk_div_dual_0 {
+  bytes 4;
+
+  register ctrl @'hb00 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_0 {
+  bytes 4;
+
+  register sel @'hb80 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_0 {
+  bytes 4;
+
+  register en @'hc00 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_0 {
+  bytes 4;
+
+  register en @'hc04 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_0 {
+  bytes 4;
+
+  register en @'hc08 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+block blk_div_dual_1 {
+  bytes 4;
+
+  register ctrl @'hb04 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_1 {
+  bytes 4;
+
+  register sel @'hb84 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_1 {
+  bytes 4;
+
+  register en @'hc10 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_1 {
+  bytes 4;
+
+  register en @'hc14 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_1 {
+  bytes 4;
+
+  register en @'hc18 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+block blk_div_dual_2 {
+  bytes 4;
+
+  register ctrl @'hb08 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_2 {
+  bytes 4;
+
+  register sel @'hb88 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_2 {
+  bytes 4;
+
+  register en @'hc20 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_2 {
+  bytes 4;
+
+  register en @'hc24 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_2 {
+  bytes 4;
+
+  register en @'hc28 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+block blk_div_dual_3 {
+  bytes 4;
+
+  register ctrl @'hb0c {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_3 {
+  bytes 4;
+
+  register sel @'hb8c {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_3 {
+  bytes 4;
+
+  register en @'hc30 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_3 {
+  bytes 4;
+
+  register en @'hc34 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_3 {
+  bytes 4;
+
+  register en @'hc38 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+block blk_div_dual_4 {
+  bytes 4;
+
+  register ctrl @'hb10 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_4 {
+  bytes 4;
+
+  register sel @'hb90 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_4 {
+  bytes 4;
+
+  register en @'hc40 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_4 {
+  bytes 4;
+
+  register en @'hc44 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_4 {
+  bytes 4;
+
+  register en @'hc48 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+block blk_div_dual_5 {
+  bytes 4;
+
+  register ctrl @'hb14 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_5 {
+  bytes 4;
+
+  register sel @'hb94 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_5 {
+  bytes 4;
+
+  register en @'hc50 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_5 {
+  bytes 4;
+
+  register en @'hc54 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_5 {
+  bytes 4;
+
+  register en @'hc58 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+block blk_div_dual_6 {
+  bytes 4;
+
+  register ctrl @'hb18 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_6 {
+  bytes 4;
+
+  register sel @'hb98 {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_6 {
+  bytes 4;
+
+  register en @'hc60 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_6 {
+  bytes 4;
+
+  register en @'hc64 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_6 {
+  bytes 4;
+
+  register en @'hc68 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+block blk_div_dual_7 {
+  bytes 4;
+
+  register ctrl @'hb1c {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
+  }
+}
+
+block blk_mux_dual_7 {
+  bytes 4;
+
+  register sel @'hb9c {
+    bytes 4;
+    field sel @0 { bits 2; access rw; }
+  }
+}
+
+block blk_gate_dual_pll_7 {
+  bytes 4;
+
+  register en @'hc70 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_xt_7 {
+  bytes 4;
+
+  register en @'hc74 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
+block blk_gate_dual_out_7 {
+  bytes 4;
+
+  register en @'hc78 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}

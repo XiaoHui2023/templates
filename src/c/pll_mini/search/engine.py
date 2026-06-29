@@ -339,6 +339,9 @@ def _pll_ref_needs_coeffs(tree: Tree, pll_name: str) -> bool:
     return isinstance(node, PllNode) and node.pll_kind != "inno"
 
 
+DUAL_PATH_CLK_PREFIX = "clk_dual_"
+
+
 def verify_search_partition(tree: Tree) -> int:
     """验收：每个 clk 目标恰落在某一 clk 子树内，并返回子树总数。"""
     targets = collect_freq_targets(tree)
@@ -356,15 +359,69 @@ def verify_search_partition(tree: Tree) -> int:
                 f"clk 节点 {clk_name!r} 应恰出现在一个 clk 子树中，"
                 f"实际 {cover.get(clk_name, 0)} 次"
             )
+    _verify_dual_path_partition_independence(tree, clk_components)
     return len(components)
+
+
+def _is_partition_merge_exempt_node(tree: Tree, node_name: str) -> bool:
+    """无寄存器或配置已写死的节点不参与 clk 子树合并判定。"""
+    if is_static_frequency_anchor_node(tree, node_name):
+        return True
+    node = tree.nodes.get(node_name)
+    if node is None:
+        return True
+    if node.kind in ("inv", "cell"):
+        return True
+    if isinstance(node, GateNode) and node.open in (0, 1):
+        return True
+    if isinstance(node, MuxNode) and node.sel is not None:
+        return True
+    if isinstance(node, DivNode) and node.div_kind == "div_r" and node.ratio is not None:
+        return True
+    return False
 
 
 def _mutable_component_nodes(tree: Tree, node_names: Set[str] | frozenset[str]) -> Set[str]:
     return {
         name
         for name in node_names
-        if not is_static_frequency_anchor_node(tree, name)
+        if not _is_partition_merge_exempt_node(tree, name)
     }
+
+
+def _verify_dual_path_partition_independence(
+    tree: Tree,
+    clk_components: List[SearchComponent],
+) -> None:
+    """dual_path 压力岛：每路 clk 单独成子树，可变节点不得跨路重叠。"""
+    dual_components = [
+        comp
+        for comp in clk_components
+        if comp.targets and comp.targets[0][0].startswith(DUAL_PATH_CLK_PREFIX)
+    ]
+    if not dual_components:
+        return
+    mutable_sets = [
+        _mutable_component_nodes(tree, comp.node_names) for comp in dual_components
+    ]
+    for comp in dual_components:
+        if len(comp.targets) != 1:
+            clk_name = comp.targets[0][0]
+            raise RuntimeError(
+                f"dual_path clk {clk_name!r} 应独占一个 clk 子树，"
+                f"实际与 {len(comp.targets)} 个目标合并"
+            )
+    for left in range(len(dual_components)):
+        for right in range(left + 1, len(dual_components)):
+            overlap = mutable_sets[left] & mutable_sets[right]
+            if overlap:
+                left_clk = dual_components[left].targets[0][0]
+                right_clk = dual_components[right].targets[0][0]
+                shared = ", ".join(sorted(overlap))
+                raise RuntimeError(
+                    f"dual_path {left_clk!r} 与 {right_clk!r} 共享可变节点"
+                    f" {shared}，子树未独立划分"
+                )
 
 
 def _merge_overlapping_clk_components(

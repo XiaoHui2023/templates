@@ -14,6 +14,7 @@
 #                单个合并子树理论 mux 组合 9216 × 4 = 36864
 #   deep_div   — gate_deep 后六路并行自由 div 与 clk，合并为单一子树
 #   div_share  — clk_share_a / b / c 共用 div_share，合并子树后共用一组 ratio
+#   dual_path  — 8 路 pll_sc→div→gate 与 xtal→gate 进独立 mux 再到 clk；独立子树
 
 ralf: example/normal.ralf
 
@@ -907,6 +908,296 @@ tree:
       kind: clk
       source: div_hub_c
       freq: 24000000
+
+    # dual_path 压力岛：pll_sc 与 xtal 为锚点；每路独立 div/gate/mux 链，
+    # 若错误合并则 8 路 mux 组合 2^8=256 相对独立 8×2 会几何级变慢。
+    div_dual_0:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_0.ctrl.rst
+        load: blk_div_dual_0.ctrl.load
+        div: blk_div_dual_0.ctrl.div
+
+    gate_dual_pll_0:
+      kind: gate
+      source: div_dual_0
+      reg: blk_gate_dual_pll_0.en.en
+
+    gate_dual_xt_0:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_0.en.en
+
+    mux_dual_0:
+      kind: mux
+      source:
+        "0": gate_dual_pll_0
+        "1": gate_dual_xt_0
+      reg: blk_mux_dual_0.sel.sel
+
+    gate_dual_out_0:
+      kind: gate
+      source: mux_dual_0
+      reg: blk_gate_dual_out_0.en.en
+
+    clk_dual_0:
+      kind: clk
+      source: gate_dual_out_0
+      freq: 30000000
+
+    div_dual_1:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_1.ctrl.rst
+        load: blk_div_dual_1.ctrl.load
+        div: blk_div_dual_1.ctrl.div
+
+    gate_dual_pll_1:
+      kind: gate
+      source: div_dual_1
+      reg: blk_gate_dual_pll_1.en.en
+
+    gate_dual_xt_1:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_1.en.en
+
+    mux_dual_1:
+      kind: mux
+      source:
+        "0": gate_dual_pll_1
+        "1": gate_dual_xt_1
+      reg: blk_mux_dual_1.sel.sel
+
+    gate_dual_out_1:
+      kind: gate
+      source: mux_dual_1
+      reg: blk_gate_dual_out_1.en.en
+
+    clk_dual_1:
+      kind: clk
+      source: gate_dual_out_1
+      freq: 20000000
+
+    div_dual_2:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_2.ctrl.rst
+        load: blk_div_dual_2.ctrl.load
+        div: blk_div_dual_2.ctrl.div
+
+    gate_dual_pll_2:
+      kind: gate
+      source: div_dual_2
+      reg: blk_gate_dual_pll_2.en.en
+
+    gate_dual_xt_2:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_2.en.en
+
+    mux_dual_2:
+      kind: mux
+      source:
+        "0": gate_dual_pll_2
+        "1": gate_dual_xt_2
+      reg: blk_mux_dual_2.sel.sel
+
+    gate_dual_out_2:
+      kind: gate
+      source: mux_dual_2
+      reg: blk_gate_dual_out_2.en.en
+
+    clk_dual_2:
+      kind: clk
+      source: gate_dual_out_2
+      freq: 15000000
+
+    div_dual_3:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_3.ctrl.rst
+        load: blk_div_dual_3.ctrl.load
+        div: blk_div_dual_3.ctrl.div
+
+    gate_dual_pll_3:
+      kind: gate
+      source: div_dual_3
+      reg: blk_gate_dual_pll_3.en.en
+
+    gate_dual_xt_3:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_3.en.en
+
+    mux_dual_3:
+      kind: mux
+      source:
+        "0": gate_dual_pll_3
+        "1": gate_dual_xt_3
+      reg: blk_mux_dual_3.sel.sel
+
+    gate_dual_out_3:
+      kind: gate
+      source: mux_dual_3
+      reg: blk_gate_dual_out_3.en.en
+
+    clk_dual_3:
+      kind: clk
+      source: gate_dual_out_3
+      freq: 12000000
+
+    div_dual_4:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_4.ctrl.rst
+        load: blk_div_dual_4.ctrl.load
+        div: blk_div_dual_4.ctrl.div
+
+    gate_dual_pll_4:
+      kind: gate
+      source: div_dual_4
+      reg: blk_gate_dual_pll_4.en.en
+
+    gate_dual_xt_4:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_4.en.en
+
+    mux_dual_4:
+      kind: mux
+      source:
+        "0": gate_dual_pll_4
+        "1": gate_dual_xt_4
+      reg: blk_mux_dual_4.sel.sel
+
+    gate_dual_out_4:
+      kind: gate
+      source: mux_dual_4
+      reg: blk_gate_dual_out_4.en.en
+
+    clk_dual_4:
+      kind: clk
+      source: gate_dual_out_4
+      freq: 24000000
+
+    div_dual_5:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_5.ctrl.rst
+        load: blk_div_dual_5.ctrl.load
+        div: blk_div_dual_5.ctrl.div
+
+    gate_dual_pll_5:
+      kind: gate
+      source: div_dual_5
+      reg: blk_gate_dual_pll_5.en.en
+
+    gate_dual_xt_5:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_5.en.en
+
+    mux_dual_5:
+      kind: mux
+      source:
+        "0": gate_dual_pll_5
+        "1": gate_dual_xt_5
+      reg: blk_mux_dual_5.sel.sel
+
+    gate_dual_out_5:
+      kind: gate
+      source: mux_dual_5
+      reg: blk_gate_dual_out_5.en.en
+
+    clk_dual_5:
+      kind: clk
+      source: gate_dual_out_5
+      freq: 30000000
+
+    div_dual_6:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_6.ctrl.rst
+        load: blk_div_dual_6.ctrl.load
+        div: blk_div_dual_6.ctrl.div
+
+    gate_dual_pll_6:
+      kind: gate
+      source: div_dual_6
+      reg: blk_gate_dual_pll_6.en.en
+
+    gate_dual_xt_6:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_6.en.en
+
+    mux_dual_6:
+      kind: mux
+      source:
+        "0": gate_dual_pll_6
+        "1": gate_dual_xt_6
+      reg: blk_mux_dual_6.sel.sel
+
+    gate_dual_out_6:
+      kind: gate
+      source: mux_dual_6
+      reg: blk_gate_dual_out_6.en.en
+
+    clk_dual_6:
+      kind: clk
+      source: gate_dual_out_6
+      freq: 20000000
+
+    div_dual_7:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_7.ctrl.rst
+        load: blk_div_dual_7.ctrl.load
+        div: blk_div_dual_7.ctrl.div
+
+    gate_dual_pll_7:
+      kind: gate
+      source: div_dual_7
+      reg: blk_gate_dual_pll_7.en.en
+
+    gate_dual_xt_7:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_7.en.en
+
+    mux_dual_7:
+      kind: mux
+      source:
+        "0": gate_dual_pll_7
+        "1": gate_dual_xt_7
+      reg: blk_mux_dual_7.sel.sel
+
+    gate_dual_out_7:
+      kind: gate
+      source: mux_dual_7
+      reg: blk_gate_dual_out_7.en.en
+
+    clk_dual_7:
+      kind: clk
+      source: gate_dual_out_7
+      freq: 10000000
 
 settings:
   main_fn: chip_pll_config_extreme
