@@ -16,7 +16,6 @@ class {{ settings.class_prefix }}spec#(type T = uvm_object) extends T;
         DIV_N,
         DTO,
         DTO_N,
-        CPU_GATE,
         DIV_R
     } div_kind_e;
 
@@ -28,9 +27,7 @@ class {{ settings.class_prefix }}spec#(type T = uvm_object) extends T;
 
     typedef enum {
         SOURCE,
-        PAD,
-        VDD,
-        GND
+        PAD
     } source_kind_e;
 
     function new(string name = "");

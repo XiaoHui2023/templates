@@ -7,7 +7,6 @@ class {{ settings.class_prefix }}node_cfg;
     protected int mux_last_sel[string];
     protected bit div_rst_released[string];
     protected bit dto_rst_released[string];
-    protected bit cpu_gate_rst_released[string];
 
     function new({{ settings.class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
@@ -36,20 +35,6 @@ class {{ settings.class_prefix }}node_cfg;
     // ratio — 仅更新 div 与 load 脉冲
     extern task configure_div_ratio(
         {{ settings.class_prefix }}reg f_load,
-        {{ settings.class_prefix }}reg f_div,
-        int ratio);
-    // ratio — 先拉低有效 rst 脉冲，再写 div
-    extern task configure_cpu_gate(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_div,
-        int ratio);
-    // ratio — rst 写不复位电平并更新 div
-    extern task configure_cpu_gate_direct(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_div,
-        int ratio);
-    // ratio — 仅更新 div
-    extern task configure_cpu_gate_ratio(
         {{ settings.class_prefix }}reg f_div,
         int ratio);
     // ratio — 先复位脉冲，再写 step、load 与 bypass
@@ -84,10 +69,6 @@ class {{ settings.class_prefix }}node_cfg;
     extern function bit dto_rst_was_released(string node_name);
     // node_name — 记录 dto 已完成首次寄存器写
     extern function void note_dto_rst_released(string node_name);
-    // node_name — 该 cpu_gate 是否已在 config_reg 中写过寄存器
-    extern function bit cpu_gate_rst_was_released(string node_name);
-    // node_name — 记录 cpu_gate 已完成首次寄存器写
-    extern function void note_cpu_gate_rst_released(string node_name);
 endclass
 
 task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
@@ -160,48 +141,6 @@ task {{ settings.class_prefix }}node_cfg::configure_div_ratio(
     rw.set_write(f_div, n);
     rw.set_write(f_load, 0);
     rw.set_write(f_load, 1);
-endtask
-
-task {{ settings.class_prefix }}node_cfg::configure_cpu_gate(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_div,
-        int ratio);
-    int n;
-    {{ settings.class_prefix }}reg binds[$];
-    int vals[$];
-    n = {{ settings.class_prefix }}cpu_gate_ratio_to_n(ratio);
-{%- if settings.div_reg_high_means_reset %}
-    rw.set_write(f_rst, 1);
-    binds = '{f_rst, f_div};
-    vals = '{0, n};
-{%- else %}
-    rw.set_write(f_rst, 0);
-    binds = '{f_rst, f_div};
-    vals = '{1, n};
-{%- endif %}
-    rw.apply(binds, vals);
-endtask
-
-task {{ settings.class_prefix }}node_cfg::configure_cpu_gate_direct(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_div,
-        int ratio);
-    int n;
-    n = {{ settings.class_prefix }}cpu_gate_ratio_to_n(ratio);
-{%- if settings.div_reg_high_means_reset %}
-    rw.set_write(f_rst, 0);
-{%- else %}
-    rw.set_write(f_rst, 1);
-{%- endif %}
-    rw.set_write(f_div, n);
-endtask
-
-task {{ settings.class_prefix }}node_cfg::configure_cpu_gate_ratio(
-        {{ settings.class_prefix }}reg f_div,
-        int ratio);
-    int n;
-    n = {{ settings.class_prefix }}cpu_gate_ratio_to_n(ratio);
-    rw.set_write(f_div, n);
 endtask
 
 task {{ settings.class_prefix }}node_cfg::configure_dto(
@@ -307,14 +246,6 @@ endfunction
 
 function void {{ settings.class_prefix }}node_cfg::note_dto_rst_released(string node_name);
     dto_rst_released[node_name] = 1'b1;
-endfunction
-
-function bit {{ settings.class_prefix }}node_cfg::cpu_gate_rst_was_released(string node_name);
-    return cpu_gate_rst_released.exists(node_name);
-endfunction
-
-function void {{ settings.class_prefix }}node_cfg::note_cpu_gate_rst_released(string node_name);
-    cpu_gate_rst_released[node_name] = 1'b1;
 endfunction
 
 `endif

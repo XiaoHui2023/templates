@@ -9,7 +9,6 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}div_div div_div_nd;
     {{ settings.class_prefix }}div_dto div_dto_nd;
-    {{ settings.class_prefix }}div_cpu_gate div_cpu_gate_nd;
 
     if (nd == null)
         return 1'b0;
@@ -23,9 +22,6 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
     if ($cast(div_dto_nd, nd))
         return div_dto_nd.f_rst.is_bound() && div_dto_nd.f_load.is_bound()
             && div_dto_nd.f_bypass.is_bound() && div_dto_nd.f_step.is_bound();
-    if ($cast(div_cpu_gate_nd, nd))
-        return div_cpu_gate_nd.group_id == "{{ cpu_gate_primary_group }}"
-            && div_cpu_gate_nd.f_rst.is_bound() && div_cpu_gate_nd.f_div.is_bound();
     return 1'b0;
 endfunction
 

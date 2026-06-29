@@ -11,34 +11,6 @@ function automatic int {{ settings.class_prefix }}div_ratio_to_n(int ratio);
     return ratio - 1;
 endfunction
 
-// cpu_gate 分频比转 div field 写入值，比只能是 2、3、4、6
-function automatic int {{ settings.class_prefix }}cpu_gate_ratio_to_n(int ratio);
-    case (ratio)
-        2: return 4'h0;
-        3: return 4'h2;
-        4: return 4'h4;
-        6: return 4'h8;
-        default:
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "cpu_gate_ratio_to_n: ratio %0d must be 2, 3, 4, or 6", ratio))
-    endcase
-endfunction
-
-// div field 写入值转 cpu_gate 分频比
-function automatic int {{ settings.class_prefix }}cpu_gate_n_to_ratio(int n);
-    n = n & 4'hF;
-    if (n inside {4'h0, 4'h1})
-        return 2;
-    if (n[3:2] == 2'b00 && n[1])
-        return 3;
-    if (!n[3] && n[2])
-        return 4;
-    if (n[3])
-        return 6;
-    `uvm_fatal("CLK_TREE", $sformatf(
-        "cpu_gate_n_to_ratio: div 0x%0h has no legal ratio", n))
-endfunction
-
 // ratio 为 1 时旁通，不按 step 公式编码
 function automatic bit {{ settings.class_prefix }}dto_ratio_is_bypass(int ratio);
     return ratio == 1;

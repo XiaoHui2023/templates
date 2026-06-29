@@ -16,14 +16,6 @@ trees:
         path: dut.pad_xtal
         freq: 24000000
 
-      vdd0:
-        kind: source
-        source_kind: vdd
-
-      gnd0:
-        kind: source
-        source_kind: gnd
-
       pll_tci:
         kind: pll
         source: xtal
@@ -117,16 +109,10 @@ trees:
         path: dut.gate0
         reg: blk_gate0.en
 
-      cell_buf:
-        kind: cell
-        cell_kind: buf
-        source: gate0
-        path: dut.cell_buf
-
       div_r_0:
         kind: div_r
         ratio: 99
-        source: cell_buf
+        source: gate0
         path: dut.div_r_0
 
       div0:
@@ -154,27 +140,6 @@ trees:
           load: blk_dto0.load
           bypass: blk_dto0.bypass
           step: blk_dto0.step
-
-      cpu_gate0:
-        kind: div
-        div_kind: cpu_gate
-        source: dto0
-        path: dut.cpu_gate0
-        regs:
-          rst: blk_cpu_gate0.rst
-          div: blk_cpu_gate0.div
-
-      clk_arm:
-        kind: clk
-        freq: 100000000
-        path: dut.clk_arm
-        source: cpu_gate0[clk_arm_core]
-
-      clk_hclk:
-        kind: clk
-        freq: 50000000
-        path: dut.clk_hclk
-        source: cpu_gate0[hclk]
 
       clk_out:
         kind: clk

@@ -12,8 +12,6 @@ def node_output_groups(node: object) -> List[str]:
     kind = getattr(node, "kind", None)
     if kind == "pll":
         return list(getattr(node, "output_groups", []))
-    if kind == "div" and getattr(node, "div_kind", None) == "cpu_gate":
-        return list(CPU_GATE_OUTPUT_GROUPS)
     return []
 
 
@@ -46,17 +44,7 @@ DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
 DTO_REG_KEYS = frozenset({"rst", "load", "bypass", "step"})
 
-CPU_GATE_REG_KEYS = frozenset({"rst", "div"})
-
-CPU_GATE_OUTPUT_GROUPS: tuple[str, ...] = ("hclk_en", "hclk", "clk_arm_core")
-
-CPU_GATE_PASS_THROUGH_GROUP = "clk_arm_core"
-
-CPU_GATE_HCLK_GROUP = CPU_GATE_OUTPUT_GROUPS[1]
-
-CPU_GATE_PRIMARY_GROUP = CPU_GATE_OUTPUT_GROUPS[0]
-
-_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
+_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "div_r"})
 
 _INV_KIND_CANON = frozenset({"inv", "inv_mux", "inv_cell"})
 
@@ -65,7 +53,6 @@ DIV_KIND_TO_SV: dict[str, str] = {
     "div_n": "div_div",
     "dto": "div_dto",
     "dto_n": "div_dto",
-    "cpu_gate": "div_cpu_gate",
     "div_r": "div_div_r",
 }
 
@@ -74,7 +61,6 @@ DIV_KIND_TO_SV_ENUM: dict[str, str] = {
     "div_n": "DIV_N",
     "dto": "DTO",
     "dto_n": "DTO_N",
-    "cpu_gate": "CPU_GATE",
     "div_r": "DIV_R",
 }
 
@@ -84,21 +70,16 @@ INV_KIND_TO_SV: dict[str, str] = {
     "inv_cell": "inv_cell",
 }
 
-_SOURCE_KIND_CANON = frozenset({"source", "pad", "vdd", "gnd"})
-_FIXED_ZERO_FREQ_SOURCE_KINDS = frozenset({"vdd", "gnd"})
+_SOURCE_KIND_CANON = frozenset({"source", "pad"})
 
 SOURCE_KIND_TO_SV: dict[str, str] = {
     "source": "source",
     "pad": "source_pad",
-    "vdd": "source_vdd",
-    "gnd": "source_gnd",
 }
 
 SOURCE_KIND_TO_SV_ENUM: dict[str, str] = {
     "source": "SOURCE",
     "pad": "PAD",
-    "vdd": "VDD",
-    "gnd": "GND",
 }
 
 INV_KIND_TO_SV_ENUM: dict[str, str] = {
@@ -114,7 +95,7 @@ def normalize_div_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _DIV_KIND_CANON:
         raise ValueError(
-            f"div_kind 须为 div、div_n、dto、dto_n、cpu_gate、div_r 之一，"
+            f"div_kind 须为 div、div_n、dto、dto_n、div_r 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -131,22 +112,13 @@ def normalize_inv_kind(value: object) -> str:
     return canon
 
 
-def normalize_cell_kind(value: object) -> str:
-    if not isinstance(value, str):
-        raise TypeError(f"cell_kind 应为字符串，得到 {type(value).__name__}")
-    text = value.strip()
-    if not text:
-        raise ValueError(f"cell_kind 应为非空字符串，得到 {value!r}")
-    return text
-
-
 def normalize_source_kind(value: object) -> str:
     if not isinstance(value, str):
         raise TypeError(f"source_kind 须为字符串，得到 {type(value).__name__}")
     canon = value.strip().lower()
     if canon not in _SOURCE_KIND_CANON:
         raise ValueError(
-            f"source_kind 须为 source、pad、vdd、gnd 之一，"
+            f"source_kind 须为 source、pad 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -155,8 +127,6 @@ def normalize_source_kind(value: object) -> str:
 def div_reg_keys_for_kind(div_kind: str) -> frozenset[str]:
     if div_kind in ("div", "div_n"):
         return DIV_REG_KEYS
-    if div_kind == "cpu_gate":
-        return CPU_GATE_REG_KEYS
     if div_kind == "div_r":
         return frozenset()
     return DTO_REG_KEYS

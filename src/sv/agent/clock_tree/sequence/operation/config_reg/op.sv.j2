@@ -31,8 +31,6 @@ class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
     extern task config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
     // 写 dto 的复位、bypass、load 与 step
     extern task config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
-    // 写 cpu_gate 的低有效 rst 与分频比
-    extern task config_reg_cpu_gate_node({{ settings.class_prefix }}div_cpu_gate cpu_gate_nd);
     // 写 inv 的反相/直通控制
     extern task config_reg_inv_node({{ settings.class_prefix }}inv_base inv_nd);
     // 按具体 PLL 类型分派配置流程
@@ -161,38 +159,6 @@ task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.
         p_sequencer.tools.node.configure_dto_direct(
             dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd._resolved_ratio);
         p_sequencer.tools.node.note_dto_rst_released(dto_nd.get_name());
-    end
-{%- endif %}
-endtask
-
-// 写 cpu_gate 的低有效 rst 与分频比
-task {{ settings.class_prefix }}config_reg_seq::config_reg_cpu_gate_node(
-        {{ settings.class_prefix }}div_cpu_gate cpu_gate_nd);
-    if (!cpu_gate_nd.f_div.is_bound() || !cpu_gate_nd.f_rst.is_bound())
-        return;
-{%- if settings.should_reset_div %}
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "config_reg: cpu_gate %s ratio %0d",
-            cpu_gate_nd.get_name(), cpu_gate_nd._resolved_ratio), UVM_MEDIUM)
-    p_sequencer.tools.node.configure_cpu_gate(
-        cpu_gate_nd.f_rst, cpu_gate_nd.f_div, cpu_gate_nd._resolved_ratio);
-{%- else %}
-    if (p_sequencer.tools.node.cpu_gate_rst_was_released(cpu_gate_nd.get_name())) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: cpu_gate %s skip rst, ratio %0d",
-                cpu_gate_nd.get_name(), cpu_gate_nd._resolved_ratio), UVM_MEDIUM)
-        p_sequencer.tools.node.configure_cpu_gate_ratio(
-            cpu_gate_nd.f_div, cpu_gate_nd._resolved_ratio);
-    end else begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: cpu_gate %s ratio %0d",
-                cpu_gate_nd.get_name(), cpu_gate_nd._resolved_ratio), UVM_MEDIUM)
-        p_sequencer.tools.node.configure_cpu_gate_direct(
-            cpu_gate_nd.f_rst, cpu_gate_nd.f_div, cpu_gate_nd._resolved_ratio);
-        p_sequencer.tools.node.note_cpu_gate_rst_released(cpu_gate_nd.get_name());
     end
 {%- endif %}
 endtask
@@ -481,7 +447,6 @@ task {{ settings.class_prefix }}config_reg_seq::config_div_dto_nodes(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}div_div div_div_nd;
     {{ settings.class_prefix }}div_dto div_dto_nd;
-    {{ settings.class_prefix }}div_cpu_gate cpu_gate_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++) begin
         if ($cast(div_div_nd, tree.nodes[i])) begin
@@ -493,11 +458,6 @@ task {{ settings.class_prefix }}config_reg_seq::config_div_dto_nodes(
                     && div_dto_nd.f_bypass.is_bound()
                     && div_dto_nd.f_step.is_bound())
                 config_reg_dto_node(div_dto_nd);
-        end else if ($cast(cpu_gate_nd, tree.nodes[i])) begin
-            if (cpu_gate_nd.group_id != "{{ cpu_gate_primary_group }}")
-                continue;
-            if (cpu_gate_nd.f_rst.is_bound() && cpu_gate_nd.f_div.is_bound())
-                config_reg_cpu_gate_node(cpu_gate_nd);
         end
     end
 endtask

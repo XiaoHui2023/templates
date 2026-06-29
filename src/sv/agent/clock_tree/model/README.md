@@ -48,8 +48,6 @@
 | --- | --- |
 | **SOURCE** | **source** |
 | **PAD** | **source_pad** |
-| **VDD** | **source_vdd** |
-| **GND** | **source_gnd** |
 
 ## 节点
 
@@ -74,14 +72,6 @@
 ### source_pad
 
 继承 **source_base**；构造时 **source_kind** 为 **PAD**。
-
-### source_vdd
-
-继承 **source_base**；构造时 **source_kind** 为 **VDD**；**frequence** 固定为 0。
-
-### source_gnd
-
-继承 **source_base**；构造时 **source_kind** 为 **GND**；**frequence** 固定为 0。
 
 ### clk
 
@@ -241,27 +231,6 @@
 | **cst_div** | **ratio** 只能取 1～64 的整数 |
 | **cst_resolve_freq_from_src** | **source** 已连接且 **ratio** 大于 0 时，**_resolved_freq** 落在 **source._resolved_freq** 整除 **ratio** 结果的 **period_tolerance** 相对偏差带内 |
 
-### div_cpu_gate
-
-继承 **div_base**；**div_kind** 为 **CPU_GATE**。YAML **regs** 只允许 **rst**、**div**，无 **load**。寄存器写序列按 **div_reg_high_means_reset** 解释 **rst** 极性，默认 **false** 表示 0 为复位、1 为不复位。
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **group_id** | **string** | 多路输出名 |
-| **to_group** | **node_base** 关联数组 | 同节点其它路 |
-| **source** | **node_base** | 前级节点 |
-| **ratio** | **int**，**rand** | 分频比 |
-| **f_rst** | **reg** | |
-| **f_div** | **reg** | |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-
-| 约束 | 说明 |
-| --- | --- |
-| **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
-| **cst_div** | **ratio** 只能取 2、3、4、6 |
-| **cst_resolve_freq_from_src** | **group_id** 为 **clk_arm_core** 时 **_resolved_freq** 等于 **source._resolved_freq**；其它路容差同 **div_base** |
-
 ### div_div_r
 
 | 成员 | 类型 | 说明 |
@@ -313,22 +282,6 @@
 | **cst_open** | **open** 为 0 或 1 时等于 **_resolved_open** |
 | **cst_resolve_active_from_src** | **_resolved_open** 为 0 时 **_resolved_active** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_active**；为 1 且 **source** 未连接时为 0 |
 | **cst_resolve_freq_from_src** | **_resolved_open** 为 0 时 **_resolved_freq** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_freq**；为 1 且 **source** 未连接时为 0 |
-
-### cell
-
-继承 **node_base**；**cell_kind** 仅作记录，不改变行为。
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **source** | **node_base** | 前级节点 |
-| **cell_kind** | **string** | 配置中的型号 |
-| **_resolved_freq** | **longint**，**rand** | 输出频率 |
-| **_resolved_active** | **bit**，**rand** | 活动状态 |
-
-| 约束 | 说明 |
-| --- | --- |
-| **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
-| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
 
 ### inv
 

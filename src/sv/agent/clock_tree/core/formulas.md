@@ -44,32 +44,6 @@ f_hw = f_ref / ratio
 
 频率容差与 **div** 相同，由 **period_tolerance** 导出 **div_freq_tol_lo**、**div_freq_tol_hi**。
 
-## cpu_gate
-
-| 参数 | 说明 |
-| --- | --- |
-| **f** | 本节点输出频率 |
-| **f_ref** | 前级节点频率 |
-| **ratio** | 分频比，只能取 2、3、4、6 |
-| **div** | **div** field 写入值，4 bit |
-
-```
-f_hw = f_ref / ratio
-```
-
-**\_resolved_freq** 容差同 **div** 节。
-
-**div** 与 **ratio** 按 bit 前缀编码：
-
-| **div** | **ratio** |
-| --- | --- |
-| 4'b0000、4'b0001 | 2 |
-| 4'b001x | 3 |
-| 4'b01xx | 4 |
-| 4'b1xxx | 6 |
-
-写入时 **ratio** 为 2、3、4、6 分别写 4'h0、4'h2、4'h4、4'h8。
-
 ## dto
 
 | 参数 | 说明 |

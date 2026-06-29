@@ -9,9 +9,6 @@ _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 from nodes import Tree
 from reg_paths import (
-    CPU_GATE_HCLK_GROUP,
-    CPU_GATE_PASS_THROUGH_GROUP,
-    CPU_GATE_PRIMARY_GROUP,
     DIV_KIND_TO_SV_ENUM,
     INV_KIND_TO_SV_ENUM,
     PLL_REG_KEYS,
@@ -308,21 +305,6 @@ class Models(BaseModel):
             and self.regs_enabled
             and self.any_node_path
         )
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def cpu_gate_primary_group(self) -> str:
-        return CPU_GATE_PRIMARY_GROUP
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def cpu_gate_pass_through_group(self) -> str:
-        return CPU_GATE_PASS_THROUGH_GROUP
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def cpu_gate_hclk_group(self) -> str:
-        return CPU_GATE_HCLK_GROUP
 
     @computed_field  # type: ignore[prop-decorator]
     @property

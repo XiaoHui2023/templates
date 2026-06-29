@@ -77,7 +77,6 @@ settings:
 | `osc` | 通常写法，单路输出前级 |
 | `pll0` | 单路输出前级 |
 | `pll0["0"]` 或 `pll0[0]` | 多路输出前级，输出名为 `0` |
-| `cpu_gate0[hclk]` | 多路 **cpu_gate** 的 **hclk** 路 |
 
 ### Tree
 
@@ -92,13 +91,11 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `source` | |
-| `source_kind` | `str` | `source` | 取 `source`、`pad`、`vdd`、`gnd`。 |
+| `source_kind` | `str` | `source` | 取 `source`、`pad`。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 
 **source_kind** 为 `pad` 时字段与上表相同，仅型号不同。
-
-**source_kind** 为 `vdd`、`gnd` 时频率固定为 0，**freq** 可省略。
 
 ### Node - pll
 
@@ -191,17 +188,6 @@ settings:
 | `open` | `int` | | 门控开关；0 关闭、1 打开；省略则参与随机化。 |
 | `reg` | `str` | `""` | 门控寄存器模型路径。 |
 
-### Node - cell
-
-直通单元，输出频率与活动状态与前级相同；各 **cell_kind** 共用同一仿真类。
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `cell` | |
-| `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
-| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
-
 ### Node - div
 
 | 字段 | 类型 | 默认值 | 说明 |
@@ -235,25 +221,6 @@ settings:
 | `regs.load` | `str` | | 加载位。 |
 | `regs.bypass` | `str` | | bypass 位。 |
 | `regs.step` | `str` | | 步进控制。 |
-
-### Node - cpu_gate
-
-**div_kind** 为 `cpu_gate` 时，固定 3 路输出，输出名与方括号引用一致：
-
-| 输出名 | 信号 | 频率行为 |
-| --- | --- | --- |
-| `hclk_en` | **hclk_en** | 按分频比输出 |
-| `hclk` | **hclk** | 按分频比输出 |
-| `clk_arm_core` | **clk_arm_core** | 与前级同频 |
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `div` | |
-| `div_kind` | `str` | `cpu_gate` | |
-| `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
-| `regs.rst` | `str` | | 低电平复位位。 |
-| `regs.div` | `str` | | 4 bit 分频 field；比只能是 2、3、4、6。 |
 
 ### Node - inv
 

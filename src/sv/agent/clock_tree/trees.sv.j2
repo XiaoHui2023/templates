@@ -10,9 +10,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "mux" %}
 {%- set field_flags = "UVM_ALL_ON | (_print_mux ? 0 : UVM_NOPRINT)" %}
 {%- elif node.kind == "div" %}
-{%- if node.div_kind == "cpu_gate" %}
-{%- set field_flags = "UVM_ALL_ON | (_print_div ? 0 : UVM_NOPRINT)" %}
-{%- elif node.div_kind in ["div", "div_n", "div_r"] %}
+{%- if node.div_kind in ["div", "div_n", "div_r"] %}
 {%- set field_flags = "UVM_ALL_ON | (_print_div ? 0 : UVM_NOPRINT)" %}
 {%- else %}
 {%- set field_flags = "UVM_ALL_ON | (_print_dto ? 0 : UVM_NOPRINT)" %}
@@ -70,7 +68,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- for g in node.output_groups %}
         {{ node.name }}["{{ g }}"] = {{ sv_leaf_class }}::type_id::create($sformatf("{{ node.name }}[%s]", "{{ g }}"));
-{%- if (node.kind == "div" and node.div_kind == "cpu_gate") or (node.kind == "pll" and node.pll_kind == "inno") %}
+{%- if node.kind == "pll" and node.pll_kind == "inno" %}
         {{ node.name }}["{{ g }}"].group_id = "{{ g }}";
 {%- endif %}
 {%- if node.kind == "div" %}
@@ -83,7 +81,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- endif %}
 {%- endfor %}
-{%- if (node.kind == "div" and node.div_kind == "cpu_gate") or (node.kind == "pll" and node.pll_kind == "inno") %}
+{%- if node.kind == "pll" and node.pll_kind == "inno" %}
 {%- for g in node.output_groups %}
 {%- for g2 in node.output_groups %}
 {%- if g != g2 %}
@@ -108,9 +106,6 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "source" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_source_class }}::type_id::create("{{ node.name }}");
         {{ node.name }}.source_kind = {{ source_kind_to_sv_enum[node.source_kind] }};
-{%- elif node.kind == "cell" %}
-        {{ node.name }} = {{ settings.class_prefix }}cell::type_id::create("{{ node.name }}");
-        {{ node.name }}.cell_kind = "{{ node.cell_kind }}";
 {%- else %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
 {%- endif %}
@@ -180,7 +175,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- else %}
         {{ node.name }}.frequence = {{ node.freq }};
 {%- endif %}
-{%- elif node.kind == "source" and node.source_kind not in ["vdd", "gnd"] %}
+{%- elif node.kind == "source" %}
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
         {{ node.name }}["{{ g }}"].frequence = {{ node.freq }};

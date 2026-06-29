@@ -18,16 +18,13 @@ from pydantic import (
 )
 
 from reg_paths import (
-    CPU_GATE_OUTPUT_GROUPS,
     DIV_KIND_TO_SV,
     INV_KIND_TO_SV,
     INNO_PLL_OUTPUT_GROUPS,
     PLL_KIND_TO_SV,
     SOURCE_KIND_TO_SV,
-    _FIXED_ZERO_FREQ_SOURCE_KINDS,
     div_reg_keys_for_kind,
     node_path_connectable,
-    normalize_cell_kind,
     normalize_div_kind,
     normalize_inv_kind,
     normalize_pll_kind,
@@ -49,14 +46,14 @@ _NODE_KIND_ALIASES: dict[str, str] = {
     "clock": "clk",
 }
 
-_LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
-_CPU_GATE_RATIOS = frozenset({2, 3, 4, 6})
+_LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "div_r"})
+
 _FREQ_HZ_U32_MAX = 2**32 - 1
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
-DivKind = Literal["div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"]
+DivKind = Literal["div", "div_n", "dto", "dto_n", "div_r"]
 InvKind = Literal["inv", "inv_mux", "inv_cell"]
-SourceKind = Literal["source", "pad", "vdd", "gnd"]
+SourceKind = Literal["source", "pad"]
 
 
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -244,7 +241,7 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     div_kind: DivKind = Field(
         "div",
-        description="分频器型号：div、div_n、dto、dto_n、cpu_gate、div_r，大小写不限。",
+        description="分频器型号：div、div_n、dto、dto_n、div_r，大小写不限。",
     )
     source: str = Field(..., min_length=1, description="前级引用。")
     ratio: Optional[int] = Field(
@@ -257,18 +254,8 @@ class DivNode(NodeBase):
         default_factory=dict,
         description="非空时键由 div_kind 决定：div/div_n 为 rst、load、div；"
         "dto/dto_n 为 rst、load、bypass、step；"
-        "cpu_gate 为 rst、div；"
         "div_r 不可配置寄存器，须为空。",
     )
-
-    @computed_field(  # type: ignore[prop-decorator]
-        description="cpu_gate 固定三路输出名；其余 div 为空；YAML 不可传入。",
-    )
-    @property
-    def output_groups(self) -> List[str]:
-        if self.div_kind == "cpu_gate":
-            return list(CPU_GATE_OUTPUT_GROUPS)
-        return []
 
     @field_validator("div_kind", mode="before")
     @classmethod
@@ -291,15 +278,7 @@ class DivNode(NodeBase):
                     f"div_kind 为 div_r 时须填写 ratio"
                 )
         elif self.ratio is not None:
-            if self.div_kind == "cpu_gate":
-                if self.ratio not in _CPU_GATE_RATIOS:
-                    allowed = ", ".join(str(r) for r in sorted(_CPU_GATE_RATIOS))
-                    raise ValueError(
-                        f"div 节点 {_validation_node_name(self, info)!r} "
-                        f"div_kind 为 cpu_gate 时 ratio 只能是 {allowed}，"
-                        f"得到 {self.ratio}"
-                    )
-            elif self.ratio > 64:
+            if self.ratio > 64:
                 raise ValueError(
                     f"div 节点 {_validation_node_name(self, info)!r} "
                     f"div_kind 为 {self.div_kind!r} 时 ratio 须不大于 64，"
@@ -364,13 +343,13 @@ class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
     source_kind: SourceKind = Field(
         "source",
-        description="输入源型号：source、pad、vdd、gnd，大小写不限。",
+        description="输入源型号：source、pad，大小写不限。",
     )
     freq: int = Field(
-        0,
-        ge=0,
+        ...,
+        ge=1,
         le=_FREQ_HZ_U32_MAX,
-        description="典型频率，单位 Hz；vdd、gnd 固定为 0 或可省略。",
+        description="典型频率，单位 Hz。",
     )
 
     @field_validator("source_kind", mode="before")
@@ -388,18 +367,10 @@ class ClockSourceNode(NodeBase):
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_freq(cls, value: Any) -> Any:
-        if value is None or value == "":
-            return 0
-        return int(value)
+        return _coerce_required_freq(value)
 
     @model_validator(mode="after")
     def _validate_source_freq(self) -> ClockSourceNode:
-        if self.source_kind in _FIXED_ZERO_FREQ_SOURCE_KINDS:
-            if self.freq != 0:
-                raise ValueError(
-                    f"source_kind 为 {self.source_kind} 时 freq 只能是 0 或省略"
-                )
-            return self
         if self.freq < 1:
             raise ValueError(
                 "source_kind 为 source、pad 时须填写大于 0 的 freq"
@@ -461,21 +432,6 @@ class PllNode(NodeBase):
             output_groups=self.output_groups,
         )
         return self
-
-
-class CellNode(NodeBase):
-    kind: Literal["cell"] = "cell"
-    cell_kind: str = Field(
-        "cell",
-        min_length=1,
-        description="配置型号，任意非空字符串；仅作记录，仿真行为相同。",
-    )
-    source: str = Field(..., min_length=1, description="前级引用。")
-
-    @field_validator("cell_kind", mode="before")
-    @classmethod
-    def _normalize_cell_kind(cls, value: object) -> str:
-        return normalize_cell_kind(value)
 
 
 class ClkNode(NodeBase):
@@ -603,7 +559,6 @@ Node = Annotated[
         InvNode,
         ClockSourceNode,
         PllNode,
-        CellNode,
         ClkNode,
         MuxNode,
     ],
@@ -612,7 +567,7 @@ Node = Annotated[
 
 _node_adapter: TypeAdapter[Node] = TypeAdapter(Node)
 
-_NODE_KINDS_TEXT = "gate、div、inv、source、pll、cell、clk、mux"
+_NODE_KINDS_TEXT = "gate、div、inv、source、pll、clk、mux"
 
 
 def _node_kind_diagnosis(item: Any) -> str:
@@ -623,7 +578,7 @@ def _node_kind_diagnosis(item: Any) -> str:
         return "缺少 kind 字段"
     return (
         f"kind 为 {kind!r} 无法识别，应为 {_NODE_KINDS_TEXT} 之一；"
-        f"分频旧写法可用 div、div_n、dto、dto_n、cpu_gate、div_r 作为 kind"
+        f"分频旧写法可用 div、div_n、dto、dto_n、div_r 作为 kind"
     )
 
 
@@ -832,7 +787,7 @@ def upstream_peer_names(node: Node) -> List[str]:
             parse_source_endpoint(peer, ctx="mux.source")[0]
             for peer in node.source.values()
         ]
-    if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+    if node.kind in ("gate", "div", "inv", "clk", "pll"):
         device, _out_group = parse_source_endpoint(node.source, ctx="source")
         return [device]
     return []
@@ -896,7 +851,7 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
                     nodes,
                     ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
                 )
-        elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+        elif node.kind in ("gate", "div", "inv", "clk", "pll"):
             _validate_source_ref(
                 node.source,
                 nodes,
