@@ -50,6 +50,7 @@ def _is_int_literal(expr: str) -> bool:
 class PllWriteTemplate:
     addr_param: str
     parts: tuple[PllWritePartTemplate, ...]
+    reg_path: str
 
     @property
     def value_var(self) -> str:
@@ -377,10 +378,21 @@ def _group_reg_write_templates(
         else:
             groups.append((reg_path, [part]))
     if len(groups) == 1:
-        return (PllWriteTemplate(_slot_param_name(slot_id), tuple(groups[0][1])),)
+        reg_path, parts = groups[0]
+        return (
+            PllWriteTemplate(
+                _slot_param_name(slot_id),
+                tuple(parts),
+                reg_path,
+            ),
+        )
     return tuple(
-        PllWriteTemplate(_slot_param_name(f"{slot_id}_{idx}"), tuple(parts))
-        for idx, (_reg_path, parts) in enumerate(groups)
+        PllWriteTemplate(
+            _slot_param_name(f"{slot_id}_{idx}"),
+            tuple(parts),
+            reg_path,
+        )
+        for idx, (reg_path, parts) in enumerate(groups)
     )
 
 
@@ -415,39 +427,40 @@ def _sc_write_templates(
     return pd_down + div_cfg + pd_en
 
 
-def _tci_write_templates() -> tuple[PllWriteTemplate, ...]:
-    ctrl_lsb = {"bypass": 0, "pwrdn": 1, "reset": 2}
-    div_lsb = {"clkod": 0, "clkf": 8, "clkr": 16, "bwadj": 24}
-    ctrl_init = tuple(
-        PllWritePartTemplate(
-            lsb=ctrl_lsb[key],
-            width=1,
-            value_expr=str(val),
-            comment="bypass=1 pwrdn=0 reset=1" if key == "bypass" else key,
+def _tci_write_templates(
+    index: RegModelIndex,
+    template_node: PllNode,
+) -> tuple[PllWriteTemplate, ...]:
+    templates: list[PllWriteTemplate] = []
+
+    def _append_field_write(key: str, value_expr: str, comment: str) -> None:
+        ref = index.resolve(
+            template_node.regs[key],
+            ctx=f"pll node {template_node.name!r} regs[{key!r}]",
         )
-        for key, val in zip(PLL_TCI_CTRL_KEYS, (1, 0, 1), strict=True)
-    )
-    div_parts = tuple(
-        PllWritePartTemplate(
-            lsb=div_lsb[key],
-            width=8,
-            value_expr=reg_key_to_c_ident(key),
-            comment=key,
+        templates.append(
+            PllWriteTemplate(
+                _slot_param_name(f"tci_{key}"),
+                (
+                    PllWritePartTemplate(
+                        ref.effective_lsb,
+                        ref.effective_width,
+                        value_expr,
+                        comment,
+                    ),
+                ),
+                ref.reg.path,
+            )
         )
-        for key in PLL_TCI_DIV_KEYS
-    )
-    return (
-        PllWriteTemplate(_slot_param_name("tci_ctrl"), ctrl_init),
-        PllWriteTemplate(_slot_param_name("tci_div"), div_parts),
-        PllWriteTemplate(
-            _slot_param_name("tci_ctrl"),
-            (PllWritePartTemplate(2, 1, "0", "reset release"),),
-        ),
-        PllWriteTemplate(
-            _slot_param_name("tci_ctrl"),
-            (PllWritePartTemplate(0, 1, "0", "bypass off"),),
-        ),
-    )
+
+    for key, val in zip(PLL_TCI_CTRL_KEYS, (1, 0, 1), strict=True):
+        comment = "bypass=1 pwrdn=0 reset=1" if key == "bypass" else key
+        _append_field_write(key, str(val), comment)
+    for key in PLL_TCI_DIV_KEYS:
+        _append_field_write(key, reg_key_to_c_ident(key), key)
+    _append_field_write("reset", "0", "reset release")
+    _append_field_write("bypass", "0", "bypass off")
+    return tuple(templates)
 
 
 def _dw_write_templates(
@@ -458,11 +471,13 @@ def _dw_write_templates(
     templates: list[PllWriteTemplate] = []
     for slot_id, keys in slot_specs:
         parts: list[PllWritePartTemplate] = []
+        reg_path = ""
         for key in keys:
             ref = index.resolve(
                 template_node.regs[key],
                 ctx=f"pll node {template_node.name!r} regs[{key!r}]",
             )
+            reg_path = ref.reg.path
             parts.append(
                 PllWritePartTemplate(
                     ref.effective_lsb,
@@ -471,7 +486,13 @@ def _dw_write_templates(
                     key,
                 )
             )
-        templates.append(PllWriteTemplate(_slot_param_name(slot_id), tuple(parts)))
+        templates.append(
+            PllWriteTemplate(
+                _slot_param_name(slot_id),
+                tuple(parts),
+                reg_path,
+            )
+        )
     return tuple(templates)
 
 
@@ -498,6 +519,7 @@ def _inno_write_templates(
                     "pd assert",
                 ),
             ),
+            pd_ref.reg.path,
         )
     )
     templates.extend(
@@ -521,6 +543,7 @@ def _inno_write_templates(
                     "pd release",
                 ),
             ),
+            pd_ref.reg.path,
         )
     )
     if not output_groups:
@@ -577,7 +600,7 @@ def _kind_write_templates(
     if pll_kind == "sc":
         return _sc_write_templates(index, template_node)
     if pll_kind == "tci":
-        return _tci_write_templates()
+        return _tci_write_templates(index, template_node)
     if pll_kind == "dw":
         return _dw_write_templates(index, template_node)
     if pll_kind == "inno":
@@ -585,15 +608,81 @@ def _kind_write_templates(
     raise ValueError(f"unknown pll_kind {pll_kind!r}")
 
 
-def _addr_params_from_writes(writes: tuple[PllWriteTemplate, ...]) -> tuple[str, ...]:
+def _macro_for_reg_path(
+    node: PllNode,
+    index: RegModelIndex,
+    reg_path: str,
+) -> str:
+    for key in sorted(node.regs.keys()):
+        ref = index.resolve(
+            node.regs[key],
+            ctx=f"pll node {node.name!r} regs[{key!r}]",
+        )
+        if ref.reg.path == reg_path:
+            return ref.reg.addr_macro
+    raise ValueError(
+        f"pll 节点 {node.name!r} 上找不到寄存器路径 {reg_path!r}"
+    )
+
+
+def _consolidate_pll_addr_params(
+    pll_kind: str,
+    write_templates: tuple[PllWriteTemplate, ...],
+    template_node: PllNode,
+    index: RegModelIndex,
+) -> tuple[tuple[PllWriteTemplate, ...], tuple[str, ...], tuple[str, ...]]:
+    """按物理寄存器与地址宏合并形参；仅一路时命名为 {pll_kind}_addr。"""
+    path_to_macro: dict[str, str] = {}
+    macro_order: list[str] = []
+    macro_to_first_param: dict[str, str] = {}
+
+    for wt in write_templates:
+        reg_path = wt.reg_path
+        if reg_path not in path_to_macro:
+            path_to_macro[reg_path] = _macro_for_reg_path(
+                template_node, index, reg_path
+            )
+        macro = path_to_macro[reg_path]
+        if macro not in macro_to_first_param:
+            macro_order.append(macro)
+            macro_to_first_param[macro] = wt.addr_param
+
+    n_unique = len(macro_order)
+    macro_to_canonical: dict[str, str] = {}
+    for macro in macro_order:
+        if n_unique == 1:
+            macro_to_canonical[macro] = f"{pll_kind}_addr"
+        else:
+            macro_to_canonical[macro] = macro_to_first_param[macro]
+
+    remapped: list[PllWriteTemplate] = []
+    for wt in write_templates:
+        macro = path_to_macro[wt.reg_path]
+        remapped.append(
+            PllWriteTemplate(
+                macro_to_canonical[macro],
+                wt.parts,
+                wt.reg_path,
+            )
+        )
+
+    addr_params: list[str] = []
     seen: set[str] = set()
-    params: list[str] = []
-    for wt in writes:
+    for wt in remapped:
         if wt.addr_param in seen:
             continue
         seen.add(wt.addr_param)
-        params.append(wt.addr_param)
-    return tuple(params)
+        addr_params.append(wt.addr_param)
+
+    macro_to_rep_path: dict[str, str] = {}
+    for wt in write_templates:
+        macro = path_to_macro[wt.reg_path]
+        macro_to_rep_path.setdefault(macro, wt.reg_path)
+    canonical_reg_paths = tuple(
+        macro_to_rep_path[macro] for macro in macro_order
+    )
+
+    return tuple(remapped), tuple(addr_params), canonical_reg_paths
 
 
 def _freq_branches(
@@ -610,30 +699,25 @@ def _freq_branches(
     return tuple(branches)
 
 
-def _instance_addr_args(
+def _instance_canonical_addr_args(
     node: PllNode,
     index: RegModelIndex,
+    canonical_reg_paths: Sequence[str],
     slot_specs: tuple[PllSlotSpec, ...],
 ) -> tuple[str, ...]:
-    args: list[str] = []
-    for slot_id, keys in slot_specs:
-        reg_paths = {
-            index.resolve(
-                node.regs[key],
-                ctx=f"pll node {node.name!r} regs[{key!r}]",
-            ).reg.path
-            for key in keys
-        }
-        if len(reg_paths) != 1:
-            raise ValueError(
-                f"pll 节点 {node.name!r} 槽 {slot_id!r} 的逻辑键映射到多个寄存器"
-            )
+    path_to_macro: dict[str, str] = {}
+    for _slot_id, keys in slot_specs:
         ref = index.resolve(
             node.regs[keys[0]],
             ctx=f"pll node {node.name!r} regs[{keys[0]!r}]",
         )
-        args.append(ref.reg.addr_macro)
-    return tuple(args)
+        path_to_macro.setdefault(ref.reg.path, ref.reg.addr_macro)
+    missing = [rp for rp in canonical_reg_paths if rp not in path_to_macro]
+    if missing:
+        raise ValueError(
+            f"pll 节点 {node.name!r} 缺少寄存器路径 {missing!r} 的地址宏"
+        )
+    return tuple(path_to_macro[rp] for rp in canonical_reg_paths)
 
 
 def _collect_active_pll_nodes(
@@ -670,8 +754,13 @@ def build_pll_plan(
         cfg_by_freq = _validate_pll_freq_cfg(group_key, nodes, resolved)
         template_node = nodes[0]
         output_groups = template_node.output_groups
-        write_templates = _kind_write_templates(
+        write_templates_raw = _kind_write_templates(
             pll_kind, output_groups, index, template_node
+        )
+        write_templates, addr_params, canonical_reg_paths = (
+            _consolidate_pll_addr_params(
+                pll_kind, write_templates_raw, template_node, index
+            )
         )
         cfg_logical_keys = _cfg_var_names_for_kind(
             pll_kind, output_groups, cfg_by_freq
@@ -679,7 +768,6 @@ def build_pll_plan(
         cfg_var_names = tuple(
             reg_key_to_c_ident(name) for name in cfg_logical_keys
         )
-        addr_params = _addr_params_from_writes(write_templates)
         slot_specs = _unique_slot_specs_in_order(
             _kind_write_slot_specs(pll_kind, template_node, index, output_groups)
         )
@@ -711,8 +799,8 @@ def build_pll_plan(
                 PllInstancePlan(
                     node_name=node.name,
                     fn_name=fn_name,
-                    addr_args=_instance_addr_args(
-                        node, index, slot_specs
+                    addr_args=_instance_canonical_addr_args(
+                        node, index, canonical_reg_paths, slot_specs
                     ),
                     freq_hz=resolved.by_name[node.name].resolved_freq,
                     wait_lock=True,
