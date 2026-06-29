@@ -60,6 +60,23 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 }
 
 {% endfor -%}
+{% if extra_reg_plan -%}
+static void {{ extra_reg_plan.fn_name }}(void)
+{
+{%- for write in extra_reg_plan.writes %}
+    unsigned int {{ write.template.value_var }};
+{%- endfor %}
+{%- for write in extra_reg_plan.writes %}
+    cpu_config_read(&{{ write.template.value_var }}, {{ write.addr_macro }});
+{%- endfor %}
+{%- for write in extra_reg_plan.writes %}
+
+    {{ write.template.c_value_update_stmt }}
+    cpu_config_write({{ write.addr_macro }}, {{ write.template.value_var }});
+{%- endfor %}
+}
+
+{% endif -%}
 void {{ settings.main_fn }}(void)
 {
     unsigned int i;
@@ -74,6 +91,9 @@ void {{ settings.main_fn }}(void)
 
         cpu_config_write(step->addr, step->value);
     }
+{%- if extra_reg_plan %}
+    {{ extra_reg_plan.fn_name }}();
+{%- endif %}
 }
 
 #endif

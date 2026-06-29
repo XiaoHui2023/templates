@@ -713,6 +713,8 @@ def build_header_address_plan(
 def collect_used_regs(
     index: RegModelIndex,
     plan: ConfigPlan,
+    *,
+    extra_regs: Sequence[Reg] = (),
 ) -> tuple[Reg, ...]:
     """Collect registers referenced by generated C configuration code."""
     by_path: dict[str, Reg] = {}
@@ -727,6 +729,8 @@ def collect_used_regs(
             if reg is None:
                 raise ValueError(f"未知地址宏 {macro!r}")
             by_path[reg.path] = reg
+    for reg in extra_regs:
+        by_path[reg.path] = reg
     return tuple(reg for reg in index.regs if reg.path in by_path)
 
 

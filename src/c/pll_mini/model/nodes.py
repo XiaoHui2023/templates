@@ -33,6 +33,7 @@ from reg_paths import (
     primary_output_group,
     validate_optional_reg,
     validate_pll_regs_exact,
+    validate_reg_path,
     validate_regs_exact,
 )
 
@@ -475,6 +476,27 @@ def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
     raise ValueError("节点须在 Tree.nodes 字典键上下文内校验")
 
 
+class ExtraRegEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(
+        ...,
+        min_length=1,
+        description="寄存器模型路径，按 `.` 分隔，可带比特范围。",
+    )
+    value: int = Field(..., description="写入该 field 的整数值。")
+    solo: bool = Field(
+        False,
+        description="为真时本条单独成一步读改写，不与前后同寄存器项合并。",
+    )
+
+    @field_validator("path")
+    @classmethod
+    def _validate_path_syntax(cls, value: str) -> str:
+        validate_reg_path(value, ctx="tree.extra_regs.path")
+        return value
+
+
 class Tree(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -483,6 +505,10 @@ class Tree(BaseModel):
         ...,
         min_length=1,
         description="节点表，键即节点名；节点体内勿填 name。",
+    )
+    extra_regs: List[ExtraRegEntry] = Field(
+        default_factory=list,
+        description="主配置流程结束后追加写入的寄存器 field 列表。",
     )
 
     @model_validator(mode="before")

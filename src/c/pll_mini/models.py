@@ -25,6 +25,7 @@ from registers.plan import (
     build_header_address_plan,
     collect_used_regs,
 )
+from registers.extra_regs import ExtraRegPlan, build_extra_reg_plan
 from load.ralf_load import load_regmodel_from_ralf
 from load.regmodel import Reg, RegModelIndex
 from registers.resolve import TreeResolve, resolve_tree
@@ -41,6 +42,7 @@ _CACHE_LOCK = threading.RLock()
 _TREE_RESOLVE_CACHE: dict[_ModelCacheKey, TreeResolve] = {}
 _TREE_RESOLVE_ERROR_CACHE: dict[_ModelCacheKey, str] = {}
 _CONFIG_PLAN_CACHE: dict[_ModelCacheKey, ConfigPlan] = {}
+_EXTRA_REG_PLAN_CACHE: dict[_ModelCacheKey, ExtraRegPlan | None] = {}
 _HEADER_REGS_CACHE: dict[_ModelCacheKey, List[Reg]] = {}
 _HEADER_ADDRESS_PLAN_CACHE: dict[_ModelCacheKey, HeaderAddressPlan] = {}
 
@@ -142,6 +144,7 @@ class Models(BaseModel):
     _regmodel: List[Reg] = PrivateAttr(default_factory=list)
     _tree_resolve: TreeResolve | None = PrivateAttr(default=None)
     _config_plan: ConfigPlan | None = PrivateAttr(default=None)
+    _extra_reg_plan: ExtraRegPlan | None = PrivateAttr(default=None)
     _header_regs: List[Reg] | None = PrivateAttr(default=None)
     _header_address_plan: HeaderAddressPlan | None = PrivateAttr(default=None)
     _progress_depth: int = PrivateAttr(default=0)
@@ -345,6 +348,45 @@ class Models(BaseModel):
             return result
 
     @property
+    def extra_reg_plan(self) -> ExtraRegPlan | None:
+        if not self.tree.extra_regs:
+            return None
+        with _CACHE_LOCK:
+            if self._extra_reg_plan is not None:
+                return self._extra_reg_plan
+            key = self._cache_key()
+            cached = _EXTRA_REG_PLAN_CACHE.get(key)
+            if cached is not None:
+                self._extra_reg_plan = cached
+                return cached
+            self._progress_enter()
+            try:
+                started_at = log_stage_start(
+                    "models",
+                    "compute",
+                    "extra_reg_plan",
+                    entries=len(self.tree.extra_regs),
+                )
+                result = build_extra_reg_plan(
+                    self.tree.extra_regs,
+                    RegModelIndex(self.regmodel),
+                )
+                log_stage_done(
+                    "models",
+                    "compute",
+                    "extra_reg_plan",
+                    started_at,
+                    writes=len(result.writes) if result else 0,
+                )
+            finally:
+                self._progress_leave()
+                if self._progress_depth == 1:
+                    self._progress_drain()
+            _EXTRA_REG_PLAN_CACHE[key] = result
+            self._extra_reg_plan = result
+            return result
+
+    @property
     def header_regs(self) -> List[Reg]:
         with _CACHE_LOCK:
             if self._header_regs is not None:
@@ -363,7 +405,19 @@ class Models(BaseModel):
                     regs=len(self._regmodel),
                 )
                 index = RegModelIndex(self.regmodel)
-                result = list(collect_used_regs(index, self.config_plan))
+                extra_plan = self.extra_reg_plan
+                extra_regs = (
+                    [write.reg for write in extra_plan.writes]
+                    if extra_plan is not None
+                    else []
+                )
+                result = list(
+                    collect_used_regs(
+                        index,
+                        self.config_plan,
+                        extra_regs=extra_regs,
+                    )
+                )
                 log_stage_done(
                     "models",
                     "compute",

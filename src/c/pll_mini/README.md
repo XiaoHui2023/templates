@@ -79,6 +79,17 @@ settings:
 | --- | --- | --- | --- |
 | `name` | `str` | | 时钟树名。 |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
+| `extra_regs` | `list[ExtraRegEntry]` | `[]` | 主配置结束后追加写入的寄存器 field。 |
+
+### ExtraRegEntry
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `path` | `str` | | 寄存器模型路径，按 `.` 分隔，可带比特范围。 |
+| `value` | `int` | | 写入该 field 的整数值，须在 field 位宽范围内。 |
+| `solo` | `bool` | `false` | 为真时本条单独成一步读改写，不与前后同寄存器项合并。 |
+
+同寄存器且列表中相邻、且均未设 `solo` 的项会合并为一次读改写。
 
 ### Node - source
 

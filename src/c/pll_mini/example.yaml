@@ -394,6 +394,21 @@ tree:
       kind: clk
       freq: 100000000
 
+  extra_regs:
+    - path: blk_gate_hub.en.en
+      value: 1
+    - path: blk_div_hub_a.ctrl.rst
+      value: 0
+    - path: blk_div_hub_a.ctrl.load
+      value: 1
+    - path: blk_div_hub_b.ctrl.div[7:0]
+      value: 4
+    - path: blk_div_hub_b.ctrl.load
+      value: 1
+      solo: true
+    - path: blk_div_hub_a.ctrl.div
+      value: 2
+
 settings:
   main_fn: chip_pll_config
   gate_reg_high_means_open: true
