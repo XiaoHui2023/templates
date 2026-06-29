@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Dict, Iterator, List, Set, Tuple
 
 from registers.formulas import (
-    CPU_GATE_RATIOS,
     DTO_MAX_RATIO,
     div_hw_from_input,
     dto_ratio_candidates_for_pair,
@@ -15,12 +14,11 @@ from registers.formulas import (
 )
 from model.freq_graph import (
     Port,
+    apply_gate_only_clks_to_model,
     backward_required_nodes,
     backward_required_nodes_pll_ref,
     backward_required_nodes_for_partition,
-    clk_driven_by_port,
     collect_freq_targets,
-    is_cpu_gate_passthrough_group,
     is_merge_exempt_for_partition,
     is_mux_exclusive_peer,
     is_passthrough_kind,
@@ -74,6 +72,23 @@ def _port_anchors_map(component: SearchComponent) -> Dict[Port, int]:
     return dict(component.port_anchors)
 
 
+def _inactive_solve_model(tree: Tree) -> SolveModel:
+    """无可求解频率目标时返回全 inactive 模型。"""
+    active = {name: False for name in tree.nodes}
+    port_freq: Dict[Port, int] = {}
+    for name in tree.nodes:
+        for port in output_ports(tree, name):
+            port_freq[port] = 0
+    return SolveModel(
+        active=active,
+        port_freq=port_freq,
+        ratios={},
+        mux_sel={},
+        gate_open={},
+        pll_vars={},
+    )
+
+
 def search_tree_constraints(
     tree: Tree,
     *,
@@ -84,7 +99,11 @@ def search_tree_constraints(
 ) -> SolveModel:
     targets = collect_freq_targets(tree)
     if not targets:
-        raise ValueError("须至少有一个带正频率的 clk 节点")
+        bind_tree_topology(tree)
+        try:
+            return apply_gate_only_clks_to_model(tree, _inactive_solve_model(tree))
+        finally:
+            clear_tree_topology()
 
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     deadline = (
@@ -265,7 +284,7 @@ def search_tree_constraints(
         model_items=len(model.port_freq),
         components=len(components),
     )
-    return model
+    return apply_gate_only_clks_to_model(tree, model)
 
 
 def partition_search_components(
@@ -367,6 +386,8 @@ HUB_FORK_GATE = "gate_hub"
 def verify_search_partition(tree: Tree) -> int:
     """验收：每个 clk 目标恰落在某一 clk 子树内，并返回子树总数。"""
     targets = collect_freq_targets(tree)
+    if not targets:
+        return 0
     components = partition_search_components(tree, targets)
     if not components:
         raise RuntimeError("时钟树子树划分为空")
@@ -1261,22 +1282,6 @@ def _ref_div_ratio_candidates(
             if ratio is not None and ratio not in found:
                 found.append(ratio)
         return found or list(range(1, 65))
-    if node.div_kind == "cpu_gate":
-        scan = want_outs or (0,)
-        for want_out in scan:
-            if want_out <= 0:
-                return sorted(CPU_GATE_RATIOS)
-            ratio = find_div_ratio(
-                f_in,
-                want_out,
-                sorted(CPU_GATE_RATIOS),
-                tol_lo=tol_lo,
-                tol_hi=tol_hi,
-                tol_den=tol_den,
-            )
-            if ratio is not None and ratio not in found:
-                found.append(ratio)
-        return found or sorted(CPU_GATE_RATIOS)
     if node.div_kind in ("dto", "dto_n"):
         if pll_name is None:
             return list(range(2, min(65, DTO_MAX_RATIO + 1)))
@@ -1422,10 +1427,6 @@ def _ref_hz_at_port(
         if ratio is None:
             return None
         f_hw, _ = div_hw_from_input(f_in, ratio)
-        if node.div_kind == "cpu_gate" and is_cpu_gate_passthrough_group(
-            port.group
-        ):
-            return f_in
         return f_hw
     if is_passthrough_kind(node.kind):
         parent_port = parent_port_for_child(tree, port.node)
@@ -1499,7 +1500,7 @@ def _ordered_free_div_nodes(
             continue
         if node.ratio is not None or node.div_kind == "div_r":
             continue
-        if node.div_kind in ("div", "div_n", "dto", "dto_n", "cpu_gate"):
+        if node.div_kind in ("div", "div_n", "dto", "dto_n"):
             free.append(name)
 
     def depth(name: str) -> int:
@@ -1762,18 +1763,12 @@ def _assign_div_ratios(
         )
         if not required_outs:
             return False
-        if node.div_kind == "cpu_gate":
-            unique = set(required_outs.values())
-            if len(unique) != 1:
-                return False
-            want_out = next(iter(unique))
-        else:
-            want_out = required_outs.get("")
-            if want_out is None:
-                return False
-            unique = set(required_outs.values())
-            if len(unique) != 1:
-                return False
+        want_out = required_outs.get("")
+        if want_out is None:
+            return False
+        unique = set(required_outs.values())
+        if len(unique) != 1:
+            return False
         ratio = _pick_div_ratio(
             node,
             f_in=f_in,
@@ -1894,33 +1889,6 @@ def _required_div_outputs(
     node = tree.nodes[div_name]
     assert isinstance(node, DivNode)
     out: Dict[str, int] = {}
-    if node.div_kind == "cpu_gate":
-        for port in output_ports(tree, div_name):
-            if is_cpu_gate_passthrough_group(port.group):
-                continue
-            for clk_name, clk_hz in targets:
-                if not clk_driven_by_port(
-                    tree, clk_name, Port(div_name, port.group)
-                ):
-                    continue
-                req = _inverse_required_at_div_output(
-                    tree,
-                    div_name,
-                    clk_name,
-                    clk_hz,
-                    ratios,
-                )
-                if req is None:
-                    continue
-                prev = out.get(port.group)
-                if prev is not None and prev != req:
-                    out[port.group] = -1
-                else:
-                    out[port.group] = req
-        if -1 in out.values():
-            return {}
-        return {k: v for k, v in out.items() if v > 0}
-
     for clk_name, clk_hz in targets:
         if div_name not in active:
             continue
@@ -1967,17 +1935,7 @@ def _inverse_required_at_div_output(
             ratio = node.ratio if node.ratio is not None else ratios.get(downstream)
             if ratio is None:
                 return None
-            if node.div_kind == "cpu_gate" and downstream != div_name:
-                upstream = resolve_upstream_port(tree, clk_name)
-                if (
-                    upstream is not None
-                    and upstream.node == downstream
-                    and is_cpu_gate_passthrough_group(upstream.group)
-                ):
-                    continue
-                req *= ratio
-            elif node.div_kind != "cpu_gate":
-                req *= ratio
+            req *= ratio
     return req
 
 
@@ -1992,8 +1950,6 @@ def _pick_div_ratio(
 ) -> int | None:
     if node.div_kind in ("div", "div_n"):
         candidates = tuple(range(1, 65))
-    elif node.div_kind == "cpu_gate":
-        candidates = tuple(sorted(CPU_GATE_RATIOS))
     elif node.div_kind in ("dto", "dto_n"):
         candidates = dto_ratio_candidates_for_pair(
             f_in,
@@ -2135,38 +2091,17 @@ def _propagate_port_freqs(
             required = _required_div_outputs(
                 tree, name, targets, active, mux_sel, ratios
             )
-            if node.div_kind == "cpu_gate":
-                divided_hz = 0
-                for port in output_ports(tree, name):
-                    if is_cpu_gate_passthrough_group(port.group):
-                        continue
-                    want = required.get(port.group)
-                    if want is not None:
-                        divided_hz = want
-                        break
-                if divided_hz <= 0:
-                    ratio = ratios.get(name, node.ratio)
-                    if ratio is None:
-                        return None
-                    f_hw, _ = div_hw_from_input(f_in, ratio)
-                    divided_hz = f_hw
-                for port in output_ports(tree, name):
-                    if is_cpu_gate_passthrough_group(port.group):
-                        port_freq[port] = f_in
-                    else:
-                        port_freq[port] = divided_hz
-            else:
-                want = required.get("")
-                if ref_path:
-                    ratio = ratios.get(name, node.ratio)
-                    if ratio is None:
-                        return None
-                    f_hw, _ = div_hw_from_input(f_in, ratio)
-                    port_freq[Port(name, "")] = f_hw
-                elif want is None:
+            want = required.get("")
+            if ref_path:
+                ratio = ratios.get(name, node.ratio)
+                if ratio is None:
                     return None
-                else:
-                    port_freq[Port(name, "")] = want
+                f_hw, _ = div_hw_from_input(f_in, ratio)
+                port_freq[Port(name, "")] = f_hw
+            elif want is None:
+                return None
+            else:
+                port_freq[Port(name, "")] = want
         elif is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
             parent_port = parent_port_for_child(tree, name)
             anchored = anchors.get(Port(name, ""))
@@ -2250,26 +2185,6 @@ def _resolve_port_freq(
         )
         if f_in is None:
             return None
-        if node.div_kind == "cpu_gate":
-            if is_cpu_gate_passthrough_group(port.group):
-                cache[port] = f_in
-                return f_in
-            required = _required_div_outputs(
-                tree, port.node, targets, active, mux_sel, ratios
-            )
-            divided_hz = 0
-            for group, hz in required.items():
-                if hz > 0:
-                    divided_hz = hz
-                    break
-            if divided_hz <= 0:
-                ratio = ratios.get(port.node, node.ratio)
-                if ratio is None:
-                    return None
-                f_hw, _ = div_hw_from_input(f_in, ratio)
-                divided_hz = f_hw
-            cache[port] = divided_hz
-            return divided_hz
         required = _required_div_outputs(
             tree, port.node, targets, active, mux_sel, ratios
         )

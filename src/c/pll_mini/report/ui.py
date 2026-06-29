@@ -73,6 +73,45 @@ def _format_fields(fields: Mapping[str, object]) -> str:
     return " · ".join(f"{key}={value}" for key, value in fields.items())
 
 
+def _human_stage_name(component: str, action: str, label: str) -> str:
+    if component == "models" and action == "load":
+        return "加载寄存器模型"
+    if component == "ralfconv" and action == "flat":
+        return "ralfconv 解析 RALF"
+    if component == "models" and action == "compute":
+        if label == "tree_resolve":
+            return "频率图求解"
+        if label == "config_plan":
+            return "生成配置计划"
+        if label == "header_regs":
+            return "收集头文件寄存器"
+    if component == "search" and action == "solve":
+        return "时钟树约束求解"
+    if component == "search" and action == "partition":
+        return "分割连通域"
+    if component == "search" and action == "component":
+        return f"子树 {label}"
+    if component == "search" and action == "merge":
+        return "合并子树模型"
+    if component == "resolve" and action == "fit":
+        return "反推 PLL 系数"
+    if component == "resolve" and action == "verify":
+        return "公式回放验证"
+    if component == "resolve" and action == "nodes":
+        return "解析节点频率"
+    if component == "diagnose" and action == "collect":
+        return f"诊断收集 {label}"
+    if component == "diagnose" and action == "format":
+        return f"诊断排版 {label}"
+    return f"{component} · {action} · {label}"
+
+
+def _format_elapsed_ms(ms: int) -> str:
+    if ms >= 10_000:
+        return f"{ms / 1000:.1f}s"
+    return f"{ms}ms"
+
+
 def _collect_parents_in_set(
     tree: Tree,
     names_set: set[str],
@@ -339,6 +378,9 @@ class ProgressSession:
         self._overall_done = 0
         self._stage_text = "准备"
         self._stage_fields = ""
+        self._stage_human = ""
+        self._stage_started_at: float | None = None
+        self._timings: list[tuple[str, int]] = []
         self._component_summary: list[str] = []
         self._active_component_index = 0
         self._active_component_total = 0
@@ -385,12 +427,22 @@ class ProgressSession:
         )
         self._live.start()
 
+    def _timing_summary_line(self) -> str:
+        parts: list[str] = []
+        for name, ms in self._timings:
+            parts.append(f"{name} {_format_elapsed_ms(ms)}")
+        if self._stage_human and self._stage_started_at is not None:
+            elapsed_ms = int((time.perf_counter() - self._stage_started_at) * 1000)
+            parts.append(f"{self._stage_human} {_format_elapsed_ms(elapsed_ms)}")
+        return "; ".join(parts)
+
     def stop(self) -> None:
         if not self.enabled:
             self._live = None
             self._overall = None
             self._sub = None
             return
+        summary = self._timing_summary_line()
         if self._live is not None:
             if (
                 not self.failed
@@ -410,12 +462,20 @@ class ProgressSession:
         self._component_summary.clear()
         self._sub_visible = False
         self._active_graph = None
+        self._timings.clear()
+        self._stage_human = ""
+        self._stage_started_at = None
         self._clear_search_progress()
         try:
             self._console.clear_live()
         except Exception:
             pass
         self._console.show_cursor(True)
+        if summary and not self.failed:
+            self._console.print(
+                f"[progress.dim]阶段耗时[/] {summary}",
+                highlight=False,
+            )
 
     def halt_for_output(self) -> None:
         """失败诊断等固定输出前结束 Live，避免与 Rich 面板叠行。"""
@@ -452,6 +512,42 @@ class ProgressSession:
         self._sub_visible = False
         self._refresh()
 
+    def _set_active_stage(
+        self,
+        component: str,
+        action: str,
+        label: str,
+        *,
+        fields: Mapping[str, object],
+        started_at: float,
+    ) -> None:
+        human = _human_stage_name(component, action, label)
+        self._stage_human = human
+        self._stage_started_at = started_at
+        self._stage_text = human
+        self._stage_fields = _format_fields(fields)
+        if self._overall is not None and self._overall_task is not None:
+            self._overall.update(
+                self._overall_task,
+                description=human,
+            )
+
+    def _finish_stage_timing(
+        self,
+        component: str,
+        action: str,
+        label: str,
+        started_at: float,
+        *,
+        failed: bool = False,
+    ) -> None:
+        human = _human_stage_name(component, action, label)
+        elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+        suffix = " 失败" if failed else ""
+        self._timings.append((f"{human}{suffix}", elapsed_ms))
+        self._stage_human = ""
+        self._stage_started_at = None
+
     def stage_start(
         self,
         component: str,
@@ -460,30 +556,12 @@ class ProgressSession:
         **fields: object,
     ) -> float:
         started = time.perf_counter()
-        self._stage_text = f"{component} · {action} · {label}"
-        self._stage_fields = _format_fields(fields)
-        if component == "models" and action == "load":
-            if self._overall is not None and self._overall_task is not None:
-                self._overall.update(
-                    self._overall_task,
-                    description="加载寄存器模型",
-                )
-        elif component == "diagnose":
+        self._set_active_stage(component, action, label, fields=fields, started_at=started)
+        if component == "diagnose":
             self._sub_visible = False
-        elif component == "search" and action == "solve":
-            if self._overall is not None and self._overall_task is not None:
-                self._overall.update(
-                    self._overall_task,
-                    description="时钟树约束求解",
-                )
         elif component == "search" and action == "partition":
             self._sub_visible = False
-            if self._overall is not None and self._overall_task is not None:
-                self._overall.update(
-                    self._overall_task,
-                    description="分割连通域",
-                )
-        elif action == "component" and "progress" not in fields:
+        elif component == "search" and action == "component" and "progress" not in fields:
             self._begin_component_stage(label, fields)
         self._refresh()
         return started
@@ -496,8 +574,11 @@ class ProgressSession:
         started_at: float,
         **fields: object,
     ) -> None:
-        _ = started_at
-        if fields.get("failed"):
+        failed = bool(fields.get("failed"))
+        self._finish_stage_timing(
+            component, action, label, started_at, failed=failed
+        )
+        if failed:
             self.failed = True
             self.halt_for_output()
             return
@@ -524,9 +605,13 @@ class ProgressSession:
         elif component == "resolve" and action == "nodes":
             self.advance_overall(description="解析节点频率", steps=1)
         elif component == "models" and action == "load":
-            self.advance_overall(description="寄存器模型就绪", steps=1)
+            self.advance_overall(description="寄存器模型已加载", steps=1)
+        elif component == "resolve" and action == "fit":
+            pass
         elif component == "models" and action == "compute":
-            if label == "config_plan":
+            if label == "tree_resolve":
+                self.advance_overall(description="频率图求解完成", steps=1)
+            elif label == "config_plan":
                 self.advance_overall(description="配置计划完成", steps=1)
             elif label == "header_regs":
                 self.advance_overall(description="头文件寄存器收集完成", steps=1)
@@ -543,7 +628,8 @@ class ProgressSession:
         self._active_component_total = len(components)
         self._component_summary = []
         self.plan_overall(component_count=len(components))
-        self._stage_text = f"search · partition · {len(components)} 个子树"
+        self._stage_human = f"分割连通域 · {len(components)} 个子树"
+        self._stage_text = self._stage_human
         self._refresh()
 
     def begin_component_search(
@@ -720,6 +806,35 @@ class ProgressSession:
                     completed=max(0, index - 1),
                 )
 
+    def _render_running_detail(self) -> str:
+        parts: list[str] = []
+        if self._stage_fields:
+            parts.append(self._stage_fields)
+        if self._search_active:
+            if self._search_phase:
+                parts.append(self._search_phase)
+            if self._search_total > 0:
+                parts.append(f"{self._search_current}/{self._search_total}")
+            if self._search_detail:
+                parts.append(self._search_detail)
+        return " · ".join(parts)
+
+    def _render_timings(self) -> Text:
+        out = Text()
+        for name, ms in self._timings[-8:]:
+            out.append("✓ ", style="progress.ok")
+            out.append(name, style="progress.stage")
+            out.append(f"  {_format_elapsed_ms(ms)}\n", style="progress.dim")
+        if self._stage_human and self._stage_started_at is not None:
+            elapsed_ms = int((time.perf_counter() - self._stage_started_at) * 1000)
+            out.append("→ ", style="bold progress.title")
+            out.append(self._stage_human, style="bold progress.stage")
+            out.append(f"  {_format_elapsed_ms(elapsed_ms)}", style="progress.dim")
+            detail = self._render_running_detail()
+            if detail:
+                out.append(f"\n  {detail}", style="progress.dim")
+        return out
+
     def _render(self) -> Group:
         parts: list[object] = []
         if self._overall is not None:
@@ -735,11 +850,6 @@ class ProgressSession:
             body: list[object] = [self._sub]
             if self._search_active and self._search_progress is not None:
                 body.append(self._search_progress)
-                if self._search_phase or self._search_detail:
-                    step_line = self._search_phase or "求解"
-                    if self._search_detail:
-                        step_line = f"{step_line}  [progress.dim]{self._search_detail}[/]"
-                    body.append(Text.from_markup(step_line, style="progress.stage"))
             if self._active_graph is not None:
                 body.append(self._active_graph)
             parts.append(
@@ -763,11 +873,15 @@ class ProgressSession:
                     padding=(0, 1),
                 )
             )
-        if not (self._sub_visible and self._active_graph is not None):
-            stage_line = self._stage_text
-            if self._stage_fields:
-                stage_line = f"{stage_line}  [progress.dim]{self._stage_fields}[/]"
-            parts.append(Text.from_markup(stage_line, style="progress.stage"))
+        if self._timings or self._stage_human:
+            parts.append(
+                Panel(
+                    self._render_timings(),
+                    title="[progress.title]阶段耗时[/]",
+                    border_style="progress.dim",
+                    padding=(0, 1),
+                )
+            )
         return Group(*parts)
 
     def _refresh(self) -> None:

@@ -72,7 +72,6 @@ settings:
 | `osc` | 通常写法，单路输出前级 |
 | `pll0` | 单路输出前级 |
 | `pll_inno[0]` | 多路输出前级，输出名为 `0` |
-| `cpu_gate0[hclk]` | cpu_gate 多路输出前级 |
 
 ### Tree
 
@@ -86,8 +85,8 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `source` | |
-| `source_kind` | `str` | `source` | 取 `source`、`pad`、`vdd`、`gnd`。 |
-| `freq` | `int` | | 典型频率，单位 Hz；`vdd`、`gnd` 为 0 或省略。 |
+| `source_kind` | `str` | `source` | 取 `source`、`pad`。 |
+| `freq` | `int` | | 典型频率，单位 Hz；应大于 0。 |
 
 ### Node - pll
 
@@ -183,9 +182,9 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `div` | |
-| `div_kind` | `str` | `div` | 取 `div`、`div_n`、`dto`、`dto_n`、`cpu_gate`、`div_r`。 |
+| `div_kind` | `str` | `div` | 取 `div`、`div_n`、`dto`、`dto_n`、`div_r`。 |
 | `source` | `str` | | 前级引用。 |
-| `ratio` | `int` | | `div_r` 必填固定分频比，大于 0，不受可配置 **div** 的 64 上限；`cpu_gate` 可填 2、3、4、6；其它 **div_kind** 可填以固定分频比，且不大于 64。 |
+| `ratio` | `int` | | `div_r` 必填固定分频比，大于 0，不受可配置 **div** 的 64 上限；其它 **div_kind** 可填以固定分频比，且不大于 64。 |
 | `regs` | `dict` | `{}` | 键由 `div_kind` 决定；`div_r` 须为空。 |
 
 **div_kind** 为 `div` 或 `div_n`：
@@ -204,21 +203,6 @@ settings:
 | `regs.load` | `str` | 加载位。 |
 | `regs.bypass` | `str` | bypass 位。 |
 | `regs.step` | `str` | 步进控制。 |
-
-**div_kind** 为 `cpu_gate` 时，固定 3 路输出：
-
-| 输出名 | 频率行为 |
-| --- | --- |
-| `hclk_en` | 按分频比输出 |
-| `hclk` | 按分频比输出 |
-| `clk_arm_core` | 与前级同频 |
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `regs.rst` | `str` | 复位位。 |
-| `regs.div` | `str` | 4 bit 分频 field，比只能是 2、3、4、6。 |
-
-前级引用应写 `节点名[输出名]`。
 
 ### Node - inv
 

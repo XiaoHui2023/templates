@@ -15,7 +15,7 @@ from registers.formulas import (
 from .freq_graph import (
     Port,
     collect_freq_targets,
-    is_cpu_gate_passthrough_group,
+    collect_gate_enable_clks,
     is_passthrough_kind,
     output_ports,
     parent_port_for_child,
@@ -59,6 +59,7 @@ def verify_solve_model(
     issues: List[VerifyIssue] = []
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     targets = collect_freq_targets(tree)
+    gate_only_clks = frozenset(collect_gate_enable_clks(tree))
 
     for clk_name, want_hz in targets:
         port = Port(clk_name, "")
@@ -80,7 +81,7 @@ def verify_solve_model(
         if not model.active.get(name, False):
             continue
 
-        if isinstance(node, DivNode) and node.div_kind not in ("cpu_gate",):
+        if isinstance(node, DivNode):
             ratio = model.ratios.get(name, 0)
             if ratio < 1:
                 continue
@@ -125,55 +126,6 @@ def verify_solve_model(
                         else (name,),
                     )
                 )
-
-        if isinstance(node, DivNode) and node.div_kind == "cpu_gate":
-            ratio = model.ratios.get(name, 0)
-            parent_port = parent_port_for_child(tree, name)
-            f_in = model.port_hz(parent_port)
-            for port in output_ports(tree, name):
-                f_out = model.port_hz(port)
-                if is_cpu_gate_passthrough_group(port.group):
-                    if f_in != f_out:
-                        issues.append(
-                            VerifyIssue(
-                                headline=(
-                                    f"cpu_gate {name}[{port.group}] 透传不一致"
-                                ),
-                                formula="f_out = f_ref",
-                                detail=(
-                                    f"f_ref={_hz_mhz(f_in)}，"
-                                    f"f_out={_hz_mhz(f_out)}"
-                                ),
-                                path_nodes=(name,),
-                            )
-                        )
-                elif ratio >= 1:
-                    try:
-                        f_hw, rem = div_hw_from_input(f_in, ratio)
-                    except ValueError:
-                        continue
-                    if not freq_within_tolerance(
-                        f_out,
-                        f_hw,
-                        tol_lo=tol_lo,
-                        tol_hi=tol_hi,
-                        tol_den=tol_den,
-                    ):
-                        issues.append(
-                            VerifyIssue(
-                                headline=(
-                                    f"cpu_gate {name}[{port.group}] "
-                                    f"分频超出容差"
-                                ),
-                                formula="f_out ≈ f_ref / ratio",
-                                detail=(
-                                    f"f_ref={_hz_mhz(f_in)}，ratio={ratio}，"
-                                    f"f_hw={_hz_mhz(f_hw)}，"
-                                    f"f_out={_hz_mhz(f_out)}"
-                                ),
-                                path_nodes=(name,),
-                            )
-                        )
 
         if isinstance(node, PllNode):
             vars_map = model.pll_vars.get(name, {})
@@ -320,6 +272,8 @@ def verify_solve_model(
                 )
 
         if isinstance(node, ClkNode):
+            if name in gate_only_clks:
+                continue
             parent_port = parent_port_for_child(tree, name)
             if model.port_hz(Port(name, "")) != model.port_hz(parent_port):
                 issues.append(

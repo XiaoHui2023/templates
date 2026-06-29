@@ -17,7 +17,6 @@ from model.nodes import (
     Tree,
 )
 from model.freq_graph import Port, output_ports
-from reg_paths import CPU_GATE_PASS_THROUGH_GROUP
 
 
 @dataclass(frozen=True)
@@ -44,14 +43,8 @@ def _primary_port_freq(
     node: object,
     port_freqs: Dict[str, int],
 ) -> int:
-    if isinstance(node, DivNode) and node.div_kind == "cpu_gate":
-        for key in ("hclk", "hclk_en"):
-            if key in port_freqs:
-                return port_freqs[key]
     groups = getattr(node, "output_groups", None) or []
     for group in groups:
-        if group == CPU_GATE_PASS_THROUGH_GROUP:
-            continue
         if group in port_freqs:
             return port_freqs[group]
     if "" in port_freqs:

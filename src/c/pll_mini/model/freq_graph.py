@@ -13,7 +13,6 @@ from .nodes import (
     parse_source_endpoint,
 )
 from reg_paths import (
-    CPU_GATE_PASS_THROUGH_GROUP,
     node_output_groups,
 )
 
@@ -39,12 +38,105 @@ def parse_port_ref(raw: str, *, ctx: str) -> Port:
     return Port(device, out_group)
 
 
+def clk_has_upstream_clock_source(tree: Tree, clk_name: str) -> bool:
+    """clk 是否经前级引用链能追溯到正频率 source 或 pad。"""
+    node = tree.nodes.get(clk_name)
+    if not isinstance(node, ClkNode):
+        return False
+    if not node.source.strip():
+        return False
+    try:
+        chain = walk_path_upstream(tree, clk_name)
+    except ValueError:
+        return False
+    for name in reversed(chain):
+        upstream = tree.nodes.get(name)
+        if upstream is not None and upstream.kind == "source":
+            return upstream.freq > 0
+    return False
+
+
+def collect_gate_enable_clks(tree: Tree) -> List[str]:
+    """有前级引用但上游无正频率时钟源的 clk；仅须打开路径上门控。"""
+    out: List[str] = []
+    for name, node in tree.nodes.items():
+        if not isinstance(node, ClkNode):
+            continue
+        if not node.source.strip():
+            continue
+        if clk_has_upstream_clock_source(tree, name):
+            continue
+        out.append(name)
+    return out
+
+
+def gate_enable_nodes_on_path(
+    tree: Tree,
+    clk_name: str,
+) -> Tuple[Set[str], Dict[str, bool]]:
+    """从 clk 沿 source 向上，收集须 active 的 clk/gate/inv/cell 与须打开的 gate。"""
+    active: Set[str] = set()
+    gate_open: Dict[str, bool] = {}
+    active.add(clk_name)
+    try:
+        chain = walk_path_upstream(tree, clk_name)
+    except ValueError:
+        return active, gate_open
+    for name in chain:
+        if name == clk_name:
+            continue
+        node = tree.nodes.get(name)
+        if node is None:
+            continue
+        if isinstance(node, GateNode):
+            if node.open == 0:
+                continue
+            active.add(name)
+            if node.open is None or node.open == 1:
+                gate_open[name] = True
+        elif is_passthrough_kind(node.kind):
+            active.add(name)
+    return active, gate_open
+
+
+def apply_gate_only_clks_to_model(
+    tree: Tree,
+    model: "SolveModel",
+) -> "SolveModel":
+    """为无上游时钟源的 clk 合并门控打开，不激活 mux/div/pll。"""
+    from .solve_model import SolveModel
+
+    gate_clks = collect_gate_enable_clks(tree)
+    if not gate_clks:
+        return model
+    active = dict(model.active)
+    gate_open = dict(model.gate_open)
+    for clk_name in gate_clks:
+        nodes, gates = gate_enable_nodes_on_path(tree, clk_name)
+        for node_name in nodes:
+            active[node_name] = True
+        for gate_name, opened in gates.items():
+            if opened:
+                gate_open[gate_name] = True
+            elif gate_name not in gate_open:
+                gate_open[gate_name] = opened
+    return SolveModel(
+        active=active,
+        port_freq=model.port_freq,
+        ratios=model.ratios,
+        mux_sel=model.mux_sel,
+        gate_open=gate_open,
+        pll_vars=model.pll_vars,
+    )
+
+
 def collect_freq_targets(tree: Tree) -> List[Tuple[str, int]]:
-    """带正频率约束的 clk 节点。"""
+    """带正频率约束且上游可追溯到时钟源的 clk 节点。"""
     out: List[Tuple[str, int]] = []
     for name, node in tree.nodes.items():
         if isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
-            out.append((name, node.freq))
+            if clk_has_upstream_clock_source(tree, name):
+                out.append((name, node.freq))
     return out
 
 
@@ -55,6 +147,8 @@ def _upstream_peer_ports(tree: Tree, node_name: str) -> List[Port]:
     if isinstance(node, MuxNode):
         return []
     if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+        if node.kind == "clk" and not node.source.strip():
+            return []
         return [parse_port_ref(node.source, ctx=f"{node_name}.source")]
     return []
 
@@ -156,16 +250,7 @@ def inverse_hz_at_node_from_clk(
             ratio = node.ratio
             if ratio is None:
                 return None
-            if node.div_kind == "cpu_gate":
-                upstream = resolve_upstream_port(tree, clk_name)
-                if (
-                    upstream is not None
-                    and upstream.node == downstream
-                    and is_cpu_gate_passthrough_group(upstream.group)
-                ):
-                    continue
-            if node.div_kind != "cpu_gate" or downstream != node_name:
-                req *= ratio
+            req *= ratio
     return req if req > 0 else None
 
 
@@ -475,6 +560,8 @@ def parent_port_for_child(tree: Tree, child_name: str) -> Port:
     if isinstance(node, MuxNode):
         raise ValueError(f"mux 节点 {child_name!r} 用 mux 专用约束")
     if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+        if isinstance(node, ClkNode) and not node.source.strip():
+            raise ValueError(f"clk 节点 {child_name!r} 无前级")
         return parse_port_ref(node.source, ctx=f"{child_name}.source")
     raise ValueError(f"节点 {child_name!r} 无前级引用")
 
@@ -506,6 +593,8 @@ def resolve_upstream_port(tree: Tree, start: str) -> Port | None:
         if isinstance(node, MuxNode):
             return Port(cur, "")
         if isinstance(node, ClkNode):
+            if not node.source.strip():
+                return None
             source_ref = node.source
         elif is_frequency_transparent_kind(node.kind):
             source_ref = node.source
@@ -655,10 +744,6 @@ def port_label(port: Port, tree: Tree) -> str:
     if port.group:
         return f"{port.node}[{port.group}] ({kind})"
     return f"{port.node} ({kind})"
-
-
-def is_cpu_gate_passthrough_group(group: str) -> bool:
-    return group == CPU_GATE_PASS_THROUGH_GROUP
 
 
 def reaches_clk_without_mux(

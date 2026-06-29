@@ -55,8 +55,6 @@ def _ratio_candidates(div: DivNode) -> List[int]:
         return list(range(1, 65))
     if div.div_kind in ("dto", "dto_n"):
         return list(range(2, min(65, DTO_MAX_RATIO + 1)))
-    if div.div_kind == "cpu_gate":
-        return [2, 3, 4, 6]
     return []
 
 
@@ -250,7 +248,7 @@ def _required_hz_before_clk(
         if isinstance(node, MuxNode):
             continue
         if isinstance(node, DivNode):
-            if node.div_kind == "cpu_gate" or node.ratio is None:
+            if node.ratio is None:
                 return None
             required *= node.ratio
             continue

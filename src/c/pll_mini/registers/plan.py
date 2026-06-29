@@ -528,8 +528,6 @@ def expand_div_patches(
 ) -> List[_FieldPatch]:
     if node.div_kind in ("dto", "dto_n"):
         return expand_dto_patches(index, node, settings, resolved)
-    if node.div_kind == "cpu_gate":
-        return expand_cpu_gate_patches(index, node, settings, resolved)
 
     from .formulas import div_ratio_to_n
 
@@ -591,34 +589,6 @@ def expand_dto_patches(
                 note=dto_note if key == "load" else "",
             )
         )
-    return patches
-
-
-def expand_cpu_gate_patches(
-    index: RegModelIndex,
-    node: DivNode,
-    settings: SettingsView,
-    resolved: ResolvedNode,
-) -> List[_FieldPatch]:
-    from .formulas import cpu_gate_ratio_to_n
-
-    patches = [
-        _reset_release_patch(
-            index,
-            node,
-            high_means_reset=settings.div_reg_high_means_reset,
-        )
-    ]
-    div_n = cpu_gate_ratio_to_n(resolved.ratio)
-    patches.append(
-        _patch(
-            index,
-            node_name=node.name,
-            raw_path=node.regs["div"],
-            value=div_n,
-            note=f"{node.name} ratio={resolved.ratio} div={div_n:#x}",
-        )
-    )
     return patches
 
 

@@ -31,14 +31,6 @@ tree:
       source_kind: pad
       freq: 24000000
 
-    vdd0:
-      kind: source
-      source_kind: vdd
-
-    gnd0:
-      kind: source
-      source_kind: gnd
-
     mux_ref_src:
       kind: mux
       source:
@@ -199,13 +191,14 @@ tree:
         bypass: blk_dto_n0.ctrl.bypass
         step: blk_dto_n0.ctrl.step
 
-    cpu_gate0:
+    div_hclk:
       kind: div
-      div_kind: cpu_gate
+      div_kind: div
       source: div0
       regs:
-        rst: blk_cpu_gate0.ctrl.rst
-        div: blk_cpu_gate0.ctrl.div
+        rst: blk_div_hclk.ctrl.rst
+        load: blk_div_hclk.ctrl.load
+        div: blk_div_hclk.ctrl.div
 
     mux_ref:
       kind: mux
@@ -271,8 +264,7 @@ tree:
       kind: mux
       source:
         "0": gate_pad
-        "1": vdd0
-        "2": gnd0
+        "1": pad_xtal
       reg: blk_mux_idle.sel.sel
 
     clk_out:
@@ -283,12 +275,12 @@ tree:
 
     clk_hclk:
       kind: clk
-      source: cpu_gate0[hclk]
+      source: div_hclk
       freq: 15000000
 
     clk_arm:
       kind: clk
-      source: cpu_gate0[clk_arm_core]
+      source: div0
       freq: 30000000
 
     clk_tci:

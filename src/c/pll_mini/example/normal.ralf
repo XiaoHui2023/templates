@@ -332,13 +332,14 @@ block blk_dto_n0 {
   }
 }
 
-block blk_cpu_gate0 {
+block blk_div_hclk {
   bytes 4;
 
-  register ctrl @'h540 {
+  register ctrl @'h544 {
     bytes 4;
     field rst @0 { bits 1; access rw; }
-    field div @8 { bits 4; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 8; access rw; }
   }
 }
 

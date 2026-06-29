@@ -18,18 +18,9 @@ DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
 DTO_REG_KEYS = frozenset({"rst", "load", "bypass", "step"})
 
-CPU_GATE_REG_KEYS = frozenset({"rst", "div"})
+_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "div_r"})
 
-CPU_GATE_OUTPUT_GROUPS: tuple[str, ...] = ("hclk_en", "hclk", "clk_arm_core")
-
-CPU_GATE_PASS_THROUGH_GROUP = "clk_arm_core"
-
-CPU_GATE_PRIMARY_GROUP = CPU_GATE_OUTPUT_GROUPS[0]
-
-_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "cpu_gate", "div_r"})
-
-_SOURCE_KIND_CANON = frozenset({"source", "pad", "vdd", "gnd"})
-_FIXED_ZERO_FREQ_SOURCE_KINDS = frozenset({"vdd", "gnd"})
+_SOURCE_KIND_CANON = frozenset({"source", "pad"})
 
 _PLL_KIND_CANON = frozenset({"tci", "sc", "dw", "inno"})
 
@@ -99,8 +90,6 @@ def node_output_groups(node: object) -> List[str]:
     kind = getattr(node, "kind", None)
     if kind == "pll":
         return list(getattr(node, "output_groups", []))
-    if kind == "div" and getattr(node, "div_kind", None) == "cpu_gate":
-        return list(CPU_GATE_OUTPUT_GROUPS)
     return []
 
 
@@ -122,7 +111,7 @@ def normalize_div_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _DIV_KIND_CANON:
         raise ValueError(
-            f"div_kind 须为 div、div_n、dto、dto_n、cpu_gate、div_r 之一，"
+            f"div_kind 须为 div、div_n、dto、dto_n、div_r 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -134,7 +123,7 @@ def normalize_source_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _SOURCE_KIND_CANON:
         raise ValueError(
-            f"source_kind 须为 source、pad、vdd、gnd 之一，"
+            f"source_kind 须为 source、pad 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -143,8 +132,6 @@ def normalize_source_kind(value: object) -> str:
 def div_reg_keys_for_kind(div_kind: str) -> frozenset[str]:
     if div_kind in ("div", "div_n"):
         return DIV_REG_KEYS
-    if div_kind == "cpu_gate":
-        return CPU_GATE_REG_KEYS
     if div_kind == "div_r":
         return frozenset()
     return DTO_REG_KEYS
