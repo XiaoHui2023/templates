@@ -464,8 +464,14 @@ def format_search_component_failure(
             continue
         if component_nodes.intersection(issue.path_nodes):
             scoped.append(issue)
-    if not scoped:
+    if not scoped and issues:
         scoped = list(issues)
+    if not scoped:
+        scoped = _fallback_component_issues(
+            tree,
+            component_targets=component_targets,
+            component_nodes=component_nodes,
+        )
     log_stage_done(
         "diagnose",
         "collect",
@@ -499,6 +505,69 @@ def format_search_component_failure(
     if detail_text:
         return f"{detail_text}\n\n路径子树见 stderr。"
     return ""
+
+
+def _fallback_component_issues(
+    tree: Tree,
+    *,
+    component_targets: Sequence[tuple[str, int]],
+    component_nodes: Set[str],
+) -> List[DiagnosticIssue]:
+    issues: List[DiagnosticIssue] = []
+    for clk_name, clk_hz in component_targets:
+        path = tuple(
+            name
+            for name in reversed(walk_path_upstream(tree, clk_name))
+            if name in component_nodes
+        )
+        issues.append(
+            DiagnosticIssue(
+                headline=f"{clk_name} 目标频率无可行组合",
+                formula="候选 mux 选择、分频 ratio 与 PLL 系数组合后，f_clk 需落入目标容差",
+                detail=(
+                    f"clk {clk_name} 要求 {_hz_mhz(clk_hz)}；"
+                    "当前子树搜索已穷尽候选组合，未找到同时满足路径连接、"
+                    "分频范围、PLL 系数范围与目标频率的配置。"
+                ),
+                path_nodes=path,
+            )
+        )
+    if issues:
+        return issues
+
+    focus_nodes = [
+        name
+        for name in sorted(component_nodes)
+        if isinstance(tree.nodes.get(name), PllNode)
+    ]
+    for pll_name in focus_nodes[:1]:
+        path = tuple(
+            name
+            for name in reversed(walk_path_upstream(tree, pll_name))
+            if name in component_nodes
+        )
+        issues.append(
+            DiagnosticIssue(
+                headline=f"{pll_name} 参考路径无可行组合",
+                formula="PLL 参考频率需由上游路径产生，并满足 PLL 系数搜索范围",
+                detail=(
+                    f"PLL {pll_name} 的参考路径搜索已穷尽候选 mux/div 组合；"
+                    "未找到能继续配出合法 PLL 系数的参考频率。"
+                ),
+                path_nodes=path,
+            )
+        )
+    if issues:
+        return issues
+
+    return [
+        DiagnosticIssue(
+            headline="子树目标无可行组合",
+            formula="子树内所有目标必须共享一组一致的 mux、div、gate 与 PLL 配置",
+            detail="当前子树搜索已穷尽候选组合，但没有找到满足全部目标的配置。",
+            path_nodes=tuple(sorted(component_nodes)),
+        )
+    ]
 
 
 def format_debug_issues(issues: Sequence[DiagnosticIssue]) -> str:

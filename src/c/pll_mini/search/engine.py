@@ -186,16 +186,32 @@ def search_tree_constraints(
             "component models",
             components=len(partial_models),
         )
-        model = merge_solve_models(tree, partial_models)
-        model = _recompute_merged_pll_vars(
-            tree,
-            model,
-            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
-        )
+        try:
+            model = merge_solve_models(tree, partial_models)
+            model = _recompute_merged_pll_vars(
+                tree,
+                model,
+                pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+                pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+            )
+        except RuntimeError as exc:
+            log_stage_done(
+                "search",
+                "merge",
+                "component models",
+                merge_started,
+                failed=True,
+                progress=f"{len(partial_models)}/{len(components)}",
+            )
+            _raise_merge_failure(
+                tree,
+                components=components,
+                period_tolerance=period_tolerance,
+                cause=exc,
+            )
         log_stage_done(
             "search",
             "merge",
@@ -524,6 +540,40 @@ def _raise_component_failure(
         f"子树 {component.index}/{component.total} 求解失败"
         f"（clk: {clks}）: {cause}"
     )
+    detail = format_search_component_failure(
+        tree,
+        period_tolerance=period_tolerance,
+        component_index=component.index,
+        component_total=component.total,
+        component_targets=list(component.targets),
+        component_nodes=set(component.node_names),
+    )
+    if detail:
+        raise RuntimeError(f"{headline}\n\n{detail}") from cause
+    raise RuntimeError(headline) from cause
+
+
+def _raise_merge_failure(
+    tree: Tree,
+    *,
+    components: List[SearchComponent],
+    period_tolerance: float,
+    cause: RuntimeError,
+) -> None:
+    targets: List[Tuple[str, int]] = []
+    nodes: Set[str] = set()
+    for component in components:
+        targets.extend(component.targets)
+        nodes.update(component.node_names)
+    component = SearchComponent(
+        index=1,
+        total=1,
+        targets=tuple(targets),
+        node_names=frozenset(nodes),
+    )
+    headline = f"子树合并后求解失败：{cause}"
+    from report.diagnose import format_search_component_failure
+
     detail = format_search_component_failure(
         tree,
         period_tolerance=period_tolerance,
