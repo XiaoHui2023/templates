@@ -492,20 +492,16 @@ class ClkNode(NodeBase):
         default=None,
         description="前级引用；省略或空表示无前级。",
     )
-    always_active: bool = Field(
+    stable: bool = Field(
         default=False,
-        description="为真时表示时钟始终使能：low_power 不关断，test_route 不参与探测；"
-        "有前级时输出频率与 check_measure 期望均来自上游 _resolved_freq，"
-        "trees 不写 frequence；无前级且给出正数 freq 时锁定 _resolved_freq。",
+        description="为真时表示锚定时钟：结构探测与低功耗下不得关断或改频；"
+        "应配合正整数 freq，trees 锁定 frequence 与 enabled。",
     )
 
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_optional_freq(cls, value: Any) -> Any:
         return _coerce_optional_int(value)
-
-    def _clk_has_upstream_source(self) -> bool:
-        return self.source is not None
 
     @computed_field(  # type: ignore[prop-decorator]
         description="trees 构造写入 frequence；省略 freq 时为 -1；YAML 不可传入。",
@@ -519,7 +515,7 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_init_enabled(self) -> int:
-        if self.always_active:
+        if self.stable:
             return 1
         return -1 if self.freq is None else 1
 
@@ -528,8 +524,6 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_trees_emit_frequence(self) -> bool:
-        if self.always_active and self._clk_has_upstream_source():
-            return False
         return self.freq is not None and self.freq != -1
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -537,7 +531,7 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_trees_emit_enabled(self) -> bool:
-        if self.always_active:
+        if self.stable:
             return True
         return self.freq is not None
 
@@ -546,9 +540,9 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_trees_emit_unfix_frequence(self) -> bool:
+        if self.stable:
+            return True
         if self.freq is None or self.freq <= 0:
-            return False
-        if self.always_active and self._clk_has_upstream_source():
             return False
         return True
 
@@ -557,6 +551,8 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_trees_emit_unfix_enabled(self) -> bool:
+        if self.stable:
+            return True
         return self.freq is not None
 
     @model_validator(mode="after")
@@ -571,15 +567,9 @@ class ClkNode(NodeBase):
                 f"clk 节点 {self.name!r} freq {self.freq} "
                 f"超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}"
             )
-        if (
-            self.always_active
-            and self.freq is not None
-            and self.freq > 0
-            and self._clk_has_upstream_source()
-        ):
+        if self.stable and (self.freq is None or self.freq <= 0):
             raise ValueError(
-                f"clk 节点 {self.name!r} 同时指定 always_active、正数 freq 与前级 source；"
-                f"有前级时 check_measure 期望为上游 _resolved_freq，请省略 freq"
+                f"clk 节点 {self.name!r} stable 为真时 freq 应为正整数"
             )
         return self
 

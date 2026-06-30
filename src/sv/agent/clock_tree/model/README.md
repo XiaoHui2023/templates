@@ -12,9 +12,9 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| **low_power** | 将非 **_always_active** 的 **clk** **enabled** 置 0 |
-| **collect_always_active_clk_nodes** | 收集 **_always_active** 为真的 **clk** |
-| **has_always_active_clk** | 是否存在 **_always_active** 为真的 **clk** |
+| **low_power** | 将非 **stable** 的 **clk** **enabled** 置 0 |
+| **collect_stable_clk_nodes** | 收集 **stable** 为真的 **clk** |
+| **has_stable_clk** | 是否存在 **stable** 为真的 **clk** |
 
 | 约束 | 说明 |
 | --- | --- |
@@ -81,7 +81,7 @@
 | **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
 | **enabled** | **bit**，**rand** | 使能 |
-| **_always_active** | **bit** | 始终使能时钟；由树构造时按 YAML **always_active** 写入 |
+| **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 
@@ -89,7 +89,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
-| **cst_clk** | **randomize** 后 **frequence** 等于 **_resolved_freq**，**enabled** 等于 **_resolved_active**；**_always_active** 为真且无前级且 **frequence** 非负时 **_resolved_freq** 等于 **frequence**；**_always_active** 为真时 **enabled** 必须为 1；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
+| **cst_clk** | **randomize** 后 **frequence** 等于 **_resolved_freq**，**enabled** 等于 **_resolved_active**；**stable** 为真时 **enabled** 与 **_resolved_active** 必须为 1；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
 
 ### pll_tci
 

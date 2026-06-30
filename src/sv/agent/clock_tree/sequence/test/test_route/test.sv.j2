@@ -173,13 +173,13 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                 {{ settings.class_prefix }}route_structure_variant_label(subject, sv)),
                 UVM_MEDIUM)
         run_config_reg(tree, 1'b1);
-        if (tree.has_always_active_clk()
-                && !{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
+        if (tree.has_stable_clk()
+                && !{{ settings.class_prefix }}route_structure_stable_clocks_valid(
                     tree)) begin
             n_skip_sub++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
-                    "test_route:     skip self variant — always_active clk invalid"),
+                    "test_route:     skip self variant — stable clk invalid"),
                     UVM_MEDIUM)
             continue;
         end
@@ -196,13 +196,13 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                     "test_route:     %s line [%0d/%0d] %s — config_reg",
                     dir_label, c + 1, n_combo, combo_summary), UVM_MEDIUM)
             run_config_reg(tree, 1'b1);
-            if (tree.has_always_active_clk()
-                    && !{{ settings.class_prefix }}route_structure_always_active_clocks_valid(
+            if (tree.has_stable_clk()
+                    && !{{ settings.class_prefix }}route_structure_stable_clocks_valid(
                         tree)) begin
                 n_skip_combo++;
                 if (!quiet)
                     `uvm_info("CLK_TREE", $sformatf(
-                        "test_route:       skip line combo — always_active clk invalid"),
+                        "test_route:       skip line combo — stable clk invalid"),
                         UVM_MEDIUM)
                 continue;
             end
@@ -235,7 +235,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     {{ settings.class_prefix }}node_base probe_subjects[$];
     {{ settings.class_prefix }}node_base stored_nodes[$];
     {{ settings.class_prefix }}node_base pinned_path[$];
-    {{ settings.class_prefix }}node_base always_active_clk_nodes[$];
+    {{ settings.class_prefix }}node_base stable_clk_nodes[$];
     {{ settings.class_prefix }}route_ctrl_snap stored_snaps[$];
     string req_clk_names;
     string pinned_names;
@@ -254,18 +254,18 @@ task {{ settings.class_prefix }}test_route_seq::body();
     rs.ok = 1'b1;
 
     if (!rq.quiet || rq.debug) begin
-        tree.collect_always_active_clk_nodes(always_active_clk_nodes);
+        tree.collect_stable_clk_nodes(stable_clk_nodes);
         req_clk_names = {{ settings.class_prefix }}route_structure_format_node_names(
-            always_active_clk_nodes);
+            stable_clk_nodes);
         `uvm_info("CLK_TREE", $sformatf(
             "test_route: begin tree %s debug %0b", tree.get_name(), rq.debug), UVM_LOW)
-        if (always_active_clk_nodes.size() > 0)
+        if (stable_clk_nodes.size() > 0)
             `uvm_info("CLK_TREE", $sformatf(
-                "test_route: always_active clk (%0d): %s",
-                always_active_clk_nodes.size(), req_clk_names), UVM_LOW)
+                "test_route: stable clk (%0d): %s",
+                stable_clk_nodes.size(), req_clk_names), UVM_LOW)
         else
             `uvm_info("CLK_TREE",
-                "test_route: no always_active clk — all clk nodes may vary enabled",
+                "test_route: no stable clk — all clk nodes may vary enabled",
                 UVM_LOW)
     end
 
@@ -279,7 +279,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
             "test_route: init — plain config_reg", UVM_LOW)
     run_config_reg(tree, rq.quiet);
 
-    {{ settings.class_prefix }}route_structure_collect_always_active_upstream_gate_mux(
+    {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
         tree, pinned_path);
 
     probe_subjects.delete();
@@ -287,7 +287,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
         if ({{ settings.class_prefix }}node_in_queue(subjects[i], pinned_path)) begin
             if (!rq.quiet)
                 `uvm_info("CLK_TREE", $sformatf(
-                    "test_route: skip subject %s (%s) — on selected path to always_active clk",
+                    "test_route: skip subject %s (%s) — on selected path to stable clk",
                     subjects[i].get_name(), subjects[i].kind), UVM_LOW)
             continue;
         end
@@ -295,7 +295,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     end
     if (probe_subjects.size() == 0)
         `uvm_fatal("CLK_TREE",
-            "test_route: no probe subjects after always_active path filter")
+            "test_route: no probe subjects after stable path filter")
 
     if (!rq.quiet) begin
         if (pinned_path.size() > 0) begin
@@ -317,7 +317,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE",
-            "test_route: init — pll/div/path fix + non-always_active clk unfix — confirm config_reg",
+            "test_route: init — pll/div/path fix + non-stable clk unfix — confirm config_reg",
             UVM_LOW)
     run_config_reg(tree, rq.quiet);
 
