@@ -16,6 +16,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.functional_validators import BeforeValidator
 
 from reg_paths import (
     DIV_KIND_TO_SV,
@@ -79,6 +80,19 @@ def _coerce_optional_int(value: Any) -> Optional[int]:
     if value is None or value == "":
         return None
     return int(value)
+
+
+def _coerce_optional_source(value: Any) -> Optional[str]:
+    if value is None or value == "":
+        return None
+    text = str(value).strip()
+    return text if text else None
+
+
+OptionalUpstreamSource = Annotated[
+    Optional[str],
+    BeforeValidator(_coerce_optional_source),
+]
 
 
 def parse_source_endpoint(raw: str, *, ctx: str) -> tuple[str, str]:
@@ -177,6 +191,8 @@ class NodeBase(BaseModel):
             return refs
         if self.kind == "source":
             return []
+        if self.source is None:
+            return []
         device, out_group = parse_source_endpoint(self.source, ctx="source")
         return [SourceRef(name=device, out_group=out_group)]
 
@@ -204,7 +220,10 @@ class NodeBase(BaseModel):
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: OptionalUpstreamSource = Field(
+        default=None,
+        description="前级引用；省略或空表示无前级。",
+    )
     open: Optional[int] = Field(
         None,
         ge=0,
@@ -244,7 +263,10 @@ class DivNode(NodeBase):
         "div",
         description="分频器型号：div、div_n、dto、dto_n、div_r，大小写不限。",
     )
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: OptionalUpstreamSource = Field(
+        default=None,
+        description="前级引用；省略或空表示无前级。",
+    )
     ratio: Optional[int] = Field(
         None,
         ge=1,
@@ -314,7 +336,10 @@ class InvNode(NodeBase):
         "inv",
         description="反相器型号：inv、inv_mux、inv_cell，大小写不限。",
     )
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: OptionalUpstreamSource = Field(
+        default=None,
+        description="前级引用；省略或空表示无前级。",
+    )
     reg: str = Field(
         "",
         description="反相/直通控制寄存器模型路径。",
@@ -392,10 +417,9 @@ class PllNode(NodeBase):
     @classmethod
     def _coerce_freq(cls, value: Any) -> Any:
         return _coerce_required_freq(value)
-    source: str = Field(
-        ...,
-        min_length=1,
-        description="参考时钟前级引用。",
+    source: OptionalUpstreamSource = Field(
+        default=None,
+        description="参考时钟前级引用；省略或空表示无前级。",
     )
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno，大小写不限。")
     regs: Dict[str, str] = Field(
@@ -442,7 +466,10 @@ class CellNode(NodeBase):
         min_length=1,
         description="配置型号，任意非空字符串；仅作记录，仿真行为相同。",
     )
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: OptionalUpstreamSource = Field(
+        default=None,
+        description="前级引用；省略或空表示无前级。",
+    )
 
     @field_validator("cell_kind", mode="before")
     @classmethod
@@ -457,7 +484,10 @@ class ClkNode(NodeBase):
         description="典型频率，单位 Hz；省略表示频率与开关均不指定；"
         "正数同时指定频率与使能；负数仅不约束 _resolved_freq。",
     )
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: OptionalUpstreamSource = Field(
+        default=None,
+        description="前级引用；省略或空表示无前级。",
+    )
     stable: bool = Field(
         default=False,
         description="为真时表示稳定时钟：须填写正整数 freq，频率与使能由 trees 约束固定；"
@@ -815,6 +845,8 @@ def upstream_peer_names(node: Node) -> List[str]:
             for peer in node.source.values()
         ]
     if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
+        if node.source is None:
+            return []
         device, _out_group = parse_source_endpoint(node.source, ctx="source")
         return [device]
     return []
@@ -879,8 +911,9 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
                     ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
                 )
         elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-            _validate_source_ref(
-                node.source,
-                nodes,
-                ctx=f"节点 {node.name!r} source",
-            )
+            if node.source is not None:
+                _validate_source_ref(
+                    node.source,
+                    nodes,
+                    ctx=f"节点 {node.name!r} source",
+                )

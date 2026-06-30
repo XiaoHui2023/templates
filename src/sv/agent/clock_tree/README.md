@@ -104,7 +104,7 @@ settings:
 | `kind` | `str` | `pll` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz。 |
-| `source` | `str` | | 参考时钟前级引用。 |
+| `source` | `str` | | 参考时钟前级引用；省略或空表示无前级。 |
 | `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。`inno` 固定两路输出。 |
 
 #### tci
@@ -175,7 +175,7 @@ settings:
 | `kind` | `str` | `clk` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz；省略则频率与使能均不参与随机；正数同时指定频率与使能；负值仅放宽输出频率随机范围。 |
-| `source` | `str` | | 前级引用。 |
+| `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `stable` | `bool` | `false` | 为真时表示稳定时钟：须填写正整数 **freq**，频率与使能由 trees 约束固定；**low_power** 不关断，**test_route** 不参与探测。 |
 | `no_check` | `bool` | `false` | 为真时 **check_measure** 跳过该 **clk** 的频率与占空比检查。 |
 
@@ -185,7 +185,7 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | `gate` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
+| `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `open` | `int` | | 门控开关；0 关闭、1 打开；省略则参与随机化。 |
 | `reg` | `str` | `""` | 门控寄存器模型路径。 |
 
@@ -198,7 +198,7 @@ settings:
 | `kind` | `str` | `cell` | |
 | `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
+| `source` | `str` | | 前级引用；省略或空表示无前级。 |
 
 ### Node - div
 
@@ -206,7 +206,7 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | `div` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
+| `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `regs.rst` | `str` | | 复位位。 |
 | `regs.load` | `str` | | 加载位。 |
 | `regs.div` | `str` | | 分频系数。 |
@@ -219,7 +219,7 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | `div_r` | 等价于 `kind: div` 且 `div_kind: div_r`。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
+| `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `ratio` | `int` | | 固定分频比，大于 0；不受可配置 **div** 的 64 上限。 |
 
 ### Node - dto
@@ -228,7 +228,7 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | `dto` | |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
+| `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `regs.rst` | `str` | | 复位位。 |
 | `regs.load` | `str` | | 加载位。 |
 | `regs.bypass` | `str` | | bypass 位。 |
@@ -241,7 +241,7 @@ settings:
 | `kind` | `str` | `inv` | |
 | `inv_kind` | `str` | `inv` | 取 `inv`、`inv_mux`、`inv_cell`；`inv_cell` 与 `inv` 仿真行为相同。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `source` | `str` | | 前级引用。 |
+| `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `reg` | `str` | `""` | 反相/直通控制寄存器模型路径。 |
 
 ### Node - mux
