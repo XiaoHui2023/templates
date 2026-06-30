@@ -598,7 +598,7 @@ task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
         slowest_hz = 0;
         {{ settings.class_prefix }}tree_upstream_peers(mux_switch[i], peers);
         foreach (peers[j]) begin
-            peer_hz = peers[j]._resolved_freq;
+            peer_hz = {{ settings.class_prefix }}tree_mux_peer_wait_freq(peers[j]);
             if (peer_hz <= 0)
                 continue;
             if (slowest_hz == 0 || peer_hz < slowest_hz)

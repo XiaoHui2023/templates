@@ -64,6 +64,19 @@ function automatic void {{ settings.class_prefix }}tree_upstream_peers(
         peers.push_back(nd.source);
 endfunction
 
+// mux 切换等待用频率：peer 为 0 时沿 source 向上取首段正频率
+function automatic longint {{ settings.class_prefix }}tree_mux_peer_wait_freq(
+        {{ settings.class_prefix }}node_base peer);
+    {{ settings.class_prefix }}node_base cur;
+    cur = peer;
+    while (cur != null) begin
+        if (cur._resolved_freq > 0)
+            return cur._resolved_freq;
+        cur = cur.source;
+    end
+    return 0;
+endfunction
+
 // 直接后级：引用 nd 为 source 或 mux 输入的节点
 function automatic void {{ settings.class_prefix }}tree_downstream_peers(
         {{ settings.class_prefix }}tree_base tree,
