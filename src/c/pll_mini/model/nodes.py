@@ -390,9 +390,10 @@ class ClkNode(NodeBase):
         "正数表示目标频率并参与约束求解；负数仅不约束 resolved_freq。",
     )
     source: str = Field("", description="前级引用；省略表示无前级。")
-    always_active: bool = Field(
+    stable: bool = Field(
         default=False,
-        description="为真时该时钟节点全程保持有效。",
+        description="为真时表示锚定时钟，求解时该节点应全程保持有效；"
+        "应配合正整数 freq。",
     )
 
     @field_validator("freq", mode="before")
@@ -411,6 +412,10 @@ class ClkNode(NodeBase):
             raise ValueError(
                 f"clk 节点 {self.name!r} freq 为 0 非法；"
                 f"正频率应大于等于 1，不约束请省略或填负数"
+            )
+        if self.stable and (self.freq is None or self.freq <= 0):
+            raise ValueError(
+                f"clk 节点 {self.name!r} stable 为真时 freq 应为正整数"
             )
         return self
 

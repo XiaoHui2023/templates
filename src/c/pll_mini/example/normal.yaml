@@ -8,7 +8,7 @@
 #   gate       寄存器门控；gate_hclk 透传链；gate_mbist open=0
 #   inv        inv / inv_mux / inv_cell
 #   cell       buf
-#   clk        有频率 / 无频率 / always_active
+#   clk        有频率 / 无频率 / stable
 #
 # 提交时跑 example\check.bat。
 
@@ -259,7 +259,7 @@ tree:
       kind: clk
       source: gate0
       freq: 30000000
-      always_active: true
+      stable: true
 
     clk_hclk:
       kind: clk

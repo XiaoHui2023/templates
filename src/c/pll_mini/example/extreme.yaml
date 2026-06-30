@@ -271,7 +271,7 @@ tree:
       kind: clk
       source: gate0
       freq: 30000000
-      always_active: true
+      stable: true
 
     clk_hclk:
       kind: clk
