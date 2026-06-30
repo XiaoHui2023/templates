@@ -4,9 +4,6 @@
 
 class {{ settings.class_prefix }}node_cfg;
     {{ settings.class_prefix }}reg_rw rw;
-    protected int mux_last_sel[string];
-    protected bit div_rst_released[string];
-    protected bit dto_rst_released[string];
 
     function new({{ settings.class_prefix }}reg_rw reg_rw);
         if (reg_rw == null)
@@ -57,18 +54,29 @@ class {{ settings.class_prefix }}node_cfg;
         {{ settings.class_prefix }}reg f_bypass,
         {{ settings.class_prefix }}reg f_step,
         int ratio);
-    // node_name、sel — 上次写入的 mux 选择值与当前相同
-    extern function bit mux_sel_unchanged(string node_name, int sel);
-    // node_name、sel — 记录 mux 选择寄存器已写入的值
-    extern function void note_mux_sel_configured(string node_name, int sel);
-    // node_name — 该 div 是否已在 config_reg 中写过寄存器
-    extern function bit div_rst_was_released(string node_name);
-    // node_name — 记录 div 已完成首次寄存器写
-    extern function void note_div_rst_released(string node_name);
-    // node_name — 该 dto 是否已在 config_reg 中写过寄存器
-    extern function bit dto_rst_was_released(string node_name);
-    // node_name — 记录 dto 已完成首次寄存器写
-    extern function void note_dto_rst_released(string node_name);
+    // rst_val — 读回的 rst 位是否为 div 已释放、非复位电平
+    extern function bit div_rst_released_val(int rst_val);
+    // rst_val — 读回的 rst 位是否为 dto 已释放、非复位电平
+    extern function bit dto_rst_released_val(int rst_val);
+    // f_reg、sel — 读回 mux sel 是否与目标相同
+    extern task mux_sel_matches({{ settings.class_prefix }}reg f_reg, int sel, output bit match);
+    // f_rst、f_div、ratio — 读回 div 是否已与目标 ratio 一致且 rst 已释放
+    extern task div_regs_match_ratio(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio,
+        output bit match);
+    // f_rst — 读回 div rst 是否已为释放电平
+    extern task div_rst_released({{ settings.class_prefix }}reg f_rst, output bit released);
+    // f_rst、f_bypass、f_step、ratio — 读回 dto 是否已与目标 ratio 一致且 rst 已释放
+    extern task dto_regs_match_ratio(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio,
+        output bit match);
+    // f_rst — 读回 dto rst 是否已为释放电平
+    extern task dto_rst_released({{ settings.class_prefix }}reg f_rst, output bit released);
 endclass
 
 task {{ settings.class_prefix }}node_cfg::configure_gate({{ settings.class_prefix }}reg f_reg, bit open);
@@ -222,31 +230,85 @@ task {{ settings.class_prefix }}node_cfg::configure_dto_ratio(
     end
 endtask
 
-function bit {{ settings.class_prefix }}node_cfg::mux_sel_unchanged(
-        string node_name, int sel);
-    return mux_last_sel.exists(node_name) && mux_last_sel[node_name] == sel;
+function bit {{ settings.class_prefix }}node_cfg::div_rst_released_val(int rst_val);
+{%- if settings.div_reg_high_means_reset %}
+    return rst_val == 0;
+{%- else %}
+    return rst_val == 1;
+{%- endif %}
 endfunction
 
-function void {{ settings.class_prefix }}node_cfg::note_mux_sel_configured(
-        string node_name, int sel);
-    mux_last_sel[node_name] = sel;
+function bit {{ settings.class_prefix }}node_cfg::dto_rst_released_val(int rst_val);
+{%- if settings.dto_reg_high_means_reset %}
+    return rst_val == 0;
+{%- else %}
+    return rst_val == 1;
+{%- endif %}
 endfunction
 
-function bit {{ settings.class_prefix }}node_cfg::div_rst_was_released(string node_name);
-    return div_rst_released.exists(node_name);
-endfunction
+task {{ settings.class_prefix }}node_cfg::mux_sel_matches(
+        {{ settings.class_prefix }}reg f_reg,
+        int sel,
+        output bit match);
+    int cur;
+    rw.read(f_reg, cur);
+    match = cur == sel;
+endtask
 
-function void {{ settings.class_prefix }}node_cfg::note_div_rst_released(string node_name);
-    div_rst_released[node_name] = 1'b1;
-endfunction
+task {{ settings.class_prefix }}node_cfg::div_regs_match_ratio(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_div,
+        int ratio,
+        output bit match);
+    int rst_val;
+    int div_val;
+    int exp_n;
+    exp_n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+    rw.read(f_rst, rst_val);
+    rw.read(f_div, div_val);
+    match = div_rst_released_val(rst_val) && div_val == exp_n;
+endtask
 
-function bit {{ settings.class_prefix }}node_cfg::dto_rst_was_released(string node_name);
-    return dto_rst_released.exists(node_name);
-endfunction
+task {{ settings.class_prefix }}node_cfg::div_rst_released(
+        {{ settings.class_prefix }}reg f_rst,
+        output bit released);
+    int rst_val;
+    rw.read(f_rst, rst_val);
+    released = div_rst_released_val(rst_val);
+endtask
 
-function void {{ settings.class_prefix }}node_cfg::note_dto_rst_released(string node_name);
-    dto_rst_released[node_name] = 1'b1;
-endfunction
+task {{ settings.class_prefix }}node_cfg::dto_regs_match_ratio(
+        {{ settings.class_prefix }}reg f_rst,
+        {{ settings.class_prefix }}reg f_bypass,
+        {{ settings.class_prefix }}reg f_step,
+        int ratio,
+        output bit match);
+    int rst_val;
+    int bypass_val;
+    int step_val;
+    int exp_step;
+    rw.read(f_rst, rst_val);
+    rw.read(f_bypass, bypass_val);
+    rw.read(f_step, step_val);
+    if (!dto_rst_released_val(rst_val)) begin
+        match = 1'b0;
+        return;
+    end
+    if ({{ settings.class_prefix }}dto_ratio_is_bypass(ratio)) begin
+        match = bypass_val == 1 && step_val == 0;
+        return;
+    end
+    exp_step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);
+    match = bypass_val == 0 && step_val == exp_step;
+endtask
+
+task {{ settings.class_prefix }}node_cfg::dto_rst_released(
+        {{ settings.class_prefix }}reg f_rst,
+        output bit released);
+    int rst_val;
+    rw.read(f_rst, rst_val);
+    released = dto_rst_released_val(rst_val);
+endtask
 
 `endif
 {% endif %}
