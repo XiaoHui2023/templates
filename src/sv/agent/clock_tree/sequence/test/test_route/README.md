@@ -50,7 +50,7 @@
 
 ### 不参与测试的节点
 
-在 YAML 中将 **clk** 节点的 **always_active** 设为真时，该时钟使能保持为 1，及其当前选通路径上的器件不参与 **test_route** 探测；含路径上的 **pll**，其频率保持首次 **config_reg** 后的值不变。频率可随上游变化，trees 不锁定 **frequence**。
+在 YAML 中将 **clk** 节点的 **always_active** 设为真时，该时钟使能保持为 1，及其当前选通路径上的器件不参与 **test_route** 探测；含路径上的 **pll**，其频率保持首次 **config_reg** 后的值不变。有前级时 **check_measure** 期望为上游 **_resolved_freq**，YAML 不写正数 **freq**。
 
 ## rsp
 

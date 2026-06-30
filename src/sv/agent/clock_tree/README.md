@@ -178,7 +178,7 @@ settings:
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz；省略则频率与使能均不参与随机；正数同时指定频率与使能；负值仅放宽输出频率随机范围。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `always_active` | `bool` | `false` | 为真时表示时钟始终使能：**low_power** 不关断，**test_route** 不参与探测；频率可随上游变化，trees 不锁定 **frequence**。 |
+| `always_active` | `bool` | `false` | 为真时表示时钟始终使能：**low_power** 不关断，**test_route** 不参与探测。有 **source** 时 **check_measure** 期望为上游 **_resolved_freq**，YAML 不得再写正数 **freq**；无前级且给出正数 **freq** 时锁定该频率。 |
 
 ### Node - gate
 

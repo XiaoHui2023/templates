@@ -489,7 +489,8 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unf
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
         if (clk_nd._always_active) begin
-            clk_nd.unfix_frequence = 1'b1;
+            if (clk_nd.source != null)
+                clk_nd.unfix_frequence = 1'b1;
             clk_nd.unfix_enabled = 1'b0;
         end else begin
             clk_nd.unfix_frequence = 1'b1;

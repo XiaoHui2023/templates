@@ -31,6 +31,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         frequence >= 0 -> frequence == _resolved_freq;
         enabled >= 0 -> enabled == _resolved_active;
 {%- endif %}
+        _always_active && source == null && frequence >= 0 -> _resolved_freq == frequence;
         _always_active -> enabled == 1;
         !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
         !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};
