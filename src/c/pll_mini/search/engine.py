@@ -48,6 +48,11 @@ from model.topology import bind_tree_topology, clear_tree_topology
 from search.progress import ComponentSearchReporter
 
 
+def _check_deadline(deadline: float | None) -> None:
+    if deadline is not None and time.perf_counter() > deadline:
+        raise RuntimeError("时钟树约束求解超时或无法判定")
+
+
 class ComponentSearchFailure(RuntimeError):
     """子树搜索失败；search_summary 记录枚举耗尽时的上下文。"""
 
@@ -923,12 +928,15 @@ def _search_tree(
     reporter = ComponentSearchReporter(tree, free_muxes)
     search_summary = ""
     try:
-        for assignment in _iter_mux_assignments(
-            tree, free_muxes, targets=targets, fixed_mux_sel=mux_sel
+        for assignment in _iter_required_mux_assignments(
+            tree,
+            free_muxes,
+            targets=targets,
+            fixed_mux_sel=mux_sel,
+            required=required,
         ):
             reporter.mux_trial(assignment)
-            if deadline is not None and time.perf_counter() > deadline:
-                raise RuntimeError("时钟树约束求解超时或无法判定")
+            _check_deadline(deadline)
             trial_mux = {**mux_sel, **assignment}
             if not _mux_assignments_compatible(
                 tree, targets, trial_mux, required=required
@@ -941,6 +949,7 @@ def _search_tree(
                 tree, targets, active, trial_mux, required=required
             ):
                 continue
+            reporter.phase("分频求解", detail=", ".join(free_divs))
             trial_ratios = dict(ratios)
             if not _assign_div_ratios(
                 tree,
@@ -956,6 +965,10 @@ def _search_tree(
             ):
                 continue
             ref_muxes, ref_divs = _collect_inno_ref_path_vars(tree, active)
+            reporter.phase(
+                "inno参考路径",
+                detail=f"mux={len(ref_muxes)} div={len(ref_divs)}",
+            )
             ref_mux_free = [
                 name
                 for name in ref_muxes
@@ -972,6 +985,7 @@ def _search_tree(
             for ref_mux_assignment in ref_mux_iters:
                 if ref_mux_free:
                     reporter.ref_mux_trial(ref_mux_assignment)
+                _check_deadline(deadline)
                 trial_mux_full = {**trial_mux, **ref_mux_assignment}
                 active_full = _compute_active(
                     tree, targets, trial_mux_full, required=required
@@ -984,6 +998,7 @@ def _search_tree(
                     required=required,
                 ):
                     continue
+                reporter.begin_ref_div(ref_divs)
                 ref_div_iter = _iter_ref_div_ratio_assignments(
                     tree,
                     ref_divs,
@@ -997,9 +1012,13 @@ def _search_tree(
                     tol_lo=tol_lo,
                     tol_hi=tol_hi,
                     tol_den=tol_den,
+                    reporter=reporter,
+                    deadline=deadline,
                 )
                 for ref_ratio_pack in ref_div_iter:
+                    _check_deadline(deadline)
                     trial_ratios_full = {**trial_ratios, **ref_ratio_pack}
+                    reporter.phase("频率传播")
                     port_freq = _propagate_port_freqs(
                         tree,
                         active=active_full,
@@ -1013,6 +1032,7 @@ def _search_tree(
                         continue
                     if not _clk_targets_match(targets, port_freq):
                         continue
+                    reporter.phase("PLL系数")
                     pll_vars = _compute_pll_vars(
                         tree,
                         active=active_full,
@@ -1023,6 +1043,8 @@ def _search_tree(
                         tol_hi=tol_hi,
                         tol_den=tol_den,
                         skip_pll_names=pll_anchors,
+                        reporter=reporter,
+                        deadline=deadline,
                     )
                     if pll_vars is None:
                         continue
@@ -1089,12 +1111,12 @@ def _search_pll_ref_tree(
             tree, free_muxes, fixed_mux_sel=mux_sel
         ):
             reporter.mux_trial(assignment)
-            if deadline is not None and time.perf_counter() > deadline:
-                raise RuntimeError("时钟树约束求解超时或无法判定")
+            _check_deadline(deadline)
             trial_mux = {**mux_sel, **assignment}
             active = _compute_active_pll_ref(tree, pll_name, trial_mux) & required
             if pll_name not in active:
                 continue
+            reporter.begin_ref_div(ref_divs)
             for trial_ratios in _iter_ref_div_ratio_assignments(
                 tree,
                 ref_divs,
@@ -1108,7 +1130,11 @@ def _search_pll_ref_tree(
                 tol_lo=tol_lo,
                 tol_hi=tol_hi,
                 tol_den=tol_den,
+                reporter=reporter,
+                deadline=deadline,
             ):
+                _check_deadline(deadline)
+                reporter.phase("频率传播")
                 port_freq = _propagate_port_freqs(
                     tree,
                     active=active,
@@ -1120,6 +1146,7 @@ def _search_pll_ref_tree(
                 if port_freq is None:
                     continue
                 if compute_pll_vars:
+                    reporter.phase("PLL系数", detail=pll_name)
                     pll_vars = _compute_pll_vars(
                         tree,
                         active=active,
@@ -1130,6 +1157,8 @@ def _search_pll_ref_tree(
                         tol_hi=tol_hi,
                         tol_den=tol_den,
                         only_pll_names=frozenset({pll_name}),
+                        reporter=reporter,
+                        deadline=deadline,
                     )
                     if pll_vars is None or pll_name not in pll_vars:
                         continue
@@ -1229,7 +1258,10 @@ def _iter_ref_div_ratio_assignments(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
+    reporter: ComponentSearchReporter | None = None,
+    deadline: float | None = None,
 ) -> Iterator[Dict[str, int]]:
+    _check_deadline(deadline)
     if not ref_divs:
         yield dict(base_ratios)
         return
@@ -1260,9 +1292,16 @@ def _iter_ref_div_ratio_assignments(
         tol_den=tol_den,
     )
     if not candidates:
+        if reporter is not None:
+            reporter.ref_div_candidates(div_name, candidates)
         return
+    if reporter is not None:
+        reporter.ref_div_candidates(div_name, candidates)
 
-    for ratio in candidates:
+    for index, ratio in enumerate(candidates, start=1):
+        _check_deadline(deadline)
+        if reporter is not None:
+            reporter.ref_div_trial(div_name, ratio, index, len(candidates))
         trial = {**base_ratios, div_name: ratio}
         yield from _iter_ref_div_ratio_assignments(
             tree,
@@ -1277,6 +1316,8 @@ def _iter_ref_div_ratio_assignments(
             tol_lo=tol_lo,
             tol_hi=tol_hi,
             tol_den=tol_den,
+            reporter=reporter,
+            deadline=deadline,
         )
 
 
@@ -1605,6 +1646,115 @@ def _iter_mux_assignments(
         yield {}
         return
     yield from recurse(free_muxes, {})
+
+
+def _iter_required_mux_assignments(
+    tree: Tree,
+    free_muxes: List[str],
+    *,
+    targets: List[Tuple[str, int]],
+    fixed_mux_sel: Dict[str, int] | None = None,
+    required: Set[str] | None = None,
+) -> Iterator[Dict[str, int]]:
+    fixed = fixed_mux_sel or {}
+    free = set(free_muxes)
+
+    def recurse(partial: Dict[str, int]) -> Iterator[Dict[str, int]]:
+        trial = {**fixed, **partial}
+        for clk_name, _ in targets:
+            ok, mux_name = _next_unassigned_mux_on_walk(
+                tree,
+                clk_name,
+                trial,
+                free_muxes=free,
+                required=required,
+            )
+            if not ok:
+                return
+            if mux_name is not None:
+                node = tree.nodes[mux_name]
+                assert isinstance(node, MuxNode)
+                keys = sorted(node.source.keys(), key=lambda k: int(k))
+                for key in keys:
+                    yield from recurse({**partial, mux_name: int(key)})
+                return
+        if _mux_assignments_compatible(
+            tree, targets, trial, required=required
+        ):
+            yield partial
+
+    if not free_muxes:
+        yield {}
+        return
+    yield from recurse({})
+
+
+def _next_unassigned_mux_on_walk(
+    tree: Tree,
+    start: str,
+    mux_sel: Dict[str, int],
+    *,
+    free_muxes: Set[str],
+    required: Set[str] | None = None,
+) -> tuple[bool, str | None]:
+    name = start
+    seen = {start}
+    while True:
+        node = tree.nodes[name]
+        if isinstance(node, GateNode) and node.open == 0:
+            return False, None
+        if node.kind == "source":
+            return True, None
+        if isinstance(node, PllNode):
+            if node.pll_kind == "inno":
+                return True, None
+            if node.freq is not None and node.freq > 0:
+                return True, None
+        if isinstance(node, MuxNode):
+            sel = mux_sel.get(name, node.sel)
+            if sel is None:
+                return (True, name) if name in free_muxes else (False, None)
+            arm = node.source.get(str(sel))
+            if not arm:
+                return False, None
+            peer_name, _ = parse_source_endpoint(arm, ctx=f"mux {name!r}")
+            if peer_name in seen:
+                return False, None
+            seen.add(peer_name)
+            name = peer_name
+            continue
+        try:
+            parent_port = parent_port_for_child(tree, name)
+        except ValueError:
+            return False, None
+        parent_name = parent_port.node
+        if required is not None and parent_name not in required:
+            return True, None
+        if parent_name in seen:
+            return False, None
+        parent = tree.nodes[parent_name]
+        if isinstance(parent, MuxNode):
+            sel = mux_sel.get(parent_name, parent.sel)
+            if sel is None:
+                return (
+                    (True, parent_name)
+                    if parent_name in free_muxes
+                    else (False, None)
+                )
+            arm = parent.source.get(str(sel))
+            if not arm:
+                return False, None
+            peer_name, _ = parse_source_endpoint(arm, ctx=f"mux {parent_name!r}")
+            if peer_name in seen:
+                return False, None
+            seen.add(parent_name)
+            seen.add(peer_name)
+            name = peer_name
+            continue
+        seen.add(parent_name)
+        if is_static_frequency_anchor(tree, parent_name, via_port=parent_port):
+            return True, None
+        name = parent_name
 
 
 def _mux_assignments_compatible(
@@ -2379,9 +2529,12 @@ def _compute_pll_vars(
     tol_den: int,
     skip_pll_names: frozenset[str] = frozenset(),
     only_pll_names: frozenset[str] | None = None,
+    reporter: ComponentSearchReporter | None = None,
+    deadline: float | None = None,
 ) -> Dict[str, Dict[str, int]] | None:
     pll_vars: Dict[str, Dict[str, int]] = {}
     for name, node in tree.nodes.items():
+        _check_deadline(deadline)
         if name not in active or not isinstance(node, PllNode):
             continue
         if name in skip_pll_names:
@@ -2395,6 +2548,8 @@ def _compute_pll_vars(
         if node.pll_kind == "inno":
             continue
         out_hz = port_freq.get(Port(name, ""), node.freq or 0)
+        if reporter is not None:
+            reporter.pll_trial(name, node.pll_kind, ref_hz, out_hz)
         coeffs = search_pll_coefficients(
             node.pll_kind,
             ref_hz,

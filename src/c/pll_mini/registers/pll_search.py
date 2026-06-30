@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import lru_cache
+
 from .formulas import (
     DW_FBDIV_MAX,
     DW_FBDIV_MIN,
@@ -12,6 +14,7 @@ from .formulas import (
 )
 
 
+@lru_cache(maxsize=4096)
 def search_pll_tci(
     ref_hz: int,
     out_hz: int,
@@ -26,6 +29,7 @@ def search_pll_tci(
     return {"clkf": clkf}
 
 
+@lru_cache(maxsize=4096)
 def search_pll_sc(
     ref_hz: int,
     out_hz: int,
@@ -62,6 +66,7 @@ def search_pll_sc(
     return None
 
 
+@lru_cache(maxsize=4096)
 def search_pll_dw(
     ref_hz: int,
     out_hz: int,

@@ -93,6 +93,73 @@ class ComponentSearchReporter:
             force=True,
         )
 
+    def begin_ref_div(self, ref_divs: Sequence[str]) -> None:
+        if not ref_divs:
+            self.phase("频率传播")
+            return
+        self._inner_current = 0
+        self._inner_total = 0
+        self._emit(
+            "inno参考div",
+            detail=", ".join(ref_divs),
+            force=True,
+        )
+
+    def ref_div_candidates(
+        self,
+        div_name: str,
+        candidates: Sequence[int],
+    ) -> None:
+        if not candidates:
+            self._emit(
+                "inno参考div",
+                detail=f"{div_name}: 无候选",
+                force=True,
+            )
+            return
+        if self._inner_total <= 0:
+            self._inner_total = len(candidates)
+        else:
+            self._inner_total *= max(1, len(candidates))
+        preview = ",".join(str(v) for v in candidates[:8])
+        if len(candidates) > 8:
+            preview = f"{preview},..."
+        self._emit(
+            "inno参考div候选",
+            current=0,
+            total=len(candidates),
+            detail=f"{div_name}: {preview}",
+            force=True,
+        )
+
+    def ref_div_trial(
+        self,
+        div_name: str,
+        ratio: int,
+        index: int,
+        total: int,
+    ) -> None:
+        self._inner_current += 1
+        self._emit(
+            "inno参考div枚举",
+            current=index,
+            total=total,
+            detail=f"{div_name}={ratio}",
+        )
+
+    def pll_trial(
+        self,
+        pll_name: str,
+        pll_kind: str,
+        ref_hz: int,
+        out_hz: int,
+    ) -> None:
+        self._emit(
+            "PLL系数",
+            detail=f"{pll_name}({pll_kind}) ref={ref_hz} out={out_hz}",
+            force=True,
+        )
+
     def ref_mux_trial(self, ref_assignment: Mapping[str, int]) -> None:
         self._inner_current += 1
         combined = {**self._trial_mux, **ref_assignment}
@@ -126,6 +193,10 @@ class ComponentSearchReporter:
             parts.append(f"自由 mux: {', '.join(free_muxes)}")
         if free_divs:
             parts.append(f"自由 div: {', '.join(free_divs)}")
+        if self._inner_total > 0:
+            parts.append(
+                f"内层候选约 {max(self._inner_current, 0)}/{self._inner_total}"
+            )
         if self._pll_ref:
             parts.append("PLL 参考路径")
         if not parts:
@@ -148,7 +219,7 @@ class ComponentSearchReporter:
         self._phase = phase
         if current is not None:
             tick = current
-        elif phase in ("mux枚举", "inno参考mux"):
+        elif phase in ("mux枚举", "inno参考mux", "inno参考div枚举"):
             tick = self._mux_current if phase == "mux枚举" else self._inner_current
         else:
             tick = None

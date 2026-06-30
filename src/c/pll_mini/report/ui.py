@@ -649,7 +649,7 @@ class ProgressSession:
         if not self.enabled or not self._search_active:
             return
         self._search_phase = phase
-        if detail:
+        if detail or force:
             self._search_detail = detail
         if current is not None:
             self._search_current = current
@@ -659,8 +659,14 @@ class ProgressSession:
             self._refresh()
             return
         label = "PLL 参考路径" if self._search_kind == "pll_ref" else "子树求解"
+        suffix = ""
+        if self._search_detail:
+            detail = self._search_detail
+            if len(detail) > 96:
+                detail = f"{detail[:93]}..."
+            suffix = f" · {detail}"
         if self._search_total > 0 and current is not None:
-            desc = f"{label} · {phase} {current}/{self._search_total}"
+            desc = f"{label} · {phase} {current}/{self._search_total}{suffix}"
             self._search_progress.update(
                 self._search_task,
                 description=desc,
@@ -668,7 +674,7 @@ class ProgressSession:
                 total=self._search_total,
             )
         else:
-            desc = f"{label} · {phase}"
+            desc = f"{label} · {phase}{suffix}"
             self._search_progress.update(
                 self._search_task,
                 description=desc,
