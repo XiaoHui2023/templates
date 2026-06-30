@@ -116,6 +116,72 @@ def _mux_sel_for_config_walk(
     return out
 
 
+def _complete_active_port_freqs(tree: Tree, model: SolveModel) -> Dict[Port, int]:
+    """Fill deterministic port frequencies for active nodes after model merging."""
+    active = {name for name, on in model.active.items() if on}
+    port_freq = dict(model.port_freq)
+    for name in tree.nodes:
+        for port in output_ports(tree, name):
+            port_freq.setdefault(port, 0)
+
+    def set_if_missing(port: Port, hz: int | None) -> bool:
+        if hz is None or hz <= 0:
+            return False
+        if port_freq.get(port, 0) > 0:
+            return False
+        port_freq[port] = hz
+        return True
+
+    changed = True
+    while changed:
+        changed = False
+        for name, node in tree.nodes.items():
+            if name not in active:
+                continue
+            if node.kind == "source":
+                changed |= set_if_missing(Port(name, ""), node.freq)
+                continue
+            if isinstance(node, PllNode):
+                if node.pll_kind != "inno":
+                    changed |= set_if_missing(Port(name, ""), node.freq or 0)
+                continue
+            if isinstance(node, MuxNode):
+                sel = model.mux_sel.get(name, node.sel)
+                if sel is None:
+                    continue
+                arm = node.source.get(str(sel))
+                if not arm:
+                    continue
+                peer = parse_port_ref(arm, ctx=f"mux {name!r}")
+                changed |= set_if_missing(
+                    Port(name, ""), port_freq.get(peer, 0)
+                )
+                continue
+            if isinstance(node, DivNode):
+                ratio = model.ratios.get(name, node.ratio)
+                if ratio is None:
+                    continue
+                try:
+                    parent_port = parent_port_for_child(tree, name)
+                except ValueError:
+                    continue
+                f_in = port_freq.get(parent_port, 0)
+                if f_in <= 0:
+                    continue
+                f_out, _ = div_hw_from_input(f_in, ratio)
+                changed |= set_if_missing(Port(name, ""), f_out)
+                continue
+            if is_passthrough_kind(node.kind) or isinstance(node, ClkNode):
+                try:
+                    parent_port = parent_port_for_child(tree, name)
+                except ValueError:
+                    continue
+                parent_hz = port_freq.get(parent_port, 0)
+                for port in output_ports(tree, name):
+                    changed |= set_if_missing(port, parent_hz)
+    return port_freq
+
+
 def apply_non_freq_constraint_clk_paths_to_model(
     tree: Tree,
     model: SolveModel,
@@ -143,9 +209,17 @@ def apply_non_freq_constraint_clk_paths_to_model(
                 gate_open[gate_name] = opened
     merged_mux_sel = dict(walk_mux_sel)
     merged_mux_sel.update(model.mux_sel)
-    return SolveModel(
+    merged_model = SolveModel(
         active=active,
         port_freq=model.port_freq,
+        ratios=model.ratios,
+        mux_sel=merged_mux_sel,
+        gate_open=gate_open,
+        pll_vars=model.pll_vars,
+    )
+    return SolveModel(
+        active=active,
+        port_freq=_complete_active_port_freqs(tree, merged_model),
         ratios=model.ratios,
         mux_sel=merged_mux_sel,
         gate_open=gate_open,
