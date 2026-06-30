@@ -93,6 +93,50 @@ class ComponentSearchReporter:
             force=True,
         )
 
+    def begin_div_assignment(self, divs: Sequence[str]) -> None:
+        active_divs = list(divs)
+        self._inner_current = 0
+        self._inner_total = len(active_divs)
+        detail = ", ".join(active_divs[:6])
+        if len(active_divs) > 6:
+            detail = f"{detail},..."
+        self._emit(
+            "分频求解",
+            current=0,
+            total=max(1, self._inner_total),
+            detail=detail,
+            force=True,
+        )
+
+    def div_trial(
+        self,
+        div_name: str,
+        index: int,
+        total: int,
+        *,
+        f_in: int | None = None,
+        want_out: int | None = None,
+        ratio: int | None = None,
+        failed: str = "",
+    ) -> None:
+        self._inner_current = index
+        parts = [div_name]
+        if f_in is not None:
+            parts.append(f"in={f_in}")
+        if want_out is not None:
+            parts.append(f"out={want_out}")
+        if ratio is not None:
+            parts.append(f"ratio={ratio}")
+        if failed:
+            parts.append(f"fail={failed}")
+        self._emit(
+            "分频求解",
+            current=index,
+            total=max(1, total),
+            detail=" ".join(parts),
+            force=bool(failed),
+        )
+
     def begin_ref_div(self, ref_divs: Sequence[str]) -> None:
         if not ref_divs:
             self.phase("频率传播")
@@ -219,7 +263,12 @@ class ComponentSearchReporter:
         self._phase = phase
         if current is not None:
             tick = current
-        elif phase in ("mux枚举", "inno参考mux", "inno参考div枚举"):
+        elif phase in (
+            "mux枚举",
+            "inno参考mux",
+            "inno参考div枚举",
+            "分频求解",
+        ):
             tick = self._mux_current if phase == "mux枚举" else self._inner_current
         else:
             tick = None

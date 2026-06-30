@@ -52,20 +52,14 @@ def div_ratio_reaches_output(
     """给定输入频率与 ratio，是否存在 rem 使 want_out 在容差内接近 f_hw。"""
     if ratio < 1 or in_hz <= 0 or want_out_hz <= 0:
         return False
-    for rem in range(ratio):
-        hw_num = in_hz - rem
-        if hw_num <= 0 or hw_num % ratio != 0:
-            continue
-        freq_hw = hw_num // ratio
-        if freq_within_tolerance(
-            want_out_hz,
-            freq_hw,
-            tol_lo=tol_lo,
-            tol_hi=tol_hi,
-            tol_den=tol_den,
-        ):
-            return True
-    return False
+    freq_hw, _ = div_hw_from_input(in_hz, ratio)
+    return freq_within_tolerance(
+        want_out_hz,
+        freq_hw,
+        tol_lo=tol_lo,
+        tol_hi=tol_hi,
+        tol_den=tol_den,
+    )
 
 
 def find_div_ratio(
@@ -113,24 +107,18 @@ def dto_ratio_candidates_for_pair(
             tol_den=tol_den,
         ):
             continue
-        for rem in range(min(freq_hw, DTO_MAX_RATIO)):
-            num = in_hz - rem
-            if num <= 0 or num % freq_hw != 0:
-                continue
-            ratio = num // freq_hw
-            if ratio < 2 or ratio > DTO_MAX_RATIO or num != freq_hw * ratio:
-                continue
-            if rem >= ratio:
-                continue
-            if div_ratio_reaches_output(
-                in_hz,
-                want_out_hz,
-                ratio,
-                tol_lo=tol_lo,
-                tol_hi=tol_hi,
-                tol_den=tol_den,
-            ):
-                found.append(ratio)
+        ratio = in_hz // freq_hw
+        if ratio < 2 or ratio > DTO_MAX_RATIO:
+            continue
+        if div_ratio_reaches_output(
+            in_hz,
+            want_out_hz,
+            ratio,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        ):
+            found.append(ratio)
     return tuple(dict.fromkeys(found))
 
 

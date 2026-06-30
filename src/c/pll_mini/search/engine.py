@@ -949,7 +949,6 @@ def _search_tree(
                 tree, targets, active, trial_mux, required=required
             ):
                 continue
-            reporter.phase("分频求解", detail=", ".join(free_divs))
             trial_ratios = dict(ratios)
             if not _assign_div_ratios(
                 tree,
@@ -962,6 +961,8 @@ def _search_tree(
                 tol_hi=tol_hi,
                 tol_den=tol_den,
                 port_anchors=anchors,
+                reporter=reporter,
+                deadline=deadline,
             ):
                 continue
             ref_muxes, ref_divs = _collect_inno_ref_path_vars(tree, active)
@@ -1946,13 +1947,20 @@ def _assign_div_ratios(
     tol_hi: int,
     tol_den: int,
     port_anchors: Dict[Port, int] | None = None,
+    reporter: ComponentSearchReporter | None = None,
+    deadline: float | None = None,
 ) -> bool:
-    for div_name in free_divs:
-        if div_name not in active:
-            continue
+    active_divs = [name for name in free_divs if name in active]
+    if reporter is not None:
+        reporter.begin_div_assignment(active_divs)
+    total = len(active_divs)
+    for index, div_name in enumerate(active_divs, start=1):
+        _check_deadline(deadline)
         node = tree.nodes[div_name]
         if not isinstance(node, DivNode):
             continue
+        if reporter is not None:
+            reporter.div_trial(div_name, index, total)
         f_in = _required_parent_hz_for_div(
             tree,
             div_name,
@@ -1963,6 +1971,13 @@ def _assign_div_ratios(
             port_anchors=port_anchors,
         )
         if f_in is None or f_in <= 0:
+            if reporter is not None:
+                reporter.div_trial(
+                    div_name,
+                    index,
+                    total,
+                    failed="输入频率未知",
+                )
             return False
         required_outs = _required_div_outputs(
             tree,
@@ -1973,13 +1988,46 @@ def _assign_div_ratios(
             ratios,
         )
         if not required_outs:
+            if reporter is not None:
+                reporter.div_trial(
+                    div_name,
+                    index,
+                    total,
+                    f_in=f_in,
+                    failed="无下游目标",
+                )
             return False
         want_out = required_outs.get("")
         if want_out is None:
+            if reporter is not None:
+                reporter.div_trial(
+                    div_name,
+                    index,
+                    total,
+                    f_in=f_in,
+                    failed="多输出未匹配",
+                )
             return False
         unique = set(required_outs.values())
         if len(unique) != 1:
+            if reporter is not None:
+                reporter.div_trial(
+                    div_name,
+                    index,
+                    total,
+                    f_in=f_in,
+                    want_out=want_out,
+                    failed="目标冲突",
+                )
             return False
+        if reporter is not None:
+            reporter.div_trial(
+                div_name,
+                index,
+                total,
+                f_in=f_in,
+                want_out=want_out,
+            )
         ratio = _pick_div_ratio(
             node,
             f_in=f_in,
@@ -1989,8 +2037,26 @@ def _assign_div_ratios(
             tol_den=tol_den,
         )
         if ratio is None:
+            if reporter is not None:
+                reporter.div_trial(
+                    div_name,
+                    index,
+                    total,
+                    f_in=f_in,
+                    want_out=want_out,
+                    failed="无ratio",
+                )
             return False
         ratios[div_name] = ratio
+        if reporter is not None:
+            reporter.div_trial(
+                div_name,
+                index,
+                total,
+                f_in=f_in,
+                want_out=want_out,
+                ratio=ratio,
+            )
     return True
 
 
