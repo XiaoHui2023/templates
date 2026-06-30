@@ -18,6 +18,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     longint frequence;
     int enabled;
     bit _stable;
+    bit _no_check;
 {%- if enable_node_fix %}
     bit unfix_frequence;
     bit unfix_enabled;
@@ -42,6 +43,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         frequence = -1;
         enabled = -1;
         _stable = 1'b0;
+        _no_check = 1'b0;
 {%- if enable_node_fix %}
         unfix_frequence = 1'b1;
         unfix_enabled = 1'b1;

@@ -82,6 +82,7 @@
 | **frequence** | **longint** | 频率 |
 | **enabled** | **bit**，**rand** | 使能 |
 | **_stable** | **bit** | 稳定时钟；由树构造时按 YAML **stable** 写入 |
+| **_no_check** | **bit** | 为真时 **check_measure** 跳过该 **clk**；由树构造时按 YAML **no_check** 写入 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 

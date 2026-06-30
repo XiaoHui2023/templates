@@ -149,6 +149,9 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- if node.stable %}
         {{ clk_acc }}._stable = 1;
 {%- endif %}
+{%- if node.no_check %}
+        {{ clk_acc }}._no_check = 1;
+{%- endif %}
 {%- endfor %}
 {%- else %}
 {%- if node.clk_trees_emit_frequence %}
@@ -165,6 +168,9 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- if node.stable %}
         {{ node.name }}._stable = 1;
+{%- endif %}
+{%- if node.no_check %}
+        {{ node.name }}._no_check = 1;
 {%- endif %}
 {%- endif %}
 {%- elif node.kind == "pll" %}

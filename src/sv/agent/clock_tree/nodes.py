@@ -447,6 +447,11 @@ class ClkNode(NodeBase):
         description="为真时表示稳定时钟：须填写正整数 freq，频率与使能由 trees 约束固定；"
         "low_power 不关断，test_route 不参与探测。",
     )
+    no_check: bool = Field(
+        default=False,
+        description="为真时 check_measure 跳过该 clk 的频率与占空比检查；"
+        "由 trees 构造写入 SV _no_check。",
+    )
 
     @field_validator("freq", mode="before")
     @classmethod
