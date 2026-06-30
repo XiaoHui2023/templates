@@ -78,7 +78,10 @@ settings:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `name` | `str` | | 时钟树名。 |
-| `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
+| `nodes` | `dict[str, Node]` | | 节点表，键为节点名；某键值为 **null** 时跳过该节点，不参与约束求解与寄存器回填；其它节点仍引用该名字时会 **model_validate** 失败。 |
+
+写 **nodes** 时可用 `节点名: ~` 表示跳过。
+
 | `extra_regs` | `list[ExtraRegEntry]` | `[]` | 主配置结束后追加写入的寄存器 field。 |
 
 ### ExtraRegEntry
