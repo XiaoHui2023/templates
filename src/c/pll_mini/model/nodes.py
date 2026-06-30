@@ -50,6 +50,21 @@ _LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "div_r"})
 _SOURCE_REF_KINDS = frozenset({"gate", "div", "inv", "cell", "clk", "pll"})
 
 
+def _coerce_optional_source_field(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    raise ValueError("前级引用应为字符串或省略")
+
+
+def node_has_upstream_ref(node: Node) -> bool:
+    """节点是否填写了前级引用。"""
+    if node.kind not in _SOURCE_REF_KINDS:
+        return False
+    return bool(node.source.strip())
+
+
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
     kind = item.get("kind")
     if kind in _LEGACY_DIV_KINDS:
@@ -64,13 +79,17 @@ def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
             canonical = alias
         else:
             canonical = str(kind) if kind is not None else ""
-    if canonical in _SOURCE_REF_KINDS and "source" in item:
-        item = {
-            **item,
-            "source": normalize_source_endpoint_input(
-                item["source"], ctx=f"{canonical}.source"
-            ),
-        }
+    if canonical in _SOURCE_REF_KINDS:
+        raw_src = item.get("source")
+        if raw_src is None or raw_src == "":
+            item = {**item, "source": ""}
+        else:
+            item = {
+                **item,
+                "source": normalize_source_endpoint_input(
+                    raw_src, ctx=f"{canonical}.source"
+                ),
+            }
     elif canonical == "mux" and isinstance(item.get("source"), dict):
         item = {
             **item,
@@ -130,7 +149,7 @@ class NodeBase(BaseModel):
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: str = Field("", description="前级引用；省略表示无前级。")
     open: Optional[int] = Field(
         None,
         ge=0,
@@ -143,6 +162,11 @@ class GateNode(NodeBase):
         description="门控寄存器模型点分路径；空则生成时跳过写寄存器；"
         "open 已填写时也应为空。",
     )
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _coerce_source(cls, value: Any) -> str:
+        return _coerce_optional_source_field(value)
 
     @model_validator(mode="after")
     def _validate_gate_reg(self, info: ValidationInfo) -> GateNode:
@@ -163,7 +187,7 @@ class DivNode(NodeBase):
         "div",
         description="分频器型号：div、div_n、dto、dto_n、div_r，大小写不限。",
     )
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: str = Field("", description="前级引用；省略表示无前级。")
     ratio: Optional[int] = Field(
         None,
         ge=1,
@@ -181,6 +205,11 @@ class DivNode(NodeBase):
     @classmethod
     def _normalize_div_kind(cls, value: object) -> str:
         return normalize_div_kind(value)
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _coerce_source(cls, value: Any) -> str:
+        return _coerce_optional_source_field(value)
 
     @model_validator(mode="after")
     def _validate_div_regs(self, info: ValidationInfo) -> DivNode:
@@ -217,7 +246,7 @@ class InvNode(NodeBase):
         "inv",
         description="反相器型号：inv、inv_mux、inv_cell，大小写不限。",
     )
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: str = Field("", description="前级引用；省略表示无前级。")
     reg: str = Field(
         "",
         description="反相/直通控制寄存器模型路径；pll_mini 仅接受，不写寄存器。",
@@ -227,6 +256,11 @@ class InvNode(NodeBase):
     @classmethod
     def _normalize_inv_kind(cls, value: object) -> str:
         return normalize_inv_kind(value)
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _coerce_source(cls, value: Any) -> str:
+        return _coerce_optional_source_field(value)
 
 
 class ClockSourceNode(NodeBase):
@@ -268,7 +302,7 @@ class PllNode(NodeBase):
         default=None,
         description="目标输出频率，单位 Hz；inno 可省略，由各路下游 clk 约束。",
     )
-    source: str = Field(..., min_length=1, description="参考时钟前级引用。")
+    source: str = Field("", description="参考时钟前级引用；省略表示无前级。")
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno。")
     regs: Dict[str, str] = Field(
         default_factory=dict,
@@ -293,6 +327,11 @@ class PllNode(NodeBase):
     @classmethod
     def _coerce_pll_freq(cls, value: Any) -> Any:
         return _coerce_optional_int(value)
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _coerce_source(cls, value: Any) -> str:
+        return _coerce_optional_source_field(value)
 
     @field_validator("pll_kind", mode="before")
     @classmethod
@@ -326,12 +365,17 @@ class CellNode(NodeBase):
         min_length=1,
         description="配置型号，任意非空字符串；仅作记录，频率行为相同。",
     )
-    source: str = Field(..., min_length=1, description="前级引用。")
+    source: str = Field("", description="前级引用；省略表示无前级。")
 
     @field_validator("cell_kind", mode="before")
     @classmethod
     def _normalize_cell_kind(cls, value: object) -> str:
         return normalize_cell_kind(value)
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _coerce_source(cls, value: Any) -> str:
+        return _coerce_optional_source_field(value)
 
 
 class ClkNode(NodeBase):
@@ -341,7 +385,7 @@ class ClkNode(NodeBase):
         description="典型频率，单位 Hz；省略表示频率与开关均不指定；"
         "正数同时指定频率与使能；负数仅不约束 resolved_freq。",
     )
-    source: str = Field("", description="前级引用。")
+    source: str = Field("", description="前级引用；省略表示无前级。")
     always_active: bool = Field(
         default=False,
         description="为真时该时钟节点全程保持有效。",
@@ -351,6 +395,11 @@ class ClkNode(NodeBase):
     @classmethod
     def _coerce_optional_freq(cls, value: Any) -> Any:
         return _coerce_optional_int(value)
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _coerce_source(cls, value: Any) -> str:
+        return _coerce_optional_source_field(value)
 
     @model_validator(mode="after")
     def _validate_clk_freq(self) -> ClkNode:
@@ -603,8 +652,8 @@ def upstream_peer_names(node: Node) -> List[str]:
             parse_source_endpoint(peer, ctx="mux.source")[0]
             for peer in node.source.values()
         ]
-    if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-        if node.kind == "clk" and not node.source.strip():
+    if node.kind in _SOURCE_REF_KINDS:
+        if not node_has_upstream_ref(node):
             return []
         device, _out_group = parse_source_endpoint(node.source, ctx="source")
         return [device]

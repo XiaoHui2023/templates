@@ -10,6 +10,7 @@ from .nodes import (
     MuxNode,
     PllNode,
     Tree,
+    node_has_upstream_ref,
     parse_source_endpoint,
 )
 from reg_paths import (
@@ -43,7 +44,7 @@ def clk_has_upstream_clock_source(tree: Tree, clk_name: str) -> bool:
     node = tree.nodes.get(clk_name)
     if not isinstance(node, ClkNode):
         return False
-    if not node.source.strip():
+    if not node_has_upstream_ref(node):
         return False
     try:
         chain = walk_path_upstream(tree, clk_name)
@@ -62,7 +63,7 @@ def collect_gate_enable_clks(tree: Tree) -> List[str]:
     for name, node in tree.nodes.items():
         if not isinstance(node, ClkNode):
             continue
-        if not node.source.strip():
+        if not node_has_upstream_ref(node):
             continue
         if clk_has_upstream_clock_source(tree, name):
             continue
@@ -147,7 +148,7 @@ def _upstream_peer_ports(tree: Tree, node_name: str) -> List[Port]:
     if isinstance(node, MuxNode):
         return []
     if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-        if node.kind == "clk" and not node.source.strip():
+        if not node_has_upstream_ref(node):
             return []
         return [parse_port_ref(node.source, ctx=f"{node_name}.source")]
     return []
@@ -474,6 +475,8 @@ def backward_required_nodes_pll_ref(tree: Tree, pll_name: str) -> Set[str]:
     if not isinstance(pll, PllNode):
         return set()
     required: Set[str] = {pll_name}
+    if not node_has_upstream_ref(pll):
+        return required
     ref_name, _ = parse_source_endpoint(pll.source, ctx=f"{pll_name}.source")
     stack: List[str] = [ref_name]
     while stack:
@@ -560,8 +563,8 @@ def parent_port_for_child(tree: Tree, child_name: str) -> Port:
     if isinstance(node, MuxNode):
         raise ValueError(f"mux 节点 {child_name!r} 用 mux 专用约束")
     if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-        if isinstance(node, ClkNode) and not node.source.strip():
-            raise ValueError(f"clk 节点 {child_name!r} 无前级")
+        if not node_has_upstream_ref(node):
+            raise ValueError(f"{node.kind} 节点 {child_name!r} 无前级")
         return parse_port_ref(node.source, ctx=f"{child_name}.source")
     raise ValueError(f"节点 {child_name!r} 无前级引用")
 
@@ -593,12 +596,16 @@ def resolve_upstream_port(tree: Tree, start: str) -> Port | None:
         if isinstance(node, MuxNode):
             return Port(cur, "")
         if isinstance(node, ClkNode):
-            if not node.source.strip():
+            if not node_has_upstream_ref(node):
                 return None
             source_ref = node.source
         elif is_frequency_transparent_kind(node.kind):
+            if not node_has_upstream_ref(node):
+                return None
             source_ref = node.source
         elif isinstance(node, (DivNode, PllNode)):
+            if not node_has_upstream_ref(node):
+                return None
             source_ref = node.source
         else:
             return None

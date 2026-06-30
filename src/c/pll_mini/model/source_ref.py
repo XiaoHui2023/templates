@@ -141,16 +141,10 @@ def validate_nodes_source_refs(
                     node_map,
                     ctx=f"节点 {name!r} mux.source[{mux_key!r}]",
                 )
-        elif node.kind == "clk":
+        elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
             if node.source.strip():
                 validate_source_ref(
                     node.source,
                     node_map,
                     ctx=f"节点 {name!r} source",
                 )
-        elif node.kind in ("gate", "div", "inv", "cell", "pll"):
-            validate_source_ref(
-                node.source,
-                node_map,
-                ctx=f"节点 {name!r} source",
-            )
