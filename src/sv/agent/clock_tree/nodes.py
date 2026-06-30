@@ -488,15 +488,10 @@ class ClkNode(NodeBase):
         default=None,
         description="前级引用；省略或空表示无前级。",
     )
-    stable: bool = Field(
+    always_active: bool = Field(
         default=False,
-        description="为真时表示稳定时钟：须填写正整数 freq，频率与使能由 trees 约束固定；"
-        "low_power 不关断，test_route 不参与探测。",
-    )
-    no_check: bool = Field(
-        default=False,
-        description="为真时 check_measure 跳过该 clk 的频率与占空比检查；"
-        "由 trees 构造写入 SV _no_check。",
+        description="为真时表示时钟始终使能：low_power 不关断，test_route 不参与探测；"
+        "频率可随上游变化，trees 不锁定 frequence。",
     )
 
     @field_validator("freq", mode="before")
@@ -537,6 +532,8 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_trees_emit_unfix_frequence(self) -> bool:
+        if self.always_active:
+            return False
         return self.freq is not None and self.freq > 0
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -557,10 +554,6 @@ class ClkNode(NodeBase):
             raise ValueError(
                 f"clk 节点 {self.name!r} freq {self.freq} "
                 f"超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}"
-            )
-        if self.stable and (self.freq is None or self.freq <= 0):
-            raise ValueError(
-                f"clk 节点 {self.name!r} stable 为真时必须填写正整数 freq"
             )
         return self
 

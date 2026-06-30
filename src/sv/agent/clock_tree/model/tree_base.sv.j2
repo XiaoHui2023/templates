@@ -22,34 +22,34 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
         _print_gate = 0;
     endfunction
 
-    // 将全部非 _stable 的 clock_nodes 的 enabled 置 0
+    // 将全部非 _always_active 的 clock_nodes 的 enabled 置 0
     extern function void low_power();
-    // 收集 _stable 为真的 clk 节点
-    extern function void collect_stable_clk_nodes(
+    // 收集 _always_active 为真的 clk 节点
+    extern function void collect_always_active_clk_nodes(
         output {{ settings.class_prefix }}node_base collected[$]);
-    // 是否存在 _stable 为真的 clk 节点
-    extern function bit has_stable_clk();
+    // 是否存在 _always_active 为真的 clk 节点
+    extern function bit has_always_active_clk();
 endclass
 
 function void {{ settings.class_prefix }}tree_base::low_power();
     foreach (clock_nodes[i]) begin
-        if (!clock_nodes[i]._stable)
+        if (!clock_nodes[i]._always_active)
             clock_nodes[i].enabled = 1'b0;
     end
 endfunction
 
-function void {{ settings.class_prefix }}tree_base::collect_stable_clk_nodes(
+function void {{ settings.class_prefix }}tree_base::collect_always_active_clk_nodes(
         output {{ settings.class_prefix }}node_base collected[$]);
     collected.delete();
     foreach (clock_nodes[i]) begin
-        if (clock_nodes[i]._stable)
+        if (clock_nodes[i]._always_active)
             collected.push_back(clock_nodes[i]);
     end
 endfunction
 
-function bit {{ settings.class_prefix }}tree_base::has_stable_clk();
+function bit {{ settings.class_prefix }}tree_base::has_always_active_clk();
     foreach (clock_nodes[i]) begin
-        if (clock_nodes[i]._stable)
+        if (clock_nodes[i]._always_active)
             return 1'b1;
     end
     return 1'b0;

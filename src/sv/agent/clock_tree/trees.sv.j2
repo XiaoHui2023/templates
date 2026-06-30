@@ -149,11 +149,8 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- if enable_node_fix and node.clk_trees_emit_unfix_enabled %}
         {{ clk_acc }}.unfix_enabled = 1'b0;
 {%- endif %}
-{%- if node.stable %}
-        {{ clk_acc }}._stable = 1;
-{%- endif %}
-{%- if node.no_check %}
-        {{ clk_acc }}._no_check = 1;
+{%- if node.always_active %}
+        {{ clk_acc }}._always_active = 1;
 {%- endif %}
 {%- endfor %}
 {%- else %}
@@ -169,11 +166,8 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- if enable_node_fix and node.clk_trees_emit_unfix_enabled %}
         {{ node.name }}.unfix_enabled = 1'b0;
 {%- endif %}
-{%- if node.stable %}
-        {{ node.name }}._stable = 1;
-{%- endif %}
-{%- if node.no_check %}
-        {{ node.name }}._no_check = 1;
+{%- if node.always_active %}
+        {{ node.name }}._always_active = 1;
 {%- endif %}
 {%- endif %}
 {%- elif node.kind == "pll" %}

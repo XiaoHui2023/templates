@@ -411,12 +411,12 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_line_co
     end
 endfunction
 
-// clk 节点是否标记为稳定时钟
-function automatic bit {{ settings.class_prefix }}route_structure_clk_is_stable(
+// clk 节点是否标记为始终使能
+function automatic bit {{ settings.class_prefix }}route_structure_clk_is_always_active(
         {{ settings.class_prefix }}clk clk_nd);
     if (clk_nd == null)
         return 1'b0;
-    return clk_nd._stable;
+    return clk_nd._always_active;
 endfunction
 
 // 树内 source 节点最小正频率；无正频率则 0
@@ -476,31 +476,31 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_div_dto_r
 {%- endif %}
 endfunction
 
-// 结构探测前：非 _stable 的 clk 设 unfix_frequence 与 unfix_enabled；_stable 保持频率与使能固定
+// 结构探测前：非 _always_active 的 clk 设 unfix_frequence 与 unfix_enabled；_always_active 仅固定 enabled
 function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(
         {{ settings.class_prefix }}tree_base tree);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
-    bit has_stable;
+    bit has_always_active;
     if (tree == null)
         return;
-    has_stable = tree.has_stable_clk();
+    has_always_active = tree.has_always_active_clk();
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
-        if (clk_nd._stable) begin
-            clk_nd.unfix_frequence = 1'b0;
+        if (clk_nd._always_active) begin
+            clk_nd.unfix_frequence = 1'b1;
             clk_nd.unfix_enabled = 1'b0;
         end else begin
             clk_nd.unfix_frequence = 1'b1;
-            clk_nd.unfix_enabled = has_stable;
+            clk_nd.unfix_enabled = has_always_active;
         end
     end
 {%- endif %}
 endfunction
 
-// config_reg 之后：自 _stable clk 沿已配置的 source 选通链向上，收集 gate/mux/div/pll
-function automatic void {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
+// config_reg 之后：自 _always_active clk 沿已配置的 source 选通链向上，收集 gate/mux/div/pll
+function automatic void {{ settings.class_prefix }}route_structure_collect_always_active_upstream_gate_mux(
         {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base collected[$]);
     {{ settings.class_prefix }}clk clk_nd;
@@ -511,7 +511,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_stabl
         return;
     foreach (tree.clock_nodes[i]) begin
         clk_nd = tree.clock_nodes[i];
-        if (clk_nd == null || !clk_nd._stable)
+        if (clk_nd == null || !clk_nd._always_active)
             continue;
         cur = clk_nd.source;
         while (cur != null) begin
@@ -682,17 +682,15 @@ function automatic int {{ settings.class_prefix }}route_structure_theoretical_mi
     return int'(min_src_hz / 2);
 endfunction
 
-// 树内 _stable clk 节点 _resolved_active 均为真且 frequence 与 _resolved_freq 一致
-function automatic bit {{ settings.class_prefix }}route_structure_stable_clocks_valid(
+// 树内 _always_active clk 节点 _resolved_active 均为真
+function automatic bit {{ settings.class_prefix }}route_structure_always_active_clocks_valid(
         {{ settings.class_prefix }}tree_base tree);
     if (tree == null)
         return 1'b1;
     foreach (tree.clock_nodes[i]) begin
-        if (!tree.clock_nodes[i]._stable)
+        if (!tree.clock_nodes[i]._always_active)
             continue;
         if (!tree.clock_nodes[i]._resolved_active)
-            return 1'b0;
-        if (tree.clock_nodes[i].frequence != tree.clock_nodes[i]._resolved_freq)
             return 1'b0;
     end
     return 1'b1;

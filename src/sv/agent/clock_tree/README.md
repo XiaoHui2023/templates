@@ -176,8 +176,7 @@ settings:
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz；省略则频率与使能均不参与随机；正数同时指定频率与使能；负值仅放宽输出频率随机范围。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `stable` | `bool` | `false` | 为真时表示稳定时钟：须填写正整数 **freq**，频率与使能由 trees 约束固定；**low_power** 不关断，**test_route** 不参与探测。 |
-| `no_check` | `bool` | `false` | 为真时 **check_measure** 跳过该 **clk** 的频率与占空比检查。 |
+| `always_active` | `bool` | `false` | 为真时表示时钟始终使能：**low_power** 不关断，**test_route** 不参与探测；频率可随上游变化，trees 不锁定 **frequence**。 |
 
 ### Node - gate
 
