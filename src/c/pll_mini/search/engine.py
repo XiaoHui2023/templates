@@ -291,6 +291,11 @@ def search_tree_constraints(
                 "component",
                 f"{component.index}/{component.total}",
                 clks=_component_label(component),
+                nodes=len(component.node_names),
+                free_mux=_component_free_mux_count(tree, component),
+                free_div=_component_free_div_count(tree, component),
+                anchors=len(component.freq_anchors),
+                port_anchors=len(component.port_anchors),
             )
             if deadline is not None and time.perf_counter() > deadline:
                 failure_exc = _build_component_failure_exception(
@@ -373,6 +378,14 @@ def search_tree_constraints(
         )
         try:
             model = merge_solve_models(tree, partial_models)
+            model = SolveModel(
+                active=model.active,
+                port_freq=_complete_active_port_freqs(tree, model),
+                ratios=model.ratios,
+                mux_sel=model.mux_sel,
+                gate_open=model.gate_open,
+                pll_vars=model.pll_vars,
+            )
             model = _recompute_merged_pll_vars(
                 tree,
                 model,
@@ -825,6 +838,21 @@ def _component_log_label(component: SearchComponent) -> str:
     return (
         f"[{component.index}] clks={_component_clk_names(component)} "
         f"nodes={len(component.node_names)}"
+    )
+
+
+def _component_free_mux_count(tree: Tree, component: SearchComponent) -> int:
+    return len(_free_mux_nodes(tree, set(component.node_names)))
+
+
+def _component_free_div_count(tree: Tree, component: SearchComponent) -> int:
+    required = set(component.node_names)
+    if component.pll_ref_for is not None:
+        return len(
+            _ordered_ref_path_div_nodes(tree, required, component.pll_ref_for)
+        )
+    return len(
+        _ordered_free_div_nodes(tree, required, list(component.targets))
     )
 
 

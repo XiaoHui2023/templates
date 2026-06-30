@@ -753,6 +753,14 @@ class ProgressSession:
             desc = f"子树 {label}"
             if clks:
                 desc = f"{desc} · {clks}"
+            stats = (
+                f"nodes={fields.get('nodes')} "
+                f"mux={fields.get('free_mux')} "
+                f"div={fields.get('free_div')} "
+                f"anchors={fields.get('anchors')} "
+                f"port_anchors={fields.get('port_anchors')}"
+            )
+            desc = f"{desc} | {stats}"
             if self._sub_task is None:
                 self._sub_task = self._sub.add_task(
                     desc,
