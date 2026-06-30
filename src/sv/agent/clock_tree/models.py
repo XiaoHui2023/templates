@@ -81,7 +81,7 @@ class Settings(BaseModel):
         description="允许占空比下限，百分数；闭区间端点计入合格。",
     )
     duty_max: float = Field(
-        66.0,
+        67.0,
         ge=0.0,
         le=100.0,
         description="允许占空比上限，百分数；闭区间端点计入合格。",
