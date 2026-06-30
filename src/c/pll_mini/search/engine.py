@@ -14,11 +14,12 @@ from registers.formulas import (
 )
 from model.freq_graph import (
     Port,
-    apply_gate_only_clks_to_model,
     backward_required_nodes,
     backward_required_nodes_pll_ref,
     backward_required_nodes_for_partition,
     collect_freq_targets,
+    collect_non_freq_constraint_clks,
+    gate_enable_nodes_on_path,
     is_merge_exempt_for_partition,
     is_mux_exclusive_peer,
     is_passthrough_kind,
@@ -89,6 +90,64 @@ def _inactive_solve_model(tree: Tree) -> SolveModel:
     )
 
 
+def _mux_sel_for_config_walk(
+    tree: Tree,
+    mux_sel: Dict[str, int],
+) -> Dict[str, int]:
+    """求解未赋值的 mux 在配置路径回溯时用最小输入标签作默认 sel。"""
+    out = dict(mux_sel)
+    for name, node in tree.nodes.items():
+        if not isinstance(node, MuxNode):
+            continue
+        if name in out:
+            continue
+        if node.sel is not None:
+            out[name] = node.sel
+            continue
+        if not node.source:
+            continue
+        first = sorted(node.source.keys(), key=lambda k: int(k))[0]
+        out[name] = int(first)
+    return out
+
+
+def apply_non_freq_constraint_clk_paths_to_model(
+    tree: Tree,
+    model: SolveModel,
+) -> SolveModel:
+    """为不参与频率约束的 clk 激活完整上游路径，供寄存器配置使用。"""
+    clks = collect_non_freq_constraint_clks(tree)
+    if not clks:
+        return model
+    walk_mux_sel = _mux_sel_for_config_walk(tree, model.mux_sel)
+    extra_active = _compute_active(
+        tree,
+        [(name, 1) for name in clks],
+        walk_mux_sel,
+    )
+    active = dict(model.active)
+    gate_open = dict(model.gate_open)
+    for name in extra_active:
+        active[name] = True
+    for clk_name in clks:
+        _, gates = gate_enable_nodes_on_path(tree, clk_name)
+        for gate_name, opened in gates.items():
+            if opened:
+                gate_open[gate_name] = True
+            elif gate_name not in gate_open:
+                gate_open[gate_name] = opened
+    merged_mux_sel = dict(walk_mux_sel)
+    merged_mux_sel.update(model.mux_sel)
+    return SolveModel(
+        active=active,
+        port_freq=model.port_freq,
+        ratios=model.ratios,
+        mux_sel=merged_mux_sel,
+        gate_open=gate_open,
+        pll_vars=model.pll_vars,
+    )
+
+
 def search_tree_constraints(
     tree: Tree,
     *,
@@ -101,7 +160,9 @@ def search_tree_constraints(
     if not targets:
         bind_tree_topology(tree)
         try:
-            return apply_gate_only_clks_to_model(tree, _inactive_solve_model(tree))
+            return apply_non_freq_constraint_clk_paths_to_model(
+                tree, _inactive_solve_model(tree)
+            )
         finally:
             clear_tree_topology()
 
@@ -284,7 +345,7 @@ def search_tree_constraints(
         model_items=len(model.port_freq),
         components=len(components),
     )
-    return apply_gate_only_clks_to_model(tree, model)
+    return apply_non_freq_constraint_clk_paths_to_model(tree, model)
 
 
 def partition_search_components(

@@ -67,12 +67,6 @@ def _hz_mhz(hz: int) -> str:
     return f"{hz} Hz"
 
 
-def _format_fields(fields: Mapping[str, object]) -> str:
-    if not fields:
-        return ""
-    return " · ".join(f"{key}={value}" for key, value in fields.items())
-
-
 def _human_stage_name(component: str, action: str, label: str) -> str:
     if component == "models" and action == "load":
         return "加载寄存器模型"
@@ -104,12 +98,6 @@ def _human_stage_name(component: str, action: str, label: str) -> str:
     if component == "diagnose" and action == "format":
         return f"诊断排版 {label}"
     return f"{component} · {action} · {label}"
-
-
-def _format_elapsed_ms(ms: int) -> str:
-    if ms >= 10_000:
-        return f"{ms / 1000:.1f}s"
-    return f"{ms}ms"
 
 
 def _collect_parents_in_set(
@@ -377,10 +365,8 @@ class ProgressSession:
         self._overall_total = 1
         self._overall_done = 0
         self._stage_text = "准备"
-        self._stage_fields = ""
         self._stage_human = ""
         self._stage_started_at: float | None = None
-        self._timings: list[tuple[str, int]] = []
         self._component_summary: list[str] = []
         self._active_component_index = 0
         self._active_component_total = 0
@@ -427,22 +413,12 @@ class ProgressSession:
         )
         self._live.start()
 
-    def _timing_summary_line(self) -> str:
-        parts: list[str] = []
-        for name, ms in self._timings:
-            parts.append(f"{name} {_format_elapsed_ms(ms)}")
-        if self._stage_human and self._stage_started_at is not None:
-            elapsed_ms = int((time.perf_counter() - self._stage_started_at) * 1000)
-            parts.append(f"{self._stage_human} {_format_elapsed_ms(elapsed_ms)}")
-        return "; ".join(parts)
-
     def stop(self) -> None:
         if not self.enabled:
             self._live = None
             self._overall = None
             self._sub = None
             return
-        summary = self._timing_summary_line()
         if self._live is not None:
             if (
                 not self.failed
@@ -462,7 +438,6 @@ class ProgressSession:
         self._component_summary.clear()
         self._sub_visible = False
         self._active_graph = None
-        self._timings.clear()
         self._stage_human = ""
         self._stage_started_at = None
         self._clear_search_progress()
@@ -471,11 +446,6 @@ class ProgressSession:
         except Exception:
             pass
         self._console.show_cursor(True)
-        if summary and not self.failed:
-            self._console.print(
-                f"[progress.dim]阶段耗时[/] {summary}",
-                highlight=False,
-            )
 
     def halt_for_output(self) -> None:
         """失败诊断等固定输出前结束 Live，避免与 Rich 面板叠行。"""
@@ -525,26 +495,13 @@ class ProgressSession:
         self._stage_human = human
         self._stage_started_at = started_at
         self._stage_text = human
-        self._stage_fields = _format_fields(fields)
         if self._overall is not None and self._overall_task is not None:
             self._overall.update(
                 self._overall_task,
                 description=human,
             )
 
-    def _finish_stage_timing(
-        self,
-        component: str,
-        action: str,
-        label: str,
-        started_at: float,
-        *,
-        failed: bool = False,
-    ) -> None:
-        human = _human_stage_name(component, action, label)
-        elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-        suffix = " 失败" if failed else ""
-        self._timings.append((f"{human}{suffix}", elapsed_ms))
+    def _clear_active_stage(self) -> None:
         self._stage_human = ""
         self._stage_started_at = None
 
@@ -575,9 +532,7 @@ class ProgressSession:
         **fields: object,
     ) -> None:
         failed = bool(fields.get("failed"))
-        self._finish_stage_timing(
-            component, action, label, started_at, failed=failed
-        )
+        self._clear_active_stage()
         if failed:
             self.failed = True
             self.halt_for_output()
@@ -806,35 +761,6 @@ class ProgressSession:
                     completed=max(0, index - 1),
                 )
 
-    def _render_running_detail(self) -> str:
-        parts: list[str] = []
-        if self._stage_fields:
-            parts.append(self._stage_fields)
-        if self._search_active:
-            if self._search_phase:
-                parts.append(self._search_phase)
-            if self._search_total > 0:
-                parts.append(f"{self._search_current}/{self._search_total}")
-            if self._search_detail:
-                parts.append(self._search_detail)
-        return " · ".join(parts)
-
-    def _render_timings(self) -> Text:
-        out = Text()
-        for name, ms in self._timings[-8:]:
-            out.append("✓ ", style="progress.ok")
-            out.append(name, style="progress.stage")
-            out.append(f"  {_format_elapsed_ms(ms)}\n", style="progress.dim")
-        if self._stage_human and self._stage_started_at is not None:
-            elapsed_ms = int((time.perf_counter() - self._stage_started_at) * 1000)
-            out.append("→ ", style="bold progress.title")
-            out.append(self._stage_human, style="bold progress.stage")
-            out.append(f"  {_format_elapsed_ms(elapsed_ms)}", style="progress.dim")
-            detail = self._render_running_detail()
-            if detail:
-                out.append(f"\n  {detail}", style="progress.dim")
-        return out
-
     def _render(self) -> Group:
         parts: list[object] = []
         if self._overall is not None:
@@ -869,15 +795,6 @@ class ProgressSession:
                 Panel(
                     "\n".join(self._component_summary),
                     title="[progress.title]连通域[/]",
-                    border_style="progress.dim",
-                    padding=(0, 1),
-                )
-            )
-        if self._timings or self._stage_human:
-            parts.append(
-                Panel(
-                    self._render_timings(),
-                    title="[progress.title]阶段耗时[/]",
                     border_style="progress.dim",
                     padding=(0, 1),
                 )

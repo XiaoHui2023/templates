@@ -15,7 +15,7 @@ from registers.formulas import (
 from .freq_graph import (
     Port,
     collect_freq_targets,
-    collect_gate_enable_clks,
+    collect_non_freq_constraint_clks,
     is_passthrough_kind,
     output_ports,
     parent_port_for_child,
@@ -59,7 +59,7 @@ def verify_solve_model(
     issues: List[VerifyIssue] = []
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     targets = collect_freq_targets(tree)
-    gate_only_clks = frozenset(collect_gate_enable_clks(tree))
+    non_constraint_clks = frozenset(collect_non_freq_constraint_clks(tree))
 
     for clk_name, want_hz in targets:
         port = Port(clk_name, "")
@@ -272,7 +272,7 @@ def verify_solve_model(
                 )
 
         if isinstance(node, ClkNode):
-            if name in gate_only_clks:
+            if name in non_constraint_clks:
                 continue
             parent_port = parent_port_for_child(tree, name)
             if model.port_hz(Port(name, "")) != model.port_hz(parent_port):

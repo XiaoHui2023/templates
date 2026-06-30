@@ -85,14 +85,13 @@ def build_extra_reg_plan(
                 f"tree.extra_regs[{idx}].value {value} 超出路径 {path!r} "
                 f"可写范围 0..{max_val}"
             )
-        label = field_part_label(ref.field, ref.offset, ref.width)
         items.append(
             (
                 _FieldPatch(
                     node_name="extra",
                     field_ref=ref,
                     value=value,
-                    note=f"{path} {label}={value}",
+                    note=f"{path}={value}",
                 ),
                 solo,
             )

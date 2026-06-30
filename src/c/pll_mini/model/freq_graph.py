@@ -57,15 +57,16 @@ def clk_has_upstream_clock_source(tree: Tree, clk_name: str) -> bool:
     return False
 
 
-def collect_gate_enable_clks(tree: Tree) -> List[str]:
-    """有前级引用但上游无正频率时钟源的 clk；仅须打开路径上门控。"""
+def collect_non_freq_constraint_clks(tree: Tree) -> List[str]:
+    """有前级、但不参与频率约束的 clk；生成阶段仍须配置其上游。"""
+    constrained = {name for name, _ in collect_freq_targets(tree)}
     out: List[str] = []
     for name, node in tree.nodes.items():
         if not isinstance(node, ClkNode):
             continue
         if not node_has_upstream_ref(node):
             continue
-        if clk_has_upstream_clock_source(tree, name):
+        if name in constrained:
             continue
         out.append(name)
     return out
@@ -100,37 +101,6 @@ def gate_enable_nodes_on_path(
     return active, gate_open
 
 
-def apply_gate_only_clks_to_model(
-    tree: Tree,
-    model: "SolveModel",
-) -> "SolveModel":
-    """为无上游时钟源的 clk 合并门控打开，不激活 mux/div/pll。"""
-    from .solve_model import SolveModel
-
-    gate_clks = collect_gate_enable_clks(tree)
-    if not gate_clks:
-        return model
-    active = dict(model.active)
-    gate_open = dict(model.gate_open)
-    for clk_name in gate_clks:
-        nodes, gates = gate_enable_nodes_on_path(tree, clk_name)
-        for node_name in nodes:
-            active[node_name] = True
-        for gate_name, opened in gates.items():
-            if opened:
-                gate_open[gate_name] = True
-            elif gate_name not in gate_open:
-                gate_open[gate_name] = opened
-    return SolveModel(
-        active=active,
-        port_freq=model.port_freq,
-        ratios=model.ratios,
-        mux_sel=model.mux_sel,
-        gate_open=gate_open,
-        pll_vars=model.pll_vars,
-    )
-
-
 def collect_freq_targets(tree: Tree) -> List[Tuple[str, int]]:
     """带正频率约束且上游可追溯到时钟源的 clk 节点。"""
     out: List[Tuple[str, int]] = []
@@ -156,9 +126,14 @@ def _upstream_peer_ports(tree: Tree, node_name: str) -> List[Port]:
 
 def _mux_selected_peer(tree: Tree, mux_name: str) -> str | None:
     mux = tree.nodes[mux_name]
-    if not isinstance(mux, MuxNode) or mux.sel is None:
+    if not isinstance(mux, MuxNode):
         return None
-    key = str(mux.sel)
+    sel = mux.sel
+    if sel is None:
+        if not mux.source:
+            return None
+        sel = int(sorted(mux.source.keys(), key=lambda k: int(k))[0])
+    key = str(sel)
     arm_ref = mux.source.get(key)
     if not arm_ref:
         return None

@@ -386,8 +386,8 @@ class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
     freq: Optional[int] = Field(
         default=None,
-        description="典型频率，单位 Hz；省略表示频率与开关均不指定；"
-        "正数同时指定频率与使能；负数仅不约束 resolved_freq。",
+        description="典型频率，单位 Hz；省略表示不参与频率约束；"
+        "正数表示目标频率并参与约束求解；负数仅不约束 resolved_freq。",
     )
     source: str = Field("", description="前级引用；省略表示无前级。")
     always_active: bool = Field(

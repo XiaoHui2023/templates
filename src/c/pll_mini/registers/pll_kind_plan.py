@@ -67,11 +67,9 @@ class PllWriteTemplate:
         return _c_compact_hex32(total)
 
     @classmethod
-    def _part_set_term(cls, part: PllWritePartTemplate) -> str | None:
+    def _part_set_term(cls, part: PllWritePartTemplate) -> str:
         if _is_int_literal(part.value_expr):
             val = int(part.value_expr)
-            if val == 0:
-                return None
             return f"({val} << {part.lsb})"
         if part.lsb == 0:
             return part.value_expr
@@ -83,9 +81,8 @@ class PllWriteTemplate:
         var = self.value_var
         clear_mask = self._combined_clear_mask_hex(self.parts)
         set_parts = [
-            (term, part.comment)
+            (self._part_set_term(part), part.comment)
             for part in self.parts
-            if (term := self._part_set_term(part)) is not None
         ]
         if not set_parts:
             comments = ", ".join(part.comment for part in self.parts if part.comment)
