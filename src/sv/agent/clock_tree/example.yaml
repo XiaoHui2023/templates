@@ -164,6 +164,8 @@ trees:
         path: dut.clk_standalone
         freq: 50000000
 
+      clk_disabled: ~
+
 settings:
   class_regmodel: regmodel_t
   min_freq_hz: 15000

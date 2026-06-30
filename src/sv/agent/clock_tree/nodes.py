@@ -70,6 +70,10 @@ def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
     return item
 
 
+def _is_omitted_node(value: Any) -> bool:
+    return value is None
+
+
 def _coerce_required_freq(value: Any) -> int:
     if value is None or value == "":
         raise ValueError("须填写 freq")
@@ -683,7 +687,7 @@ class Tree(BaseModel):
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
-        description="节点表，键为节点名。",
+        description="节点表，键为节点名；值为 null 时跳过该键，不纳入树。",
     )
 
     @field_validator("module_path")
@@ -711,6 +715,8 @@ class Tree(BaseModel):
         if isinstance(nodes, list):
             as_dict: dict[str, Any] = {}
             for item in nodes:
+                if _is_omitted_node(item):
+                    continue
                 if not isinstance(item, dict):
                     as_dict[str(item)] = item
                     continue
@@ -733,6 +739,8 @@ class Tree(BaseModel):
                 raise ValueError(
                     f"nodes 键 {key!r} 须为合法 SystemVerilog 名字"
                 )
+            if _is_omitted_node(item):
+                continue
             if isinstance(item, dict):
                 item = _normalize_node_item(item)
                 if "name" in item:
@@ -751,6 +759,8 @@ class Tree(BaseModel):
             return value
         built: Dict[str, Node] = {}
         for key, item in value.items():
+            if _is_omitted_node(item):
+                continue
             if isinstance(item, NodeBase):
                 object.__setattr__(item, "_name", key)
                 built[key] = item
@@ -865,6 +875,7 @@ def _validate_source_ref(
     if device not in nodes:
         raise ValueError(
             f"{ctx} 引用器件 {device!r} 不在 nodes 中"
+            f"（该键若为 null 则已跳过）"
         )
     peer = nodes[device]
     groups = node_output_groups(peer)
