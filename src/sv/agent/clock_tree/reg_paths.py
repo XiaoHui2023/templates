@@ -112,6 +112,15 @@ def normalize_inv_kind(value: object) -> str:
     return canon
 
 
+def normalize_cell_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"cell_kind 应为字符串，得到 {type(value).__name__}")
+    text = value.strip()
+    if not text:
+        raise ValueError(f"cell_kind 应为非空字符串，得到 {value!r}")
+    return text
+
+
 def normalize_source_kind(value: object) -> str:
     if not isinstance(value, str):
         raise TypeError(f"source_kind 须为字符串，得到 {type(value).__name__}")

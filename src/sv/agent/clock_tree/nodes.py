@@ -25,6 +25,7 @@ from reg_paths import (
     SOURCE_KIND_TO_SV,
     div_reg_keys_for_kind,
     node_path_connectable,
+    normalize_cell_kind,
     normalize_div_kind,
     normalize_inv_kind,
     normalize_pll_kind,
@@ -434,6 +435,21 @@ class PllNode(NodeBase):
         return self
 
 
+class CellNode(NodeBase):
+    kind: Literal["cell"] = "cell"
+    cell_kind: str = Field(
+        "cell",
+        min_length=1,
+        description="配置型号，任意非空字符串；仅作记录，仿真行为相同。",
+    )
+    source: str = Field(..., min_length=1, description="前级引用。")
+
+    @field_validator("cell_kind", mode="before")
+    @classmethod
+    def _normalize_cell_kind(cls, value: object) -> str:
+        return normalize_cell_kind(value)
+
+
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
     freq: Optional[int] = Field(
@@ -569,6 +585,7 @@ Node = Annotated[
         InvNode,
         ClockSourceNode,
         PllNode,
+        CellNode,
         ClkNode,
         MuxNode,
     ],
@@ -577,7 +594,7 @@ Node = Annotated[
 
 _node_adapter: TypeAdapter[Node] = TypeAdapter(Node)
 
-_NODE_KINDS_TEXT = "gate、div、inv、source、pll、clk、mux"
+_NODE_KINDS_TEXT = "gate、div、inv、source、pll、cell、clk、mux"
 
 
 def _node_kind_diagnosis(item: Any) -> str:
@@ -797,7 +814,7 @@ def upstream_peer_names(node: Node) -> List[str]:
             parse_source_endpoint(peer, ctx="mux.source")[0]
             for peer in node.source.values()
         ]
-    if node.kind in ("gate", "div", "inv", "clk", "pll"):
+    if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
         device, _out_group = parse_source_endpoint(node.source, ctx="source")
         return [device]
     return []
@@ -861,7 +878,7 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
                     nodes,
                     ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
                 )
-        elif node.kind in ("gate", "div", "inv", "clk", "pll"):
+        elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
             _validate_source_ref(
                 node.source,
                 nodes,

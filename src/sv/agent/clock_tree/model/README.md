@@ -284,6 +284,22 @@
 | **cst_resolve_active_from_src** | **_resolved_open** 为 0 时 **_resolved_active** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_active**；为 1 且 **source** 未连接时为 0 |
 | **cst_resolve_freq_from_src** | **_resolved_open** 为 0 时 **_resolved_freq** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_freq**；为 1 且 **source** 未连接时为 0 |
 
+### cell
+
+继承 **node_base**；**cell_kind** 仅作记录，不改变行为。
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **source** | **node_base** | 前级节点 |
+| **cell_kind** | **string** | 配置中的型号 |
+| **_resolved_freq** | **longint**，**rand** | 输出频率 |
+| **_resolved_active** | **bit**，**rand** | 活动状态 |
+
+| 约束 | 说明 |
+| --- | --- |
+| **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
+| **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
+
 ### inv
 
 | 成员 | 类型 | 说明 |

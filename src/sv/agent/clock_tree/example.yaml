@@ -109,10 +109,16 @@ trees:
         path: dut.gate0
         reg: blk_gate0.en
 
+      cell_buf:
+        kind: cell
+        cell_kind: buf
+        source: gate0
+        path: dut.cell_buf
+
       div_r_0:
         kind: div_r
         ratio: 99
-        source: gate0
+        source: cell_buf
         path: dut.div_r_0
 
       div0:

@@ -106,6 +106,9 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "source" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_source_class }}::type_id::create("{{ node.name }}");
         {{ node.name }}.source_kind = {{ source_kind_to_sv_enum[node.source_kind] }};
+{%- elif node.kind == "cell" %}
+        {{ node.name }} = {{ settings.class_prefix }}cell::type_id::create("{{ node.name }}");
+        {{ node.name }}.cell_kind = "{{ node.cell_kind }}";
 {%- else %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
 {%- endif %}
