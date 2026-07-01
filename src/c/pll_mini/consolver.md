@@ -10,6 +10,8 @@
 consolver solve clock_tree.smt2 --format json --timeout-ms <ms>
 ```
 
+Current Python flow does not create a temporary `clock_tree.smt2`. It passes SMT-LIB text directly and returns JSON text; logs show `consolver solve start: input-text`.
+
 `sat` 返回模型，`unsat` 或 `unknown` 直接失败。失败信息保留命名约束，读者可以从约束名定位到节点、端口和关系。
 
 调试时设置 `settings.debug_consolver_smt_path`。Python 约束层会在调用 consolver 前直接把 SMT-LIB 文本写到该路径，用于查看传给 consolver 的实际约束；即使后续求解返回 `unsat`，该文件也已保存到该路径。不要通过 `.j2` 模板输出 SMT 调试文件，避免求解失败时模板渲染阶段拿不到约束输入。

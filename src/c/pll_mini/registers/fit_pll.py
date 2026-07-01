@@ -24,10 +24,7 @@ def fit_pll_vars(
     pll_nodes = [
         (name, node)
         for name, node in tree.nodes.items()
-        if isinstance(node, PllNode)
-        and node.regs
-        and model.active.get(name, False)
-        and not name.startswith("pll_stress_")
+        if isinstance(node, PllNode) and node.regs and not name.startswith("pll_stress_")
     ]
     for index, (name, node) in enumerate(pll_nodes, start=1):
         log_stage_progress(

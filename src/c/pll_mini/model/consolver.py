@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List
@@ -62,17 +61,14 @@ def solve_tree_with_consolver(
         "build",
         constraints=len(builder.constraints),
     )
-    with tempfile.TemporaryDirectory(prefix="pll_mini_consolver_") as tmp:
-        path = Path(tmp) / "clock_tree.smt2"
-        path.write_text(smt2, encoding="utf-8")
-        log_stage_done(
-            "resolve",
-            "smt",
-            "build",
-            started_at,
-            constraints=len(builder.constraints),
-        )
-        raw = run_consolver_solve(path, timeout_ms=timeout_ms)
+    log_stage_done(
+        "resolve",
+        "smt",
+        "build",
+        started_at,
+        constraints=len(builder.constraints),
+    )
+    raw = run_consolver_solve(smt2, timeout_ms=timeout_ms)
 
     data = json.loads(raw)
     status = data.get("status")

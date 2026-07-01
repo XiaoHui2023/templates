@@ -705,7 +705,10 @@ def build_header_address_plan(
             reg=reg,
             addr_expr=f"{reg_base_macro} + 0x{reg.address:X}",
         )
-        for reg in regs
+        for reg in sorted(
+            regs,
+            key=lambda item: (item.address, item.addr_macro, item.path),
+        )
     )
     return HeaderAddressPlan(reg_base_macro, reg_base_hex, header_regs)
 
