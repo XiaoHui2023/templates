@@ -17,6 +17,7 @@ from pydantic import (
 _C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 from model.nodes import Tree
+from model.consolver import build_tree_smt2
 from registers.plan import (
     ConfigPlan,
     HeaderAddressPlan,
@@ -45,6 +46,7 @@ _CONFIG_PLAN_CACHE: dict[_ModelCacheKey, ConfigPlan] = {}
 _EXTRA_REG_PLAN_CACHE: dict[_ModelCacheKey, ExtraRegPlan | None] = {}
 _HEADER_REGS_CACHE: dict[_ModelCacheKey, List[Reg]] = {}
 _HEADER_ADDRESS_PLAN_CACHE: dict[_ModelCacheKey, HeaderAddressPlan] = {}
+_CONSOLVER_SMT_CACHE: dict[_ModelCacheKey, str] = {}
 
 
 class Settings(BaseModel):
@@ -93,6 +95,10 @@ class Settings(BaseModel):
         None,
         ge=1,
         description="定向搜索求解超时，毫秒；省略则不限时。",
+    )
+    debug_consolver_smt_path: str | None = Field(
+        None,
+        description="调试用 SMT-LIB 输出路径；相对路径按输入 YAML 所在目录解析。",
     )
     period_tolerance: float = Field(
         0.01,
@@ -149,6 +155,7 @@ class Models(BaseModel):
     _header_address_plan: HeaderAddressPlan | None = PrivateAttr(default=None)
     _progress_depth: int = PrivateAttr(default=0)
     _progress_session: ProgressSession | None = PrivateAttr(default=None)
+    _yaml_dir: Path | None = PrivateAttr(default=None)
 
     def _progress_enter(self) -> None:
         self._progress_depth += 1
@@ -212,6 +219,7 @@ class Models(BaseModel):
         raw_dir = ctx.get("yaml_dir")
         if isinstance(raw_dir, (str, Path)):
             yaml_dir = Path(raw_dir)
+        object.__setattr__(self, "_yaml_dir", yaml_dir)
         self._progress_enter()
         try:
             started_at = log_stage_start(
@@ -274,6 +282,9 @@ class Models(BaseModel):
                         pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
                         solve_timeout_ms=s.solve_timeout_ms,
                         period_tolerance=s.period_tolerance,
+                        debug_consolver_smt_path=self._resolve_debug_path(
+                            s.debug_consolver_smt_path
+                        ),
                         reg_index=RegModelIndex(self.regmodel),
                     )
                 except RuntimeError as exc:
@@ -450,6 +461,37 @@ class Models(BaseModel):
             _HEADER_ADDRESS_PLAN_CACHE[key] = result
             self._header_address_plan = result
             return result
+
+    @property
+    def consolver_smt2(self) -> str:
+        with _CACHE_LOCK:
+            key = self._cache_key()
+            cached = _CONSOLVER_SMT_CACHE.get(key)
+            if cached is not None:
+                return cached
+            s = self.settings
+            result = build_tree_smt2(
+                self.tree,
+                pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
+                pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
+                period_tolerance=s.period_tolerance,
+            )
+            _CONSOLVER_SMT_CACHE[key] = result
+            return result
+
+    def _resolve_debug_path(self, value: str | None) -> Path | None:
+        if not value:
+            return None
+        path = Path(value)
+        if path.is_absolute():
+            return path
+        base = self._yaml_dir
+        if base is None:
+            ralf_path = Path(self.ralf)
+            if not ralf_path.is_absolute():
+                ralf_path = Path(__file__).resolve().parent / ralf_path
+            base = ralf_path.parent
+        return base / path
 
     @classmethod
     def model_validate_with_yaml_dir(

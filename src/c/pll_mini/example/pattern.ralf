@@ -1,0 +1,4719 @@
+block blk_SYS_counter_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0000 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_dwi2c1_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0004 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_dwi2c2_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0008 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_dwi2c3_pclk_gate_en {
+  bytes 4;
+
+  register en @'h000c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_dwi2c68_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0010 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_eth_hclk_gate_en {
+  bytes 4;
+
+  register en @'h0014 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_flashspi_hclk_gate_en {
+  bytes 4;
+
+  register en @'h0018 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_gpio_pclk_gate_en {
+  bytes 4;
+
+  register en @'h001c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_gxi2c_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0020 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_irr_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0024 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_nand_hclk_gate_en {
+  bytes 4;
+
+  register en @'h0028 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_sci_pclk_gate_en {
+  bytes 4;
+
+  register en @'h002c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_sdio_hclk_gate_en {
+  bytes 4;
+
+  register en @'h0030 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_uart0_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0034 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_uart1_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0038 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_uart2_pclk_gate_en {
+  bytes 4;
+
+  register en @'h003c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_usb2_hclk_gate_en {
+  bytes 4;
+
+  register en @'h0040 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_SYS_wdt_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0044 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_cfg_pclk_div {
+  bytes 4;
+
+  register ctrl @'h0048 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_cfg_pclk_gate0 {
+  bytes 4;
+
+  register en @'h004c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_cfg_pclk_gate1 {
+  bytes 4;
+
+  register en @'h0050 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_cfg_pclk_gate2 {
+  bytes 4;
+
+  register en @'h0054 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_cfg_pclk_sel0 {
+  bytes 4;
+
+  register sel @'h0058 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_dsp_clk_div {
+  bytes 4;
+
+  register ctrl @'h005c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_dsp_clk_gate0 {
+  bytes 4;
+
+  register en @'h0060 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_dsp_clk_gate1 {
+  bytes 4;
+
+  register en @'h0064 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_dsp_clk_gate2 {
+  bytes 4;
+
+  register en @'h0068 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_dsp_clk_sel6 {
+  bytes 4;
+
+  register sel @'h006c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_dsp_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0070 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_lodac_clk_div {
+  bytes 4;
+
+  register ctrl @'h0074 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_lodac_clk_gate {
+  bytes 4;
+
+  register en @'h0078 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_lodac_clk_gate1 {
+  bytes 4;
+
+  register en @'h007c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_lodac_clk_gate2 {
+  bytes 4;
+
+  register en @'h0080 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_lodac_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0084 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_lodac_clk_sel1 {
+  bytes 4;
+
+  register sel @'h0088 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_hclk_div {
+  bytes 4;
+
+  register ctrl @'h008c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_hclk_gate {
+  bytes 4;
+
+  register en @'h0090 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_hclk_gate1 {
+  bytes 4;
+
+  register en @'h0094 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_hclk_gate2 {
+  bytes 4;
+
+  register en @'h0098 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_hclk_sel0 {
+  bytes 4;
+
+  register sel @'h009c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_pclk_gate_en {
+  bytes 4;
+
+  register en @'h00a0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd0_clk_dto {
+  bytes 4;
+
+  register ctrl @'h00a4 {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field rst @2 { bits 1; access rw; }
+    field step @3 { bits 8; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd0_clk_gate0 {
+  bytes 4;
+
+  register en @'h00a8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd0_clk_gate1 {
+  bytes 4;
+
+  register en @'h00ac {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd0_clk_gate2 {
+  bytes 4;
+
+  register en @'h00b0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd0_clk_sel {
+  bytes 4;
+
+  register sel @'h00b4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd2_clk_dto {
+  bytes 4;
+
+  register ctrl @'h00b8 {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field rst @2 { bits 1; access rw; }
+    field step @3 { bits 8; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd2_clk_gate0 {
+  bytes 4;
+
+  register en @'h00bc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd2_clk_gate1 {
+  bytes 4;
+
+  register en @'h00c0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd2_clk_gate2 {
+  bytes 4;
+
+  register en @'h00c4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spd2_clk_sel0 {
+  bytes 4;
+
+  register sel @'h00c8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spdi_clk_dto {
+  bytes 4;
+
+  register ctrl @'h00cc {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field rst @2 { bits 1; access rw; }
+    field step @3 { bits 8; access rw; }
+  }
+
+}
+
+block blk_audio_play_spdi_clk_gate0 {
+  bytes 4;
+
+  register en @'h00d0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spdi_clk_gate1 {
+  bytes 4;
+
+  register en @'h00d4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spdi_clk_gate2 {
+  bytes 4;
+
+  register en @'h00d8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_spdi_clk_sel0 {
+  bytes 4;
+
+  register sel @'h00dc {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_srl_clk_dto {
+  bytes 4;
+
+  register ctrl @'h00e0 {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field rst @2 { bits 1; access rw; }
+    field step @3 { bits 8; access rw; }
+  }
+
+}
+
+block blk_audio_play_srl_clk_gate {
+  bytes 4;
+
+  register en @'h00e4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_srl_clk_gate1 {
+  bytes 4;
+
+  register en @'h00e8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_srl_clk_gate2 {
+  bytes 4;
+
+  register en @'h00ec {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_audio_play_srl_clk_sel0 {
+  bytes 4;
+
+  register sel @'h00f0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_cfg_pclk_div {
+  bytes 4;
+
+  register ctrl @'h00f4 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_cfg_pclk_gate {
+  bytes 4;
+
+  register en @'h00f8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_cfg_pclk_gate1 {
+  bytes 4;
+
+  register en @'h00fc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_cfg_pclk_gate2 {
+  bytes 4;
+
+  register en @'h0100 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_cfg_pclk_sel0 {
+  bytes 4;
+
+  register sel @'h0104 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_axi_clk_div {
+  bytes 4;
+
+  register ctrl @'h0108 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_axi_clk_gate {
+  bytes 4;
+
+  register en @'h010c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_axi_clk_gate1 {
+  bytes 4;
+
+  register en @'h0110 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_axi_clk_gate2 {
+  bytes 4;
+
+  register en @'h0114 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_axi_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0118 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_cfg_hclk_div {
+  bytes 4;
+
+  register ctrl @'h011c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_cfg_hclk_gate {
+  bytes 4;
+
+  register en @'h0120 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_cfg_hclk_gate1 {
+  bytes 4;
+
+  register en @'h0124 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_cfg_hclk_gate2 {
+  bytes 4;
+
+  register en @'h0128 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_secure_cfg_hclk_sel6 {
+  bytes 4;
+
+  register sel @'h012c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_vpu_axi64_clk_div {
+  bytes 4;
+
+  register ctrl @'h0130 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_vpu_axi64_clk_gate {
+  bytes 4;
+
+  register en @'h0134 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_vpu_axi64_clk_gate1 {
+  bytes 4;
+
+  register en @'h0138 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_vpu_axi64_clk_gate2 {
+  bytes 4;
+
+  register en @'h013c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_bus_vpu_axi64_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0140 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_chip_sys_cfg_hclk_div {
+  bytes 4;
+
+  register ctrl @'h0144 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_chip_sys_cfg_hclk_gate0 {
+  bytes 4;
+
+  register en @'h0148 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_chip_sys_cfg_hclk_gate1 {
+  bytes 4;
+
+  register en @'h014c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_chip_sys_cfg_hclk_gate2 {
+  bytes 4;
+
+  register en @'h0150 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_chip_sys_cfg_hclk_sel {
+  bytes 4;
+
+  register sel @'h0154 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cmii_from_pad_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0158 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_counter_clk_div {
+  bytes 4;
+
+  register ctrl @'h015c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_counter_clk_gate0 {
+  bytes 4;
+
+  register en @'h0160 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_counter_clk_gate1 {
+  bytes 4;
+
+  register en @'h0164 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_counter_clk_gate2 {
+  bytes 4;
+
+  register en @'h0168 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_counter_clk_sel0 {
+  bytes 4;
+
+  register sel @'h016c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_core_clk_div {
+  bytes 4;
+
+  register ctrl @'h0170 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_core_clk_gate {
+  bytes 4;
+
+  register en @'h0174 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_core_clk_gate1 {
+  bytes 4;
+
+  register en @'h0178 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_core_clk_gate2 {
+  bytes 4;
+
+  register en @'h017c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_core_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0180 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_core_clk_sel1 {
+  bytes 4;
+
+  register sel @'h0184 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_jtag_swclktck_gate2 {
+  bytes 4;
+
+  register en @'h0188 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_jtag_swclktck_sel0 {
+  bytes 4;
+
+  register sel @'h018c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cpu_pll {
+  bytes 4;
+
+  register div @'h0190 {
+    bytes 4;
+    field fbdiv @0 { bits 12; access rw; }
+    field postdiv1 @12 { bits 3; access rw; }
+    field postdiv2 @15 { bits 3; access rw; }
+    field refdiv @18 { bits 6; access rw; }
+  }
+
+  register pd @'h0194 {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field dsmpd @1 { bits 1; access rw; }
+    field pd @2 { bits 1; access rw; }
+    field postdivpd @3 { bits 3; access rw; }
+    field vocpd @6 { bits 1; access rw; }
+  }
+
+  register stat @'h0198 {
+    bytes 4;
+    field lock @0 { bits 1; access ro; }
+  }
+
+}
+
+block blk_cvbs_pixel_double_clk_div {
+  bytes 4;
+
+  register ctrl @'h019c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cvbs_pixel_double_clk_gate0 {
+  bytes 4;
+
+  register en @'h01a0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cvbs_pixel_double_clk_gate1 {
+  bytes 4;
+
+  register en @'h01a4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cvbs_pixel_double_clk_gate2 {
+  bytes 4;
+
+  register en @'h01a8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_cvbs_pixel_double_clk_sel0 {
+  bytes 4;
+
+  register sel @'h01ac {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_cfg_hclk_gate1 {
+  bytes 4;
+
+  register en @'h01b0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_cfg_hclk_gate2 {
+  bytes 4;
+
+  register en @'h01b4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_cfg_hclk_sel0 {
+  bytes 4;
+
+  register sel @'h01b8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_ctrl_clk_gate2 {
+  bytes 4;
+
+  register en @'h01bc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_hclk_div {
+  bytes 4;
+
+  register ctrl @'h01c0 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_inno_pll {
+  bytes 4;
+
+  register fbdiv @'h01c4 {
+    bytes 4;
+    field fbdiv @0 { bits 12; access rw; }
+  }
+
+  register lock @'h01c8 {
+    bytes 4;
+    field lock @0 { bits 1; access ro; }
+  }
+
+  register pd @'h01cc {
+    bytes 4;
+    field pd @0 { bits 1; access rw; }
+  }
+
+  register postdiv1_0 @'h01d0 {
+    bytes 4;
+    field postdiv1_0 @0 { bits 3; access rw; }
+  }
+
+  register postdiv1_1 @'h01d4 {
+    bytes 4;
+    field postdiv1_1 @0 { bits 3; access rw; }
+  }
+
+  register postdiv2_0 @'h01d8 {
+    bytes 4;
+    field postdiv2_0 @0 { bits 3; access rw; }
+  }
+
+  register postdiv2_1 @'h01dc {
+    bytes 4;
+    field postdiv2_1 @0 { bits 3; access rw; }
+  }
+
+  register refdiv @'h01e0 {
+    bytes 4;
+    field refdiv @0 { bits 6; access rw; }
+  }
+
+}
+
+block blk_ddr_phy_clk_gate {
+  bytes 4;
+
+  register en @'h01e4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_phy_clk_gate1 {
+  bytes 4;
+
+  register en @'h01e8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_phy_clk_gate2 {
+  bytes 4;
+
+  register en @'h01ec {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_phy_clk_sel {
+  bytes 4;
+
+  register sel @'h01f0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_phy_clk_sel1 {
+  bytes 4;
+
+  register sel @'h01f4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_phy_clk_sel2 {
+  bytes 4;
+
+  register sel @'h01f8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_phy_hclk_gate0 {
+  bytes 4;
+
+  register en @'h01fc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_port_clk_gate2 {
+  bytes 4;
+
+  register en @'h0200 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ddr_sc_pll {
+  bytes 4;
+
+  register div @'h0204 {
+    bytes 4;
+    field fbdiv @0 { bits 12; access rw; }
+    field postdiv1 @12 { bits 3; access rw; }
+    field postdiv2 @15 { bits 3; access rw; }
+    field refdiv @18 { bits 6; access rw; }
+  }
+
+  register pd @'h0208 {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field dsmpd @1 { bits 1; access rw; }
+    field pd @2 { bits 1; access rw; }
+    field postdivpd @3 { bits 3; access rw; }
+    field vocpd @6 { bits 1; access rw; }
+  }
+
+  register stat @'h020c {
+    bytes 4;
+    field lock @0 { bits 1; access ro; }
+  }
+
+}
+
+block blk_dem_clk_h_div {
+  bytes 4;
+
+  register ctrl @'h0210 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dem_clk_h_gate0 {
+  bytes 4;
+
+  register en @'h0214 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dem_clk_h_gate1 {
+  bytes 4;
+
+  register en @'h0218 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dem_clk_h_gate2 {
+  bytes 4;
+
+  register en @'h021c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dem_clk_h_sel0 {
+  bytes 4;
+
+  register sel @'h0220 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_desc_clk_div {
+  bytes 4;
+
+  register ctrl @'h0224 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_desc_clk_gate0 {
+  bytes 4;
+
+  register en @'h0228 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_desc_clk_gate1 {
+  bytes 4;
+
+  register en @'h022c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_desc_clk_gate2 {
+  bytes 4;
+
+  register en @'h0230 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_desc_clk_sel {
+  bytes 4;
+
+  register sel @'h0234 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_axi64_clk_div {
+  bytes 4;
+
+  register ctrl @'h0238 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_axi64_clk_gate {
+  bytes 4;
+
+  register en @'h023c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_axi64_clk_gate1 {
+  bytes 4;
+
+  register en @'h0240 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_axi64_clk_gate2 {
+  bytes 4;
+
+  register en @'h0244 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_axi64_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0248 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_cfg_pclk_div {
+  bytes 4;
+
+  register ctrl @'h024c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_cfg_pclk_gate {
+  bytes 4;
+
+  register en @'h0250 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_cfg_pclk_gate1 {
+  bytes 4;
+
+  register en @'h0254 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_cfg_pclk_gate2 {
+  bytes 4;
+
+  register en @'h0258 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_display_cfg_pclk_sel0 {
+  bytes 4;
+
+  register sel @'h025c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dto_pll {
+  bytes 4;
+
+  register div @'h0260 {
+    bytes 4;
+    field fbdiv @0 { bits 12; access rw; }
+    field postdiv1 @12 { bits 3; access rw; }
+    field postdiv2 @15 { bits 3; access rw; }
+    field refdiv @18 { bits 6; access rw; }
+  }
+
+  register pd @'h0264 {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field dsmpd @1 { bits 1; access rw; }
+    field pd @2 { bits 1; access rw; }
+    field postdivpd @3 { bits 3; access rw; }
+    field vocpd @6 { bits 1; access rw; }
+  }
+
+  register stat @'h0268 {
+    bytes 4;
+    field lock @0 { bits 1; access ro; }
+  }
+
+}
+
+block blk_dvb_adc_clk_gate1 {
+  bytes 4;
+
+  register en @'h026c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_adc_clk_gate2 {
+  bytes 4;
+
+  register en @'h0270 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_adc_clk_sel {
+  bytes 4;
+
+  register sel @'h0274 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_adc_clk_sel1 {
+  bytes 4;
+
+  register sel @'h0278 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_bus_qos_pclk_gate_en {
+  bytes 4;
+
+  register en @'h027c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_cfg_pclk_div {
+  bytes 4;
+
+  register ctrl @'h0280 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_cfg_pclk_gate {
+  bytes 4;
+
+  register en @'h0284 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_cfg_pclk_gate1 {
+  bytes 4;
+
+  register en @'h0288 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_cfg_pclk_gate2 {
+  bytes 4;
+
+  register en @'h028c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_cfg_pclk_sel0 {
+  bytes 4;
+
+  register sel @'h0290 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_core_adc_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0294 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_core_cfg_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0298 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_cpu_jtag_tck_gate2 {
+  bytes 4;
+
+  register en @'h029c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_cpu_jtag_tck_sel8 {
+  bytes 4;
+
+  register sel @'h02a0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_osc_clk_gate2 {
+  bytes 4;
+
+  register en @'h02a4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_pll {
+  bytes 4;
+
+  register div @'h02a8 {
+    bytes 4;
+    field fbdiv @0 { bits 12; access rw; }
+    field postdiv1 @12 { bits 3; access rw; }
+    field postdiv2 @15 { bits 3; access rw; }
+    field refdiv @18 { bits 6; access rw; }
+  }
+
+  register pd @'h02ac {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field dsmpd @1 { bits 1; access rw; }
+    field pd @2 { bits 1; access rw; }
+    field postdivpd @3 { bits 3; access rw; }
+    field vocpd @6 { bits 1; access rw; }
+  }
+
+  register stat @'h02b0 {
+    bytes 4;
+    field lock @0 { bits 1; access ro; }
+  }
+
+}
+
+block blk_dvb_smp_ena_sel0 {
+  bytes 4;
+
+  register sel @'h02b4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_sys_pclk_gate_en {
+  bytes 4;
+
+  register en @'h02b8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_system_aclk_div {
+  bytes 4;
+
+  register ctrl @'h02bc {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_system_aclk_gate0 {
+  bytes 4;
+
+  register en @'h02c0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_system_aclk_gate1 {
+  bytes 4;
+
+  register en @'h02c4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_system_aclk_gate2 {
+  bytes 4;
+
+  register en @'h02c8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_system_aclk_sel0 {
+  bytes 4;
+
+  register sel @'h02cc {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_ts_scan_clk_div {
+  bytes 4;
+
+  register ctrl @'h02d0 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_ts_scan_clk_gate0 {
+  bytes 4;
+
+  register en @'h02d4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_ts_scan_clk_gate1 {
+  bytes 4;
+
+  register en @'h02d8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_ts_scan_clk_gate2 {
+  bytes 4;
+
+  register en @'h02dc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dvb_ts_scan_clk_sel0 {
+  bytes 4;
+
+  register sel @'h02e0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c0_clk_div {
+  bytes 4;
+
+  register ctrl @'h02e4 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c0_clk_gate {
+  bytes 4;
+
+  register en @'h02e8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c0_clk_gate1 {
+  bytes 4;
+
+  register en @'h02ec {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c0_clk_gate2 {
+  bytes 4;
+
+  register en @'h02f0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c0_clk_sel0 {
+  bytes 4;
+
+  register sel @'h02f4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c1_clk_div {
+  bytes 4;
+
+  register ctrl @'h02f8 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c1_clk_gate {
+  bytes 4;
+
+  register en @'h02fc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c1_clk_gate1 {
+  bytes 4;
+
+  register en @'h0300 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c1_clk_gate2 {
+  bytes 4;
+
+  register en @'h0304 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c1_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0308 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c2_clk_div {
+  bytes 4;
+
+  register ctrl @'h030c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c2_clk_gate {
+  bytes 4;
+
+  register en @'h0310 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c2_clk_gate1 {
+  bytes 4;
+
+  register en @'h0314 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c2_clk_gate2 {
+  bytes 4;
+
+  register en @'h0318 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c2_clk_sel0 {
+  bytes 4;
+
+  register sel @'h031c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c3_clk_div {
+  bytes 4;
+
+  register ctrl @'h0320 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c3_clk_gate {
+  bytes 4;
+
+  register en @'h0324 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c3_clk_gate1 {
+  bytes 4;
+
+  register en @'h0328 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c3_clk_gate2 {
+  bytes 4;
+
+  register en @'h032c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_dwi2c3_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0330 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_eth_mhclk_div {
+  bytes 4;
+
+  register ctrl @'h0334 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_eth_mhclk_gate {
+  bytes 4;
+
+  register en @'h0338 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_eth_mhclk_gate1 {
+  bytes 4;
+
+  register en @'h033c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_eth_mhclk_gate2 {
+  bytes 4;
+
+  register en @'h0340 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_eth_mhclk_sel0 {
+  bytes 4;
+
+  register sel @'h0344 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_eth_pll {
+  bytes 4;
+
+  register div @'h0348 {
+    bytes 4;
+    field fbdiv @0 { bits 12; access rw; }
+    field postdiv1 @12 { bits 3; access rw; }
+    field postdiv2 @15 { bits 3; access rw; }
+    field refdiv @18 { bits 6; access rw; }
+  }
+
+  register pd @'h034c {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field dsmpd @1 { bits 1; access rw; }
+    field pd @2 { bits 1; access rw; }
+    field postdivpd @3 { bits 3; access rw; }
+    field vocpd @6 { bits 1; access rw; }
+  }
+
+  register stat @'h0350 {
+    bytes 4;
+    field lock @0 { bits 1; access ro; }
+  }
+
+}
+
+block blk_fFlashspi_mhclk_gate1 {
+  bytes 4;
+
+  register en @'h0354 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_fec_clk_div {
+  bytes 4;
+
+  register ctrl @'h0358 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_fec_clk_gate0 {
+  bytes 4;
+
+  register en @'h035c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_fec_clk_gate1 {
+  bytes 4;
+
+  register en @'h0360 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_fec_clk_gate2 {
+  bytes 4;
+
+  register en @'h0364 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_fec_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0368 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_cpu_clk_div {
+  bytes 4;
+
+  register ctrl @'h036c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_cpu_clk_gate1 {
+  bytes 4;
+
+  register en @'h0370 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_cpu_clk_gate2 {
+  bytes 4;
+
+  register en @'h0374 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_cpu_clk_gate8 {
+  bytes 4;
+
+  register en @'h0378 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_cpu_clk_sel0 {
+  bytes 4;
+
+  register sel @'h037c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_aclk_div {
+  bytes 4;
+
+  register ctrl @'h0380 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_aclk_gate {
+  bytes 4;
+
+  register en @'h0384 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_aclk_gate1 {
+  bytes 4;
+
+  register en @'h0388 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_aclk_gate2 {
+  bytes 4;
+
+  register en @'h038c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_aclk_sel0 {
+  bytes 4;
+
+  register sel @'h0390 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_clk_div {
+  bytes 4;
+
+  register ctrl @'h0394 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_clk_gate {
+  bytes 4;
+
+  register en @'h0398 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_clk_gate1 {
+  bytes 4;
+
+  register en @'h039c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_clk_gate2 {
+  bytes 4;
+
+  register en @'h03a0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_clk_sel0 {
+  bytes 4;
+
+  register sel @'h03a4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_filter_system_pclk_gate_en {
+  bytes 4;
+
+  register en @'h03a8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_flashspi_mhclk_div {
+  bytes 4;
+
+  register ctrl @'h03ac {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_flashspi_mhclk_gate0 {
+  bytes 4;
+
+  register en @'h03b0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_flashspi_mhclk_gate2 {
+  bytes 4;
+
+  register en @'h03b4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_flashspi_mhclk_sel0 {
+  bytes 4;
+
+  register sel @'h03b8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ga_sys_clk_div {
+  bytes 4;
+
+  register ctrl @'h03bc {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ga_sys_clk_gate {
+  bytes 4;
+
+  register en @'h03c0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ga_sys_clk_gate1 {
+  bytes 4;
+
+  register en @'h03c4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ga_sys_clk_gate2 {
+  bytes 4;
+
+  register en @'h03c8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ga_sys_clk_sel6 {
+  bytes 4;
+
+  register sel @'h03cc {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_gxi2c_clk_div {
+  bytes 4;
+
+  register ctrl @'h03d0 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_gxi2c_clk_gate0 {
+  bytes 4;
+
+  register en @'h03d4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_gxi2c_clk_gate1 {
+  bytes 4;
+
+  register en @'h03d8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_gxi2c_clk_gate2 {
+  bytes 4;
+
+  register en @'h03dc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_gxi2c_clk_sel0 {
+  bytes 4;
+
+  register sel @'h03e0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdcp22_ahb_clk_div {
+  bytes 4;
+
+  register ctrl @'h03e4 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdcp22_ahb_clk_gate0 {
+  bytes 4;
+
+  register en @'h03e8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdcp22_ahb_clk_gate1 {
+  bytes 4;
+
+  register en @'h03ec {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdcp22_ahb_clk_gate2 {
+  bytes 4;
+
+  register en @'h03f0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdcp22_ahb_clk_sel0 {
+  bytes 4;
+
+  register sel @'h03f4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_axi64_clk_div {
+  bytes 4;
+
+  register ctrl @'h03f8 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_axi64_clk_gate {
+  bytes 4;
+
+  register en @'h03fc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_axi64_clk_gate1 {
+  bytes 4;
+
+  register en @'h0400 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_axi64_clk_gate2 {
+  bytes 4;
+
+  register en @'h0404 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_axi64_clk_sel6 {
+  bytes 4;
+
+  register sel @'h0408 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_cec_clk_div {
+  bytes 4;
+
+  register ctrl @'h040c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_cec_clk_gate0 {
+  bytes 4;
+
+  register en @'h0410 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_cec_clk_gate1 {
+  bytes 4;
+
+  register en @'h0414 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_cec_clk_gate2 {
+  bytes 4;
+
+  register en @'h0418 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_cec_clk_sel0 {
+  bytes 4;
+
+  register sel @'h041c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_cec_clk_sel_scan_mode {
+  bytes 4;
+
+  register sel @'h0420 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_i2s_bclk_gate0 {
+  bytes 4;
+
+  register en @'h0424 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_i2s_bclk_gate1 {
+  bytes 4;
+
+  register en @'h0428 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_i2s_bclk_gate2 {
+  bytes 4;
+
+  register en @'h042c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_i2s_bclk_sel0 {
+  bytes 4;
+
+  register sel @'h0430 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_pixel_clk_gate0 {
+  bytes 4;
+
+  register en @'h0434 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_pixel_clk_gate1 {
+  bytes 4;
+
+  register en @'h0438 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_pixel_clk_gate2 {
+  bytes 4;
+
+  register en @'h043c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_pixel_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0440 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_pixel_clk_sel1 {
+  bytes 4;
+
+  register sel @'h0444 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_prep_clk_gate0 {
+  bytes 4;
+
+  register en @'h0448 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_prep_clk_gate1 {
+  bytes 4;
+
+  register en @'h044c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_prep_clk_gate2 {
+  bytes 4;
+
+  register en @'h0450 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_prep_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0454 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_prep_clk_sel1 {
+  bytes 4;
+
+  register sel @'h0458 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_sfr_clk_div {
+  bytes 4;
+
+  register ctrl @'h045c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_sfr_clk_gate {
+  bytes 4;
+
+  register en @'h0460 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_sfr_clk_gate1 {
+  bytes 4;
+
+  register en @'h0464 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_sfr_clk_gate2 {
+  bytes 4;
+
+  register en @'h0468 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_sfr_clk_sel0 {
+  bytes 4;
+
+  register sel @'h046c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_spd_clk_gate {
+  bytes 4;
+
+  register en @'h0470 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_spd_clk_gate1 {
+  bytes 4;
+
+  register en @'h0474 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_spd_clk_gate2 {
+  bytes 4;
+
+  register en @'h0478 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_spd_clk_sel0 {
+  bytes 4;
+
+  register sel @'h047c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_tmds_clk_gate {
+  bytes 4;
+
+  register en @'h0480 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_tmds_clk_gate1 {
+  bytes 4;
+
+  register en @'h0484 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_tmds_clk_gate2 {
+  bytes 4;
+
+  register en @'h0488 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_tmds_clk_sel0 {
+  bytes 4;
+
+  register sel @'h048c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_hdmi_tmds_clk_sel1 {
+  bytes 4;
+
+  register sel @'h0490 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ip_adc_clk_div {
+  bytes 4;
+
+  register ctrl @'h0494 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ip_adc_clk_gate0 {
+  bytes 4;
+
+  register en @'h0498 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ip_adc_clk_gate1 {
+  bytes 4;
+
+  register en @'h049c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ip_adc_clk_gate2 {
+  bytes 4;
+
+  register en @'h04a0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ip_adc_clk_sel0 {
+  bytes 4;
+
+  register sel @'h04a4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_lodac_pclk_gate_en {
+  bytes 4;
+
+  register en @'h04a8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_nand_mhclk_div {
+  bytes 4;
+
+  register ctrl @'h04ac {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_nand_mhclk_gate0 {
+  bytes 4;
+
+  register en @'h04b0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_nand_mhclk_gate1 {
+  bytes 4;
+
+  register en @'h04b4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_nand_mhclk_gate2 {
+  bytes 4;
+
+  register en @'h04b8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_nand_mhclk_sel0 {
+  bytes 4;
+
+  register sel @'h04bc {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_bus_clk_div {
+  bytes 4;
+
+  register ctrl @'h04c0 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_bus_clk_gate {
+  bytes 4;
+
+  register en @'h04c4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_bus_clk_gate1 {
+  bytes 4;
+
+  register en @'h04c8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_bus_clk_gate2 {
+  bytes 4;
+
+  register en @'h04cc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_bus_clk_sel0 {
+  bytes 4;
+
+  register sel @'h04d0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_cfg_hclk_div {
+  bytes 4;
+
+  register ctrl @'h04d4 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_cfg_hclk_gate {
+  bytes 4;
+
+  register en @'h04d8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_cfg_hclk_gate1 {
+  bytes 4;
+
+  register en @'h04dc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_cfg_hclk_gate2 {
+  bytes 4;
+
+  register en @'h04e0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_peri_cfg_hclk_sel0 {
+  bytes 4;
+
+  register sel @'h04e4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_pmu_cfg_div {
+  bytes 4;
+
+  register ctrl @'h04e8 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_pmu_cfg_gate0 {
+  bytes 4;
+
+  register en @'h04ec {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_pmu_cfg_gate1 {
+  bytes 4;
+
+  register en @'h04f0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_pmu_cfg_gate2 {
+  bytes 4;
+
+  register en @'h04f4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_pmu_cfg_sel0 {
+  bytes 4;
+
+  register sel @'h04f8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_rmii_from_pad_clk_gate2 {
+  bytes 4;
+
+  register en @'h04fc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_rmii_from_pll_clk_div {
+  bytes 4;
+
+  register ctrl @'h0500 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_rmii_from_pll_clk_gate {
+  bytes 4;
+
+  register en @'h0504 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_rmii_from_pll_clk_gate1 {
+  bytes 4;
+
+  register en @'h0508 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_rmii_from_pll_clk_gate2 {
+  bytes 4;
+
+  register en @'h050c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_rmii_from_pll_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0510 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_rmii_pad_clk_gate1 {
+  bytes 4;
+
+  register en @'h0514 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sci_clk_dto {
+  bytes 4;
+
+  register ctrl @'h0518 {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field rst @2 { bits 1; access rw; }
+    field step @3 { bits 8; access rw; }
+  }
+
+}
+
+block blk_sci_clk_gate0 {
+  bytes 4;
+
+  register en @'h051c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sci_clk_gate1 {
+  bytes 4;
+
+  register en @'h0520 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sci_clk_gate2 {
+  bytes 4;
+
+  register en @'h0524 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sci_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0528 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_bus_clk_div {
+  bytes 4;
+
+  register ctrl @'h052c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_bus_clk_gate {
+  bytes 4;
+
+  register en @'h0530 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_bus_clk_gate1 {
+  bytes 4;
+
+  register en @'h0534 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_bus_clk_gate2 {
+  bytes 4;
+
+  register en @'h0538 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_bus_clk_sel8 {
+  bytes 4;
+
+  register sel @'h053c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_clk_div {
+  bytes 4;
+
+  register ctrl @'h0540 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_clk_gate0 {
+  bytes 4;
+
+  register en @'h0544 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_clk_gate1 {
+  bytes 4;
+
+  register en @'h0548 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_clk_gate2 {
+  bytes 4;
+
+  register en @'h054c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_sdio_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0550 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_bus_cfg_clk_gate_en {
+  bytes 4;
+
+  register en @'h0554 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_acrypto_clk_gate_en {
+  bytes 4;
+
+  register en @'h0558 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_div {
+  bytes 4;
+
+  register ctrl @'h055c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_gate0 {
+  bytes 4;
+
+  register en @'h0560 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_gate1 {
+  bytes 4;
+
+  register en @'h0564 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_gate2 {
+  bytes 4;
+
+  register en @'h0568 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_hash_v2_clk_gate_en {
+  bytes 4;
+
+  register en @'h056c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_m2m_clk_gate_en {
+  bytes 4;
+
+  register en @'h0570 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_rsa_clk_gate_en {
+  bytes 4;
+
+  register en @'h0574 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_scpu_clk_gate_en {
+  bytes 4;
+
+  register en @'h0578 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_clk_sel0 {
+  bytes 4;
+
+  register sel @'h057c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_decsc_clk_gate_en {
+  bytes 4;
+
+  register en @'h0580 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_pka_clk_div {
+  bytes 4;
+
+  register ctrl @'h0584 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_pka_clk_gate0 {
+  bytes 4;
+
+  register en @'h0588 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_pka_clk_gate1 {
+  bytes 4;
+
+  register en @'h058c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_pka_clk_gate2 {
+  bytes 4;
+
+  register en @'h0590 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_pka_clk_sel {
+  bytes 4;
+
+  register sel @'h0594 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_tsio_cfg_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0598 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_secure_xtal_clk_gate2 {
+  bytes 4;
+
+  register en @'h059c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_spi_ssi_clk_div {
+  bytes 4;
+
+  register ctrl @'h05a0 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_spi_ssi_clk_gate {
+  bytes 4;
+
+  register en @'h05a4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_spi_ssi_clk_gate1 {
+  bytes 4;
+
+  register en @'h05a8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_spi_ssi_clk_gate2 {
+  bytes 4;
+
+  register en @'h05ac {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_spi_ssi_clk_sel0 {
+  bytes 4;
+
+  register sel @'h05b0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_spi_ssi_clk_sel1 {
+  bytes 4;
+
+  register sel @'h05b4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_stc_clk_div {
+  bytes 4;
+
+  register ctrl @'h05b8 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_stc_clk_gate0 {
+  bytes 4;
+
+  register en @'h05bc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_stc_clk_gate1 {
+  bytes 4;
+
+  register en @'h05c0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_stc_clk_gate2 {
+  bytes 4;
+
+  register en @'h05c4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_stc_clk_sel0 {
+  bytes 4;
+
+  register sel @'h05c8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_stc_pclk_gate_en {
+  bytes 4;
+
+  register en @'h05cc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_surface_pixel_clk_sel {
+  bytes 4;
+
+  register sel @'h05d0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_susb_mhclk_gate2 {
+  bytes 4;
+
+  register en @'h05d4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ts_base_clk_div {
+  bytes 4;
+
+  register ctrl @'h05d8 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ts_base_clk_gate0 {
+  bytes 4;
+
+  register en @'h05dc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ts_base_clk_gate1 {
+  bytes 4;
+
+  register en @'h05e0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ts_base_clk_gate2 {
+  bytes 4;
+
+  register en @'h05e4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_ts_base_clk_sel {
+  bytes 4;
+
+  register sel @'h05e8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_pclk_div {
+  bytes 4;
+
+  register ctrl @'h05ec {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_pclk_gate0 {
+  bytes 4;
+
+  register en @'h05f0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_pclk_gate1 {
+  bytes 4;
+
+  register en @'h05f4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_pclk_gate2 {
+  bytes 4;
+
+  register en @'h05f8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_pclk_sel0 {
+  bytes 4;
+
+  register sel @'h05fc {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_phy_2x_clk_div {
+  bytes 4;
+
+  register ctrl @'h0600 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_phy_2x_clk_gate0 {
+  bytes 4;
+
+  register en @'h0604 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_phy_2x_clk_gate1 {
+  bytes 4;
+
+  register en @'h0608 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_phy_2x_clk_gate2 {
+  bytes 4;
+
+  register en @'h060c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_phy_2x_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0610 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_phy_2x_clk_sel1 {
+  bytes 4;
+
+  register sel @'h0614 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_pll {
+  bytes 4;
+
+  register div @'h0618 {
+    bytes 4;
+    field fbdiv @0 { bits 12; access rw; }
+    field postdiv1 @12 { bits 3; access rw; }
+    field postdiv2 @15 { bits 3; access rw; }
+    field refdiv @18 { bits 6; access rw; }
+  }
+
+  register pd @'h061c {
+    bytes 4;
+    field bypass @0 { bits 1; access rw; }
+    field dsmpd @1 { bits 1; access rw; }
+    field pd @2 { bits 1; access rw; }
+    field postdivpd @3 { bits 3; access rw; }
+    field vocpd @6 { bits 1; access rw; }
+  }
+
+  register stat @'h0620 {
+    bytes 4;
+    field lock @0 { bits 1; access ro; }
+  }
+
+}
+
+block blk_tsio_sys_clk_div {
+  bytes 4;
+
+  register ctrl @'h0624 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_sys_clk_gate0 {
+  bytes 4;
+
+  register en @'h0628 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_sys_clk_gate1 {
+  bytes 4;
+
+  register en @'h062c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_sys_clk_gate2 {
+  bytes 4;
+
+  register en @'h0630 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_tsio_sys_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0634 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart06_clk_gate1 {
+  bytes 4;
+
+  register en @'h0638 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart0_clk_div {
+  bytes 4;
+
+  register ctrl @'h063c {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart0_clk_gate2 {
+  bytes 4;
+
+  register en @'h0640 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart1_clk_div {
+  bytes 4;
+
+  register ctrl @'h0644 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart1_clk_gate {
+  bytes 4;
+
+  register en @'h0648 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart1_clk_gate1 {
+  bytes 4;
+
+  register en @'h064c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart1_clk_gate2 {
+  bytes 4;
+
+  register en @'h0650 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart1_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0654 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart2_clk_div {
+  bytes 4;
+
+  register ctrl @'h0658 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart2_clk_gate {
+  bytes 4;
+
+  register en @'h065c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart2_clk_gate1 {
+  bytes 4;
+
+  register en @'h0660 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart2_clk_gate2 {
+  bytes 4;
+
+  register en @'h0664 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart2_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0668 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart6_clk_gate0 {
+  bytes 4;
+
+  register en @'h066c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_uart_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0670 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_mhclk_div {
+  bytes 4;
+
+  register ctrl @'h0674 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_mhclk_gate0 {
+  bytes 4;
+
+  register en @'h0678 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_mhclk_gate1 {
+  bytes 4;
+
+  register en @'h067c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_mhclk_sel6 {
+  bytes 4;
+
+  register sel @'h0680 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_phy_refclk_div {
+  bytes 4;
+
+  register ctrl @'h0684 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_phy_refclk_gate {
+  bytes 4;
+
+  register en @'h0688 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_phy_refclk_gate1 {
+  bytes 4;
+
+  register en @'h068c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_phy_refclk_gate2 {
+  bytes 4;
+
+  register en @'h0690 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_phy_refclk_gate3 {
+  bytes 4;
+
+  register en @'h0694 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_phy_refclk_sel1 {
+  bytes 4;
+
+  register sel @'h0698 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_usb_phy_refclk_sel8 {
+  bytes 4;
+
+  register sel @'h069c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_cfg_pclk_div {
+  bytes 4;
+
+  register ctrl @'h06a0 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_cfg_pclk_gate {
+  bytes 4;
+
+  register en @'h06a4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_cfg_pclk_gate1 {
+  bytes 4;
+
+  register en @'h06a8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_cfg_pclk_gate_row717 {
+  bytes 4;
+
+  register en @'h06ac {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_cfg_pclk_sel0 {
+  bytes 4;
+
+  register sel @'h06b0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_div {
+  bytes 4;
+
+  register ctrl @'h06b4 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_divi {
+  bytes 4;
+
+  register ctrl @'h06b8 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_gate {
+  bytes 4;
+
+  register en @'h06bc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_gate1 {
+  bytes 4;
+
+  register en @'h06c0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_gate11_68 {
+  bytes 4;
+
+  register en @'h06c4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_gate2 {
+  bytes 4;
+
+  register en @'h06c8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_sel0 {
+  bytes 4;
+
+  register sel @'h06cc {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_clk_sel1 {
+  bytes 4;
+
+  register sel @'h06d0 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_jdec_clk_div {
+  bytes 4;
+
+  register ctrl @'h06d4 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_jdec_clk_gate {
+  bytes 4;
+
+  register en @'h06d8 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_jdec_clk_gate1 {
+  bytes 4;
+
+  register en @'h06dc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_jdec_clk_gate2 {
+  bytes 4;
+
+  register en @'h06e0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_jdec_clk_sel0 {
+  bytes 4;
+
+  register sel @'h06e4 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_pp_clk_div {
+  bytes 4;
+
+  register ctrl @'h06e8 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_pp_clk_gate0 {
+  bytes 4;
+
+  register en @'h06ec {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_pp_clk_gate1 {
+  bytes 4;
+
+  register en @'h06f0 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_pp_clk_gate2 {
+  bytes 4;
+
+  register en @'h06f4 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vdec_pp_clk_sel {
+  bytes 4;
+
+  register sel @'h06f8 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_video_sys_pclk_jdec_gate_en {
+  bytes 4;
+
+  register en @'h06fc {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_video_sys_pclk_pp_gate_en {
+  bytes 4;
+
+  register en @'h0700 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_video_sys_vdec_cfg_pclk_gate_en {
+  bytes 4;
+
+  register en @'h0704 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_div {
+  bytes 4;
+
+  register ctrl @'h0708 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_gate0 {
+  bytes 4;
+
+  register en @'h070c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_gate1 {
+  bytes 4;
+
+  register en @'h0710 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_gate2 {
+  bytes 4;
+
+  register en @'h0714 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0718 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_sel1 {
+  bytes 4;
+
+  register sel @'h071c {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_sel2 {
+  bytes 4;
+
+  register sel @'h0720 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_vpu_pixel_clk_sel3 {
+  bytes 4;
+
+  register sel @'h0724 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_wdt_clk_div {
+  bytes 4;
+
+  register ctrl @'h0728 {
+    bytes 4;
+    field div @0 { bits 8; access rw; }
+    field load @8 { bits 1; access rw; }
+    field rst @9 { bits 1; access rw; }
+  }
+
+}
+
+block blk_wdt_clk_gate0 {
+  bytes 4;
+
+  register en @'h072c {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_wdt_clk_gate1 {
+  bytes 4;
+
+  register en @'h0730 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_wdt_clk_gate2 {
+  bytes 4;
+
+  register en @'h0734 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+
+}
+
+block blk_wdt_clk_sel0 {
+  bytes 4;
+
+  register sel @'h0738 {
+    bytes 4;
+    field sel @0 { bits 1; access rw; }
+  }
+
+}

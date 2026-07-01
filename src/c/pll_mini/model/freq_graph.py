@@ -53,7 +53,7 @@ def clk_has_upstream_clock_source(tree: Tree, clk_name: str) -> bool:
     for name in reversed(chain):
         upstream = tree.nodes.get(name)
         if upstream is not None and upstream.kind == "source":
-            return upstream.freq > 0
+            return upstream.freq is not None and upstream.freq > 0
     return False
 
 
@@ -102,11 +102,11 @@ def gate_enable_nodes_on_path(
 
 
 def collect_freq_targets(tree: Tree) -> List[Tuple[str, int]]:
-    """带正频率约束且上游可追溯到时钟源的 clk 节点。"""
+    """带正频率约束且带前级引用的 clk 节点。"""
     out: List[Tuple[str, int]] = []
     for name, node in tree.nodes.items():
         if isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
-            if clk_has_upstream_clock_source(tree, name):
+            if node_has_upstream_ref(node):
                 out.append((name, node.freq))
     return out
 

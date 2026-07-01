@@ -346,14 +346,11 @@ _DIAG_CONSOLE: Console | None = None
 
 
 def _console() -> Console:
+    from report.ui import rich_console_kwargs
+
     global _DIAG_CONSOLE
     if _DIAG_CONSOLE is None:
-        _DIAG_CONSOLE = Console(
-            stderr=True,
-            color_system="truecolor",
-            force_terminal=True,
-            legacy_windows=False,
-        )
+        _DIAG_CONSOLE = Console(**rich_console_kwargs())
     return _DIAG_CONSOLE
 
 

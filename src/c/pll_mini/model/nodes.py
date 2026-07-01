@@ -149,6 +149,21 @@ class NodeBase(BaseModel):
         "",
         description="RTL 层次路径，按 `.` 分隔；pll_mini 仅接受，不参与求解与生成。",
     )
+    freq: Optional[int] = Field(
+        default=None,
+        description="可选频率锚点，单位 Hz；省略表示该节点不主动约束频率。",
+    )
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_node_freq(cls, value: Any) -> Any:
+        return _coerce_optional_int(value)
+
+    @model_validator(mode="after")
+    def _validate_node_freq(self) -> NodeBase:
+        if self.freq is not None and self.freq <= 0:
+            raise ValueError(f"节点 {self.name!r} freq 若填写须大于 0")
+        return self
 
 
 class GateNode(NodeBase):
@@ -274,9 +289,9 @@ class ClockSourceNode(NodeBase):
         description="输入源型号：source、pad，大小写不限。",
     )
     freq: int = Field(
-        0,
-        ge=0,
-        description="典型频率，单位 Hz；source、pad 应大于 0。",
+        ...,
+        ge=1,
+        description="输入源频率，单位 Hz；source、pad 必须填写。",
     )
 
     @field_validator("source_kind", mode="before")
@@ -287,16 +302,12 @@ class ClockSourceNode(NodeBase):
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_freq(cls, value: Any) -> Any:
-        if value is None or value == "":
-            return 0
-        return int(value)
+        return _coerce_required_freq(value)
 
     @model_validator(mode="after")
     def _validate_source_freq(self) -> ClockSourceNode:
         if self.freq < 1:
-            raise ValueError(
-                "source_kind 为 source、pad 时须填写大于 0 的 freq"
-            )
+            raise ValueError("source_kind 为 source、pad 时必须填写大于 0 的 freq")
         return self
 
 
@@ -315,13 +326,11 @@ class PllNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_pll_freq(self) -> PllNode:
-        if self.pll_kind != "inno":
-            if self.freq is None or self.freq < 1:
-                raise ValueError(
-                    f"pll 节点 {self.name!r} pll_kind 为 {self.pll_kind!r} 时"
-                    f"须填写大于 0 的 freq"
-                )
-        elif self.freq is not None and self.freq < 1:
+        if self.pll_kind != "inno" and self.freq is None:
+            raise ValueError(
+                f"pll 节点 {self.name!r} pll_kind 为 {self.pll_kind!r} 时必须填写 freq"
+            )
+        if self.freq is not None and self.freq < 1:
             raise ValueError(
                 f"pll 节点 {self.name!r} freq 若填写须大于 0"
             )
@@ -394,6 +403,10 @@ class ClkNode(NodeBase):
         default=False,
         description="为真时表示锚定时钟，求解时该节点应全程保持有效；"
         "应配合正整数 freq。",
+    )
+    enable: Optional[bool] = Field(
+        default=None,
+        description="clock tree 输入兼容字段；pll_mini 求解阶段按时钟常开处理。",
     )
 
     @field_validator("freq", mode="before")

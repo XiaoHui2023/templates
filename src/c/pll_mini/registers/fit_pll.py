@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from .formulas import freq_tolerance_bounds
-from model.freq_graph import Port, parent_port_for_child
-from model.nodes import PllNode, Tree
+from model.freq_graph import Port, parent_port_for_child, parse_port_ref
+from model.nodes import CellNode, ClkNode, ClockSourceNode, DivNode, GateNode, InvNode, MuxNode, PllNode, Tree
 from model.solve_model import SolveModel
 
 from .pll_search import search_pll_coefficients
@@ -40,7 +40,7 @@ def fit_pll_vars(
         if name in merged:
             continue
         ref_port = parent_port_for_child(tree, name)
-        ref_hz = model.port_hz(ref_port)
+        ref_hz = model.port_hz(ref_port) or _static_port_hz(tree, model, ref_port)
         if ref_hz <= 0:
             raise RuntimeError(f"PLL {name!r} 参考频率无效")
         if node.pll_kind == "inno":
@@ -113,3 +113,51 @@ def fit_pll_vars(
         gate_open=model.gate_open,
         pll_vars=merged,
     )
+
+
+def _static_port_hz(
+    tree: Tree,
+    model: SolveModel,
+    port: Port,
+    seen: set[Port] | None = None,
+) -> int:
+    if seen is None:
+        seen = set()
+    if port in seen:
+        return 0
+    seen.add(port)
+
+    hz = model.port_hz(port)
+    if hz > 0:
+        return hz
+
+    node = tree.nodes.get(port.node)
+    if node is None:
+        return 0
+    if isinstance(node, (ClockSourceNode, ClkNode, PllNode)):
+        return node.freq or 0
+    if isinstance(node, (CellNode, GateNode, InvNode)):
+        return _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)
+    if isinstance(node, DivNode):
+        parent_hz = _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)
+        if parent_hz <= 0 or node.ratio is None:
+            return 0
+        return parent_hz // node.ratio
+    if isinstance(node, MuxNode):
+        if node.sel is not None:
+            raw = node.source.get(str(node.sel))
+        else:
+            selected = model.mux_sel.get(port.node)
+            raw = node.source.get(str(selected)) if selected is not None else None
+        if raw is None:
+            return 0
+        parent = _parent_port_for_child_ref(tree, raw, f"{port.node}.source")
+        return _static_port_hz(tree, model, parent, seen)
+    return 0
+
+
+def _parent_port_for_child_ref(tree: Tree, raw: str, ctx: str) -> Port:
+    port = parse_port_ref(raw, ctx=ctx)
+    if port.node not in tree.nodes:
+        raise ValueError(f"{ctx} 引用不存在的节点 {port.node!r}")
+    return port

@@ -50,6 +50,7 @@ settings:
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
 | `solve_timeout_ms` | `int` | | 定向搜索求解超时，毫秒。 |
+| `debug_consolver_smt_path` | `str` | | 调试用 SMT-LIB 输出路径；相对路径按输入 YAML 所在目录解析。 |
 | `period_tolerance` | `float` | `0.01` | 分频求解相对频率容差。 |
 | `reg_base_offset` | `int` | `0` | 寄存器整体偏移地址。 |
 

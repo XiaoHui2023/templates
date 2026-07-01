@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import sys
 import threading
 import time
 from contextlib import contextmanager
@@ -37,6 +39,20 @@ _THEME = Theme(
 
 _SESSION_LOCK = threading.Lock()
 _ACTIVE_SESSION: ProgressSession | None = None
+
+
+def _no_color_requested() -> bool:
+    return bool(os.environ.get("NO_COLOR"))
+
+
+def rich_console_kwargs() -> dict[str, object]:
+    no_color = _no_color_requested()
+    return {
+        "stderr": True,
+        "color_system": None if no_color else "truecolor",
+        "no_color": no_color,
+        "legacy_windows": False,
+    }
 
 
 def active_progress_session() -> ProgressSession | None:
@@ -350,12 +366,9 @@ class ProgressSession:
         self._tree = tree
         self._console = Console(
             theme=_THEME,
-            stderr=True,
-            color_system="truecolor",
-            force_terminal=True,
-            legacy_windows=False,
+            **rich_console_kwargs(),
         )
-        self.enabled = self._console.is_terminal
+        self.enabled = self._console.is_terminal and sys.stderr.isatty()
         self.failed = False
         self._live: Live | None = None
         self._overall: Progress | None = None

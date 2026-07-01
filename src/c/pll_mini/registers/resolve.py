@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict
 
 from .fit_pll import fit_pll_vars
 from .pll_cfg import pll_cfg_from_solved
-from search.engine import search_tree_constraints, verify_search_partition
+from model.consolver import solve_tree_with_consolver
 from model.solve_model import SolveModel
 from load.tools import log_stage_done, log_stage_progress, log_stage_start
 from model.verify import raise_on_verify_issues, verify_solve_model
@@ -61,6 +62,7 @@ def resolve_tree(
     pll_sc_fbdiv_max: int,
     period_tolerance: float,
     solve_timeout_ms: int | None = None,
+    debug_consolver_smt_path: Path | None = None,
     reg_index: object | None = None,
 ) -> TreeResolve:
     _ = reg_index
@@ -68,28 +70,13 @@ def resolve_tree(
     if not clk_nodes:
         raise ValueError("tree 须至少含一个 kind 为 clk 的节点")
 
-    partition_started_at = log_stage_start(
-        "resolve",
-        "partition",
-        "precheck",
-        nodes=len(tree.nodes),
-        targets=len(clk_nodes),
-    )
-    component_count = verify_search_partition(tree)
-    log_stage_done(
-        "resolve",
-        "partition",
-        "precheck",
-        partition_started_at,
-        components=component_count,
-    )
-
-    model = search_tree_constraints(
+    model = solve_tree_with_consolver(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
         timeout_ms=solve_timeout_ms,
+        debug_smt_path=debug_consolver_smt_path,
     )
 
     fit_started_at = log_stage_start(

@@ -17,12 +17,14 @@ from .freq_graph import (
     collect_freq_targets,
     collect_non_freq_constraint_clks,
     is_passthrough_kind,
+    node_has_upstream_ref,
     output_ports,
     parent_port_for_child,
     port_label,
+    parse_port_ref,
     walk_path_upstream,
 )
-from .nodes import ClkNode, DivNode, MuxNode, PllNode, Tree
+from .nodes import CellNode, ClkNode, ClockSourceNode, DivNode, GateNode, InvNode, MuxNode, PllNode, Tree
 from .solve_model import SolveModel
 
 
@@ -130,7 +132,7 @@ def verify_solve_model(
         if isinstance(node, PllNode):
             vars_map = model.pll_vars.get(name, {})
             ref_port = parent_port_for_child(tree, name)
-            f_ref = model.port_hz(ref_port)
+            f_ref = model.port_hz(ref_port) or _static_port_hz(tree, model, ref_port)
             kind = node.pll_kind
             if kind == "tci":
                 clkf = vars_map.get("clkf", 0)
@@ -247,6 +249,8 @@ def verify_solve_model(
                         )
 
         if is_passthrough_kind(node.kind):
+            if not node_has_upstream_ref(node):
+                continue
             parent_port = parent_port_for_child(tree, name)
             f_parent = model.port_hz(parent_port)
             out_ports = output_ports(tree, name)
@@ -274,6 +278,8 @@ def verify_solve_model(
         if isinstance(node, ClkNode):
             if name in non_constraint_clks:
                 continue
+            if not node_has_upstream_ref(node):
+                continue
             parent_port = parent_port_for_child(tree, name)
             if model.port_hz(Port(name, "")) != model.port_hz(parent_port):
                 issues.append(
@@ -289,6 +295,47 @@ def verify_solve_model(
                 )
 
     return issues
+
+
+def _static_port_hz(
+    tree: Tree,
+    model: SolveModel,
+    port: Port,
+    seen: set[Port] | None = None,
+) -> int:
+    if seen is None:
+        seen = set()
+    if port in seen:
+        return 0
+    seen.add(port)
+
+    hz = model.port_hz(port)
+    if hz > 0:
+        return hz
+
+    node = tree.nodes.get(port.node)
+    if node is None:
+        return 0
+    if isinstance(node, (ClockSourceNode, ClkNode, PllNode)):
+        return node.freq or 0
+    if isinstance(node, (CellNode, GateNode, InvNode)):
+        return _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)
+    if isinstance(node, DivNode):
+        parent_hz = _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)
+        if parent_hz <= 0 or node.ratio is None:
+            return 0
+        return parent_hz // node.ratio
+    if isinstance(node, MuxNode):
+        if node.sel is not None:
+            raw = node.source.get(str(node.sel))
+        else:
+            selected = model.mux_sel.get(port.node)
+            raw = node.source.get(str(selected)) if selected is not None else None
+        if raw is None:
+            return 0
+        parent = parse_port_ref(raw, ctx=f"{port.node}.source")
+        return _static_port_hz(tree, model, parent, seen)
+    return 0
 
 
 def _pll_issue(

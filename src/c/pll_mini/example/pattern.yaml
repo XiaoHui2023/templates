@@ -1,0 +1,3600 @@
+ralf: example/pattern.ralf
+tree:
+  name: pattern
+  nodes:
+    DBGTCK:
+      kind: source
+      source_kind: pad
+      freq: 50000000
+    SYS_counter_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_counter_pclk_gate_en.en.en
+    SYS_dwi2c68_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_dwi2c68_pclk_gate_en.en.en
+    SYS_dwi2c1_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_dwi2c1_pclk_gate_en.en.en
+    SYS_dwi2c2_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_dwi2c2_pclk_gate_en.en.en
+    SYS_dwi2c3_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_dwi2c3_pclk_gate_en.en.en
+    SYS_eth_hclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_eth_hclk_gate_en.en.en
+    SYS_flashspi_hclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_flashspi_hclk_gate_en.en.en
+    SYS_gpio_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_gpio_pclk_gate_en.en.en
+    SYS_gxi2c_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_gxi2c_pclk_gate_en.en.en
+    SYS_irr_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_irr_pclk_gate_en.en.en
+    SYS_nand_hclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_nand_hclk_gate_en.en.en
+    SYS_sci_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_sci_pclk_gate_en.en.en
+    SYS_sdio_hclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_sdio_hclk_gate_en.en.en
+    SYS_uart0_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_uart0_pclk_gate_en.en.en
+    SYS_uart1_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_uart1_pclk_gate_en.en.en
+    SYS_uart2_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_uart2_pclk_gate_en.en.en
+    SYS_usb2_hclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_usb2_hclk_gate_en.en.en
+    SYS_wdt_pclk_gate_en:
+      kind: gate
+      source: peri_cfg_hclk_occ_clk_gxcell
+      reg: blk_SYS_wdt_pclk_gate_en.en.en
+    a7_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: a7_clk_occ_clk_gxcell
+    a7_clk_bist_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: a7_clk_occ_clk_gxcell
+    a7_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: cpu_core_clk_occ_clk_gxcell
+    a7_core_clk:
+      kind: clk
+      source: a7_clk_bist_clk_gxcell
+      freq: 729600000
+    acrypto_clk:
+      kind: clk
+      source: secure_clk_acrypto_clk_gate_en
+    adc_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: adc_clk_occ_clk_gxcell
+    adc_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: adc_clk_occ_clk_gxcell
+    adc_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dvb_adc_clk_gate2
+    arm_bist_fa_clk:
+      kind: source
+      source_kind: pad
+      freq: 50000000
+    audio_cfg_pclk:
+      kind: clk
+      source: audio_cfg_pclk_occ_clk_gxcell
+      freq: 148500000
+    audio_cfg_pclk_div:
+      kind: div
+      div_kind: div_n
+      source: audio_cfg_pclk_gate2
+      regs:
+        rst: blk_audio_cfg_pclk_div.ctrl.rst
+        load: blk_audio_cfg_pclk_div.ctrl.load
+        div: blk_audio_cfg_pclk_div.ctrl.div
+    audio_cfg_pclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_audio_cfg_pclk_gate0.en.en
+    audio_cfg_pclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_cfg_pclk_gate1.en.en
+    audio_cfg_pclk_gate2:
+      kind: gate
+      source: audio_cfg_pclk_sel0
+      reg: blk_audio_cfg_pclk_gate2.en.en
+    audio_cfg_pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_cfg_pclk_gate2
+    audio_cfg_pclk_sel0:
+      kind: mux
+      source:
+        '8': audio_cfg_pclk_gate1
+        '1': audio_cfg_pclk_div
+      reg: blk_audio_cfg_pclk_sel0.sel.sel
+    audio_dsp_clk:
+      kind: clk
+      source: audio_dsp_clk_bist_clk_cell
+      freq: 297000000
+    audio_dsp_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: audio_dsp_clk_occ_clk_gxcell
+    audio_dsp_clk_div:
+      kind: div
+      div_kind: div_n
+      source: audio_dsp_clk_gate2
+      regs:
+        rst: blk_audio_dsp_clk_div.ctrl.rst
+        load: blk_audio_dsp_clk_div.ctrl.load
+        div: blk_audio_dsp_clk_div.ctrl.div
+    audio_dsp_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_audio_dsp_clk_gate0.en.en
+    audio_dsp_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_dsp_clk_gate1.en.en
+    audio_dsp_clk_gate2:
+      kind: gate
+      source: audio_dsp_clk_sel6
+      reg: blk_audio_dsp_clk_gate2.en.en
+    audio_dsp_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: audio_dsp_clk_occ_clk_gxcell
+    audio_dsp_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_dsp_clk_gate2
+    audio_dsp_clk_sel6:
+      kind: mux
+      source:
+        '0': audio_dsp_clk_gate1
+        '11': audio_dsp_clk_div
+      reg: blk_audio_dsp_clk_sel6.sel.sel
+    audio_dsp_pclk:
+      kind: clk
+      source: audio_dsp_pclk_gate_en
+    audio_dsp_pclk_gate_en:
+      kind: gate
+      source: audio_cfg_pclk_occ_clk_gxcell
+      reg: blk_audio_dsp_pclk_gate_en.en.en
+    audio_lodac_clk:
+      kind: clk
+      source: audio_lodac_clk_occ_clk_gxcell
+      freq: 99000000
+    audio_lodac_clk_div:
+      kind: div
+      div_kind: div_n
+      source: audio_lodac_clk_gate
+      regs:
+        rst: blk_audio_lodac_clk_div.ctrl.rst
+        load: blk_audio_lodac_clk_div.ctrl.load
+        div: blk_audio_lodac_clk_div.ctrl.div
+    audio_lodac_clk_gate:
+      kind: gate
+      source: audio_lodac_clk_sel1
+      reg: blk_audio_lodac_clk_gate.en.en
+    audio_lodac_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_lodac_clk_gate1.en.en
+    audio_lodac_clk_gate2:
+      kind: gate
+      source: audio_lodac_clk_sel0
+      reg: blk_audio_lodac_clk_gate2.en.en
+    audio_lodac_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_lodac_clk_gate2
+    audio_lodac_clk_sel0:
+      kind: mux
+      source:
+        '0': audio_lodac_clk_gate1
+        '11': audio_lodac_clk_div
+      reg: blk_audio_lodac_clk_sel0.sel.sel
+    audio_lodac_clk_sel1:
+      kind: mux
+      source:
+        '0': dto_pll
+        '1': ddr_inno_pll[0]
+      reg: blk_audio_lodac_clk_sel1.sel.sel
+    audio_play_hclk:
+      kind: clk
+      source: audio_play_hclk_bist_clk_cell
+      freq: 297000000
+    audio_play_hclk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: audio_play_hclk_occ_clk_gxcell
+    audio_play_hclk_div:
+      kind: div
+      div_kind: div_n
+      source: audio_play_hclk_gate
+      regs:
+        rst: blk_audio_play_hclk_div.ctrl.rst
+        load: blk_audio_play_hclk_div.ctrl.load
+        div: blk_audio_play_hclk_div.ctrl.div
+    audio_play_hclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_audio_play_hclk_gate.en.en
+    audio_play_hclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_play_hclk_gate1.en.en
+    audio_play_hclk_gate2:
+      kind: gate
+      source: audio_play_hclk_sel0
+      reg: blk_audio_play_hclk_gate2.en.en
+    audio_play_hclk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: audio_play_hclk_occ_clk_gxcell
+    audio_play_hclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_play_hclk_gate2
+    audio_play_hclk_sel0:
+      kind: mux
+      source:
+        '8': audio_play_hclk_gate1
+        '1': audio_play_hclk_div
+      reg: blk_audio_play_hclk_sel0.sel.sel
+    audio_play_i2s_bclk:
+      kind: source
+      source_kind: source
+      freq: 27000000
+    audio_play_pclk:
+      kind: clk
+      source: audio_play_pclk_gate_en
+    audio_play_pclk_gate_en:
+      kind: gate
+      source: audio_cfg_pclk_occ_clk_gxcell
+      reg: blk_audio_play_pclk_gate_en.en.en
+    audio_play_spd0_clk:
+      kind: clk
+      source: audio_play_spd0_clk_bist_clk_cell
+      freq: 99000000
+    audio_play_spd0_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: audio_play_spd0_clk_occ_clk_gxcell
+    audio_play_spd0_clk_dto:
+      kind: div
+      div_kind: dto_n
+      source: audio_play_spd0_clk_gate0
+      regs:
+        rst: blk_audio_play_spd0_clk_dto.ctrl.rst
+        load: blk_audio_play_spd0_clk_dto.ctrl.load
+        bypass: blk_audio_play_spd0_clk_dto.ctrl.bypass
+        step: blk_audio_play_spd0_clk_dto.ctrl.step
+    audio_play_spd0_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_audio_play_spd0_clk_gate0.en.en
+    audio_play_spd0_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_play_spd0_clk_gate1.en.en
+    audio_play_spd0_clk_gate2:
+      kind: gate
+      source: audio_play_spd0_clk_sel
+      reg: blk_audio_play_spd0_clk_gate2.en.en
+    audio_play_spd0_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: audio_play_spd0_clk_occ_clk_gxcell
+    audio_play_spd0_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_play_spd0_clk_gate2
+    audio_play_spd0_clk_sel:
+      kind: mux
+      source:
+        '0': audio_play_spd0_clk_gate1
+        '1': audio_play_spd0_clk_dto
+      reg: blk_audio_play_spd0_clk_sel.sel.sel
+    audio_play_spdi_clk:
+      kind: clk
+      source: audio_play_spdi_clk_bist_clk_cell
+      freq: 99000000
+    audio_play_spdi_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: audio_play_spdi_clk_occ_clk_gxcell
+    audio_play_spdi_clk_dto:
+      kind: div
+      div_kind: dto_n
+      source: audio_play_spdi_clk_gate0
+      regs:
+        rst: blk_audio_play_spdi_clk_dto.ctrl.rst
+        load: blk_audio_play_spdi_clk_dto.ctrl.load
+        bypass: blk_audio_play_spdi_clk_dto.ctrl.bypass
+        step: blk_audio_play_spdi_clk_dto.ctrl.step
+    audio_play_spdi_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_audio_play_spdi_clk_gate0.en.en
+    audio_play_spdi_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_play_spdi_clk_gate1.en.en
+    audio_play_spdi_clk_gate2:
+      kind: gate
+      source: audio_play_spdi_clk_sel0
+      reg: blk_audio_play_spdi_clk_gate2.en.en
+    audio_play_spdi_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: audio_play_spdi_clk_occ_clk_gxcell
+    audio_play_spdi_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_play_spdi_clk_gate2
+    audio_play_spdi_clk_sel0:
+      kind: mux
+      source:
+        '0': audio_play_spdi_clk_gate1
+        '1': audio_play_spdi_clk_dto
+      reg: blk_audio_play_spdi_clk_sel0.sel.sel
+    audio_play_spd2_clk:
+      kind: clk
+      source: audio_play_spd2_clk_bist_clk_cell
+      freq: 99000000
+    audio_play_spd2_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: audio_play_spd2_clk_occ_clk_gxcell
+    audio_play_spd2_clk_dto:
+      kind: div
+      div_kind: dto_n
+      source: audio_play_spd2_clk_gate0
+      regs:
+        rst: blk_audio_play_spd2_clk_dto.ctrl.rst
+        load: blk_audio_play_spd2_clk_dto.ctrl.load
+        bypass: blk_audio_play_spd2_clk_dto.ctrl.bypass
+        step: blk_audio_play_spd2_clk_dto.ctrl.step
+    audio_play_spd2_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_audio_play_spd2_clk_gate0.en.en
+    audio_play_spd2_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_play_spd2_clk_gate1.en.en
+    audio_play_spd2_clk_gate2:
+      kind: gate
+      source: audio_play_spd2_clk_sel0
+      reg: blk_audio_play_spd2_clk_gate2.en.en
+    audio_play_spd2_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: audio_play_spd2_clk_occ_clk_gxcell
+    audio_play_spd2_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_play_spd2_clk_gate2
+    audio_play_spd2_clk_sel0:
+      kind: mux
+      source:
+        '0': audio_play_spd2_clk_gate1
+        '1': audio_play_spd2_clk_dto
+      reg: blk_audio_play_spd2_clk_sel0.sel.sel
+    audio_play_spd_clk:
+      kind: source
+      source_kind: source
+      freq: 99000000
+    audio_play_srl_clk:
+      kind: clk
+      source: audio_play_srl_clk_occ_clk_gxcell
+      freq: 99000000
+    audio_play_srl_clk_dto:
+      kind: div
+      div_kind: dto_n
+      source: audio_play_srl_clk_gate
+      regs:
+        rst: blk_audio_play_srl_clk_dto.ctrl.rst
+        load: blk_audio_play_srl_clk_dto.ctrl.load
+        bypass: blk_audio_play_srl_clk_dto.ctrl.bypass
+        step: blk_audio_play_srl_clk_dto.ctrl.step
+    audio_play_srl_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_audio_play_srl_clk_gate.en.en
+    audio_play_srl_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_audio_play_srl_clk_gate1.en.en
+    audio_play_srl_clk_gate2:
+      kind: gate
+      source: audio_play_srl_clk_sel0
+      reg: blk_audio_play_srl_clk_gate2.en.en
+    audio_play_srl_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: audio_play_srl_clk_gate2
+    audio_play_srl_clk_sel0:
+      kind: mux
+      source:
+        '0': audio_play_srl_clk_gate1
+        '11': audio_play_srl_clk_dto
+      reg: blk_audio_play_srl_clk_sel0.sel.sel
+    bus_cfg_pclk:
+      kind: clk
+      source: bus_cfg_pclk_occ_clk_gxcell
+      freq: 148500000
+    bus_cfg_pclk_div:
+      kind: div
+      div_kind: div_n
+      source: bus_cfg_pclk_gate
+      regs:
+        rst: blk_bus_cfg_pclk_div.ctrl.rst
+        load: blk_bus_cfg_pclk_div.ctrl.load
+        div: blk_bus_cfg_pclk_div.ctrl.div
+    bus_cfg_pclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_bus_cfg_pclk_gate.en.en
+    bus_cfg_pclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_bus_cfg_pclk_gate1.en.en
+    bus_cfg_pclk_gate2:
+      kind: gate
+      source: bus_cfg_pclk_sel0
+      reg: blk_bus_cfg_pclk_gate2.en.en
+    bus_cfg_pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_cfg_pclk_gate2
+    bus_cfg_pclk_sel0:
+      kind: mux
+      source:
+        '8': bus_cfg_pclk_gate1
+        '1': bus_cfg_pclk_div
+      reg: blk_bus_cfg_pclk_sel0.sel.sel
+    bus_ddr_port_clk:
+      kind: clk
+      source: ddr_sys_clk_scan_occ_inst
+      freq: 391500000
+    bus_secure_axi_clk:
+      kind: clk
+      source: bus_secure_axi_clk_occ_clk_gxcell
+      freq: 198000000
+    bus_secure_axi_clk_div:
+      kind: div
+      div_kind: div_n
+      source: bus_secure_axi_clk_gate
+      regs:
+        rst: blk_bus_secure_axi_clk_div.ctrl.rst
+        load: blk_bus_secure_axi_clk_div.ctrl.load
+        div: blk_bus_secure_axi_clk_div.ctrl.div
+    bus_secure_axi_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_bus_secure_axi_clk_gate.en.en
+    bus_secure_axi_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_bus_secure_axi_clk_gate1.en.en
+    bus_secure_axi_clk_gate2:
+      kind: gate
+      source: bus_secure_axi_clk_sel0
+      reg: blk_bus_secure_axi_clk_gate2.en.en
+    bus_secure_axi_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_secure_axi_clk_gate2
+    bus_secure_axi_clk_sel0:
+      kind: mux
+      source:
+        '8': bus_secure_axi_clk_gate1
+        '1': bus_secure_axi_clk_div
+      reg: blk_bus_secure_axi_clk_sel0.sel.sel
+    bus_secure_cfg_hclk:
+      kind: clk
+      source: bus_secure_cfg_hclk_occ_clk_gxcell
+      freq: 148500000
+    bus_secure_cfg_hclk_div:
+      kind: div
+      div_kind: div_n
+      source: bus_secure_cfg_hclk_gate
+      regs:
+        rst: blk_bus_secure_cfg_hclk_div.ctrl.rst
+        load: blk_bus_secure_cfg_hclk_div.ctrl.load
+        div: blk_bus_secure_cfg_hclk_div.ctrl.div
+    bus_secure_cfg_hclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_bus_secure_cfg_hclk_gate.en.en
+    bus_secure_cfg_hclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_bus_secure_cfg_hclk_gate1.en.en
+    bus_secure_cfg_hclk_gate2:
+      kind: gate
+      source: bus_secure_cfg_hclk_sel6
+      reg: blk_bus_secure_cfg_hclk_gate2.en.en
+    bus_secure_cfg_hclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_secure_cfg_hclk_gate2
+    bus_secure_cfg_hclk_sel6:
+      kind: mux
+      source:
+        '0': bus_secure_cfg_hclk_gate1
+        '1': bus_secure_cfg_hclk_div
+      reg: blk_bus_secure_cfg_hclk_sel6.sel.sel
+    bus_tsio_pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: tsio_pclk_gate2
+    bus_vpu_axi64_clk:
+      kind: clk
+      source: vpu_axi64_clk_bist_clk_gxcell
+    bus_vpu_axi64_clk_div:
+      kind: div
+      div_kind: div_n
+      source: bus_vpu_axi64_clk_gate
+      regs:
+        rst: blk_bus_vpu_axi64_clk_div.ctrl.rst
+        load: blk_bus_vpu_axi64_clk_div.ctrl.load
+        div: blk_bus_vpu_axi64_clk_div.ctrl.div
+    bus_vpu_axi64_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_bus_vpu_axi64_clk_gate.en.en
+    bus_vpu_axi64_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_bus_vpu_axi64_clk_gate1.en.en
+    bus_vpu_axi64_clk_gate2:
+      kind: gate
+      source: bus_vpu_axi64_clk_sel0
+      reg: blk_bus_vpu_axi64_clk_gate2.en.en
+    bus_vpu_axi64_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_vpu_axi64_clk_gate2
+    bus_vpu_axi64_clk_sel0:
+      kind: mux
+      source:
+        '6': bus_vpu_axi64_clk_gate1
+        '1': bus_vpu_axi64_clk_div
+      reg: blk_bus_vpu_axi64_clk_sel0.sel.sel
+    ca7_mbist_fa_mode:
+      kind: gate
+      source: ca7_mbist_fa_sel
+      open: 0
+    ca7_mbist_fa_sel:
+      kind: mux
+      source:
+        '0': clock_start_xtal_occ_clk_gxcell
+        '1': arm_bist_fa_clk
+      sel: 0
+    ca7_mbist_mode:
+      kind: gate
+      open: 0
+    chip_sys_cfg_hclk:
+      kind: clk
+      source: chip_sys_cfg_hclk_bist_clk_cell
+      freq: 148500000
+      stable: 'true'
+    chip_sys_cfg_hclk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: chip_sys_cfg_hclk_occ_clk_gxcell
+    chip_sys_cfg_hclk_div:
+      kind: div
+      div_kind: div_n
+      source: chip_sys_cfg_hclk_gate2
+      regs:
+        rst: blk_chip_sys_cfg_hclk_div.ctrl.rst
+        load: blk_chip_sys_cfg_hclk_div.ctrl.load
+        div: blk_chip_sys_cfg_hclk_div.ctrl.div
+    chip_sys_cfg_hclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_chip_sys_cfg_hclk_gate0.en.en
+    chip_sys_cfg_hclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_chip_sys_cfg_hclk_gate1.en.en
+    chip_sys_cfg_hclk_gate2:
+      kind: gate
+      source: chip_sys_cfg_hclk_sel
+      reg: blk_chip_sys_cfg_hclk_gate2.en.en
+    chip_sys_cfg_hclk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: chip_sys_cfg_hclk_occ_clk_gxcell
+    chip_sys_cfg_hclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: chip_sys_cfg_hclk_gate2
+    chip_sys_cfg_hclk_sel:
+      kind: mux
+      source:
+        '6': chip_sys_cfg_hclk_gate1
+        '1': chip_sys_cfg_hclk_div
+      reg: blk_chip_sys_cfg_hclk_sel.sel.sel
+    clk_ts_base_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: ts_base_clk_gate2
+    clock_pll_CPU:
+      kind: clk
+      source: cpu_pll
+    clock_pll_DDR:
+      kind: clk
+      source: ddr_inno_pll[0]
+    clock_pll_DODR1:
+      kind: clk
+      source: ddr_inno_pll[1]
+    clock_pll_DDR_sc:
+      kind: clk
+      source: ddr_sc_pll
+    clock_pll_DTO:
+      kind: clk
+      source: dto_pll
+    clock_pll_DVB:
+      kind: clk
+      source: dvb_pll
+    clock_pll_ETH:
+      kind: clk
+      source: eth_pll
+    clock_pll_TSIO:
+      kind: clk
+      source: tsio_pll
+    clock_start:
+      kind: clk
+      source: clock_xtal_buf_gxcell
+      freq: 27000000
+    clock_start_gxcell:
+      kind: cell
+      cell_kind: cell
+      source: xin
+    clock_start_xtal:
+      kind: clk
+      source: clock_start_xtal_occ_clk_gxcell
+      freq: 27000000
+    clock_start_xtal_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: xin
+    clock_tsio:
+      kind: clk
+      source: tsio_sys_bist_clk_cell
+      freq: 297000000
+    clock_tsio_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: tsio_sys_clk_sel0
+    clock_xtal:
+      kind: clk
+      source: clock_start_gxcell
+    clock_xtal_buf_gxcell:
+      kind: cell
+      cell_kind: cell
+      source: xin
+    clock_xtal_secure_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: secure_xtal_clk_gate2
+    counter_clk:
+      kind: clk
+      source: counter_clk_occ_clk_gxcell
+      freq: 59400000
+    counter_clk_div:
+      kind: div
+      source: counter_clk_gate2
+      regs:
+        rst: blk_counter_clk_div.ctrl.rst
+        load: blk_counter_clk_div.ctrl.load
+        div: blk_counter_clk_div.ctrl.div
+    counter_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_counter_clk_gate0.en.en
+    counter_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_counter_clk_gate1.en.en
+    counter_clk_gate2:
+      kind: gate
+      source: counter_clk_sel0
+      reg: blk_counter_clk_gate2.en.en
+    counter_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: counter_clk_gate2
+    counter_clk_sel0:
+      kind: mux
+      source:
+        '0': counter_clk_gate1
+        '1': counter_clk_div
+      reg: blk_counter_clk_sel0.sel.sel
+    counter_pclk:
+      kind: clk
+      source: SYS_counter_pclk_gate_en
+    cpu_axi_clk: null
+    cpu_axi_clk_gate2: null
+    cpu_axi_clk_occ_clk_gxcell: null
+    cpu_axi_clken: null
+    cpu_cfg_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: pmu_cfg_gate2
+    cpu_core_clk:
+      kind: clk
+      source: cpu_core_clk_occ_clk_gxcell
+      freq: 729600000
+    cpu_core_clk_div:
+      kind: div
+      div_kind: div_n
+      source: cpu_core_clk_gate
+      regs:
+        rst: blk_cpu_core_clk_div.ctrl.rst
+        load: blk_cpu_core_clk_div.ctrl.load
+        div: blk_cpu_core_clk_div.ctrl.div
+    cpu_core_clk_gate:
+      kind: gate
+      source: cpu_pll
+      reg: blk_cpu_core_clk_gate.en.en
+    cpu_core_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_cpu_core_clk_gate1.en.en
+    cpu_core_clk_gate2:
+      kind: gate
+      source: cpu_core_clk_sel1
+      reg: blk_cpu_core_clk_gate2.en.en
+    cpu_core_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: cpu_core_clk_gate2
+    cpu_core_clk_sel0:
+      kind: mux
+      source:
+        '0': cpu_core_clk_gate1
+        '1': cpu_core_clk_sel1
+      reg: blk_cpu_core_clk_sel0.sel.sel
+    cpu_core_clk_sel1:
+      kind: mux
+      source:
+        '0': cpu_core_clk_gate
+        '11': cpu_core_clk_div
+      reg: blk_cpu_core_clk_sel1.sel.sel
+    cpu_debug_clk: null
+    cpu_debug_clk_gate2: null
+    cpu_debug_clk_occ_clk_gxcell: null
+    cpu_debug_clken: null
+    cpu_jtag_swclktck:
+      kind: clk
+      source: cpu_jtag_swclktck_gate2
+    cpu_jtag_swclktck_gate2:
+      kind: gate
+      source: cpu_jtag_swclktck_sel1
+      reg: blk_cpu_jtag_swclktck_gate2.en.en
+    cpu_jtag_swclktck_sel0:
+      kind: mux
+      source:
+        '0': clock_start_xtal_occ_clk_gxcell
+        '1': cpu_jtag_swclktck_sel1
+      reg: blk_cpu_jtag_swclktck_sel0.sel.sel
+    cpu_jtag_swclktck_sel1:
+      kind: inv
+      inv_kind: inv_mux
+      source: DBGTCK
+    cpu_mbist_clk_occ_clk_gxcell: null
+    cpu_pll:
+      pll_kind: sc
+      kind: pll
+      source: clock_start_gxcell
+      freq: 729600000
+      regs:
+        lock: blk_cpu_pll.stat.lock
+        vocpd: blk_cpu_pll.pd.vocpd
+        postdivpd: blk_cpu_pll.pd.postdivpd
+        dsmpd: blk_cpu_pll.pd.dsmpd
+        pd: blk_cpu_pll.pd.pd
+        bypass: blk_cpu_pll.pd.bypass
+        refdiv: blk_cpu_pll.div.refdiv
+        postdiv2: blk_cpu_pll.div.postdiv2
+        postdiv1: blk_cpu_pll.div.postdiv1
+        fbdiv: blk_cpu_pll.div.fbdiv
+    cvbs_pixel_clk:
+      kind: clk
+      source: cvbs_pixel_clk_bist_clk_gxcell
+      freq: 13500000
+    cvbs_pixel_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: cvbs_pixel_clk_div_r2
+    cvbs_pixel_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: cvbs_pixel_clk_bist_clk_cell
+    cvbs_pixel_clk_div_r2:
+      ratio: 2
+      kind: div
+      div_kind: div_r
+      source: cvbs_pixel_double_clk_gate2
+    cvbs_pixel_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: cvbs_pixel_clk_bist_clk_cell
+    cvbs_pixel_double_clk:
+      kind: clk
+      source: cvbs_pixel_double_clk_occ_clk_gxcell
+      freq: 27000000
+    cvbs_pixel_double_clk_div:
+      kind: div
+      div_kind: div_n
+      source: cvbs_pixel_double_clk_gate2
+      regs:
+        rst: blk_cvbs_pixel_double_clk_div.ctrl.rst
+        load: blk_cvbs_pixel_double_clk_div.ctrl.load
+        div: blk_cvbs_pixel_double_clk_div.ctrl.div
+    cvbs_pixel_double_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_cvbs_pixel_double_clk_gate0.en.en
+    cvbs_pixel_double_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_cvbs_pixel_double_clk_gate1.en.en
+    cvbs_pixel_double_clk_gate2:
+      kind: gate
+      source: cvbs_pixel_double_clk_sel0
+      reg: blk_cvbs_pixel_double_clk_gate2.en.en
+    cvbs_pixel_double_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: cvbs_pixel_double_clk_gate2
+    cvbs_pixel_double_clk_sel0:
+      kind: mux
+      source:
+        '8': cvbs_pixel_double_clk_gate1
+        '1': cvbs_pixel_double_clk_div
+      reg: blk_cvbs_pixel_double_clk_sel0.sel.sel
+    ddr_cfg_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: ddr_cfg_hclk_gate2
+    ddr_cfg_hclk:
+      kind: clk
+      source: ddr_cfg_clk_occ_clk_gxcell
+      freq: 148500000
+    ddr_cfg_hclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_ddr_cfg_hclk_gate1.en.en
+    ddr_cfg_hclk_gate2:
+      kind: gate
+      source: ddr_cfg_hclk_sel0
+      reg: blk_ddr_cfg_hclk_gate2.en.en
+    ddr_cfg_hclk_sel0:
+      kind: mux
+      source:
+        '0': ddr_cfg_hclk_gate1
+        '1': ddr_hclk_div
+      reg: blk_ddr_cfg_hclk_sel0.sel.sel
+    ddr_ctrl_clk:
+      kind: clk
+      source: ddr_ctrl_clk_occ_clk_gxcell
+      freq: 391500000
+    ddr_ctrl_clk_gate2:
+      kind: gate
+      source: ddr_phy_div2
+      reg: blk_ddr_ctrl_clk_gate2.en.en
+    ddr_ctrl_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: ddr_ctrl_clk_gate2
+    ddr_hclk_div:
+      kind: div
+      div_kind: div_n
+      source: ddr_phy_hclk_gate0
+      regs:
+        rst: blk_ddr_hclk_div.ctrl.rst
+        load: blk_ddr_hclk_div.ctrl.load
+        div: blk_ddr_hclk_div.ctrl.div
+    ddr_inno_pll:
+      pll_kind: inno
+      kind: pll
+      source: clock_start_gxcell
+      freq: 783000000
+      regs:
+        lock: blk_ddr_inno_pll.lock.lock
+        pd: blk_ddr_inno_pll.pd.pd
+        refdiv: blk_ddr_inno_pll.refdiv.refdiv
+        fbdiv: blk_ddr_inno_pll.fbdiv.fbdiv
+        postdiv1[0]: blk_ddr_inno_pll.postdiv1_0.postdiv1_0
+        postdiv2[0]: blk_ddr_inno_pll.postdiv2_0.postdiv2_0
+        postdiv1[1]: blk_ddr_inno_pll.postdiv1_1.postdiv1_1
+        postdiv2[1]: blk_ddr_inno_pll.postdiv2_1.postdiv2_1
+    ddr_phy_clk:
+      kind: clk
+      source: ddr_phy_clk_occ_clk_gxcell
+      freq: 783000000
+    ddr_phy_clk_gate:
+      kind: gate
+      source: ddr_phy_clk_sel2
+      reg: blk_ddr_phy_clk_gate.en.en
+    ddr_phy_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_ddr_phy_clk_gate1.en.en
+    ddr_phy_clk_gate2:
+      kind: gate
+      source: ddr_phy_clk_sel
+      reg: blk_ddr_phy_clk_gate2.en.en
+    ddr_phy_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: ddr_phy_clk_gate2
+    ddr_phy_clk_sel:
+      kind: mux
+      source:
+        '0': ddr_phy_clk_gate1
+        '1': ddr_phy_clk_gate
+      reg: blk_ddr_phy_clk_sel.sel.sel
+    ddr_phy_clk_sel1:
+      kind: mux
+      source:
+        '0': ddr_inno_pll[0]
+        '1': ddr_inno_pll[1]
+      reg: blk_ddr_phy_clk_sel1.sel.sel
+    ddr_phy_clk_sel2:
+      kind: mux
+      source:
+        '0': ddr_sc_pll
+        '1': ddr_phy_clk_sel1
+      reg: blk_ddr_phy_clk_sel2.sel.sel
+    ddr_phy_div2:
+      ratio: 2
+      kind: div
+      div_kind: div_r
+      source: ddr_phy_clk_sel
+    ddr_phy_hclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_ddr_phy_hclk_gate0.en.en
+    ddr_port_clk_gate2:
+      kind: gate
+      source: ddr_phy_div2
+      reg: blk_ddr_port_clk_gate2.en.en
+    ddr_sc_pll:
+      pll_kind: sc
+      kind: pll
+      source: clock_start_gxcell
+      freq: 783600000
+      regs:
+        lock: blk_ddr_sc_pll.stat.lock
+        vocpd: blk_ddr_sc_pll.pd.vocpd
+        postdivpd: blk_ddr_sc_pll.pd.postdivpd
+        dsmpd: blk_ddr_sc_pll.pd.dsmpd
+        pd: blk_ddr_sc_pll.pd.pd
+        bypass: blk_ddr_sc_pll.pd.bypass
+        refdiv: blk_ddr_sc_pll.div.refdiv
+        postdiv2: blk_ddr_sc_pll.div.postdiv2
+        postdiv1: blk_ddr_sc_pll.div.postdiv1
+        fbdiv: blk_ddr_sc_pll.div.fbdiv
+    ddr_sys_cfg_hclk:
+      kind: clk
+      source: ddr_sys_cfg_hclk_occ_clk_gxcell
+      freq: 148500000
+    ddr_sys_cfg_hclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: ddr_cfg_hclk_gate2
+    ddr_sys_clk_scan_occ_inst:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: ddr_port_clk_gate2
+    dem_clk_H_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: dem_clk_H_occ_clk_gxcell
+    dem_clk_H_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: dem_clk_H_occ_clk_gxcell
+    dem_clk_H_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dem_clk_h_gate2
+    dem_clk_h_div:
+      kind: div
+      div_kind: div_n
+      source: dem_clk_h_gate0
+      regs:
+        rst: blk_dem_clk_h_div.ctrl.rst
+        load: blk_dem_clk_h_div.ctrl.load
+        div: blk_dem_clk_h_div.ctrl.div
+    dem_clk_h_gate0:
+      kind: gate
+      source: dvb_pll
+      reg: blk_dem_clk_h_gate0.en.en
+    dem_clk_h_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_dem_clk_h_gate1.en.en
+    dem_clk_h_gate2:
+      kind: gate
+      source: dem_clk_h_sel0
+      reg: blk_dem_clk_h_gate2.en.en
+    dem_clk_h_sel0:
+      kind: mux
+      source:
+        '0': dem_clk_h_gate1
+        '1': dem_clk_h_div
+      reg: blk_dem_clk_h_sel0.sel.sel
+    dem_h_clk:
+      kind: clk
+      source: dem_clk_H_bist_clk_gxcell
+      freq: 132000000
+    desc_clk:
+      kind: clk
+      source: desc_clk_bist_clk_gxcell
+      freq: 297000000
+    desc_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: desc_clk_occ_clk_gxcell
+    desc_clk_div:
+      kind: div
+      div_kind: div_n
+      source: desc_clk_gate2
+      regs:
+        rst: blk_desc_clk_div.ctrl.rst
+        load: blk_desc_clk_div.ctrl.load
+        div: blk_desc_clk_div.ctrl.div
+    desc_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_desc_clk_gate0.en.en
+    desc_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_desc_clk_gate1.en.en
+    desc_clk_gate2:
+      kind: gate
+      source: desc_clk_sel
+      reg: blk_desc_clk_gate2.en.en
+    desc_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: desc_clk_occ_clk_gxcell
+    desc_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: desc_clk_gate2
+    desc_clk_sel:
+      kind: mux
+      source:
+        '0': desc_clk_gate1
+        '1': desc_clk_div
+      reg: blk_desc_clk_sel.sel.sel
+    desc_gate_clk:
+      kind: clk
+      source: secure_decsc_clk_gate_en
+    display_axi64_clk:
+      kind: clk
+      source: display_axi64_clk_occ_clk_gxcell
+      freq: 396000000
+    display_axi64_clk_div:
+      kind: div
+      div_kind: div_n
+      source: display_axi64_clk_gate
+      regs:
+        rst: blk_display_axi64_clk_div.ctrl.rst
+        load: blk_display_axi64_clk_div.ctrl.load
+        div: blk_display_axi64_clk_div.ctrl.div
+    display_axi64_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_display_axi64_clk_gate.en.en
+    display_axi64_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_display_axi64_clk_gate1.en.en
+    display_axi64_clk_gate2:
+      kind: gate
+      source: display_axi64_clk_sel0
+      reg: blk_display_axi64_clk_gate2.en.en
+    display_axi64_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: display_axi64_clk_gate2
+    display_axi64_clk_sel0:
+      kind: mux
+      source:
+        '0': display_axi64_clk_gate1
+        '1': display_axi64_clk_div
+      reg: blk_display_axi64_clk_sel0.sel.sel
+    display_cfg_pclk:
+      kind: clk
+      source: display_cfg_pclk_occ_clk_gxcell
+      freq: 148500000
+    display_cfg_pclk_div:
+      kind: div
+      div_kind: div_n
+      source: display_cfg_pclk_gate
+      regs:
+        rst: blk_display_cfg_pclk_div.ctrl.rst
+        load: blk_display_cfg_pclk_div.ctrl.load
+        div: blk_display_cfg_pclk_div.ctrl.div
+    display_cfg_pclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_display_cfg_pclk_gate.en.en
+    display_cfg_pclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_display_cfg_pclk_gate1.en.en
+    display_cfg_pclk_gate2:
+      kind: gate
+      source: display_cfg_pclk_sel0
+      reg: blk_display_cfg_pclk_gate2.en.en
+    display_cfg_pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: display_cfg_pclk_gate2
+    display_cfg_pclk_sel0:
+      kind: mux
+      source:
+        '8': display_cfg_pclk_gate1
+        '1': display_cfg_pclk_div
+      reg: blk_display_cfg_pclk_sel0.sel.sel
+    dto_pll:
+      pll_kind: sc
+      kind: pll
+      source: clock_start_gxcell
+      freq: 1188000000
+      regs:
+        lock: blk_dto_pll.stat.lock
+        vocpd: blk_dto_pll.pd.vocpd
+        postdivpd: blk_dto_pll.pd.postdivpd
+        dsmpd: blk_dto_pll.pd.dsmpd
+        pd: blk_dto_pll.pd.pd
+        bypass: blk_dto_pll.pd.bypass
+        refdiv: blk_dto_pll.div.refdiv
+        postdiv2: blk_dto_pll.div.postdiv2
+        postdiv1: blk_dto_pll.div.postdiv1
+        fbdiv: blk_dto_pll.div.fbdiv
+    dvb_adc_clk:
+      kind: clk
+      source: adc_clk_bist_clk_gxcell
+      freq: 198000000
+    dvb_adc_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_dvb_adc_clk_gate1.en.en
+    dvb_adc_clk_gate2:
+      kind: gate
+      source: dvb_adc_clk_sel
+      reg: blk_dvb_adc_clk_gate2.en.en
+    dvb_adc_clk_sel:
+      kind: mux
+      source:
+        '0': dvb_adc_clk_gate1
+        '1': dvb_adc_clk_sel1
+      reg: blk_dvb_adc_clk_sel.sel.sel
+    dvb_adc_clk_sel1:
+      kind: mux
+      source:
+        '0': ip_adc_clk_div
+        '1': dvb_adc_clk_sel2
+      reg: blk_dvb_adc_clk_sel1.sel.sel
+    dvb_adc_clk_sel2:
+      kind: inv
+      inv_kind: inv_mux
+      source: iqadc_clk
+    dvb_bus_qos_pclk:
+      kind: clk
+      source: dvb_bus_qos_pclk_gate_en
+    dvb_bus_qos_pclk_gate_en:
+      kind: gate
+      source: dvb_cfg_pclk_occ_clk_gxcell
+      reg: blk_dvb_bus_qos_pclk_gate_en.en.en
+    dvb_cfg_pclk:
+      kind: clk
+      source: dvb_cfg_pclk_occ_clk_gxcell
+      freq: 148500000
+    dvb_cfg_pclk_div:
+      kind: div
+      div_kind: div_n
+      source: dvb_cfg_pclk_gate
+      regs:
+        rst: blk_dvb_cfg_pclk_div.ctrl.rst
+        load: blk_dvb_cfg_pclk_div.ctrl.load
+        div: blk_dvb_cfg_pclk_div.ctrl.div
+    dvb_cfg_pclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_dvb_cfg_pclk_gate.en.en
+    dvb_cfg_pclk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_dvb_cfg_pclk_gate1.en.en
+    dvb_cfg_pclk_gate2:
+      kind: gate
+      source: dvb_cfg_pclk_sel0
+      reg: blk_dvb_cfg_pclk_gate2.en.en
+    dvb_cfg_pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dvb_cfg_pclk_gate2
+    dvb_cfg_pclk_sel0:
+      kind: mux
+      source:
+        '0': dvb_cfg_pclk_gate1
+        '1': dvb_cfg_pclk_div
+      reg: blk_dvb_cfg_pclk_sel0.sel.sel
+    dvb_core_adc_pclk:
+      kind: clk
+      source: dvb_core_adc_pclk_gate_en
+    dvb_core_adc_pclk_gate_en:
+      kind: gate
+      source: dvb_cfg_pclk_occ_clk_gxcell
+      reg: blk_dvb_core_adc_pclk_gate_en.en.en
+    dvb_core_cfg_pclk:
+      kind: clk
+      source: dvb_core_cfg_pclk_gate_en
+    dvb_core_cfg_pclk_gate_en:
+      kind: gate
+      source: dvb_cfg_pclk_occ_clk_gxcell
+      reg: blk_dvb_core_cfg_pclk_gate_en.en.en
+    dvb_cpu_jtag_tck:
+      kind: clk
+      source: dvb_cpu_jtag_tck_gate2
+      freq: 27000000
+    dvb_cpu_jtag_tck_gate2:
+      kind: gate
+      source: dvb_cpu_jtag_tck_sel8
+      reg: blk_dvb_cpu_jtag_tck_gate2.en.en
+    dvb_cpu_jtag_tck_pad:
+      kind: source
+      source_kind: pad
+      freq: 27000000
+    dvb_cpu_jtag_tck_sel8:
+      kind: mux
+      source:
+        '0': clock_start_xtal_occ_clk_gxcell
+        '11': dvb_cpu_jtag_tck_sel1
+      reg: blk_dvb_cpu_jtag_tck_sel8.sel.sel
+    dvb_cpu_jtag_tck_sel1:
+      kind: inv
+      inv_kind: inv_mux
+      source: dvb_cpu_jtag_tck_pad
+    dvb_osc:
+      kind: clk
+      source: osc_clk_bist_clk_gxcell
+      freq: 27000000
+    dvb_osc_clk_gate2:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_dvb_osc_clk_gate2.en.en
+    dvb_osc_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dvb_osc_clk_gate2
+    dvb_osc_for_dvb_top:
+      kind: clk
+      source: dvb_osc_clk_occ_clk_gxcell
+      freq: 27000000
+    dvb_pll:
+      pll_kind: sc
+      kind: pll
+      source: clock_start_gxcell
+      freq: 1584000000
+      regs:
+        lock: blk_dvb_pll.stat.lock
+        vocpd: blk_dvb_pll.pd.vocpd
+        postdivpd: blk_dvb_pll.pd.postdivpd
+        dsmpd: blk_dvb_pll.pd.dsmpd
+        pd: blk_dvb_pll.pd.pd
+        bypass: blk_dvb_pll.pd.bypass
+        refdiv: blk_dvb_pll.div.refdiv
+        postdiv2: blk_dvb_pll.div.postdiv2
+        postdiv1: blk_dvb_pll.div.postdiv1
+        fbdiv: blk_dvb_pll.div.fbdiv
+    dvb_smp_ena:
+      kind: clk
+      source: dvb_smp_ena_sel0
+      freq: 99000000
+    dvb_smp_ena_sel0:
+      kind: mux
+      source:
+        '0': dvb_adc_clk_sel2
+      reg: blk_dvb_smp_ena_sel0.sel.sel
+    dvb_sys_pclk:
+      kind: clk
+      source: dvb_sys_pclk_gate_en
+    dvb_sys_pclk_gate_en:
+      kind: gate
+      source: dvb_cfg_pclk_occ_clk_gxcell
+      reg: blk_dvb_sys_pclk_gate_en.en.en
+    dvb_system_aclk:
+      kind: clk
+      source: dvb_system_aclk_occ_clk_gxcell
+      freq: 396000000
+    dvb_system_aclk_div:
+      kind: div
+      div_kind: div_n
+      source: dvb_system_aclk_gate2
+      regs:
+        rst: blk_dvb_system_aclk_div.ctrl.rst
+        load: blk_dvb_system_aclk_div.ctrl.load
+        div: blk_dvb_system_aclk_div.ctrl.div
+    dvb_system_aclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_dvb_system_aclk_gate0.en.en
+    dvb_system_aclk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_dvb_system_aclk_gate1.en.en
+    dvb_system_aclk_gate2:
+      kind: gate
+      source: dvb_system_aclk_sel0
+      reg: blk_dvb_system_aclk_gate2.en.en
+    dvb_system_aclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dvb_system_aclk_gate2
+    dvb_system_aclk_sel0:
+      kind: mux
+      source:
+        '0': dvb_system_aclk_gate1
+        '1': dvb_system_aclk_div
+      reg: blk_dvb_system_aclk_sel0.sel.sel
+    dvb_ts_clk_for_scan:
+      kind: clk
+      source: dvb_ts_scan_clk_occ_clk_gxcell
+      freq: 1666060000
+    dvb_ts_scan_clk_div:
+      kind: div
+      div_kind: div_n
+      source: dvb_ts_scan_clk_gate2
+      regs:
+        rst: blk_dvb_ts_scan_clk_div.ctrl.rst
+        load: blk_dvb_ts_scan_clk_div.ctrl.load
+        div: blk_dvb_ts_scan_clk_div.ctrl.div
+    dvb_ts_scan_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_dvb_ts_scan_clk_gate0.en.en
+    dvb_ts_scan_clk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_dvb_ts_scan_clk_gate1.en.en
+    dvb_ts_scan_clk_gate2:
+      kind: gate
+      source: dvb_ts_scan_clk_sel0
+      reg: blk_dvb_ts_scan_clk_gate2.en.en
+    dvb_ts_scan_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dvb_ts_scan_clk_gate2
+    dvb_ts_scan_clk_sel0:
+      kind: mux
+      source:
+        '0': dvb_ts_scan_clk_gate1
+        '11': dvb_ts_scan_clk_div
+      reg: blk_dvb_ts_scan_clk_sel0.sel.sel
+    dwi2c0_clk:
+      kind: clk
+      source: dwi2c0_clk_occ_clk_gxcell
+      freq: 99000000
+    dwi2c0_clk_div:
+      kind: div
+      source: dwi2c0_clk_gate
+      regs:
+        rst: blk_dwi2c0_clk_div.ctrl.rst
+        load: blk_dwi2c0_clk_div.ctrl.load
+        div: blk_dwi2c0_clk_div.ctrl.div
+    dwi2c0_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_dwi2c0_clk_gate.en.en
+    dwi2c0_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_dwi2c0_clk_gate1.en.en
+    dwi2c0_clk_gate2:
+      kind: gate
+      source: dwi2c0_clk_sel0
+      reg: blk_dwi2c0_clk_gate2.en.en
+    dwi2c0_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dwi2c0_clk_gate2
+    dwi2c0_clk_sel0:
+      kind: mux
+      source:
+        '0': dwi2c0_clk_gate1
+        '1': dwi2c0_clk_div
+      reg: blk_dwi2c0_clk_sel0.sel.sel
+    dwi2c0_pclk:
+      kind: clk
+      source: SYS_dwi2c68_pclk_gate_en
+    dwi2c1_clk:
+      kind: clk
+      source: dwi2c1_clk_occ_clk_gxcell
+      freq: 99000000
+    dwi2c1_clk_div:
+      kind: div
+      source: dwi2c1_clk_gate
+      regs:
+        rst: blk_dwi2c1_clk_div.ctrl.rst
+        load: blk_dwi2c1_clk_div.ctrl.load
+        div: blk_dwi2c1_clk_div.ctrl.div
+    dwi2c1_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_dwi2c1_clk_gate.en.en
+    dwi2c1_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_dwi2c1_clk_gate1.en.en
+    dwi2c1_clk_gate2:
+      kind: gate
+      source: dwi2c1_clk_sel0
+      reg: blk_dwi2c1_clk_gate2.en.en
+    dwi2c1_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dwi2c1_clk_gate2
+    dwi2c1_clk_sel0:
+      kind: mux
+      source:
+        '0': dwi2c1_clk_gate1
+        '1': dwi2c1_clk_div
+      reg: blk_dwi2c1_clk_sel0.sel.sel
+    dwi2c1_pclk:
+      kind: clk
+      source: SYS_dwi2c1_pclk_gate_en
+    dwi2c2_clk:
+      kind: clk
+      source: dwi2c2_clk_occ_clk_gxcell
+      freq: 99000000
+    dwi2c2_clk_div:
+      kind: div
+      source: dwi2c2_clk_gate
+      regs:
+        rst: blk_dwi2c2_clk_div.ctrl.rst
+        load: blk_dwi2c2_clk_div.ctrl.load
+        div: blk_dwi2c2_clk_div.ctrl.div
+    dwi2c2_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_dwi2c2_clk_gate.en.en
+    dwi2c2_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_dwi2c2_clk_gate1.en.en
+    dwi2c2_clk_gate2:
+      kind: gate
+      source: dwi2c2_clk_sel0
+      reg: blk_dwi2c2_clk_gate2.en.en
+    dwi2c2_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dwi2c2_clk_gate2
+    dwi2c2_clk_sel0:
+      kind: mux
+      source:
+        '0': dwi2c2_clk_gate1
+        '1': dwi2c2_clk_div
+      reg: blk_dwi2c2_clk_sel0.sel.sel
+    dwi2c2_pclk:
+      kind: clk
+      source: SYS_dwi2c2_pclk_gate_en
+    dwi2c3_clk:
+      kind: clk
+      source: dwi2c3_clk_occ_clk_gxcell
+      freq: 99000000
+    dwi2c3_clk_div:
+      kind: div
+      source: dwi2c3_clk_gate
+      regs:
+        rst: blk_dwi2c3_clk_div.ctrl.rst
+        load: blk_dwi2c3_clk_div.ctrl.load
+        div: blk_dwi2c3_clk_div.ctrl.div
+    dwi2c3_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_dwi2c3_clk_gate.en.en
+    dwi2c3_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_dwi2c3_clk_gate1.en.en
+    dwi2c3_clk_gate2:
+      kind: gate
+      source: dwi2c3_clk_sel0
+      reg: blk_dwi2c3_clk_gate2.en.en
+    dwi2c3_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dwi2c3_clk_gate2
+    dwi2c3_clk_sel0:
+      kind: mux
+      source:
+        '0': dwi2c3_clk_gate1
+        '1': dwi2c3_clk_div
+      reg: blk_dwi2c3_clk_sel0.sel.sel
+    dwi2c3_pclk:
+      kind: clk
+      source: SYS_dwi2c3_pclk_gate_en
+    eth_hclk:
+      kind: clk
+      source: SYS_eth_hclk_gate_en
+    eth_mhclk:
+      kind: clk
+      source: eth_mhclk_occ_clk_gxcell
+      freq: 297000000
+    eth_mhclk_div:
+      kind: div
+      source: eth_mhclk_gate
+      regs:
+        rst: blk_eth_mhclk_div.ctrl.rst
+        load: blk_eth_mhclk_div.ctrl.load
+        div: blk_eth_mhclk_div.ctrl.div
+    eth_mhclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_eth_mhclk_gate.en.en
+    eth_mhclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_eth_mhclk_gate1.en.en
+    eth_mhclk_gate2:
+      kind: gate
+      source: eth_mhclk_sel0
+      reg: blk_eth_mhclk_gate2.en.en
+    eth_mhclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: eth_mhclk_gate2
+    eth_mhclk_sel0:
+      kind: mux
+      source:
+        '6': eth_mhclk_gate1
+        '1': eth_mhclk_div
+      reg: blk_eth_mhclk_sel0.sel.sel
+    eth_pll:
+      pll_kind: sc
+      kind: pll
+      source: clock_start_gxcell
+      freq: 1356000000
+      regs:
+        lock: blk_eth_pll.stat.lock
+        vocpd: blk_eth_pll.pd.vocpd
+        postdivpd: blk_eth_pll.pd.postdivpd
+        dsmpd: blk_eth_pll.pd.dsmpd
+        pd: blk_eth_pll.pd.pd
+        bypass: blk_eth_pll.pd.bypass
+        refdiv: blk_eth_pll.div.refdiv
+        postdiv2: blk_eth_pll.div.postdiv2
+        postdiv1: blk_eth_pll.div.postdiv1
+        fbdiv: blk_eth_pll.div.fbdiv
+    fec_clk:
+      kind: clk
+      source: fec_clk_bist_clk_gxcell
+      freq: 198000000
+    fec_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: fec_clk_occ_clk_gxcell
+    fec_clk_div:
+      kind: div
+      div_kind: div_n
+      source: fec_clk_gate0
+      regs:
+        rst: blk_fec_clk_div.ctrl.rst
+        load: blk_fec_clk_div.ctrl.load
+        div: blk_fec_clk_div.ctrl.div
+    fec_clk_gate0:
+      kind: gate
+      source: dvb_pll
+      reg: blk_fec_clk_gate0.en.en
+    fec_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_fec_clk_gate1.en.en
+    fec_clk_gate2:
+      kind: gate
+      source: fec_clk_sel0
+      reg: blk_fec_clk_gate2.en.en
+    fec_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: fec_clk_occ_clk_gxcell
+    fec_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: fec_clk_gate2
+    fec_clk_sel0:
+      kind: mux
+      source:
+        '6': fec_clk_gate1
+        '1': fec_clk_div
+      reg: blk_fec_clk_sel0.sel.sel
+    filter_cpu_clk:
+      kind: clk
+      source: filter_cpu_clk_bist_clk_cell
+      freq: 297000000
+    filter_cpu_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: filter_cpu_clk_occ_clk_cell
+    filter_cpu_clk_div:
+      kind: div
+      div_kind: div_n
+      source: filter_cpu_clk_gate8
+      regs:
+        rst: blk_filter_cpu_clk_div.ctrl.rst
+        load: blk_filter_cpu_clk_div.ctrl.load
+        div: blk_filter_cpu_clk_div.ctrl.div
+    filter_cpu_clk_gate8:
+      kind: gate
+      source: dto_pll
+      reg: blk_filter_cpu_clk_gate8.en.en
+    filter_cpu_clk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_filter_cpu_clk_gate1.en.en
+    filter_cpu_clk_gate2:
+      kind: gate
+      source: filter_cpu_clk_sel0
+      reg: blk_filter_cpu_clk_gate2.en.en
+    filter_cpu_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: filter_cpu_clk_occ_clk_cell
+    filter_cpu_clk_occ_clk_cell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: filter_cpu_clk_gate2
+    filter_cpu_clk_sel0:
+      kind: mux
+      source:
+        '0': filter_cpu_clk_gate1
+        '1': filter_cpu_clk_div
+      reg: blk_filter_cpu_clk_sel0.sel.sel
+    filter_sys_aclk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: filter_sys_aclk_occ_clk_cell
+    filter_sys_aclk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: filter_sys_aclk_occ_clk_cell
+    filter_sys_aclk_occ_clk_cell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: filter_system_aclk_gate2
+    filter_sys_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: filter_sys_clk_occ_clk_cell
+    filter_sys_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: filter_sys_clk_occ_clk_cell
+    filter_sys_clk_occ_clk_cell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: filter_system_clk_gate2
+    filter_system_aclk:
+      kind: clk
+      source: filter_sys_aclk_bist_clk_cell
+      freq: 396000000
+    filter_system_aclk_div:
+      kind: div
+      div_kind: div_n
+      source: filter_system_aclk_gate
+      regs:
+        rst: blk_filter_system_aclk_div.ctrl.rst
+        load: blk_filter_system_aclk_div.ctrl.load
+        div: blk_filter_system_aclk_div.ctrl.div
+    filter_system_aclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_filter_system_aclk_gate.en.en
+    filter_system_aclk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_filter_system_aclk_gate1.en.en
+    filter_system_aclk_gate2:
+      kind: gate
+      source: filter_system_aclk_sel0
+      reg: blk_filter_system_aclk_gate2.en.en
+    filter_system_aclk_sel0:
+      kind: mux
+      source:
+        '6': filter_system_aclk_gate1
+        '1': filter_system_aclk_div
+      reg: blk_filter_system_aclk_sel0.sel.sel
+    filter_system_clk:
+      kind: clk
+      source: filter_sys_clk_bist_clk_cell
+      freq: 198000000
+    filter_system_clk2:
+      kind: clk
+      source: filter_system_clk_occ_clk_gxcell
+    filter_system_clk_div:
+      kind: div
+      div_kind: div_n
+      source: filter_system_clk_gate
+      regs:
+        rst: blk_filter_system_clk_div.ctrl.rst
+        load: blk_filter_system_clk_div.ctrl.load
+        div: blk_filter_system_clk_div.ctrl.div
+    filter_system_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_filter_system_clk_gate.en.en
+    filter_system_clk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_filter_system_clk_gate1.en.en
+    filter_system_clk_gate2:
+      kind: gate
+      source: filter_system_clk_sel0
+      reg: blk_filter_system_clk_gate2.en.en
+    filter_system_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: filter_sys_clk_bist_clk_cell
+    filter_system_clk_sel0:
+      kind: mux
+      source:
+        '6': filter_system_clk_gate1
+        '1': filter_system_clk_div
+      reg: blk_filter_system_clk_sel0.sel.sel
+    filter_system_pclk:
+      kind: clk
+      source: filter_system_pclk_gate_en
+    filter_system_pclk_gate_en:
+      kind: gate
+      source: dvb_cfg_pclk_occ_clk_gxcell
+      reg: blk_filter_system_pclk_gate_en.en.en
+    flashspi_hclk:
+      kind: clk
+      source: SYS_flashspi_hclk_gate_en
+    flashspi_mhclk:
+      kind: clk
+      source: flashspi_mhclk_occ_clk_gxcell
+      freq: 198000000
+    flashspi_mhclk_div:
+      kind: div
+      source: flashspi_mhclk_gate2
+      regs:
+        rst: blk_flashspi_mhclk_div.ctrl.rst
+        load: blk_flashspi_mhclk_div.ctrl.load
+        div: blk_flashspi_mhclk_div.ctrl.div
+    flashspi_mhclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_flashspi_mhclk_gate0.en.en
+    fFlashspi_mhclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_fFlashspi_mhclk_gate1.en.en
+    flashspi_mhclk_gate2:
+      kind: gate
+      source: flashspi_mhclk_sel0
+      reg: blk_flashspi_mhclk_gate2.en.en
+    flashspi_mhclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: flashspi_mhclk_gate2
+    flashspi_mhclk_sel0:
+      kind: mux
+      source:
+        '0': fFlashspi_mhclk_gate1
+        '1': flashspi_mhclk_div
+      reg: blk_flashspi_mhclk_sel0.sel.sel
+    ga_sys_clk:
+      kind: clk
+      source: ga_sys_clk_bist_clk_cell
+      freq: 297000000
+    ga_sys_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: ga_sys_clk_occ_clk_gxcell
+    ga_sys_clk_div:
+      kind: div
+      div_kind: div_n
+      source: ga_sys_clk_gate
+      regs:
+        rst: blk_ga_sys_clk_div.ctrl.rst
+        load: blk_ga_sys_clk_div.ctrl.load
+        div: blk_ga_sys_clk_div.ctrl.div
+    ga_sys_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_ga_sys_clk_gate.en.en
+    ga_sys_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_ga_sys_clk_gate1.en.en
+    ga_sys_clk_gate2:
+      kind: gate
+      source: ga_sys_clk_sel6
+      reg: blk_ga_sys_clk_gate2.en.en
+    ga_sys_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: ga_sys_clk_occ_clk_gxcell
+    ga_sys_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: ga_sys_clk_gate2
+    ga_sys_clk_sel6:
+      kind: mux
+      source:
+        '8': ga_sys_clk_gate1
+        '1': ga_sys_clk_div
+      reg: blk_ga_sys_clk_sel6.sel.sel
+    gpio_pclk:
+      kind: clk
+      source: SYS_gpio_pclk_gate_en
+    gxi2c_clk:
+      kind: clk
+      source: gxi2c_clk_occ_clk_gxcell
+      freq: 59400000
+    gxi2c_clk_div:
+      kind: div
+      source: gxi2c_clk_gate2
+      regs:
+        rst: blk_gxi2c_clk_div.ctrl.rst
+        load: blk_gxi2c_clk_div.ctrl.load
+        div: blk_gxi2c_clk_div.ctrl.div
+    gxi2c_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_gxi2c_clk_gate0.en.en
+    gxi2c_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_gxi2c_clk_gate1.en.en
+    gxi2c_clk_gate2:
+      kind: gate
+      source: gxi2c_clk_sel0
+      reg: blk_gxi2c_clk_gate2.en.en
+    gxi2c_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: gxi2c_clk_gate2
+    gxi2c_clk_sel0:
+      kind: mux
+      source:
+        '0': gxi2c_clk_gate1
+        '1': gxi2c_clk_div
+      reg: blk_gxi2c_clk_sel0.sel.sel
+    gxi2c_pclk:
+      kind: clk
+      source: SYS_gxi2c_pclk_gate_en
+    hash_v2_clk:
+      kind: clk
+      source: secure_clk_hash_v2_clk_gate_en
+    hdcp22_ahb_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: hdcp22_ahb_hclk_occ_clk_gxcell
+    hdcp22_ahb_clk_div:
+      kind: div
+      div_kind: div_n
+      source: hdcp22_ahb_clk_gate0
+      regs:
+        rst: blk_hdcp22_ahb_clk_div.ctrl.rst
+        load: blk_hdcp22_ahb_clk_div.ctrl.load
+        div: blk_hdcp22_ahb_clk_div.ctrl.div
+    hdcp22_ahb_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_hdcp22_ahb_clk_gate0.en.en
+    hdcp22_ahb_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_hdcp22_ahb_clk_gate1.en.en
+    hdcp22_ahb_clk_gate2:
+      kind: gate
+      source: hdcp22_ahb_clk_sel0
+      reg: blk_hdcp22_ahb_clk_gate2.en.en
+    hdcp22_ahb_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: hdcp22_ahb_hclk_occ_clk_gxcell
+    hdcp22_ahb_clk_sel0:
+      kind: mux
+      source:
+        '0': hdcp22_ahb_clk_gate1
+        '1': hdcp22_ahb_clk_div
+      reg: blk_hdcp22_ahb_clk_sel0.sel.sel
+    hdcp22_ahb_hclk:
+      kind: clk
+      source: hdcp22_ahb_clk_bist_clk_cell
+      freq: 297000000
+    hdcp22_ahb_hclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: hdcp22_ahb_clk_gate2
+    hdmi_axi64_clk:
+      kind: clk
+      source: hdmi_axi64_clk_occ_clk_gxcell
+      freq: 396000000
+    hdmi_axi64_clk_div:
+      kind: div
+      div_kind: div_n
+      source: hdmi_axi64_clk_gate
+      regs:
+        rst: blk_hdmi_axi64_clk_div.ctrl.rst
+        load: blk_hdmi_axi64_clk_div.ctrl.load
+        div: blk_hdmi_axi64_clk_div.ctrl.div
+    hdmi_axi64_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_hdmi_axi64_clk_gate.en.en
+    hdmi_axi64_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_hdmi_axi64_clk_gate1.en.en
+    hdmi_axi64_clk_gate2:
+      kind: gate
+      source: hdmi_axi64_clk_sel6
+      reg: blk_hdmi_axi64_clk_gate2.en.en
+    hdmi_axi64_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: hdmi_axi64_clk_gate2
+    hdmi_axi64_clk_sel6:
+      kind: mux
+      source:
+        '0': hdmi_axi64_clk_gate1
+        '1': hdmi_axi64_clk_div
+      reg: blk_hdmi_axi64_clk_sel6.sel.sel
+    hdmi_cec_clk:
+      kind: clk
+      source: hdmi_cec_clk_occ_clk_gxcell
+      freq: 32768
+    hdmi_cec_clk_div:
+      kind: div
+      div_kind: div_n
+      source: hdmi_cec_clk_gate2
+      regs:
+        rst: blk_hdmi_cec_clk_div.ctrl.rst
+        load: blk_hdmi_cec_clk_div.ctrl.load
+        div: blk_hdmi_cec_clk_div.ctrl.div
+    hdmi_cec_clk_div_r824:
+      ratio: 824
+      kind: div
+      div_kind: div_r
+      source: hdmi_cec_clk_sel0
+    hdmi_cec_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_hdmi_cec_clk_gate0.en.en
+    hdmi_cec_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_hdmi_cec_clk_gate1.en.en
+    hdmi_cec_clk_gate2:
+      kind: gate
+      source: hdmi_cec_clk_sel_scan_mode
+      reg: blk_hdmi_cec_clk_gate2.en.en
+    hdmi_cec_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: hdmi_cec_clk_gate2
+    hdmi_cec_clk_sel0:
+      kind: mux
+      source:
+        '0': hdmi_cec_clk_gate1
+        '1': hdmi_cec_clk_div
+      reg: blk_hdmi_cec_clk_sel0.sel.sel
+    hdmi_cec_clk_sel_scan_mode:
+      kind: mux
+      source:
+        '0': hdmi_cec_clk_div_r824
+        '11': clock_start_xtal_occ_clk_gxcell
+      reg: blk_hdmi_cec_clk_sel_scan_mode.sel.sel
+    hdmi_i2s_bclk:
+      kind: clk
+      source: hdmi_i2s_bclk_occ_clk_gxcell
+      freq: 27000000
+    hdmi_i2s_bclk_gate0:
+      kind: gate
+      source: hdmi_i2s_bclk_inv_sel1
+      reg: blk_hdmi_i2s_bclk_gate0.en.en
+    hdmi_i2s_bclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_hdmi_i2s_bclk_gate1.en.en
+    hdmi_i2s_bclk_gate2:
+      kind: gate
+      source: hdmi_i2s_bclk_sel0
+      reg: blk_hdmi_i2s_bclk_gate2.en.en
+    hdmi_i2s_bclk_inv_sel1:
+      kind: inv
+      inv_kind: inv_mux
+      source: audio_play_i2s_bclk
+    hdmi_i2s_bclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: hdmi_i2s_bclk_gate2
+    hdmi_i2s_bclk_sel0:
+      kind: mux
+      source:
+        '0': hdmi_i2s_bclk_gate1
+        '1': hdmi_i2s_bclk_sel_scan_mode
+      reg: blk_hdmi_i2s_bclk_sel0.sel.sel
+    hdmi_i2s_bclk_sel_scan_mode:
+      kind: mux
+      source:
+        '0': hdmi_i2s_bclk_gate0
+        '1': clock_start_xtal_occ_clk_gxcell
+      sel: 0
+    hdmi_phy_pin_pclk:
+      kind: source
+      source_kind: source
+      freq: 148500000
+    hdmi_phy_pin_prepclk:
+      kind: source
+      source_kind: source
+      freq: 148500000
+    hdmi_phy_pin_ptmdsclk:
+      kind: source
+      source_kind: source
+      freq: 186000000
+    hdmi_pixel_clk:
+      kind: clk
+      source: hdmi_pixel_clk_gate2
+      freq: 148500000
+    hdmi_pixel_clk_gate0:
+      kind: gate
+      source: hdmi_pixel_clk_sel1
+      reg: blk_hdmi_pixel_clk_gate0.en.en
+    hdmi_pixel_clk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_hdmi_pixel_clk_gate1.en.en
+    hdmi_pixel_clk_gate2:
+      kind: gate
+      source: hdmi_pixel_clk_sel1
+      reg: blk_hdmi_pixel_clk_gate2.en.en
+    hdmi_pixel_clk_sel0:
+      kind: mux
+      source:
+        '6': hdmi_pixel_clk_gate1
+        '1': hdmi_pixel_clk_gate2
+      reg: blk_hdmi_pixel_clk_sel0.sel.sel
+    hdmi_pixel_clk_sel1:
+      kind: mux
+      source:
+        '0': hdmi_pixel_src_occ_clk_gxcell
+        '1': hdmi_phy_pin_pclk
+      reg: blk_hdmi_pixel_clk_sel1.sel.sel
+    hdmi_pixel_src_clk:
+      kind: clk
+      source: hdmi_pixel_src_occ_clk_gxcell
+      freq: 148500000
+    hdmi_pixel_src_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: vpu_pixel_clk_sel3
+    hdmi_prep_clk:
+      kind: clk
+      source: hdmi_prep_clk_gate2
+      freq: 148500000
+    hdmi_prep_clk_gate0:
+      kind: gate
+      source: hdmi_prep_clk_sel1
+      reg: blk_hdmi_prep_clk_gate0.en.en
+    hdmi_prep_clk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_hdmi_prep_clk_gate1.en.en
+    hdmi_prep_clk_gate2:
+      kind: gate
+      source: hdmi_prep_clk_sel1
+      reg: blk_hdmi_prep_clk_gate2.en.en
+    hdmi_prep_clk_sel0:
+      kind: mux
+      source:
+        '68': hdmi_prep_clk_gate1
+        '1': hdmi_prep_clk_gate0
+      reg: blk_hdmi_prep_clk_sel0.sel.sel
+    hdmi_prep_clk_sel1:
+      kind: mux
+      source:
+        '0': hdmi_pixel_src_occ_clk_gxcell
+        '1': hdmi_phy_pin_prepclk
+      reg: blk_hdmi_prep_clk_sel1.sel.sel
+    hdmi_sfr_clk:
+      kind: clk
+      source: hdmi_srf_clk_bist_clk_cell
+      freq: 27000000
+    hdmi_sfr_clk_div:
+      kind: div
+      div_kind: div_n
+      source: hdmi_sfr_clk_gate
+      regs:
+        rst: blk_hdmi_sfr_clk_div.ctrl.rst
+        load: blk_hdmi_sfr_clk_div.ctrl.load
+        div: blk_hdmi_sfr_clk_div.ctrl.div
+    hdmi_sfr_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_hdmi_sfr_clk_gate.en.en
+    hdmi_sfr_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_hdmi_sfr_clk_gate1.en.en
+    hdmi_sfr_clk_gate2:
+      kind: gate
+      source: hdmi_sfr_clk_sel0
+      reg: blk_hdmi_sfr_clk_gate2.en.en
+    hdmi_sfr_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: hdmi_sfr_clk_gate2
+    hdmi_sfr_clk_sel0:
+      kind: mux
+      source:
+        '0': hdmi_sfr_clk_gate1
+        '1': hdmi_sfr_clk_div
+      reg: blk_hdmi_sfr_clk_sel0.sel.sel
+    hdmi_spd_clk:
+      kind: clk
+      source: hdmi_spd_clk_occ_clk_gxcell
+      freq: 99000000
+    hdmi_spd_clk_gate:
+      kind: gate
+      source: hdmi_spd_clk_inv_sel1
+      reg: blk_hdmi_spd_clk_gate.en.en
+    hdmi_spd_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_hdmi_spd_clk_gate1.en.en
+    hdmi_spd_clk_gate2:
+      kind: gate
+      source: hdmi_spd_clk_sel0
+      reg: blk_hdmi_spd_clk_gate2.en.en
+    hdmi_spd_clk_inv_sel1:
+      kind: inv
+      inv_kind: inv_mux
+      source: audio_play_spd_clk
+    hdmi_spd_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: hdmi_spd_clk_gate2
+    hdmi_spd_clk_sel0:
+      kind: mux
+      source:
+        '68': hdmi_spd_clk_gate1
+        '1': hdmi_spd_clk_sel_scan_mode
+      reg: blk_hdmi_spd_clk_sel0.sel.sel
+    hdmi_spd_clk_sel_scan_mode:
+      kind: mux
+      source:
+        '8': hdmi_spd_clk_gate
+        '11': audio_play_spd0_clk_bist_clk_cell
+      sel: 6
+    hdmi_srf_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: hdmi_sfr_clk_occ_clk_gxcell
+    hdmi_srf_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: hdmi_sfr_clk_occ_clk_gxcell
+    hdmi_tmds_clk:
+      kind: clk
+      source: hdmi_tmds_clk_gate2
+      freq: 186000000
+    hdmi_tmds_clk_gate:
+      kind: gate
+      source: hdmi_tmds_clk_sel1
+      reg: blk_hdmi_tmds_clk_gate.en.en
+    hdmi_tmds_clk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_hdmi_tmds_clk_gate1.en.en
+    hdmi_tmds_clk_gate2:
+      kind: gate
+      source: hdmi_tmds_clk_sel1
+      reg: blk_hdmi_tmds_clk_gate2.en.en
+    hdmi_tmds_clk_sel0:
+      kind: mux
+      source:
+        '0': hdmi_tmds_clk_gate1
+        '1': hdmi_tmds_clk_gate
+      reg: blk_hdmi_tmds_clk_sel0.sel.sel
+    hdmi_tmds_clk_sel1:
+      kind: mux
+      source:
+        '0': hdmi_pixel_src_occ_clk_gxcell
+        '1': hdmi_phy_pin_ptmdsclk
+      reg: blk_hdmi_tmds_clk_sel1.sel.sel
+    ip_adc_clk:
+      kind: clk
+      source: ip_adc_clk_gate2
+      freq: 198000000
+    ip_adc_clk_div:
+      kind: div
+      div_kind: div_n
+      source: ip_adc_clk_gate0
+      regs:
+        rst: blk_ip_adc_clk_div.ctrl.rst
+        load: blk_ip_adc_clk_div.ctrl.load
+        div: blk_ip_adc_clk_div.ctrl.div
+    ip_adc_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_ip_adc_clk_gate0.en.en
+    ip_adc_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_ip_adc_clk_gate1.en.en
+    ip_adc_clk_gate2:
+      kind: gate
+      source: ip_adc_clk_sel0
+      reg: blk_ip_adc_clk_gate2.en.en
+    ip_adc_clk_sel0:
+      kind: mux
+      source:
+        '0': ip_adc_clk_gate1
+        '1': ip_adc_clk_div
+      reg: blk_ip_adc_clk_sel0.sel.sel
+    iqadc_clk:
+      kind: source
+      source_kind: source
+      freq: 99000000
+    irr_pclk:
+      kind: clk
+      source: SYS_irr_pclk_gate_en
+    lodac_pclk:
+      kind: clk
+      source: lodac_pclk_gate_en
+    lodac_pclk_gate_en:
+      kind: gate
+      source: audio_cfg_pclk_occ_clk_gxcell
+      reg: blk_lodac_pclk_gate_en.en.en
+    m2m_clk:
+      kind: clk
+      source: secure_clk_m2m_clk_gate_en
+    nand_hclk:
+      kind: clk
+      source: SYS_nand_hclk_gate_en
+    nand_mhclk:
+      kind: clk
+      source: nand_mhclk_occ_clk_gxcell
+      freq: 360000000
+    nand_mhclk_div:
+      kind: div
+      source: nand_mhclk_gate2
+      regs:
+        rst: blk_nand_mhclk_div.ctrl.rst
+        load: blk_nand_mhclk_div.ctrl.load
+        div: blk_nand_mhclk_div.ctrl.div
+    nand_mhclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_nand_mhclk_gate0.en.en
+    nand_mhclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_nand_mhclk_gate1.en.en
+    nand_mhclk_gate2:
+      kind: gate
+      source: nand_mhclk_sel0
+      reg: blk_nand_mhclk_gate2.en.en
+    nand_mhclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: nand_mhclk_gate2
+    nand_mhclk_sel0:
+      kind: mux
+      source:
+        '0': nand_mhclk_gate1
+        '1': nand_mhclk_div
+      reg: blk_nand_mhclk_sel0.sel.sel
+    o_ca7_mbist_clk: null
+    o_ca7_mbist_fa_clk:
+      kind: clk
+      source: ca7_mbist_fa_mode
+    osc_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: osc_clk_occ_clk_gxcell
+    osc_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: osc_clk_occ_clk_gxcell
+    osc_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: dvb_osc_clk_gate2
+    pclk_jdec:
+      kind: clk
+      source: video_sys_pclk_jdec_gate_en
+      freq: 148500000
+    pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: video_sys_vdec_cfg_pclk_gate_en
+    pclk_pp:
+      kind: clk
+      source: video_sys_pclk_pp_gate_en
+      freq: 148500000
+    peri_bus_clk:
+      kind: clk
+      source: peri_bus_clk_occ_clk_gxcell
+      freq: 198000000
+    peri_bus_clk_div:
+      kind: div
+      source: peri_bus_clk_gate
+      regs:
+        rst: blk_peri_bus_clk_div.ctrl.rst
+        load: blk_peri_bus_clk_div.ctrl.load
+        div: blk_peri_bus_clk_div.ctrl.div
+    peri_bus_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_peri_bus_clk_gate.en.en
+    peri_bus_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_peri_bus_clk_gate1.en.en
+    peri_bus_clk_gate2:
+      kind: gate
+      source: peri_bus_clk_sel0
+      reg: blk_peri_bus_clk_gate2.en.en
+    peri_bus_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: peri_bus_clk_gate2
+    peri_bus_clk_sel0:
+      kind: mux
+      source:
+        '0': peri_bus_clk_gate1
+        '1': peri_bus_clk_div
+      reg: blk_peri_bus_clk_sel0.sel.sel
+    peri_cfg_hclk:
+      kind: clk
+      source: peri_cfg_hclk_occ_clk_gxcell
+      freq: 148500000
+    peri_cfg_hclk_div:
+      kind: div
+      source: peri_cfg_hclk_gate
+      regs:
+        rst: blk_peri_cfg_hclk_div.ctrl.rst
+        load: blk_peri_cfg_hclk_div.ctrl.load
+        div: blk_peri_cfg_hclk_div.ctrl.div
+    peri_cfg_hclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_peri_cfg_hclk_gate.en.en
+    peri_cfg_hclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_peri_cfg_hclk_gate1.en.en
+    peri_cfg_hclk_gate2:
+      kind: gate
+      source: peri_cfg_hclk_sel0
+      reg: blk_peri_cfg_hclk_gate2.en.en
+    peri_cfg_hclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: peri_cfg_hclk_gate2
+    peri_cfg_hclk_sel0:
+      kind: mux
+      source:
+        '0': peri_cfg_hclk_gate1
+        '1': peri_cfg_hclk_div
+      reg: blk_peri_cfg_hclk_sel0.sel.sel
+    pmu_cfg_div:
+      kind: div
+      div_kind: div_n
+      source: pmu_cfg_gate0
+      regs:
+        rst: blk_pmu_cfg_div.ctrl.rst
+        load: blk_pmu_cfg_div.ctrl.load
+        div: blk_pmu_cfg_div.ctrl.div
+    pmu_cfg_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_pmu_cfg_gate0.en.en
+    pmu_cfg_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_pmu_cfg_gate1.en.en
+    pmu_cfg_gate2:
+      kind: gate
+      source: pmu_cfg_sel0
+      reg: blk_pmu_cfg_gate2.en.en
+    pmu_cfg_pclk:
+      kind: clk
+      source: cpu_cfg_clk_occ_clk_gxcell
+      freq: 148500000
+    pmu_cfg_sel0:
+      kind: mux
+      source:
+        '6': pmu_cfg_gate1
+        '1': pmu_cfg_div
+      reg: blk_pmu_cfg_sel0.sel.sel
+    pmu_clock_start_xtal:
+      kind: clk
+      source: pmu_start_xtal_clk_bist_clk_cell
+    pmu_clock_xtal:
+      kind: clk
+      source: xin
+    pmu_start_xtal_clk_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: pmu_xtal_clk_occ_clk_gxcell
+    pmu_start_xtal_clk_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: pmu_xtal_clk_occ_clk_gxcell
+    pmu_xtal_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: xin
+    rmii_from_pad_clk:
+      kind: clk
+      source: rmii_from_pad_clk_gate2
+      freq: 50000000
+    rmii_from_pad_clk_gate2:
+      kind: gate
+      source: rmii_from_pad_clk_sel1
+      reg: blk_rmii_from_pad_clk_gate2.en.en
+    cmii_from_pad_clk_sel0:
+      kind: mux
+      source:
+        '0': rmii_pad_clk_gate1
+        '1': rmii_from_pad_clk_sel1
+      reg: blk_cmii_from_pad_clk_sel0.sel.sel
+    rmii_from_pad_clk_sel1:
+      kind: inv
+      inv_kind: inv_cell
+      source: rmii_pad
+    rmii_from_pll_clk:
+      kind: clk
+      source: rmii_from_pll_clk_occ_clk_gxcell
+      freq: 50000000
+    rmii_from_pll_clk_div:
+      kind: div
+      source: rmii_from_pll_clk_gate
+      regs:
+        rst: blk_rmii_from_pll_clk_div.ctrl.rst
+        load: blk_rmii_from_pll_clk_div.ctrl.load
+        div: blk_rmii_from_pll_clk_div.ctrl.div
+    rmii_from_pll_clk_gate:
+      kind: gate
+      source: eth_pll
+      reg: blk_rmii_from_pll_clk_gate.en.en
+    rmii_from_pll_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_rmii_from_pll_clk_gate1.en.en
+    rmii_from_pll_clk_gate2:
+      kind: gate
+      source: rmii_from_pll_clk_sel1
+      reg: blk_rmii_from_pll_clk_gate2.en.en
+    rmii_from_pll_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: rmii_from_pll_clk_gate2
+    rmii_from_pll_clk_sel0:
+      kind: mux
+      source:
+        '6': rmii_from_pll_clk_gate1
+        '1': rmii_from_pll_clk_sel1
+      reg: blk_rmii_from_pll_clk_sel0.sel.sel
+    rmii_from_pll_clk_sel1:
+      kind: inv
+      inv_kind: inv_cell
+      source: rmii_from_pll_clk_div
+    rmii_pad:
+      kind: source
+      source_kind: pad
+      freq: 50000000
+    rmii_pad_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_rmii_pad_clk_gate1.en.en
+    rsa_clk:
+      kind: clk
+      source: secure_clk_rsa_clk_gate_en
+    sci_clk:
+      kind: clk
+      source: sci_clk_occ_clk_gxcell
+      freq: 297000000
+    sci_clk_dto:
+      kind: div
+      div_kind: dto_n
+      source: sci_clk_gate0
+      regs:
+        rst: blk_sci_clk_dto.ctrl.rst
+        load: blk_sci_clk_dto.ctrl.load
+        bypass: blk_sci_clk_dto.ctrl.bypass
+        step: blk_sci_clk_dto.ctrl.step
+    sci_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_sci_clk_gate0.en.en
+    sci_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_sci_clk_gate1.en.en
+    sci_clk_gate2:
+      kind: gate
+      source: sci_clk_sel0
+      reg: blk_sci_clk_gate2.en.en
+    sci_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: sci_clk_gate2
+    sci_clk_sel0:
+      kind: mux
+      source:
+        '0': sci_clk_gate1
+        '1': sci_clk_dto
+      reg: blk_sci_clk_sel0.sel.sel
+    sci_pclk:
+      kind: clk
+      source: SYS_sci_pclk_gate_en
+    scpu_clk:
+      kind: clk
+      source: secure_clk_scpu_clk_gate_en
+    sdio_bus_clk:
+      kind: clk
+      source: sdio_bus_clk_clk_bist_clk_gxcell
+      freq: 198000000
+    sdio_bus_clk_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: sdio_bus_clk_clk_occ_clk_gxcell
+    sdio_bus_clk_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: sdio_bus_clk_clk_occ_clk_gxcell
+    sdio_bus_clk_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: sdio_bus_clk_gate2
+    sdio_bus_clk_div:
+      kind: div
+      source: sdio_bus_clk_gate
+      regs:
+        rst: blk_sdio_bus_clk_div.ctrl.rst
+        load: blk_sdio_bus_clk_div.ctrl.load
+        div: blk_sdio_bus_clk_div.ctrl.div
+    sdio_bus_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_sdio_bus_clk_gate.en.en
+    sdio_bus_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_sdio_bus_clk_gate1.en.en
+    sdio_bus_clk_gate2:
+      kind: gate
+      source: sdio_bus_clk_sel8
+      reg: blk_sdio_bus_clk_gate2.en.en
+    sdio_bus_clk_sel8:
+      kind: mux
+      source:
+        '8': sdio_bus_clk_gate1
+        '1': sdio_bus_clk_div
+      reg: blk_sdio_bus_clk_sel8.sel.sel
+    sdio_clk:
+      kind: clk
+      source: sdio_clk_gate2
+      freq: 396000000
+    sdio_clk_div:
+      kind: div
+      source: sdio_clk_gate2
+      regs:
+        rst: blk_sdio_clk_div.ctrl.rst
+        load: blk_sdio_clk_div.ctrl.load
+        div: blk_sdio_clk_div.ctrl.div
+    sdio_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_sdio_clk_gate0.en.en
+    sdio_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_sdio_clk_gate1.en.en
+    sdio_clk_gate2:
+      kind: gate
+      source: sdio_clk_sel0
+      reg: blk_sdio_clk_gate2.en.en
+    sdio_clk_sel0:
+      kind: mux
+      source:
+        '0': sdio_clk_gate1
+        '1': sdio_clk_div
+      reg: blk_sdio_clk_sel0.sel.sel
+    sdio_hclk:
+      kind: clk
+      source: SYS_sdio_hclk_gate_en
+    secure_axi_clk:
+      kind: clk
+      source: secure_axi_clk_occ_clk_gxcell
+      freq: 198000000
+    secure_axi_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_secure_axi_clk_gate2
+    secure_bus_cfg_clk:
+      kind: clk
+      source: secure_bus_cfg_clk_gate_en
+    secure_bus_cfg_clk_gate_en:
+      kind: gate
+      source: secure_cfg_hclk_occ_clk_gxcell
+      reg: blk_secure_bus_cfg_clk_gate_en.en.en
+    secure_cfg_hclk:
+      kind: clk
+      source: secure_cfg_hclk_occ_clk_gxcell
+      freq: 148500000
+    secure_cfg_hclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_secure_cfg_hclk_occ_clk_gxcell
+    secure_clk:
+      kind: clk
+      source: secure_clk_bist_clk_gxcell
+      freq: 198000000
+    secure_clk_acrypto_clk_gate_en:
+      kind: gate
+      source: secure_clk_bist_clk_gxcell
+      reg: blk_secure_clk_acrypto_clk_gate_en.en.en
+    secure_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: secure_clk_occ_clk_gxcell
+    secure_clk_div:
+      kind: div
+      div_kind: div_n
+      source: secure_clk_gate2
+      regs:
+        rst: blk_secure_clk_div.ctrl.rst
+        load: blk_secure_clk_div.ctrl.load
+        div: blk_secure_clk_div.ctrl.div
+    secure_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_secure_clk_gate0.en.en
+    secure_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_secure_clk_gate1.en.en
+    secure_clk_gate2:
+      kind: gate
+      source: secure_clk_sel0
+      reg: blk_secure_clk_gate2.en.en
+    secure_clk_hash_v2_clk_gate_en:
+      kind: gate
+      source: secure_clk_bist_clk_gxcell
+      reg: blk_secure_clk_hash_v2_clk_gate_en.en.en
+    secure_clk_m2m_clk_gate_en:
+      kind: gate
+      source: secure_clk_bist_clk_gxcell
+      reg: blk_secure_clk_m2m_clk_gate_en.en.en
+    secure_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: secure_clk_occ_clk_gxcell
+    secure_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: secure_clk_gate2
+    secure_clk_rsa_clk_gate_en:
+      kind: gate
+      source: secure_clk_bist_clk_gxcell
+      reg: blk_secure_clk_rsa_clk_gate_en.en.en
+    secure_clk_scpu_clk_gate_en:
+      kind: gate
+      source: secure_clk_bist_clk_gxcell
+      reg: blk_secure_clk_scpu_clk_gate_en.en.en
+    secure_clk_sel0:
+      kind: mux
+      source:
+        '0': secure_clk_gate1
+        '1': secure_clk_div
+      reg: blk_secure_clk_sel0.sel.sel
+    secure_decsc_clk_gate_en:
+      kind: gate
+      source: desc_clk_bist_clk_gxcell
+      reg: blk_secure_decsc_clk_gate_en.en.en
+    secure_pka_clk:
+      kind: clk
+      source: secure_pka_clk_occ_clk_gxcell
+      freq: 297000000
+    secure_pka_clk_div:
+      kind: div
+      div_kind: div_n
+      source: secure_pka_clk_gate2
+      regs:
+        rst: blk_secure_pka_clk_div.ctrl.rst
+        load: blk_secure_pka_clk_div.ctrl.load
+        div: blk_secure_pka_clk_div.ctrl.div
+    secure_pka_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_secure_pka_clk_gate0.en.en
+    secure_pka_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_secure_pka_clk_gate1.en.en
+    secure_pka_clk_gate2:
+      kind: gate
+      source: secure_pka_clk_sel
+      reg: blk_secure_pka_clk_gate2.en.en
+    secure_pka_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: secure_pka_clk_gate2
+    secure_pka_clk_sel:
+      kind: mux
+      source:
+        '0': secure_pka_clk_gate1
+        '1': secure_pka_clk_div
+      reg: blk_secure_pka_clk_sel.sel.sel
+    secure_tsio_cfg_pclk_gate_en:
+      kind: gate
+      source: secure_cfg_hclk_occ_clk_gxcell
+      reg: blk_secure_tsio_cfg_pclk_gate_en.en.en
+    secure_xtal_clk:
+      kind: clk
+      source: clock_xtal_secure_occ_clk_gxcell
+      freq: 27000000
+    secure_xtal_clk_gate2:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_secure_xtal_clk_gate2.en.en
+    spi_ssi_clk:
+      kind: clk
+      source: spi_ssi_clk_occ_clk_gxcell
+      freq: 396000000
+    spi_ssi_clk_div:
+      kind: div
+      source: spi_ssi_clk_gate
+      regs:
+        rst: blk_spi_ssi_clk_div.ctrl.rst
+        load: blk_spi_ssi_clk_div.ctrl.load
+        div: blk_spi_ssi_clk_div.ctrl.div
+    spi_ssi_clk_gate:
+      kind: gate
+      source: spi_ssi_clk_sel1
+      reg: blk_spi_ssi_clk_gate.en.en
+    spi_ssi_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_spi_ssi_clk_gate1.en.en
+    spi_ssi_clk_gate2:
+      kind: gate
+      source: spi_ssi_clk_sel0
+      reg: blk_spi_ssi_clk_gate2.en.en
+    spi_ssi_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: spi_ssi_clk_gate2
+    spi_ssi_clk_sel0:
+      kind: mux
+      source:
+        '0': spi_ssi_clk_gate1
+        '1': spi_ssi_clk_div
+      reg: blk_spi_ssi_clk_sel0.sel.sel
+    spi_ssi_clk_sel1:
+      kind: mux
+      source:
+        '0': dto_pll
+        '1': eth_pll
+      reg: blk_spi_ssi_clk_sel1.sel.sel
+    stc_clk:
+      kind: clk
+      source: stc_clk_occ_clk_gxcell
+      freq: 168060060
+    stc_clk_div:
+      kind: div
+      div_kind: div_n
+      source: stc_clk_gate2
+      regs:
+        rst: blk_stc_clk_div.ctrl.rst
+        load: blk_stc_clk_div.ctrl.load
+        div: blk_stc_clk_div.ctrl.div
+    stc_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_stc_clk_gate0.en.en
+    stc_clk_gate1:
+      kind: gate
+      source: clock_start_gxcell
+      reg: blk_stc_clk_gate1.en.en
+    stc_clk_gate2:
+      kind: gate
+      source: stc_clk_sel0
+      reg: blk_stc_clk_gate2.en.en
+    stc_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: stc_clk_gate2
+    stc_clk_sel0:
+      kind: mux
+      source:
+        '0': stc_clk_gate1
+        '1': stc_clk_div
+      reg: blk_stc_clk_sel0.sel.sel
+    stc_pclk:
+      kind: clk
+      source: stc_pclk_gate_en
+    stc_pclk_gate_en:
+      kind: gate
+      source: dvb_cfg_pclk_occ_clk_gxcell
+      reg: blk_stc_pclk_gate_en.en.en
+    surface_pixel_clk:
+      kind: clk
+      source: surface_pixel_clk_sel
+      freq: 148500000
+    surface_pixel_clk_sel:
+      kind: mux
+      source:
+        '8': vpu_pixel_clk_bist_clk_gxcell
+        '11': cvbs_pixel_clk_bist_clk_gxcell
+      reg: blk_surface_pixel_clk_sel.sel.sel
+    susb_mhclk_gate2:
+      kind: gate
+      source: usb_mhclk_sel6
+      reg: blk_susb_mhclk_gate2.en.en
+    ts_base_clk:
+      kind: clk
+      source: clk_ts_base_occ_clk_gxcell
+      freq: 396000000
+    ts_base_clk_div:
+      kind: div
+      div_kind: div_n
+      source: ts_base_clk_gate0
+      regs:
+        rst: blk_ts_base_clk_div.ctrl.rst
+        load: blk_ts_base_clk_div.ctrl.load
+        div: blk_ts_base_clk_div.ctrl.div
+    ts_base_clk_gate0:
+      kind: gate
+      source: dvb_pll
+      reg: blk_ts_base_clk_gate0.en.en
+    ts_base_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_ts_base_clk_gate1.en.en
+    ts_base_clk_gate2:
+      kind: gate
+      source: ts_base_clk_sel
+      reg: blk_ts_base_clk_gate2.en.en
+    ts_base_clk_sel:
+      kind: mux
+      source:
+        '0': ts_base_clk_gate1
+        '1': ts_base_clk_div
+      reg: blk_ts_base_clk_sel.sel.sel
+    tsio_cfg_pclk:
+      kind: clk
+      source: secure_tsio_cfg_pclk_gate_en
+    tsio_pclk:
+      kind: clk
+      source: tsio_pclk_occ_clk_gxcell
+      freq: 148500000
+    tsio_pclk_div:
+      kind: div
+      div_kind: div_n
+      source: tsio_pclk_gate2
+      regs:
+        rst: blk_tsio_pclk_div.ctrl.rst
+        load: blk_tsio_pclk_div.ctrl.load
+        div: blk_tsio_pclk_div.ctrl.div
+    tsio_pclk_for_noc:
+      kind: clk
+      source: bus_tsio_pclk_occ_clk_gxcell
+      freq: 148500000
+    tsio_pclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_tsio_pclk_gate0.en.en
+    tsio_pclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_tsio_pclk_gate1.en.en
+    tsio_pclk_gate2:
+      kind: gate
+      source: tsio_pclk_sel0
+      reg: blk_tsio_pclk_gate2.en.en
+    tsio_pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_tsio_pclk_occ_clk_gxcell
+    tsio_pclk_sel0:
+      kind: mux
+      source:
+        '0': tsio_pclk_gate1
+        '1': tsio_pclk_div
+      reg: blk_tsio_pclk_sel0.sel.sel
+    tsio_phy_2x_clk_div:
+      kind: div
+      div_kind: div_n
+      source: tsio_phy_2x_clk_gate2
+      regs:
+        rst: blk_tsio_phy_2x_clk_div.ctrl.rst
+        load: blk_tsio_phy_2x_clk_div.ctrl.load
+        div: blk_tsio_phy_2x_clk_div.ctrl.div
+    tsio_phy_2x_clk_div_r2:
+      ratio: 2
+      kind: div
+      div_kind: div_r
+      source: tsio_phy_2x_clk_sel1
+    tsio_phy_2x_clk_gate0:
+      kind: gate
+      source: tsio_pll
+      reg: blk_tsio_phy_2x_clk_gate0.en.en
+    tsio_phy_2x_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_tsio_phy_2x_clk_gate1.en.en
+    tsio_phy_2x_clk_gate2:
+      kind: gate
+      source: tsio_phy_occ_clk_cell
+      reg: blk_tsio_phy_2x_clk_gate2.en.en
+    tsio_phy_2x_clk_sel0:
+      kind: mux
+      source:
+        '0': tsio_phy_2x_clk_gate1
+        '1': tsio_phy_2x_clk_sel1
+      reg: blk_tsio_phy_2x_clk_sel0.sel.sel
+    tsio_phy_2x_clk_sel1:
+      kind: mux
+      source:
+        '6': tsio_phy_2x_clk_div
+        '1': tsio_pll
+      reg: blk_tsio_phy_2x_clk_sel1.sel.sel
+    tsio_phy_clk:
+      kind: clk
+      source: tsio_phy_2x_clk_gate2
+      freq: 800000000
+    tsio_phy_div2_out:
+      kind: clk
+      source: tsio_scan_occ_clk_cell
+      freq: 400000000
+    tsio_phy_occ_clk_cell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: tsio_phy_2x_clk_sel1
+    tsio_pll:
+      pll_kind: sc
+      kind: pll
+      source: clock_start_gxcell
+      freq: 1593600000
+      regs:
+        lock: blk_tsio_pll.stat.lock
+        vocpd: blk_tsio_pll.pd.vocpd
+        postdivpd: blk_tsio_pll.pd.postdivpd
+        dsmpd: blk_tsio_pll.pd.dsmpd
+        pd: blk_tsio_pll.pd.pd
+        bypass: blk_tsio_pll.pd.bypass
+        refdiv: blk_tsio_pll.div.refdiv
+        postdiv2: blk_tsio_pll.div.postdiv2
+        postdiv1: blk_tsio_pll.div.postdiv1
+        fbdiv: blk_tsio_pll.div.fbdiv
+    tsio_scan_occ_clk_cell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: tsio_phy_2x_clk_div_r2
+    tsio_sys_bist_clk_cell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: tsio_sys_clk_gate2
+    tsio_sys_clk_div:
+      kind: div
+      div_kind: div_n
+      source: tsio_sys_clk_gate2
+      regs:
+        rst: blk_tsio_sys_clk_div.ctrl.rst
+        load: blk_tsio_sys_clk_div.ctrl.load
+        div: blk_tsio_sys_clk_div.ctrl.div
+    tsio_sys_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_tsio_sys_clk_gate0.en.en
+    tsio_sys_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_tsio_sys_clk_gate1.en.en
+    tsio_sys_clk_gate2:
+      kind: gate
+      source: clock_tsio_occ_clk_gxcell
+      reg: blk_tsio_sys_clk_gate2.en.en
+    tsio_sys_clk_sel0:
+      kind: mux
+      source:
+        '8': tsio_sys_clk_gate1
+        '1': tsio_sys_clk_div
+      reg: blk_tsio_sys_clk_sel0.sel.sel
+    tsio_sys_occ_bist_clk_cell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: tsio_sys_clk_gate2
+    uart0_clk:
+      kind: clk
+      source: uart2_clk_occ_clk_gxcell
+      freq: 99000000
+    uart0_clk_div:
+      kind: div
+      source: uart6_clk_gate0
+      regs:
+        rst: blk_uart0_clk_div.ctrl.rst
+        load: blk_uart0_clk_div.ctrl.load
+        div: blk_uart0_clk_div.ctrl.div
+    uart6_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_uart6_clk_gate0.en.en
+    uart06_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_uart06_clk_gate1.en.en
+    uart0_clk_gate2:
+      kind: gate
+      source: uart_clk_sel0
+      reg: blk_uart0_clk_gate2.en.en
+    uart0_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: uart6_clk_gate0
+    uart_clk_sel0:
+      kind: mux
+      source:
+        '0': uart2_clk_gate1
+        '1': uart2_clk_div
+      reg: blk_uart_clk_sel0.sel.sel
+    uart0_pclk:
+      kind: clk
+      source: SYS_uart2_pclk_gate_en
+    uart1_clk:
+      kind: clk
+      source: uart1_clk_occ_clk_gxcell
+      freq: 99000000
+    uart1_clk_div:
+      kind: div
+      source: uart1_clk_gate
+      regs:
+        rst: blk_uart1_clk_div.ctrl.rst
+        load: blk_uart1_clk_div.ctrl.load
+        div: blk_uart1_clk_div.ctrl.div
+    uart1_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_uart1_clk_gate.en.en
+    uart1_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_uart1_clk_gate1.en.en
+    uart1_clk_gate2:
+      kind: gate
+      source: uart1_clk_sel0
+      reg: blk_uart1_clk_gate2.en.en
+    uart1_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: uart1_clk_gate2
+    uart1_clk_sel0:
+      kind: mux
+      source:
+        '0': uart1_clk_gate1
+        '1': uart1_clk_div
+      reg: blk_uart1_clk_sel0.sel.sel
+    uart1_pclk:
+      kind: clk
+      source: SYS_uart1_pclk_gate_en
+    uart2_clk:
+      kind: clk
+      source: uart2_clk_occ_clk_gxcell
+      freq: 99000000
+    uart2_clk_div:
+      kind: div
+      source: uart2_clk_gate
+      regs:
+        rst: blk_uart2_clk_div.ctrl.rst
+        load: blk_uart2_clk_div.ctrl.load
+        div: blk_uart2_clk_div.ctrl.div
+    uart2_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_uart2_clk_gate.en.en
+    uart2_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_uart2_clk_gate1.en.en
+    uart2_clk_gate2:
+      kind: gate
+      source: uart2_clk_sel0
+      reg: blk_uart2_clk_gate2.en.en
+    uart2_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: uart2_clk_gate2
+    uart2_clk_sel0:
+      kind: mux
+      source:
+        '0': uart2_clk_gate1
+        '1': uart2_clk_div
+      reg: blk_uart2_clk_sel0.sel.sel
+    uart2_pclk:
+      kind: clk
+      source: SYS_uart2_pclk_gate_en
+    usb2_hclk:
+      kind: clk
+      source: SYS_usb2_hclk_gate_en
+    usb2phy_utmi_refclk:
+      kind: clk
+      source: usb_phy_refclk_gate2
+      freq: 12000000
+    usb_mhclk:
+      kind: clk
+      source: usb_mhclk_bist_clk_gxcell
+      freq: 198000000
+    usb_mhclk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: usb_mhclk_occ_clk_gxcell
+    usb_mhclk_div:
+      kind: div
+      source: usb_mhclk_gate0
+      regs:
+        rst: blk_usb_mhclk_div.ctrl.rst
+        load: blk_usb_mhclk_div.ctrl.load
+        div: blk_usb_mhclk_div.ctrl.div
+    usb_mhclk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_usb_mhclk_gate0.en.en
+    usb_mhclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_usb_mhclk_gate1.en.en
+    usb_mhclk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: usb_mhclk_occ_clk_gxcell
+    usb_mhclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: susb_mhclk_gate2
+    usb_mhclk_sel6:
+      kind: mux
+      source:
+        '0': usb_mhclk_gate1
+        '1': usb_mhclk_div
+      reg: blk_usb_mhclk_sel6.sel.sel
+    usb_phy_refclk_div:
+      kind: div
+      source: usb_phy_refclk_gate3
+      regs:
+        rst: blk_usb_phy_refclk_div.ctrl.rst
+        load: blk_usb_phy_refclk_div.ctrl.load
+        div: blk_usb_phy_refclk_div.ctrl.div
+    usb_phy_refclk_div_r99:
+      ratio: 99
+      kind: div
+      div_kind: div_r
+      source: usb_phy_refclk_gate
+    usb_phy_refclk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_usb_phy_refclk_gate.en.en
+    usb_phy_refclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_usb_phy_refclk_gate1.en.en
+    usb_phy_refclk_gate2:
+      kind: gate
+      source: usb_phy_refclk_sel8
+      reg: blk_usb_phy_refclk_gate2.en.en
+    usb_phy_refclk_gate3:
+      kind: gate
+      source: eth_pll
+      reg: blk_usb_phy_refclk_gate3.en.en
+    usb_phy_refclk_sel8:
+      kind: mux
+      source:
+        '0': usb_phy_refclk_gate1
+        '11': usb_phy_refclk_sel1
+      reg: blk_usb_phy_refclk_sel8.sel.sel
+    usb_phy_refclk_sel1:
+      kind: mux
+      source:
+        '0': usb_phy_refclk_div_r99
+        '1': usb_phy_refclk_div
+      reg: blk_usb_phy_refclk_sel1.sel.sel
+    vdac_clk:
+      kind: clk
+      source: vdac_clk_inv_sel
+      freq: 27000000
+    vdac_clk_inv_sel:
+      kind: inv
+      inv_kind: inv_mux
+      source: cvbs_pixel_double_clk_gate2
+    vdec_cfg_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: vdec_cfg_pclk_gate
+    vdec_cfg_pclk:
+      kind: clk
+      source: pclk_occ_clk_gxcell
+      freq: 148500000
+    vdec_cfg_pclk_div:
+      kind: div
+      div_kind: div_n
+      source: vdec_cfg_pclk_gate
+      regs:
+        rst: blk_vdec_cfg_pclk_div.ctrl.rst
+        load: blk_vdec_cfg_pclk_div.ctrl.load
+        div: blk_vdec_cfg_pclk_div.ctrl.div
+    vdec_cfg_pclk_gate:
+      kind: gate
+      source: vdec_cfg_pclk_sel0
+      reg: blk_vdec_cfg_pclk_gate.en.en
+    vdec_cfg_pclk_gate_row717:
+      kind: gate
+      source: dto_pll
+      reg: blk_vdec_cfg_pclk_gate_row717.en.en
+    vdec_cfg_pclk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_vdec_cfg_pclk_gate1.en.en
+    vdec_cfg_pclk_sel0:
+      kind: mux
+      source:
+        '6': vdec_cfg_pclk_gate1
+        '1': vdec_cfg_pclk_div
+      reg: blk_vdec_cfg_pclk_sel0.sel.sel
+    vdec_clk:
+      kind: clk
+      source: video_clk_bist_clk_gxcell
+      freq: 396000000
+    vdec_clk_div:
+      kind: div
+      div_kind: div_n
+      source: vdec_clk_gate
+      regs:
+        rst: blk_vdec_clk_div.ctrl.rst
+        load: blk_vdec_clk_div.ctrl.load
+        div: blk_vdec_clk_div.ctrl.div
+    vdec_clk_divi:
+      kind: div
+      div_kind: div_n
+      source: vdec_clk_gate11_68
+      regs:
+        rst: blk_vdec_clk_divi.ctrl.rst
+        load: blk_vdec_clk_divi.ctrl.load
+        div: blk_vdec_clk_divi.ctrl.div
+    vdec_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_vdec_clk_gate.en.en
+    vdec_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_vdec_clk_gate1.en.en
+    vdec_clk_gate11_68:
+      kind: gate
+      source: cpu_pll
+      reg: blk_vdec_clk_gate11_68.en.en
+    vdec_clk_gate2:
+      kind: gate
+      source: vdec_clk_sel1
+      reg: blk_vdec_clk_gate2.en.en
+    vdec_clk_sel0:
+      kind: mux
+      source:
+        '0': vdec_clk_gate1
+        '1': vdec_clk_sel1
+      reg: blk_vdec_clk_sel0.sel.sel
+    vdec_clk_sel1:
+      kind: mux
+      source:
+        '0': vdec_clk_div
+        '1': vdec_clk_divi
+      reg: blk_vdec_clk_sel1.sel.sel
+    vdec_jdec_clk:
+      kind: clk
+      source: vdec_jdec_clk_bist_clk_gxcell
+      freq: 297000000
+    vdec_jdec_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: vdec_jdec_clk_occ_clk_gxcell
+    vdec_jdec_clk_div:
+      kind: div
+      div_kind: div_n
+      source: vdec_jdec_clk_gate
+      regs:
+        rst: blk_vdec_jdec_clk_div.ctrl.rst
+        load: blk_vdec_jdec_clk_div.ctrl.load
+        div: blk_vdec_jdec_clk_div.ctrl.div
+    vdec_jdec_clk_gate:
+      kind: gate
+      source: dto_pll
+      reg: blk_vdec_jdec_clk_gate.en.en
+    vdec_jdec_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_vdec_jdec_clk_gate1.en.en
+    vdec_jdec_clk_gate2:
+      kind: gate
+      source: vdec_jdec_clk_sel0
+      reg: blk_vdec_jdec_clk_gate2.en.en
+    vdec_jdec_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: vdec_jdec_clk_occ_clk_gxcell
+    vdec_jdec_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: vdec_jdec_clk_gate2
+    vdec_jdec_clk_sel0:
+      kind: mux
+      source:
+        '0': vdec_jdec_clk_gate1
+        '11': vdec_jdec_clk_div
+      reg: blk_vdec_jdec_clk_sel0.sel.sel
+    vdec_pp_clk:
+      kind: clk
+      source: vdec_pp_clk_bist_clk_gxcell
+      freq: 297000000
+    vdec_pp_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: vdec_pp_clk_occ_clk_gxcell
+    vdec_pp_clk_div:
+      kind: div
+      div_kind: div_n
+      source: vdec_pp_clk_gate2
+      regs:
+        rst: blk_vdec_pp_clk_div.ctrl.rst
+        load: blk_vdec_pp_clk_div.ctrl.load
+        div: blk_vdec_pp_clk_div.ctrl.div
+    vdec_pp_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_vdec_pp_clk_gate0.en.en
+    vdec_pp_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_vdec_pp_clk_gate1.en.en
+    vdec_pp_clk_gate2:
+      kind: gate
+      source: vdec_pp_clk_sel
+      reg: blk_vdec_pp_clk_gate2.en.en
+    vdec_pp_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: vdec_pp_clk_occ_clk_gxcell
+    vdec_pp_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: vdec_pp_clk_gate2
+    vdec_pp_clk_sel:
+      kind: mux
+      source:
+        '0': vdec_pp_clk_gate1
+        '1': vdec_pp_clk_div
+      reg: blk_vdec_pp_clk_sel.sel.sel
+    video_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: video_clk_occ_clk_gxcell
+    video_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: video_clk_occ_clk_gxcell
+    video_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: vdec_clk_gate2
+    video_sys_pclk_jdec_gate_en:
+      kind: gate
+      source: vdec_cfg_clk_occ_clk_gxcell
+      reg: blk_video_sys_pclk_jdec_gate_en.en.en
+    video_sys_pclk_pp_gate_en:
+      kind: gate
+      source: vdec_cfg_clk_occ_clk_gxcell
+      reg: blk_video_sys_pclk_pp_gate_en.en.en
+    video_sys_vdec_cfg_pclk_gate_en:
+      kind: gate
+      source: vdec_cfg_clk_occ_clk_gxcell
+      reg: blk_video_sys_vdec_cfg_pclk_gate_en.en.en
+    vpu_axi64_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: vpu_axi64_clk_occ_clk_gxcell
+    vpu_axi64_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: vpu_axi64_clk_occ_clk_gxcell
+    vpu_axi64_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: bus_vpu_axi64_clk_occ_clk_gxcell
+    vpu_axi_clk:
+      kind: clk
+      source: bus_vpu_axi64_clk_occ_clk_gxcell
+      freq: 396000000
+    vpu_cfg_pclk:
+      kind: clk
+      source: vpu_cfg_pclk_occ_clk_gxcell
+      freq: 148500000
+    vpu_cfg_pclk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: display_cfg_pclk_occ_clk_gxcell
+    vpu_pixel_clk:
+      kind: clk
+      source: vpu_pixel_clk_bist_clk_gxcell
+      freq: 148500000
+    vpu_pixel_clk_bist_clk_gxcell:
+      kind: cell
+      cell_kind: bist_clk_cell
+      source: vpu_pixel_clk_occ_clk_gxcell
+    vpu_pixel_clk_div:
+      kind: div
+      div_kind: div_n
+      source: vpu_pixel_clk_gate2
+      regs:
+        rst: blk_vpu_pixel_clk_div.ctrl.rst
+        load: blk_vpu_pixel_clk_div.ctrl.load
+        div: blk_vpu_pixel_clk_div.ctrl.div
+    vpu_pixel_clk_div_r2:
+      ratio: 2
+      kind: div
+      div_kind: div_r
+      source: vpu_pixel_clk_gate2
+    vpu_pixel_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_vpu_pixel_clk_gate0.en.en
+    vpu_pixel_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_vpu_pixel_clk_gate1.en.en
+    vpu_pixel_clk_gate2:
+      kind: gate
+      source: vpu_pixel_clk_sel3
+      reg: blk_vpu_pixel_clk_gate2.en.en
+    vpu_pixel_clk_occ_bist_clk_gxcell:
+      kind: cell
+      cell_kind: occ_bist_clk_cell
+      source: vpu_pixel_clk_occ_clk_gxcell
+    vpu_pixel_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: vpu_pixel_clk_sel2
+    vpu_pixel_clk_sel0:
+      kind: mux
+      source:
+        '68': vpu_pixel_clk_gate1
+        '1': vpu_pixel_clk_sel1
+      reg: blk_vpu_pixel_clk_sel0.sel.sel
+    vpu_pixel_clk_sel1:
+      kind: mux
+      source:
+        '8': vpu_pixel_clk_div
+        '1': hdmi_phy_pin_pclk
+      reg: blk_vpu_pixel_clk_sel1.sel.sel
+    vpu_pixel_clk_sel2:
+      kind: mux
+      source:
+        '0': vpu_pixel_clk_gate2
+        '1': vpu_pixel_clk_div_r2
+      reg: blk_vpu_pixel_clk_sel2.sel.sel
+    vpu_pixel_clk_sel3:
+      kind: mux
+      source:
+        '6': vpu_pixel_clk_gate2
+        '11': vpu_pixel_clk_div_r2
+      reg: blk_vpu_pixel_clk_sel3.sel.sel
+    wdt_clk:
+      kind: clk
+      source: wdt_clk_occ_clk_gxcell
+      freq: 59400000
+    wdt_clk_div:
+      kind: div
+      source: wdt_clk_gate2
+      regs:
+        rst: blk_wdt_clk_div.ctrl.rst
+        load: blk_wdt_clk_div.ctrl.load
+        div: blk_wdt_clk_div.ctrl.div
+    wdt_clk_gate0:
+      kind: gate
+      source: dto_pll
+      reg: blk_wdt_clk_gate0.en.en
+    wdt_clk_gate1:
+      kind: gate
+      source: clock_xtal_buf_gxcell
+      reg: blk_wdt_clk_gate1.en.en
+    wdt_clk_gate2:
+      kind: gate
+      source: wdt_clk_sel0
+      reg: blk_wdt_clk_gate2.en.en
+    wdt_clk_occ_clk_gxcell:
+      kind: cell
+      cell_kind: occ_clk_cell
+      source: wdt_clk_gate2
+    wdt_clk_sel0:
+      kind: mux
+      source:
+        '0': wdt_clk_gate1
+        '1': wdt_clk_div
+      reg: blk_wdt_clk_sel0.sel.sel
+    wdt_pclk:
+      kind: clk
+      source: SYS_wdt_pclk_gate_en
+    xin:
+      kind: source
+      source_kind: source
+      freq: 27000000
+    cpu_axi_clk_div: null
+    cpu_debug_clk_div: null
+    peri_hclk:
+      freq: 200000000
+      kind: clk
+    cpu_mbist_mode: null
+settings:
+  main_fn: chip_pll_config_pattern
+  gate_reg_high_means_open: true
+  solve_timeout_ms: 180000
+  debug_consolver_smt_path: ../.jinja-build-out-pattern/consolver.smt2
