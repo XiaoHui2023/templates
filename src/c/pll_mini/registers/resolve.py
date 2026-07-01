@@ -136,6 +136,8 @@ def resolve_tree(
                 node=node_name,
             )
         on_path = model.active.get(node_name, False)
+        if node.kind == "source" or isinstance(node, PllNode):
+            on_path = True
         ratio = model.ratios.get(node_name, 0)
         sel = model.mux_sel.get(node_name, 0)
         gate_is_open = model.gate_open.get(node_name, False)
