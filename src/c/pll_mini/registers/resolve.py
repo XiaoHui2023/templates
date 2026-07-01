@@ -143,13 +143,14 @@ def resolve_tree(
             gate_is_open = on_path and gate_is_open
 
         pll_cfg: Dict[str, int] = {}
-        if isinstance(node, PllNode) and on_path:
+        if isinstance(node, PllNode) and node.regs:
             vars_map = model.pll_vars.get(node_name, {})
-            pll_cfg = pll_cfg_from_solved(
-                node.pll_kind,
-                vars_map,
-                output_groups=node.output_groups,
-            )
+            if vars_map:
+                pll_cfg = pll_cfg_from_solved(
+                    node.pll_kind,
+                    vars_map,
+                    output_groups=node.output_groups,
+                )
 
         port_freqs: Dict[str, int] = {}
         for port in output_ports(tree, node_name):
@@ -157,6 +158,8 @@ def resolve_tree(
             key = port.group if port.group else ""
             port_freqs[key] = hz
         primary = _primary_port_freq(node, port_freqs)
+        if isinstance(node, PllNode) and node.freq is not None:
+            primary = node.freq
 
         resolved[node_name] = ResolvedNode(
             name=node_name,

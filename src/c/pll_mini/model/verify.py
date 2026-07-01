@@ -131,6 +131,8 @@ def verify_solve_model(
 
         if isinstance(node, PllNode):
             vars_map = model.pll_vars.get(name, {})
+            if not vars_map:
+                continue
             ref_port = parent_port_for_child(tree, name)
             f_ref = model.port_hz(ref_port) or _static_port_hz(tree, model, ref_port)
             kind = node.pll_kind

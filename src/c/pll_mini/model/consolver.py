@@ -194,7 +194,7 @@ class _SmtBuilder:
             self._add(f"{name}__inactive_zero__{_port_suffix(port)}", f"(=> (not {act}) (= {freq} 0))")
             if not (isinstance(node, PllNode) and port.group):
                 self._add(f"{name}__active_positive__{_port_suffix(port)}", f"(=> {act} (> {freq} 0))")
-            elif port.group:
+            elif port.group and node.freq is None:
                 consumers = self._port_consumer_exprs(port)
                 if consumers:
                     self._add(
@@ -269,6 +269,13 @@ class _SmtBuilder:
 
     def _pll_constraints(self, name: str, node: PllNode) -> None:
         act = _act(name)
+        if node.regs:
+            try:
+                parent = parent_port_for_child(self.tree, name)
+            except ValueError:
+                parent = None
+            if parent is not None:
+                self._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
         if node.freq is not None:
             for port in output_ports(self.tree, name):
                 self._add(

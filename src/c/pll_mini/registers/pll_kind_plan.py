@@ -760,7 +760,7 @@ def _instance_addr_args_by_slots(
     return tuple(args)
 
 
-def _collect_active_pll_nodes(
+def _collect_configured_pll_nodes(
     tree: Tree,
     resolved: TreeResolve,
 ) -> list[PllNode]:
@@ -768,7 +768,7 @@ def _collect_active_pll_nodes(
     for node in tree.nodes_ordered:
         if not isinstance(node, PllNode) or not node.regs:
             continue
-        if resolved.by_name[node.name].active:
+        if resolved.by_name[node.name].pll_cfg:
             nodes.append(node)
     return nodes
 
@@ -778,7 +778,7 @@ def build_pll_plan(
     index: RegModelIndex,
     resolved: TreeResolve,
 ) -> PllPlanBundle:
-    active = _collect_active_pll_nodes(tree, resolved)
+    active = _collect_configured_pll_nodes(tree, resolved)
     groups: dict[PllGroupKey, list[PllNode]] = {}
     for node in active:
         key = node.pll_kind

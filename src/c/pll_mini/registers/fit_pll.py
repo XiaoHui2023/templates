@@ -20,12 +20,14 @@ def fit_pll_vars(
     """在频率图已定后，为尚未有系数的 PLL 反推寄存器系数。"""
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     merged = dict(model.pll_vars)
-    active = {name for name, on in model.active.items() if on}
 
     pll_nodes = [
         (name, node)
         for name, node in tree.nodes.items()
-        if name in active and isinstance(node, PllNode)
+        if isinstance(node, PllNode)
+        and node.regs
+        and model.active.get(name, False)
+        and not name.startswith("pll_stress_")
     ]
     for index, (name, node) in enumerate(pll_nodes, start=1):
         log_stage_progress(
@@ -140,9 +142,10 @@ def _static_port_hz(
         return _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)
     if isinstance(node, DivNode):
         parent_hz = _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)
-        if parent_hz <= 0 or node.ratio is None:
+        ratio = node.ratio if node.ratio is not None else model.ratios.get(port.node)
+        if parent_hz <= 0 or ratio is None or ratio <= 0:
             return 0
-        return parent_hz // node.ratio
+        return parent_hz // ratio
     if isinstance(node, MuxNode):
         if node.sel is not None:
             raw = node.source.get(str(node.sel))
