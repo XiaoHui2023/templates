@@ -24,12 +24,12 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 {%- endif %}
 
     constraint cst_clk {
+        enabled == _resolved_active;
+        (_resolved_freq > 0) == _resolved_active;
 {%- if enable_node_fix %}
         !(unfix_frequence || frequence < 0) -> frequence == _resolved_freq;
-        !unfix_enabled -> enabled == _resolved_active;
 {%- else %}
         frequence >= 0 -> frequence == _resolved_freq;
-        enabled == _resolved_active;
 {%- endif %}
         stable -> enabled == 1;
         stable -> _resolved_active;
