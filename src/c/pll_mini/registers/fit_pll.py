@@ -6,6 +6,7 @@ from model.nodes import PllNode, Tree
 from model.solve_model import SolveModel
 
 from .pll_search import search_pll_coefficients
+from load.tools import log_stage_progress
 
 
 def fit_pll_vars(
@@ -21,9 +22,21 @@ def fit_pll_vars(
     merged = dict(model.pll_vars)
     active = {name for name, on in model.active.items() if on}
 
-    for name, node in tree.nodes.items():
-        if name not in active or not isinstance(node, PllNode):
-            continue
+    pll_nodes = [
+        (name, node)
+        for name, node in tree.nodes.items()
+        if name in active and isinstance(node, PllNode)
+    ]
+    for index, (name, node) in enumerate(pll_nodes, start=1):
+        log_stage_progress(
+            "resolve",
+            "fit",
+            "pll coefficients",
+            current=index,
+            total=len(pll_nodes),
+            pll=name,
+            kind=node.pll_kind,
+        )
         if name in merged:
             continue
         ref_port = parent_port_for_child(tree, name)
@@ -45,6 +58,20 @@ def fit_pll_vars(
                 tol_hi=tol_hi,
                 tol_den=tol_den,
                 group_out_hz=group_hz,
+                progress=(
+                    lambda current, total, detail, name=name, kind=node.pll_kind: (
+                        log_stage_progress(
+                            "resolve",
+                            "fit",
+                            "pll coefficients",
+                            pll=name,
+                            kind=kind,
+                            current=current,
+                            total=total,
+                            detail=detail,
+                        )
+                    )
+                ),
             )
         else:
             out_hz = model.port_hz(Port(name, "")) or node.freq or 0
@@ -57,6 +84,20 @@ def fit_pll_vars(
                 tol_lo=tol_lo,
                 tol_hi=tol_hi,
                 tol_den=tol_den,
+                progress=(
+                    lambda current, total, detail, name=name, kind=node.pll_kind: (
+                        log_stage_progress(
+                            "resolve",
+                            "fit",
+                            "pll coefficients",
+                            pll=name,
+                            kind=kind,
+                            current=current,
+                            total=total,
+                            detail=detail,
+                        )
+                    )
+                ),
             )
         if coeffs is None:
             raise RuntimeError(

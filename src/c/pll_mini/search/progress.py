@@ -220,6 +220,38 @@ class ComponentSearchReporter:
     def phase(self, name: str, *, detail: str = "") -> None:
         self._emit(name, detail=detail, force=True)
 
+    def active_trial(self, *, active_count: int, target_count: int) -> None:
+        self._emit(
+            "active path",
+            detail=f"active={active_count} targets={target_count}",
+        )
+
+    def propagate(self, *, active_count: int, ratios: int) -> None:
+        self._emit(
+            "frequency propagation",
+            detail=f"active={active_count} ratios={ratios}",
+            force=True,
+        )
+
+    def pll_scan(
+        self,
+        pll_name: str,
+        pll_kind: str,
+        *,
+        current: int,
+        total: int,
+        detail: str = "",
+    ) -> None:
+        suffix = f"{pll_name}({pll_kind})"
+        if detail:
+            suffix = f"{suffix} {detail}"
+        self._emit(
+            "PLL coefficient scan",
+            current=current,
+            total=max(1, total),
+            detail=suffix,
+        )
+
     def end(self) -> None:
         if self._session is not None:
             self._session.end_component_search()

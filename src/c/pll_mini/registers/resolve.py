@@ -7,7 +7,7 @@ from .fit_pll import fit_pll_vars
 from .pll_cfg import pll_cfg_from_solved
 from search.engine import search_tree_constraints, verify_search_partition
 from model.solve_model import SolveModel
-from load.tools import log_stage_done, log_stage_start
+from load.tools import log_stage_done, log_stage_progress, log_stage_start
 from model.verify import raise_on_verify_issues, verify_solve_model
 
 from model.nodes import (
@@ -68,7 +68,21 @@ def resolve_tree(
     if not clk_nodes:
         raise ValueError("tree 须至少含一个 kind 为 clk 的节点")
 
-    verify_search_partition(tree)
+    partition_started_at = log_stage_start(
+        "resolve",
+        "partition",
+        "precheck",
+        nodes=len(tree.nodes),
+        targets=len(clk_nodes),
+    )
+    component_count = verify_search_partition(tree)
+    log_stage_done(
+        "resolve",
+        "partition",
+        "precheck",
+        partition_started_at,
+        components=component_count,
+    )
 
     model = search_tree_constraints(
         tree,
@@ -124,7 +138,16 @@ def resolve_tree(
         nodes=len(tree.nodes),
     )
     resolved: Dict[str, ResolvedNode] = {}
-    for node_name, node in tree.nodes.items():
+    for index, (node_name, node) in enumerate(tree.nodes.items(), start=1):
+        if index == 1 or index % 128 == 0:
+            log_stage_progress(
+                "resolve",
+                "nodes",
+                "tree",
+                current=index,
+                total=len(tree.nodes),
+                node=node_name,
+            )
         on_path = model.active.get(node_name, False)
         ratio = model.ratios.get(node_name, 0)
         sel = model.mux_sel.get(node_name, 0)

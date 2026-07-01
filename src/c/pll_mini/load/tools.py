@@ -84,6 +84,28 @@ def log_stage_done(
     )
 
 
+def log_stage_progress(
+    component: str,
+    action: str,
+    label: str,
+    **fields: object,
+) -> None:
+    """Print or refresh a timed stage progress line."""
+    from report.ui import active_progress_session
+
+    session = active_progress_session()
+    if session is not None:
+        session.stage_progress(component, action, label, **fields)
+        if session.enabled:
+            return
+    print(
+        f"[pll_mini] {component} {action} progress: {label}"
+        f"{_format_stage_fields(fields)}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def bin_dir() -> Path:
     """返回 ralfconv 所在目录。"""
     root = _PKG_ROOT / "bin"

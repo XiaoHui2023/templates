@@ -572,6 +572,24 @@ class ProgressSession:
                 self.advance_overall(description="头文件寄存器收集完成", steps=1)
         self._refresh()
 
+    def stage_progress(
+        self,
+        component: str,
+        action: str,
+        label: str,
+        **fields: object,
+    ) -> None:
+        if not self.enabled:
+            return
+        human = _human_stage_name(component, action, label)
+        detail = " ".join(f"{key}={value}" for key, value in fields.items())
+        if detail:
+            human = f"{human} | {detail}"
+        self._stage_text = human
+        if self._overall is not None and self._overall_task is not None:
+            self._overall.update(self._overall_task, description=human)
+        self._refresh()
+
     def show_partition_preview(
         self,
         tree: Tree,

@@ -43,7 +43,7 @@ from model.nodes import (
 )
 from registers.pll_search import pll_ref_hz_candidates, search_pll_coefficients
 from model.solve_model import SolveModel
-from load.tools import log_stage_done, log_stage_start
+from load.tools import log_stage_done, log_stage_progress, log_stage_start
 from model.topology import bind_tree_topology, clear_tree_topology
 from search.progress import ComponentSearchReporter
 
@@ -51,6 +51,10 @@ from search.progress import ComponentSearchReporter
 def _check_deadline(deadline: float | None) -> None:
     if deadline is not None and time.perf_counter() > deadline:
         raise RuntimeError("时钟树约束求解超时或无法判定")
+
+
+def _stage_progress_every(index: int, step: int = 128) -> bool:
+    return index == 1 or index % step == 0
 
 
 class ComponentSearchFailure(RuntimeError):
@@ -449,10 +453,29 @@ def partition_search_components(
         return []
 
     determined_ports = propagate_determined_ports(tree, targets)
+    log_stage_progress(
+        "search",
+        "partition",
+        "clock components",
+        phase="determined_ports",
+        targets=len(targets),
+        ports=len(determined_ports),
+    )
 
     clk_components: List[SearchComponent] = []
     plls_for_ref: Set[str] = set()
-    for clk_name, hz in sorted(targets, key=lambda item: item[0]):
+    ordered_targets = sorted(targets, key=lambda item: item[0])
+    for index, (clk_name, hz) in enumerate(ordered_targets, start=1):
+        if _stage_progress_every(index, step=16):
+            log_stage_progress(
+                "search",
+                "partition",
+                "clock components",
+                phase="backward_required",
+                current=index,
+                total=len(ordered_targets),
+                clk=clk_name,
+            )
         required, anchors = backward_required_nodes_for_partition(
             tree,
             [(clk_name, hz)],
@@ -482,9 +505,29 @@ def partition_search_components(
     merged_clk = _merge_overlapping_clk_components(
         tree, clk_components, determined_ports=determined_ports
     )
+    log_stage_progress(
+        "search",
+        "partition",
+        "clock components",
+        phase="merge_clk_components",
+        before=len(clk_components),
+        after=len(merged_clk),
+        pll_refs=len(plls_for_ref),
+    )
 
     ref_components: List[SearchComponent] = []
-    for pll_name in sorted(plls_for_ref):
+    ordered_plls = sorted(plls_for_ref)
+    for index, pll_name in enumerate(ordered_plls, start=1):
+        if _stage_progress_every(index, step=8):
+            log_stage_progress(
+                "search",
+                "partition",
+                "clock components",
+                phase="pll_ref_required",
+                current=index,
+                total=len(ordered_plls),
+                pll=pll_name,
+            )
         ref_required = backward_required_nodes_pll_ref(tree, pll_name)
         if len(ref_required) <= 1:
             continue
@@ -741,7 +784,16 @@ def merge_solve_models(tree: Tree, models: List[SolveModel]) -> SolveModel:
     gate_open: Dict[str, bool] = {}
     pll_vars: Dict[str, Dict[str, int]] = {}
 
-    for partial in models:
+    for index, partial in enumerate(models, start=1):
+        if _stage_progress_every(index, step=4):
+            log_stage_progress(
+                "search",
+                "merge",
+                "component models",
+                phase="fold_partial",
+                current=index,
+                total=len(models),
+            )
         for name, on in partial.active.items():
             if on:
                 active[name] = True
@@ -761,7 +813,17 @@ def merge_solve_models(tree: Tree, models: List[SolveModel]) -> SolveModel:
             if partial.active.get(name, False):
                 pll_vars[name] = coeffs
 
-    for name in tree.nodes:
+    for index, name in enumerate(tree.nodes, start=1):
+        if _stage_progress_every(index, step=128):
+            log_stage_progress(
+                "search",
+                "merge",
+                "component models",
+                phase="fill_defaults",
+                current=index,
+                total=len(tree.nodes),
+                node=name,
+            )
         if name not in active:
             active[name] = False
         for port in output_ports(tree, name):
@@ -797,16 +859,22 @@ def _recompute_merged_pll_vars(
     tol_den: int,
 ) -> SolveModel:
     active = {name for name, on in model.active.items() if on}
-    pll_vars = _compute_pll_vars(
-        tree,
-        active=active,
-        port_freq=model.port_freq,
-        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-        tol_lo=tol_lo,
-        tol_hi=tol_hi,
-        tol_den=tol_den,
-    )
+    reporter = ComponentSearchReporter(tree, [])
+    try:
+        reporter.phase("merged PLL recompute", detail=f"active={len(active)}")
+        pll_vars = _compute_pll_vars(
+            tree,
+            active=active,
+            port_freq=model.port_freq,
+            pll_sc_fbdiv_min=pll_sc_fbdiv_min,
+            pll_sc_fbdiv_max=pll_sc_fbdiv_max,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+            reporter=reporter,
+        )
+    finally:
+        reporter.end()
     if pll_vars is None:
         raise RuntimeError("合并后端口频率无法配出合法 PLL 系数")
     return SolveModel(
@@ -1043,13 +1111,19 @@ def _search_tree(
             if not _mux_assignments_compatible(
                 tree, targets, trial_mux, required=required
             ):
+                reporter.phase("mux compatibility", detail="skip incompatible")
                 continue
             active = _compute_active(
                 tree, targets, trial_mux, required=required
             )
+            reporter.active_trial(
+                active_count=len(active),
+                target_count=len(targets),
+            )
             if not _active_covers_targets(
                 tree, targets, active, trial_mux, required=required
             ):
+                reporter.phase("active coverage", detail="skip uncovered target")
                 continue
             trial_ratios = dict(ratios)
             if not _assign_div_ratios(
@@ -1093,6 +1167,10 @@ def _search_tree(
                 active_full = _compute_active(
                     tree, targets, trial_mux_full, required=required
                 )
+                reporter.active_trial(
+                    active_count=len(active_full),
+                    target_count=len(targets),
+                )
                 if not _active_covers_targets(
                     tree,
                     targets,
@@ -1121,7 +1199,10 @@ def _search_tree(
                 for ref_ratio_pack in ref_div_iter:
                     _check_deadline(deadline)
                     trial_ratios_full = {**trial_ratios, **ref_ratio_pack}
-                    reporter.phase("频率传播")
+                    reporter.propagate(
+                        active_count=len(active_full),
+                        ratios=len(trial_ratios_full),
+                    )
                     port_freq = _propagate_port_freqs(
                         tree,
                         active=active_full,
@@ -1134,8 +1215,9 @@ def _search_tree(
                     if port_freq is None:
                         continue
                     if not _clk_targets_match(targets, port_freq):
+                        reporter.phase("target match", detail="skip mismatch")
                         continue
-                    reporter.phase("PLL系数")
+                    reporter.phase("PLL coefficients")
                     pll_vars = _compute_pll_vars(
                         tree,
                         active=active_full,
@@ -1217,6 +1299,7 @@ def _search_pll_ref_tree(
             _check_deadline(deadline)
             trial_mux = {**mux_sel, **assignment}
             active = _compute_active_pll_ref(tree, pll_name, trial_mux) & required
+            reporter.active_trial(active_count=len(active), target_count=1)
             if pll_name not in active:
                 continue
             reporter.begin_ref_div(ref_divs)
@@ -1237,7 +1320,10 @@ def _search_pll_ref_tree(
                 deadline=deadline,
             ):
                 _check_deadline(deadline)
-                reporter.phase("频率传播")
+                reporter.propagate(
+                    active_count=len(active),
+                    ratios=len(trial_ratios),
+                )
                 port_freq = _propagate_port_freqs(
                     tree,
                     active=active,
@@ -1249,7 +1335,7 @@ def _search_pll_ref_tree(
                 if port_freq is None:
                     continue
                 if compute_pll_vars:
-                    reporter.phase("PLL系数", detail=pll_name)
+                    reporter.phase("PLL coefficients", detail=pll_name)
                     pll_vars = _compute_pll_vars(
                         tree,
                         active=active,
@@ -1393,6 +1479,7 @@ def _iter_ref_div_ratio_assignments(
         tol_lo=tol_lo,
         tol_hi=tol_hi,
         tol_den=tol_den,
+        reporter=reporter,
     )
     if not candidates:
         if reporter is not None:
@@ -1438,6 +1525,7 @@ def _ref_div_ratio_candidates(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
+    reporter: ComponentSearchReporter | None = None,
 ) -> List[int]:
     node = tree.nodes[div_name]
     assert isinstance(node, DivNode)
@@ -1506,6 +1594,7 @@ def _ref_div_ratio_candidates(
                 tol_lo=tol_lo,
                 tol_hi=tol_hi,
                 tol_den=tol_den,
+                reporter=reporter,
             ):
                 found.append(ratio)
         if not found and want_outs:
@@ -1653,6 +1742,7 @@ def _pll_accepts_ref_hz(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
+    reporter: ComponentSearchReporter | None = None,
 ) -> bool:
     if ref_hz <= 0:
         return False
@@ -1669,6 +1759,8 @@ def _pll_accepts_ref_hz(
     out_hz = pll.freq or 0
     if out_hz <= 0:
         return False
+    if reporter is not None:
+        reporter.pll_trial(pll_name, pll.pll_kind, ref_hz, out_hz)
     return (
         search_pll_coefficients(
             pll.pll_kind,
@@ -1679,6 +1771,19 @@ def _pll_accepts_ref_hz(
             tol_lo=tol_lo,
             tol_hi=tol_hi,
             tol_den=tol_den,
+            progress=(
+                None
+                if reporter is None
+                else lambda current, total, detail, name=pll_name, kind=pll.pll_kind: (
+                    reporter.pll_scan(
+                        name,
+                        kind,
+                        current=current,
+                        total=total,
+                        detail=detail,
+                    )
+                )
+            ),
         )
         is not None
     )
@@ -2727,6 +2832,19 @@ def _compute_pll_vars(
             tol_lo=tol_lo,
             tol_hi=tol_hi,
             tol_den=tol_den,
+            progress=(
+                None
+                if reporter is None
+                else lambda current, total, detail, name=name, kind=node.pll_kind: (
+                    reporter.pll_scan(
+                        name,
+                        kind,
+                        current=current,
+                        total=total,
+                        detail=detail,
+                    )
+                )
+            ),
         )
         if coeffs is None:
             return None
