@@ -778,9 +778,9 @@ def build_pll_plan(
     index: RegModelIndex,
     resolved: TreeResolve,
 ) -> PllPlanBundle:
-    active = _collect_configured_pll_nodes(tree, resolved)
+    configured = _collect_configured_pll_nodes(tree, resolved)
     groups: dict[PllGroupKey, list[PllNode]] = {}
-    for node in active:
+    for node in configured:
         key = node.pll_kind
         groups.setdefault(key, []).append(node)
 

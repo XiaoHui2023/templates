@@ -83,17 +83,22 @@ void {{ settings.main_fn }}(void)
 {%- for inst in config_plan.pll_instances %}
     {{ inst.fn_name }}({{ inst.c_call_args }});
 {%- endfor %}
+{% if config_plan.has_wait_lock_instances %}
+
 {%- for inst in config_plan.pll_instances if inst.wait_lock %}
     pll_mini_wait_lock({% if config_plan.fixed_wait_lock_mask_hex %}{{ inst.lock_addr_macro }}{% else %}{{ inst.lock_addr_macro }}, {{ inst.lock_mask_hex }}{% endif %});
 {%- endfor %}
+{% endif %}
+{% if extra_reg_plan %}
+
+    {{ extra_reg_plan.fn_name }}();
+{% endif %}
+
     for (i = 0; i < sizeof(pll_mini_config_steps) / sizeof(pll_mini_config_steps[0]); i++) {
         const pll_mini_config_step_t *step = &pll_mini_config_steps[i];
 
         cpu_config_write(step->addr, step->value);
     }
-{%- if extra_reg_plan %}
-    {{ extra_reg_plan.fn_name }}();
-{%- endif %}
 }
 
 #endif

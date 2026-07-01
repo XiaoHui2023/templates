@@ -14,6 +14,7 @@ from model.verify import raise_on_verify_issues, verify_solve_model
 from model.nodes import (
     DivNode,
     GateNode,
+    MuxNode,
     PllNode,
     Tree,
 )
@@ -24,7 +25,6 @@ from model.freq_graph import Port, output_ports
 class ResolvedNode:
     name: str
     kind: str
-    active: bool
     resolved_freq: int
     port_freqs: Dict[str, int]
     ratio: int
@@ -53,6 +53,22 @@ def _primary_port_freq(
     if port_freqs:
         return next(iter(port_freqs.values()))
     return 0
+
+
+def _default_ratio(node: DivNode, solved_ratio: int) -> int:
+    if node.ratio is not None:
+        return node.ratio
+    if solved_ratio > 0:
+        return solved_ratio
+    return 2 if node.div_kind in ("dto", "dto_n") else 1
+
+
+def _default_mux_sel(node: MuxNode, solved_sel: int) -> int:
+    if node.sel is not None:
+        return node.sel
+    if str(solved_sel) in node.source:
+        return solved_sel
+    return int(sorted(node.source.keys(), key=lambda item: int(item))[0])
 
 
 def resolve_tree(
@@ -135,14 +151,13 @@ def resolve_tree(
                 total=len(tree.nodes),
                 node=node_name,
             )
-        on_path = model.active.get(node_name, False)
-        if node.kind == "source" or isinstance(node, PllNode):
-            on_path = True
         ratio = model.ratios.get(node_name, 0)
+        if isinstance(node, DivNode):
+            ratio = _default_ratio(node, ratio)
         sel = model.mux_sel.get(node_name, 0)
-        gate_is_open = model.gate_open.get(node_name, False)
-        if isinstance(node, GateNode):
-            gate_is_open = on_path and gate_is_open
+        if isinstance(node, MuxNode):
+            sel = _default_mux_sel(node, sel)
+        gate_is_open = True if isinstance(node, GateNode) else model.gate_open.get(node_name, False)
 
         pll_cfg: Dict[str, int] = {}
         if isinstance(node, PllNode) and node.regs:
@@ -157,6 +172,8 @@ def resolve_tree(
         port_freqs: Dict[str, int] = {}
         for port in output_ports(tree, node_name):
             hz = model.port_hz(port)
+            if hz <= 0 and getattr(node, "freq", None) is not None:
+                hz = int(getattr(node, "freq"))
             key = port.group if port.group else ""
             port_freqs[key] = hz
         primary = _primary_port_freq(node, port_freqs)
@@ -166,7 +183,6 @@ def resolve_tree(
         resolved[node_name] = ResolvedNode(
             name=node_name,
             kind=node.kind,
-            active=on_path,
             resolved_freq=primary,
             port_freqs=port_freqs,
             ratio=ratio,

@@ -80,9 +80,6 @@ def verify_solve_model(
             )
 
     for name, node in tree.nodes.items():
-        if not model.active.get(name, False):
-            continue
-
         if isinstance(node, DivNode):
             ratio = model.ratios.get(name, 0)
             if ratio < 1:
@@ -90,6 +87,8 @@ def verify_solve_model(
             parent_port = parent_port_for_child(tree, name)
             f_in = model.port_hz(parent_port)
             f_out = model.port_hz(Port(name, ""))
+            if f_in <= 0 or f_out <= 0:
+                continue
             try:
                 f_hw, rem = div_hw_from_input(f_in, ratio)
             except ValueError:
@@ -139,7 +138,7 @@ def verify_solve_model(
             if kind == "tci":
                 clkf = vars_map.get("clkf", 0)
                 f_actual = pll_tci_actual_hz(f_ref, clkf)
-                f_out = model.port_hz(Port(name, ""))
+                f_out = model.port_hz(Port(name, "")) or node.freq or 0
                 if f_actual != f_out:
                     issues.append(
                         _pll_issue(
@@ -163,7 +162,9 @@ def verify_solve_model(
                 p1 = vars_map.get("postdiv1", 0)
                 p2 = vars_map.get("postdiv2", 0)
                 f_actual = pll_sc_actual_hz(f_ref, fbdiv, refdiv, p1, p2)
-                f_out = model.port_hz(Port(name, ""))
+                f_out = model.port_hz(Port(name, "")) or node.freq or 0
+                if f_out <= 0:
+                    continue
                 if not freq_within_tolerance(
                     f_out, f_actual, tol_lo=tol_lo, tol_hi=tol_hi, tol_den=tol_den
                 ):
@@ -190,7 +191,9 @@ def verify_solve_model(
                 fbdiv = vars_map.get("fbdiv", 0)
                 p = vars_map.get("p", 0)
                 f_actual = pll_dw_actual_hz(f_ref, fbdiv, p)
-                f_out = model.port_hz(Port(name, ""))
+                f_out = model.port_hz(Port(name, "")) or node.freq or 0
+                if f_out <= 0:
+                    continue
                 if not freq_within_tolerance(
                     f_out, f_actual, tol_lo=tol_lo, tol_hi=tol_hi, tol_den=tol_den
                 ):
@@ -259,6 +262,8 @@ def verify_solve_model(
             if not out_ports:
                 continue
             f_self = model.port_hz(out_ports[0])
+            if f_parent <= 0 or f_self <= 0:
+                continue
             if f_parent != f_self:
                 issues.append(
                     VerifyIssue(
@@ -283,7 +288,11 @@ def verify_solve_model(
             if not node_has_upstream_ref(node):
                 continue
             parent_port = parent_port_for_child(tree, name)
-            if model.port_hz(Port(name, "")) != model.port_hz(parent_port):
+            f_self = model.port_hz(Port(name, ""))
+            f_parent = model.port_hz(parent_port)
+            if f_self <= 0 or f_parent <= 0:
+                continue
+            if f_self != f_parent:
                 issues.append(
                     VerifyIssue(
                         headline=f"clk {name} 与前级频率不一致",
