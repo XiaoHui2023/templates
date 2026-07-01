@@ -8,7 +8,7 @@
 class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}clk)
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(enabled, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(enabled, UVM_ALL_ON)
 {%- if enable_node_fix %}
         `uvm_field_int(unfix_frequence, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
         `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
@@ -16,7 +16,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     `uvm_object_utils_end
 
     longint frequence;
-    int enabled;
+    bit enabled;
     bit stable;
 {%- if enable_node_fix %}
     bit unfix_frequence;
@@ -26,10 +26,10 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     constraint cst_clk {
 {%- if enable_node_fix %}
         !(unfix_frequence || frequence < 0) -> frequence == _resolved_freq;
-        !(unfix_enabled || enabled < 0) -> enabled == _resolved_active;
+        !unfix_enabled -> enabled == _resolved_active;
 {%- else %}
         frequence >= 0 -> frequence == _resolved_freq;
-        enabled >= 0 -> enabled == _resolved_active;
+        enabled == _resolved_active;
 {%- endif %}
         stable -> enabled == 1;
         stable -> _resolved_active;
@@ -40,7 +40,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     function new(string name = "");
         super.new(name);
         frequence = -1;
-        enabled = -1;
+        enabled = 1'b1;
         stable = 1'b0;
 {%- if enable_node_fix %}
         unfix_frequence = 1'b1;

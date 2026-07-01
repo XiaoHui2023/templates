@@ -485,8 +485,12 @@ class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
     freq: Optional[int] = Field(
         default=None,
-        description="典型频率，单位 Hz；省略表示频率与开关均不指定；"
-        "正数同时指定频率与使能；负数仅不约束 _resolved_freq。",
+        description="典型频率，单位 Hz；省略表示不指定频率；"
+        "正数锁定 frequence；负数仅不约束 _resolved_freq。",
+    )
+    disable: bool = Field(
+        default=False,
+        description="为真时 trees 构造将 enabled 置 0；省略或为假时 enabled 为 1。",
     )
     source: OptionalUpstreamSource = Field(
         default=None,
@@ -495,7 +499,7 @@ class ClkNode(NodeBase):
     stable: bool = Field(
         default=False,
         description="为真时表示锚定时钟：结构探测与低功耗下不得关断或改频；"
-        "应配合正整数 freq，trees 锁定 frequence 与 enabled。",
+        "应配合正整数 freq，trees 锁定 frequence 并将 enabled 置 1。",
     )
 
     @field_validator("freq", mode="before")
@@ -511,13 +515,11 @@ class ClkNode(NodeBase):
         return -1 if self.freq is None else self.freq
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="trees 构造写入 enabled；省略 freq 时为 -1，否则为 1；YAML 不可传入。",
+        description="trees 构造写入 enabled；disable 为真时为 0，否则为 1；YAML 不可传入。",
     )
     @property
     def clk_init_enabled(self) -> int:
-        if self.stable:
-            return 1
-        return -1 if self.freq is None else 1
+        return 0 if self.disable else 1
 
     @computed_field(  # type: ignore[prop-decorator]
         description="frequence 非 clk::new 默认 -1 时为真；YAML 不可传入。",
@@ -527,13 +529,11 @@ class ClkNode(NodeBase):
         return self.freq is not None and self.freq != -1
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="enabled 非 clk::new 默认 -1 时为真；YAML 不可传入。",
+        description="disable 为真或 stable 为真时 trees 写入 enabled；YAML 不可传入。",
     )
     @property
     def clk_trees_emit_enabled(self) -> bool:
-        if self.stable:
-            return True
-        return self.freq is not None
+        return self.disable or self.stable
 
     @computed_field(  # type: ignore[prop-decorator]
         description="unfix_frequence 非 clk::new 默认 1 时为真；YAML 不可传入。",
@@ -547,13 +547,11 @@ class ClkNode(NodeBase):
         return True
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="unfix_enabled 非 clk::new 默认 1 时为真；YAML 不可传入。",
+        description="disable 为真或 stable 为真时 trees 写入 unfix_enabled 为 0；YAML 不可传入。",
     )
     @property
     def clk_trees_emit_unfix_enabled(self) -> bool:
-        if self.stable:
-            return True
-        return self.freq is not None
+        return self.disable or self.stable
 
     @model_validator(mode="after")
     def _validate_clk_freq(self) -> ClkNode:
@@ -570,6 +568,10 @@ class ClkNode(NodeBase):
         if self.stable and (self.freq is None or self.freq <= 0):
             raise ValueError(
                 f"clk 节点 {self.name!r} stable 为真时 freq 应为正整数"
+            )
+        if self.disable and self.stable:
+            raise ValueError(
+                f"clk 节点 {self.name!r} disable 与 stable 不可同时为真"
             )
         return self
 

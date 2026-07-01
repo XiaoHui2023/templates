@@ -164,7 +164,206 @@ trees:
         path: dut.clk_standalone
         freq: 50000000
 
-      clk_disabled: ~
+      clk_disabled:
+        kind: clk
+        disable: true
+        path: dut.clk_disabled
+        source: gate0
+
+      mux_wide:
+        kind: mux
+        path: dut.mux_wide
+        source:
+          "0": pll_tci
+          "1": pll_sc
+          "2": pll_dw
+          "3": pll_inno[1]
+        reg: blk_mux_wide.sel[1:0]
+
+      mux_fixed:
+        kind: mux
+        sel: 2
+        path: dut.mux_fixed
+        source:
+          "0": mux_ref
+          "1": mux_wide
+          "2": pad_xtal
+        reg: blk_mux_fixed.sel[1:0]
+
+      gate_fixed:
+        kind: gate
+        open: 1
+        source: mux_fixed
+        path: dut.gate_fixed
+        reg: blk_gate_fixed.en
+
+      div_fixed:
+        kind: div
+        div_kind: div_n
+        ratio: 6
+        source: gate_fixed
+        path: dut.div_fixed
+        regs:
+          rst: blk_div_fixed.ctrl[0]
+          load: blk_div_fixed.ctrl[1]
+          div: blk_div_fixed.div[7:0]
+
+      dto_rand:
+        kind: div
+        div_kind: dto_n
+        source: div_fixed
+        path: dut.dto_rand
+        regs:
+          rst: blk_dto_rand.ctrl[0]
+          load: blk_dto_rand.ctrl[1]
+          bypass: blk_dto_rand.ctrl[2]
+          step: blk_dto_rand.step[15:0]
+
+      inv_mux0:
+        kind: inv
+        inv_kind: inv_mux
+        source: dto_rand
+        path: dut.inv_mux0
+        reg: blk_inv_mux0.sel
+
+      clk_wide_a:
+        kind: clk
+        path: dut.clk_wide_a
+        source: inv_mux0
+
+      clk_wide_b:
+        kind: clk
+        stable: true
+        freq: 12000000
+        path: dut.clk_wide_b
+        source: div_fixed
+
+      clk_wide_disabled:
+        kind: clk
+        disable: true
+        path: dut.clk_wide_disabled
+        source: mux_wide
+
+  - name: stress
+    module_path: soc.clk
+    nodes:
+      osc_fast:
+        kind: source
+        source_kind: source
+        path: soc.clk.osc_fast
+        freq: 26000000
+
+      osc_pad:
+        kind: source
+        source_kind: pad
+        path: soc.pad.osc_pad
+        freq: 32768
+
+      pll_stress:
+        kind: pll
+        source: osc_fast
+        pll_kind: inno
+        path: soc.clk.pll_stress
+        freq: 104000000
+        regs:
+          lock: blk_pll_stress.lock
+          pd: blk_pll_stress.pd
+          refdiv: blk_pll_stress.refdiv
+          fbdiv: blk_pll_stress.fbdiv
+          postdiv1[0]: blk_pll_stress.postdiv1_0
+          postdiv2[0]: blk_pll_stress.postdiv2_0
+          postdiv1[1]: blk_pll_stress.postdiv1_1
+          postdiv2[1]: blk_pll_stress.postdiv2_1
+
+      mux_ref_stress:
+        kind: mux
+        path: soc.clk.mux_ref_stress
+        source:
+          "0": pll_stress[0]
+          "1": pll_stress[1]
+          "2": osc_fast
+          "3": osc_pad
+        reg: blk_mux_ref_stress.sel[1:0]
+
+      mux_leaf_stress:
+        kind: mux
+        path: soc.clk.mux_leaf_stress
+        source:
+          "0": mux_ref_stress
+          "1": pll_stress[0]
+          "2": pll_stress[1]
+        reg: blk_mux_leaf_stress.sel[1:0]
+
+      gate_stress_a:
+        kind: gate
+        source: mux_leaf_stress
+        path: soc.clk.gate_stress_a
+        reg: blk_gate_stress_a.en
+
+      gate_stress_b:
+        kind: gate
+        open: 0
+        source: mux_ref_stress
+        path: soc.clk.gate_stress_b
+        reg: blk_gate_stress_b.en
+
+      div_stress_a:
+        kind: div
+        div_kind: div
+        source: gate_stress_a
+        path: soc.clk.div_stress_a
+        regs:
+          rst: blk_div_stress_a.ctrl[0]
+          load: blk_div_stress_a.ctrl[1]
+          div: blk_div_stress_a.div[5:0]
+
+      div_stress_b:
+        kind: div
+        div_kind: div_r
+        ratio: 13
+        source: gate_stress_a
+        path: soc.clk.div_stress_b
+
+      dto_stress:
+        kind: div
+        div_kind: dto
+        source: div_stress_b
+        path: soc.clk.dto_stress
+        regs:
+          rst: blk_dto_stress.ctrl[0]
+          load: blk_dto_stress.ctrl[1]
+          bypass: blk_dto_stress.ctrl[2]
+          step: blk_dto_stress.step[15:0]
+
+      inv_stress:
+        kind: inv
+        inv_kind: inv_cell
+        source: dto_stress
+        path: soc.clk.inv_stress
+        reg: blk_inv_stress.inv
+
+      clk_stress_a:
+        kind: clk
+        stable: true
+        freq: 8000000
+        path: soc.clk.clk_stress_a
+        source: div_stress_a
+
+      clk_stress_b:
+        kind: clk
+        path: soc.clk.clk_stress_b
+        source: inv_stress
+
+      clk_stress_disabled:
+        kind: clk
+        disable: true
+        path: soc.clk.clk_stress_disabled
+        source: gate_stress_b
+
+      clk_stress_unscoped:
+        kind: clk
+        path: soc.other.clk_stress_unscoped
+        source: osc_pad
 
 settings:
   class_regmodel: regmodel_t
