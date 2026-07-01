@@ -1,23 +1,25 @@
-# 提交前健全检查：覆盖各 kind 与常见连线形态；jinja_build 退出码须为 0。
+# pll_mini 全器件示范：各 source / pll / div / inv / mux / gate / cell / clk。
+# 晶振通过 mux_ref_src → div_ref(div_r 1) → mux_ref_mid → inv_ref → mux_ref_tail → gate_ref 后再馈入各 PLL；
+# MHz 区为交错 PLL 枢纽与独立高频岛；dto / dto_n 在低频频段单独成岛以便求解。
 #
-# 覆盖一览
-#   source     xtal / pad
-#   pll        sc / tci / dw / inno
-#   div        div / div_n / div_r / dto / dto_n
-#   mux        mux_ref 可搜索 sel；其余 mux 预填 sel
-#   gate       寄存器门控；gate_hclk 透传链；gate_mbist open=0
-#   dual_path  pll_sc→div→gate 与 xtal→gate 进 mux→gate→clk_dual_0
-#   hub_fork   pll_sc→div_hub_a→gate_hub 分叉 clk_hub_a 与 div_hub_b→clk_hub_b
-#   inv        inv / inv_mux / inv_cell
-#   cell       buf
-#   clk        有频率 / 无频率 / stable / 无上游时钟源时跳过频率约束
+# 性能压力岛：故意制造求解慢路径，与 templates-jinja-build-test 一并回归。
+# 主参考路径 div_ref 用 div_r ratio 1 锁定 24 MHz 量级参考，避免与 pll_sc 60 MHz 等枢纽 PLL 合并后 ref 过低无解。
 #
-# 提交时跑 example\check.bat。
+#   ref_dto    — 压力岛 mux_stress_ref → dto_stress_ref → div_stress_ref → pll_stress_sc；
+#                另支 dto_n_stress_ref → pll_stress_tci；inno 岛 dto_stress_inno → pll_stress_inno
+#   ref_mux    — 枢纽 mux_ref_mid 四路 × mux_ref_tail 三路叠在 gate_ref 前，放大 inno 内层 ref_mux_iters；
+#                mux_stress_ref 三路、mux_stress_inno_ref 四路；inno 岛 mux_stress_inno_a/b 双路输出 mux
+#   mux_combo  — mux_ms0×mux_ms1×mux_ms2×mux_ms3，四×四×三×四 = 192 路组合枚举
+#   extreme    — mux_hub 七级共享枢纽后追加 mux_extreme_l0，只有选中高位分支才可达 96 MHz；
+#                单个合并子树理论 mux 组合 9216 × 4 = 36864
+#   deep_div   — gate_deep 后六路并行自由 div 与 clk，合并为单一子树
+#   div_share  — clk_share_a / b / c 共用 div_share，合并子树后共用一组 ratio
+#   dual_path  — 8 路 pll_sc→div→gate 与 xtal→gate 进独立 mux 再到 clk；独立子树
 
 ralf: example/normal.ralf
 
 tree:
-  name: normal
+  name: main
   nodes:
     xtal:
       kind: source
@@ -29,9 +31,64 @@ tree:
       source_kind: pad
       freq: 24000000
 
+    mux_ref_src:
+      kind: mux
+      source:
+        "0": xtal
+        "1": pad_xtal
+      reg: blk_mux_ref_src.sel.sel
+
+    div_ref:
+      kind: div
+      div_kind: div_r
+      source: mux_ref_src
+      ratio: 1
+
+    mux_ref_mid:
+      kind: mux
+      source:
+        "0": div_ref
+        "1": xtal
+        "2": pad_xtal
+        "3": src_27m
+      reg: blk_mux_ref_mid.sel.sel
+
+    inv_ref:
+      kind: inv
+      inv_kind: inv
+      source: mux_ref_mid
+
+    mux_ref_tail:
+      kind: mux
+      source:
+        "0": inv_ref
+        "1": xtal
+        "2": pad_xtal
+      reg: blk_mux_ref_tail.sel.sel
+
+    gate_ref:
+      kind: gate
+      source: mux_ref_tail
+      reg: blk_gate_ref.en.en
+
+    pll_tci:
+      kind: pll
+      source: gate_ref
+      pll_kind: tci
+      freq: 48000000
+      regs:
+        lock: blk_pll_tci.lock.lock
+        bypass: blk_pll_tci.bypass.bypass
+        pwrdn: blk_pll_tci.pwrdn.pwrdn
+        reset: blk_pll_tci.reset.reset
+        clkod: blk_pll_tci.clkod.clkod
+        clkf: blk_pll_tci.clkf.clkf
+        clkr: blk_pll_tci.clkr.clkr
+        bwadj: blk_pll_tci.bwadj.bwadj
+
     pll_sc:
       kind: pll
-      source: xtal
+      source: gate_ref
       pll_kind: sc
       freq: 60000000
       regs:
@@ -46,24 +103,9 @@ tree:
         postdiv1: blk_pll_sc.div.postdiv1
         fbdiv: blk_pll_sc.div.fbdiv
 
-    pll_tci:
-      kind: pll
-      source: xtal
-      pll_kind: tci
-      freq: 48000000
-      regs:
-        lock: blk_pll_tci.lock.lock
-        bypass: blk_pll_tci.bypass.bypass
-        pwrdn: blk_pll_tci.pwrdn.pwrdn
-        reset: blk_pll_tci.reset.reset
-        clkod: blk_pll_tci.clkod.clkod
-        clkf: blk_pll_tci.clkf.clkf
-        clkr: blk_pll_tci.clkr.clkr
-        bwadj: blk_pll_tci.bwadj.bwadj
-
     pll_dw:
       kind: pll
-      source: xtal
+      source: gate_ref
       pll_kind: dw
       freq: 96000000
       regs:
@@ -83,7 +125,7 @@ tree:
 
     pll_inno:
       kind: pll
-      source: xtal
+      source: gate_ref
       pll_kind: inno
       regs:
         lock: blk_pll_inno.lock.lock
@@ -100,7 +142,7 @@ tree:
       source:
         "0": pll_tci
         "1": pll_sc
-      sel: 0
+      reg: blk_mux_pll_hub.sel.sel
 
     div0:
       kind: div
@@ -128,16 +170,6 @@ tree:
         rst: blk_div_tci.ctrl.rst
         load: blk_div_tci.ctrl.load
         div: blk_div_tci.ctrl.div
-
-    src_dto_in:
-      kind: source
-      source_kind: source
-      freq: 12000
-
-    src_dto_n_in:
-      kind: source
-      source_kind: source
-      freq: 8000
 
     dto0:
       kind: div
@@ -180,20 +212,7 @@ tree:
       source:
         "0": pll_inno[0]
         "1": pll_inno[1]
-      sel: 0
-
-    mux_ref_src:
-      kind: mux
-      source:
-        "0": xtal
-        "1": pad_xtal
-      sel: 0
-
-    div_ref:
-      kind: div
-      div_kind: div_r
-      source: mux_ref_src
-      ratio: 1
+      reg: blk_mux_inno.sel.sel
 
     gate0:
       kind: gate
@@ -205,19 +224,15 @@ tree:
       source: pll_dw
       reg: blk_gate_dw.en.en
 
-    gate_hclk:
+    gate_inno:
       kind: gate
-      source: div_hclk
+      source: cell_buf
+      reg: blk_gate_inno.en.en
 
     gate_pad:
       kind: gate
-      source: pad_xtal
+      source: mux_ref_src
       reg: blk_gate_pad.en.en
-
-    gate_mbist:
-      kind: gate
-      source: div0
-      open: 0
 
     div_r_dw:
       kind: div
@@ -229,11 +244,6 @@ tree:
       kind: cell
       cell_kind: buf
       source: mux_inno
-
-    gate_inno:
-      kind: gate
-      source: cell_buf
-      reg: blk_gate_inno.en.en
 
     inv0:
       kind: inv
@@ -255,7 +265,7 @@ tree:
       source:
         "0": gate_pad
         "1": pad_xtal
-      sel: 0
+      reg: blk_mux_idle.sel.sel
 
     clk_out:
       kind: clk
@@ -265,25 +275,17 @@ tree:
 
     clk_hclk:
       kind: clk
-      source: gate_hclk
-      freq: 15000000
-
-    clk_hclk_en:
-      kind: clk
       source: div_hclk
+      freq: 15000000
 
     clk_arm:
       kind: clk
       source: div0
       freq: 30000000
 
-    clk_mbist:
-      kind: clk
-      source: gate_mbist
-
     clk_tci:
       kind: clk
-      source: inv0
+      source: div_tci
       freq: 24000000
 
     clk_dto:
@@ -316,11 +318,591 @@ tree:
       source: mux_idle
       freq: 24000000
 
-    clk_div_ref:
+    src_27m:
+      kind: source
+      source_kind: source
+      freq: 27000000
+
+    src_dto_in:
+      kind: source
+      source_kind: source
+      freq: 12000
+
+    src_dto_n_in:
+      kind: source
+      source_kind: source
+      freq: 8000
+
+    src_1188m:
+      kind: source
+      source_kind: source
+      freq: 1188000000
+
+    div_1188:
+      kind: div
+      div_kind: div
+      source: src_1188m
+      regs:
+        rst: blk_div_1188.ctrl.rst
+        load: blk_div_1188.ctrl.load
+        div: blk_div_1188.ctrl.div
+
+    mux_clk:
+      kind: mux
+      source:
+        "0": src_27m
+        "1": div_1188
+      reg: blk_mux_clk.sel.sel
+
+    div_r2:
+      kind: div
+      div_kind: div_r
+      source: mux_clk
+      ratio: 2
+
+    clk_13m5:
       kind: clk
-      source: div_ref
+      source: div_r2
+      freq: 13500000
+
+    src_stress_ref:
+      kind: source
+      source_kind: source
+      freq: 25000000
+
+    mux_stress_ref:
+      kind: mux
+      source:
+        "0": xtal
+        "1": src_stress_ref
+        "2": pad_xtal
+      reg: blk_mux_stress_ref.sel.sel
+
+    dto_stress_ref:
+      kind: div
+      div_kind: dto
+      source: mux_stress_ref
+      regs:
+        rst: blk_dto_stress_ref.ctrl.rst
+        load: blk_dto_stress_ref.ctrl.load
+        bypass: blk_dto_stress_ref.ctrl.bypass
+        step: blk_dto_stress_ref.ctrl.step
+
+    div_stress_ref:
+      kind: div
+      div_kind: div
+      source: dto_stress_ref
+      regs:
+        rst: blk_div_stress_ref.ctrl.rst
+        load: blk_div_stress_ref.ctrl.load
+        div: blk_div_stress_ref.ctrl.div
+
+    pll_stress_sc:
+      kind: pll
+      source: div_stress_ref
+      pll_kind: sc
+      freq: 50000000
+      regs:
+        lock: blk_pll_stress_sc.stat.lock
+        vocpd: blk_pll_stress_sc.pd.vocpd
+        postdivpd: blk_pll_stress_sc.pd.postdivpd
+        dsmpd: blk_pll_stress_sc.pd.dsmpd
+        pd: blk_pll_stress_sc.pd.pd
+        bypass: blk_pll_stress_sc.pd.bypass
+        refdiv: blk_pll_stress_sc.div.refdiv
+        postdiv2: blk_pll_stress_sc.div.postdiv2
+        postdiv1: blk_pll_stress_sc.div.postdiv1
+        fbdiv: blk_pll_stress_sc.div.fbdiv
+
+    div_stress_pll:
+      kind: div
+      div_kind: div
+      source: pll_stress_sc
+      regs:
+        rst: blk_div_stress_pll.ctrl.rst
+        load: blk_div_stress_pll.ctrl.load
+        div: blk_div_stress_pll.ctrl.div
+
+    clk_stress_pll:
+      kind: clk
+      source: div_stress_pll
+      freq: 25000000
+
+    src_dto_n_stress:
+      kind: source
+      source_kind: source
+      freq: 12000
+
+    mux_stress_dto_n:
+      kind: mux
+      source:
+        "0": src_dto_n_stress
+        "1": src_dto_in
+      reg: blk_mux_stress_dto_n.sel.sel
+
+    dto_n_stress_ref:
+      kind: div
+      div_kind: dto_n
+      source: mux_stress_dto_n
+      regs:
+        rst: blk_dto_n_stress_ref.ctrl.rst
+        load: blk_dto_n_stress_ref.ctrl.load
+        bypass: blk_dto_n_stress_ref.ctrl.bypass
+        step: blk_dto_n_stress_ref.ctrl.step
+
+    pll_stress_tci:
+      kind: pll
+      source: dto_n_stress_ref
+      pll_kind: tci
+      freq: 48000
+      regs:
+        lock: blk_pll_stress_tci.lock.lock
+        bypass: blk_pll_stress_tci.bypass.bypass
+        pwrdn: blk_pll_stress_tci.pwrdn.pwrdn
+        reset: blk_pll_stress_tci.reset.reset
+        clkod: blk_pll_stress_tci.clkod.clkod
+        clkf: blk_pll_stress_tci.clkf.clkf
+        clkr: blk_pll_stress_tci.clkr.clkr
+        bwadj: blk_pll_stress_tci.bwadj.bwadj
+
+    clk_stress_dto_n:
+      kind: clk
+      source: pll_stress_tci
+      freq: 48000
+
+    src_stress_inno:
+      kind: source
+      source_kind: source
       freq: 24000000
 
+    mux_stress_inno_ref:
+      kind: mux
+      source:
+        "0": src_stress_inno
+        "1": xtal
+        "2": pad_xtal
+        "3": src_stress_ref
+      reg: blk_mux_stress_inno_ref.sel.sel
+
+    dto_stress_inno:
+      kind: div
+      div_kind: dto
+      source: mux_stress_inno_ref
+      regs:
+        rst: blk_dto_stress_inno.ctrl.rst
+        load: blk_dto_stress_inno.ctrl.load
+        bypass: blk_dto_stress_inno.ctrl.bypass
+        step: blk_dto_stress_inno.ctrl.step
+
+    pll_stress_inno:
+      kind: pll
+      source: dto_stress_inno
+      pll_kind: inno
+      regs:
+        lock: blk_pll_stress_inno.lock.lock
+        pd: blk_pll_stress_inno.pd.pd
+        refdiv: blk_pll_stress_inno.refdiv.refdiv
+        fbdiv: blk_pll_stress_inno.fbdiv.fbdiv
+        postdiv1[0]: blk_pll_stress_inno.postdiv1_0.postdiv1_0
+        postdiv2[0]: blk_pll_stress_inno.postdiv2_0.postdiv2_0
+        postdiv1[1]: blk_pll_stress_inno.postdiv1_1.postdiv1_1
+        postdiv2[1]: blk_pll_stress_inno.postdiv2_1.postdiv2_1
+
+    mux_stress_inno_a:
+      kind: mux
+      source:
+        "0": pll_stress_inno[0]
+        "1": pll_stress_inno[1]
+      reg: blk_mux_stress_inno_a.sel.sel
+
+    mux_stress_inno_b:
+      kind: mux
+      source:
+        "0": pll_stress_inno[0]
+        "1": pll_stress_inno[1]
+      reg: blk_mux_stress_inno_b.sel.sel
+
+    cell_stress_inno_a:
+      kind: cell
+      cell_kind: buf
+      source: mux_stress_inno_a
+
+    gate_stress_inno_a:
+      kind: gate
+      source: cell_stress_inno_a
+      reg: blk_gate_stress_inno_a.en.en
+
+    cell_stress_inno_b:
+      kind: cell
+      cell_kind: buf
+      source: mux_stress_inno_b
+
+    gate_stress_inno_b:
+      kind: gate
+      source: cell_stress_inno_b
+      reg: blk_gate_stress_inno_b.en.en
+
+    clk_stress_inno_a:
+      kind: clk
+      source: gate_stress_inno_a
+      freq: 48000000
+
+    clk_stress_inno_b:
+      kind: clk
+      source: gate_stress_inno_b
+      freq: 24000000
+
+    src_ms0:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    src_ms1:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    src_ms2:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    src_ms3:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    mux_ms0:
+      kind: mux
+      source:
+        "0": src_ms0
+        "1": src_ms1
+        "2": src_ms2
+        "3": src_ms3
+      reg: blk_mux_ms0.sel.sel
+
+    mux_ms1:
+      kind: mux
+      source:
+        "0": mux_ms0
+        "1": src_ms0
+        "2": src_ms1
+        "3": src_ms2
+      reg: blk_mux_ms1.sel.sel
+
+    mux_ms2:
+      kind: mux
+      source:
+        "0": mux_ms1
+        "1": src_ms3
+        "2": src_ms0
+      reg: blk_mux_ms2.sel.sel
+
+    mux_ms3:
+      kind: mux
+      source:
+        "0": mux_ms2
+        "1": src_ms1
+        "2": src_ms2
+        "3": src_ms3
+      reg: blk_mux_ms3.sel.sel
+
+    div_ms:
+      kind: div
+      div_kind: div
+      source: mux_ms3
+      regs:
+        rst: blk_div_ms.ctrl.rst
+        load: blk_div_ms.ctrl.load
+        div: blk_div_ms.ctrl.div
+
+    clk_ms_a:
+      kind: clk
+      source: div_ms
+      freq: 24000000
+
+    clk_ms_b:
+      kind: clk
+      source: div_ms
+      freq: 24000000
+
+    src_deep:
+      kind: source
+      source_kind: source
+      freq: 96000000
+
+    gate_deep:
+      kind: gate
+      source: src_deep
+      reg: blk_gate_deep.en.en
+
+    div_deep_a:
+      kind: div
+      div_kind: div
+      source: gate_deep
+      regs:
+        rst: blk_div_deep_a.ctrl.rst
+        load: blk_div_deep_a.ctrl.load
+        div: blk_div_deep_a.ctrl.div
+
+    div_deep_b:
+      kind: div
+      div_kind: div
+      source: gate_deep
+      regs:
+        rst: blk_div_deep_b.ctrl.rst
+        load: blk_div_deep_b.ctrl.load
+        div: blk_div_deep_b.ctrl.div
+
+    div_deep_c:
+      kind: div
+      div_kind: div
+      source: gate_deep
+      regs:
+        rst: blk_div_deep_c.ctrl.rst
+        load: blk_div_deep_c.ctrl.load
+        div: blk_div_deep_c.ctrl.div
+
+    div_deep_d:
+      kind: div
+      div_kind: div
+      source: gate_deep
+      regs:
+        rst: blk_div_deep_d.ctrl.rst
+        load: blk_div_deep_d.ctrl.load
+        div: blk_div_deep_d.ctrl.div
+
+    div_deep_e:
+      kind: div
+      div_kind: div
+      source: gate_deep
+      regs:
+        rst: blk_div_deep_e.ctrl.rst
+        load: blk_div_deep_e.ctrl.load
+        div: blk_div_deep_e.ctrl.div
+
+    div_deep_f:
+      kind: div
+      div_kind: div
+      source: gate_deep
+      regs:
+        rst: blk_div_deep_f.ctrl.rst
+        load: blk_div_deep_f.ctrl.load
+        div: blk_div_deep_f.ctrl.div
+
+    clk_deep_a:
+      kind: clk
+      source: div_deep_a
+      freq: 48000000
+
+    clk_deep_b:
+      kind: clk
+      source: div_deep_b
+      freq: 32000000
+
+    clk_deep_c:
+      kind: clk
+      source: div_deep_c
+      freq: 24000000
+
+    clk_deep_d:
+      kind: clk
+      source: div_deep_d
+      freq: 19200000
+
+    clk_deep_e:
+      kind: clk
+      source: div_deep_e
+      freq: 16000000
+
+    clk_deep_f:
+      kind: clk
+      source: div_deep_f
+      freq: 12000000
+
+    div_share:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_share.ctrl.rst
+        load: blk_div_share.ctrl.load
+        div: blk_div_share.ctrl.div
+
+    clk_share_a:
+      kind: clk
+      source: div_share
+      freq: 30000000
+
+    clk_share_b:
+      kind: clk
+      source: div_share
+      freq: 30000000
+
+    clk_share_c:
+      kind: clk
+      source: div_share
+      freq: 30000000
+
+    src_hub_12m:
+      kind: source
+      source_kind: source
+      freq: 12000000
+
+    src_hub_24m_a:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    src_hub_24m_b:
+      kind: source
+      source_kind: source
+      freq: 24000000
+
+    src_hub_32m:
+      kind: source
+      source_kind: source
+      freq: 32000000
+
+    src_hub_48m:
+      kind: source
+      source_kind: source
+      freq: 48000000
+
+    src_hub_64m:
+      kind: source
+      source_kind: source
+      freq: 64000000
+
+    src_hub_96m_a:
+      kind: source
+      source_kind: source
+      freq: 96000000
+
+    src_hub_96m_b:
+      kind: source
+      source_kind: source
+      freq: 96000000
+
+    mux_hub_l0_a:
+      kind: mux
+      source:
+        "0": src_hub_12m
+        "1": src_hub_24m_a
+        "2": src_hub_48m
+        "3": src_hub_96m_a
+      reg: blk_mux_hub_l0_a.sel.sel
+
+    mux_hub_l0_b:
+      kind: mux
+      source:
+        "0": src_hub_24m_b
+        "1": src_hub_32m
+        "2": src_hub_64m
+        "3": src_hub_96m_b
+      reg: blk_mux_hub_l0_b.sel.sel
+
+    mux_hub_l1_a:
+      kind: mux
+      source:
+        "0": mux_hub_l0_a
+        "1": src_hub_96m_b
+        "2": src_hub_48m
+        "3": src_hub_24m_a
+      reg: blk_mux_hub_l1_a.sel.sel
+
+    mux_hub_l1_b:
+      kind: mux
+      source:
+        "0": mux_hub_l0_b
+        "1": src_hub_96m_a
+        "2": src_hub_64m
+      reg: blk_mux_hub_l1_b.sel.sel
+
+    mux_hub_l2_a:
+      kind: mux
+      source:
+        "0": mux_hub_l1_a
+        "1": mux_hub_l1_b
+        "2": src_hub_24m_b
+        "3": src_hub_96m_a
+      reg: blk_mux_hub_l2_a.sel.sel
+
+    mux_hub_l2_b:
+      kind: mux
+      source:
+        "0": mux_hub_l1_b
+        "1": mux_hub_l1_a
+        "2": src_hub_48m
+        "3": src_hub_12m
+      reg: blk_mux_hub_l2_b.sel.sel
+
+    mux_hub_l3:
+      kind: mux
+      source:
+        "0": mux_hub_l2_a
+        "1": mux_hub_l2_b
+        "2": src_hub_96m_b
+      reg: blk_mux_hub_l3.sel.sel
+
+    mux_extreme_l0:
+      kind: mux
+      source:
+        "0": src_hub_12m
+        "1": src_hub_24m_a
+        "2": src_hub_64m
+        "3": mux_hub_l3
+      reg: blk_mux_extreme_l0.sel.sel
+
+    gate_shared_hub:
+      kind: gate
+      source: mux_extreme_l0
+      reg: blk_gate_hub.en.en
+
+    div_hub_a:
+      kind: div
+      div_kind: div
+      source: gate_shared_hub
+      regs:
+        rst: blk_div_hub_a.ctrl.rst
+        load: blk_div_hub_a.ctrl.load
+        div: blk_div_hub_a.ctrl.div
+
+    div_hub_b:
+      kind: div
+      div_kind: div
+      source: gate_shared_hub
+      regs:
+        rst: blk_div_hub_b.ctrl.rst
+        load: blk_div_hub_b.ctrl.load
+        div: blk_div_hub_b.ctrl.div
+
+    div_hub_c:
+      kind: div
+      div_kind: div
+      source: gate_shared_hub
+      regs:
+        rst: blk_div_hub_c.ctrl.rst
+        load: blk_div_hub_c.ctrl.load
+        div: blk_div_hub_c.ctrl.div
+
+    clk_hub_a:
+      kind: clk
+      source: div_hub_a
+      freq: 48000000
+
+    clk_hub_b:
+      kind: clk
+      source: div_hub_b
+      freq: 32000000
+
+    clk_hub_c:
+      kind: clk
+      source: div_hub_c
+      freq: 24000000
+
+    # dual_path 压力岛：pll_sc 与 xtal 为锚点；每路独立 div/gate/mux 链，
+    # 若错误合并则 8 路 mux 组合 2^8=256 相对独立 8×2 会几何级变慢。
     div_dual_0:
       kind: div
       div_kind: div
@@ -357,59 +939,259 @@ tree:
       source: gate_dual_out_0
       freq: 30000000
 
-    div_hub_a:
+    div_dual_1:
       kind: div
       div_kind: div
       source: pll_sc
       regs:
-        rst: blk_div_hub_a.ctrl.rst
-        load: blk_div_hub_a.ctrl.load
-        div: blk_div_hub_a.ctrl.div
+        rst: blk_div_dual_1.ctrl.rst
+        load: blk_div_dual_1.ctrl.load
+        div: blk_div_dual_1.ctrl.div
 
-    gate_hub:
+    gate_dual_pll_1:
       kind: gate
-      source: div_hub_a
-      reg: blk_gate_hub.en.en
+      source: div_dual_1
+      reg: blk_gate_dual_pll_1.en.en
 
-    clk_hub_a:
+    gate_dual_xt_1:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_1.en.en
+
+    mux_dual_1:
+      kind: mux
+      source:
+        "0": gate_dual_pll_1
+        "1": gate_dual_xt_1
+      reg: blk_mux_dual_1.sel.sel
+
+    gate_dual_out_1:
+      kind: gate
+      source: mux_dual_1
+      reg: blk_gate_dual_out_1.en.en
+
+    clk_dual_1:
       kind: clk
-      source: gate_hub
-      freq: 30000000
+      source: gate_dual_out_1
+      freq: 20000000
 
-    div_hub_b:
+    div_dual_2:
       kind: div
       div_kind: div
-      source: gate_hub
+      source: pll_sc
       regs:
-        rst: blk_div_hub_b.ctrl.rst
-        load: blk_div_hub_b.ctrl.load
-        div: blk_div_hub_b.ctrl.div
+        rst: blk_div_dual_2.ctrl.rst
+        load: blk_div_dual_2.ctrl.load
+        div: blk_div_dual_2.ctrl.div
 
-    clk_hub_b:
+    gate_dual_pll_2:
+      kind: gate
+      source: div_dual_2
+      reg: blk_gate_dual_pll_2.en.en
+
+    gate_dual_xt_2:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_2.en.en
+
+    mux_dual_2:
+      kind: mux
+      source:
+        "0": gate_dual_pll_2
+        "1": gate_dual_xt_2
+      reg: blk_mux_dual_2.sel.sel
+
+    gate_dual_out_2:
+      kind: gate
+      source: mux_dual_2
+      reg: blk_gate_dual_out_2.en.en
+
+    clk_dual_2:
       kind: clk
-      source: div_hub_b
+      source: gate_dual_out_2
       freq: 15000000
 
-    clk_orphan_no_src:
-      kind: clk
-      freq: 100000000
+    div_dual_3:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_3.ctrl.rst
+        load: blk_div_dual_3.ctrl.load
+        div: blk_div_dual_3.ctrl.div
 
-  extra_regs:
-    - path: blk_gate_hub.en.en
-      value: 1
-    - path: blk_div_hub_a.ctrl.rst
-      value: 0
-    - path: blk_div_hub_a.ctrl.load
-      value: 1
-    - path: blk_div_hub_b.ctrl.div[7:0]
-      value: 4
-    - path: blk_div_hub_b.ctrl.load
-      value: 1
-      solo: true
-    - path: blk_div_hub_a.ctrl.div
-      value: 2
+    gate_dual_pll_3:
+      kind: gate
+      source: div_dual_3
+      reg: blk_gate_dual_pll_3.en.en
+
+    gate_dual_xt_3:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_3.en.en
+
+    mux_dual_3:
+      kind: mux
+      source:
+        "0": gate_dual_pll_3
+        "1": gate_dual_xt_3
+      reg: blk_mux_dual_3.sel.sel
+
+    gate_dual_out_3:
+      kind: gate
+      source: mux_dual_3
+      reg: blk_gate_dual_out_3.en.en
+
+    clk_dual_3:
+      kind: clk
+      source: gate_dual_out_3
+      freq: 12000000
+
+    div_dual_4:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_4.ctrl.rst
+        load: blk_div_dual_4.ctrl.load
+        div: blk_div_dual_4.ctrl.div
+
+    gate_dual_pll_4:
+      kind: gate
+      source: div_dual_4
+      reg: blk_gate_dual_pll_4.en.en
+
+    gate_dual_xt_4:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_4.en.en
+
+    mux_dual_4:
+      kind: mux
+      source:
+        "0": gate_dual_pll_4
+        "1": gate_dual_xt_4
+      reg: blk_mux_dual_4.sel.sel
+
+    gate_dual_out_4:
+      kind: gate
+      source: mux_dual_4
+      reg: blk_gate_dual_out_4.en.en
+
+    clk_dual_4:
+      kind: clk
+      source: gate_dual_out_4
+      freq: 24000000
+
+    div_dual_5:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_5.ctrl.rst
+        load: blk_div_dual_5.ctrl.load
+        div: blk_div_dual_5.ctrl.div
+
+    gate_dual_pll_5:
+      kind: gate
+      source: div_dual_5
+      reg: blk_gate_dual_pll_5.en.en
+
+    gate_dual_xt_5:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_5.en.en
+
+    mux_dual_5:
+      kind: mux
+      source:
+        "0": gate_dual_pll_5
+        "1": gate_dual_xt_5
+      reg: blk_mux_dual_5.sel.sel
+
+    gate_dual_out_5:
+      kind: gate
+      source: mux_dual_5
+      reg: blk_gate_dual_out_5.en.en
+
+    clk_dual_5:
+      kind: clk
+      source: gate_dual_out_5
+      freq: 30000000
+
+    div_dual_6:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_6.ctrl.rst
+        load: blk_div_dual_6.ctrl.load
+        div: blk_div_dual_6.ctrl.div
+
+    gate_dual_pll_6:
+      kind: gate
+      source: div_dual_6
+      reg: blk_gate_dual_pll_6.en.en
+
+    gate_dual_xt_6:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_6.en.en
+
+    mux_dual_6:
+      kind: mux
+      source:
+        "0": gate_dual_pll_6
+        "1": gate_dual_xt_6
+      reg: blk_mux_dual_6.sel.sel
+
+    gate_dual_out_6:
+      kind: gate
+      source: mux_dual_6
+      reg: blk_gate_dual_out_6.en.en
+
+    clk_dual_6:
+      kind: clk
+      source: gate_dual_out_6
+      freq: 20000000
+
+    div_dual_7:
+      kind: div
+      div_kind: div
+      source: pll_sc
+      regs:
+        rst: blk_div_dual_7.ctrl.rst
+        load: blk_div_dual_7.ctrl.load
+        div: blk_div_dual_7.ctrl.div
+
+    gate_dual_pll_7:
+      kind: gate
+      source: div_dual_7
+      reg: blk_gate_dual_pll_7.en.en
+
+    gate_dual_xt_7:
+      kind: gate
+      source: xtal
+      reg: blk_gate_dual_xt_7.en.en
+
+    mux_dual_7:
+      kind: mux
+      source:
+        "0": gate_dual_pll_7
+        "1": gate_dual_xt_7
+      reg: blk_mux_dual_7.sel.sel
+
+    gate_dual_out_7:
+      kind: gate
+      source: mux_dual_7
+      reg: blk_gate_dual_out_7.en.en
+
+    clk_dual_7:
+      kind: clk
+      source: gate_dual_out_7
+      freq: 10000000
 
 settings:
-  main_fn: chip_pll_config
+  main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true
-  solve_timeout_ms: 30000
+  solve_timeout_ms: 180000

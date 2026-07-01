@@ -2080,6 +2080,8 @@ def _compute_active(
         node = tree.nodes[name]
         if isinstance(node, PllNode) and node.pll_kind == "inno":
             ref_name, _ = parse_source_endpoint(node.source, ctx=f"{name}.source")
+            if required is not None and ref_name not in required:
+                continue
             _mark_upstream_active(
                 tree, ref_name, active, mux_sel, required=required
             )
@@ -2814,12 +2816,12 @@ def _compute_pll_vars(
             continue
         if only_pll_names is not None and name not in only_pll_names:
             continue
+        if node.pll_kind == "inno":
+            continue
         ref_port = parent_port_for_child(tree, name)
         ref_hz = port_freq.get(ref_port, 0)
         if ref_hz <= 0:
             return None
-        if node.pll_kind == "inno":
-            continue
         out_hz = port_freq.get(Port(name, ""), node.freq or 0)
         if reporter is not None:
             reporter.pll_trial(name, node.pll_kind, ref_hz, out_hz)
