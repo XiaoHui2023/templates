@@ -579,7 +579,7 @@ class Tree(BaseModel):
     )
     extra_regs: List[ExtraRegEntry] = Field(
         default_factory=list,
-        description="主配置流程结束后追加写入的寄存器 field 列表。",
+        description="PLL 锁定等待之后、普通器件 steps 之前写入的寄存器 field 列表。",
     )
 
     @model_validator(mode="before")

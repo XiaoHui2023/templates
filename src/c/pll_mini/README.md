@@ -83,7 +83,7 @@ settings:
 
 写 **nodes** 时可用 `节点名: ~` 表示跳过。
 
-| `extra_regs` | `list[ExtraRegEntry]` | `[]` | 主配置结束后追加写入的寄存器 field。 |
+| `extra_regs` | `list[ExtraRegEntry]` | `[]` | PLL 锁定等待之后、普通器件 steps 之前写入的寄存器 field。 |
 
 ### ExtraRegEntry
 
