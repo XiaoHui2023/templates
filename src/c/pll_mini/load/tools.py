@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
-import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -241,93 +241,46 @@ def _solve_smt2_text_json(
     *,
     timeout_ms: int | None,
 ) -> str:
-    import json
-    try:
-        import z3
-    except ModuleNotFoundError:
-        return _solve_smt2_text_json_subprocess(smt2_text, timeout_ms=timeout_ms)
-
-    solver = z3.Solver()
     if timeout_ms is not None:
         if timeout_ms <= 0:
             raise ValueError("consolver timeout_ms must be positive")
-        solver.set(timeout=timeout_ms)
 
-    solver.add(z3.parse_smt2_string(smt2_text))
-    result = solver.check()
-    if result == z3.sat:
-        data = {"status": "sat", "model": _z3_model_to_python(solver.model())}
-    elif result == z3.unsat:
-        data = {"status": "unsat", "model": {}}
-    else:
-        data = {"status": "unknown", "model": {}}
-        reason = solver.reason_unknown() or None
-        if reason:
-            data["reason"] = reason
-    return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    exe = consolver_path()
+    if not exe.is_file():
+        raise _missing_tool_error("consolver", _CONSOLVER_URL, exe)
 
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            suffix=".smt2",
+            prefix="pll_mini_",
+            encoding="utf-8",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(smt2_text)
+            temp_path = Path(temp_file.name)
 
-def _solve_smt2_text_json_subprocess(
-    smt2_text: str,
-    *,
-    timeout_ms: int | None,
-) -> str:
-    code = '\nimport json\nimport sys\nimport z3\n\n\ndef value_to_python(value):\n    if z3.is_true(value):\n        return True\n    if z3.is_false(value):\n        return False\n    if z3.is_int_value(value):\n        return value.as_long()\n    if z3.is_rational_value(value):\n        numerator = value.numerator_as_long()\n        denominator = value.denominator_as_long()\n        return numerator if denominator == 1 else numerator / denominator\n    if z3.is_bv_value(value):\n        width = value.size()\n        digits = max(1, (width + 3) // 4)\n        return {\n            "value": value.as_long(),\n            "hex": ("0x%0" + str(digits) + "x") % value.as_long(),\n            "width": width,\n        }\n    return str(value)\n\n\ntimeout_ms = int(sys.argv[1]) if len(sys.argv) > 1 else 0\ntext = sys.stdin.read()\nsolver = z3.Solver()\nif timeout_ms > 0:\n    solver.set(timeout=timeout_ms)\nsolver.add(z3.parse_smt2_string(text))\nresult = solver.check()\nif result == z3.sat:\n    model = {}\n    z3_model = solver.model()\n    for decl in sorted(z3_model.decls(), key=lambda item: item.name()):\n        interp = z3_model[decl]\n        if interp is not None:\n            model[decl.name()] = value_to_python(interp)\n    data = {"status": "sat", "model": model}\nelif result == z3.unsat:\n    data = {"status": "unsat", "model": {}}\nelse:\n    data = {"status": "unknown", "model": {}}\n    reason = solver.reason_unknown() or None\n    if reason:\n        data["reason"] = reason\nprint(json.dumps(data, ensure_ascii=False, indent=2))\n'
-    cmd = [*_python_subprocess_command(), "-c", code]
-    if timeout_ms is not None:
-        cmd.append(str(timeout_ms))
-    proc = subprocess.run(
-        cmd,
-        input=smt2_text,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
+        cmd = [str(exe), "solve", str(temp_path), "--format", "json"]
+        if timeout_ms is not None:
+            cmd.extend(["--timeout-ms", str(timeout_ms)])
+
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise RuntimeError(
-            f"consolver string subprocess failed with code {proc.returncode}: "
+            f"consolver failed with code {proc.returncode}: "
             f"{detail or 'no output'}"
         )
     return proc.stdout
-
-
-def _python_subprocess_command() -> list[str]:
-    if sys.platform == "win32":
-        return ["python"]
-    if shutil.which("python3"):
-        return ["python3"]
-    return ["python"]
-
-
-def _z3_model_to_python(model: object) -> dict[str, object]:
-    import z3
-
-    values: dict[str, object] = {}
-    for decl in sorted(model.decls(), key=lambda item: item.name()):
-        interp = model[decl]
-        if interp is None:
-            continue
-        if z3.is_true(interp):
-            values[decl.name()] = True
-        elif z3.is_false(interp):
-            values[decl.name()] = False
-        elif z3.is_int_value(interp):
-            values[decl.name()] = interp.as_long()
-        elif z3.is_rational_value(interp):
-            numerator = interp.numerator_as_long()
-            denominator = interp.denominator_as_long()
-            values[decl.name()] = numerator if denominator == 1 else numerator / denominator
-        elif z3.is_bv_value(interp):
-            width = interp.size()
-            digits = max(1, (width + 3) // 4)
-            values[decl.name()] = {
-                "value": interp.as_long(),
-                "hex": f"0x{interp.as_long():0{digits}x}",
-                "width": width,
-            }
-        else:
-            values[decl.name()] = str(interp)
-    return values

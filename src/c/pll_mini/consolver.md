@@ -10,7 +10,7 @@
 consolver solve clock_tree.smt2 --format json --timeout-ms <ms>
 ```
 
-Current Python flow does not create a temporary `clock_tree.smt2`. It passes SMT-LIB text directly and returns JSON text; logs show `consolver solve start: input-text`.
+Python flow receives SMT-LIB text in memory, writes it to a temporary `.smt2` file, calls `consolver solve <temp>.smt2 --format json`, and returns JSON text. Logs still show `consolver solve start: input-text` because callers do not manage the temporary file.
 
 `sat` 返回模型，`unsat` 或 `unknown` 直接失败。失败信息保留命名约束，读者可以从约束名定位到节点、端口和关系。
 
