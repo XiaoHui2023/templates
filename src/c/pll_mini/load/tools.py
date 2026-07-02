@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -271,8 +272,8 @@ def _solve_smt2_text_json_subprocess(
     *,
     timeout_ms: int | None,
 ) -> str:
-    code = '\nimport json\nimport sys\nimport z3\n\n\ndef value_to_python(value):\n    if z3.is_true(value):\n        return True\n    if z3.is_false(value):\n        return False\n    if z3.is_int_value(value):\n        return value.as_long()\n    if z3.is_rational_value(value):\n        numerator = value.numerator_as_long()\n        denominator = value.denominator_as_long()\n        return numerator if denominator == 1 else numerator / denominator\n    if z3.is_bv_value(value):\n        width = value.size()\n        digits = max(1, (width + 3) // 4)\n        return {\n            "value": value.as_long(),\n            "hex": f"0x{value.as_long():0{digits}x}",\n            "width": width,\n        }\n    return str(value)\n\n\ntimeout_ms = int(sys.argv[1]) if len(sys.argv) > 1 else 0\ntext = sys.stdin.read()\nsolver = z3.Solver()\nif timeout_ms > 0:\n    solver.set(timeout=timeout_ms)\nsolver.add(z3.parse_smt2_string(text))\nresult = solver.check()\nif result == z3.sat:\n    model = {}\n    z3_model = solver.model()\n    for decl in sorted(z3_model.decls(), key=lambda item: item.name()):\n        interp = z3_model[decl]\n        if interp is not None:\n            model[decl.name()] = value_to_python(interp)\n    data = {"status": "sat", "model": model}\nelif result == z3.unsat:\n    data = {"status": "unsat", "model": {}}\nelse:\n    data = {"status": "unknown", "model": {}}\n    reason = solver.reason_unknown() or None\n    if reason:\n        data["reason"] = reason\nprint(json.dumps(data, ensure_ascii=False, indent=2))\n'
-    cmd = ["python", "-c", code]
+    code = '\nimport json\nimport sys\nimport z3\n\n\ndef value_to_python(value):\n    if z3.is_true(value):\n        return True\n    if z3.is_false(value):\n        return False\n    if z3.is_int_value(value):\n        return value.as_long()\n    if z3.is_rational_value(value):\n        numerator = value.numerator_as_long()\n        denominator = value.denominator_as_long()\n        return numerator if denominator == 1 else numerator / denominator\n    if z3.is_bv_value(value):\n        width = value.size()\n        digits = max(1, (width + 3) // 4)\n        return {\n            "value": value.as_long(),\n            "hex": ("0x%0" + str(digits) + "x") % value.as_long(),\n            "width": width,\n        }\n    return str(value)\n\n\ntimeout_ms = int(sys.argv[1]) if len(sys.argv) > 1 else 0\ntext = sys.stdin.read()\nsolver = z3.Solver()\nif timeout_ms > 0:\n    solver.set(timeout=timeout_ms)\nsolver.add(z3.parse_smt2_string(text))\nresult = solver.check()\nif result == z3.sat:\n    model = {}\n    z3_model = solver.model()\n    for decl in sorted(z3_model.decls(), key=lambda item: item.name()):\n        interp = z3_model[decl]\n        if interp is not None:\n            model[decl.name()] = value_to_python(interp)\n    data = {"status": "sat", "model": model}\nelif result == z3.unsat:\n    data = {"status": "unsat", "model": {}}\nelse:\n    data = {"status": "unknown", "model": {}}\n    reason = solver.reason_unknown() or None\n    if reason:\n        data["reason"] = reason\nprint(json.dumps(data, ensure_ascii=False, indent=2))\n'
+    cmd = [*_python_subprocess_command(), "-c", code]
     if timeout_ms is not None:
         cmd.append(str(timeout_ms))
     proc = subprocess.run(
@@ -291,6 +292,14 @@ def _solve_smt2_text_json_subprocess(
             f"{detail or 'no output'}"
         )
     return proc.stdout
+
+
+def _python_subprocess_command() -> list[str]:
+    if sys.platform == "win32":
+        return ["python"]
+    if shutil.which("python3"):
+        return ["python3"]
+    return ["python"]
 
 
 def _z3_model_to_python(model: object) -> dict[str, object]:

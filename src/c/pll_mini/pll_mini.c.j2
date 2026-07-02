@@ -61,7 +61,7 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 
 {% endfor -%}
 {% if extra_reg_plan -%}
-static void {{ extra_reg_plan.fn_name }}(void)
+void {{ extra_reg_plan.fn_name }}(void)
 {
 {%- for write in extra_reg_plan.writes %}
     unsigned int {{ write.template.value_var }};
