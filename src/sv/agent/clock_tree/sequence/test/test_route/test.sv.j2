@@ -308,7 +308,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
     end
 
     {{ settings.class_prefix }}route_structure_apply_pll_distinct_freq_policy(tree, pinned_path);
-    {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(tree);
+    {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(tree, pinned_path);
     {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(pinned_path);
     {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(tree);
 

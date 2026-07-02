@@ -462,16 +462,20 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_pll_dis
     end
 endfunction
 
-// test_route 前：全部 div _resolved_ratio 与 ratio 固定为 1
+// test_route 前：非 skip div _resolved_ratio 与 ratio 固定为 1
 function automatic void {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(
-        {{ settings.class_prefix }}tree_base tree);
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}div_base div_nd;
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
-        if ($cast(div_nd, tree.nodes[i]))
-            {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
+        if (!$cast(div_nd, tree.nodes[i]))
+            continue;
+        if ({{ settings.class_prefix }}node_in_queue(div_nd, skip_nodes))
+            continue;
+        {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
     end
 {%- endif %}
 endfunction
@@ -523,7 +527,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_stabl
     end
 endfunction
 
-// gate 固定打开、mux 以当前 _resolved_sel 设 sel、div 固定 _resolved_ratio 为 1
+// gate 固定打开、mux 以当前 _resolved_sel 设 sel、div 固定当前 _resolved_ratio
 function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(
         {{ settings.class_prefix }}node_base gate_mux[$]);
 {%- if enable_node_fix %}
@@ -541,7 +545,8 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_
             mux_nd.unfix_sel = 1'b0;
             mux_nd.post_randomize();
         end else if ($cast(div_nd, gate_mux[i]))
-            {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
+            {{ settings.class_prefix }}route_structure_set_ratio(
+                div_nd, div_nd._resolved_ratio > 0 ? div_nd._resolved_ratio : 1, 1'b1);
     end
 {%- endif %}
 endfunction
