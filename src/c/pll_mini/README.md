@@ -180,7 +180,6 @@ settings:
 | `kind` | `str` | `clk` | |
 | `freq` | `int` | | 典型频率，单位 Hz；省略表示不指定频率约束。 |
 | `source` | `str` | | 前级引用。 |
-| `stable` | `bool` | `false` | 锚定时钟：求解时该节点应全程保持有效。为真时应给出正整数 **freq**。 |
 
 ### Node - gate
 

@@ -8,7 +8,7 @@
 
 `source` 必须填写 `freq`。单输出 `pll` 必须填写 `freq`，本身视为已知频率器件，不把输出频率交给 SMT 求解。`inno` 是多输出 PLL，现有输入没有单一输出频率字段，允许由下游 clk 目标牵引各输出组。
 
-`clk.enable` 只作为兼容字段接收。pll_mini 求解阶段认为时钟通路常开，`enable` 不参与频率模型。
+节点体允许保留 clock tree 扩展字段；`pll_mini` 只读取本阶段声明过的字段。`enable`、`disable`、`stable` 等 clock tree 字段在 `pll_mini` 中没有实际语义。
 
 ## 简单模型
 

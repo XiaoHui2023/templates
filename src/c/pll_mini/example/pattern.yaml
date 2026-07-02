@@ -617,7 +617,6 @@ tree:
       kind: clk
       source: chip_sys_cfg_hclk_bist_clk_cell
       freq: 148500000
-      stable: 'true'
     chip_sys_cfg_hclk_bist_clk_cell:
       kind: cell
       cell_kind: bist_clk_cell

@@ -120,7 +120,7 @@ def _coerce_optional_int(value: Any) -> Optional[int]:
 
 
 class NodeBase(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     _name: str = PrivateAttr(default="")
 
@@ -399,16 +399,6 @@ class ClkNode(NodeBase):
         "正数表示目标频率并参与约束求解；负数仅不约束 resolved_freq。",
     )
     source: str = Field("", description="前级引用；省略表示无前级。")
-    stable: bool = Field(
-        default=False,
-        description="为真时表示锚定时钟，求解时该节点应全程保持有效；"
-        "应配合正整数 freq。",
-    )
-    enable: Optional[bool] = Field(
-        default=None,
-        description="clock tree 输入兼容字段；pll_mini 求解阶段按时钟常开处理。",
-    )
-
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_optional_freq(cls, value: Any) -> Any:
@@ -425,10 +415,6 @@ class ClkNode(NodeBase):
             raise ValueError(
                 f"clk 节点 {self.name!r} freq 为 0 非法；"
                 f"正频率应大于等于 1，不约束请省略或填负数"
-            )
-        if self.stable and (self.freq is None or self.freq <= 0):
-            raise ValueError(
-                f"clk 节点 {self.name!r} stable 为真时 freq 应为正整数"
             )
         return self
 
@@ -705,4 +691,3 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
         ValueError: 引用节点不存在或输出名非法时。
     """
     validate_nodes_source_refs(nodes)
-
