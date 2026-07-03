@@ -1,0 +1,12 @@
+`ifndef {{ (class_prefix ~ "clear_intr_status_req") | upper }}
+`define {{ (class_prefix ~ "clear_intr_status_req") | upper }}
+
+class {{ class_prefix }}clear_intr_status_req extends uvm_sequence_item;
+    `uvm_object_utils({{ class_prefix }}clear_intr_status_req)
+
+    function new(string name="{{ class_prefix }}clear_intr_status_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

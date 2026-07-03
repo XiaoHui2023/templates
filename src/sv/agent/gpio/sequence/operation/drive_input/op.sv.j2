@@ -1,0 +1,27 @@
+`ifndef {{ (class_prefix ~ "drive_input_seq") | upper }}
+`define {{ (class_prefix ~ "drive_input_seq") | upper }}
+
+class {{ class_prefix }}drive_input_seq extends uvm_sequence #(
+        {{ class_prefix }}drive_input_req,
+        {{ class_prefix }}drive_input_rsp);
+    `uvm_object_utils({{ class_prefix }}drive_input_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}drive_input_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}drive_input_seq::body();
+    {{ class_prefix }}drive_input_rsp rs;
+
+    if (req == null)
+        `uvm_fatal("", "drive_input req is null")
+    rs = {{ class_prefix }}drive_input_rsp::type_id::create("rsp");
+    p_sequencer.cfg.vif.set(req.data, req.enable);
+    rsp = rs;
+endtask
+
+`endif

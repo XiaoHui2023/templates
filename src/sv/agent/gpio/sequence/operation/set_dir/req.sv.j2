@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "set_dir_req") | upper }}
+`define {{ (class_prefix ~ "set_dir_req") | upper }}
+
+class {{ class_prefix }}set_dir_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}set_dir_req)
+        `uvm_field_int(data,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit[31:0] data;
+
+    function new(string name="{{ class_prefix }}set_dir_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

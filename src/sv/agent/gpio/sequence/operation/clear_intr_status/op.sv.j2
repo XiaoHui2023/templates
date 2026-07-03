@@ -1,0 +1,26 @@
+`ifndef {{ (class_prefix ~ "clear_intr_status_seq") | upper }}
+`define {{ (class_prefix ~ "clear_intr_status_seq") | upper }}
+
+class {{ class_prefix }}clear_intr_status_seq extends uvm_sequence #(
+        {{ class_prefix }}clear_intr_status_req,
+        {{ class_prefix }}clear_intr_status_rsp);
+    `uvm_object_utils({{ class_prefix }}clear_intr_status_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}clear_intr_status_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}clear_intr_status_seq::body();
+    {{ class_prefix }}clear_intr_status_rsp rs;
+    uvm_status_e status;
+
+    rs = {{ class_prefix }}clear_intr_status_rsp::type_id::create("rsp");
+    p_sequencer.cfg.regmodel.gpio_int0_status.write(status, 'hffff_ffff);
+    rsp = rs;
+endtask
+
+`endif

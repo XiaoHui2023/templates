@@ -1,0 +1,28 @@
+`ifndef {{ (class_prefix ~ "set_value_seq") | upper }}
+`define {{ (class_prefix ~ "set_value_seq") | upper }}
+
+class {{ class_prefix }}set_value_seq extends uvm_sequence #(
+        {{ class_prefix }}set_value_req,
+        {{ class_prefix }}set_value_rsp);
+    `uvm_object_utils({{ class_prefix }}set_value_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}set_value_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}set_value_seq::body();
+    {{ class_prefix }}set_value_rsp rs;
+    uvm_status_e status;
+
+    if (req == null)
+        `uvm_fatal("", "set_value req is null")
+    rs = {{ class_prefix }}set_value_rsp::type_id::create("rsp");
+    p_sequencer.cfg.regmodel.gpio_dout.write(status, req.data);
+    rsp = rs;
+endtask
+
+`endif

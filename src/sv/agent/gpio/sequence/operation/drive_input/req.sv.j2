@@ -1,0 +1,18 @@
+`ifndef {{ (class_prefix ~ "drive_input_req") | upper }}
+`define {{ (class_prefix ~ "drive_input_req") | upper }}
+
+class {{ class_prefix }}drive_input_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}drive_input_req)
+        `uvm_field_int(data,UVM_ALL_ON)
+        `uvm_field_int(enable,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit[31:0] data;
+    bit[31:0] enable;
+
+    function new(string name="{{ class_prefix }}drive_input_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

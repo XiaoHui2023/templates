@@ -1,38 +1,36 @@
-`ifndef {{ class_sequencer | upper }}
-`define {{ class_sequencer | upper }}
+`ifndef {{ (class_prefix ~ "sequencer") | upper }}
+`define {{ (class_prefix ~ "sequencer") | upper }}
 
-class {{ class_sequencer }} extends uvm_sequencer;
-    `uvm_component_utils({{ class_sequencer }})
+class {{ class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ class_prefix }}sequencer)
 
-    {{ class_sdk }} sdk; // 软件包
-    {{ class_configuration }} cfg; // 配置包
+    {{ class_prefix }}sub_configuration cfg;
 
-    function new(string name,uvm_component parent);
-        super.new(name,parent);
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
     endfunction
 
     extern function void start_of_simulation();
     extern task reset_phase(uvm_phase phase);
 endclass
 
-task {{ class_sequencer }}::reset_phase(uvm_phase phase);
+task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
 
-    stop_sequences(); // 结束当前活跃的sequence,清空仲裁队列
+    stop_sequences();
     start_phase_sequence(phase);
 endtask
 
-function void {{ class_sequencer }}::start_of_simulation();
+function void {{ class_prefix }}sequencer::start_of_simulation();
     super.start_of_simulation();
 
-    if(!cfg.vif)
+    if (cfg == null)
+        `uvm_fatal("", "require cfg")
+    if (!cfg.vif)
         `uvm_fatal("", "require vif")
-    if(!cfg.has_randomized)
+    if (!cfg.has_randomized)
         assert(cfg.randomize()) else `uvm_fatal("", "randomize failed")
-    `uvm_info("",$spsrintf("config:\n%s",cfg.sprint()),UVM_LOW)
-
-    sdk = {{ class_sdk }}::type_id::create({get_full_name(),".sdk"});
-    $cast(sdk.cfg,cfg);
+    `uvm_info("", $sformatf("config:\n%s", cfg.sprint()), UVM_LOW)
 endfunction
 
 `endif

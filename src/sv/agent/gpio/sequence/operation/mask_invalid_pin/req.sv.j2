@@ -1,0 +1,12 @@
+`ifndef {{ (class_prefix ~ "mask_invalid_pin_req") | upper }}
+`define {{ (class_prefix ~ "mask_invalid_pin_req") | upper }}
+
+class {{ class_prefix }}mask_invalid_pin_req extends uvm_sequence_item;
+    `uvm_object_utils({{ class_prefix }}mask_invalid_pin_req)
+
+    function new(string name="{{ class_prefix }}mask_invalid_pin_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

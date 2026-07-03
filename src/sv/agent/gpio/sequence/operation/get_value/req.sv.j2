@@ -1,0 +1,12 @@
+`ifndef {{ (class_prefix ~ "get_value_req") | upper }}
+`define {{ (class_prefix ~ "get_value_req") | upper }}
+
+class {{ class_prefix }}get_value_req extends uvm_sequence_item;
+    `uvm_object_utils({{ class_prefix }}get_value_req)
+
+    function new(string name="{{ class_prefix }}get_value_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

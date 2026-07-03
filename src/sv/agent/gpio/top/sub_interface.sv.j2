@@ -1,7 +1,7 @@
-`ifndef {{ class_interface | upper }}
-`define {{ class_interface | upper }}
+`ifndef {{ (class_prefix ~ "sub_interface") | upper }}
+`define {{ (class_prefix ~ "sub_interface") | upper }}
 
-interface {{ class_interface }}(
+interface {{ class_prefix }}sub_interface(
     input wire clk,
     input wire intr,
     inout wire[31:0] data
@@ -12,13 +12,12 @@ bit[31:0] out;
 
 genvar i;
 generate
-    for(i = 0; i < $bits(data); i++) begin
+    for (i = 0; i < $bits(data); i++) begin
         assign data[i] = out_en[i] ? out[i] : 1'bz;
     end
 endgenerate
 
-// 设置输出
-function automatic void set(bit[31:0] value,bit[31:0] enable=0);
+function automatic void set(bit[31:0] value, bit[31:0] enable = 0);
     out = value;
     out_en = enable;
 endfunction

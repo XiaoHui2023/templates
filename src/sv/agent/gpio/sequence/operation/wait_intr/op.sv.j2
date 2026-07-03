@@ -1,0 +1,42 @@
+`ifndef {{ (class_prefix ~ "wait_intr_seq") | upper }}
+`define {{ (class_prefix ~ "wait_intr_seq") | upper }}
+
+class {{ class_prefix }}wait_intr_seq extends uvm_sequence #(
+        {{ class_prefix }}wait_intr_req,
+        {{ class_prefix }}wait_intr_rsp);
+    `uvm_object_utils({{ class_prefix }}wait_intr_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}wait_intr_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}wait_intr_seq::body();
+    {{ class_prefix }}wait_intr_rsp rs;
+
+    if (req == null)
+        `uvm_fatal("", "wait_intr req is null")
+    rs = {{ class_prefix }}wait_intr_rsp::type_id::create("rsp");
+    rs.ok = 1'b0;
+
+    fork begin
+        fork
+            begin
+                repeat(req.timeout)
+                    @(posedge p_sequencer.cfg.vif.clk);
+            end
+            begin
+                wait(p_sequencer.cfg.vif.intr);
+                rs.ok = 1'b1;
+            end
+        join_any
+        disable fork;
+    end join
+
+    rsp = rs;
+endtask
+
+`endif

@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "wait_intr_req") | upper }}
+`define {{ (class_prefix ~ "wait_intr_req") | upper }}
+
+class {{ class_prefix }}wait_intr_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}wait_intr_req)
+        `uvm_field_int(timeout,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    int timeout = 100;
+
+    function new(string name="{{ class_prefix }}wait_intr_req");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

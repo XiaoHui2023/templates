@@ -1,0 +1,26 @@
+`ifndef {{ (class_prefix ~ "interface") | upper }}
+`define {{ (class_prefix ~ "interface") | upper }}
+
+interface {{ class_prefix }}interface(
+{% for group in groups %}
+    input wire clk_{{ group }},
+    input wire intr_{{ group }},
+{% if loop.last %}
+    inout wire[31:0] data_{{ group }}
+{% else %}
+    inout wire[31:0] data_{{ group }},
+{% endif %}
+{% endfor %}
+);
+
+{% for group in groups %}
+{{ class_prefix }}sub_interface {{ group }} (
+    .clk(clk_{{ group }}),
+    .intr(intr_{{ group }}),
+    .data(data_{{ group }})
+);
+
+{% endfor %}
+endinterface
+
+`endif

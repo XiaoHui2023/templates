@@ -1,36 +1,36 @@
-`ifndef {{ class_agent | upper }}
-`define {{ class_agent | upper }}
+`ifndef {{ (class_prefix ~ "agent") | upper }}
+`define {{ (class_prefix ~ "agent") | upper }}
 
-class {{ class_agent }} extends uvm_agent;
-    `uvm_component_utils({{ class_agent }})
+class {{ class_prefix }}agent extends uvm_agent;
+    `uvm_component_utils({{ class_prefix }}agent)
 
-    {{ class_sequencer }} sqr;
-    {{ class_configuration }} cfg;
+    {{ class_prefix }}configuration cfg;
+{% for group in groups %}
+    {{ class_prefix }}sub_agent agt_{{ group }};
+{% endfor %}
 
-    function new(string name,uvm_component parent);
-        super.new(name,parent);
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
 
-        cfg = {{ class_configuration }}::type_id::create({get_full_name(),".cfg"});
-        sqr = {{ class_sequencer }}::type_id::create("sqr",this);
+        cfg = {{ class_prefix }}configuration::type_id::create({get_full_name(), ".cfg"});
+{% for group in groups %}
+        agt_{{ group }} = {{ class_prefix }}sub_agent::type_id::create("agt_{{ group }}", this);
+{% endfor %}
+{% for group in groups %}
+        agt_{{ group }}.cfg = cfg.cfg_{{ group }};
+{% endfor %}
     endfunction
 
-    extern function void build();
-    extern function void connect();
+    extern function void connect_phase(uvm_phase phase);
 endclass
 
-function void {{ class_agent }}::build();
-    super.build();
+function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
 
-    uvm_config_db#(uvm_object_wrapper)::set(sqr,
-        "main_phase",
-        "default_sequence",
-        {{ class_main_phase_seq }}::type_id::get());
-endfunction
-
-function void {{ class_agent }}::connect();
-    super.connect();
-
-    $cast(sqr.cfg,cfg);
+{% for group in groups %}
+    agt_{{ group }}.cfg = cfg.cfg_{{ group }};
+    agt_{{ group }}.sqr.cfg = cfg.cfg_{{ group }};
+{% endfor %}
 endfunction
 
 `endif

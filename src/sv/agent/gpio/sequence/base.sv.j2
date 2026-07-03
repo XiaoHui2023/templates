@@ -1,27 +1,27 @@
-`ifndef {{ class_base_seq | upper }}
-`define {{ class_base_seq | upper }}
+`ifndef {{ (class_prefix ~ "base_seq") | upper }}
+`define {{ (class_prefix ~ "base_seq") | upper }}
 
-class {{ class_base_seq }} extends uvm_sequence;
-    `uvm_object_utils({{ class_base_seq }})
-    `uvm_declare_p_sequencer({{ class_sequencer }})
+class {{ class_prefix }}base_seq extends uvm_sequence;
+    `uvm_object_utils({{ class_prefix }}base_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    {{ class_sdk }} sdk;
-    {{ class_configuration }} cfg;
-    virtual {{ class_interface }} vif;
+    {{ class_prefix }}sub_configuration cfg;
+    virtual {{ class_prefix }}sub_interface vif;
 
-    function new(string name = "{{ class_base_seq }}");
+    function new(string name = "{{ class_prefix }}base_seq");
         super.new(name);
     endfunction
 
-    extern function void pre_randomize();
+    extern task pre_start();
 endclass
 
-function void {{ class_base_seq }}::pre_randomize();
-    super.pre_randomize();
+task {{ class_prefix }}base_seq::pre_start();
+    super.pre_start();
 
-    $cast(sdk,p_sequencer.sdk);
-    $cast(cfg,p_sequencer.cfg);
+    cfg = p_sequencer.cfg;
+    if (cfg == null)
+        `uvm_fatal("", "require cfg")
     vif = cfg.vif;
-endfunction
+endtask
 
 `endif

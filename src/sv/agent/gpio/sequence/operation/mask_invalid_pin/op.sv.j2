@@ -1,0 +1,29 @@
+`ifndef {{ (class_prefix ~ "mask_invalid_pin_seq") | upper }}
+`define {{ (class_prefix ~ "mask_invalid_pin_seq") | upper }}
+
+class {{ class_prefix }}mask_invalid_pin_seq extends uvm_sequence #(
+        {{ class_prefix }}mask_invalid_pin_req,
+        {{ class_prefix }}mask_invalid_pin_rsp);
+    `uvm_object_utils({{ class_prefix }}mask_invalid_pin_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}mask_invalid_pin_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}mask_invalid_pin_seq::body();
+    {{ class_prefix }}mask_invalid_pin_rsp rs;
+
+    rs = {{ class_prefix }}mask_invalid_pin_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    // Intentionally mirrors the previous SDK behavior: gpio_mask access is
+    // left disabled until the generated regmodel exposes a stable field.
+    // p_sequencer.cfg.regmodel.gpio_mask.write(status, ~p_sequencer.cfg.pin_mask);
+    rsp = rs;
+endtask
+
+`endif

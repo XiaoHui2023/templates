@@ -1,0 +1,18 @@
+`ifndef {{ (class_prefix ~ "get_value_rsp") | upper }}
+`define {{ (class_prefix ~ "get_value_rsp") | upper }}
+
+class {{ class_prefix }}get_value_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}get_value_rsp)
+        `uvm_field_int(ok,UVM_ALL_ON)
+        `uvm_field_int(data,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit ok = 1'b1;
+    bit[31:0] data;
+
+    function new(string name="{{ class_prefix }}get_value_rsp");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

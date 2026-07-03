@@ -1,0 +1,25 @@
+`ifndef {{ (class_prefix ~ "get_intr_status_seq") | upper }}
+`define {{ (class_prefix ~ "get_intr_status_seq") | upper }}
+
+class {{ class_prefix }}get_intr_status_seq extends uvm_sequence #(
+        {{ class_prefix }}get_intr_status_req,
+        {{ class_prefix }}get_intr_status_rsp);
+    `uvm_object_utils({{ class_prefix }}get_intr_status_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}get_intr_status_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}get_intr_status_seq::body();
+    {{ class_prefix }}get_intr_status_rsp rs;
+
+    rs = {{ class_prefix }}get_intr_status_rsp::type_id::create("rsp");
+    rs.intr = p_sequencer.cfg.vif.intr;
+    rsp = rs;
+endtask
+
+`endif

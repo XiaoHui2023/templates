@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "set_dir_rsp") | upper }}
+`define {{ (class_prefix ~ "set_dir_rsp") | upper }}
+
+class {{ class_prefix }}set_dir_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}set_dir_rsp)
+        `uvm_field_int(ok,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit ok = 1'b1;
+
+    function new(string name="{{ class_prefix }}set_dir_rsp");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

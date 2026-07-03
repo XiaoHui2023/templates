@@ -1,0 +1,237 @@
+`ifndef {{ (class_prefix ~ "intr_test_seq") | upper }}
+`define {{ (class_prefix ~ "intr_test_seq") | upper }}
+
+class {{ class_prefix }}intr_test_seq extends uvm_sequence #(
+        {{ class_prefix }}intr_test_req,
+        {{ class_prefix }}intr_test_rsp);
+    `uvm_object_utils({{ class_prefix }}intr_test_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    {{ class_prefix }}sub_configuration cfg;
+    virtual {{ class_prefix }}sub_interface vif;
+
+    function new(string name = "{{ class_prefix }}intr_test_seq");
+        super.new(name);
+    endfunction
+
+    extern task pre_start();
+    extern task body();
+    extern task post_start();
+    extern task op_mask_invalid_pin(output bit ok);
+    extern task op_set_dir(bit[31:0] data, output bit ok);
+    extern task op_drive_input(bit[31:0] data, bit[31:0] enable, output bit ok);
+    extern task op_clear_intr_status(output bit ok);
+    extern task op_set_rise_intr(bit[31:0] data, output bit ok);
+    extern task op_wait_intr(output bit intr_ok, int timeout, output bit op_ok);
+    extern task op_get_intr_status(output bit intr, output bit ok);
+endclass
+
+task {{ class_prefix }}intr_test_seq::pre_start();
+    super.pre_start();
+
+    cfg = p_sequencer.cfg;
+    if (cfg == null)
+        `uvm_fatal("", "require cfg")
+    vif = cfg.vif;
+
+    if (starting_phase)
+        starting_phase.raise_objection(this);
+    `uvm_info("", "Enter", UVM_LOW)
+endtask
+
+task {{ class_prefix }}intr_test_seq::body();
+    {{ class_prefix }}intr_test_req rq;
+    {{ class_prefix }}intr_test_rsp rs;
+    bit intr;
+    bit wait_ok;
+    bit op_ok;
+
+    if (req == null) begin
+        rq = {{ class_prefix }}intr_test_req::type_id::create("req");
+    end else begin
+        rq = req;
+    end
+
+    rs = {{ class_prefix }}intr_test_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    op_mask_invalid_pin(op_ok);
+    rs.ok &= op_ok;
+    op_set_dir(0, op_ok);
+    rs.ok &= op_ok;
+    op_set_rise_intr(0, op_ok);
+    rs.ok &= op_ok;
+    op_clear_intr_status(op_ok);
+    rs.ok &= op_ok;
+    op_drive_input(0, '0, op_ok);
+    rs.ok &= op_ok;
+    op_set_rise_intr(1, op_ok);
+    rs.ok &= op_ok;
+
+    repeat(20)
+        @(posedge vif.clk);
+
+    op_get_intr_status(intr, op_ok);
+    rs.ok &= op_ok;
+    if (intr) begin
+        rs.ok = 1'b0;
+        `uvm_error("", "interrupt is asserted before rising edge")
+    end
+
+    op_drive_input(1, '0, op_ok);
+    rs.ok &= op_ok;
+    op_wait_intr(wait_ok, rq.timeout, op_ok);
+    rs.ok &= op_ok;
+    op_get_intr_status(intr, op_ok);
+    rs.ok &= op_ok;
+    if (!wait_ok || !intr) begin
+        rs.ok = 1'b0;
+        `uvm_error("", "interrupt is not asserted after rising edge")
+    end
+
+    op_clear_intr_status(op_ok);
+    rs.ok &= op_ok;
+    op_set_rise_intr(0, op_ok);
+    rs.ok &= op_ok;
+
+    rsp = rs;
+endtask
+
+task {{ class_prefix }}intr_test_seq::post_start();
+    super.post_start();
+
+    `uvm_info("", "Exit", UVM_LOW)
+    if (starting_phase)
+        starting_phase.drop_objection(this);
+endtask
+
+task {{ class_prefix }}intr_test_seq::op_mask_invalid_pin(output bit ok);
+    {{ class_prefix }}mask_invalid_pin_req req;
+    {{ class_prefix }}mask_invalid_pin_rsp seq_rsp;
+    {{ class_prefix }}mask_invalid_pin_seq seq;
+
+    ok = 1'b1;
+    req = {{ class_prefix }}mask_invalid_pin_req::type_id::create("req");
+    seq = {{ class_prefix }}mask_invalid_pin_seq::type_id::create("mask_invalid_pin");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok) begin
+        ok = 1'b0;
+        `uvm_error("", "mask_invalid_pin operation failed")
+    end
+endtask
+
+task {{ class_prefix }}intr_test_seq::op_set_dir(bit[31:0] data, output bit ok);
+    {{ class_prefix }}set_dir_req req;
+    {{ class_prefix }}set_dir_rsp seq_rsp;
+    {{ class_prefix }}set_dir_seq seq;
+
+    ok = 1'b1;
+    req = {{ class_prefix }}set_dir_req::type_id::create("req");
+    req.data = data;
+    seq = {{ class_prefix }}set_dir_seq::type_id::create("set_dir");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok) begin
+        ok = 1'b0;
+        `uvm_error("", "set_dir operation failed")
+    end
+endtask
+
+task {{ class_prefix }}intr_test_seq::op_drive_input(bit[31:0] data, bit[31:0] enable, output bit ok);
+    {{ class_prefix }}drive_input_req req;
+    {{ class_prefix }}drive_input_rsp seq_rsp;
+    {{ class_prefix }}drive_input_seq seq;
+
+    ok = 1'b1;
+    req = {{ class_prefix }}drive_input_req::type_id::create("req");
+    req.data = data;
+    req.enable = enable;
+    seq = {{ class_prefix }}drive_input_seq::type_id::create("drive_input");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok) begin
+        ok = 1'b0;
+        `uvm_error("", "drive_input operation failed")
+    end
+endtask
+
+task {{ class_prefix }}intr_test_seq::op_clear_intr_status(output bit ok);
+    {{ class_prefix }}clear_intr_status_req req;
+    {{ class_prefix }}clear_intr_status_rsp seq_rsp;
+    {{ class_prefix }}clear_intr_status_seq seq;
+
+    ok = 1'b1;
+    req = {{ class_prefix }}clear_intr_status_req::type_id::create("req");
+    seq = {{ class_prefix }}clear_intr_status_seq::type_id::create("clear_intr_status");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok) begin
+        ok = 1'b0;
+        `uvm_error("", "clear_intr_status operation failed")
+    end
+endtask
+
+task {{ class_prefix }}intr_test_seq::op_set_rise_intr(bit[31:0] data, output bit ok);
+    {{ class_prefix }}set_rise_intr_req req;
+    {{ class_prefix }}set_rise_intr_rsp seq_rsp;
+    {{ class_prefix }}set_rise_intr_seq seq;
+
+    ok = 1'b1;
+    req = {{ class_prefix }}set_rise_intr_req::type_id::create("req");
+    req.data = data;
+    seq = {{ class_prefix }}set_rise_intr_seq::type_id::create("set_rise_intr");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp != null && !seq_rsp.ok) begin
+        ok = 1'b0;
+        `uvm_error("", "set_rise_intr operation failed")
+    end
+endtask
+
+task {{ class_prefix }}intr_test_seq::op_wait_intr(output bit intr_ok, int timeout, output bit op_ok);
+    {{ class_prefix }}wait_intr_req req;
+    {{ class_prefix }}wait_intr_rsp seq_rsp;
+    {{ class_prefix }}wait_intr_seq seq;
+
+    intr_ok = 1'b0;
+    op_ok = 1'b1;
+    req = {{ class_prefix }}wait_intr_req::type_id::create("req");
+    req.timeout = timeout;
+    seq = {{ class_prefix }}wait_intr_seq::type_id::create("wait_intr");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null) begin
+        op_ok = 1'b0;
+        `uvm_error("", "wait_intr operation failed")
+    end else begin
+        intr_ok = seq_rsp.ok;
+    end
+endtask
+
+task {{ class_prefix }}intr_test_seq::op_get_intr_status(output bit intr, output bit ok);
+    {{ class_prefix }}get_intr_status_req req;
+    {{ class_prefix }}get_intr_status_rsp seq_rsp;
+    {{ class_prefix }}get_intr_status_seq seq;
+
+    ok = 1'b1;
+    req = {{ class_prefix }}get_intr_status_req::type_id::create("req");
+    seq = {{ class_prefix }}get_intr_status_seq::type_id::create("get_intr_status");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok) begin
+        ok = 1'b0;
+        `uvm_error("", "get_intr_status operation failed")
+    end else begin
+        intr = seq_rsp.intr;
+    end
+endtask
+
+`endif

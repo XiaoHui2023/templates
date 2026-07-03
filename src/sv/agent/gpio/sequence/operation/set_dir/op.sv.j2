@@ -1,0 +1,28 @@
+`ifndef {{ (class_prefix ~ "set_dir_seq") | upper }}
+`define {{ (class_prefix ~ "set_dir_seq") | upper }}
+
+class {{ class_prefix }}set_dir_seq extends uvm_sequence #(
+        {{ class_prefix }}set_dir_req,
+        {{ class_prefix }}set_dir_rsp);
+    `uvm_object_utils({{ class_prefix }}set_dir_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    function new(string name="{{ class_prefix }}set_dir_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}set_dir_seq::body();
+    {{ class_prefix }}set_dir_rsp rs;
+    uvm_status_e status;
+
+    if (req == null)
+        `uvm_fatal("", "set_dir req is null")
+    rs = {{ class_prefix }}set_dir_rsp::type_id::create("rsp");
+    p_sequencer.cfg.regmodel.gpio_dir.write(status, req.data);
+    rsp = rs;
+endtask
+
+`endif
