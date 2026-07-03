@@ -1,187 +1,98 @@
 `ifndef {{ (class_prefix ~ "kit_sequencer") | upper }}
 `define {{ (class_prefix ~ "kit_sequencer") | upper }}
 
-class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
+class {{ class_prefix }}kit_sequencer extends uvm_component;
     `uvm_component_utils({{ class_prefix }}kit_sequencer)
 
+    {{ class_prefix }}settings settings;
+{% for group in groups %}    {{ class_prefix }}sub_kit_sequencer sqr_{{ group.name }};
+{% endfor %}
     function new(string name="{{ class_prefix }}kit_sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
+    extern function void check_ready();
     extern task mask_invalid_pin();
     extern task set_dir(bit[31:0] data);
     extern task set_value(bit[31:0] data);
     extern task drive_input(bit[31:0] data, bit[31:0] enable = '0);
-    extern task get_value(output bit[31:0] data);
+    extern task get_value(output bit[31:0] data[string]);
     extern task clear_intr_status();
     extern task set_rise_intr(bit[31:0] data);
-    extern task wait_intr(output bit ok, int timeout = 100);
-    extern task get_intr_status(output bit intr);
+    extern task wait_intr(int timeout = 100);
+    extern task get_intr_status(output bit intr[string]);
     extern task run_inout_test();
     extern task run_intr_test();
 endclass
 
-task {{ class_prefix }}kit_sequencer::mask_invalid_pin();
-    {{ class_prefix }}mask_invalid_pin_req req;
-    {{ class_prefix }}mask_invalid_pin_rsp seq_rsp;
-    {{ class_prefix }}mask_invalid_pin_seq seq;
+function void {{ class_prefix }}kit_sequencer::check_ready();
+    if (settings == null)
+        `uvm_fatal("", "require settings")
+{% for group in groups %}    if (sqr_{{ group.name }} == null)
+        `uvm_fatal("", "require sqr_{{ group.name }}")
+{% endfor %}endfunction
 
-    req = {{ class_prefix }}mask_invalid_pin_req::type_id::create("req");
-    seq = {{ class_prefix }}mask_invalid_pin_seq::type_id::create("mask_invalid_pin");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("", "mask_invalid_pin: operation failed")
-endtask
+task {{ class_prefix }}kit_sequencer::mask_invalid_pin();
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.mask_invalid_pin();
+{% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::set_dir(bit[31:0] data);
-    {{ class_prefix }}set_dir_req req;
-    {{ class_prefix }}set_dir_rsp seq_rsp;
-    {{ class_prefix }}set_dir_seq seq;
-
-    req = {{ class_prefix }}set_dir_req::type_id::create("req");
-    req.data = data;
-    seq = {{ class_prefix }}set_dir_seq::type_id::create("set_dir");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("", "set_dir: operation failed")
-endtask
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.set_dir(data);
+{% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::set_value(bit[31:0] data);
-    {{ class_prefix }}set_value_req req;
-    {{ class_prefix }}set_value_rsp seq_rsp;
-    {{ class_prefix }}set_value_seq seq;
-
-    req = {{ class_prefix }}set_value_req::type_id::create("req");
-    req.data = data;
-    seq = {{ class_prefix }}set_value_seq::type_id::create("set_value");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("", "set_value: operation failed")
-endtask
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.set_value(data);
+{% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::drive_input(bit[31:0] data, bit[31:0] enable);
-    {{ class_prefix }}drive_input_req req;
-    {{ class_prefix }}drive_input_rsp seq_rsp;
-    {{ class_prefix }}drive_input_seq seq;
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.drive_input(data, enable);
+{% endfor %}endtask
 
-    req = {{ class_prefix }}drive_input_req::type_id::create("req");
-    req.data = data;
-    req.enable = enable;
-    seq = {{ class_prefix }}drive_input_seq::type_id::create("drive_input");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("", "drive_input: operation failed")
-endtask
+task {{ class_prefix }}kit_sequencer::get_value(output bit[31:0] data[string]);
+    bit[31:0] group_data;
 
-task {{ class_prefix }}kit_sequencer::get_value(output bit[31:0] data);
-    {{ class_prefix }}get_value_req req;
-    {{ class_prefix }}get_value_rsp seq_rsp;
-    {{ class_prefix }}get_value_seq seq;
-
-    req = {{ class_prefix }}get_value_req::type_id::create("req");
-    seq = {{ class_prefix }}get_value_seq::type_id::create("get_value");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("", "get_value: operation failed")
-    data = seq_rsp.data;
-endtask
+    check_ready();
+    data.delete();
+{% for group in groups %}    sqr_{{ group.name }}.get_value(group_data);
+    data["{{ group.name }}"] = group_data;
+{% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::clear_intr_status();
-    {{ class_prefix }}clear_intr_status_req req;
-    {{ class_prefix }}clear_intr_status_rsp seq_rsp;
-    {{ class_prefix }}clear_intr_status_seq seq;
-
-    req = {{ class_prefix }}clear_intr_status_req::type_id::create("req");
-    seq = {{ class_prefix }}clear_intr_status_seq::type_id::create("clear_intr_status");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("", "clear_intr_status: operation failed")
-endtask
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.clear_intr_status();
+{% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::set_rise_intr(bit[31:0] data);
-    {{ class_prefix }}set_rise_intr_req req;
-    {{ class_prefix }}set_rise_intr_rsp seq_rsp;
-    {{ class_prefix }}set_rise_intr_seq seq;
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.set_rise_intr(data);
+{% endfor %}endtask
 
-    req = {{ class_prefix }}set_rise_intr_req::type_id::create("req");
-    req.data = data;
-    seq = {{ class_prefix }}set_rise_intr_seq::type_id::create("set_rise_intr");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("", "set_rise_intr: operation failed")
-endtask
+task {{ class_prefix }}kit_sequencer::wait_intr(int timeout);
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.wait_intr(timeout);
+{% endfor %}endtask
 
-task {{ class_prefix }}kit_sequencer::wait_intr(output bit ok, int timeout);
-    {{ class_prefix }}wait_intr_req req;
-    {{ class_prefix }}wait_intr_rsp seq_rsp;
-    {{ class_prefix }}wait_intr_seq seq;
+task {{ class_prefix }}kit_sequencer::get_intr_status(output bit intr[string]);
+    bit group_intr;
 
-    req = {{ class_prefix }}wait_intr_req::type_id::create("req");
-    req.timeout = timeout;
-    seq = {{ class_prefix }}wait_intr_seq::type_id::create("wait_intr");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null)
-        `uvm_fatal("", "wait_intr: operation failed")
-    ok = seq_rsp.ok;
-endtask
-
-task {{ class_prefix }}kit_sequencer::get_intr_status(output bit intr);
-    {{ class_prefix }}get_intr_status_req req;
-    {{ class_prefix }}get_intr_status_rsp seq_rsp;
-    {{ class_prefix }}get_intr_status_seq seq;
-
-    req = {{ class_prefix }}get_intr_status_req::type_id::create("req");
-    seq = {{ class_prefix }}get_intr_status_seq::type_id::create("get_intr_status");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("", "get_intr_status: operation failed")
-    intr = seq_rsp.intr;
-endtask
+    check_ready();
+    intr.delete();
+{% for group in groups %}    sqr_{{ group.name }}.get_intr_status(group_intr);
+    intr["{{ group.name }}"] = group_intr;
+{% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::run_inout_test();
-    {{ class_prefix }}inout_test_req req;
-    {{ class_prefix }}inout_test_rsp seq_rsp;
-    {{ class_prefix }}inout_test_seq seq;
-
-    req = {{ class_prefix }}inout_test_req::type_id::create("req");
-    seq = {{ class_prefix }}inout_test_seq::type_id::create("inout_test");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("", "inout_test: test failed")
-endtask
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.run_inout_test();
+{% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::run_intr_test();
-    {{ class_prefix }}intr_test_req req;
-    {{ class_prefix }}intr_test_rsp seq_rsp;
-    {{ class_prefix }}intr_test_seq seq;
-
-    req = {{ class_prefix }}intr_test_req::type_id::create("req");
-    seq = {{ class_prefix }}intr_test_seq::type_id::create("intr_test");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("", "intr_test: test failed")
-endtask
+    check_ready();
+{% for group in groups %}    sqr_{{ group.name }}.run_intr_test();
+{% endfor %}endtask
 
 `endif
