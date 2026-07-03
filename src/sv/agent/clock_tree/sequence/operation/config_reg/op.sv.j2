@@ -150,21 +150,11 @@ endtask
 
 // 写 dto 的复位、bypass、load 与 step
 task {{ settings.class_prefix }}config_reg_seq::config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
-    bit ratio_match;
     bit rst_released;
 
     if (!dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
             || !dto_nd.f_step.is_bound() || !dto_nd.f_rst.is_bound())
         return;
-    p_sequencer.tools.node.dto_regs_match_ratio(
-        dto_nd.f_rst, dto_nd.f_bypass, dto_nd.f_step, dto_nd._resolved_ratio, ratio_match);
-    if (ratio_match) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: dto %s skip reg ratio %0d",
-                dto_nd.get_name(), dto_nd._resolved_ratio), UVM_MEDIUM)
-        return;
-    end
 {%- if settings.should_reset_dto %}
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(

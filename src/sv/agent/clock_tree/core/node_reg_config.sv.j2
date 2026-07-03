@@ -54,6 +54,8 @@ class {{ settings.class_prefix }}node_cfg;
         {{ settings.class_prefix }}reg f_bypass,
         {{ settings.class_prefix }}reg f_step,
         int ratio);
+    // Ensure the final load write creates a rising edge.
+    extern task prepare_dto_load_edge({{ settings.class_prefix }}reg f_load);
     // rst_val — 读回的 rst 位是否为 div 已释放、非复位电平
     extern function bit div_rst_released_val(int rst_val);
     // rst_val — 读回的 rst 位是否为 dto 已释放、非复位电平
@@ -68,13 +70,6 @@ class {{ settings.class_prefix }}node_cfg;
         output bit match);
     // f_rst — 读回 div rst 是否已为释放电平
     extern task div_rst_released({{ settings.class_prefix }}reg f_rst, output bit released);
-    // f_rst、f_bypass、f_step、ratio — 读回 dto 是否已与目标 ratio 一致且 rst 已释放
-    extern task dto_regs_match_ratio(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_step,
-        int ratio,
-        output bit match);
     // f_rst — 读回 dto rst 是否已为释放电平
     extern task dto_rst_released({{ settings.class_prefix }}reg f_rst, output bit released);
 endclass
@@ -165,6 +160,7 @@ task {{ settings.class_prefix }}node_cfg::configure_dto(
 {%- else %}
     rw.set_write(f_rst, 0);
 {%- endif %}
+    prepare_dto_load_edge(f_load);
     if ({{ settings.class_prefix }}dto_ratio_is_bypass(ratio)) begin
         binds = '{f_rst, f_load, f_bypass, f_step};
 {%- if settings.dto_reg_high_means_reset %}
@@ -198,6 +194,7 @@ task {{ settings.class_prefix }}node_cfg::configure_dto_direct(
 {%- else %}
     rw.set_write(f_rst, 1);
 {%- endif %}
+    prepare_dto_load_edge(f_load);
     if ({{ settings.class_prefix }}dto_ratio_is_bypass(ratio)) begin
         binds = '{f_load, f_bypass, f_step};
         vals = '{1, 1, 0};
@@ -218,6 +215,7 @@ task {{ settings.class_prefix }}node_cfg::configure_dto_ratio(
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
     int step;
+    prepare_dto_load_edge(f_load);
     if ({{ settings.class_prefix }}dto_ratio_is_bypass(ratio)) begin
         binds = '{f_load, f_bypass, f_step};
         vals = '{1, 1, 0};
@@ -228,6 +226,14 @@ task {{ settings.class_prefix }}node_cfg::configure_dto_ratio(
         vals = '{1, 0, step};
         rw.apply(binds, vals);
     end
+endtask
+
+task {{ settings.class_prefix }}node_cfg::prepare_dto_load_edge(
+        {{ settings.class_prefix }}reg f_load);
+    int load_val;
+    rw.read(f_load, load_val);
+    if (load_val != 0)
+        rw.set_write(f_load, 0);
 endtask
 
 function bit {{ settings.class_prefix }}node_cfg::div_rst_released_val(int rst_val);
@@ -275,31 +281,6 @@ task {{ settings.class_prefix }}node_cfg::div_rst_released(
     int rst_val;
     rw.read(f_rst, rst_val);
     released = div_rst_released_val(rst_val);
-endtask
-
-task {{ settings.class_prefix }}node_cfg::dto_regs_match_ratio(
-        {{ settings.class_prefix }}reg f_rst,
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_step,
-        int ratio,
-        output bit match);
-    int rst_val;
-    int bypass_val;
-    int step_val;
-    int exp_step;
-    rw.read(f_rst, rst_val);
-    rw.read(f_bypass, bypass_val);
-    rw.read(f_step, step_val);
-    if (!dto_rst_released_val(rst_val)) begin
-        match = 1'b0;
-        return;
-    end
-    if ({{ settings.class_prefix }}dto_ratio_is_bypass(ratio)) begin
-        match = bypass_val == 1 && step_val == 0;
-        return;
-    end
-    exp_step = {{ settings.class_prefix }}dto_ratio_to_step(ratio);
-    match = bypass_val == 0 && step_val == exp_step;
 endtask
 
 task {{ settings.class_prefix }}node_cfg::dto_rst_released(
