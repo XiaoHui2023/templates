@@ -16,7 +16,7 @@ class {{ class_prefix }}scoreboard extends uvm_component;
 
     extern function void build_phase(uvm_phase phase);
     extern function bit load_memh(string filename, bit clear_first = 1'b1);
-    extern function bit load_hex_lines(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
+    extern function bit load_hex(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
     extern function bit apply_payload(uvm_tlm_generic_payload gp, output bit [7:0] read_data[$]);
     extern function bit record_expected_write(bit [63:0] addr, bit [7:0] data[$], string label = "expected_write");
     extern function bit check_actual_read(bit [63:0] addr, bit [7:0] actual[$], string label = "actual_read");
@@ -39,11 +39,11 @@ function bit {{ class_prefix }}scoreboard::load_memh(string filename, bit clear_
     return mem.load_memh(filename, clear_first);
 endfunction
 
-function bit {{ class_prefix }}scoreboard::load_hex_lines(
+function bit {{ class_prefix }}scoreboard::load_hex(
         string filename,
         bit clear_first,
         bit [63:0] base_addr);
-    return mem.load_hex_lines(filename, clear_first, base_addr);
+    return mem.load_hex(filename, clear_first, base_addr);
 endfunction
 
 function bit {{ class_prefix }}scoreboard::apply_payload(

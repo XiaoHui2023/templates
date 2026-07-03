@@ -68,10 +68,10 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `ssi_variant` | `core/register_access.sv` 根据 PSSI/HSSI 选择 `CTRL0` bit packing。 |
 | `default_baud_div` | 默认 `BAUDR` 分频值。 |
 | `fifo_depth_bytes` | FIFO 阈值约束和默认值边界。默认 32 字节。 |
-| `max_output_hz` | 输出 SPI 时钟最大频率约束。 |
-| `clock_check_tolerance_ppm` | optional clock check 的频率容差。 |
-| `clock_check_sample_edges` | optional clock check 的测量边沿数。 |
-| `clock_check_timeout_ns` | optional clock check 的测量超时。 |
+| `max_output_hz` | `sclk_out = ssi_clk / BAUDR` 的最大输出频率约束。 |
+| `min_hclk_hz` | optional clock check 的 `hclk` 最低频率，默认 24MHz。 |
+| `min_ssi_clk_hz` | optional clock check 的 `ssi_clk` 最低频率，默认 24MHz。 |
+| `clock_check_tolerance_ppm` | optional clock check 的频率容差，默认 1%。 |
 | `default_tx_fifo_threshold` | 默认 TX FIFO threshold。 |
 | `default_rx_fifo_threshold` | 默认 RX FIFO threshold。 |
 | `default_rx_sample_delay_ns` | 默认 `RX_SAMPLE_DLY`。 |
@@ -109,6 +109,8 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。主机测试默认创建 `host_configuration`，从机测试可显式创建 `slave_configuration`。
 
+`rw_test_req` 的 `address` 默认约束为 0。`write_data` 为空时，test sequence 会随机生成一段数据；长度由 Python 配置 `default_rw_data_bytes` 生成，默认 256 字节。
+
 ## `configuration.sv`
 
 `configuration` 是单次寄存器配置值包，用来承载一次 init/apply 需要写入的值。
@@ -138,7 +140,7 @@ scoreboard 的 `mem` 在 `core/mem.sv`，不是 `model` 类型。
 
 `mem` 使用动态 `bit [7:0]` queue：
 
-- 加载 memh 或 simple hex 时按实际数据长度扩展。
+- 加载 memh 或 `.hex` 文件时按实际数据长度扩展。
 - 写入超过当前长度时自动扩展。
 - 读取或比较超过当前有效长度时报错。
 - 不需要 flash size、page size、erase value。
@@ -153,7 +155,7 @@ sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 s
 - regmodel read/write task。
 - CS 开关、等待中断、等待 busy 清零等执行动作。
 - scoreboard 比较逻辑。
-- memh/simple hex 文件解析逻辑。
+- memh/`.hex` 文件解析逻辑。
 - sequencer/kit_sequencer 快捷函数。
 
 重复寄存器 pack/apply 逻辑放在 `core/register_access.sv` 的实例化工具类中；具体调用入口放在 operation sequence 中。

@@ -16,7 +16,7 @@
 | 端口 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |
 | `hclk` | input | `logic` | AHB/APB 总线与寄存器模块参考时钟 |
-| `ssi_clk` | input | `logic` | SPI/SSI 输出时钟 |
+| `ssi_clk` | input | `logic` | 输入 DesignWare SPI/SSI 控制器的参考时钟 |
 | `intr` | input | `logic` | 中断信号 |
 
 ### 子 interface
@@ -39,9 +39,9 @@
 
 | 函数/task | 说明 |
 | --- | --- |
-| `baudr_for_target(input_hz, target_hz)` | 计算不小于 2 的偶数 BAUDR，满足输出频率不超过目标频率 |
-| `measure_hclk_frequency_hz(frequency_hz)` | 调用 `hclk_if` 测量 `hclk` 频率 |
-| `measure_ssi_clk_frequency_hz(frequency_hz)` | 调用 `ssi_clk_if` 测量 `ssi_clk` 频率 |
+| `baudr_for_target(ssi_clk_hz, target_hz)` | 计算不小于 2 的偶数 BAUDR，满足 `ssi_clk_hz / BAUDR` 不超过目标频率 |
+| `measure_hclk_frequency_hz(frequency_hz, min_frequency_hz)` | 调用 `hclk_if` 测量 `hclk` 频率 |
+| `measure_ssi_clk_frequency_hz(frequency_hz, min_frequency_hz)` | 调用 `ssi_clk_if` 测量 `ssi_clk` 频率 |
 
 ## `dw_spi_clock_if`
 
@@ -50,7 +50,7 @@
 | 函数/task | 说明 |
 | --- | --- |
 | `is_connected()` | `clk` 不是 X/Z |
-| `measure_frequency_hz(frequency_hz, sample_edges, timeout_ns)` | 采样多个上升沿并计算频率；未连接或超时返回 `0.0` |
+| `measure_frequency_hz(frequency_hz, min_frequency_hz, tolerance_ppm)` | 采样一个周期并计算频率；超时由最低频率和容差计算；未连接或超时返回 `0.0` |
 
 ## `dw_spi_interrupt_if`
 
@@ -65,4 +65,8 @@
 
 `sequence/operation/check_clock` 通过 `p_sequencer.settings.vif` 访问 `dw_spi_interface`。
 
-当 `hclk` 或 `ssi_clk` 未连接时，检查会跳过对应时钟；当两个时钟都连接时，会检查 `ssi_clk <= hclk / BAUDR` 的关系。
+当 `hclk` 或 `ssi_clk` 未连接时，检查会跳过对应时钟。
+
+`hclk` 和 `ssi_clk` 之间没有频率关系检查。默认只检查两者各自高于最低频率 24MHz，容差 1%。
+
+`ssi_clk` 是控制器输入时钟。输出到从机的串行时钟按 `sclk_out = ssi_clk / BAUDR` 计算，check_clock 会用这个公式检查 `sclk_out` 是否超过 `max_output_hz`，并给出推荐 BAUDR。

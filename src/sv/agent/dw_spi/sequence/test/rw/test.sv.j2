@@ -32,6 +32,12 @@ task {{ class_prefix }}rw_test_seq::body();
         if (!req.configuration.randomize())
             `uvm_fatal("DW_SPI", "rw_test: failed to randomize configuration")
     end
+    if (req.write_data.size() == 0) begin
+        if (!req.randomize(write_data) with {
+                write_data.size() == {{ default_rw_data_bytes }};
+            })
+            `uvm_fatal("DW_SPI", "rw_test: failed to randomize write_data")
+    end
     cfg = req.configuration;
     rs = {{ class_prefix }}rw_test_rsp::type_id::create("rsp");
     rs.ok = 1'b1;

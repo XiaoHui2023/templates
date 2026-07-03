@@ -64,6 +64,12 @@ class Models(BaseModel):
         3,
         description="Default flash address phase width in bytes.",
     )
+    default_rw_data_bytes: int = Field(
+        256,
+        ge=1,
+        le=1_048_576,
+        description="Default byte count randomized by rw_test when write_data is empty.",
+    )
     default_baud_div: int = Field(
         2,
         ge=2,
@@ -76,32 +82,26 @@ class Models(BaseModel):
         le=4096,
         description="DesignWare SPI FIFO depth in bytes.",
     )
-    input_clock_hz: int = Field(
-        12_000_000,
-        ge=1,
-        description="Input clock frequency used to validate the default BAUDR divider.",
-    )
     max_output_hz: int = Field(
         6_000_000,
         ge=1,
         description="Maximum allowed SPI output frequency after BAUDR division.",
     )
+    min_hclk_hz: int = Field(
+        24_000_000,
+        ge=1,
+        description="Minimum hclk frequency accepted by clock check sequences.",
+    )
+    min_ssi_clk_hz: int = Field(
+        24_000_000,
+        ge=1,
+        description="Minimum controller ssi_clk frequency accepted by clock check sequences.",
+    )
     clock_check_tolerance_ppm: int = Field(
-        50_000,
+        10_000,
         ge=0,
         le=1_000_000,
         description="Default tolerance used by clock check sequences.",
-    )
-    clock_check_sample_edges: int = Field(
-        4,
-        ge=2,
-        le=1024,
-        description="Default number of rising edges sampled when measuring a clock.",
-    )
-    clock_check_timeout_ns: int = Field(
-        1_000_000,
-        ge=1,
-        description="Default timeout in ns used by clock measurement tasks.",
     )
     default_tx_fifo_threshold: int = Field(
         0,
@@ -201,12 +201,6 @@ class Models(BaseModel):
     def _validate_baud_div_even(self) -> Models:
         if self.default_baud_div % 2:
             raise ValueError("default_baud_div must be even")
-        return self
-
-    @model_validator(mode="after")
-    def _validate_baud_output_limit(self) -> Models:
-        if self.input_clock_hz > self.max_output_hz * self.default_baud_div:
-            raise ValueError("input_clock_hz / default_baud_div must not exceed max_output_hz")
         return self
 
     @model_validator(mode="after")

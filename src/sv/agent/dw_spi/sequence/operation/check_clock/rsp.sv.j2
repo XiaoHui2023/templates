@@ -8,6 +8,7 @@ class {{ class_prefix }}check_clock_rsp extends uvm_sequence_item;
         `uvm_field_int(ssi_clk_connected, UVM_ALL_ON)
         `uvm_field_real(hclk_hz, UVM_ALL_ON)
         `uvm_field_real(ssi_clk_hz, UVM_ALL_ON)
+        `uvm_field_real(sclk_out_hz, UVM_ALL_ON)
         `uvm_field_int(recommended_baudr, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
 
@@ -16,6 +17,7 @@ class {{ class_prefix }}check_clock_rsp extends uvm_sequence_item;
     bit ssi_clk_connected;
     real hclk_hz;
     real ssi_clk_hz;
+    real sclk_out_hz;
     int unsigned recommended_baudr;
 
     function new(string name="{{ class_prefix }}check_clock_rsp");

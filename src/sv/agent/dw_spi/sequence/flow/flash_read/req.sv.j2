@@ -8,7 +8,7 @@ class {{ class_prefix }}flash_read_req extends uvm_sequence_item;
         `uvm_field_object(configuration, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand bit [63:0] address;
+    rand bit [31:0] address;
     rand int unsigned length;
     rand {{ class_prefix }}transfer_configuration configuration;
 

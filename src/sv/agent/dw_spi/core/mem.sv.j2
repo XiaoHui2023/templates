@@ -14,7 +14,7 @@ class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
     extern function bit read_bytes(bit [63:0] addr, int unsigned len, output bit [7:0] data[$]);
     extern function bit compare_bytes(bit [63:0] addr, bit [7:0] expected[$], string label = "expected");
     extern function bit load_memh(string filename, bit clear_first = 1'b1);
-    extern function bit load_hex_lines(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
+    extern function bit load_hex(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
     extern function bit dump_memh(string filename);
     extern local function bit is_hex_char(byte unsigned ch);
     extern local function int hex_char_value(byte unsigned ch);
@@ -139,7 +139,7 @@ function bit {{ class_prefix }}mem::load_memh(string filename, bit clear_first);
     return 1'b1;
 endfunction
 
-function bit {{ class_prefix }}mem::load_hex_lines(
+function bit {{ class_prefix }}mem::load_hex(
         string filename,
         bit clear_first,
         bit [63:0] base_addr);
@@ -188,7 +188,7 @@ function bit {{ class_prefix }}mem::load_hex_lines(
     end
     $fclose(file);
     `uvm_info("DW_SPI_MEM", $sformatf(
-        "loaded %0d bytes from simple hex file %s", loaded, filename), UVM_LOW)
+        "loaded %0d bytes from .hex file %s", loaded, filename), UVM_LOW)
     return 1'b1;
 endfunction
 

@@ -17,7 +17,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `cs_id` | 片选编号。 |
 | `addr_bytes` | flash 地址阶段字节数。 |
 
-kit 会创建 `host_configuration`，把这些入参固定，再 randomize 其余字段。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
+每个快捷入口在自己的 req 中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
 
 ## 快捷入口
 
@@ -35,7 +35,7 @@ kit 会创建 `host_configuration`，把这些入参固定，再 randomize 其�
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `address` | `bit [63:0]` | flash 起始地址 |
+| `address` | `bit [31:0]` | flash 起始地址 |
 | `data` | `bit [7:0] $` | 写入数据 |
 | `io_lanes` | `int unsigned` | 可选传输配置 |
 | `speed_multiplier` | `int unsigned` | 可选传输配置 |
@@ -50,7 +50,7 @@ kit 会创建 `host_configuration`，把这些入参固定，再 randomize 其�
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `address` | `bit [63:0]` | flash 起始地址 |
+| `address` | `bit [31:0]` | flash 起始地址 |
 | `length` | `int unsigned` | 读长度 |
 | `io_lanes` | `int unsigned` | 可选传输配置 |
 | `speed_multiplier` | `int unsigned` | 可选传输配置 |
@@ -63,14 +63,18 @@ kit 会创建 `host_configuration`，把这些入参固定，再 randomize 其�
 
 启动可选时钟检查 operation。kit 内部检查 rsp，失败时 fatal，不输出 result。
 
+默认检查 `hclk` 和 `ssi_clk` 是否高于各自最低频率 24MHz，容差 1%。`ssi_clk` 是控制器输入时钟，`sclk_out = ssi_clk / BAUDR`，不会检查 `hclk` 与 `ssi_clk` 的频率关系。
+
 ### `rw_test`
 
 启动读写测试场景：写入数据、读回数据，并把结果交给 scoreboard 自动比较。
 
+`address` 默认是 0。`write_data` 默认是空队列；空队列表示随机生成一段写入数据，长度由 Python 配置 `default_rw_data_bytes` 决定，默认 256 字节。
+
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `address` | `bit [63:0]` | flash 起始地址 |
-| `write_data` | `bit [7:0] $` | 写入数据 |
+| `address` | `bit [31:0]` | flash 起始地址，默认 0 |
+| `write_data` | `bit [7:0] $` | 写入数据；空队列表示随机数据 |
 | `io_lanes` | `int unsigned` | 可选传输配置 |
 | `speed_multiplier` | `int unsigned` | 可选传输配置 |
 | `spi_mode` | `int unsigned` | 可选传输配置 |

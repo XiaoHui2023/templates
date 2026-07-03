@@ -5,51 +5,37 @@ class {{ class_prefix }}check_clock_req extends uvm_sequence_item;
     `uvm_object_utils_begin({{ class_prefix }}check_clock_req)
         `uvm_field_int(check_hclk, UVM_ALL_ON)
         `uvm_field_int(check_ssi_clk, UVM_ALL_ON)
-        `uvm_field_int(check_baud_relation, UVM_ALL_ON)
-        `uvm_field_int(sample_edges, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(timeout_ns, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(check_sclk_out, UVM_ALL_ON)
         `uvm_field_int(tolerance_ppm, UVM_ALL_ON | UVM_DEC)
         `uvm_field_real(min_hclk_hz, UVM_ALL_ON)
-        `uvm_field_real(max_hclk_hz, UVM_ALL_ON)
         `uvm_field_real(min_ssi_clk_hz, UVM_ALL_ON)
-        `uvm_field_real(max_ssi_clk_hz, UVM_ALL_ON)
+        `uvm_field_real(max_sclk_out_hz, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand bit check_hclk;
     rand bit check_ssi_clk;
-    rand bit check_baud_relation;
-    rand int unsigned sample_edges;
-    rand int unsigned timeout_ns;
+    rand bit check_sclk_out;
     rand int unsigned tolerance_ppm;
     real min_hclk_hz;
-    real max_hclk_hz;
     real min_ssi_clk_hz;
-    real max_ssi_clk_hz;
+    real max_sclk_out_hz;
 
     function new(string name="{{ class_prefix }}check_clock_req");
         super.new(name);
         check_hclk = 1'b1;
         check_ssi_clk = 1'b1;
-        check_baud_relation = 1'b1;
-        sample_edges = {{ clock_check_sample_edges }};
-        timeout_ns = {{ clock_check_timeout_ns }};
+        check_sclk_out = 1'b1;
         tolerance_ppm = {{ clock_check_tolerance_ppm }};
-        min_hclk_hz = 0.0;
-        max_hclk_hz = 0.0;
-        min_ssi_clk_hz = 0.0;
-        max_ssi_clk_hz = {{ max_output_hz }}.0;
+        min_hclk_hz = {{ min_hclk_hz }}.0;
+        min_ssi_clk_hz = {{ min_ssi_clk_hz }}.0;
+        max_sclk_out_hz = {{ max_output_hz }}.0;
     endfunction
 
     constraint cst {
-        sample_edges inside {[2:1024]};
-        timeout_ns > 0;
         tolerance_ppm <= 1000000;
-        min_hclk_hz >= 0.0;
-        max_hclk_hz >= 0.0;
-        min_ssi_clk_hz >= 0.0;
-        max_ssi_clk_hz >= 0.0;
-        if (max_hclk_hz > 0.0) min_hclk_hz <= max_hclk_hz;
-        if (max_ssi_clk_hz > 0.0) min_ssi_clk_hz <= max_ssi_clk_hz;
+        min_hclk_hz > 0.0;
+        min_ssi_clk_hz > 0.0;
+        max_sclk_out_hz >= 0.0;
     }
 endclass
 

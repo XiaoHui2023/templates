@@ -9,13 +9,13 @@ num_cs: 4
 default_spi_mode: 0
 default_cs: 0
 default_addr_bytes: 3
+default_rw_data_bytes: 256
 default_baud_div: 2
 fifo_depth_bytes: 32
-input_clock_hz: 12000000
 max_output_hz: 6000000
-clock_check_tolerance_ppm: 50000
-clock_check_sample_edges: 4
-clock_check_timeout_ns: 1000000
+min_hclk_hz: 24000000
+min_ssi_clk_hz: 24000000
+clock_check_tolerance_ppm: 10000
 default_tx_fifo_threshold: 0
 default_rx_fifo_threshold: 0
 default_rx_sample_delay_ns: 0

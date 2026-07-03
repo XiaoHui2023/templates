@@ -14,7 +14,7 @@ class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequ
 
     extern virtual task body();
     extern task run_write_enable(output bit ok);
-    extern task run_chunk(bit [63:0] addr, bit [7:0] chunk[$], output bit ok);
+    extern task run_chunk(bit [31:0] addr, bit [7:0] chunk[$], output bit ok);
 endclass
 
 task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
@@ -49,7 +49,7 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
 endtask
 
 task {{ class_prefix }}flash_write_seq::run_chunk(
-        bit [63:0] addr,
+        bit [31:0] addr,
         bit [7:0] chunk[$],
         output bit ok);
     {{ class_prefix }}transfer_req op_req;

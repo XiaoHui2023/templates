@@ -8,7 +8,7 @@ class {{ class_prefix }}rw_test_req extends uvm_sequence_item;
         `uvm_field_object(configuration, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand bit [63:0] address;
+    rand bit [31:0] address;
     rand bit [7:0] write_data[$];
     rand {{ class_prefix }}transfer_configuration configuration;
 
@@ -16,6 +16,11 @@ class {{ class_prefix }}rw_test_req extends uvm_sequence_item;
         super.new(name);
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
+
+    constraint cst {
+        soft address == '0;
+        soft write_data.size() == {{ default_rw_data_bytes }};
+    }
 endclass
 
 `endif
