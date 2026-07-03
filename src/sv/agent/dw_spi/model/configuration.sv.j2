@@ -44,7 +44,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_object
         ssienr_disable == '0;
         ssienr_enable == 32'h1;
         imr == '0;
-        dmacr == '0;
+        soft dmacr == '0;
         if (settings != null) {
             baudr == settings.default_baud_div;
             txftlr == settings.default_tx_fifo_threshold;

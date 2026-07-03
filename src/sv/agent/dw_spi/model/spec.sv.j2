@@ -8,10 +8,12 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
     typedef enum {PSSI, HSSI} ssi_variant_e;
     typedef enum {TX_AND_RX, TX_ONLY, RX_ONLY, EEPROM_READ} transfer_mode_e;
 
-    localparam int unsigned CTRL0_SPI_FRF_STANDARD = 0;
-    localparam int unsigned CTRL0_SPI_FRF_DUAL = 1;
-    localparam int unsigned CTRL0_SPI_FRF_QUAD = 2;
-    localparam int unsigned CTRL0_SPI_FRF_OCTAL = 3;
+    localparam int unsigned CTRLR0_SPI_FRF_STANDARD = 0;
+    localparam int unsigned CTRLR0_SPI_FRF_DUAL = 1;
+    localparam int unsigned CTRLR0_SPI_FRF_QUAD = 2;
+    localparam int unsigned CTRLR0_SPI_FRF_OCTAL = 3;
+    localparam int unsigned DMACR_RDMAE = 0;
+    localparam int unsigned DMACR_TDMAE = 1;
 
     localparam int unsigned SR_BUSY = 0;
     localparam int unsigned SR_TFNF = 1;

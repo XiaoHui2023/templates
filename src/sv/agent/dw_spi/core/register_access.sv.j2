@@ -61,6 +61,19 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         return v;
     endfunction
 
+    function bit [31:0] dma_control_bits({{ class_prefix }}transfer_req req);
+        bit [31:0] v;
+
+        v = '0;
+        if (req == null || !req.use_dma)
+            return v;
+        if (req.transfer_mode inside {RX_ONLY, EEPROM_READ})
+            v[DMACR_RDMAE] = 1'b1;
+        if (req.transfer_mode inside {TX_ONLY, TX_AND_RX})
+            v[DMACR_TDMAE] = 1'b1;
+        return v;
+    endfunction
+
     function void build_configuration(
             {{ class_prefix }}transfer_req req,
             output {{ class_prefix }}configuration cfg);
@@ -84,6 +97,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 } else {
                     ctrlr1 == 0;
                 }
+                dmacr == dma_control_bits(req);
                 ser == (32'h1 << req.cs_id);
             })
             `uvm_fatal("DW_SPI_REG", "failed to randomize register configuration")
@@ -105,10 +119,10 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ICR failed status=%s", status.name()))
         settings.regmodel.SER.write(status, '0);
         if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
-        settings.regmodel.CTRL0.write(status, cfg.ctrlr0);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRL0 failed status=%s", status.name()))
-        settings.regmodel.CTRL1.write(status, cfg.ctrlr1);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRL1 failed status=%s", status.name()))
+        settings.regmodel.CTRLR0.write(status, cfg.ctrlr0);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRLR0 failed status=%s", status.name()))
+        settings.regmodel.CTRLR1.write(status, cfg.ctrlr1);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRLR1 failed status=%s", status.name()))
         settings.regmodel.BAUDR.write(status, cfg.baudr);
         if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write BAUDR failed status=%s", status.name()))
         settings.regmodel.TXFTLR.write(status, cfg.txftlr);

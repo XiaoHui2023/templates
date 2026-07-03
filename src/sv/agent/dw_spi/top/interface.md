@@ -42,6 +42,7 @@
 | `baudr_for_target(ssi_clk_hz, target_hz)` | 计算不小于 2 的偶数 BAUDR，满足 `ssi_clk_hz / BAUDR` 不超过目标频率 |
 | `measure_hclk_frequency_hz(frequency_hz, min_frequency_hz)` | 调用 `hclk_if` 测量 `hclk` 频率 |
 | `measure_ssi_clk_frequency_hz(frequency_hz, min_frequency_hz)` | 调用 `ssi_clk_if` 测量 `ssi_clk` 频率 |
+| `wait_interrupt_asserted(timeout_ssi_clk_cycles, timed_out, missing_signal)` | 等待 `intr` 拉高；用 `ssi_clk` 计数超时，缺少 `intr` 或 `ssi_clk` 时置 `missing_signal` |
 
 ## `dw_spi_clock_if`
 
@@ -64,6 +65,8 @@
 ## sequence 使用
 
 `sequence/operation/check_clock` 通过 `p_sequencer.settings.vif` 访问 `dw_spi_interface`。
+
+`sequence/operation/transfer` 发起传输后通过 `wait_interrupt_asserted()` 等待 `intr`。超过 `settings.interrupt_timeout_ssi_clk_cycles` 个 `ssi_clk` 周期时 fatal，防止仿真卡死。
 
 当 `hclk` 或 `ssi_clk` 未连接时，检查会跳过对应时钟。
 

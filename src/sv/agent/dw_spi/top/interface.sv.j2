@@ -44,6 +44,33 @@ interface {{ class_prefix }}interface(
     task automatic measure_ssi_clk_frequency_hz(output real frequency_hz, input real min_frequency_hz);
         ssi_clk_if.measure_frequency_hz(frequency_hz, min_frequency_hz);
     endtask
+
+    task automatic wait_interrupt_asserted(
+            input int unsigned timeout_ssi_clk_cycles,
+            output bit timed_out,
+            output bit missing_signal);
+        timed_out = 1'b0;
+        missing_signal = 1'b0;
+        if (!has_irq() || !has_ssi_clk()) begin
+            missing_signal = 1'b1;
+            return;
+        end
+        if (interrupt_if.is_asserted())
+            return;
+        fork
+            begin
+                @(posedge intr);
+            end
+            begin
+                repeat (timeout_ssi_clk_cycles)
+                    @(posedge ssi_clk);
+                timed_out = 1'b1;
+            end
+        join_any
+        disable fork;
+        if (interrupt_if.is_asserted())
+            timed_out = 1'b0;
+    endtask
 endinterface
 
 `endif

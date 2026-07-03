@@ -52,7 +52,7 @@ uvm_sequence_item
 | `frame_mode_e` | 标准/增强模式：`STANDARD`、`ENHANCED`。 |
 | `ssi_variant_e` | 控制器变体：`PSSI`、`HSSI`。 |
 | `transfer_mode_e` | 传输方向：`TX_AND_RX`、`TX_ONLY`、`RX_ONLY`、`EEPROM_READ`。 |
-| `CTRL0_SPI_FRF_*` | DesignWare `CTRL0.SPI_FRF` 编码。 |
+| `CTRLR0_SPI_FRF_*` | DesignWare `CTRLR0.SPI_FRF` 编码。 |
 | `SR_*` | `SR` 状态位索引。 |
 | `ISR_DONES` | `ISR.DONES` 位索引。 |
 | `MEMH_MAX_BYTES_PER_LINE` | memh 解析时单行最大字节数。 |
@@ -65,17 +65,18 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 | 字段 | 用途 |
 | --- | --- |
-| `ssi_variant` | `core/register_access.sv` 根据 PSSI/HSSI 选择 `CTRL0` bit packing。 |
+| `ssi_variant` | `core/register_access.sv` 根据 PSSI/HSSI 选择 `CTRLR0` bit packing。 |
 | `default_baud_div` | 默认 `BAUDR` 分频值。 |
 | `fifo_depth_bytes` | FIFO 阈值约束和默认值边界。默认 32 字节。 |
 | `max_output_hz` | `sclk_out = ssi_clk / BAUDR` 的最大输出频率约束。 |
 | `min_hclk_hz` | optional clock check 的 `hclk` 最低频率，默认 24MHz。 |
 | `min_ssi_clk_hz` | optional clock check 的 `ssi_clk` 最低频率，默认 24MHz。 |
 | `clock_check_tolerance_ppm` | optional clock check 的频率容差，默认 1%。 |
+| `interrupt_timeout_ssi_clk_cycles` | transfer 等待 `intr` 的 `ssi_clk` 周期上限，超时直接 `uvm_fatal`。 |
 | `default_tx_fifo_threshold` | 默认 TX FIFO threshold。 |
 | `default_rx_fifo_threshold` | 默认 RX FIFO threshold。 |
 | `default_rx_sample_delay_ns` | 默认 `RX_SAMPLE_DLY`。 |
-| `regmodel` | UVM RAL 句柄。寄存器访问使用大写 REG/FIELD，例如 `settings.regmodel.CTRL0`。 |
+| `regmodel` | UVM RAL 句柄。寄存器访问使用大写 REG/FIELD，例如 `settings.regmodel.CTRLR0`。 |
 | `vif` | top interface 句柄，用于中断、时钟测量、可选子 interface。 |
 
 `settings` 不保存单次传输协议形态，不保存 flash 几何信息。
@@ -97,10 +98,11 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 | 字段 | 用途 |
 | --- | --- |
-| `host_mode` | 主机/从机模式；影响 `CTRL0.SSI_IS_MST` 和 sequence 行为。 |
+| `host_mode` | 主机/从机模式；影响 `CTRLR0.SSI_IS_MST` 和 sequence 行为。 |
 | `frame_mode` | 标准/增强模式；增强模式允许 2/4/8 倍速。 |
 | `io_lanes` | 1/2/4 线传输选择。 |
-| `speed_multiplier` | 1/2/4/8 倍速；映射到 `CTRL0.SPI_FRF`。 |
+| `speed_multiplier` | 1/2/4/8 倍速；映射到 `CTRLR0.SPI_FRF`。 |
+| `use_dma` | 本次 transfer 是否配置 `DMACR` 并使用内置 DMA mover 搬运 payload。 |
 | `spi_mode` | SPI mode 0-3；用于 CPOL/CPHA 相关配置。 |
 | `data_frame_bits` | 每帧数据位宽。 |
 | `cs_id` | 片选编号；用于 `SER` 和 callback 控制。 |
@@ -108,6 +110,8 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `dummy_cycles` | flash read dummy cycle 数。 |
 
 这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。主机测试默认创建 `host_configuration`，从机测试可显式创建 `slave_configuration`。
+
+`use_dma` 的默认值来自 Python `default_use_dma`。如果 Python `support_dma` 为 false，生成的 transfer configuration 和 operation req 会约束 `use_dma == 0`。
 
 `rw_test_req` 的 `address` 默认约束为 0。`write_data` 为空时，test sequence 会随机生成一段数据；长度由 Python 配置 `default_rw_data_bytes` 生成，默认 256 字节。
 
@@ -117,8 +121,8 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 | 字段 | 用途 |
 | --- | --- |
-| `ctrlr0` | 写入 `CTRL0` 的完整配置值。 |
-| `ctrlr1` | 写入 `CTRL1` 的配置值。 |
+| `ctrlr0` | 写入 `CTRLR0` 的完整配置值。 |
+| `ctrlr1` | 写入 `CTRLR1` 的配置值。 |
 | `ssienr_disable` | disable SSI 时写入 `SSIENR` 的值。 |
 | `ssienr_enable` | enable SSI 时写入 `SSIENR` 的值。 |
 | `ser` | 写入 `SER` 的片选 mask。 |

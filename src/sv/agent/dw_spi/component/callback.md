@@ -2,7 +2,7 @@
 
 `callback` 挂在 `dw_spi_sequencer` 上，只用于注入片选行为。
 
-寄存器配置不使用 callback，也不通过 sequencer 封装通用读写。需要配置寄存器时，operation/core 直接使用大写 REG/FIELD 句柄，例如 `settings.regmodel.CTRL0.write/read`。
+寄存器配置不使用 callback，也不通过 sequencer 封装通用读写。需要配置寄存器时，operation/core 直接使用大写 REG/FIELD 句柄，例如 `settings.regmodel.CTRLR0.write/read`。
 
 ## 注入方式
 

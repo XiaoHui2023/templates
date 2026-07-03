@@ -2,9 +2,9 @@
 
 ## REG/FIELD 命名
 
-代码访问 regmodel 时使用大写 REG/FIELD 句柄，例如 `regmodel.CTRL0`、`regmodel.BAUDR`、`CTRL0.SPI_FRF`。公开资料里的 `CTRLR0` 在本项目 regmodel 中对应 `CTRL0`。
+代码访问 regmodel 时使用大写 REG/FIELD 句柄，例如 `regmodel.CTRLR0`、`regmodel.BAUDR`、`CTRLR0.SPI_FRF`。
 
-## CTRL0
+## CTRLR0
 
 | Field | Value | Effect |
 |---|---:|---|
@@ -19,9 +19,18 @@
 
 `BAUDR` 只能写 2 的倍数。
 
-输出频率 = 输入时钟频率 / `BAUDR`。
+`sclk_out = ssi_clk / BAUDR`。
 
-输出频率最大按 6 MHz 约束，常用配置为 6 MHz。
+`ssi_clk` 是输入 DesignWare SPI/SSI 控制器的参考时钟。输出到从机的频率最大按 6 MHz 约束，常用配置为 6 MHz。
+
+## DMACR
+
+| Field | Bit | Effect |
+|---|---:|---|
+| `RDMAE` | `0` | 使能接收 DMA request |
+| `TDMAE` | `1` | 使能发送 DMA request |
+
+当 transfer 的 `use_dma` 为 1 时，寄存器配置根据传输方向打开对应 bit：读类传输打开 `RDMAE`，写类传输打开 `TDMAE`。
 
 ## SR
 

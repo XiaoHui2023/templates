@@ -9,6 +9,7 @@ num_cs: 4
 default_spi_mode: 0
 default_cs: 0
 default_addr_bytes: 3
+default_use_dma: false
 default_rw_data_bytes: 256
 default_baud_div: 2
 fifo_depth_bytes: 32
@@ -16,10 +17,12 @@ max_output_hz: 6000000
 min_hclk_hz: 24000000
 min_ssi_clk_hz: 24000000
 clock_check_tolerance_ppm: 10000
+interrupt_timeout_ssi_clk_cycles: 1000000
 default_tx_fifo_threshold: 0
 default_rx_fifo_threshold: 0
 default_rx_sample_delay_ns: 0
 support_rx_sample_delay: true
+support_dma: true
 support_master: true
 support_slave: true
 support_standard: true

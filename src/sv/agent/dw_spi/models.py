@@ -64,6 +64,10 @@ class Models(BaseModel):
         3,
         description="Default flash address phase width in bytes.",
     )
+    default_use_dma: bool = Field(
+        False,
+        description="Default DMA movement mode used by per-transfer configuration constraints.",
+    )
     default_rw_data_bytes: int = Field(
         256,
         ge=1,
@@ -103,6 +107,11 @@ class Models(BaseModel):
         le=1_000_000,
         description="Default tolerance used by clock check sequences.",
     )
+    interrupt_timeout_ssi_clk_cycles: int = Field(
+        1_000_000,
+        ge=1,
+        description="Maximum ssi_clk cycles to wait for intr before transfer sequences fatal.",
+    )
     default_tx_fifo_threshold: int = Field(
         0,
         ge=0,
@@ -123,6 +132,10 @@ class Models(BaseModel):
     support_rx_sample_delay: bool = Field(
         True,
         description="Allow transfers to request receive sample delay.",
+    )
+    support_dma: bool = Field(
+        True,
+        description="Allow transfer operation to enable controller DMA request registers and use the built-in DMA mover.",
     )
     support_master: bool = Field(
         True,

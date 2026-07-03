@@ -48,6 +48,7 @@ task {{ class_prefix }}flash_read_seq::body();
     op_req.inst_bytes = 1;
     op_req.addr_bytes = cfg.addr_bytes;
     op_req.dummy_cycles = cfg.dummy_cycles;
+    op_req.use_dma = cfg.use_dma;
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
