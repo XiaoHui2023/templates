@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "slave_configuration") | upper }}
+`define {{ (class_prefix ~ "slave_configuration") | upper }}
+
+class {{ class_prefix }}slave_configuration extends {{ class_prefix }}transfer_configuration;
+    `uvm_object_utils({{ class_prefix }}slave_configuration)
+
+    function new(string name="{{ class_prefix }}slave_configuration");
+        super.new(name);
+    endfunction
+
+    constraint cst_slave {
+        host_mode == SLAVE;
+    }
+endclass
+
+`endif

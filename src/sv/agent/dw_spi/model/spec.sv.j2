@@ -1,0 +1,30 @@
+`ifndef {{ (class_prefix ~ "spec") | upper }}
+`define {{ (class_prefix ~ "spec") | upper }}
+
+class {{ class_prefix }}spec#(type T = uvm_object) extends T;
+    typedef enum {MASTER, SLAVE} host_mode_e;
+    typedef enum {GENERAL_SPI, FLASH_SPI} protocol_e;
+    typedef enum {STANDARD, ENHANCED} frame_mode_e;
+    typedef enum {PSSI, HSSI} ssi_variant_e;
+    typedef enum {TX_AND_RX, TX_ONLY, RX_ONLY, EEPROM_READ} transfer_mode_e;
+
+    localparam int unsigned CTRL0_SPI_FRF_STANDARD = 0;
+    localparam int unsigned CTRL0_SPI_FRF_DUAL = 1;
+    localparam int unsigned CTRL0_SPI_FRF_QUAD = 2;
+    localparam int unsigned CTRL0_SPI_FRF_OCTAL = 3;
+
+    localparam int unsigned SR_BUSY = 0;
+    localparam int unsigned SR_TFNF = 1;
+    localparam int unsigned SR_TFE = 2;
+    localparam int unsigned SR_RFNE = 3;
+    localparam int unsigned SR_RFF = 4;
+
+    localparam int unsigned ISR_DONES = 0;
+    localparam int unsigned MEMH_MAX_BYTES_PER_LINE = {{ memh_max_bytes_per_line }};
+
+    function new(string name="{{ class_prefix }}spec");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

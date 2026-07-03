@@ -21,21 +21,27 @@ class Models(BaseModel):
         "dw_spi_regmodel",
         description="SystemVerilog type used for the DesignWare SPI register model handle in settings.",
     )
-    max_io_lanes: Literal[1, 2, 4] = Field(
-        4,
-        description="Maximum SPI data lanes supported by the generated agent configuration.",
-    )
-    max_speed_multiplier: Literal[1, 2, 4, 8] = Field(
-        4,
-        description="Maximum transfer-rate multiplier supported by the generated agent configuration.",
-    )
     ssi_variant: Literal["PSSI", "HSSI"] = Field(
         "PSSI",
         description="DesignWare SSI register-layout family used by controller-facing flows.",
     )
-    max_data_frame_bits: Literal[8, 16, 32] = Field(
+    default_io_lanes: Literal[1, 2, 4] = Field(
+        4,
+        description="Default SPI data lanes used by per-transfer configuration constraints.",
+    )
+    default_speed_multiplier: Literal[1, 2, 4, 8] = Field(
+        4,
+        description="Default transfer-rate multiplier used by per-transfer configuration constraints.",
+    )
+    default_frame_mode: Literal["STANDARD", "ENHANCED"] = Field(
+        "ENHANCED",
+        description="Default standard/enhanced transfer mode used by per-transfer configuration constraints.",
+    )
+    default_data_frame_bits: int = Field(
         32,
-        description="Maximum data frame size accepted by transfer constraints.",
+        ge=4,
+        le=32,
+        description="Default data frame size used by per-transfer configuration constraints.",
     )
     num_cs: int = Field(
         4,
@@ -118,10 +124,6 @@ class Models(BaseModel):
         True,
         description="Allow transfers to request receive sample delay.",
     )
-    support_dma: bool = Field(
-        True,
-        description="Allow transfers to mark DMA-backed movement.",
-    )
     support_master: bool = Field(
         True,
         description="Allow master-mode transfers.",
@@ -145,24 +147,6 @@ class Models(BaseModel):
     support_flash_spi: bool = Field(
         True,
         description="Allow SPI flash style traffic.",
-    )
-    flash_size_bytes: int = Field(
-        16 * 1024 * 1024,
-        ge=1,
-        le=2**31 - 1,
-        description="Addressable flash-model size in bytes.",
-    )
-    flash_page_size: int = Field(
-        256,
-        ge=1,
-        le=4096,
-        description="Page-program chunk size used by flash write flows.",
-    )
-    flash_erase_value: int = Field(
-        0xFF,
-        ge=0,
-        le=0xFF,
-        description="Byte value used for unprogrammed flash memory.",
     )
     memh_max_bytes_per_line: int = Field(
         16,
@@ -196,15 +180,21 @@ class Models(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _validate_flash_page_size(self) -> Models:
-        if self.flash_page_size > self.flash_size_bytes:
-            raise ValueError("flash_page_size must not exceed flash_size_bytes")
-        return self
-
-    @model_validator(mode="after")
     def _validate_default_cs(self) -> Models:
         if self.default_cs >= self.num_cs:
             raise ValueError("default_cs must be less than num_cs")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_transfer_defaults(self) -> Models:
+        if self.default_frame_mode == "STANDARD" and self.default_speed_multiplier != 1:
+            raise ValueError("default_speed_multiplier must be 1 when default_frame_mode is STANDARD")
+        if self.default_speed_multiplier > 1 and self.default_frame_mode != "ENHANCED":
+            raise ValueError("default_frame_mode must be ENHANCED when default_speed_multiplier is greater than 1")
+        if self.default_frame_mode == "STANDARD" and not self.support_standard:
+            raise ValueError("default_frame_mode STANDARD requires support_standard")
+        if self.default_frame_mode == "ENHANCED" and not self.support_enhanced:
+            raise ValueError("default_frame_mode ENHANCED requires support_enhanced")
         return self
 
     @model_validator(mode="after")

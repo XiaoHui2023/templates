@@ -19,10 +19,16 @@ class {{ class_prefix }}agent extends uvm_agent;
 endclass
 
 function void {{ class_prefix }}agent::build_phase(uvm_phase phase);
+    bit got_settings;
+
     super.build_phase(phase);
-    void'(uvm_config_db #({{ class_prefix }}settings)::get(this, "", "settings", settings));
-    if (settings == null)
-        `uvm_fatal("DW_SPI", "agent settings is null")
+    got_settings = uvm_config_db #({{ class_prefix }}settings)::get(this, "", "settings", settings);
+    if (!got_settings || settings == null) begin
+        settings = {{ class_prefix }}settings::type_id::create("settings");
+        if (!settings.randomize())
+            `uvm_fatal("DW_SPI", "failed to randomize auto-created agent settings")
+        `uvm_info("DW_SPI", $sformatf("auto-created agent settings:\n%s", settings.sprint()), UVM_LOW)
+    end
     uvm_config_db #({{ class_prefix }}settings)::set(this, "sb", "settings", settings);
     uvm_config_db #({{ class_prefix }}settings)::set(this, "sqr", "settings", settings);
     uvm_config_db #({{ class_prefix }}scoreboard)::set(this, "sqr", "scoreboard", sb);

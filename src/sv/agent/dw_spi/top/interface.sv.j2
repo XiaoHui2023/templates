@@ -10,7 +10,7 @@ interface {{ class_prefix }}interface(
 
     {{ class_prefix }}clock_if hclk_if(.clk(hclk));
     {{ class_prefix }}clock_if ssi_clk_if(.clk(ssi_clk));
-    {{ class_prefix }}irq_if irq_if(.intr(intr));
+    {{ class_prefix }}interrupt_if interrupt_if(.intr(intr));
 
     function bit has_hclk();
         return hclk_if.is_connected();
@@ -21,7 +21,7 @@ interface {{ class_prefix }}interface(
     endfunction
 
     function bit has_irq();
-        return irq_if.is_connected();
+        return interrupt_if.is_connected();
     endfunction
 
     function int unsigned baudr_for_target(real input_hz, real target_hz);

@@ -1,7 +1,7 @@
-`ifndef {{ (class_prefix ~ "irq_if") | upper }}
-`define {{ (class_prefix ~ "irq_if") | upper }}
+`ifndef {{ (class_prefix ~ "interrupt_if") | upper }}
+`define {{ (class_prefix ~ "interrupt_if") | upper }}
 
-interface {{ class_prefix }}irq_if(input logic intr);
+interface {{ class_prefix }}interrupt_if(input logic intr);
     timeunit 1ns;
     timeprecision 1fs;
 

@@ -1,20 +1,7 @@
 `ifndef {{ (class_prefix ~ "configuration") | upper }}
 `define {{ (class_prefix ~ "configuration") | upper }}
 
-class {{ class_prefix }}configuration extends uvm_object;
-    localparam int unsigned CTRL0_SPI_FRF_STANDARD = 0;
-    localparam int unsigned CTRL0_SPI_FRF_DUAL = 1;
-    localparam int unsigned CTRL0_SPI_FRF_QUAD = 2;
-    localparam int unsigned CTRL0_SPI_FRF_OCTAL = 3;
-
-    localparam int unsigned SR_BUSY = 0;
-    localparam int unsigned SR_TFNF = 1;
-    localparam int unsigned SR_TFE = 2;
-    localparam int unsigned SR_RFNE = 3;
-    localparam int unsigned SR_RFF = 4;
-
-    localparam int unsigned ISR_DONES = 0;
-
+class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_object);
     `uvm_object_utils_begin({{ class_prefix }}configuration)
         `uvm_field_int(ctrlr0, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(ctrlr1, UVM_ALL_ON | UVM_HEX)

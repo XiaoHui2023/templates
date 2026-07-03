@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "register_access") | upper }}
 `define {{ (class_prefix ~ "register_access") | upper }}
 
-class {{ class_prefix }}register_access extends uvm_object;
+class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_object);
     `uvm_object_utils({{ class_prefix }}register_access)
 
     {{ class_prefix }}settings settings;
@@ -10,12 +10,12 @@ class {{ class_prefix }}register_access extends uvm_object;
         super.new(name);
     endfunction
 
-    function bit [1:0] transfer_mode_bits({{ class_prefix }}settings::transfer_mode_e mode);
+    function bit [1:0] transfer_mode_bits(transfer_mode_e mode);
         case (mode)
-            {{ class_prefix }}settings::TX_AND_RX: return 2'h0;
-            {{ class_prefix }}settings::TX_ONLY: return 2'h1;
-            {{ class_prefix }}settings::RX_ONLY: return 2'h2;
-            {{ class_prefix }}settings::EEPROM_READ: return 2'h3;
+            TX_AND_RX: return 2'h0;
+            TX_ONLY: return 2'h1;
+            RX_ONLY: return 2'h2;
+            EEPROM_READ: return 2'h3;
             default: return 2'h0;
         endcase
     endfunction
@@ -38,13 +38,13 @@ class {{ class_prefix }}register_access extends uvm_object;
         v = '0;
         dfs = req.data_frame_bits - 1;
         tmod = transfer_mode_bits(req.transfer_mode);
-        if (settings.ssi_variant == {{ class_prefix }}settings::HSSI) begin
+        if (settings.ssi_variant == HSSI) begin
             v[4:0] = dfs[4:0];
             v[7:6] = spi_frf_bits(req.speed_multiplier);
             v[8] = req.spi_mode[0];
             v[9] = req.spi_mode[1];
             v[11:10] = tmod;
-            if (req.host_mode == {{ class_prefix }}settings::MASTER)
+            if (req.host_mode == MASTER)
                 v[31] = 1'b1;
         end else begin
             if (req.data_frame_bits > 16)
@@ -55,7 +55,7 @@ class {{ class_prefix }}register_access extends uvm_object;
             v[6] = req.spi_mode[0];
             v[7] = req.spi_mode[1];
             v[9:8] = tmod;
-            if (req.host_mode == {{ class_prefix }}settings::SLAVE)
+            if (req.host_mode == SLAVE)
                 v[10] = 1'b1;
         end
         return v;
@@ -77,8 +77,8 @@ class {{ class_prefix }}register_access extends uvm_object;
         length = req.payload.get_data_length();
         if (!cfg.randomize() with {
                 if (req.transfer_mode inside {
-                        {{ class_prefix }}settings::RX_ONLY,
-                        {{ class_prefix }}settings::EEPROM_READ
+                        RX_ONLY,
+                        EEPROM_READ
                     }) {
                     ctrlr1 == (length > 0 ? length - 1 : 0);
                 } else {

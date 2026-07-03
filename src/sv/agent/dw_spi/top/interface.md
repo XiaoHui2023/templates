@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | `hclk_if` | `dw_spi_clock_if` | `hclk` 连接状态与频率测量 |
 | `ssi_clk_if` | `dw_spi_clock_if` | `ssi_clk` 连接状态与频率测量 |
-| `irq_if` | `dw_spi_irq_if` | `intr` 连接状态与断言检查 |
+| `interrupt_if` | `dw_spi_interrupt_if` | `intr` 连接状态与断言检查 |
 
 ### 查询函数
 
@@ -52,9 +52,9 @@
 | `is_connected()` | `clk` 不是 X/Z |
 | `measure_frequency_hz(frequency_hz, sample_edges, timeout_ns)` | 采样多个上升沿并计算频率；未连接或超时返回 `0.0` |
 
-## `dw_spi_irq_if`
+## `dw_spi_interrupt_if`
 
-`irq_if` 接收中断端口 `intr`。
+`interrupt_if` 接收中断端口 `intr`。
 
 | 函数 | 返回 | 说明 |
 | --- | --- | --- |

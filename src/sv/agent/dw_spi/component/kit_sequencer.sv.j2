@@ -9,13 +9,39 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     endfunction
 
     extern task init_registers({{ class_prefix }}transfer_req transfer_req);
-    extern task flash_write(bit [63:0] address, bit [7:0] data[$]);
-    extern task flash_read(output bit [7:0] data[$], bit [63:0] address, int unsigned length);
-    extern task check_clocks(output {{ class_prefix }}check_clock_rsp result);
-    extern task rw_test(output {{ class_prefix }}rw_test_rsp result,
+    extern task flash_write(bit [63:0] address,
+        bit [7:0] data[$],
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
+    extern task flash_read(bit [63:0] address,
+        int unsigned length,
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
+    extern task check_clocks();
+    extern task rw_test(
         bit [63:0] address,
         bit [7:0] write_data[$],
-        bit [7:0] actual_read_data[$]);
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
+    extern function {{ class_prefix }}host_configuration build_host_configuration(
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
 endclass
 
 task {{ class_prefix }}kit_sequencer::init_registers({{ class_prefix }}transfer_req transfer_req);
@@ -33,7 +59,42 @@ task {{ class_prefix }}kit_sequencer::init_registers({{ class_prefix }}transfer_
         `uvm_fatal("DW_SPI", "init_registers failed")
 endtask
 
-task {{ class_prefix }}kit_sequencer::flash_write(bit [63:0] address, bit [7:0] data[$]);
+function {{ class_prefix }}host_configuration {{ class_prefix }}kit_sequencer::build_host_configuration(
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
+    {{ class_prefix }}host_configuration cfg;
+
+    cfg = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    cfg.io_lanes = io_lanes;
+    cfg.speed_multiplier = speed_multiplier;
+    cfg.spi_mode = spi_mode;
+    cfg.data_frame_bits = data_frame_bits;
+    cfg.cs_id = cs_id;
+    cfg.addr_bytes = addr_bytes;
+    cfg.io_lanes.rand_mode(0);
+    cfg.speed_multiplier.rand_mode(0);
+    cfg.spi_mode.rand_mode(0);
+    cfg.data_frame_bits.rand_mode(0);
+    cfg.cs_id.rand_mode(0);
+    cfg.addr_bytes.rand_mode(0);
+    if (!cfg.randomize())
+        `uvm_fatal("DW_SPI", "failed to randomize host transfer configuration")
+    return cfg;
+endfunction
+
+task {{ class_prefix }}kit_sequencer::flash_write(
+        bit [63:0] address,
+        bit [7:0] data[$],
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
     {{ class_prefix }}flash_write_req req;
     {{ class_prefix }}flash_write_rsp seq_rsp;
     {{ class_prefix }}flash_write_seq seq;
@@ -41,13 +102,8 @@ task {{ class_prefix }}kit_sequencer::flash_write(bit [63:0] address, bit [7:0] 
     req = {{ class_prefix }}flash_write_req::type_id::create("req");
     req.address = address;
     req.data = data;
-    req.io_lanes = settings.default_io_lanes;
-    req.speed_multiplier = settings.default_speed_multiplier;
-    req.spi_mode = settings.default_spi_mode;
-    req.data_frame_bits = settings.default_data_frame_bits;
-    req.cs_id = settings.default_cs;
-    req.addr_bytes = settings.default_addr_bytes;
-    req.frame_mode = settings.default_frame_mode;
+    req.configuration = build_host_configuration(
+        io_lanes, speed_multiplier, spi_mode, data_frame_bits, cs_id, addr_bytes);
     seq = {{ class_prefix }}flash_write_seq::type_id::create("flash_write");
     seq.req = req;
     seq.start(this);
@@ -57,36 +113,34 @@ task {{ class_prefix }}kit_sequencer::flash_write(bit [63:0] address, bit [7:0] 
 endtask
 
 task {{ class_prefix }}kit_sequencer::flash_read(
-        output bit [7:0] data[$],
         bit [63:0] address,
-        int unsigned length);
+        int unsigned length,
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
     {{ class_prefix }}flash_read_req req;
     {{ class_prefix }}flash_read_rsp seq_rsp;
     {{ class_prefix }}flash_read_seq seq;
 
-    data.delete();
     req = {{ class_prefix }}flash_read_req::type_id::create("req");
     req.address = address;
     req.length = length;
-    req.io_lanes = settings.default_io_lanes;
-    req.speed_multiplier = settings.default_speed_multiplier;
-    req.spi_mode = settings.default_spi_mode;
-    req.data_frame_bits = settings.default_data_frame_bits;
-    req.cs_id = settings.default_cs;
-    req.addr_bytes = settings.default_addr_bytes;
-    req.frame_mode = settings.default_frame_mode;
-    req.dummy_cycles = settings.default_frame_mode == {{ class_prefix }}settings::ENHANCED ? 8 : 0;
+    req.configuration = build_host_configuration(
+        io_lanes, speed_multiplier, spi_mode, data_frame_bits, cs_id, addr_bytes);
     seq = {{ class_prefix }}flash_read_seq::type_id::create("flash_read");
     seq.req = req;
     seq.start(this);
     seq_rsp = seq.rsp;
     if (seq_rsp == null || !seq_rsp.ok)
         `uvm_fatal("DW_SPI", "flash_read failed")
-    data = seq_rsp.data;
 endtask
 
-task {{ class_prefix }}kit_sequencer::check_clocks(output {{ class_prefix }}check_clock_rsp result);
+task {{ class_prefix }}kit_sequencer::check_clocks();
     {{ class_prefix }}check_clock_req req;
+    {{ class_prefix }}check_clock_rsp seq_rsp;
     {{ class_prefix }}check_clock_seq seq;
 
     req = {{ class_prefix }}check_clock_req::type_id::create("req");
@@ -97,35 +151,34 @@ task {{ class_prefix }}kit_sequencer::check_clocks(output {{ class_prefix }}chec
     seq = {{ class_prefix }}check_clock_seq::type_id::create("check_clock");
     seq.req = req;
     seq.start(this);
-    result = seq.rsp;
-    if (result == null || !result.ok)
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
         `uvm_fatal("DW_SPI", "check_clocks failed")
 endtask
 
 task {{ class_prefix }}kit_sequencer::rw_test(
-        output {{ class_prefix }}rw_test_rsp result,
         bit [63:0] address,
         bit [7:0] write_data[$],
-        bit [7:0] actual_read_data[$]);
+        int unsigned io_lanes = {{ default_io_lanes }},
+        int unsigned speed_multiplier = {{ default_speed_multiplier }},
+        int unsigned spi_mode = {{ default_spi_mode }},
+        int unsigned data_frame_bits = {{ default_data_frame_bits }},
+        int unsigned cs_id = {{ default_cs }},
+        int unsigned addr_bytes = {{ default_addr_bytes }});
     {{ class_prefix }}rw_test_req req;
+    {{ class_prefix }}rw_test_rsp seq_rsp;
     {{ class_prefix }}rw_test_seq seq;
 
     req = {{ class_prefix }}rw_test_req::type_id::create("req");
     req.address = address;
     req.write_data = write_data;
-    req.actual_read_data = actual_read_data;
-    req.io_lanes = settings.default_io_lanes;
-    req.speed_multiplier = settings.default_speed_multiplier;
-    req.spi_mode = settings.default_spi_mode;
-    req.data_frame_bits = settings.default_data_frame_bits;
-    req.cs_id = settings.default_cs;
-    req.addr_bytes = settings.default_addr_bytes;
-    req.frame_mode = settings.default_frame_mode;
+    req.configuration = build_host_configuration(
+        io_lanes, speed_multiplier, spi_mode, data_frame_bits, cs_id, addr_bytes);
     seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test");
     seq.req = req;
     seq.start(this);
-    result = seq.rsp;
-    if (result == null || !result.ok)
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
         `uvm_fatal("DW_SPI", "rw_test failed")
 endtask
 

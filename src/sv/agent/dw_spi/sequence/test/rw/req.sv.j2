@@ -5,29 +5,16 @@ class {{ class_prefix }}rw_test_req extends uvm_sequence_item;
     `uvm_object_utils_begin({{ class_prefix }}rw_test_req)
         `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
         `uvm_field_queue_int(write_data, UVM_ALL_ON | UVM_HEX)
-        `uvm_field_queue_int(actual_read_data, UVM_ALL_ON | UVM_HEX)
-        `uvm_field_int(io_lanes, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(speed_multiplier, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(cs_id, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_enum({{ class_prefix }}settings::frame_mode_e, frame_mode, UVM_ALL_ON)
+        `uvm_field_object(configuration, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand bit [63:0] address;
     rand bit [7:0] write_data[$];
-    bit [7:0] actual_read_data[$];
-    rand int unsigned io_lanes;
-    rand int unsigned speed_multiplier;
-    rand int unsigned spi_mode;
-    rand int unsigned data_frame_bits;
-    rand int unsigned cs_id;
-    rand int unsigned addr_bytes;
-    rand {{ class_prefix }}settings::frame_mode_e frame_mode;
+    rand {{ class_prefix }}transfer_configuration configuration;
 
     function new(string name="{{ class_prefix }}rw_test_req");
         super.new(name);
+        configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
 endclass
 

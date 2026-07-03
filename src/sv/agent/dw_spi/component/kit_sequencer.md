@@ -2,7 +2,22 @@
 
 `kit_sequencer` 是 `sequencer` 的便捷 facade。
 
-它只负责创建 req/seq、补默认参数、启动 sequence、汇总 output。不要在 `kit_sequencer` 中实现寄存器配置、传输执行、scoreboard 比较或 callback 行为。
+它只负责创建 req/seq、补默认参数、启动 sequence、检查 rsp 是否成功。不要在 `kit_sequencer` 中实现寄存器配置、传输执行、scoreboard 比较或 callback 行为。
+
+## 传输配置入参
+
+flash 相关快捷入口可以输入单次传输配置。所有配置入参都有 Python model 生成的默认值。
+
+| 参数 | 说明 |
+| --- | --- |
+| `io_lanes` | 本次传输使用 1/2/4 线。 |
+| `speed_multiplier` | 本次传输使用 1/2/4/8 倍速。 |
+| `spi_mode` | SPI mode 0-3。 |
+| `data_frame_bits` | 数据帧位宽。 |
+| `cs_id` | 片选编号。 |
+| `addr_bytes` | flash 地址阶段字节数。 |
+
+kit 会创建 `host_configuration`，把这些入参固定，再 randomize 其余字段。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
 
 ## 快捷入口
 
@@ -22,36 +37,49 @@
 | --- | --- | --- |
 | `address` | `bit [63:0]` | flash 起始地址 |
 | `data` | `bit [7:0] $` | 写入数据 |
+| `io_lanes` | `int unsigned` | 可选传输配置 |
+| `speed_multiplier` | `int unsigned` | 可选传输配置 |
+| `spi_mode` | `int unsigned` | 可选传输配置 |
+| `data_frame_bits` | `int unsigned` | 可选传输配置 |
+| `cs_id` | `int unsigned` | 可选传输配置 |
+| `addr_bytes` | `int unsigned` | 可选传输配置 |
 
 ### `flash_read`
 
-启动 flash 读 flow。
+启动 flash 读 flow。读回数据不从 kit API 输出；flow 内部的 rsp 和 scoreboard 路径负责校验。
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `data` | `output bit [7:0] $` | 读回数据 |
 | `address` | `bit [63:0]` | flash 起始地址 |
 | `length` | `int unsigned` | 读长度 |
+| `io_lanes` | `int unsigned` | 可选传输配置 |
+| `speed_multiplier` | `int unsigned` | 可选传输配置 |
+| `spi_mode` | `int unsigned` | 可选传输配置 |
+| `data_frame_bits` | `int unsigned` | 可选传输配置 |
+| `cs_id` | `int unsigned` | 可选传输配置 |
+| `addr_bytes` | `int unsigned` | 可选传输配置 |
 
 ### `check_clocks`
 
-启动可选时钟检查 operation。
-
-| 参数 | 类型 | 说明 |
-| --- | --- | --- |
-| `result` | `output dw_spi_check_clock_rsp` | 检查结果 |
+启动可选时钟检查 operation。kit 内部检查 rsp，失败时 fatal，不输出 result。
 
 ### `rw_test`
 
-启动读写测试场景：写入数据、读回数据，并把结果交给 scoreboard 比较。
+启动读写测试场景：写入数据、读回数据，并把结果交给 scoreboard 自动比较。
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `result` | `output dw_spi_rw_test_rsp` | 测试结果 |
 | `address` | `bit [63:0]` | flash 起始地址 |
 | `write_data` | `bit [7:0] $` | 写入数据 |
-| `actual_read_data` | `bit [7:0] $` | 可选外部实际读回数据 |
+| `io_lanes` | `int unsigned` | 可选传输配置 |
+| `speed_multiplier` | `int unsigned` | 可选传输配置 |
+| `spi_mode` | `int unsigned` | 可选传输配置 |
+| `data_frame_bits` | `int unsigned` | 可选传输配置 |
+| `cs_id` | `int unsigned` | 可选传输配置 |
+| `addr_bytes` | `int unsigned` | 可选传输配置 |
 
 ## 边界
 
 `kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里调用明确的大写 `settings.regmodel.<REG>.write/read`。
+
+`kit_sequencer` 不输出 `actual_read_data` 或 result。测试 sequence 会把读写结果送到 scoreboard，scoreboard 用内部 mem mirror 自动校验。

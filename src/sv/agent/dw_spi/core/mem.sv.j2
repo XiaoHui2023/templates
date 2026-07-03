@@ -1,22 +1,15 @@
 `ifndef {{ (class_prefix ~ "mem") | upper }}
 `define {{ (class_prefix ~ "mem") | upper }}
 
-class {{ class_prefix }}mem;
-    parameter int max_bytes_per_line = {{ memh_max_bytes_per_line }};
+class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
+    bit [7:0] bytes[$];
 
-    bit [7:0] bytes[bit [63:0]];
-    bit [7:0] erase_value;
-    bit [63:0] size_bytes;
-
-    function new(bit [7:0] erase_value = 8'h{{ "%02x" % flash_erase_value }},
-            bit [63:0] size_bytes = 64'd{{ flash_size_bytes }});
-        this.erase_value = erase_value;
-        this.size_bytes = size_bytes;
+    function new(string name="{{ class_prefix }}mem");
+        super.new(name);
     endfunction
 
     extern function void clear();
-    extern function bit in_range(bit [63:0] addr, int unsigned len);
-    extern function void erase_all();
+    extern function void ensure_size(bit [63:0] size);
     extern function bit write_bytes(bit [63:0] addr, bit [7:0] data[$]);
     extern function bit read_bytes(bit [63:0] addr, int unsigned len, output bit [7:0] data[$]);
     extern function bit compare_bytes(bit [63:0] addr, bit [7:0] expected[$], string label = "expected");
@@ -33,25 +26,15 @@ function void {{ class_prefix }}mem::clear();
     bytes.delete();
 endfunction
 
-function bit {{ class_prefix }}mem::in_range(bit [63:0] addr, int unsigned len);
-    if (len == 0)
-        return 1'b1;
-    if (addr >= size_bytes)
-        return 1'b0;
-    return (addr + len - 1) < size_bytes;
-endfunction
-
-function void {{ class_prefix }}mem::erase_all();
-    bytes.delete();
+function void {{ class_prefix }}mem::ensure_size(bit [63:0] size);
+    while (bytes.size() < size)
+        bytes.push_back('0);
 endfunction
 
 function bit {{ class_prefix }}mem::write_bytes(bit [63:0] addr, bit [7:0] data[$]);
-    if (!in_range(addr, data.size())) begin
-        `uvm_error("DW_SPI_MEM", $sformatf(
-            "write out of range addr=0x%016h len=%0d size=%0d",
-            addr, data.size(), size_bytes))
-        return 1'b0;
-    end
+    if (data.size() == 0)
+        return 1'b1;
+    ensure_size(addr + data.size());
     foreach (data[i])
         bytes[addr + i] = data[i];
     return 1'b1;
@@ -62,20 +45,19 @@ function bit {{ class_prefix }}mem::read_bytes(
         int unsigned len,
         output bit [7:0] data[$]);
     data.delete();
-    if (!in_range(addr, len)) begin
+    if (len == 0)
+        return 1'b1;
+    if ((addr + len) > bytes.size()) begin
         `uvm_error("DW_SPI_MEM", $sformatf(
-            "read out of range addr=0x%016h len=%0d size=%0d",
-            addr, len, size_bytes))
+            "read beyond dynamic mem addr=0x%016h len=%0d size=%0d",
+            addr, len, bytes.size()))
         return 1'b0;
     end
     for (int i = 0; i < len; i++) begin
         bit [63:0] a;
 
         a = addr + i;
-        if (bytes.exists(a))
-            data.push_back(bytes[a]);
-        else
-            data.push_back(erase_value);
+        data.push_back(bytes[a]);
     end
     return 1'b1;
 endfunction
@@ -147,18 +129,13 @@ function bit {{ class_prefix }}mem::load_memh(string filename, bit clear_first);
                 $fclose(file);
                 return 1'b0;
             end
-            if (!in_range(addr, 1)) begin
-                `uvm_error("DW_SPI_MEM", $sformatf(
-                    "memh address out of range @0x%016h in %s", addr, filename))
-                $fclose(file);
-                return 1'b0;
-            end
+            ensure_size(addr + 1);
             bytes[addr] = value[7:0];
             addr++;
         end
     end
     $fclose(file);
-    `uvm_info("DW_SPI_MEM", $sformatf("loaded %0d bytes from %s", bytes.num(), filename), UVM_LOW)
+    `uvm_info("DW_SPI_MEM", $sformatf("loaded %0d bytes from %s", bytes.size(), filename), UVM_LOW)
     return 1'b1;
 endfunction
 
@@ -195,12 +172,7 @@ function bit {{ class_prefix }}mem::load_hex_lines(
             if (high_nibble < 0)
                 high_nibble = value;
             else begin
-                if (!in_range(addr, 1)) begin
-                    `uvm_error("DW_SPI_MEM", $sformatf(
-                        "hex address out of range @0x%016h in %s", addr, filename))
-                    $fclose(file);
-                    return 1'b0;
-                end
+                ensure_size(addr + 1);
                 byte_value = (high_nibble << 4) | value;
                 bytes[addr] = byte_value;
                 addr++;
@@ -224,7 +196,6 @@ function bit {{ class_prefix }}mem::dump_memh(string filename);
     int file;
     bit [63:0] max_addr;
     int addr_hex_digits;
-    bit [63:0] addrs[$];
     bit [63:0] run_base;
     int run_len;
 
@@ -233,29 +204,23 @@ function bit {{ class_prefix }}mem::dump_memh(string filename);
         `uvm_error("DW_SPI_MEM", $sformatf("failed to open memh output file: %s", filename))
         return 1'b0;
     end
-    if (bytes.num() == 0) begin
+    if (bytes.size() == 0) begin
         $fclose(file);
         return 1'b1;
     end
-    max_addr = 0;
-    foreach (bytes[a])
-        if (a > max_addr)
-            max_addr = a;
+    max_addr = bytes.size() - 1;
     addr_hex_digits = memh_addr_hex_digits(max_addr);
-    foreach (bytes[a])
-        addrs.push_back(a);
-    addrs.sort();
-    run_base = addrs[0];
+    run_base = 0;
     run_len = 1;
-    for (int i = 1; i < addrs.size(); i++) begin
-        if (addrs[i] == addrs[i - 1] + 1 && run_len < max_bytes_per_line)
+    for (int i = 1; i < bytes.size(); i++) begin
+        if (run_len < MEMH_MAX_BYTES_PER_LINE)
             run_len++;
         else begin
             $fwrite(file, "@%s", memh_padded_hex_addr(run_base, addr_hex_digits));
             for (int j = 0; j < run_len; j++)
                 $fwrite(file, " %02h", bytes[run_base + j]);
             $fwrite(file, "\n");
-            run_base = addrs[i];
+            run_base = i;
             run_len = 1;
         end
     end

@@ -1,44 +1,44 @@
-`ifndef {{ (class_prefix ~ "transfer_req") | upper }}
-`define {{ (class_prefix ~ "transfer_req") | upper }}
+`ifndef {{ (class_prefix ~ "transfer_configuration") | upper }}
+`define {{ (class_prefix ~ "transfer_configuration") | upper }}
 
-class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequence_item);
-    `uvm_object_utils_begin({{ class_prefix }}transfer_req)
-        `uvm_field_object(payload, UVM_ALL_ON)
+class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(uvm_object);
+    `uvm_object_utils_begin({{ class_prefix }}transfer_configuration)
         `uvm_field_enum(host_mode_e, host_mode, UVM_ALL_ON)
-        `uvm_field_enum(protocol_e, protocol, UVM_ALL_ON)
         `uvm_field_enum(frame_mode_e, frame_mode, UVM_ALL_ON)
-        `uvm_field_enum(transfer_mode_e, transfer_mode, UVM_ALL_ON)
-        `uvm_field_int(opcode, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(io_lanes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(speed_multiplier, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(cs_id, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(inst_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
 
-    uvm_tlm_generic_payload payload;
     rand host_mode_e host_mode;
-    rand protocol_e protocol;
     rand frame_mode_e frame_mode;
-    rand transfer_mode_e transfer_mode;
-    rand bit [7:0] opcode;
     rand int unsigned io_lanes;
     rand int unsigned speed_multiplier;
     rand int unsigned spi_mode;
     rand int unsigned data_frame_bits;
     rand int unsigned cs_id;
-    rand int unsigned inst_bytes;
     rand int unsigned addr_bytes;
     rand int unsigned dummy_cycles;
 
-    function new(string name="{{ class_prefix }}transfer_req");
+    function new(string name="{{ class_prefix }}transfer_configuration");
         super.new(name);
     endfunction
 
     constraint cst {
+        soft host_mode == {{ "MASTER" if support_master else "SLAVE" }};
+        soft frame_mode == {{ default_frame_mode }};
+        soft io_lanes == {{ default_io_lanes }};
+        soft speed_multiplier == {{ default_speed_multiplier }};
+        soft spi_mode == {{ default_spi_mode }};
+        soft data_frame_bits == {{ default_data_frame_bits }};
+        soft cs_id == {{ default_cs }};
+        soft addr_bytes == {{ default_addr_bytes }};
+        soft dummy_cycles == (frame_mode == ENHANCED ? 8 : 0);
+
         io_lanes inside {1, 2, 4};
         speed_multiplier inside {1, 2, 4, 8};
         if (frame_mode == STANDARD) speed_multiplier == 1;
@@ -46,23 +46,12 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
         cs_id < {{ num_cs }};
-        inst_bytes inside {[0:1]};
-        addr_bytes inside {[0:4]};
-        if (protocol == FLASH_SPI) {
-            inst_bytes == 1;
-            addr_bytes inside {3, 4};
-        }
+        addr_bytes inside {3, 4};
 {% if not support_master %}
         host_mode != MASTER;
 {% endif %}
 {% if not support_slave %}
         host_mode != SLAVE;
-{% endif %}
-{% if not support_general_spi %}
-        protocol != GENERAL_SPI;
-{% endif %}
-{% if not support_flash_spi %}
-        protocol != FLASH_SPI;
 {% endif %}
 {% if not support_standard %}
         frame_mode != STANDARD;

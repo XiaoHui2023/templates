@@ -11,7 +11,7 @@ class {{ class_prefix }}scoreboard extends uvm_component;
     function new(string name="{{ class_prefix }}scoreboard", uvm_component parent=null);
         super.new(name, parent);
         settings = {{ class_prefix }}settings::type_id::create("settings");
-        mem = new(settings.flash_erase_value, settings.flash_size_bytes);
+        mem = new();
     endfunction
 
     extern function void build_phase(uvm_phase phase);
@@ -29,7 +29,7 @@ function void {{ class_prefix }}scoreboard::build_phase(uvm_phase phase);
     void'(uvm_config_db #({{ class_prefix }}settings)::get(this, "", "settings", settings));
     if (settings == null)
         `uvm_fatal("DW_SPI", "scoreboard settings is null")
-    mem = new(settings.flash_erase_value, settings.flash_size_bytes);
+    mem = new();
     if (uvm_config_db #(string)::get(this, "", "init_memh", init_memh) && init_memh != "")
         if (!mem.load_memh(init_memh, 1'b1))
             `uvm_fatal("DW_SPI", $sformatf("failed to load init_memh %s", init_memh))

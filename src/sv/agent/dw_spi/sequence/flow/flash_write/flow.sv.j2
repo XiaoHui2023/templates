@@ -1,10 +1,10 @@
 `ifndef {{ (class_prefix ~ "flash_write_seq") | upper }}
 `define {{ (class_prefix ~ "flash_write_seq") | upper }}
 
-class {{ class_prefix }}flash_write_seq extends uvm_sequence #(
+class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequence #(
     {{ class_prefix }}flash_write_req,
     {{ class_prefix }}flash_write_rsp
-);
+));
     `uvm_object_utils({{ class_prefix }}flash_write_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
@@ -21,22 +21,24 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     {{ class_prefix }}transfer_req op_req;
     {{ class_prefix }}transfer_rsp op_rsp;
     {{ class_prefix }}transfer_seq op_seq;
+    {{ class_prefix }}transfer_configuration cfg;
 
+    cfg = req.configuration;
     op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_READ_COMMAND);
     op_req.payload.set_address(0);
     op_req.payload.set_data_length(0);
-    op_req.host_mode = p_sequencer.settings.default_host_mode;
-    op_req.protocol = {{ class_prefix }}settings::FLASH_SPI;
-    op_req.frame_mode = req.frame_mode;
-    op_req.transfer_mode = {{ class_prefix }}settings::TX_ONLY;
+    op_req.host_mode = cfg.host_mode;
+    op_req.protocol = FLASH_SPI;
+    op_req.frame_mode = cfg.frame_mode;
+    op_req.transfer_mode = TX_ONLY;
     op_req.opcode = 8'h06;
-    op_req.io_lanes = req.io_lanes;
-    op_req.speed_multiplier = req.speed_multiplier;
-    op_req.spi_mode = req.spi_mode;
-    op_req.data_frame_bits = req.data_frame_bits;
-    op_req.cs_id = req.cs_id;
+    op_req.io_lanes = cfg.io_lanes;
+    op_req.speed_multiplier = cfg.speed_multiplier;
+    op_req.spi_mode = cfg.spi_mode;
+    op_req.data_frame_bits = cfg.data_frame_bits;
+    op_req.cs_id = cfg.cs_id;
     op_req.inst_bytes = 1;
     op_req.addr_bytes = 0;
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("write_enable");
@@ -53,8 +55,10 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     {{ class_prefix }}transfer_req op_req;
     {{ class_prefix }}transfer_rsp op_rsp;
     {{ class_prefix }}transfer_seq op_seq;
+    {{ class_prefix }}transfer_configuration cfg;
     byte unsigned payload_data[];
 
+    cfg = req.configuration;
     op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_WRITE_COMMAND);
@@ -63,19 +67,18 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     foreach (chunk[i])
         payload_data[i] = chunk[i];
     op_req.payload.set_data(payload_data);
-    op_req.host_mode = p_sequencer.settings.default_host_mode;
-    op_req.protocol = {{ class_prefix }}settings::FLASH_SPI;
-    op_req.frame_mode = req.frame_mode;
-    op_req.transfer_mode = {{ class_prefix }}settings::TX_ONLY;
+    op_req.host_mode = cfg.host_mode;
+    op_req.protocol = FLASH_SPI;
+    op_req.frame_mode = cfg.frame_mode;
+    op_req.transfer_mode = TX_ONLY;
     op_req.opcode = 8'h02;
-    op_req.io_lanes = req.io_lanes;
-    op_req.speed_multiplier = req.speed_multiplier;
-    op_req.spi_mode = req.spi_mode;
-    op_req.data_frame_bits = req.data_frame_bits;
-    op_req.cs_id = req.cs_id;
+    op_req.io_lanes = cfg.io_lanes;
+    op_req.speed_multiplier = cfg.speed_multiplier;
+    op_req.spi_mode = cfg.spi_mode;
+    op_req.data_frame_bits = cfg.data_frame_bits;
+    op_req.cs_id = cfg.cs_id;
     op_req.inst_bytes = 1;
-    op_req.addr_bytes = req.addr_bytes == 0
-        ? p_sequencer.settings.default_addr_bytes : req.addr_bytes;
+    op_req.addr_bytes = cfg.addr_bytes;
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
@@ -86,36 +89,24 @@ endtask
 task {{ class_prefix }}flash_write_seq::body();
     {{ class_prefix }}flash_write_rsp rs;
     bit ok;
-    bit [7:0] chunk[$];
-    int unsigned page_size;
-    int unsigned pos;
-    int unsigned n;
 
     if (req == null)
         `uvm_fatal("DW_SPI", "flash_write: req is null")
+    if (req.configuration == null) begin
+        req.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+        if (!req.configuration.randomize())
+            `uvm_fatal("DW_SPI", "flash_write: failed to randomize configuration")
+    end
     rs = {{ class_prefix }}flash_write_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
-    page_size = p_sequencer.settings.flash_page_size;
-    pos = 0;
-    while (pos < req.data.size()) begin
-        n = req.data.size() - pos;
-        if (n > page_size)
-            n = page_size;
-        chunk.delete();
-        for (int i = 0; i < n; i++)
-            chunk.push_back(req.data[pos + i]);
-        run_write_enable(ok);
-        if (!ok) begin
-            rs.ok = 1'b0;
-            break;
-        end
-        run_chunk(req.address + pos, chunk, ok);
-        if (!ok) begin
-            rs.ok = 1'b0;
-            break;
-        end
-        rs.bytes_written += n;
-        pos += n;
+    run_write_enable(ok);
+    if (!ok) begin
+        rs.ok = 1'b0;
+    end else begin
+        run_chunk(req.address, req.data, ok);
+        rs.ok = ok;
+        if (ok)
+            rs.bytes_written = req.data.size();
     end
     rsp = rs;
 endtask

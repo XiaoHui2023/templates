@@ -1,0 +1,16 @@
+`ifndef {{ (class_prefix ~ "host_configuration") | upper }}
+`define {{ (class_prefix ~ "host_configuration") | upper }}
+
+class {{ class_prefix }}host_configuration extends {{ class_prefix }}transfer_configuration;
+    `uvm_object_utils({{ class_prefix }}host_configuration)
+
+    function new(string name="{{ class_prefix }}host_configuration");
+        super.new(name);
+    endfunction
+
+    constraint cst_host {
+        host_mode == MASTER;
+    }
+endclass
+
+`endif
