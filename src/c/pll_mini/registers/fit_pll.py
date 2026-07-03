@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 from .formulas import freq_tolerance_bounds
-from model.freq_graph import Port, parent_port_for_child, parse_port_ref
-from model.nodes import CellNode, ClkNode, ClockSourceNode, DivNode, GateNode, InvNode, MuxNode, PllNode, Tree
-from model.solve_model import SolveModel
-
-from .pll_search import search_pll_coefficients
+from .pll_search import diagnose_pll_coefficients, search_pll_coefficients
 from load.tools import log_stage_progress
+from model.freq_graph import Port, parent_port_for_child, parse_port_ref
+from model.nodes import (
+    CellNode,
+    ClkNode,
+    ClockSourceNode,
+    DivNode,
+    GateNode,
+    InvNode,
+    MuxNode,
+    PllNode,
+    Tree,
+)
+from model.solve_model import SolveModel
 
 
 def fit_pll_vars(
@@ -99,8 +108,29 @@ def fit_pll_vars(
                 ),
             )
         if coeffs is None:
+            target_hz = 0
+            target_groups: dict[str, int] | None = None
+            if node.pll_kind == "inno":
+                target_groups = {
+                    group: model.port_hz(Port(name, group))
+                    for group in node.output_groups
+                }
+            else:
+                target_hz = model.port_hz(Port(name, "")) or node.freq or 0
+            diagnosis = diagnose_pll_coefficients(
+                node.pll_kind,
+                ref_hz,
+                target_hz,
+                fbdiv_min=pll_sc_fbdiv_min,
+                fbdiv_max=pll_sc_fbdiv_max,
+                tol_lo=tol_lo,
+                tol_hi=tol_hi,
+                tol_den=tol_den,
+                group_out_hz=target_groups,
+            )
             raise RuntimeError(
-                f"PLL {name!r} 端口频率已定，但 {node.pll_kind} 系数无法配出"
+                f"PLL {name!r} 端口频率已定，但 {node.pll_kind} 系数无法配出\n"
+                f"{diagnosis.format()}"
             )
         merged[name] = coeffs
 
