@@ -61,7 +61,7 @@ module emmc_vip_timing_top #(
     assign o_dat_stb = is_adapting ? adp_dat_stb : dly_dat_stb;
     assign o_dat_out = is_adapting ? adp_dat_out : dly_dat_out;
     assign o_dat_out_en = is_adapting ? adp_dat_out_en : dly_dat_out_en;
-    assign is_adapting = EN & EMMC & adapt_enable & measure_clk_top.frequence > 55e6;
+    assign is_adapting = EN && EMMC && adapt_enable && (measure_clk_top.frequence > 55e6);
 
     emmc_vip_shift_top #(
         .EN(EN),
@@ -93,8 +93,8 @@ module emmc_vip_timing_top #(
     assign tmp_dat_out_en = i_dat_out_en;
 
     emmc_vip_shift_top #(.EN(EN), .B(B_DLY)) shift_dat_stb_dly(.clk(clk), .in(tmp_dat_stb), .out(dly_dat_stb));
-    emmc_vip_shift_top #(.EN(EN), .B(B_DLY)) shift_dat_out_dly(.clk(clk), .in(tmp_dat_out), .out(dly_dat_out));
-    emmc_vip_shift_top #(.EN(EN), .B(B_DLY)) shift_dat_out_en_dly(.clk(clk), .in(tmp_dat_out_en), .out(dly_dat_out_en));
+    emmc_vip_shift_top #(.DW(8), .EN(EN), .B(B_DLY)) shift_dat_out_dly(.clk(clk), .in(tmp_dat_out), .out(dly_dat_out));
+    emmc_vip_shift_top #(.DW(8), .EN(EN), .B(B_DLY)) shift_dat_out_en_dly(.clk(clk), .in(tmp_dat_out_en), .out(dly_dat_out_en));
 
     initial begin
         run_dat_stb();
@@ -132,13 +132,11 @@ module emmc_vip_timing_top #(
                 else
                     clk_last = clk;
 
-                if(q_dat.size) begin
+                if(q_dat.size()) begin
                     bit isPop;
                     bit isFirst;
-                    bit isLast;
 
                     isFirst = size_last == 0;
-                    isLast = size_last == 1;
                     if(isFirst) begin
                         is_pushing = 1;
                     end
@@ -154,27 +152,26 @@ module emmc_vip_timing_top #(
                             threshold_max = MAX_BYTES;
                             threshold_min = $ceil(1.0*threshold_max*f2/f1);
                             d = $abs(threshold_max-threshold_min);
-                            d = 1 / offset;
-                            fifo_limit = d;
+                            fifo_limit = d ? threshold_max / d : threshold_max;
                         end
                     end
 
                     if(fifo_limit) begin
-                        if(q_dat.size >= fifo_limit)
+                        if(q_dat.size() >= fifo_limit)
                             is_pushing = 0;
                     end
 
-                    if(q_dat.size >= 4 && q_dat[0] == 'hfe && q_dat[1] == 'hfe && q_dat[2] == 'hfe && q_dat[3] == 'hfe)
+                    if(q_dat.size() >= 4 && q_dat[0] == 8'hfe && q_dat[1] == 8'hfe && q_dat[2] == 8'hfe && q_dat[3] == 8'hfe)
                         is_pushing = 0;
 
-                    isPop = !is_pushing | measure_ds_top.is_death;
+                    isPop = !is_pushing || measure_ds_top.is_death;
                     if(isPop) begin
                         adp_dat_out = q_dat.pop_front();
                         adp_dat_out_en = q_dat_en.pop_front();
                         adp_dat_stb = ~adp_dat_stb;
                     end
 
-                    size_last = q_dat.size;
+                    size_last = q_dat.size();
                     fifo_limit = 0;
                 end
                 else begin

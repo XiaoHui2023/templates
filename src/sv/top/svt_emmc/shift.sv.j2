@@ -53,7 +53,7 @@ module emmc_vip_shift_top #(
                     if(q[i].n)
                         q[i].n--;
 
-                if(q.size && !q[0].n) begin
+                if(q.size() && !q[0].n) begin
                     shift_s sh;
 
                     sh = q.pop_front();

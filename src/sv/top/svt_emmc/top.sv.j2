@@ -6,7 +6,7 @@ module {{ class_prefix }}top#(
 )(
     input wire clk,
     input wire rst_n,
-    input wire cmd,
+    inout wire cmd,
     inout wire [DW-1:0] dat,
     output wire dat_stb
 );
@@ -34,10 +34,10 @@ module {{ class_prefix }}top#(
     assign dat = dat_out_en ? dat_out : {DW{1'bz}};
 
     // internal
-    reg clk_dl;
+    wire clk_dl;
     wire dat_stb_s;
     wire cmd_in_dl;
-    reg[7:0] dat_in_dl;
+    wire[7:0] dat_in_dl;
     wire cmd_out_s;
     wire cmd_out_en_s;
     wire[7:0] dat_out_s;
@@ -54,7 +54,7 @@ module {{ class_prefix }}top#(
     assign svt_if.vdd2 = vccq;
     assign svt_if.clk_plus = clk_dl;
     assign svt_if.clk = clk_dl;
-    assign dat_out_s = svt_if.ds;
+    assign dat_stb_s = svt_if.ds;
     assign dat_out_en_s[0] = svt_if.dat0_rclk_plus_out;
     assign dat_out_s[0] = svt_if.dat0_rclk_minus_in_out;
     assign dat_out_en_s[1] = svt_if.dat1_r_reg_out;
@@ -137,7 +137,7 @@ module {{ class_prefix }}top#(
         is_hex = !is_binary(filename);
 
         read_file(filename,is_hex,data);
-        size = data.size;
+        size = data.size();
         write_memory(addr,data);
 
         `uvm_info("",$psprintf("%m: load memory[0x%16h+: %0d] = '%s'",addr,size,filename),UVM_LOW)
@@ -154,16 +154,16 @@ module {{ class_prefix }}top#(
 
         mw = get_mem().get_data_width();
         cnt = mw/8;
-        len = $ceil(1.0 * data.size / cnt);
+        len = $ceil(1.0 * data.size() / cnt);
 
-        while(data.size % cnt > 0)
+        while(data.size() % cnt > 0)
             data.push_back(0);
 
         for(int i=0;i<len;i++) begin
             bit[SVT_MEM_MAX_DATA_WIDTH-1:0] d;
 
             repeat(cnt) begin
-                if(!data.size)
+                if(!data.size())
                     `uvm_fatal("","")
 
                 d >>= 8;
@@ -178,35 +178,29 @@ module {{ class_prefix }}top#(
             {%- endif %}
         end
 
-        if(data.size)
+        if(data.size())
             `uvm_fatal("","")
     endfunction
 
     function automatic void read_memory(output bit[7:0] rdata[$],input int len,input bit[63:0] addr=0);
         int mw;
-        bit[4096-1:0] mem[$];
-        bit[7:0] tmp[$];
         int cnt;
+        int bytes_per_word;
 
         mw = get_mem().get_data_width();
         cnt = $ceil(1.0 * len * 8 / mw);
+        bytes_per_word = mw / 8;
 
-        for(int i=0;i<cnt;i++)
-            void'(get_mem().peek(addr + i, mem[i]));
-        {{ 'tmp = {<<8{{<<4096{mem}}}};' }}
+        for(int i=0;i<cnt;i++) begin
+            bit[SVT_MEM_MAX_DATA_WIDTH-1:0] mem;
 
-        while(tmp.size) begin
-            int n_valid;
-            int sum;
-
-            n_valid = mw/8;
-            sum = 4096/8;
-
-            for(int i=0;i<sum;i++) begin
+            void'(get_mem().peek(addr + i, mem));
+            for(int j=0;j<bytes_per_word;j++) begin
                 bit[7:0] v;
 
-                v = tmp.pop_front();
-                if(i < n_valid)
+                v = mem[7:0];
+                mem >>= 8;
+                if(rdata.size() < len)
                     rdata.push_back(v);
             end
         end
@@ -240,7 +234,7 @@ module {{ class_prefix }}top#(
 
         if(hex) begin
             forever begin
-                byte c;
+                int c;
                 bit lf;
                 bit ed;
 
@@ -253,35 +247,32 @@ module {{ class_prefix }}top#(
                 if(lf)
                     continue;
 
-                if(s[$].len <= 1)
-                    s[$] = $psprintf("%s%s",s[$],c);
+                if(!s.size() || s[$].len() >= 2)
+                    s.push_back($sformatf("%c",c));
                 else
-                    s.push_back($psprintf("%s",c));
+                    s[$] = $sformatf("%s%c",s[$],c);
             end
 
             foreach(s[i])
                 out.push_back(s[i].atohex());
         end
         else begin
-            while(!$feof(file)) begin
-                bit[31:0] data;
+            forever begin
+                int c;
 
-                $fscanf(file,"%u",data);
-                if($feof(file))
+                c = $fgetc(file);
+                if(c == -1)
                     break;
 
-                repeat(4) begin
-                    out.push_back(data);
-                    data >>= 8;
-                end
+                out.push_back(c[7:0]);
             end
         end
 
         if(padding > 0) begin
-            if(out.size > padding)
-                $fatal("'%s' require %0d bytes,but %0d bytes",src,padding,out.size);
+            if(out.size() > padding)
+                $fatal("'%s' require %0d bytes,but %0d bytes",src,padding,out.size());
 
-            while(out.size < padding)
+            while(out.size() < padding)
                 out.push_back(0);
         end
 

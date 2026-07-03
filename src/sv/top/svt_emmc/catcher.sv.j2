@@ -17,7 +17,10 @@ class {{ class_prefix }}catcher extends uvm_report_catcher;
         id = get_id();
 
         if(get_severity() inside {UVM_INFO,UVM_WARNING}) begin
-            if(id inside ids) begin
+            foreach(ids[i]) begin
+                if(id != ids[i])
+                    continue;
+
                 if(count.exists(id))
                     return CAUGHT;
                 else
