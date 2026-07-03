@@ -75,7 +75,7 @@ class Settings(BaseModel):
         description="相邻周期相对偏差上限。",
     )
     duty_min: float = Field(
-        50.0,
+        49.0,
         ge=0.0,
         le=100.0,
         description="允许占空比下限，百分数；闭区间端点计入合格。",
