@@ -364,8 +364,8 @@ def _diagnose_pll_inno(
             ref_hz=ref_hz,
             targets=active_groups,
             reason=(
-                "没有有效的 INNO 输出端口目标频率；只有被下游选中的端口"
-                "或被固定频率约束牵引的端口会参与系数匹配"
+                "没有有效的 INNO 输出端口目标频率；inno PLL 节点必须通过"
+                "freq dict 指定各输出端口频率，或用整数 freq 指定所有端口同频"
             ),
         )
 

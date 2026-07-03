@@ -119,6 +119,14 @@ def _coerce_optional_int(value: Any) -> Optional[int]:
     return int(value)
 
 
+def _coerce_optional_freq_map(value: Any) -> Optional[Union[int, Dict[str, int]]]:
+    if value is None or value == "":
+        return None
+    if isinstance(value, dict):
+        return {str(key): int(freq) for key, freq in value.items()}
+    return int(value)
+
+
 class NodeBase(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -157,11 +165,13 @@ class NodeBase(BaseModel):
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_node_freq(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return value
         return _coerce_optional_int(value)
 
     @model_validator(mode="after")
     def _validate_node_freq(self) -> NodeBase:
-        if self.freq is not None and self.freq <= 0:
+        if isinstance(self.freq, int) and self.freq <= 0:
             raise ValueError(f"节点 {self.name!r} freq 若填写须大于 0")
         return self
 
@@ -313,9 +323,12 @@ class ClockSourceNode(NodeBase):
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
-    freq: Optional[int] = Field(
+    freq: Optional[Union[int, Dict[str, int]]] = Field(
         default=None,
-        description="目标输出频率，单位 Hz；inno 可省略，由各路下游 clk 约束。",
+        description=(
+            "目标输出频率，单位 Hz；inno 可填写 {'0': hz, '1': hz} 指定各输出端口，"
+            "也可填写整数表示所有输出端口使用同一频率。"
+        ),
     )
     source: str = Field("", description="参考时钟前级引用；省略表示无前级。")
     pll_kind: PllKind = Field(..., description="PLL 型号：tci、sc、dw、inno。")
@@ -325,21 +338,38 @@ class PllNode(NodeBase):
     )
 
     @model_validator(mode="after")
-    def _validate_pll_freq(self) -> PllNode:
-        if self.pll_kind != "inno" and self.freq is None:
+    def _validate_pll_freq(self, info: ValidationInfo) -> PllNode:
+        node_name = _validation_node_name(self, info)
+        if self.freq is None:
             raise ValueError(
-                f"pll 节点 {self.name!r} pll_kind 为 {self.pll_kind!r} 时必须填写 freq"
+                f"pll 节点 {node_name!r} 必须填写 freq"
             )
-        if self.freq is not None and self.freq < 1:
+        if isinstance(self.freq, dict):
+            if self.pll_kind != "inno":
+                raise ValueError(
+                    f"pll 节点 {node_name!r} pll_kind 为 {self.pll_kind!r} 时 freq 不可为 dict"
+                )
+            expected = set(self.output_groups)
+            actual = set(self.freq)
+            if actual != expected:
+                raise ValueError(
+                    f"pll 节点 {node_name!r} pll_kind 为 inno 时 freq dict 键必须为 {sorted(expected)!r}"
+                )
+            for group, freq in self.freq.items():
+                if freq < 1:
+                    raise ValueError(
+                        f"pll 节点 {node_name!r} freq[{group!r}] 必须大于 0"
+                    )
+        elif self.freq is not None and self.freq < 1:
             raise ValueError(
-                f"pll 节点 {self.name!r} freq 若填写须大于 0"
+                f"pll 节点 {node_name!r} freq 若填写须大于 0"
             )
         return self
 
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_pll_freq(cls, value: Any) -> Any:
-        return _coerce_optional_int(value)
+        return _coerce_optional_freq_map(value)
 
     @field_validator("source", mode="before")
     @classmethod
@@ -359,6 +389,13 @@ class PllNode(NodeBase):
         if self.pll_kind == "inno":
             return list(INNO_PLL_OUTPUT_GROUPS)
         return []
+
+    def freq_for_group(self, group: str) -> Optional[int]:
+        if self.freq is None:
+            return None
+        if isinstance(self.freq, dict):
+            return self.freq.get(group)
+        return self.freq
 
     @model_validator(mode="after")
     def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:

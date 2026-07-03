@@ -83,6 +83,7 @@ tree:
       kind: pll
       source: xtal
       pll_kind: inno
+      freq: 48000000
       regs:
         lock: blk_pll_inno.lock.lock
         pd: blk_pll_inno.pd.pd

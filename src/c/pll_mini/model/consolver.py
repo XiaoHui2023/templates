@@ -202,7 +202,7 @@ class _SmtBuilder:
                         f"{name}__unused_zero__{_port_suffix(port)}",
                         f"(= {freq} 0)",
                     )
-            fixed = getattr(node, "freq", None)
+            fixed = _fixed_port_freq(node, port.group)
             if fixed is not None and (not port.group or isinstance(node, PllNode)):
                 self._add(
                     f"{name}__fixed_freq__{_port_suffix(port)}",
@@ -265,6 +265,13 @@ class _SmtBuilder:
 
     def _pll_constraints(self, name: str, node: PllNode) -> None:
         act = _act(name)
+        fixed_ports = [
+            port
+            for port in output_ports(self.tree, name)
+            if _fixed_port_freq(node, port.group) is not None
+        ]
+        if fixed_ports:
+            self._add(f"{name}__fixed_freq_active", act)
         if node.regs:
             try:
                 parent = parent_port_for_child(self.tree, name)
@@ -274,9 +281,12 @@ class _SmtBuilder:
                 self._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
         if node.freq is not None:
             for port in output_ports(self.tree, name):
+                fixed = _fixed_port_freq(node, port.group)
+                if fixed is None:
+                    continue
                 self._add(
                     f"{name}__pll_freq__{_port_suffix(port)}",
-                    f"(=> {act} (= {_freq(port)} {node.freq}))",
+                    f"(=> {act} (= {_freq(port)} {fixed}))",
                 )
 
     def _mux_constraints(self, name: str, node: MuxNode) -> None:
@@ -387,6 +397,13 @@ def _pll_var_keys(node: PllNode) -> tuple[str, ...]:
             keys.append(f"postdiv2_{group}")
         return tuple(keys)
     return ()
+
+
+def _fixed_port_freq(node: object, group: str = "") -> int | None:
+    if isinstance(node, PllNode):
+        return node.freq_for_group(group)
+    fixed = getattr(node, "freq", None)
+    return fixed if isinstance(fixed, int) else None
 
 
 def _freq(port: Port) -> str:

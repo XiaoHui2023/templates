@@ -54,6 +54,8 @@ def fit_pll_vars(
         if node.pll_kind == "inno":
             group_hz = {
                 group: model.port_hz(Port(name, group))
+                or node.freq_for_group(group)
+                or 0
                 for group in node.output_groups
             }
             coeffs = search_pll_coefficients(
@@ -82,7 +84,7 @@ def fit_pll_vars(
                 ),
             )
         else:
-            out_hz = model.port_hz(Port(name, "")) or node.freq or 0
+            out_hz = model.port_hz(Port(name, "")) or node.freq_for_group("") or 0
             coeffs = search_pll_coefficients(
                 node.pll_kind,
                 ref_hz,
@@ -113,10 +115,12 @@ def fit_pll_vars(
             if node.pll_kind == "inno":
                 target_groups = {
                     group: model.port_hz(Port(name, group))
+                    or node.freq_for_group(group)
+                    or 0
                     for group in node.output_groups
                 }
             else:
-                target_hz = model.port_hz(Port(name, "")) or node.freq or 0
+                target_hz = model.port_hz(Port(name, "")) or node.freq_for_group("") or 0
             diagnosis = diagnose_pll_coefficients(
                 node.pll_kind,
                 ref_hz,
@@ -163,7 +167,9 @@ def _static_port_hz(
     node = tree.nodes.get(port.node)
     if node is None:
         return 0
-    if isinstance(node, (ClockSourceNode, ClkNode, PllNode)):
+    if isinstance(node, PllNode):
+        return node.freq_for_group(port.group) or 0
+    if isinstance(node, (ClockSourceNode, ClkNode)):
         return node.freq or 0
     if isinstance(node, (CellNode, GateNode, InvNode)):
         return _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)

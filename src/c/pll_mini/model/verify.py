@@ -138,7 +138,7 @@ def verify_solve_model(
             if kind == "tci":
                 clkf = vars_map.get("clkf", 0)
                 f_actual = pll_tci_actual_hz(f_ref, clkf)
-                f_out = model.port_hz(Port(name, "")) or node.freq or 0
+                f_out = model.port_hz(Port(name, "")) or node.freq_for_group("") or 0
                 if f_actual != f_out:
                     issues.append(
                         _pll_issue(
@@ -162,7 +162,7 @@ def verify_solve_model(
                 p1 = vars_map.get("postdiv1", 0)
                 p2 = vars_map.get("postdiv2", 0)
                 f_actual = pll_sc_actual_hz(f_ref, fbdiv, refdiv, p1, p2)
-                f_out = model.port_hz(Port(name, "")) or node.freq or 0
+                f_out = model.port_hz(Port(name, "")) or node.freq_for_group("") or 0
                 if f_out <= 0:
                     continue
                 if not freq_within_tolerance(
@@ -191,7 +191,7 @@ def verify_solve_model(
                 fbdiv = vars_map.get("fbdiv", 0)
                 p = vars_map.get("p", 0)
                 f_actual = pll_dw_actual_hz(f_ref, fbdiv, p)
-                f_out = model.port_hz(Port(name, "")) or node.freq or 0
+                f_out = model.port_hz(Port(name, "")) or node.freq_for_group("") or 0
                 if f_out <= 0:
                     continue
                 if not freq_within_tolerance(
@@ -327,7 +327,9 @@ def _static_port_hz(
     node = tree.nodes.get(port.node)
     if node is None:
         return 0
-    if isinstance(node, (ClockSourceNode, ClkNode, PllNode)):
+    if isinstance(node, PllNode):
+        return node.freq_for_group(port.group) or 0
+    if isinstance(node, (ClockSourceNode, ClkNode)):
         return node.freq or 0
     if isinstance(node, (CellNode, GateNode, InvNode)):
         return _static_port_hz(tree, model, parent_port_for_child(tree, port.node), seen)

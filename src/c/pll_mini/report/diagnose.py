@@ -63,7 +63,7 @@ def _fixed_hz(tree: Tree, name: str) -> int | None:
     if node.kind == "source" and node.freq > 0:
         return node.freq
     if isinstance(node, PllNode) and node.freq is not None:
-        return node.freq
+        return node.freq_for_group(node.primary_output_group)
     if isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
         return node.freq
     return None
@@ -86,9 +86,10 @@ def collect_static_issues(
                 continue
             if pll.pll_kind == "inno":
                 continue
-            if pll.freq is None:
+            pll_hz = pll.freq_for_group("")
+            if pll_hz is None:
                 continue
-            if pll.freq == clk_hz:
+            if pll_hz == clk_hz:
                 continue
             idx_clk = chain.index(clk_name)
             idx_pll = chain.index(pll_name)
@@ -107,7 +108,7 @@ def collect_static_issues(
                     formula="透传节点满足 f_out = f_ref",
                     detail=(
                         f"clk {clk_name} 目标 {_hz_mhz(clk_hz)}，"
-                        f"pll {pll_name} 配置 {_hz_mhz(pll.freq)}；"
+                        f"pll {pll_name} 配置 {_hz_mhz(pll_hz)}；"
                         f"中间仅透传，两处必须相同。"
                     ),
                     path_nodes=tuple(path),

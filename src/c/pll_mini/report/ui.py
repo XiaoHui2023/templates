@@ -83,6 +83,10 @@ def _hz_mhz(hz: int) -> str:
     return f"{hz} Hz"
 
 
+def _pll_display_freq(node: PllNode) -> int | None:
+    return node.freq_for_group(node.primary_output_group)
+
+
 def _human_stage_name(component: str, action: str, label: str) -> str:
     if component == "models" and action == "load":
         return "加载寄存器模型"
@@ -181,8 +185,8 @@ def _node_tree_label(
         label.append(f" → {_hz_mhz(target_hz[name])}", style="tree.target")
     elif isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
         label.append(f" → {_hz_mhz(node.freq)}", style="tree.target")
-    elif isinstance(node, PllNode) and node.freq is not None and node.freq > 0:
-        label.append(f" → {_hz_mhz(node.freq)}", style="tree.target")
+    elif isinstance(node, PllNode) and (pll_hz := _pll_display_freq(node)) is not None and pll_hz > 0:
+        label.append(f" → {_hz_mhz(pll_hz)}", style="tree.target")
     elif isinstance(node, DivNode) and node.ratio is not None:
         label.append(f" ratio={node.ratio}", style="tree.target")
     elif isinstance(node, MuxNode) and node.sel is not None:
@@ -204,8 +208,8 @@ def _node_plain_tag(
         parts.append(f"→{_hz_mhz(target_hz[name])}")
     elif isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
         parts.append(f"→{_hz_mhz(node.freq)}")
-    elif isinstance(node, PllNode) and node.freq is not None and node.freq > 0:
-        parts.append(f"→{_hz_mhz(node.freq)}")
+    elif isinstance(node, PllNode) and (pll_hz := _pll_display_freq(node)) is not None and pll_hz > 0:
+        parts.append(f"→{_hz_mhz(pll_hz)}")
     elif isinstance(node, DivNode) and node.ratio is not None:
         parts.append(f"ratio={node.ratio}")
     elif isinstance(node, MuxNode) and node.sel is not None:

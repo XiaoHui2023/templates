@@ -234,7 +234,7 @@ tree:
       kind: mux
       source:
         '0': dto_pll
-        '1': ddr_inno_pll[0]
+        '1': "ddr_inno_pll[0]"
       reg: blk_audio_lodac_clk_sel1.sel.sel
     audio_play_hclk:
       kind: clk
@@ -664,10 +664,10 @@ tree:
       source: cpu_pll
     clock_pll_DDR:
       kind: clk
-      source: ddr_inno_pll[0]
+      source: "ddr_inno_pll[0]"
     clock_pll_DODR1:
       kind: clk
-      source: ddr_inno_pll[1]
+      source: "ddr_inno_pll[1]"
     clock_pll_DDR_sc:
       kind: clk
       source: ddr_sc_pll
@@ -980,8 +980,8 @@ tree:
     ddr_phy_clk_sel1:
       kind: mux
       source:
-        '0': ddr_inno_pll[0]
-        '1': ddr_inno_pll[1]
+        '0': "ddr_inno_pll[0]"
+        '1': "ddr_inno_pll[1]"
       reg: blk_ddr_phy_clk_sel1.sel.sel
     ddr_phy_clk_sel2:
       kind: mux

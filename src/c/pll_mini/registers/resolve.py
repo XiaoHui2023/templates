@@ -172,13 +172,17 @@ def resolve_tree(
         port_freqs: Dict[str, int] = {}
         for port in output_ports(tree, node_name):
             hz = model.port_hz(port)
-            if hz <= 0 and getattr(node, "freq", None) is not None:
-                hz = int(getattr(node, "freq"))
+            if hz <= 0:
+                fixed_hz = _fixed_port_freq(node, port.group)
+                if fixed_hz is not None:
+                    hz = fixed_hz
             key = port.group if port.group else ""
             port_freqs[key] = hz
         primary = _primary_port_freq(node, port_freqs)
-        if isinstance(node, PllNode) and node.freq is not None:
-            primary = node.freq
+        if isinstance(node, PllNode):
+            primary_hz = node.freq_for_group(node.primary_output_group)
+            if primary_hz is not None:
+                primary = primary_hz
 
         resolved[node_name] = ResolvedNode(
             name=node_name,
@@ -204,3 +208,10 @@ def resolve_tree(
         clk_names=tuple(n.name for n in clk_nodes),
         solve_model=model,
     )
+
+
+def _fixed_port_freq(node: object, group: str = "") -> int | None:
+    if isinstance(node, PllNode):
+        return node.freq_for_group(group)
+    fixed = getattr(node, "freq", None)
+    return fixed if isinstance(fixed, int) else None

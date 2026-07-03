@@ -127,6 +127,7 @@ tree:
       kind: pll
       source: gate_ref
       pll_kind: inno
+      freq: 48000000
       regs:
         lock: blk_pll_inno.lock.lock
         pd: blk_pll_inno.pd.pd
@@ -497,6 +498,9 @@ tree:
       kind: pll
       source: dto_stress_inno
       pll_kind: inno
+      freq:
+        "0": 48000000
+        "1": 24000000
       regs:
         lock: blk_pll_stress_inno.lock.lock
         pd: blk_pll_stress_inno.pd.pd

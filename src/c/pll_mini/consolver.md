@@ -31,7 +31,7 @@ Python flow receives SMT-LIB text in memory, writes it to a temporary `.smt2` fi
 
 source 和单输出 pll 的 `freq` 是必填频率锚点，直接用于传播；它们本身不是输出频率求解目标。clk 以及其他节点的 `freq` 是可选锚点，填写时才约束输出频率。
 
-锚点只在节点有效时约束输出频率；未被目标使用的分支可以保持无效。多输出 `inno` 没有单一输出 `freq`，由下游目标牵引具体输出组。
+PLL 频率锚点来自节点自身的 `freq`。多输出 `inno` 可用 dict 指定每个输出组，也可用整数表示所有输出组同频；这些输出端口在 SMT 求解前已经有固定目标频率。
 
 gate、cell、inv 只做频率透传。pll_mini 阶段认为 gate 常开，不把 gate 寄存器配置状态放进 SMT。
 
@@ -51,7 +51,7 @@ TCI 的整数倍频关系轻量，直接进 SMT：
 f_out = f_ref * clkf
 ```
 
-SC、DW、INNO 不把完整寄存器公式作为非线性大约束塞进 SMT。约束层把 PLL 当作固定频率源，只向下游传播输出频率；PLL 参考频率与寄存器系数在求解后按已定频率计算。
+SC、DW、INNO 不把完整寄存器公式作为非线性大约束塞进 SMT。约束层把 PLL 当作固定频率源，按节点配置固定输出端口频率并向下游传播；PLL 参考频率与寄存器系数在求解后按已定频率计算。
 
 这样做避免 Z3 在全树上处理大面积 `div(* ref fbdiv, * refdiv postdiv...)` 非线性表达式。需要新增 PLL 类型时，先写清候选参考频率，再写求解后的寄存器换算。
 
