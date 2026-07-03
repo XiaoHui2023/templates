@@ -4,20 +4,21 @@
 class {{ class_prefix }}agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}agent)
 
-    {{ class_prefix }}configuration cfg;
+    {{ class_prefix }}settings settings;
 {% for group in groups %}
-    {{ class_prefix }}sub_agent agt_{{ group }};
+    {{ class_prefix }}sub_agent agt_{{ group.name }};
 {% endfor %}
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
 
-        cfg = {{ class_prefix }}configuration::type_id::create({get_full_name(), ".cfg"});
+        settings = {{ class_prefix }}settings::type_id::create({get_full_name(), ".settings"});
 {% for group in groups %}
-        agt_{{ group }} = {{ class_prefix }}sub_agent::type_id::create("agt_{{ group }}", this);
+        agt_{{ group.name }} = {{ class_prefix }}sub_agent::type_id::create("agt_{{ group.name }}", this);
 {% endfor %}
 {% for group in groups %}
-        agt_{{ group }}.cfg = cfg.cfg_{{ group }};
+        agt_{{ group.name }}.settings = settings;
+        agt_{{ group.name }}.cfg = settings.cfg_{{ group.name }};
 {% endfor %}
     endfunction
 
@@ -28,8 +29,14 @@ function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
     super.connect_phase(phase);
 
 {% for group in groups %}
-    agt_{{ group }}.cfg = cfg.cfg_{{ group }};
-    agt_{{ group }}.sqr.cfg = cfg.cfg_{{ group }};
+    agt_{{ group.name }}.settings = settings;
+    agt_{{ group.name }}.cfg = settings.cfg_{{ group.name }};
+    agt_{{ group.name }}.sqr.settings = settings;
+    agt_{{ group.name }}.sqr.cfg = settings.cfg_{{ group.name }};
+    if (settings.vif != null) begin
+        agt_{{ group.name }}.vif = settings.vif.{{ group.name }};
+        agt_{{ group.name }}.sqr.vif = settings.vif.{{ group.name }};
+    end
 {% endfor %}
 endfunction
 

@@ -18,7 +18,7 @@ task {{ class_prefix }}get_intr_status_seq::body();
     {{ class_prefix }}get_intr_status_rsp rs;
 
     rs = {{ class_prefix }}get_intr_status_rsp::type_id::create("rsp");
-    rs.intr = p_sequencer.cfg.vif.intr;
+    rs.intr = p_sequencer.vif.intr;
     rsp = rs;
 endtask
 

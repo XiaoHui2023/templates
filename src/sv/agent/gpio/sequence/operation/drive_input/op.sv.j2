@@ -20,7 +20,7 @@ task {{ class_prefix }}drive_input_seq::body();
     if (req == null)
         `uvm_fatal("", "drive_input req is null")
     rs = {{ class_prefix }}drive_input_rsp::type_id::create("rsp");
-    p_sequencer.cfg.vif.set(req.data, req.enable);
+    p_sequencer.vif.set(req.data, req.enable);
     rsp = rs;
 endtask
 

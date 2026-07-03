@@ -5,7 +5,7 @@ class {{ class_prefix }}base_seq extends uvm_sequence;
     `uvm_object_utils({{ class_prefix }}base_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    {{ class_prefix }}sub_configuration cfg;
+    {{ class_prefix }}configuration cfg;
     virtual {{ class_prefix }}sub_interface vif;
 
     function new(string name = "{{ class_prefix }}base_seq");
@@ -21,7 +21,7 @@ task {{ class_prefix }}base_seq::pre_start();
     cfg = p_sequencer.cfg;
     if (cfg == null)
         `uvm_fatal("", "require cfg")
-    vif = cfg.vif;
+    vif = p_sequencer.vif;
 endtask
 
 `endif

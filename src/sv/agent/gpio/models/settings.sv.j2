@@ -1,0 +1,43 @@
+`ifndef {{ (class_prefix ~ "settings") | upper }}
+`define {{ (class_prefix ~ "settings") | upper }}
+
+class {{ class_prefix }}settings extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}settings)
+{% for group in groups %}
+        `uvm_field_object(cfg_{{ group.name }},UVM_ALL_ON)
+{% endfor %}
+        `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    virtual {{ class_prefix }}interface vif;
+{% for group in groups %}
+    rand {{ class_prefix }}configuration cfg_{{ group.name }};
+{% endfor %}
+    rand bit has_randomized;
+
+    function new(string name="{{ class_prefix }}settings");
+        super.new(name);
+
+{% for group in groups %}
+        cfg_{{ group.name }} = {{ class_prefix }}configuration::type_id::create({get_full_name(),".cfg_{{ group.name }}"});
+        cfg_{{ group.name }}.group_name = "{{ group.name }}";
+{% endfor %}
+    endfunction
+
+    constraint cst {
+        has_randomized == 1;
+{% for group in groups %}
+        cfg_{{ group.name }}.num == {{ group.num }};
+        cfg_{{ group.name }}.has_randomized == 1;
+{% endfor %}
+    }
+
+    function void post_randomize();
+        super.post_randomize();
+
+        if(!vif)
+            `uvm_fatal("", "require vif")
+    endfunction
+endclass
+
+`endif

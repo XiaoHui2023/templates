@@ -5,7 +5,9 @@ class {{ class_prefix }}sub_agent extends uvm_agent;
     `uvm_component_utils({{ class_prefix }}sub_agent)
 
     {{ class_prefix }}kit_sequencer sqr;
-    {{ class_prefix }}sub_configuration cfg;
+    {{ class_prefix }}settings settings;
+    {{ class_prefix }}configuration cfg;
+    virtual {{ class_prefix }}sub_interface vif;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -21,6 +23,10 @@ function void {{ class_prefix }}sub_agent::connect_phase(uvm_phase phase);
 
     if (cfg != null)
         sqr.cfg = cfg;
+    if (settings != null)
+        sqr.settings = settings;
+    if (vif != null)
+        sqr.vif = vif;
 endfunction
 
 `endif

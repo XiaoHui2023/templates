@@ -1,3 +1,4 @@
 class_regmodel: gpio_regmodel
 groups:
-  - bank0
+  - name: bank0
+    num: 32

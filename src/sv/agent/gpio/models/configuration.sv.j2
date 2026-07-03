@@ -3,25 +3,34 @@
 
 class {{ class_prefix }}configuration extends uvm_sequence_item;
     `uvm_object_utils_begin({{ class_prefix }}configuration)
-{% for group in groups %}
-        `uvm_field_object(cfg_{{ group }},UVM_ALL_ON)
-{% endfor %}
+        `uvm_field_string(group_name,UVM_ALL_ON)
+        `uvm_field_int(num,UVM_ALL_ON)
+        `uvm_field_int(pin_mask,UVM_ALL_ON)
+        `uvm_field_object(regmodel,UVM_ALL_ON|UVM_NOPRINT|UVM_NOCOPY)
+        `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
     `uvm_object_utils_end
 
-{% for group in groups %}
-    {{ class_prefix }}sub_configuration cfg_{{ group }};
-{% endfor %}
+    string group_name;
+    {{ class_regmodel }} regmodel;
+    rand int num;
+    rand bit[31:0] pin_mask;
+    rand bit has_randomized;
 
     function new(string name="{{ class_prefix }}configuration");
         super.new(name);
-
-{% for group in groups %}
-        cfg_{{ group }} = {{ class_prefix }}sub_configuration::type_id::create({get_full_name(),".cfg_{{ group }}"});
-{% endfor %}
-{% for group in groups %}
-        cfg_{{ group }}.group_name = "{{ group }}";
-{% endfor %}
     endfunction
+
+    constraint cst {
+        regmodel != null;
+        has_randomized == 1;
+
+        foreach(pin_mask[i]) {
+            if(i < num)
+                soft pin_mask[i] == 1;
+            else
+                pin_mask[i] == 0;
+        }
+    }
 endclass
 
 `endif

@@ -3,21 +3,23 @@
 
 interface {{ class_prefix }}interface(
 {% for group in groups %}
-    input wire clk_{{ group }},
-    input wire intr_{{ group }},
+    input wire clk_{{ group.name }},
+    input wire intr_{{ group.name }},
 {% if loop.last %}
-    inout wire[31:0] data_{{ group }}
+    inout wire[{{ group.num - 1 }}:0] data_{{ group.name }}
 {% else %}
-    inout wire[31:0] data_{{ group }},
+    inout wire[{{ group.num - 1 }}:0] data_{{ group.name }},
 {% endif %}
 {% endfor %}
 );
 
 {% for group in groups %}
-{{ class_prefix }}sub_interface {{ group }} (
-    .clk(clk_{{ group }}),
-    .intr(intr_{{ group }}),
-    .data(data_{{ group }})
+{{ class_prefix }}sub_interface #(
+    .NUM({{ group.num }})
+) {{ group.name }} (
+    .clk(clk_{{ group.name }}),
+    .intr(intr_{{ group.name }}),
+    .data(data_{{ group.name }})
 );
 
 {% endfor %}

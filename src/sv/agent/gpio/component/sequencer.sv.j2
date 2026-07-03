@@ -4,7 +4,9 @@
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
 
-    {{ class_prefix }}sub_configuration cfg;
+    {{ class_prefix }}settings settings;
+    {{ class_prefix }}configuration cfg;
+    virtual {{ class_prefix }}sub_interface vif;
 
     function new(string name, uvm_component parent);
         super.new(name, parent);
@@ -26,10 +28,14 @@ function void {{ class_prefix }}sequencer::start_of_simulation();
 
     if (cfg == null)
         `uvm_fatal("", "require cfg")
-    if (!cfg.vif)
+    if (settings == null)
+        `uvm_fatal("", "require settings")
+    if (!settings.has_randomized)
+        assert(settings.randomize()) else `uvm_fatal("", "randomize settings failed")
+    if (!vif)
         `uvm_fatal("", "require vif")
     if (!cfg.has_randomized)
-        assert(cfg.randomize()) else `uvm_fatal("", "randomize failed")
+        `uvm_fatal("", "configuration is not randomized by settings")
     `uvm_info("", $sformatf("config:\n%s", cfg.sprint()), UVM_LOW)
 endfunction
 
