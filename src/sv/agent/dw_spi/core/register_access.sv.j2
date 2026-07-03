@@ -1,21 +1,21 @@
-`ifndef {{ (settings.class_prefix ~ "register_access") | upper }}
-`define {{ (settings.class_prefix ~ "register_access") | upper }}
+`ifndef {{ (class_prefix ~ "register_access") | upper }}
+`define {{ (class_prefix ~ "register_access") | upper }}
 
-class {{ settings.class_prefix }}register_access extends uvm_object;
-    `uvm_object_utils({{ settings.class_prefix }}register_access)
+class {{ class_prefix }}register_access extends uvm_object;
+    `uvm_object_utils({{ class_prefix }}register_access)
 
-    {{ settings.class_prefix }}settings settings;
+    {{ class_prefix }}settings settings;
 
-    function new(string name="{{ settings.class_prefix }}register_access");
+    function new(string name="{{ class_prefix }}register_access");
         super.new(name);
     endfunction
 
-    function bit [1:0] transfer_mode_bits({{ settings.class_prefix }}settings::transfer_mode_e mode);
+    function bit [1:0] transfer_mode_bits({{ class_prefix }}settings::transfer_mode_e mode);
         case (mode)
-            {{ settings.class_prefix }}settings::TX_AND_RX: return 2'h0;
-            {{ settings.class_prefix }}settings::TX_ONLY: return 2'h1;
-            {{ settings.class_prefix }}settings::RX_ONLY: return 2'h2;
-            {{ settings.class_prefix }}settings::EEPROM_READ: return 2'h3;
+            {{ class_prefix }}settings::TX_AND_RX: return 2'h0;
+            {{ class_prefix }}settings::TX_ONLY: return 2'h1;
+            {{ class_prefix }}settings::RX_ONLY: return 2'h2;
+            {{ class_prefix }}settings::EEPROM_READ: return 2'h3;
             default: return 2'h0;
         endcase
     endfunction
@@ -30,7 +30,7 @@ class {{ settings.class_prefix }}register_access extends uvm_object;
         endcase
     endfunction
 
-    function bit [31:0] pack_ctrlr0({{ settings.class_prefix }}transfer_req req);
+    function bit [31:0] pack_ctrlr0({{ class_prefix }}transfer_req req);
         bit [31:0] v;
         int unsigned dfs;
         bit [1:0] tmod;
@@ -38,13 +38,13 @@ class {{ settings.class_prefix }}register_access extends uvm_object;
         v = '0;
         dfs = req.data_frame_bits - 1;
         tmod = transfer_mode_bits(req.transfer_mode);
-        if (settings.ssi_variant == {{ settings.class_prefix }}settings::HSSI) begin
+        if (settings.ssi_variant == {{ class_prefix }}settings::HSSI) begin
             v[4:0] = dfs[4:0];
             v[7:6] = spi_frf_bits(req.speed_multiplier);
             v[8] = req.spi_mode[0];
             v[9] = req.spi_mode[1];
             v[11:10] = tmod;
-            if (req.host_mode == {{ settings.class_prefix }}settings::MASTER)
+            if (req.host_mode == {{ class_prefix }}settings::MASTER)
                 v[31] = 1'b1;
         end else begin
             if (req.data_frame_bits > 16)
@@ -55,15 +55,15 @@ class {{ settings.class_prefix }}register_access extends uvm_object;
             v[6] = req.spi_mode[0];
             v[7] = req.spi_mode[1];
             v[9:8] = tmod;
-            if (req.host_mode == {{ settings.class_prefix }}settings::SLAVE)
+            if (req.host_mode == {{ class_prefix }}settings::SLAVE)
                 v[10] = 1'b1;
         end
         return v;
     endfunction
 
     function void build_configuration(
-            {{ settings.class_prefix }}transfer_req req,
-            output {{ settings.class_prefix }}configuration cfg);
+            {{ class_prefix }}transfer_req req,
+            output {{ class_prefix }}configuration cfg);
         int unsigned length;
 
         if (settings == null)
@@ -72,13 +72,13 @@ class {{ settings.class_prefix }}register_access extends uvm_object;
             `uvm_fatal("DW_SPI_REG", "transfer req is null")
         if (req.payload == null)
             `uvm_fatal("DW_SPI_REG", "transfer req payload is null")
-        cfg = {{ settings.class_prefix }}configuration::type_id::create("configuration");
+        cfg = {{ class_prefix }}configuration::type_id::create("configuration");
         cfg.settings = settings;
         length = req.payload.get_data_length();
         if (!cfg.randomize() with {
                 if (req.transfer_mode inside {
-                        {{ settings.class_prefix }}settings::RX_ONLY,
-                        {{ settings.class_prefix }}settings::EEPROM_READ
+                        {{ class_prefix }}settings::RX_ONLY,
+                        {{ class_prefix }}settings::EEPROM_READ
                     }) {
                     ctrlr1 == (length > 0 ? length - 1 : 0);
                 } else {
@@ -90,45 +90,45 @@ class {{ settings.class_prefix }}register_access extends uvm_object;
         cfg.ctrlr0 = pack_ctrlr0(req);
     endfunction
 
-    task apply_configuration({{ settings.class_prefix }}configuration cfg);
+    task apply_configuration({{ class_prefix }}configuration cfg);
         uvm_status_e status;
 
         if (cfg == null)
             `uvm_fatal("DW_SPI_REG", "configuration is null")
         if (settings == null || settings.regmodel == null)
             `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
-        settings.regmodel.ssienr.write(status, cfg.ssienr_disable);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ssienr failed status=%s", status.name()))
-        settings.regmodel.imr.write(status, cfg.imr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write imr failed status=%s", status.name()))
-        settings.regmodel.icr.write(status, '0);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write icr failed status=%s", status.name()))
-        settings.regmodel.ser.write(status, '0);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ser failed status=%s", status.name()))
-        settings.regmodel.ctrlr0.write(status, cfg.ctrlr0);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ctrlr0 failed status=%s", status.name()))
-        settings.regmodel.ctrlr1.write(status, cfg.ctrlr1);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ctrlr1 failed status=%s", status.name()))
-        settings.regmodel.baudr.write(status, cfg.baudr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write baudr failed status=%s", status.name()))
-        settings.regmodel.txftlr.write(status, cfg.txftlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write txftlr failed status=%s", status.name()))
-        settings.regmodel.rxftlr.write(status, cfg.rxftlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write rxftlr failed status=%s", status.name()))
-        settings.regmodel.dmacr.write(status, cfg.dmacr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write dmacr failed status=%s", status.name()))
-        settings.regmodel.dmatdlr.write(status, cfg.dmatdlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write dmatdlr failed status=%s", status.name()))
-        settings.regmodel.dmardlr.write(status, cfg.dmardlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write dmardlr failed status=%s", status.name()))
+        settings.regmodel.SSIENR.write(status, cfg.ssienr_disable);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SSIENR failed status=%s", status.name()))
+        settings.regmodel.IMR.write(status, cfg.imr);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write IMR failed status=%s", status.name()))
+        settings.regmodel.ICR.write(status, '0);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ICR failed status=%s", status.name()))
+        settings.regmodel.SER.write(status, '0);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
+        settings.regmodel.CTRL0.write(status, cfg.ctrlr0);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRL0 failed status=%s", status.name()))
+        settings.regmodel.CTRL1.write(status, cfg.ctrlr1);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRL1 failed status=%s", status.name()))
+        settings.regmodel.BAUDR.write(status, cfg.baudr);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write BAUDR failed status=%s", status.name()))
+        settings.regmodel.TXFTLR.write(status, cfg.txftlr);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write TXFTLR failed status=%s", status.name()))
+        settings.regmodel.RXFTLR.write(status, cfg.rxftlr);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write RXFTLR failed status=%s", status.name()))
+        settings.regmodel.DMACR.write(status, cfg.dmacr);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMACR failed status=%s", status.name()))
+        settings.regmodel.DMATDLR.write(status, cfg.dmatdlr);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMATDLR failed status=%s", status.name()))
+        settings.regmodel.DMARDLR.write(status, cfg.dmardlr);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMARDLR failed status=%s", status.name()))
         if (cfg.write_rx_sample_dly)
-            settings.regmodel.rx_sample_dly.write(status, cfg.rx_sample_dly);
+            settings.regmodel.RX_SAMPLE_DLY.write(status, cfg.rx_sample_dly);
         if (cfg.write_rx_sample_dly && status != UVM_IS_OK)
-            `uvm_error("DW_SPI_REG", $sformatf("write rx_sample_dly failed status=%s", status.name()))
-        settings.regmodel.ser.write(status, cfg.ser);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ser failed status=%s", status.name()))
-        settings.regmodel.ssienr.write(status, cfg.ssienr_enable);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ssienr failed status=%s", status.name()))
+            `uvm_error("DW_SPI_REG", $sformatf("write RX_SAMPLE_DLY failed status=%s", status.name()))
+        settings.regmodel.SER.write(status, cfg.ser);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
+        settings.regmodel.SSIENR.write(status, cfg.ssienr_enable);
+        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SSIENR failed status=%s", status.name()))
     endtask
 endclass
 

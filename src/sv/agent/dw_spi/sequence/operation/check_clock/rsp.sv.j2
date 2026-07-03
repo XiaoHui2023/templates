@@ -1,8 +1,8 @@
-`ifndef {{ (settings.class_prefix ~ "check_clock_rsp") | upper }}
-`define {{ (settings.class_prefix ~ "check_clock_rsp") | upper }}
+`ifndef {{ (class_prefix ~ "check_clock_rsp") | upper }}
+`define {{ (class_prefix ~ "check_clock_rsp") | upper }}
 
-class {{ settings.class_prefix }}check_clock_rsp extends uvm_sequence_item;
-    `uvm_object_utils_begin({{ settings.class_prefix }}check_clock_rsp)
+class {{ class_prefix }}check_clock_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}check_clock_rsp)
         `uvm_field_int(ok, UVM_ALL_ON)
         `uvm_field_int(hclk_connected, UVM_ALL_ON)
         `uvm_field_int(ssi_clk_connected, UVM_ALL_ON)
@@ -18,7 +18,7 @@ class {{ settings.class_prefix }}check_clock_rsp extends uvm_sequence_item;
     real ssi_clk_hz;
     int unsigned recommended_baudr;
 
-    function new(string name="{{ settings.class_prefix }}check_clock_rsp");
+    function new(string name="{{ class_prefix }}check_clock_rsp");
         super.new(name);
         ok = 1'b1;
     endfunction

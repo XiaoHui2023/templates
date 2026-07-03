@@ -1,7 +1,7 @@
-`ifndef {{ (settings.class_prefix ~ "clock_if") | upper }}
-`define {{ (settings.class_prefix ~ "clock_if") | upper }}
+`ifndef {{ (class_prefix ~ "clock_if") | upper }}
+`define {{ (class_prefix ~ "clock_if") | upper }}
 
-interface {{ settings.class_prefix }}clock_if(input logic clk);
+interface {{ class_prefix }}clock_if(input logic clk);
     timeunit 1ns;
     timeprecision 1fs;
 
@@ -13,8 +13,8 @@ interface {{ settings.class_prefix }}clock_if(input logic clk);
 
     task automatic measure_frequency_hz(
             output real frequency_hz,
-            input int unsigned sample_edges = {{ settings.clock_check_sample_edges }},
-            input realtime timeout_ns = {{ settings.clock_check_timeout_ns }}.0);
+            input int unsigned sample_edges = {{ clock_check_sample_edges }},
+            input realtime timeout_ns = {{ clock_check_timeout_ns }}.0);
         realtime first_edge_ns;
         realtime last_edge_ns;
         realtime elapsed_ns;

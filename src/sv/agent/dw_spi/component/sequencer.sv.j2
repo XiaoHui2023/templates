@@ -1,17 +1,17 @@
-`ifndef {{ (settings.class_prefix ~ "sequencer") | upper }}
-`define {{ (settings.class_prefix ~ "sequencer") | upper }}
+`ifndef {{ (class_prefix ~ "sequencer") | upper }}
+`define {{ (class_prefix ~ "sequencer") | upper }}
 
-class {{ settings.class_prefix }}sequencer extends uvm_sequencer;
-    `uvm_component_utils({{ settings.class_prefix }}sequencer)
-    `uvm_register_cb({{ settings.class_prefix }}sequencer, {{ settings.class_prefix }}callback)
+class {{ class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ class_prefix }}sequencer)
+    `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
 
-    {{ settings.class_prefix }}settings settings;
-    {{ settings.class_prefix }}scoreboard scoreboard;
-    virtual {{ settings.class_prefix }}interface vif;
+    {{ class_prefix }}settings settings;
+    {{ class_prefix }}scoreboard scoreboard;
+    virtual {{ class_prefix }}interface vif;
 
-    function new(string name="{{ settings.class_prefix }}sequencer", uvm_component parent=null);
+    function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
-        settings = {{ settings.class_prefix }}settings::type_id::create("settings");
+        settings = {{ class_prefix }}settings::type_id::create("settings");
     endfunction
 
     extern function void build_phase(uvm_phase phase);
@@ -19,11 +19,11 @@ class {{ settings.class_prefix }}sequencer extends uvm_sequencer;
     extern task release_chip_select(int unsigned cs_id);
 endclass
 
-function void {{ settings.class_prefix }}sequencer::build_phase(uvm_phase phase);
+function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
-    void'(uvm_config_db #({{ settings.class_prefix }}settings)::get(this, "", "settings", settings));
-    void'(uvm_config_db #({{ settings.class_prefix }}scoreboard)::get(this, "", "scoreboard", scoreboard));
-    void'(uvm_config_db #(virtual {{ settings.class_prefix }}interface)::get(this, "", "vif", vif));
+    void'(uvm_config_db #({{ class_prefix }}settings)::get(this, "", "settings", settings));
+    void'(uvm_config_db #({{ class_prefix }}scoreboard)::get(this, "", "scoreboard", scoreboard));
+    void'(uvm_config_db #(virtual {{ class_prefix }}interface)::get(this, "", "vif", vif));
     if (settings == null)
         `uvm_fatal("DW_SPI", "sequencer settings is null")
     if (scoreboard == null)
@@ -34,12 +34,12 @@ function void {{ settings.class_prefix }}sequencer::build_phase(uvm_phase phase)
         vif = settings.vif;
 endfunction
 
-task {{ settings.class_prefix }}sequencer::activate_chip_select(int unsigned cs_id);
-    `uvm_do_obj_callbacks({{ settings.class_prefix }}sequencer, {{ settings.class_prefix }}callback, this, activate_chip_select(cs_id))
+task {{ class_prefix }}sequencer::activate_chip_select(int unsigned cs_id);
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, activate_chip_select(cs_id))
 endtask
 
-task {{ settings.class_prefix }}sequencer::release_chip_select(int unsigned cs_id);
-    `uvm_do_obj_callbacks({{ settings.class_prefix }}sequencer, {{ settings.class_prefix }}callback, this, release_chip_select(cs_id))
+task {{ class_prefix }}sequencer::release_chip_select(int unsigned cs_id);
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, release_chip_select(cs_id))
 endtask
 
 `endif

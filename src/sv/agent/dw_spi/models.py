@@ -9,7 +9,7 @@ _SV_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _SV_TYPE = re.compile(r"^([A-Za-z_][A-Za-z0-9_$]*::)*[A-Za-z_][A-Za-z0-9_$]*$")
 
 
-class Settings(BaseModel):
+class Models(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     class_prefix: str = Field(
@@ -109,6 +109,11 @@ class Settings(BaseModel):
         le=255,
         description="Default receive FIFO threshold used by register configuration tasks.",
     )
+    default_rx_sample_delay_ns: int = Field(
+        0,
+        ge=0,
+        description="Default receive sample delay value written when nonzero.",
+    )
     support_rx_sample_delay: bool = Field(
         True,
         description="Allow transfers to request receive sample delay.",
@@ -181,7 +186,7 @@ class Settings(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _validate_enabled_modes(self) -> Settings:
+    def _validate_enabled_modes(self) -> Models:
         if not self.support_master and not self.support_slave:
             raise ValueError("at least one of support_master or support_slave must be enabled")
         if not self.support_standard and not self.support_enhanced:
@@ -191,42 +196,33 @@ class Settings(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _validate_flash_page_size(self) -> Settings:
+    def _validate_flash_page_size(self) -> Models:
         if self.flash_page_size > self.flash_size_bytes:
             raise ValueError("flash_page_size must not exceed flash_size_bytes")
         return self
 
     @model_validator(mode="after")
-    def _validate_default_cs(self) -> Settings:
+    def _validate_default_cs(self) -> Models:
         if self.default_cs >= self.num_cs:
             raise ValueError("default_cs must be less than num_cs")
         return self
 
     @model_validator(mode="after")
-    def _validate_baud_div_even(self) -> Settings:
+    def _validate_baud_div_even(self) -> Models:
         if self.default_baud_div % 2:
             raise ValueError("default_baud_div must be even")
         return self
 
     @model_validator(mode="after")
-    def _validate_baud_output_limit(self) -> Settings:
+    def _validate_baud_output_limit(self) -> Models:
         if self.input_clock_hz > self.max_output_hz * self.default_baud_div:
             raise ValueError("input_clock_hz / default_baud_div must not exceed max_output_hz")
         return self
 
     @model_validator(mode="after")
-    def _validate_fifo_thresholds(self) -> Settings:
+    def _validate_fifo_thresholds(self) -> Models:
         if self.default_tx_fifo_threshold >= self.fifo_depth_bytes:
             raise ValueError("default_tx_fifo_threshold must be less than fifo_depth_bytes")
         if self.default_rx_fifo_threshold >= self.fifo_depth_bytes:
             raise ValueError("default_rx_fifo_threshold must be less than fifo_depth_bytes")
         return self
-
-
-class Models(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    settings: Settings = Field(
-        default_factory=Settings,
-        description="Global options for the DesignWare SPI agent.",
-    )

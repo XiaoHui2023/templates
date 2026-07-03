@@ -1,14 +1,14 @@
-`ifndef {{ (settings.class_prefix ~ "init_registers_req") | upper }}
-`define {{ (settings.class_prefix ~ "init_registers_req") | upper }}
+`ifndef {{ (class_prefix ~ "init_registers_req") | upper }}
+`define {{ (class_prefix ~ "init_registers_req") | upper }}
 
-class {{ settings.class_prefix }}init_registers_req extends uvm_sequence_item;
-    `uvm_object_utils_begin({{ settings.class_prefix }}init_registers_req)
+class {{ class_prefix }}init_registers_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}init_registers_req)
         `uvm_field_object(transfer_req, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand {{ settings.class_prefix }}transfer_req transfer_req;
+    rand {{ class_prefix }}transfer_req transfer_req;
 
-    function new(string name="{{ settings.class_prefix }}init_registers_req");
+    function new(string name="{{ class_prefix }}init_registers_req");
         super.new(name);
     endfunction
 endclass

@@ -1,14 +1,14 @@
-`ifndef {{ (settings.class_prefix ~ "flash_write_seq") | upper }}
-`define {{ (settings.class_prefix ~ "flash_write_seq") | upper }}
+`ifndef {{ (class_prefix ~ "flash_write_seq") | upper }}
+`define {{ (class_prefix ~ "flash_write_seq") | upper }}
 
-class {{ settings.class_prefix }}flash_write_seq extends uvm_sequence #(
-    {{ settings.class_prefix }}flash_write_req,
-    {{ settings.class_prefix }}flash_write_rsp
+class {{ class_prefix }}flash_write_seq extends uvm_sequence #(
+    {{ class_prefix }}flash_write_req,
+    {{ class_prefix }}flash_write_rsp
 );
-    `uvm_object_utils({{ settings.class_prefix }}flash_write_seq)
-    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+    `uvm_object_utils({{ class_prefix }}flash_write_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    function new(string name="{{ settings.class_prefix }}flash_write_seq");
+    function new(string name="{{ class_prefix }}flash_write_seq");
         super.new(name);
     endfunction
 
@@ -17,20 +17,20 @@ class {{ settings.class_prefix }}flash_write_seq extends uvm_sequence #(
     extern task run_chunk(bit [63:0] addr, bit [7:0] chunk[$], output bit ok);
 endclass
 
-task {{ settings.class_prefix }}flash_write_seq::run_write_enable(output bit ok);
-    {{ settings.class_prefix }}transfer_req op_req;
-    {{ settings.class_prefix }}transfer_rsp op_rsp;
-    {{ settings.class_prefix }}transfer_seq op_seq;
+task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
+    {{ class_prefix }}transfer_req op_req;
+    {{ class_prefix }}transfer_rsp op_rsp;
+    {{ class_prefix }}transfer_seq op_seq;
 
-    op_req = {{ settings.class_prefix }}transfer_req::type_id::create("op_req");
+    op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_READ_COMMAND);
     op_req.payload.set_address(0);
     op_req.payload.set_data_length(0);
     op_req.host_mode = p_sequencer.settings.default_host_mode;
-    op_req.protocol = {{ settings.class_prefix }}settings::FLASH_SPI;
+    op_req.protocol = {{ class_prefix }}settings::FLASH_SPI;
     op_req.frame_mode = req.frame_mode;
-    op_req.transfer_mode = {{ settings.class_prefix }}settings::TX_ONLY;
+    op_req.transfer_mode = {{ class_prefix }}settings::TX_ONLY;
     op_req.opcode = 8'h06;
     op_req.io_lanes = req.io_lanes;
     op_req.speed_multiplier = req.speed_multiplier;
@@ -39,23 +39,23 @@ task {{ settings.class_prefix }}flash_write_seq::run_write_enable(output bit ok)
     op_req.cs_id = req.cs_id;
     op_req.inst_bytes = 1;
     op_req.addr_bytes = 0;
-    op_seq = {{ settings.class_prefix }}transfer_seq::type_id::create("write_enable");
+    op_seq = {{ class_prefix }}transfer_seq::type_id::create("write_enable");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
     op_rsp = op_seq.rsp;
     ok = op_rsp != null && op_rsp.ok;
 endtask
 
-task {{ settings.class_prefix }}flash_write_seq::run_chunk(
+task {{ class_prefix }}flash_write_seq::run_chunk(
         bit [63:0] addr,
         bit [7:0] chunk[$],
         output bit ok);
-    {{ settings.class_prefix }}transfer_req op_req;
-    {{ settings.class_prefix }}transfer_rsp op_rsp;
-    {{ settings.class_prefix }}transfer_seq op_seq;
+    {{ class_prefix }}transfer_req op_req;
+    {{ class_prefix }}transfer_rsp op_rsp;
+    {{ class_prefix }}transfer_seq op_seq;
     byte unsigned payload_data[];
 
-    op_req = {{ settings.class_prefix }}transfer_req::type_id::create("op_req");
+    op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_WRITE_COMMAND);
     op_req.payload.set_address(addr);
@@ -64,9 +64,9 @@ task {{ settings.class_prefix }}flash_write_seq::run_chunk(
         payload_data[i] = chunk[i];
     op_req.payload.set_data(payload_data);
     op_req.host_mode = p_sequencer.settings.default_host_mode;
-    op_req.protocol = {{ settings.class_prefix }}settings::FLASH_SPI;
+    op_req.protocol = {{ class_prefix }}settings::FLASH_SPI;
     op_req.frame_mode = req.frame_mode;
-    op_req.transfer_mode = {{ settings.class_prefix }}settings::TX_ONLY;
+    op_req.transfer_mode = {{ class_prefix }}settings::TX_ONLY;
     op_req.opcode = 8'h02;
     op_req.io_lanes = req.io_lanes;
     op_req.speed_multiplier = req.speed_multiplier;
@@ -76,15 +76,15 @@ task {{ settings.class_prefix }}flash_write_seq::run_chunk(
     op_req.inst_bytes = 1;
     op_req.addr_bytes = req.addr_bytes == 0
         ? p_sequencer.settings.default_addr_bytes : req.addr_bytes;
-    op_seq = {{ settings.class_prefix }}transfer_seq::type_id::create("transfer");
+    op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
     op_rsp = op_seq.rsp;
     ok = op_rsp != null && op_rsp.ok;
 endtask
 
-task {{ settings.class_prefix }}flash_write_seq::body();
-    {{ settings.class_prefix }}flash_write_rsp rs;
+task {{ class_prefix }}flash_write_seq::body();
+    {{ class_prefix }}flash_write_rsp rs;
     bit ok;
     bit [7:0] chunk[$];
     int unsigned page_size;
@@ -93,7 +93,7 @@ task {{ settings.class_prefix }}flash_write_seq::body();
 
     if (req == null)
         `uvm_fatal("DW_SPI", "flash_write: req is null")
-    rs = {{ settings.class_prefix }}flash_write_rsp::type_id::create("rsp");
+    rs = {{ class_prefix }}flash_write_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
     page_size = p_sequencer.settings.flash_page_size;
     pos = 0;

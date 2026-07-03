@@ -1,16 +1,16 @@
-`ifndef {{ (settings.class_prefix ~ "scoreboard") | upper }}
-`define {{ (settings.class_prefix ~ "scoreboard") | upper }}
+`ifndef {{ (class_prefix ~ "scoreboard") | upper }}
+`define {{ (class_prefix ~ "scoreboard") | upper }}
 
-class {{ settings.class_prefix }}scoreboard extends uvm_component;
-    `uvm_component_utils({{ settings.class_prefix }}scoreboard)
+class {{ class_prefix }}scoreboard extends uvm_component;
+    `uvm_component_utils({{ class_prefix }}scoreboard)
 
-    {{ settings.class_prefix }}settings settings;
-    {{ settings.class_prefix }}mem mem;
+    {{ class_prefix }}settings settings;
+    {{ class_prefix }}mem mem;
     string init_memh;
 
-    function new(string name="{{ settings.class_prefix }}scoreboard", uvm_component parent=null);
+    function new(string name="{{ class_prefix }}scoreboard", uvm_component parent=null);
         super.new(name, parent);
-        settings = {{ settings.class_prefix }}settings::type_id::create("settings");
+        settings = {{ class_prefix }}settings::type_id::create("settings");
         mem = new(settings.flash_erase_value, settings.flash_size_bytes);
     endfunction
 
@@ -24,9 +24,9 @@ class {{ settings.class_prefix }}scoreboard extends uvm_component;
     extern function bit compare_actual(bit [63:0] addr, bit [7:0] actual[$], string label = "actual");
 endclass
 
-function void {{ settings.class_prefix }}scoreboard::build_phase(uvm_phase phase);
+function void {{ class_prefix }}scoreboard::build_phase(uvm_phase phase);
     super.build_phase(phase);
-    void'(uvm_config_db #({{ settings.class_prefix }}settings)::get(this, "", "settings", settings));
+    void'(uvm_config_db #({{ class_prefix }}settings)::get(this, "", "settings", settings));
     if (settings == null)
         `uvm_fatal("DW_SPI", "scoreboard settings is null")
     mem = new(settings.flash_erase_value, settings.flash_size_bytes);
@@ -35,18 +35,18 @@ function void {{ settings.class_prefix }}scoreboard::build_phase(uvm_phase phase
             `uvm_fatal("DW_SPI", $sformatf("failed to load init_memh %s", init_memh))
 endfunction
 
-function bit {{ settings.class_prefix }}scoreboard::load_memh(string filename, bit clear_first);
+function bit {{ class_prefix }}scoreboard::load_memh(string filename, bit clear_first);
     return mem.load_memh(filename, clear_first);
 endfunction
 
-function bit {{ settings.class_prefix }}scoreboard::load_hex_lines(
+function bit {{ class_prefix }}scoreboard::load_hex_lines(
         string filename,
         bit clear_first,
         bit [63:0] base_addr);
     return mem.load_hex_lines(filename, clear_first, base_addr);
 endfunction
 
-function bit {{ settings.class_prefix }}scoreboard::apply_payload(
+function bit {{ class_prefix }}scoreboard::apply_payload(
         uvm_tlm_generic_payload gp,
         output bit [7:0] read_data[$]);
     byte unsigned gp_data[];
@@ -80,7 +80,7 @@ function bit {{ settings.class_prefix }}scoreboard::apply_payload(
     return 1'b0;
 endfunction
 
-function bit {{ settings.class_prefix }}scoreboard::record_expected_write(
+function bit {{ class_prefix }}scoreboard::record_expected_write(
         bit [63:0] addr,
         bit [7:0] data[$],
         string label);
@@ -91,21 +91,21 @@ function bit {{ settings.class_prefix }}scoreboard::record_expected_write(
     return 1'b1;
 endfunction
 
-function bit {{ settings.class_prefix }}scoreboard::check_actual_read(
+function bit {{ class_prefix }}scoreboard::check_actual_read(
         bit [63:0] addr,
         bit [7:0] actual[$],
         string label);
     return mem.compare_bytes(addr, actual, label);
 endfunction
 
-function bit {{ settings.class_prefix }}scoreboard::check_actual_write(
+function bit {{ class_prefix }}scoreboard::check_actual_write(
         bit [63:0] addr,
         bit [7:0] actual[$],
         string label);
     return mem.compare_bytes(addr, actual, label);
 endfunction
 
-function bit {{ settings.class_prefix }}scoreboard::compare_actual(
+function bit {{ class_prefix }}scoreboard::compare_actual(
         bit [63:0] addr,
         bit [7:0] actual[$],
         string label);

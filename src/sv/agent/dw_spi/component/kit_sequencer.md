@@ -54,4 +54,4 @@
 
 ## 边界
 
-`kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里调用明确的 `settings.regmodel.<reg>.write/read`。
+`kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里调用明确的大写 `settings.regmodel.<REG>.write/read`。

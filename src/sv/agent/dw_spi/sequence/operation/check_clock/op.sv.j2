@@ -1,14 +1,14 @@
-`ifndef {{ (settings.class_prefix ~ "check_clock_seq") | upper }}
-`define {{ (settings.class_prefix ~ "check_clock_seq") | upper }}
+`ifndef {{ (class_prefix ~ "check_clock_seq") | upper }}
+`define {{ (class_prefix ~ "check_clock_seq") | upper }}
 
-class {{ settings.class_prefix }}check_clock_seq extends uvm_sequence #(
-    {{ settings.class_prefix }}check_clock_req,
-    {{ settings.class_prefix }}check_clock_rsp
+class {{ class_prefix }}check_clock_seq extends uvm_sequence #(
+    {{ class_prefix }}check_clock_req,
+    {{ class_prefix }}check_clock_rsp
 );
-    `uvm_object_utils({{ settings.class_prefix }}check_clock_seq)
-    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+    `uvm_object_utils({{ class_prefix }}check_clock_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    function new(string name="{{ settings.class_prefix }}check_clock_seq");
+    function new(string name="{{ class_prefix }}check_clock_seq");
         super.new(name);
     endfunction
 
@@ -16,7 +16,7 @@ class {{ settings.class_prefix }}check_clock_seq extends uvm_sequence #(
     extern function bit in_range(real value_hz, real min_hz, real max_hz, string label);
 endclass
 
-function bit {{ settings.class_prefix }}check_clock_seq::in_range(
+function bit {{ class_prefix }}check_clock_seq::in_range(
         real value_hz,
         real min_hz,
         real max_hz,
@@ -36,17 +36,17 @@ function bit {{ settings.class_prefix }}check_clock_seq::in_range(
     return 1'b1;
 endfunction
 
-task {{ settings.class_prefix }}check_clock_seq::body();
-    {{ settings.class_prefix }}check_clock_req rq;
-    {{ settings.class_prefix }}check_clock_rsp rs;
+task {{ class_prefix }}check_clock_seq::body();
+    {{ class_prefix }}check_clock_req rq;
+    {{ class_prefix }}check_clock_rsp rs;
     real expected_ssi_hz;
     real max_allowed_ssi_hz;
 
     if (req == null)
-        rq = {{ settings.class_prefix }}check_clock_req::type_id::create("req");
+        rq = {{ class_prefix }}check_clock_req::type_id::create("req");
     else
         rq = req;
-    rs = {{ settings.class_prefix }}check_clock_rsp::type_id::create("rsp");
+    rs = {{ class_prefix }}check_clock_rsp::type_id::create("rsp");
     if (p_sequencer.settings.vif == null)
         `uvm_fatal("DW_SPI_CLK", "check_clock requires virtual dw_spi_interface in sequencer settings")
 

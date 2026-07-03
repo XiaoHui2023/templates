@@ -1,15 +1,15 @@
-`ifndef {{ (settings.class_prefix ~ "mem") | upper }}
-`define {{ (settings.class_prefix ~ "mem") | upper }}
+`ifndef {{ (class_prefix ~ "mem") | upper }}
+`define {{ (class_prefix ~ "mem") | upper }}
 
-class {{ settings.class_prefix }}mem;
-    parameter int max_bytes_per_line = {{ settings.memh_max_bytes_per_line }};
+class {{ class_prefix }}mem;
+    parameter int max_bytes_per_line = {{ memh_max_bytes_per_line }};
 
     bit [7:0] bytes[bit [63:0]];
     bit [7:0] erase_value;
     bit [63:0] size_bytes;
 
-    function new(bit [7:0] erase_value = 8'h{{ "%02x" % settings.flash_erase_value }},
-            bit [63:0] size_bytes = 64'd{{ settings.flash_size_bytes }});
+    function new(bit [7:0] erase_value = 8'h{{ "%02x" % flash_erase_value }},
+            bit [63:0] size_bytes = 64'd{{ flash_size_bytes }});
         this.erase_value = erase_value;
         this.size_bytes = size_bytes;
     endfunction
@@ -29,11 +29,11 @@ class {{ settings.class_prefix }}mem;
     extern local function string memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
 endclass
 
-function void {{ settings.class_prefix }}mem::clear();
+function void {{ class_prefix }}mem::clear();
     bytes.delete();
 endfunction
 
-function bit {{ settings.class_prefix }}mem::in_range(bit [63:0] addr, int unsigned len);
+function bit {{ class_prefix }}mem::in_range(bit [63:0] addr, int unsigned len);
     if (len == 0)
         return 1'b1;
     if (addr >= size_bytes)
@@ -41,11 +41,11 @@ function bit {{ settings.class_prefix }}mem::in_range(bit [63:0] addr, int unsig
     return (addr + len - 1) < size_bytes;
 endfunction
 
-function void {{ settings.class_prefix }}mem::erase_all();
+function void {{ class_prefix }}mem::erase_all();
     bytes.delete();
 endfunction
 
-function bit {{ settings.class_prefix }}mem::write_bytes(bit [63:0] addr, bit [7:0] data[$]);
+function bit {{ class_prefix }}mem::write_bytes(bit [63:0] addr, bit [7:0] data[$]);
     if (!in_range(addr, data.size())) begin
         `uvm_error("DW_SPI_MEM", $sformatf(
             "write out of range addr=0x%016h len=%0d size=%0d",
@@ -57,7 +57,7 @@ function bit {{ settings.class_prefix }}mem::write_bytes(bit [63:0] addr, bit [7
     return 1'b1;
 endfunction
 
-function bit {{ settings.class_prefix }}mem::read_bytes(
+function bit {{ class_prefix }}mem::read_bytes(
         bit [63:0] addr,
         int unsigned len,
         output bit [7:0] data[$]);
@@ -80,7 +80,7 @@ function bit {{ settings.class_prefix }}mem::read_bytes(
     return 1'b1;
 endfunction
 
-function bit {{ settings.class_prefix }}mem::compare_bytes(
+function bit {{ class_prefix }}mem::compare_bytes(
         bit [63:0] addr,
         bit [7:0] expected[$],
         string label);
@@ -105,7 +105,7 @@ function bit {{ settings.class_prefix }}mem::compare_bytes(
     return pass;
 endfunction
 
-function bit {{ settings.class_prefix }}mem::load_memh(string filename, bit clear_first);
+function bit {{ class_prefix }}mem::load_memh(string filename, bit clear_first);
     int file;
     int code;
     int value;
@@ -162,7 +162,7 @@ function bit {{ settings.class_prefix }}mem::load_memh(string filename, bit clea
     return 1'b1;
 endfunction
 
-function bit {{ settings.class_prefix }}mem::load_hex_lines(
+function bit {{ class_prefix }}mem::load_hex_lines(
         string filename,
         bit clear_first,
         bit [63:0] base_addr);
@@ -220,7 +220,7 @@ function bit {{ settings.class_prefix }}mem::load_hex_lines(
     return 1'b1;
 endfunction
 
-function bit {{ settings.class_prefix }}mem::dump_memh(string filename);
+function bit {{ class_prefix }}mem::dump_memh(string filename);
     int file;
     bit [63:0] max_addr;
     int addr_hex_digits;
@@ -267,13 +267,13 @@ function bit {{ settings.class_prefix }}mem::dump_memh(string filename);
     return 1'b1;
 endfunction
 
-function bit {{ settings.class_prefix }}mem::is_hex_char(byte unsigned ch);
+function bit {{ class_prefix }}mem::is_hex_char(byte unsigned ch);
     return (ch >= 8'h30 && ch <= 8'h39)
         || (ch >= 8'h61 && ch <= 8'h66)
         || (ch >= 8'h41 && ch <= 8'h46);
 endfunction
 
-function int {{ settings.class_prefix }}mem::hex_char_value(byte unsigned ch);
+function int {{ class_prefix }}mem::hex_char_value(byte unsigned ch);
     if (ch >= 8'h30 && ch <= 8'h39)
         return ch - 8'h30;
     if (ch >= 8'h61 && ch <= 8'h66)
@@ -283,7 +283,7 @@ function int {{ settings.class_prefix }}mem::hex_char_value(byte unsigned ch);
     return -1;
 endfunction
 
-function int {{ settings.class_prefix }}mem::memh_addr_hex_digits(bit [63:0] max_addr);
+function int {{ class_prefix }}mem::memh_addr_hex_digits(bit [63:0] max_addr);
     bit [63:0] a;
     int d;
 
@@ -298,7 +298,7 @@ function int {{ settings.class_prefix }}mem::memh_addr_hex_digits(bit [63:0] max
     return d;
 endfunction
 
-function string {{ settings.class_prefix }}mem::memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
+function string {{ class_prefix }}mem::memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
     string s;
     string ch;
     bit [3:0] nib;

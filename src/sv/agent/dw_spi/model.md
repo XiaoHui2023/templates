@@ -12,7 +12,7 @@
 - runtime default：默认 SPI mode、默认 CS、默认地址字节数、默认 BAUDR、FIFO threshold、rx sample delay。
 - shared handle：`regmodel`、`vif`。
 
-sequence 通过 `p_sequencer.settings` 读取这些信息。寄存器访问使用 `settings.regmodel.<reg>.write/read`。
+sequence 通过 `p_sequencer.settings` 读取这些信息。寄存器访问使用大写 REG/FIELD 句柄，例如 `settings.regmodel.CTRL0.write/read`。
 
 ## `configuration.sv`
 
@@ -37,17 +37,13 @@ sequence 通过 `p_sequencer.settings` 读取这些信息。寄存器访问使�
 
 它可以引用 `settings` 做约束，计算默认分频、FIFO threshold、DMA threshold、rx sample delay 等值。
 
-`configuration` 不放寄存器地址。寄存器地址由 regmodel 托管，operation/core 只通过明确的 `settings.regmodel.<reg>` 访问寄存器。
-
-## `dw_registers.md`
-
-`dw_registers.md` 记录 DesignWare SPI/SSI 寄存器字段语义，给代码和 review 提供参考。
-
-它可以记录寄存器名、field、效果、频率关系和状态位含义；但生成代码不能从 `configuration` 中取地址常量。需要实际读写时通过 regmodel 访问。
+`configuration` 不放寄存器地址。寄存器地址由 regmodel 托管，operation/core 只通过明确的大写 `settings.regmodel.<REG>` 访问寄存器。`configuration` 内部的 `ctrlr0`、`baudr` 等小写成员只是本次配置值，不是 regmodel REG/FIELD 句柄。
 
 ## 相关执行逻辑
 
 重复的寄存器 pack/apply 逻辑放在 `core/register_access.sv`。
+
+`core/dw_registers.md` 记录 DesignWare SPI/SSI 寄存器字段语义，给寄存器 pack/apply 代码和 review 提供参考。生成代码不能从 `configuration` 中取地址常量；需要实际读写时通过 regmodel 访问。
 
 `register_access` 是实例化工具类。sequence 创建对象后注入 `p_sequencer.settings`，再调用实例方法。不要把 core 做成 static 函数集合。
 

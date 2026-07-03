@@ -1,14 +1,14 @@
-`ifndef {{ (settings.class_prefix ~ "settings") | upper }}
-`define {{ (settings.class_prefix ~ "settings") | upper }}
+`ifndef {{ (class_prefix ~ "settings") | upper }}
+`define {{ (class_prefix ~ "settings") | upper }}
 
-class {{ settings.class_prefix }}settings extends uvm_object;
+class {{ class_prefix }}settings extends uvm_object;
     typedef enum {MASTER, SLAVE} host_mode_e;
     typedef enum {GENERAL_SPI, FLASH_SPI} protocol_e;
     typedef enum {STANDARD, ENHANCED} frame_mode_e;
     typedef enum {PSSI, HSSI} ssi_variant_e;
     typedef enum {TX_AND_RX, TX_ONLY, RX_ONLY, EEPROM_READ} transfer_mode_e;
 
-    `uvm_object_utils_begin({{ settings.class_prefix }}settings)
+    `uvm_object_utils_begin({{ class_prefix }}settings)
         `uvm_field_enum(host_mode_e, default_host_mode, UVM_ALL_ON)
         `uvm_field_enum(protocol_e, default_protocol, UVM_ALL_ON)
         `uvm_field_enum(frame_mode_e, default_frame_mode, UVM_ALL_ON)
@@ -57,64 +57,64 @@ class {{ settings.class_prefix }}settings extends uvm_object;
     int unsigned flash_size_bytes;
     int unsigned flash_page_size;
     bit [7:0] flash_erase_value;
-    {{ settings.regmodel_type }} regmodel;
-    virtual {{ settings.class_prefix }}interface vif;
+    {{ regmodel_type }} regmodel;
+    virtual {{ class_prefix }}interface vif;
 
-    function new(string name="{{ settings.class_prefix }}settings");
+    function new(string name="{{ class_prefix }}settings");
         super.new(name);
-        flash_size_bytes = {{ settings.flash_size_bytes }};
-        flash_page_size = {{ settings.flash_page_size }};
-        flash_erase_value = 8'h{{ "%02x" % settings.flash_erase_value }};
-        default_host_mode = {{ settings.class_prefix }}settings::{{ "MASTER" if settings.support_master else "SLAVE" }};
-        default_protocol = {{ settings.class_prefix }}settings::{{ "FLASH_SPI" if settings.support_flash_spi else "GENERAL_SPI" }};
-        default_frame_mode = {{ settings.class_prefix }}settings::{{ "ENHANCED" if settings.support_enhanced else "STANDARD" }};
-        ssi_variant = {{ settings.class_prefix }}settings::{{ settings.ssi_variant }};
-        default_io_lanes = {{ settings.max_io_lanes }};
-        default_speed_multiplier = {{ settings.max_speed_multiplier }};
-        default_spi_mode = {{ settings.default_spi_mode }};
-        default_data_frame_bits = {{ settings.max_data_frame_bits }};
-        default_cs = {{ settings.default_cs }};
-        default_addr_bytes = {{ settings.default_addr_bytes }};
-        default_baud_div = {{ settings.default_baud_div }};
-        fifo_depth_bytes = {{ settings.fifo_depth_bytes }};
-        input_clock_hz = {{ settings.input_clock_hz }};
-        max_output_hz = {{ settings.max_output_hz }};
-        clock_check_tolerance_ppm = {{ settings.clock_check_tolerance_ppm }};
-        clock_check_sample_edges = {{ settings.clock_check_sample_edges }};
-        clock_check_timeout_ns = {{ settings.clock_check_timeout_ns }};
-        default_tx_fifo_threshold = {{ settings.default_tx_fifo_threshold }};
-        default_rx_fifo_threshold = {{ settings.default_rx_fifo_threshold }};
-        default_rx_sample_delay_ns = 0;
+        flash_size_bytes = {{ flash_size_bytes }};
+        flash_page_size = {{ flash_page_size }};
+        flash_erase_value = 8'h{{ "%02x" % flash_erase_value }};
+        default_host_mode = {{ class_prefix }}settings::{{ "MASTER" if support_master else "SLAVE" }};
+        default_protocol = {{ class_prefix }}settings::{{ "FLASH_SPI" if support_flash_spi else "GENERAL_SPI" }};
+        default_frame_mode = {{ class_prefix }}settings::{{ "ENHANCED" if support_enhanced else "STANDARD" }};
+        ssi_variant = {{ class_prefix }}settings::{{ ssi_variant }};
+        default_io_lanes = {{ max_io_lanes }};
+        default_speed_multiplier = {{ max_speed_multiplier }};
+        default_spi_mode = {{ default_spi_mode }};
+        default_data_frame_bits = {{ max_data_frame_bits }};
+        default_cs = {{ default_cs }};
+        default_addr_bytes = {{ default_addr_bytes }};
+        default_baud_div = {{ default_baud_div }};
+        fifo_depth_bytes = {{ fifo_depth_bytes }};
+        input_clock_hz = {{ input_clock_hz }};
+        max_output_hz = {{ max_output_hz }};
+        clock_check_tolerance_ppm = {{ clock_check_tolerance_ppm }};
+        clock_check_sample_edges = {{ clock_check_sample_edges }};
+        clock_check_timeout_ns = {{ clock_check_timeout_ns }};
+        default_tx_fifo_threshold = {{ default_tx_fifo_threshold }};
+        default_rx_fifo_threshold = {{ default_rx_fifo_threshold }};
+        default_rx_sample_delay_ns = {{ default_rx_sample_delay_ns }};
     endfunction
 
     constraint cst {
         soft default_host_mode == MASTER;
         soft default_protocol == FLASH_SPI;
         soft default_frame_mode == ENHANCED;
-        soft ssi_variant == {{ settings.ssi_variant }};
-        soft default_io_lanes == {{ settings.max_io_lanes }};
-        soft default_speed_multiplier == {{ settings.max_speed_multiplier }};
-        soft default_spi_mode == {{ settings.default_spi_mode }};
-        soft default_data_frame_bits == {{ settings.max_data_frame_bits }};
-        soft default_cs == {{ settings.default_cs }};
-        soft default_addr_bytes == {{ settings.default_addr_bytes }};
-        soft default_baud_div == {{ settings.default_baud_div }};
-        soft fifo_depth_bytes == {{ settings.fifo_depth_bytes }};
-        soft input_clock_hz == {{ settings.input_clock_hz }};
-        soft max_output_hz == {{ settings.max_output_hz }};
-        soft clock_check_tolerance_ppm == {{ settings.clock_check_tolerance_ppm }};
-        soft clock_check_sample_edges == {{ settings.clock_check_sample_edges }};
-        soft clock_check_timeout_ns == {{ settings.clock_check_timeout_ns }};
-        soft default_tx_fifo_threshold == {{ settings.default_tx_fifo_threshold }};
-        soft default_rx_fifo_threshold == {{ settings.default_rx_fifo_threshold }};
-        soft default_rx_sample_delay_ns == 0;
+        soft ssi_variant == {{ ssi_variant }};
+        soft default_io_lanes == {{ max_io_lanes }};
+        soft default_speed_multiplier == {{ max_speed_multiplier }};
+        soft default_spi_mode == {{ default_spi_mode }};
+        soft default_data_frame_bits == {{ max_data_frame_bits }};
+        soft default_cs == {{ default_cs }};
+        soft default_addr_bytes == {{ default_addr_bytes }};
+        soft default_baud_div == {{ default_baud_div }};
+        soft fifo_depth_bytes == {{ fifo_depth_bytes }};
+        soft input_clock_hz == {{ input_clock_hz }};
+        soft max_output_hz == {{ max_output_hz }};
+        soft clock_check_tolerance_ppm == {{ clock_check_tolerance_ppm }};
+        soft clock_check_sample_edges == {{ clock_check_sample_edges }};
+        soft clock_check_timeout_ns == {{ clock_check_timeout_ns }};
+        soft default_tx_fifo_threshold == {{ default_tx_fifo_threshold }};
+        soft default_rx_fifo_threshold == {{ default_rx_fifo_threshold }};
+        soft default_rx_sample_delay_ns == {{ default_rx_sample_delay_ns }};
         default_io_lanes inside {1, 2, 4};
-        default_io_lanes <= {{ settings.max_io_lanes }};
+        default_io_lanes <= {{ max_io_lanes }};
         default_speed_multiplier inside {1, 2, 4, 8};
-        default_speed_multiplier <= {{ settings.max_speed_multiplier }};
+        default_speed_multiplier <= {{ max_speed_multiplier }};
         default_spi_mode inside {[0:3]};
-        default_data_frame_bits inside {[4:{{ settings.max_data_frame_bits }}]};
-        default_cs < {{ settings.num_cs }};
+        default_data_frame_bits inside {[4:{{ max_data_frame_bits }}]};
+        default_cs < {{ num_cs }};
         default_addr_bytes inside {3, 4};
         default_baud_div inside {[2:65534]};
         default_baud_div[0] == 1'b0;
@@ -124,25 +124,25 @@ class {{ settings.class_prefix }}settings extends uvm_object;
         input_clock_hz <= max_output_hz * default_baud_div;
         clock_check_sample_edges inside {[2:1024]};
         clock_check_timeout_ns > 0;
-{% if not settings.support_rx_sample_delay %}
+{% if not support_rx_sample_delay %}
         default_rx_sample_delay_ns == 0;
 {% endif %}
-{%- if not settings.support_master %}
+{%- if not support_master %}
         default_host_mode != MASTER;
 {%- endif %}
-{%- if not settings.support_slave %}
+{%- if not support_slave %}
         default_host_mode != SLAVE;
 {%- endif %}
-{%- if not settings.support_general_spi %}
+{%- if not support_general_spi %}
         default_protocol != GENERAL_SPI;
 {%- endif %}
-{%- if not settings.support_flash_spi %}
+{%- if not support_flash_spi %}
         default_protocol != FLASH_SPI;
 {%- endif %}
-{%- if not settings.support_standard %}
+{%- if not support_standard %}
         default_frame_mode != STANDARD;
 {%- endif %}
-{%- if not settings.support_enhanced %}
+{%- if not support_enhanced %}
         default_frame_mode != ENHANCED;
 {%- endif %}
     }
@@ -160,31 +160,31 @@ class {{ settings.class_prefix }}settings extends uvm_object;
         int unsigned cs_id);
 endclass
 
-function bit {{ settings.class_prefix }}settings::supports_host_mode(host_mode_e mode);
+function bit {{ class_prefix }}settings::supports_host_mode(host_mode_e mode);
     case (mode)
-        MASTER: return {{ "1'b1" if settings.support_master else "1'b0" }};
-        SLAVE: return {{ "1'b1" if settings.support_slave else "1'b0" }};
+        MASTER: return {{ "1'b1" if support_master else "1'b0" }};
+        SLAVE: return {{ "1'b1" if support_slave else "1'b0" }};
         default: return 1'b0;
     endcase
 endfunction
 
-function bit {{ settings.class_prefix }}settings::supports_protocol(protocol_e protocol);
+function bit {{ class_prefix }}settings::supports_protocol(protocol_e protocol);
     case (protocol)
-        GENERAL_SPI: return {{ "1'b1" if settings.support_general_spi else "1'b0" }};
-        FLASH_SPI: return {{ "1'b1" if settings.support_flash_spi else "1'b0" }};
+        GENERAL_SPI: return {{ "1'b1" if support_general_spi else "1'b0" }};
+        FLASH_SPI: return {{ "1'b1" if support_flash_spi else "1'b0" }};
         default: return 1'b0;
     endcase
 endfunction
 
-function bit {{ settings.class_prefix }}settings::supports_frame_mode(frame_mode_e mode);
+function bit {{ class_prefix }}settings::supports_frame_mode(frame_mode_e mode);
     case (mode)
-        STANDARD: return {{ "1'b1" if settings.support_standard else "1'b0" }};
-        ENHANCED: return {{ "1'b1" if settings.support_enhanced else "1'b0" }};
+        STANDARD: return {{ "1'b1" if support_standard else "1'b0" }};
+        ENHANCED: return {{ "1'b1" if support_enhanced else "1'b0" }};
         default: return 1'b0;
     endcase
 endfunction
 
-function bit {{ settings.class_prefix }}settings::supports_shape(
+function bit {{ class_prefix }}settings::supports_shape(
         int unsigned io_lanes,
         int unsigned speed_multiplier,
         int unsigned data_frame_bits,
@@ -193,12 +193,12 @@ function bit {{ settings.class_prefix }}settings::supports_shape(
         return 1'b0;
     if (!(speed_multiplier inside {1, 2, 4, 8}))
         return 1'b0;
-    if (data_frame_bits < 4 || data_frame_bits > {{ settings.max_data_frame_bits }})
+    if (data_frame_bits < 4 || data_frame_bits > {{ max_data_frame_bits }})
         return 1'b0;
-    if (cs_id >= {{ settings.num_cs }})
+    if (cs_id >= {{ num_cs }})
         return 1'b0;
-    return io_lanes <= {{ settings.max_io_lanes }}
-        && speed_multiplier <= {{ settings.max_speed_multiplier }};
+    return io_lanes <= {{ max_io_lanes }}
+        && speed_multiplier <= {{ max_speed_multiplier }};
 endfunction
 
 `endif

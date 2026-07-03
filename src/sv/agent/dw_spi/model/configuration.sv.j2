@@ -1,11 +1,11 @@
-`ifndef {{ (settings.class_prefix ~ "configuration") | upper }}
-`define {{ (settings.class_prefix ~ "configuration") | upper }}
+`ifndef {{ (class_prefix ~ "configuration") | upper }}
+`define {{ (class_prefix ~ "configuration") | upper }}
 
-class {{ settings.class_prefix }}configuration extends uvm_object;
-    localparam int unsigned CTRLR0_SPI_FRF_STANDARD = 0;
-    localparam int unsigned CTRLR0_SPI_FRF_DUAL = 1;
-    localparam int unsigned CTRLR0_SPI_FRF_QUAD = 2;
-    localparam int unsigned CTRLR0_SPI_FRF_OCTAL = 3;
+class {{ class_prefix }}configuration extends uvm_object;
+    localparam int unsigned CTRL0_SPI_FRF_STANDARD = 0;
+    localparam int unsigned CTRL0_SPI_FRF_DUAL = 1;
+    localparam int unsigned CTRL0_SPI_FRF_QUAD = 2;
+    localparam int unsigned CTRL0_SPI_FRF_OCTAL = 3;
 
     localparam int unsigned SR_BUSY = 0;
     localparam int unsigned SR_TFNF = 1;
@@ -15,7 +15,7 @@ class {{ settings.class_prefix }}configuration extends uvm_object;
 
     localparam int unsigned ISR_DONES = 0;
 
-    `uvm_object_utils_begin({{ settings.class_prefix }}configuration)
+    `uvm_object_utils_begin({{ class_prefix }}configuration)
         `uvm_field_int(ctrlr0, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(ctrlr1, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(ssienr_disable, UVM_ALL_ON | UVM_HEX)
@@ -32,7 +32,7 @@ class {{ settings.class_prefix }}configuration extends uvm_object;
         `uvm_field_int(write_rx_sample_dly, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    {{ settings.class_prefix }}settings settings;
+    {{ class_prefix }}settings settings;
 
     rand bit [31:0] ctrlr0;
     rand bit [31:0] ctrlr1;
@@ -49,7 +49,7 @@ class {{ settings.class_prefix }}configuration extends uvm_object;
     rand bit [31:0] rx_sample_dly;
     rand bit write_rx_sample_dly;
 
-    function new(string name="{{ settings.class_prefix }}configuration");
+    function new(string name="{{ class_prefix }}configuration");
         super.new(name);
     endfunction
 

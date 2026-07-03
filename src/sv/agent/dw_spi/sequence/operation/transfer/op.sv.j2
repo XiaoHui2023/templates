@@ -1,25 +1,25 @@
-`ifndef {{ (settings.class_prefix ~ "transfer_seq") | upper }}
-`define {{ (settings.class_prefix ~ "transfer_seq") | upper }}
+`ifndef {{ (class_prefix ~ "transfer_seq") | upper }}
+`define {{ (class_prefix ~ "transfer_seq") | upper }}
 
-class {{ settings.class_prefix }}transfer_seq extends uvm_sequence #(
-    {{ settings.class_prefix }}transfer_req,
-    {{ settings.class_prefix }}transfer_rsp
+class {{ class_prefix }}transfer_seq extends uvm_sequence #(
+    {{ class_prefix }}transfer_req,
+    {{ class_prefix }}transfer_rsp
 );
-    `uvm_object_utils({{ settings.class_prefix }}transfer_seq)
-    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+    `uvm_object_utils({{ class_prefix }}transfer_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    function new(string name="{{ settings.class_prefix }}transfer_seq");
+    function new(string name="{{ class_prefix }}transfer_seq");
         super.new(name);
     endfunction
 
     extern virtual task body();
 endclass
 
-task {{ settings.class_prefix }}transfer_seq::body();
-    {{ settings.class_prefix }}transfer_req rq;
-    {{ settings.class_prefix }}transfer_rsp rs;
-    {{ settings.class_prefix }}configuration cfg;
-    {{ settings.class_prefix }}register_access register_access;
+task {{ class_prefix }}transfer_seq::body();
+    {{ class_prefix }}transfer_req rq;
+    {{ class_prefix }}transfer_rsp rs;
+    {{ class_prefix }}configuration cfg;
+    {{ class_prefix }}register_access register_access;
 
     if (req == null)
         `uvm_fatal("DW_SPI", "transfer: req is null")
@@ -28,8 +28,8 @@ task {{ settings.class_prefix }}transfer_seq::body();
     if (p_sequencer.scoreboard == null)
         `uvm_fatal("DW_SPI", "transfer: sequencer scoreboard is null")
     rq = req;
-    rs = {{ settings.class_prefix }}transfer_rsp::type_id::create("rsp");
-    register_access = {{ settings.class_prefix }}register_access::type_id::create("register_access");
+    rs = {{ class_prefix }}transfer_rsp::type_id::create("rsp");
+    register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
     register_access.build_configuration(rq, cfg);
     register_access.apply_configuration(cfg);

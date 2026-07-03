@@ -1,29 +1,29 @@
-`ifndef {{ (settings.class_prefix ~ "init_registers_seq") | upper }}
-`define {{ (settings.class_prefix ~ "init_registers_seq") | upper }}
+`ifndef {{ (class_prefix ~ "init_registers_seq") | upper }}
+`define {{ (class_prefix ~ "init_registers_seq") | upper }}
 
-class {{ settings.class_prefix }}init_registers_seq extends uvm_sequence #(
-    {{ settings.class_prefix }}init_registers_req,
-    {{ settings.class_prefix }}init_registers_rsp
+class {{ class_prefix }}init_registers_seq extends uvm_sequence #(
+    {{ class_prefix }}init_registers_req,
+    {{ class_prefix }}init_registers_rsp
 );
-    `uvm_object_utils({{ settings.class_prefix }}init_registers_seq)
-    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+    `uvm_object_utils({{ class_prefix }}init_registers_seq)
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    function new(string name="{{ settings.class_prefix }}init_registers_seq");
+    function new(string name="{{ class_prefix }}init_registers_seq");
         super.new(name);
     endfunction
 
     extern virtual task body();
 endclass
 
-task {{ settings.class_prefix }}init_registers_seq::body();
-    {{ settings.class_prefix }}register_access register_access;
+task {{ class_prefix }}init_registers_seq::body();
+    {{ class_prefix }}register_access register_access;
 
     if (req == null)
         `uvm_fatal("DW_SPI_REG", "init_registers req is null")
     if (req.transfer_req == null)
         `uvm_fatal("DW_SPI_REG", "init_registers req.transfer_req is null")
-    rsp = {{ settings.class_prefix }}init_registers_rsp::type_id::create("rsp");
-    register_access = {{ settings.class_prefix }}register_access::type_id::create("register_access");
+    rsp = {{ class_prefix }}init_registers_rsp::type_id::create("rsp");
+    register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
     register_access.build_configuration(req.transfer_req, rsp.cfg);
     register_access.apply_configuration(rsp.cfg);

@@ -1,8 +1,8 @@
-`ifndef {{ (settings.class_prefix ~ "rw_test_rsp") | upper }}
-`define {{ (settings.class_prefix ~ "rw_test_rsp") | upper }}
+`ifndef {{ (class_prefix ~ "rw_test_rsp") | upper }}
+`define {{ (class_prefix ~ "rw_test_rsp") | upper }}
 
-class {{ settings.class_prefix }}rw_test_rsp extends uvm_sequence_item;
-    `uvm_object_utils_begin({{ settings.class_prefix }}rw_test_rsp)
+class {{ class_prefix }}rw_test_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}rw_test_rsp)
         `uvm_field_int(ok, UVM_ALL_ON)
         `uvm_field_queue_int(model_read_data, UVM_ALL_ON | UVM_HEX)
     `uvm_object_utils_end
@@ -10,7 +10,7 @@ class {{ settings.class_prefix }}rw_test_rsp extends uvm_sequence_item;
     bit ok;
     bit [7:0] model_read_data[$];
 
-    function new(string name="{{ settings.class_prefix }}rw_test_rsp");
+    function new(string name="{{ class_prefix }}rw_test_rsp");
         super.new(name);
     endfunction
 endclass

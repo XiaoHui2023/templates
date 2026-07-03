@@ -1,10 +1,10 @@
-`ifndef {{ (settings.class_prefix ~ "callback") | upper }}
-`define {{ (settings.class_prefix ~ "callback") | upper }}
+`ifndef {{ (class_prefix ~ "callback") | upper }}
+`define {{ (class_prefix ~ "callback") | upper }}
 
-class {{ settings.class_prefix }}callback extends uvm_callback;
-    `uvm_object_utils({{ settings.class_prefix }}callback)
+class {{ class_prefix }}callback extends uvm_callback;
+    `uvm_object_utils({{ class_prefix }}callback)
 
-    function new(string name="{{ settings.class_prefix }}callback");
+    function new(string name="{{ class_prefix }}callback");
         super.new(name);
     endfunction
 

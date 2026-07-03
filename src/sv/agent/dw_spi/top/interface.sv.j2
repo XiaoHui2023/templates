@@ -1,16 +1,16 @@
-`ifndef {{ (settings.class_prefix ~ "interface") | upper }}
-`define {{ (settings.class_prefix ~ "interface") | upper }}
+`ifndef {{ (class_prefix ~ "interface") | upper }}
+`define {{ (class_prefix ~ "interface") | upper }}
 
-interface {{ settings.class_prefix }}interface(
+interface {{ class_prefix }}interface(
         input logic hclk,
         input logic ssi_clk,
         input logic intr);
     timeunit 1ns;
     timeprecision 1fs;
 
-    {{ settings.class_prefix }}clock_if hclk_if(.clk(hclk));
-    {{ settings.class_prefix }}clock_if ssi_clk_if(.clk(ssi_clk));
-    {{ settings.class_prefix }}irq_if irq_if(.intr(intr));
+    {{ class_prefix }}clock_if hclk_if(.clk(hclk));
+    {{ class_prefix }}clock_if ssi_clk_if(.clk(ssi_clk));
+    {{ class_prefix }}irq_if irq_if(.intr(intr));
 
     function bit has_hclk();
         return hclk_if.is_connected();

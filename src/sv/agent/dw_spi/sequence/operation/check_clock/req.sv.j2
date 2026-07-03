@@ -1,8 +1,8 @@
-`ifndef {{ (settings.class_prefix ~ "check_clock_req") | upper }}
-`define {{ (settings.class_prefix ~ "check_clock_req") | upper }}
+`ifndef {{ (class_prefix ~ "check_clock_req") | upper }}
+`define {{ (class_prefix ~ "check_clock_req") | upper }}
 
-class {{ settings.class_prefix }}check_clock_req extends uvm_sequence_item;
-    `uvm_object_utils_begin({{ settings.class_prefix }}check_clock_req)
+class {{ class_prefix }}check_clock_req extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_prefix }}check_clock_req)
         `uvm_field_int(check_hclk, UVM_ALL_ON)
         `uvm_field_int(check_ssi_clk, UVM_ALL_ON)
         `uvm_field_int(check_baud_relation, UVM_ALL_ON)
@@ -26,18 +26,18 @@ class {{ settings.class_prefix }}check_clock_req extends uvm_sequence_item;
     real min_ssi_clk_hz;
     real max_ssi_clk_hz;
 
-    function new(string name="{{ settings.class_prefix }}check_clock_req");
+    function new(string name="{{ class_prefix }}check_clock_req");
         super.new(name);
         check_hclk = 1'b1;
         check_ssi_clk = 1'b1;
         check_baud_relation = 1'b1;
-        sample_edges = {{ settings.clock_check_sample_edges }};
-        timeout_ns = {{ settings.clock_check_timeout_ns }};
-        tolerance_ppm = {{ settings.clock_check_tolerance_ppm }};
+        sample_edges = {{ clock_check_sample_edges }};
+        timeout_ns = {{ clock_check_timeout_ns }};
+        tolerance_ppm = {{ clock_check_tolerance_ppm }};
         min_hclk_hz = 0.0;
         max_hclk_hz = 0.0;
         min_ssi_clk_hz = 0.0;
-        max_ssi_clk_hz = {{ settings.max_output_hz }}.0;
+        max_ssi_clk_hz = {{ max_output_hz }}.0;
     endfunction
 
     constraint cst {
