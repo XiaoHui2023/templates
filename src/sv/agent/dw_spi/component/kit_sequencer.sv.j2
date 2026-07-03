@@ -8,9 +8,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         super.new(name, parent);
     endfunction
 
-    extern task reg_write(int unsigned offset, bit [31:0] value);
-    extern task reg_read(output bit [31:0] value, int unsigned offset);
-    extern task init_registers({{ settings.class_prefix }}transfer tr);
+    extern task init_registers({{ settings.class_prefix }}transfer_req transfer_req);
     extern task flash_write(bit [63:0] address, bit [7:0] data[$]);
     extern task flash_read(output bit [7:0] data[$], bit [63:0] address, int unsigned length);
     extern task check_clocks(output {{ settings.class_prefix }}check_clock_rsp result);
@@ -20,46 +18,13 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         bit [7:0] actual_read_data[$]);
 endclass
 
-task {{ settings.class_prefix }}kit_sequencer::reg_write(int unsigned offset, bit [31:0] value);
-    {{ settings.class_prefix }}reg_write_req req;
-    {{ settings.class_prefix }}reg_write_rsp seq_rsp;
-    {{ settings.class_prefix }}reg_write_seq seq;
-
-    req = {{ settings.class_prefix }}reg_write_req::type_id::create("req");
-    req.offset = offset;
-    req.value = value;
-    seq = {{ settings.class_prefix }}reg_write_seq::type_id::create("reg_write");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("DW_SPI", "reg_write failed")
-endtask
-
-task {{ settings.class_prefix }}kit_sequencer::reg_read(output bit [31:0] value, int unsigned offset);
-    {{ settings.class_prefix }}reg_read_req req;
-    {{ settings.class_prefix }}reg_read_rsp seq_rsp;
-    {{ settings.class_prefix }}reg_read_seq seq;
-
-    value = '0;
-    req = {{ settings.class_prefix }}reg_read_req::type_id::create("req");
-    req.offset = offset;
-    seq = {{ settings.class_prefix }}reg_read_seq::type_id::create("reg_read");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("DW_SPI", "reg_read failed")
-    value = seq_rsp.value;
-endtask
-
-task {{ settings.class_prefix }}kit_sequencer::init_registers({{ settings.class_prefix }}transfer tr);
+task {{ settings.class_prefix }}kit_sequencer::init_registers({{ settings.class_prefix }}transfer_req transfer_req);
     {{ settings.class_prefix }}init_registers_req req;
     {{ settings.class_prefix }}init_registers_rsp seq_rsp;
     {{ settings.class_prefix }}init_registers_seq seq;
 
     req = {{ settings.class_prefix }}init_registers_req::type_id::create("req");
-    req.tr = tr;
+    req.transfer_req = transfer_req;
     seq = {{ settings.class_prefix }}init_registers_seq::type_id::create("init_registers");
     seq.req = req;
     seq.start(this);

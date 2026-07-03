@@ -58,7 +58,7 @@ class {{ settings.class_prefix }}settings extends uvm_object;
     int unsigned flash_page_size;
     bit [7:0] flash_erase_value;
     {{ settings.regmodel_type }} regmodel;
-    virtual {{ settings.class_prefix }}if vif;
+    virtual {{ settings.class_prefix }}interface vif;
 
     function new(string name="{{ settings.class_prefix }}settings");
         super.new(name);

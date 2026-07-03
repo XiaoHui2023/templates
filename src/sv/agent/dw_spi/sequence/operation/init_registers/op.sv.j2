@@ -16,16 +16,17 @@ class {{ settings.class_prefix }}init_registers_seq extends uvm_sequence #(
 endclass
 
 task {{ settings.class_prefix }}init_registers_seq::body();
-    {{ settings.class_prefix }}transfer tr;
+    {{ settings.class_prefix }}register_access register_access;
 
     if (req == null)
         `uvm_fatal("DW_SPI_REG", "init_registers req is null")
-    if (req.tr == null)
-        `uvm_fatal("DW_SPI_REG", "init_registers req.tr is null")
-    tr = req.tr;
+    if (req.transfer_req == null)
+        `uvm_fatal("DW_SPI_REG", "init_registers req.transfer_req is null")
     rsp = {{ settings.class_prefix }}init_registers_rsp::type_id::create("rsp");
-    p_sequencer.build_register_config(tr, rsp.cfg);
-    p_sequencer.apply_register_config(rsp.cfg);
+    register_access = {{ settings.class_prefix }}register_access::type_id::create("register_access");
+    register_access.settings = p_sequencer.settings;
+    register_access.build_configuration(req.transfer_req, rsp.cfg);
+    register_access.apply_configuration(rsp.cfg);
 endtask
 
 `endif

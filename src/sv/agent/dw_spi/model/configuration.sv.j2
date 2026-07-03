@@ -1,0 +1,73 @@
+`ifndef {{ (settings.class_prefix ~ "configuration") | upper }}
+`define {{ (settings.class_prefix ~ "configuration") | upper }}
+
+class {{ settings.class_prefix }}configuration extends uvm_object;
+    localparam int unsigned CTRLR0_SPI_FRF_STANDARD = 0;
+    localparam int unsigned CTRLR0_SPI_FRF_DUAL = 1;
+    localparam int unsigned CTRLR0_SPI_FRF_QUAD = 2;
+    localparam int unsigned CTRLR0_SPI_FRF_OCTAL = 3;
+
+    localparam int unsigned SR_BUSY = 0;
+    localparam int unsigned SR_TFNF = 1;
+    localparam int unsigned SR_TFE = 2;
+    localparam int unsigned SR_RFNE = 3;
+    localparam int unsigned SR_RFF = 4;
+
+    localparam int unsigned ISR_DONES = 0;
+
+    `uvm_object_utils_begin({{ settings.class_prefix }}configuration)
+        `uvm_field_int(ctrlr0, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(ctrlr1, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(ssienr_disable, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(ssienr_enable, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(ser, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(baudr, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(txftlr, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(rxftlr, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(imr, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(dmacr, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(dmatdlr, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(dmardlr, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(rx_sample_dly, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(write_rx_sample_dly, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    {{ settings.class_prefix }}settings settings;
+
+    rand bit [31:0] ctrlr0;
+    rand bit [31:0] ctrlr1;
+    rand bit [31:0] ssienr_disable;
+    rand bit [31:0] ssienr_enable;
+    rand bit [31:0] ser;
+    rand bit [31:0] baudr;
+    rand bit [31:0] txftlr;
+    rand bit [31:0] rxftlr;
+    rand bit [31:0] imr;
+    rand bit [31:0] dmacr;
+    rand bit [31:0] dmatdlr;
+    rand bit [31:0] dmardlr;
+    rand bit [31:0] rx_sample_dly;
+    rand bit write_rx_sample_dly;
+
+    function new(string name="{{ settings.class_prefix }}configuration");
+        super.new(name);
+    endfunction
+
+    constraint cst {
+        ssienr_disable == '0;
+        ssienr_enable == 32'h1;
+        imr == '0;
+        dmacr == '0;
+        if (settings != null) {
+            baudr == settings.default_baud_div;
+            txftlr == settings.default_tx_fifo_threshold;
+            rxftlr == settings.default_rx_fifo_threshold;
+            dmatdlr == settings.default_tx_fifo_threshold;
+            dmardlr == settings.default_rx_fifo_threshold;
+            rx_sample_dly == settings.default_rx_sample_delay_ns;
+            write_rx_sample_dly == (settings.default_rx_sample_delay_ns != 0);
+        }
+    }
+endclass
+
+`endif

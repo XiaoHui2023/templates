@@ -48,7 +48,7 @@ task {{ settings.class_prefix }}check_clock_seq::body();
         rq = req;
     rs = {{ settings.class_prefix }}check_clock_rsp::type_id::create("rsp");
     if (p_sequencer.settings.vif == null)
-        `uvm_fatal("DW_SPI_CLK", "check_clock requires virtual dw_spi_if in sequencer settings")
+        `uvm_fatal("DW_SPI_CLK", "check_clock requires virtual dw_spi_interface in sequencer settings")
 
     rs.hclk_connected = p_sequencer.settings.vif.has_hclk();
     rs.ssi_clk_connected = p_sequencer.settings.vif.has_ssi_clk();

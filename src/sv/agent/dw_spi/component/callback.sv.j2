@@ -8,10 +8,10 @@ class {{ settings.class_prefix }}callback extends uvm_callback;
         super.new(name);
     endfunction
 
-    virtual task assert_chip_select({{ settings.class_prefix }}transfer tr);
+    virtual task activate_chip_select(int unsigned cs_id);
     endtask
 
-    virtual task deassert_chip_select({{ settings.class_prefix }}transfer tr);
+    virtual task release_chip_select(int unsigned cs_id);
     endtask
 endclass
 
