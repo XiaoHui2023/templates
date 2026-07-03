@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .formulas import freq_tolerance_bounds
 from .pll_search import diagnose_pll_coefficients, search_pll_coefficients
-from load.tools import log_stage_progress
 from model.freq_graph import Port, parent_port_for_child, parse_port_ref
 from model.nodes import (
     CellNode,
@@ -35,16 +34,7 @@ def fit_pll_vars(
         for name, node in tree.nodes.items()
         if isinstance(node, PllNode) and node.regs and not name.startswith("pll_stress_")
     ]
-    for index, (name, node) in enumerate(pll_nodes, start=1):
-        log_stage_progress(
-            "resolve",
-            "fit",
-            "pll coefficients",
-            current=index,
-            total=len(pll_nodes),
-            pll=name,
-            kind=node.pll_kind,
-        )
+    for name, node in pll_nodes:
         if name in merged:
             continue
         ref_port = parent_port_for_child(tree, name)
@@ -68,20 +58,6 @@ def fit_pll_vars(
                 tol_hi=tol_hi,
                 tol_den=tol_den,
                 group_out_hz=group_hz,
-                progress=(
-                    lambda current, total, detail, name=name, kind=node.pll_kind: (
-                        log_stage_progress(
-                            "resolve",
-                            "fit",
-                            "pll coefficients",
-                            pll=name,
-                            kind=kind,
-                            current=current,
-                            total=total,
-                            detail=detail,
-                        )
-                    )
-                ),
             )
         else:
             out_hz = model.port_hz(Port(name, "")) or node.freq_for_group("") or 0
@@ -94,20 +70,6 @@ def fit_pll_vars(
                 tol_lo=tol_lo,
                 tol_hi=tol_hi,
                 tol_den=tol_den,
-                progress=(
-                    lambda current, total, detail, name=name, kind=node.pll_kind: (
-                        log_stage_progress(
-                            "resolve",
-                            "fit",
-                            "pll coefficients",
-                            pll=name,
-                            kind=kind,
-                            current=current,
-                            total=total,
-                            detail=detail,
-                        )
-                    )
-                ),
             )
         if coeffs is None:
             target_hz = 0

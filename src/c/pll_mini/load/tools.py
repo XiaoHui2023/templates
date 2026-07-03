@@ -7,18 +7,12 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Sequence
 
 _PKG_ROOT = Path(__file__).resolve().parent.parent
 
 _RALFCONV_URL = "https://github.com/XiaoHui2023/ralfconv"
 _CONSOLVER_URL = "https://github.com/XiaoHui2023/consolver"
-
-
-def _format_stage_fields(fields: Mapping[str, object]) -> str:
-    if not fields:
-        return ""
-    return "; " + "; ".join(f"{key}={value}" for key, value in fields.items())
 
 
 def log_stage_start(
@@ -27,30 +21,8 @@ def log_stage_start(
     label: str,
     **fields: object,
 ) -> float:
-    """Print a timed stage start line.
-
-    Args:
-        component: Log component name.
-        action: Action name within the component.
-        label: Human-readable stage label.
-        fields: Extra values appended to the line.
-
-    Returns:
-        float: Timer value for the matching completion line.
-    """
-    from report.ui import active_progress_session
-
-    session = active_progress_session()
-    if session is not None:
-        started = session.stage_start(component, action, label, **fields)
-        if session.enabled:
-            return started
-    print(
-        f"[pll_mini] {component} {action} start: {label}"
-        f"{_format_stage_fields(fields)}",
-        file=sys.stderr,
-        flush=True,
-    )
+    """Return a timer for callers that still measure stages internally."""
+    _ = component, action, label, fields
     return time.perf_counter()
 
 
@@ -61,51 +33,8 @@ def log_stage_done(
     started_at: float,
     **fields: object,
 ) -> None:
-    """Print a timed stage completion line.
-
-    Args:
-        component: Log component name.
-        action: Action name within the component.
-        label: Human-readable stage label.
-        started_at: Timer value returned by the start logger.
-        fields: Extra values appended to the line.
-    """
-    from report.ui import active_progress_session
-
-    session = active_progress_session()
-    if session is not None:
-        session.stage_done(component, action, label, started_at, **fields)
-        if session.enabled:
-            return
-    elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-    print(
-        f"[pll_mini] {component} {action} done: {label}; "
-        f"elapsed_ms={elapsed_ms}{_format_stage_fields(fields)}",
-        file=sys.stderr,
-        flush=True,
-    )
-
-
-def log_stage_progress(
-    component: str,
-    action: str,
-    label: str,
-    **fields: object,
-) -> None:
-    """Print or refresh a timed stage progress line."""
-    from report.ui import active_progress_session
-
-    session = active_progress_session()
-    if session is not None:
-        session.stage_progress(component, action, label, **fields)
-        if session.enabled:
-            return
-    print(
-        f"[pll_mini] {component} {action} progress: {label}"
-        f"{_format_stage_fields(fields)}",
-        file=sys.stderr,
-        flush=True,
-    )
+    """Keep the stage logging call sites silent."""
+    _ = component, action, label, started_at, fields
 
 
 def bin_dir() -> Path:

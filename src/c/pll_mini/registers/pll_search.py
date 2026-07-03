@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Callable
 
 from .formulas import (
     DW_FBDIV_MAX,
@@ -15,7 +14,6 @@ from .formulas import (
     pll_tci_actual_hz,
 )
 
-ProgressHook = Callable[[int, int, str], None]
 POSTDIV_PAIRS = tuple(
     (postdiv1, postdiv2)
     for postdiv1 in range(1, 8)
@@ -85,17 +83,6 @@ class PllSearchDiagnosis:
         return "\n".join(lines)
 
 
-def _emit_progress(
-    hook: ProgressHook | None,
-    current: int,
-    total: int,
-    detail: str,
-) -> None:
-    if hook is None:
-        return
-    hook(current, total, detail)
-
-
 def _fmt_hz(hz: int) -> str:
     if hz % 1_000_000 == 0:
         return f"{hz // 1_000_000} MHz ({hz} Hz)"
@@ -150,26 +137,13 @@ def _search_pll_sc_uncached(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
-    progress: ProgressHook | None = None,
 ) -> dict[str, int] | None:
     if ref_hz <= 0 or out_hz <= 0:
         return None
-    fbdiv_count = max(0, fbdiv_max - fbdiv_min + 1)
-    total = 63 * 7 * 7 * max(1, fbdiv_count)
-    current = 0
     for refdiv in range(1, 64):
         for postdiv1 in range(1, 8):
             for postdiv2 in range(1, 8):
-                product = refdiv * postdiv1 * postdiv2
                 for fbdiv in range(fbdiv_min, fbdiv_max + 1):
-                    current += 1
-                    if current == 1 or current % 4096 == 0:
-                        _emit_progress(
-                            progress,
-                            current,
-                            total,
-                            f"refdiv={refdiv} postdiv={postdiv1}/{postdiv2}",
-                        )
                     actual = pll_sc_actual_hz(
                         ref_hz, fbdiv, refdiv, postdiv1, postdiv2
                     )
@@ -214,17 +188,11 @@ def _search_pll_dw_uncached(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
-    progress: ProgressHook | None = None,
 ) -> dict[str, int] | None:
     if ref_hz <= 0 or out_hz <= 0:
         return None
-    total = 8 * (DW_FBDIV_MAX - DW_FBDIV_MIN + 1)
-    current = 0
     for p in range(0, 8):
         for fbdiv in range(DW_FBDIV_MIN, DW_FBDIV_MAX + 1):
-            current += 1
-            if current == 1 or current % 1024 == 0:
-                _emit_progress(progress, current, total, f"p={p}")
             actual = pll_dw_actual_hz(ref_hz, fbdiv, p)
             if freq_within_tolerance(
                 out_hz,
@@ -244,7 +212,6 @@ def search_pll_inno(
     tol_lo: int,
     tol_hi: int,
     tol_den: int,
-    progress: ProgressHook | None = None,
 ) -> dict[str, int] | None:
     if ref_hz <= 0:
         return None
@@ -253,13 +220,8 @@ def search_pll_inno(
     }
     if not active_groups:
         return None
-    total = 63 * 4095
-    current = 0
     for refdiv in range(1, 64):
         for fbdiv in range(1, 4096):
-            current += 1
-            if current == 1 or current % 4096 == 0:
-                _emit_progress(progress, current, total, f"refdiv={refdiv}")
             if not inno_fbdiv_legal(fbdiv):
                 continue
             vars_map: dict[str, int] = {
@@ -531,22 +493,10 @@ def search_pll_coefficients(
     tol_hi: int,
     tol_den: int,
     group_out_hz: dict[str, int] | None = None,
-    progress: ProgressHook | None = None,
 ) -> dict[str, int] | None:
     if pll_kind == "tci":
         return search_pll_tci(ref_hz, out_hz)
     if pll_kind == "sc":
-        if progress is not None:
-            return _search_pll_sc_uncached(
-                ref_hz,
-                out_hz,
-                fbdiv_min=fbdiv_min,
-                fbdiv_max=fbdiv_max,
-                tol_lo=tol_lo,
-                tol_hi=tol_hi,
-                tol_den=tol_den,
-                progress=progress,
-            )
         return search_pll_sc(
             ref_hz,
             out_hz,
@@ -557,15 +507,6 @@ def search_pll_coefficients(
             tol_den=tol_den,
         )
     if pll_kind == "dw":
-        if progress is not None:
-            return _search_pll_dw_uncached(
-                ref_hz,
-                out_hz,
-                tol_lo=tol_lo,
-                tol_hi=tol_hi,
-                tol_den=tol_den,
-                progress=progress,
-            )
         return search_pll_dw(
             ref_hz,
             out_hz,
@@ -583,6 +524,5 @@ def search_pll_coefficients(
             tol_lo=tol_lo,
             tol_hi=tol_hi,
             tol_den=tol_den,
-            progress=progress,
         )
     raise ValueError(f"未知 pll_kind {pll_kind!r}")

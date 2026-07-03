@@ -8,7 +8,7 @@ from .fit_pll import fit_pll_vars
 from .pll_cfg import pll_cfg_from_solved
 from model.consolver import solve_tree_with_consolver
 from model.solve_model import SolveModel
-from load.tools import log_stage_done, log_stage_progress, log_stage_start
+from load.tools import log_stage_done, log_stage_start
 from model.verify import raise_on_verify_issues, verify_solve_model
 
 from model.nodes import (
@@ -141,16 +141,7 @@ def resolve_tree(
         nodes=len(tree.nodes),
     )
     resolved: Dict[str, ResolvedNode] = {}
-    for index, (node_name, node) in enumerate(tree.nodes.items(), start=1):
-        if index == 1 or index % 128 == 0:
-            log_stage_progress(
-                "resolve",
-                "nodes",
-                "tree",
-                current=index,
-                total=len(tree.nodes),
-                node=node_name,
-            )
+    for node_name, node in tree.nodes.items():
         ratio = model.ratios.get(node_name, 0)
         if isinstance(node, DivNode):
             ratio = _default_ratio(node, ratio)

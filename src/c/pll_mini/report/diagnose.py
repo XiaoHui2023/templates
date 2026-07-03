@@ -402,12 +402,6 @@ def print_diagnostic_report(
     component_graph: Text | None = None,
     component_graph_title: str = "相关路径",
 ) -> None:
-    from report.ui import active_progress_session
-
-    session = active_progress_session()
-    if session is not None:
-        session.failed = True
-        session.halt_for_output()
     title = headline.strip() or "pll_mini 诊断"
     parts: List[object] = [Rule(f"[bold]{title}[/bold]", style="cyan")]
     if component_graph is not None:
