@@ -86,6 +86,14 @@ def _coerce_optional_int(value: Any) -> Optional[int]:
     return int(value)
 
 
+def _coerce_required_freq_or_map(value: Any) -> Union[int, Dict[str, int]]:
+    if value is None or value == "":
+        raise ValueError("必须填写 freq")
+    if isinstance(value, dict):
+        return {str(key): int(freq) for key, freq in value.items()}
+    return int(value)
+
+
 def _coerce_optional_source(value: Any) -> Optional[str]:
     if value is None or value == "":
         return None
@@ -410,17 +418,15 @@ class ClockSourceNode(NodeBase):
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
-    freq: int = Field(
+    freq: Union[int, Dict[str, int]] = Field(
         ...,
-        ge=1,
-        le=_FREQ_HZ_U32_MAX,
-        description="典型频率，单位 Hz。",
+        description="典型频率，单位 Hz；pll_kind 为 inno 时可写各输出端口频率 dict。",
     )
 
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_freq(cls, value: Any) -> Any:
-        return _coerce_required_freq(value)
+        return _coerce_required_freq_or_map(value)
     source: OptionalUpstreamSource = Field(
         default=None,
         description="参考时钟前级引用；省略或空表示无前级。",
@@ -453,6 +459,31 @@ class PllNode(NodeBase):
         return []
 
     @model_validator(mode="after")
+    def _validate_pll_freq(self, info: ValidationInfo) -> PllNode:
+        node_name = _validation_node_name(self, info)
+        if isinstance(self.freq, dict):
+            if self.pll_kind != "inno":
+                raise ValueError(
+                    f"pll 节点 {node_name!r} freq 为 dict 时 pll_kind 必须为 inno"
+                )
+            expected = set(self.output_groups)
+            actual = set(self.freq)
+            if actual != expected:
+                raise ValueError(
+                    f"pll 节点 {node_name!r} pll_kind 为 inno 时 freq dict 键必须为 {sorted(expected)!r}"
+                )
+            for group, freq in self.freq.items():
+                if freq < 1 or freq > _FREQ_HZ_U32_MAX:
+                    raise ValueError(
+                        f"pll 节点 {node_name!r} freq[{group!r}] 必须在 1～{_FREQ_HZ_U32_MAX}"
+                    )
+        elif self.freq < 1 or self.freq > _FREQ_HZ_U32_MAX:
+            raise ValueError(
+                f"pll 节点 {node_name!r} freq 必须在 1～{_FREQ_HZ_U32_MAX}"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _validate_pll_regs(self, info: ValidationInfo) -> PllNode:
         validate_pll_regs_exact(
             self.regs,
@@ -461,6 +492,11 @@ class PllNode(NodeBase):
             output_groups=self.output_groups,
         )
         return self
+
+    def freq_for_group(self, group: str) -> int:
+        if isinstance(self.freq, dict):
+            return self.freq[group]
+        return self.freq
 
 
 class CellNode(NodeBase):

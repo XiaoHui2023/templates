@@ -173,7 +173,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "pll" %}
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
-        {{ node.name }}["{{ g }}"].frequence = {{ node.freq }};
+        {{ node.name }}["{{ g }}"].frequence = {{ node.freq[g] if node.freq is mapping else node.freq }};
 {%- endfor %}
 {%- else %}
         {{ node.name }}.frequence = {{ node.freq }};
