@@ -1,0 +1,35 @@
+{% if is_sd -%}
+`ifndef {{ class_prefix | upper }}SEND_IF_COND_COMMAND_REQUEST
+`define {{ class_prefix | upper }}SEND_IF_COND_COMMAND_REQUEST
+
+// 发送CMD8，查询电压是否支持
+class {{ class_prefix }}send_if_cond_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils_begin({{ class_prefix }}send_if_cond_command_request)
+        `uvm_field_int(vhs,UVM_ALL_ON)
+        `uvm_field_int(check_pattern,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit[3:0] vhs; // 支持的电压。'b0001=2.7-3.6V，'b0010=低电压范围（好像没用）
+    rand bit[7:0] check_pattern; // 用来检查Card能否在指定的电压下返回响应。什么值都可以
+
+    function new(string name="{{ class_prefix }}send_if_cond_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_prefab {
+        cmd_index == 8;
+        resp == R7;
+        argument[11:8] == vhs;
+        argument[7:0] == check_pattern;
+        vhs inside {
+            'b0001
+        };
+
+        // 没有答复，表示版本低于2.00
+        chk_err_req.cmd_tout_err_en == 0;
+        soft check_pattern == 'b10101010;
+    }
+endclass
+
+`endif
+{% endif %}

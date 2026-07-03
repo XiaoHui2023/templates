@@ -1,0 +1,58 @@
+`ifndef {{ class_prefix | upper }}CHECK_CLOCK_CONFIGURATION
+`define {{ class_prefix | upper }}CHECK_CLOCK_CONFIGURATION
+
+class {{ class_prefix }}check_clock_configuration extends {{ class_prefix }}base_item;
+    `uvm_object_utils_begin({{ class_prefix }}check_clock_configuration)
+        `uvm_field_int(should, UVM_ALL_ON)
+                                            {%- for clk in monitored_clocks %}
+        `uvm_field_int(should_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- if not clk.volatile %}
+                                            {%- endif %}
+                                            {%- endfor %}
+                                            {%- for clk in monitored_clocks %}
+        `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- endfor %}
+                                            {%- for clk in monitored_clocks %}
+        `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- endfor %}
+    `uvm_object_utils_end
+
+    rand bit should; // 是否允许检查
+
+    {%- for clk in monitored_clocks %}
+    rand bit should_{{ clk.name }}; // 是否检查{{ clk.name }}
+    {%- endfor %}
+    {%- for clk in monitored_clocks %}
+    {%- if not clk.volatile %}
+    rand int frequence_{{ clk.name }}; // {{ clk.name }}频率 (Hz)
+    {%- endif %}
+    {%- endfor %}
+    {%- for clk in monitored_clocks %}
+    rand int tolerance_{{ clk.name }}; // {{ clk.name }}允许误差范围 (百分点)
+    {%- endfor %}
+
+    function new(string name = "{{ class_prefix }}check_clock_configuration");
+        super.new(name);
+    endfunction
+
+    constraint cst_chk_clk_cfg {
+        soft should == 0;
+                                            {%- for clk in monitored_clocks %}
+        soft should_{{ clk.name }} == {{ 1 if clk.should_check else 0 }};
+                                            {%- endfor %}
+        if(!should) {
+                                            {%- for clk in monitored_clocks %}
+            should_{{ clk.name }} == 0;
+                                            {%- endfor %}
+        }
+                                            {%- for clk in monitored_clocks %}
+                                            {%- if not clk.volatile %}
+        soft frequence_{{ clk.name }} == {{ clk.frequence }};
+                                            {%- endif %}
+                                            {%- endfor %}
+                                            {%- for clk in monitored_clocks %}
+        soft tolerance_{{ clk.name }} == {{ clk.tolerance }};
+                                            {%- endfor %}
+    }
+endclass
+`endif

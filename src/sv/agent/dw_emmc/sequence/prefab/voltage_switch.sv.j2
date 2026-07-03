@@ -1,0 +1,32 @@
+{% if is_sd -%}
+`ifndef {{ class_prefix | upper }}VOLTAGE_SWITCH_SEQ
+`define {{ class_prefix | upper }}VOLTAGE_SWITCH_SEQ
+
+/*
+发送CMD11读取16字节的数据
+
+切换后需要等待一段时间
+*/
+class {{ class_prefix }}voltage_switch_seq extends {{ class_prefix }}base_seq;
+    `uvm_object_utils({{ class_prefix }}voltage_switch_seq)
+
+    function new(string name="{{ class_prefix }}voltage_switch_seq");
+        super.new(name);
+    endfunction
+
+    {{ class_prefix }}voltage_switch_command_seq voltage_switch_seq;
+
+    task body();
+        `uvm_do(voltage_switch_seq)
+
+        // 等待一段时间
+        `uvm_info("", $psprintf("wait %0d ns for voltage switch", p_sequencer.sys_cfg.boot_cfg.voltage_switch_time_us), UVM_LOW)
+
+        repeat(p_sequencer.sys_cfg.boot_cfg.voltage_switch_time_us)
+            #1us;
+        `uvm_info("", "voltage switch done", UVM_LOW)
+    endtask
+endclass
+
+`endif
+{% endif %}

@@ -1,0 +1,80 @@
+`ifndef {{ class_prefix | upper }}CHECK_CLOCK_FREQUENCE_TEST_SEQ
+`define {{ class_prefix | upper }}CHECK_CLOCK_FREQUENCE_TEST_SEQ
+
+class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }}default_seq;
+    `uvm_object_utils_begin({{ class_prefix }}check_clock_frequence_test_seq)
+        `uvm_field_int(should, UVM_ALL_ON)
+{% for clk in monitored_clocks %}
+        `uvm_field_int(should_{{ clk.name }}, UVM_ALL_ON)
+        `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
+        `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
+{% endfor %}
+    `uvm_object_utils_end
+
+    function new(string name = "{{ class_prefix }}check_clock_frequence_test_seq");
+        super.new(name);
+    endfunction
+
+    rand bit should; // 是否检查
+{% for clk in monitored_clocks %}
+    rand bit should_{{ clk.name }}; // 是否检查 {{ clk.name }}
+    rand int frequence_{{ clk.name }}; // {{ clk.name }} 频率 (Hz)
+    rand int tolerance_{{ clk.name }}; // {{ clk.name }} 允许误差范围 (百分比)
+{% endfor %}
+
+    constraint cst_test {
+        soft should == sys_cfg.chk_clk_cfg.should;
+{% for clk in monitored_clocks %}
+        soft should_{{ clk.name }} == sys_cfg.chk_clk_cfg.should_{{ clk.name }};
+        soft frequence_{{ clk.name }} == sys_cfg.chk_clk_cfg.frequence_{{ clk.name }};
+        soft tolerance_{{ clk.name }} == sys_cfg.chk_clk_cfg.tolerance_{{ clk.name }};
+{% endfor %}
+    }
+
+    extern task body();
+    extern task check_single_clock(input string name, input int frequence, input int tolerance);
+endclass
+
+task {{ class_prefix }}check_clock_frequence_test_seq::body();
+    if (!should)
+        return;
+
+    `uvm_info("", $psprintf("check:\n%s", sprint()), UVM_DEBUG)
+
+{% for clk in monitored_clocks %}
+    if (should_{{ clk.name }})
+        check_single_clock("{{ clk.name }}", frequence_{{ clk.name }}, tolerance_{{ clk.name }});
+{% endfor %}
+
+    `uvm_info("", "done", UVM_DEBUG)
+endtask
+
+task {{ class_prefix }}check_clock_frequence_test_seq::check_single_clock(input string name, input int frequence,
+        input int tolerance);
+    bit is_pass;
+    bit is_timeout;
+    int measure_result;
+    real tol_percent;
+
+    `uvm_info("", $psprintf("check %s = %0d HZ ±%0d%%", name, frequence, tolerance), UVM_DEBUG)
+    tol_percent = 1.0 * tolerance / 100;
+
+    case (name)
+{% for clk in monitored_clocks %}
+        "{{ clk.name }}" :
+            sys_cfg.vif.monitor_if.check_{{ clk.name }}_frequence(frequence, is_pass, is_timeout, measure_result, tol_percent);
+{% endfor %}
+        default:
+            `uvm_fatal("", "NotImplemented")
+    endcase
+
+    if (is_timeout)
+        `uvm_fatal("", $psprintf("check %s timeout", name))
+    else if (!is_pass)
+        `uvm_fatal("", $psprintf("check %s require %0d HZ ±%0d%%, but %0d HZ", name, frequence, tolerance,
+                measure_result))
+    else
+        `uvm_info("", $psprintf("check %s successful", name), UVM_DEBUG)
+endtask
+
+`endif

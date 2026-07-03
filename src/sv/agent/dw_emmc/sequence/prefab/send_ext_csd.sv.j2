@@ -1,0 +1,48 @@
+{% if is_emmc -%}
+`ifndef {{ class_prefix | upper }}SEND_EXT_CSD_SEQ
+`define {{ class_prefix | upper }}SEND_EXT_CSD_SEQ
+
+// 读 EXT_CSD 寄存器 (CMD8)
+class {{ class_prefix }}send_ext_csd_seq extends {{ class_prefix }}base_seq;
+    `uvm_object_utils_begin({{ class_prefix }}send_ext_csd_seq)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bus_speed_mode_e bus_speed_mode; // 总线速率模式
+    rand int data_width; // 数据位宽
+
+    function new(string name="{{ class_prefix }}send_ext_csd_seq");
+        super.new(name);
+    endfunction
+
+    {{ class_prefix }}send_ext_csd_command_seq send_ext_csd_seq; // CMD8
+    {{ class_prefix }}send_status_command_seq send_status_seq; // CMD13, 要求设备发送状态
+    {{ class_prefix }}switch_bus_seq switch_bus_seq; // 切换速度
+
+    constraint cst_prefab {
+        soft bus_speed_mode == sys_cfg.boot_cfg.default_bus_speed_mode;
+        soft data_width == sys_cfg.boot_cfg.default_data_width;
+    }
+
+    task body();
+        // CMD13 查询状态
+        `uvm_do_with(send_status_seq, {
+            cmd_req.sqs == 0;
+            cmd_req.hpi == 0;
+        })
+
+        // 切换总线模式
+        `uvm_do_with(switch_bus_seq, {
+            bus_speed_mode == local::bus_speed_mode;
+        })
+
+        `uvm_do_with(send_ext_csd_seq, {
+            cmd_req.block_count == 1;
+            cmd_req.block_size == 512;
+        })
+    endtask
+endclass
+
+`endif
+{% endif %}

@@ -1,0 +1,32 @@
+{% if is_sdio -%}
+`ifndef {{ class_prefix | upper }}IO_SEND_OP_COND_COMMAND_REQUEST
+`define {{ class_prefix | upper }}IO_SEND_OP_COND_COMMAND_REQUEST
+
+// 发送CMD5，初始化
+class {{ class_prefix }}io_send_op_cond_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils_begin({{ class_prefix }}io_send_op_cond_command_request)
+        `uvm_field_int(s18r, UVM_ALL_ON)
+        `uvm_field_int(ocr, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit s18r; // 切换到 1.8V查询
+    rand bit[23:0] ocr; // OCR，等于0表示查询
+
+    function new(string name="{{ class_prefix }}io_send_op_cond_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_prefab {
+        cmd_index == 5;
+        argument[24] == s18r;
+        argument[23:0] == ocr;
+        resp == R4;
+
+        chk_err_req.cmd_idx_err_en == 0;
+        chk_err_req.cmd_crc_err_en == 0;
+        soft ocr == 'hff8000;
+    }
+endclass
+
+`endif
+{% endif %}

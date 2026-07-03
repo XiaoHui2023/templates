@@ -1,0 +1,35 @@
+{% if is_sdio -%}
+`ifndef {{ class_prefix | upper }}IO_RW_DIRECT_FN0_BLOCK_SIZE_SEQ
+`define {{ class_prefix | upper }}IO_RW_DIRECT_FN0_BLOCK_SIZE_SEQ
+
+// CMD52, 设置块大小
+class {{ class_prefix }}io_rw_direct_fn0_block_size_seq extends {{ class_prefix }}base_seq;
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_fn0_block_size_seq)
+        `uvm_field_int(function_number, UVM_ALL_ON)
+        `uvm_field_int(block_length, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand int function_number; // 设置1-7中哪个功能
+    rand bit[15:0] block_length; // 块的长度
+
+    function new(string name = "{{ class_prefix }}io_rw_direct_fn0_block_size_seq");
+        super.new(name);
+    endfunction
+
+    {{ class_prefix }}io_rw_direct_fn0_block_size_command_seq cmd_seq;
+
+    task body();
+        `uvm_do_with(cmd_seq, {
+            cmd_req.lo_hi == 0;
+            cmd_req.block_length == local::block_length;
+            cmd_req.local_function_number == local::function_number;
+        })
+        `uvm_do_with(cmd_seq, {
+            cmd_req.lo_hi == 1;
+            cmd_req.block_length == local::block_length;
+            cmd_req.local_function_number == local::function_number;
+        })
+    endtask
+endclass
+`endif
+{% endif %}

@@ -1,0 +1,41 @@
+`ifndef {{ class_prefix | upper }}CARD_MEMORY_GET_DEPENDENCY_SEQ
+`define {{ class_prefix | upper }}CARD_MEMORY_GET_DEPENDENCY_SEQ
+
+/*
+    获取card内存数据
+
+    默认从 system_config 的 card_mem 读取(如果有的话)
+*/
+class {{ class_prefix }}card_memory_get_dependency_seq extends {{ class_prefix }}base_dependency_seq;
+    `uvm_object_utils_begin({{ class_prefix }}card_memory_get_dependency_seq)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(len, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit[63:0] addr; // 输入首地址
+    rand int len; // 输入长度
+    bit[7:0] rdata[$]; // 要求输出读数据
+
+    function new(string name = "{{ class_prefix }}card_memory_get_dependency_seq");
+        super.new(name);
+    endfunction
+
+    extern task body();
+    extern task post_start();
+endclass
+
+task {{ class_prefix }}card_memory_get_dependency_seq::body();
+    if(!p_sequencer.sys_cfg.card_mem)
+        `uvm_fatal("", "system configuration require card_mem")
+
+    rdata = {{ class_prefix }}read_card_memory(p_sequencer.sys_cfg.card_mem, len, addr);
+endtask
+
+task {{ class_prefix }}card_memory_get_dependency_seq::post_start();
+    super.post_start();
+
+    if(rdata.size() != len)
+        `uvm_fatal("", $psprintf("require %0d rdata, but %0d", len, rdata.size()))
+endtask
+
+`endif

@@ -1,9 +1,11 @@
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class MonitoredClock(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(...)
     should_check: bool = Field(True)
     volatile: bool = Field(False)
@@ -12,11 +14,15 @@ class MonitoredClock(BaseModel):
 
 
 class Connection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(...)
     width: int = Field(1)
 
 
 class Models(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     class_prefix: str = Field("Emmc_ctrl", description="默认类名的前缀")
     card_type: Literal["emmc", "sdcard", "sdio"] = Field(..., description="card类型")
     class_regmodel: str = Field("ral_sys_DWC_mshc", description="寄存器类名")
@@ -24,57 +30,87 @@ class Models(BaseModel):
     monitored_clocks: Optional[List[MonitoredClock]] = None
     connections: Optional[List[Connection]] = None
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
     def is_emmc(self) -> bool:
         return self.card_type == "emmc"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
     def is_sdcard(self) -> bool:
         return self.card_type == "sdcard"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
     def is_sdio(self) -> bool:
         return self.card_type == "sdio"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
     def is_sd(self) -> bool:
         return self.is_sdio or self.is_sdcard
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
-    def UHS_MODE_SEL_SDR12_LEGACY(self) -> str:
+    def UHS_MODE_SEL_SDR12_LEGACY(self) -> Optional[str]:
         if self.is_emmc:
             return "UHS_MODE_SEL_LEGACY"
         elif self.is_sd:
             return "UHS_MODE_SEL_SDR12"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
-    def UHS_MODE_SEL_SDR25_HIGH_SPEED_SDR(self) -> str:
+    def UHS_MODE_SEL_SDR25_HIGH_SPEED_SDR(self) -> Optional[str]:
         if self.is_emmc:
             return "UHS_MODE_SEL_HIGH_SPEED_SDR"
         elif self.is_sd:
             return "UHS_MODE_SEL_SDR25"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
-    def UHS_MODE_SEL_SDR50(self) -> str:
+    def UHS_MODE_SEL_SDR50(self) -> Optional[str]:
         if self.is_sd:
             return "UHS_MODE_SEL_SDR50"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
-    def UHS_MODE_SEL_SDR104_HS200(self) -> str:
+    def UHS_MODE_SEL_SDR104_HS200(self) -> Optional[str]:
         if self.is_emmc:
             return "UHS_MODE_SEL_HS200"
         elif self.is_sd:
             return "UHS_MODE_SEL_SDR104"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
-    def UHS_MODE_SEL_DDR50_HIGH_SPEED_DDR(self) -> str:
+    def UHS_MODE_SEL_DDR50_HIGH_SPEED_DDR(self) -> Optional[str]:
         if self.is_emmc:
             return "UHS_MODE_SEL_HIGH_SPEED_DDR"
         elif self.is_sd:
             return "UHS_MODE_SEL_DDR50"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="由 card_type 推导；配置不可传入。",
+    )
     @property
-    def UHS_MODE_SEL_UHS2_HS400(self) -> str:
+    def UHS_MODE_SEL_UHS2_HS400(self) -> Optional[str]:
         if self.is_emmc:
             return "UHS_MODE_SEL_HS400"
         elif self.is_sd:
