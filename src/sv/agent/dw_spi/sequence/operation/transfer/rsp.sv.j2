@@ -1,0 +1,18 @@
+`ifndef {{ (settings.class_prefix ~ "transfer_rsp") | upper }}
+`define {{ (settings.class_prefix ~ "transfer_rsp") | upper }}
+
+class {{ settings.class_prefix }}transfer_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}transfer_rsp)
+        `uvm_field_int(ok, UVM_ALL_ON)
+        `uvm_field_queue_int(read_data, UVM_ALL_ON | UVM_HEX)
+    `uvm_object_utils_end
+
+    bit ok;
+    bit [7:0] read_data[$];
+
+    function new(string name="{{ settings.class_prefix }}transfer_rsp");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -1,0 +1,31 @@
+`ifndef {{ (settings.class_prefix ~ "init_registers_seq") | upper }}
+`define {{ (settings.class_prefix ~ "init_registers_seq") | upper }}
+
+class {{ settings.class_prefix }}init_registers_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}init_registers_req,
+    {{ settings.class_prefix }}init_registers_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}init_registers_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name="{{ settings.class_prefix }}init_registers_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ settings.class_prefix }}init_registers_seq::body();
+    {{ settings.class_prefix }}transfer tr;
+
+    if (req == null)
+        `uvm_fatal("DW_SPI_REG", "init_registers req is null")
+    if (req.tr == null)
+        `uvm_fatal("DW_SPI_REG", "init_registers req.tr is null")
+    tr = req.tr;
+    rsp = {{ settings.class_prefix }}init_registers_rsp::type_id::create("rsp");
+    p_sequencer.build_register_config(tr, rsp.cfg);
+    p_sequencer.apply_register_config(rsp.cfg);
+endtask
+
+`endif

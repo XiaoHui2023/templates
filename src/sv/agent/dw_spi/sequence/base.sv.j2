@@ -1,0 +1,13 @@
+`ifndef {{ (settings.class_prefix ~ "base_seq") | upper }}
+`define {{ (settings.class_prefix ~ "base_seq") | upper }}
+
+class {{ settings.class_prefix }}base_seq extends uvm_sequence;
+    `uvm_object_utils({{ settings.class_prefix }}base_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name="{{ settings.class_prefix }}base_seq");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

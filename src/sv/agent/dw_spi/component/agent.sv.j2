@@ -1,0 +1,31 @@
+`ifndef {{ (settings.class_prefix ~ "agent") | upper }}
+`define {{ (settings.class_prefix ~ "agent") | upper }}
+
+class {{ settings.class_prefix }}agent extends uvm_agent;
+    `uvm_component_utils({{ settings.class_prefix }}agent)
+
+    {{ settings.class_prefix }}kit_sequencer sqr;
+    {{ settings.class_prefix }}scoreboard sb;
+    {{ settings.class_prefix }}settings settings;
+
+    function new(string name="{{ settings.class_prefix }}agent", uvm_component parent=null);
+        super.new(name, parent);
+        settings = {{ settings.class_prefix }}settings::type_id::create("settings");
+        sb = {{ settings.class_prefix }}scoreboard::type_id::create("sb", this);
+        sqr = {{ settings.class_prefix }}kit_sequencer::type_id::create("sqr", this);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+endclass
+
+function void {{ settings.class_prefix }}agent::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    void'(uvm_config_db #({{ settings.class_prefix }}settings)::get(this, "", "settings", settings));
+    if (settings == null)
+        `uvm_fatal("DW_SPI", "agent settings is null")
+    uvm_config_db #({{ settings.class_prefix }}settings)::set(this, "sb", "settings", settings);
+    uvm_config_db #({{ settings.class_prefix }}settings)::set(this, "sqr", "settings", settings);
+    uvm_config_db #({{ settings.class_prefix }}scoreboard)::set(this, "sqr", "scoreboard", sb);
+endfunction
+
+`endif

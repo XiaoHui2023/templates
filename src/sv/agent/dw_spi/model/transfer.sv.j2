@@ -1,0 +1,88 @@
+`ifndef {{ (settings.class_prefix ~ "transfer") | upper }}
+`define {{ (settings.class_prefix ~ "transfer") | upper }}
+
+class {{ settings.class_prefix }}transfer extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}transfer)
+        `uvm_field_enum({{ settings.class_prefix }}settings::host_mode_e, host_mode, UVM_ALL_ON)
+        `uvm_field_enum({{ settings.class_prefix }}settings::protocol_e, protocol, UVM_ALL_ON)
+        `uvm_field_enum({{ settings.class_prefix }}settings::frame_mode_e, frame_mode, UVM_ALL_ON)
+        `uvm_field_enum({{ settings.class_prefix }}settings::transfer_mode_e, transfer_mode, UVM_ALL_ON)
+        `uvm_field_int(write, UVM_ALL_ON)
+        `uvm_field_int(opcode, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(length, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(io_lanes, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(speed_multiplier, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(cs_id, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(inst_bytes, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_queue_int(data, UVM_ALL_ON | UVM_HEX)
+    `uvm_object_utils_end
+
+    rand {{ settings.class_prefix }}settings::host_mode_e host_mode;
+    rand {{ settings.class_prefix }}settings::protocol_e protocol;
+    rand {{ settings.class_prefix }}settings::frame_mode_e frame_mode;
+    rand {{ settings.class_prefix }}settings::transfer_mode_e transfer_mode;
+    rand bit write;
+    rand bit [7:0] opcode;
+    rand bit [63:0] address;
+    rand int unsigned length;
+    rand int unsigned io_lanes;
+    rand int unsigned speed_multiplier;
+    rand int unsigned spi_mode;
+    rand int unsigned data_frame_bits;
+    rand int unsigned cs_id;
+    rand int unsigned inst_bytes;
+    rand int unsigned addr_bytes;
+    rand int unsigned dummy_cycles;
+    rand bit [7:0] data[$];
+
+    function new(string name="{{ settings.class_prefix }}transfer");
+        super.new(name);
+    endfunction
+
+    constraint cst {
+        io_lanes inside {1, 2, 4};
+        io_lanes <= {{ settings.max_io_lanes }};
+        speed_multiplier inside {1, 2, 4, 8};
+        speed_multiplier <= {{ settings.max_speed_multiplier }};
+        if (frame_mode == {{ settings.class_prefix }}settings::STANDARD) speed_multiplier == 1;
+        if (speed_multiplier > 1) frame_mode == {{ settings.class_prefix }}settings::ENHANCED;
+        spi_mode inside {[0:3]};
+        data_frame_bits inside {[4:{{ settings.max_data_frame_bits }}]};
+        cs_id < {{ settings.num_cs }};
+        inst_bytes inside {[0:1]};
+        addr_bytes inside {[0:4]};
+        if (write) length == data.size();
+        if (protocol == {{ settings.class_prefix }}settings::FLASH_SPI) {
+            inst_bytes == 1;
+            addr_bytes inside {3, 4};
+        }
+{% if not settings.support_master %}
+        host_mode != {{ settings.class_prefix }}settings::MASTER;
+{% endif %}
+{% if not settings.support_slave %}
+        host_mode != {{ settings.class_prefix }}settings::SLAVE;
+{% endif %}
+{% if not settings.support_general_spi %}
+        protocol != {{ settings.class_prefix }}settings::GENERAL_SPI;
+{% endif %}
+{% if not settings.support_flash_spi %}
+        protocol != {{ settings.class_prefix }}settings::FLASH_SPI;
+{% endif %}
+{% if not settings.support_standard %}
+        frame_mode != {{ settings.class_prefix }}settings::STANDARD;
+{% endif %}
+{% if not settings.support_enhanced %}
+        frame_mode != {{ settings.class_prefix }}settings::ENHANCED;
+{% endif %}
+    }
+
+    constraint cst_user;
+    constraint cst_case;
+endclass
+
+`endif

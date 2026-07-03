@@ -1,0 +1,220 @@
+`ifndef {{ (settings.class_prefix ~ "sequencer") | upper }}
+`define {{ (settings.class_prefix ~ "sequencer") | upper }}
+
+class {{ settings.class_prefix }}sequencer extends uvm_sequencer;
+    `uvm_component_utils({{ settings.class_prefix }}sequencer)
+    `uvm_register_cb({{ settings.class_prefix }}sequencer, {{ settings.class_prefix }}callback)
+
+    {{ settings.class_prefix }}settings settings;
+    {{ settings.class_prefix }}scoreboard scoreboard;
+    virtual {{ settings.class_prefix }}if vif;
+
+    function new(string name="{{ settings.class_prefix }}sequencer", uvm_component parent=null);
+        super.new(name, parent);
+        settings = {{ settings.class_prefix }}settings::type_id::create("settings");
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern function void build_register_config({{ settings.class_prefix }}transfer tr, output {{ settings.class_prefix }}reg_cfg cfg);
+    extern function bit [31:0] pack_ctrlr0({{ settings.class_prefix }}transfer tr);
+    extern function bit [1:0] spi_frf_bits(int unsigned speed_multiplier);
+    extern function bit [1:0] transfer_mode_bits({{ settings.class_prefix }}settings::transfer_mode_e mode);
+    extern task write_register(int unsigned offset, bit [31:0] value);
+    extern task read_register(int unsigned offset, output bit [31:0] value);
+    extern task apply_register_config({{ settings.class_prefix }}reg_cfg cfg);
+    extern task write_named_register(string name, int unsigned offset, bit [31:0] value);
+    extern task read_named_register(string name, int unsigned offset, output bit [31:0] value);
+    extern task begin_transfer({{ settings.class_prefix }}transfer tr);
+    extern task end_transfer({{ settings.class_prefix }}transfer tr);
+endclass
+
+function void {{ settings.class_prefix }}sequencer::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    void'(uvm_config_db #({{ settings.class_prefix }}settings)::get(this, "", "settings", settings));
+    void'(uvm_config_db #({{ settings.class_prefix }}scoreboard)::get(this, "", "scoreboard", scoreboard));
+    void'(uvm_config_db #(virtual {{ settings.class_prefix }}if)::get(this, "", "vif", vif));
+    if (settings == null)
+        `uvm_fatal("DW_SPI", "sequencer settings is null")
+    if (scoreboard == null)
+        `uvm_fatal("DW_SPI", "sequencer scoreboard is null")
+    if (settings.vif == null)
+        settings.vif = vif;
+    if (vif == null)
+        vif = settings.vif;
+endfunction
+
+function bit [1:0] {{ settings.class_prefix }}sequencer::transfer_mode_bits(
+        {{ settings.class_prefix }}settings::transfer_mode_e mode);
+    case (mode)
+        {{ settings.class_prefix }}settings::TX_AND_RX: return 2'h0;
+        {{ settings.class_prefix }}settings::TX_ONLY: return 2'h1;
+        {{ settings.class_prefix }}settings::RX_ONLY: return 2'h2;
+        {{ settings.class_prefix }}settings::EEPROM_READ: return 2'h3;
+        default: return 2'h0;
+    endcase
+endfunction
+
+function bit [1:0] {{ settings.class_prefix }}sequencer::spi_frf_bits(int unsigned speed_multiplier);
+    case (speed_multiplier)
+        1: return 2'h0;
+        2: return 2'h1;
+        4: return 2'h2;
+        8: return 2'h3;
+        default: return 2'h0;
+    endcase
+endfunction
+
+function bit [31:0] {{ settings.class_prefix }}sequencer::pack_ctrlr0({{ settings.class_prefix }}transfer tr);
+    bit [31:0] v;
+    int unsigned dfs;
+    bit [1:0] tmod;
+
+    v = '0;
+    dfs = tr.data_frame_bits - 1;
+    tmod = transfer_mode_bits(tr.transfer_mode);
+    if (settings.ssi_variant == {{ settings.class_prefix }}settings::HSSI) begin
+        v[4:0] = dfs[4:0];
+        v[7:6] = spi_frf_bits(tr.speed_multiplier);
+        v[8] = tr.spi_mode[0];
+        v[9] = tr.spi_mode[1];
+        v[11:10] = tmod;
+        if (tr.host_mode == {{ settings.class_prefix }}settings::MASTER)
+            v[31] = 1'b1;
+    end else begin
+        if (tr.data_frame_bits > 16)
+            v[20:16] = dfs[4:0];
+        else
+            v[3:0] = dfs[3:0];
+        v[5:4] = spi_frf_bits(tr.speed_multiplier);
+        v[6] = tr.spi_mode[0];
+        v[7] = tr.spi_mode[1];
+        v[9:8] = tmod;
+        if (tr.host_mode == {{ settings.class_prefix }}settings::SLAVE)
+            v[10] = 1'b1;
+    end
+    return v;
+endfunction
+
+function void {{ settings.class_prefix }}sequencer::build_register_config(
+        {{ settings.class_prefix }}transfer tr,
+        output {{ settings.class_prefix }}reg_cfg cfg);
+    cfg = {{ settings.class_prefix }}reg_cfg::type_id::create("reg_cfg");
+    cfg.ctrlr0 = pack_ctrlr0(tr);
+    if (tr.transfer_mode inside {
+            {{ settings.class_prefix }}settings::RX_ONLY,
+            {{ settings.class_prefix }}settings::EEPROM_READ
+        })
+        cfg.ctrlr1 = tr.length > 0 ? tr.length - 1 : 0;
+    else
+        cfg.ctrlr1 = 0;
+    cfg.baudr = settings.default_baud_div;
+    cfg.ser = 32'h1 << tr.cs_id;
+    cfg.txftlr = settings.default_tx_fifo_threshold;
+    cfg.rxftlr = settings.default_rx_fifo_threshold;
+    cfg.imr = '0;
+    cfg.dmacr = '0;
+    cfg.dmatdlr = settings.default_tx_fifo_threshold;
+    cfg.dmardlr = settings.default_rx_fifo_threshold;
+    cfg.rx_sample_dly = settings.default_rx_sample_delay_ns;
+    cfg.write_rx_sample_dly = settings.default_rx_sample_delay_ns != 0;
+endfunction
+
+task {{ settings.class_prefix }}sequencer::write_named_register(string name, int unsigned offset, bit [31:0] value);
+    uvm_status_e status;
+
+    if (settings.regmodel == null)
+        `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
+    case (offset)
+        {{ settings.class_prefix }}reg_cfg::REG_CTRLR0: settings.regmodel.ctrlr0.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_CTRLR1: settings.regmodel.ctrlr1.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_SSIENR: settings.regmodel.ssienr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_SER: settings.regmodel.ser.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_BAUDR: settings.regmodel.baudr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_TXFTLR: settings.regmodel.txftlr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_RXFTLR: settings.regmodel.rxftlr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_IMR: settings.regmodel.imr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_ICR: settings.regmodel.icr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DMACR: settings.regmodel.dmacr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DMATDLR: settings.regmodel.dmatdlr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DMARDLR: settings.regmodel.dmardlr.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_RX_SAMPLE_DLY: settings.regmodel.rx_sample_dly.write(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DR: settings.regmodel.dr.write(status, value);
+        default: `uvm_fatal("DW_SPI_REG", $sformatf("unknown register %s offset=0x%0h", name, offset))
+    endcase
+    if (status != UVM_IS_OK)
+        `uvm_error("DW_SPI_REG", $sformatf("write %s offset=0x%0h failed status=%s", name, offset, status.name()))
+endtask
+
+task {{ settings.class_prefix }}sequencer::read_named_register(string name, int unsigned offset, output bit [31:0] value);
+    uvm_status_e status;
+
+    value = '0;
+    if (settings.regmodel == null)
+        `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
+    case (offset)
+        {{ settings.class_prefix }}reg_cfg::REG_CTRLR0: settings.regmodel.ctrlr0.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_CTRLR1: settings.regmodel.ctrlr1.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_SSIENR: settings.regmodel.ssienr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_SER: settings.regmodel.ser.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_BAUDR: settings.regmodel.baudr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_TXFTLR: settings.regmodel.txftlr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_RXFTLR: settings.regmodel.rxftlr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_TXFLR: settings.regmodel.txflr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_RXFLR: settings.regmodel.rxflr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_SR: settings.regmodel.sr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_IMR: settings.regmodel.imr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_ISR: settings.regmodel.isr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_ICR: settings.regmodel.icr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DMACR: settings.regmodel.dmacr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DMATDLR: settings.regmodel.dmatdlr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DMARDLR: settings.regmodel.dmardlr.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_RX_SAMPLE_DLY: settings.regmodel.rx_sample_dly.read(status, value);
+        {{ settings.class_prefix }}reg_cfg::REG_DR: settings.regmodel.dr.read(status, value);
+        default: `uvm_fatal("DW_SPI_REG", $sformatf("unknown register %s offset=0x%0h", name, offset))
+    endcase
+    if (status != UVM_IS_OK)
+        `uvm_error("DW_SPI_REG", $sformatf("read %s offset=0x%0h failed status=%s", name, offset, status.name()))
+endtask
+
+task {{ settings.class_prefix }}sequencer::write_register(int unsigned offset, bit [31:0] value);
+    write_named_register("register", offset, value);
+endtask
+
+task {{ settings.class_prefix }}sequencer::read_register(int unsigned offset, output bit [31:0] value);
+    read_named_register("register", offset, value);
+endtask
+
+task {{ settings.class_prefix }}sequencer::apply_register_config({{ settings.class_prefix }}reg_cfg cfg);
+    if (cfg == null)
+        `uvm_fatal("DW_SPI", "apply_register_config cfg is null")
+    write_named_register("ssienr", {{ settings.class_prefix }}reg_cfg::REG_SSIENR, cfg.ssienr_disable);
+    write_named_register("imr", {{ settings.class_prefix }}reg_cfg::REG_IMR, cfg.imr);
+    write_named_register("icr", {{ settings.class_prefix }}reg_cfg::REG_ICR, '0);
+    write_named_register("ser", {{ settings.class_prefix }}reg_cfg::REG_SER, '0);
+    write_named_register("ctrlr0", {{ settings.class_prefix }}reg_cfg::REG_CTRLR0, cfg.ctrlr0);
+    write_named_register("ctrlr1", {{ settings.class_prefix }}reg_cfg::REG_CTRLR1, cfg.ctrlr1);
+    write_named_register("baudr", {{ settings.class_prefix }}reg_cfg::REG_BAUDR, cfg.baudr);
+    write_named_register("txftlr", {{ settings.class_prefix }}reg_cfg::REG_TXFTLR, cfg.txftlr);
+    write_named_register("rxftlr", {{ settings.class_prefix }}reg_cfg::REG_RXFTLR, cfg.rxftlr);
+    write_named_register("dmacr", {{ settings.class_prefix }}reg_cfg::REG_DMACR, cfg.dmacr);
+    write_named_register("dmatdlr", {{ settings.class_prefix }}reg_cfg::REG_DMATDLR, cfg.dmatdlr);
+    write_named_register("dmardlr", {{ settings.class_prefix }}reg_cfg::REG_DMARDLR, cfg.dmardlr);
+    if (cfg.write_rx_sample_dly)
+        write_named_register("rx_sample_dly", {{ settings.class_prefix }}reg_cfg::REG_RX_SAMPLE_DLY, cfg.rx_sample_dly);
+    write_named_register("ser", {{ settings.class_prefix }}reg_cfg::REG_SER, cfg.ser);
+    write_named_register("ssienr", {{ settings.class_prefix }}reg_cfg::REG_SSIENR, cfg.ssienr_enable);
+endtask
+
+task {{ settings.class_prefix }}sequencer::begin_transfer({{ settings.class_prefix }}transfer tr);
+    {{ settings.class_prefix }}reg_cfg cfg;
+
+    build_register_config(tr, cfg);
+    apply_register_config(cfg);
+    `uvm_do_obj_callbacks({{ settings.class_prefix }}sequencer, {{ settings.class_prefix }}callback, this, assert_chip_select(tr))
+endtask
+
+task {{ settings.class_prefix }}sequencer::end_transfer({{ settings.class_prefix }}transfer tr);
+    `uvm_do_obj_callbacks({{ settings.class_prefix }}sequencer, {{ settings.class_prefix }}callback, this, deassert_chip_select(tr))
+endtask
+
+`endif

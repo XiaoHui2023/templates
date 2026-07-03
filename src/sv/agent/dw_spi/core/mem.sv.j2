@@ -1,0 +1,315 @@
+`ifndef {{ (settings.class_prefix ~ "mem") | upper }}
+`define {{ (settings.class_prefix ~ "mem") | upper }}
+
+class {{ settings.class_prefix }}mem;
+    parameter int max_bytes_per_line = {{ settings.memh_max_bytes_per_line }};
+
+    bit [7:0] bytes[bit [63:0]];
+    bit [7:0] erase_value;
+    bit [63:0] size_bytes;
+
+    function new(bit [7:0] erase_value = 8'h{{ "%02x" % settings.flash_erase_value }},
+            bit [63:0] size_bytes = 64'd{{ settings.flash_size_bytes }});
+        this.erase_value = erase_value;
+        this.size_bytes = size_bytes;
+    endfunction
+
+    extern function void clear();
+    extern function bit in_range(bit [63:0] addr, int unsigned len);
+    extern function void erase_all();
+    extern function bit write_bytes(bit [63:0] addr, bit [7:0] data[$]);
+    extern function bit read_bytes(bit [63:0] addr, int unsigned len, output bit [7:0] data[$]);
+    extern function bit compare_bytes(bit [63:0] addr, bit [7:0] expected[$], string label = "expected");
+    extern function bit load_memh(string filename, bit clear_first = 1'b1);
+    extern function bit load_hex_lines(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
+    extern function bit dump_memh(string filename);
+    extern local function bit is_hex_char(byte unsigned ch);
+    extern local function int hex_char_value(byte unsigned ch);
+    extern local function int memh_addr_hex_digits(bit [63:0] max_addr);
+    extern local function string memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
+endclass
+
+function void {{ settings.class_prefix }}mem::clear();
+    bytes.delete();
+endfunction
+
+function bit {{ settings.class_prefix }}mem::in_range(bit [63:0] addr, int unsigned len);
+    if (len == 0)
+        return 1'b1;
+    if (addr >= size_bytes)
+        return 1'b0;
+    return (addr + len - 1) < size_bytes;
+endfunction
+
+function void {{ settings.class_prefix }}mem::erase_all();
+    bytes.delete();
+endfunction
+
+function bit {{ settings.class_prefix }}mem::write_bytes(bit [63:0] addr, bit [7:0] data[$]);
+    if (!in_range(addr, data.size())) begin
+        `uvm_error("DW_SPI_MEM", $sformatf(
+            "write out of range addr=0x%016h len=%0d size=%0d",
+            addr, data.size(), size_bytes))
+        return 1'b0;
+    end
+    foreach (data[i])
+        bytes[addr + i] = data[i];
+    return 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}mem::read_bytes(
+        bit [63:0] addr,
+        int unsigned len,
+        output bit [7:0] data[$]);
+    data.delete();
+    if (!in_range(addr, len)) begin
+        `uvm_error("DW_SPI_MEM", $sformatf(
+            "read out of range addr=0x%016h len=%0d size=%0d",
+            addr, len, size_bytes))
+        return 1'b0;
+    end
+    for (int i = 0; i < len; i++) begin
+        bit [63:0] a;
+
+        a = addr + i;
+        if (bytes.exists(a))
+            data.push_back(bytes[a]);
+        else
+            data.push_back(erase_value);
+    end
+    return 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}mem::compare_bytes(
+        bit [63:0] addr,
+        bit [7:0] expected[$],
+        string label);
+    bit [7:0] actual[$];
+    bit pass;
+
+    pass = read_bytes(addr, expected.size(), actual);
+    if (!pass)
+        return 1'b0;
+    foreach (expected[i]) begin
+        if (actual[i] != expected[i]) begin
+            `uvm_error("DW_SPI_MEM", $sformatf(
+                "compare failed %s addr=0x%016h model=0x%02h observed=0x%02h",
+                label, addr + i, actual[i], expected[i]))
+            pass = 1'b0;
+        end
+    end
+    if (pass)
+        `uvm_info("DW_SPI_MEM", $sformatf(
+            "compare passed %s addr=0x%016h len=%0d",
+            label, addr, expected.size()), UVM_LOW)
+    return pass;
+endfunction
+
+function bit {{ settings.class_prefix }}mem::load_memh(string filename, bit clear_first);
+    int file;
+    int code;
+    int value;
+    bit [63:0] addr;
+    string token;
+    string rest_of_line;
+
+    if (clear_first)
+        clear();
+    file = $fopen(filename, "r");
+    if (!file) begin
+        `uvm_error("DW_SPI_MEM", $sformatf("failed to open memh file: %s", filename))
+        return 1'b0;
+    end
+    addr = '0;
+    while (!$feof(file)) begin
+        code = $fscanf(file, "%s", token);
+        if (code != 1) begin
+            void'($fgets(rest_of_line, file));
+            continue;
+        end
+        if (!token.len())
+            continue;
+        if (token.len() >= 2 && token.substr(0, 1) == "//") begin
+            void'($fgets(rest_of_line, file));
+            continue;
+        end
+        if (token.substr(0, 0) == "@") begin
+            if (token.len() <= 1 || $sscanf(token.substr(1, token.len() - 1), "%h", addr) != 1) begin
+                `uvm_error("DW_SPI_MEM", $sformatf(
+                    "invalid memh address token '%s' in %s", token, filename))
+                $fclose(file);
+                return 1'b0;
+            end
+        end else begin
+            if ($sscanf(token, "%h", value) != 1) begin
+                `uvm_error("DW_SPI_MEM", $sformatf(
+                    "invalid memh data token '%s' in %s", token, filename))
+                $fclose(file);
+                return 1'b0;
+            end
+            if (!in_range(addr, 1)) begin
+                `uvm_error("DW_SPI_MEM", $sformatf(
+                    "memh address out of range @0x%016h in %s", addr, filename))
+                $fclose(file);
+                return 1'b0;
+            end
+            bytes[addr] = value[7:0];
+            addr++;
+        end
+    end
+    $fclose(file);
+    `uvm_info("DW_SPI_MEM", $sformatf("loaded %0d bytes from %s", bytes.num(), filename), UVM_LOW)
+    return 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}mem::load_hex_lines(
+        string filename,
+        bit clear_first,
+        bit [63:0] base_addr);
+    int file;
+    string line;
+    bit [63:0] addr;
+    int high_nibble;
+    int value;
+    byte unsigned ch;
+    bit [7:0] byte_value;
+    int loaded;
+
+    if (clear_first)
+        clear();
+    file = $fopen(filename, "r");
+    if (!file) begin
+        `uvm_error("DW_SPI_MEM", $sformatf("failed to open hex file: %s", filename))
+        return 1'b0;
+    end
+    addr = base_addr;
+    loaded = 0;
+    while (!$feof(file)) begin
+        void'($fgets(line, file));
+        high_nibble = -1;
+        for (int i = 0; i < line.len(); i++) begin
+            ch = line.getc(i);
+            if (!is_hex_char(ch))
+                continue;
+            value = hex_char_value(ch);
+            if (high_nibble < 0)
+                high_nibble = value;
+            else begin
+                if (!in_range(addr, 1)) begin
+                    `uvm_error("DW_SPI_MEM", $sformatf(
+                        "hex address out of range @0x%016h in %s", addr, filename))
+                    $fclose(file);
+                    return 1'b0;
+                end
+                byte_value = (high_nibble << 4) | value;
+                bytes[addr] = byte_value;
+                addr++;
+                loaded++;
+                high_nibble = -1;
+            end
+        end
+        if (high_nibble >= 0) begin
+            `uvm_error("DW_SPI_MEM", $sformatf("odd number of hex digits in %s", filename))
+            $fclose(file);
+            return 1'b0;
+        end
+    end
+    $fclose(file);
+    `uvm_info("DW_SPI_MEM", $sformatf(
+        "loaded %0d bytes from simple hex file %s", loaded, filename), UVM_LOW)
+    return 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}mem::dump_memh(string filename);
+    int file;
+    bit [63:0] max_addr;
+    int addr_hex_digits;
+    bit [63:0] addrs[$];
+    bit [63:0] run_base;
+    int run_len;
+
+    file = $fopen(filename, "w");
+    if (!file) begin
+        `uvm_error("DW_SPI_MEM", $sformatf("failed to open memh output file: %s", filename))
+        return 1'b0;
+    end
+    if (bytes.num() == 0) begin
+        $fclose(file);
+        return 1'b1;
+    end
+    max_addr = 0;
+    foreach (bytes[a])
+        if (a > max_addr)
+            max_addr = a;
+    addr_hex_digits = memh_addr_hex_digits(max_addr);
+    foreach (bytes[a])
+        addrs.push_back(a);
+    addrs.sort();
+    run_base = addrs[0];
+    run_len = 1;
+    for (int i = 1; i < addrs.size(); i++) begin
+        if (addrs[i] == addrs[i - 1] + 1 && run_len < max_bytes_per_line)
+            run_len++;
+        else begin
+            $fwrite(file, "@%s", memh_padded_hex_addr(run_base, addr_hex_digits));
+            for (int j = 0; j < run_len; j++)
+                $fwrite(file, " %02h", bytes[run_base + j]);
+            $fwrite(file, "\n");
+            run_base = addrs[i];
+            run_len = 1;
+        end
+    end
+    $fwrite(file, "@%s", memh_padded_hex_addr(run_base, addr_hex_digits));
+    for (int j = 0; j < run_len; j++)
+        $fwrite(file, " %02h", bytes[run_base + j]);
+    $fwrite(file, "\n");
+    $fclose(file);
+    return 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}mem::is_hex_char(byte unsigned ch);
+    return (ch >= 8'h30 && ch <= 8'h39)
+        || (ch >= 8'h61 && ch <= 8'h66)
+        || (ch >= 8'h41 && ch <= 8'h46);
+endfunction
+
+function int {{ settings.class_prefix }}mem::hex_char_value(byte unsigned ch);
+    if (ch >= 8'h30 && ch <= 8'h39)
+        return ch - 8'h30;
+    if (ch >= 8'h61 && ch <= 8'h66)
+        return ch - 8'h61 + 10;
+    if (ch >= 8'h41 && ch <= 8'h46)
+        return ch - 8'h41 + 10;
+    return -1;
+endfunction
+
+function int {{ settings.class_prefix }}mem::memh_addr_hex_digits(bit [63:0] max_addr);
+    bit [63:0] a;
+    int d;
+
+    if (max_addr == 0)
+        return 1;
+    d = 0;
+    a = max_addr;
+    do begin
+        d++;
+        a = a >> 4;
+    end while (a != 0);
+    return d;
+endfunction
+
+function string {{ settings.class_prefix }}mem::memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
+    string s;
+    string ch;
+    bit [3:0] nib;
+
+    s = "";
+    for (int i = hex_digits - 1; i >= 0; i--) begin
+        nib = (addr >> (4 * i)) & 4'hF;
+        $sformat(ch, "%0h", nib);
+        s = {s, ch};
+    end
+    return s;
+endfunction
+
+`endif

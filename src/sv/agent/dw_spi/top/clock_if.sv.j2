@@ -1,0 +1,61 @@
+`ifndef {{ (settings.class_prefix ~ "clock_if") | upper }}
+`define {{ (settings.class_prefix ~ "clock_if") | upper }}
+
+interface {{ settings.class_prefix }}clock_if(input logic clk);
+    timeunit 1ns;
+    timeprecision 1fs;
+
+    localparam real RT_PER_SEC = 1.0e9;
+
+    function bit is_connected();
+        return !$isunknown(clk);
+    endfunction
+
+    task automatic measure_frequency_hz(
+            output real frequency_hz,
+            input int unsigned sample_edges = {{ settings.clock_check_sample_edges }},
+            input realtime timeout_ns = {{ settings.clock_check_timeout_ns }}.0);
+        realtime first_edge_ns;
+        realtime last_edge_ns;
+        realtime elapsed_ns;
+        int unsigned edges;
+        bit got_edge;
+
+        frequency_hz = 0.0;
+        first_edge_ns = 0.0;
+        last_edge_ns = 0.0;
+        elapsed_ns = 0.0;
+        edges = 0;
+        if (!is_connected())
+            return;
+
+        while (edges < sample_edges) begin
+            got_edge = 1'b0;
+            fork
+                begin
+                    @(posedge clk);
+                    got_edge = 1'b1;
+                end
+                begin
+                    #(timeout_ns * 1ns);
+                end
+            join_any
+            disable fork;
+            if (!got_edge)
+                return;
+            if (edges == 0)
+                first_edge_ns = $realtime;
+            last_edge_ns = $realtime;
+            edges++;
+        end
+
+        if (edges < 2)
+            return;
+        elapsed_ns = last_edge_ns - first_edge_ns;
+        if (elapsed_ns <= 0.0)
+            return;
+        frequency_hz = RT_PER_SEC * $itor(edges - 1) / elapsed_ns;
+    endtask
+endinterface
+
+`endif

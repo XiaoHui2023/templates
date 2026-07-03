@@ -1,0 +1,25 @@
+`ifndef {{ (settings.class_prefix ~ "reg_write_seq") | upper }}
+`define {{ (settings.class_prefix ~ "reg_write_seq") | upper }}
+
+class {{ settings.class_prefix }}reg_write_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}reg_write_req,
+    {{ settings.class_prefix }}reg_write_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}reg_write_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name="{{ settings.class_prefix }}reg_write_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ settings.class_prefix }}reg_write_seq::body();
+    if (req == null)
+        `uvm_fatal("DW_SPI_REG", "reg_write req is null")
+    rsp = {{ settings.class_prefix }}reg_write_rsp::type_id::create("rsp");
+    p_sequencer.write_register(req.offset, req.value);
+endtask
+
+`endif

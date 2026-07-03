@@ -1,0 +1,119 @@
+`ifndef {{ (settings.class_prefix ~ "flash_write_seq") | upper }}
+`define {{ (settings.class_prefix ~ "flash_write_seq") | upper }}
+
+class {{ settings.class_prefix }}flash_write_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}flash_write_req,
+    {{ settings.class_prefix }}flash_write_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}flash_write_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name="{{ settings.class_prefix }}flash_write_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+    extern task run_write_enable(output bit ok);
+    extern task run_chunk(bit [63:0] addr, bit [7:0] chunk[$], output bit ok);
+endclass
+
+task {{ settings.class_prefix }}flash_write_seq::run_write_enable(output bit ok);
+    {{ settings.class_prefix }}transfer_req op_req;
+    {{ settings.class_prefix }}transfer_rsp op_rsp;
+    {{ settings.class_prefix }}transfer_seq op_seq;
+
+    op_req = {{ settings.class_prefix }}transfer_req::type_id::create("op_req");
+    op_req.tr = {{ settings.class_prefix }}transfer::type_id::create("tr");
+    op_req.tr.host_mode = p_sequencer.settings.default_host_mode;
+    op_req.tr.protocol = {{ settings.class_prefix }}settings::FLASH_SPI;
+    op_req.tr.frame_mode = req.frame_mode;
+    op_req.tr.transfer_mode = {{ settings.class_prefix }}settings::TX_ONLY;
+    op_req.tr.write = 1'b0;
+    op_req.tr.opcode = 8'h06;
+    op_req.tr.length = 0;
+    op_req.tr.io_lanes = req.io_lanes;
+    op_req.tr.speed_multiplier = req.speed_multiplier;
+    op_req.tr.spi_mode = req.spi_mode;
+    op_req.tr.data_frame_bits = req.data_frame_bits;
+    op_req.tr.cs_id = req.cs_id;
+    op_req.tr.inst_bytes = 1;
+    op_req.tr.addr_bytes = 0;
+    op_seq = {{ settings.class_prefix }}transfer_seq::type_id::create("write_enable");
+    op_seq.req = op_req;
+    op_seq.start(p_sequencer);
+    op_rsp = op_seq.rsp;
+    ok = op_rsp != null && op_rsp.ok;
+endtask
+
+task {{ settings.class_prefix }}flash_write_seq::run_chunk(
+        bit [63:0] addr,
+        bit [7:0] chunk[$],
+        output bit ok);
+    {{ settings.class_prefix }}transfer_req op_req;
+    {{ settings.class_prefix }}transfer_rsp op_rsp;
+    {{ settings.class_prefix }}transfer_seq op_seq;
+
+    op_req = {{ settings.class_prefix }}transfer_req::type_id::create("op_req");
+    op_req.tr = {{ settings.class_prefix }}transfer::type_id::create("tr");
+    op_req.tr.host_mode = p_sequencer.settings.default_host_mode;
+    op_req.tr.protocol = {{ settings.class_prefix }}settings::FLASH_SPI;
+    op_req.tr.frame_mode = req.frame_mode;
+    op_req.tr.transfer_mode = {{ settings.class_prefix }}settings::TX_ONLY;
+    op_req.tr.write = 1'b1;
+    op_req.tr.opcode = 8'h02;
+    op_req.tr.address = addr;
+    op_req.tr.length = chunk.size();
+    op_req.tr.io_lanes = req.io_lanes;
+    op_req.tr.speed_multiplier = req.speed_multiplier;
+    op_req.tr.spi_mode = req.spi_mode;
+    op_req.tr.data_frame_bits = req.data_frame_bits;
+    op_req.tr.cs_id = req.cs_id;
+    op_req.tr.inst_bytes = 1;
+    op_req.tr.addr_bytes = req.addr_bytes == 0
+        ? p_sequencer.settings.default_addr_bytes : req.addr_bytes;
+    op_req.tr.data = chunk;
+    op_seq = {{ settings.class_prefix }}transfer_seq::type_id::create("transfer");
+    op_seq.req = op_req;
+    op_seq.start(p_sequencer);
+    op_rsp = op_seq.rsp;
+    ok = op_rsp != null && op_rsp.ok;
+endtask
+
+task {{ settings.class_prefix }}flash_write_seq::body();
+    {{ settings.class_prefix }}flash_write_rsp rs;
+    bit ok;
+    bit [7:0] chunk[$];
+    int unsigned page_size;
+    int unsigned pos;
+    int unsigned n;
+
+    if (req == null)
+        `uvm_fatal("DW_SPI", "flash_write: req is null")
+    rs = {{ settings.class_prefix }}flash_write_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+    page_size = p_sequencer.settings.flash_page_size;
+    pos = 0;
+    while (pos < req.data.size()) begin
+        n = req.data.size() - pos;
+        if (n > page_size)
+            n = page_size;
+        chunk.delete();
+        for (int i = 0; i < n; i++)
+            chunk.push_back(req.data[pos + i]);
+        run_write_enable(ok);
+        if (!ok) begin
+            rs.ok = 1'b0;
+            break;
+        end
+        run_chunk(req.address + pos, chunk, ok);
+        if (!ok) begin
+            rs.ok = 1'b0;
+            break;
+        end
+        rs.bytes_written += n;
+        pos += n;
+    end
+    rsp = rs;
+endtask
+
+`endif

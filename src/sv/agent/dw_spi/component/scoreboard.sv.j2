@@ -1,0 +1,115 @@
+`ifndef {{ (settings.class_prefix ~ "scoreboard") | upper }}
+`define {{ (settings.class_prefix ~ "scoreboard") | upper }}
+
+class {{ settings.class_prefix }}scoreboard extends uvm_component;
+    `uvm_component_utils({{ settings.class_prefix }}scoreboard)
+
+    {{ settings.class_prefix }}settings settings;
+    {{ settings.class_prefix }}mem mem;
+    string init_memh;
+
+    function new(string name="{{ settings.class_prefix }}scoreboard", uvm_component parent=null);
+        super.new(name, parent);
+        settings = {{ settings.class_prefix }}settings::type_id::create("settings");
+        mem = new(settings.flash_erase_value, settings.flash_size_bytes);
+    endfunction
+
+    extern function void build_phase(uvm_phase phase);
+    extern function bit load_memh(string filename, bit clear_first = 1'b1);
+    extern function bit load_hex_lines(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
+    extern function bit apply_payload(uvm_tlm_generic_payload gp, output bit [7:0] read_data[$]);
+    extern function bit record_expected_write(bit [63:0] addr, bit [7:0] data[$], string label = "expected_write");
+    extern function bit check_actual_read(bit [63:0] addr, bit [7:0] actual[$], string label = "actual_read");
+    extern function bit check_actual_write(bit [63:0] addr, bit [7:0] actual[$], string label = "actual_write");
+    extern function bit compare_actual(bit [63:0] addr, bit [7:0] actual[$], string label = "actual");
+endclass
+
+function void {{ settings.class_prefix }}scoreboard::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    void'(uvm_config_db #({{ settings.class_prefix }}settings)::get(this, "", "settings", settings));
+    if (settings == null)
+        `uvm_fatal("DW_SPI", "scoreboard settings is null")
+    mem = new(settings.flash_erase_value, settings.flash_size_bytes);
+    if (uvm_config_db #(string)::get(this, "", "init_memh", init_memh) && init_memh != "")
+        if (!mem.load_memh(init_memh, 1'b1))
+            `uvm_fatal("DW_SPI", $sformatf("failed to load init_memh %s", init_memh))
+endfunction
+
+function bit {{ settings.class_prefix }}scoreboard::load_memh(string filename, bit clear_first);
+    return mem.load_memh(filename, clear_first);
+endfunction
+
+function bit {{ settings.class_prefix }}scoreboard::load_hex_lines(
+        string filename,
+        bit clear_first,
+        bit [63:0] base_addr);
+    return mem.load_hex_lines(filename, clear_first, base_addr);
+endfunction
+
+function bit {{ settings.class_prefix }}scoreboard::apply_payload(
+        uvm_tlm_generic_payload gp,
+        output bit [7:0] read_data[$]);
+    byte unsigned gp_data[];
+    bit [7:0] data[$];
+    bit [63:0] addr;
+    int unsigned len;
+
+    read_data.delete();
+    if (gp == null) begin
+        `uvm_error("DW_SPI", "generic payload is null")
+        return 1'b0;
+    end
+    addr = gp.get_address();
+    len = gp.get_data_length();
+    gp.get_data(gp_data);
+    data.delete();
+    foreach (gp_data[i])
+        data.push_back(gp_data[i]);
+    if (gp.get_command() == UVM_TLM_WRITE_COMMAND)
+        return mem.write_bytes(addr, data);
+    if (gp.get_command() == UVM_TLM_READ_COMMAND) begin
+        if (!mem.read_bytes(addr, len, read_data))
+            return 1'b0;
+        gp_data = new[read_data.size()];
+        foreach (read_data[i])
+            gp_data[i] = read_data[i];
+        gp.set_data(gp_data);
+        return 1'b1;
+    end
+    `uvm_error("DW_SPI", "unsupported generic payload command")
+    return 1'b0;
+endfunction
+
+function bit {{ settings.class_prefix }}scoreboard::record_expected_write(
+        bit [63:0] addr,
+        bit [7:0] data[$],
+        string label);
+    if (!mem.write_bytes(addr, data)) begin
+        `uvm_error("DW_SPI_SB", $sformatf("failed to record %s", label))
+        return 1'b0;
+    end
+    return 1'b1;
+endfunction
+
+function bit {{ settings.class_prefix }}scoreboard::check_actual_read(
+        bit [63:0] addr,
+        bit [7:0] actual[$],
+        string label);
+    return mem.compare_bytes(addr, actual, label);
+endfunction
+
+function bit {{ settings.class_prefix }}scoreboard::check_actual_write(
+        bit [63:0] addr,
+        bit [7:0] actual[$],
+        string label);
+    return mem.compare_bytes(addr, actual, label);
+endfunction
+
+function bit {{ settings.class_prefix }}scoreboard::compare_actual(
+        bit [63:0] addr,
+        bit [7:0] actual[$],
+        string label);
+    return mem.compare_bytes(addr, actual, label);
+endfunction
+
+`endif

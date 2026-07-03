@@ -1,0 +1,56 @@
+`ifndef {{ (settings.class_prefix ~ "flash_read_seq") | upper }}
+`define {{ (settings.class_prefix ~ "flash_read_seq") | upper }}
+
+class {{ settings.class_prefix }}flash_read_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}flash_read_req,
+    {{ settings.class_prefix }}flash_read_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}flash_read_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name="{{ settings.class_prefix }}flash_read_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ settings.class_prefix }}flash_read_seq::body();
+    {{ settings.class_prefix }}transfer_req op_req;
+    {{ settings.class_prefix }}transfer_rsp op_rsp;
+    {{ settings.class_prefix }}transfer_seq op_seq;
+    {{ settings.class_prefix }}flash_read_rsp rs;
+
+    if (req == null)
+        `uvm_fatal("DW_SPI", "flash_read: req is null")
+    op_req = {{ settings.class_prefix }}transfer_req::type_id::create("op_req");
+    op_req.tr = {{ settings.class_prefix }}transfer::type_id::create("tr");
+    op_req.tr.host_mode = p_sequencer.settings.default_host_mode;
+    op_req.tr.protocol = {{ settings.class_prefix }}settings::FLASH_SPI;
+    op_req.tr.frame_mode = req.frame_mode;
+    op_req.tr.transfer_mode = {{ settings.class_prefix }}settings::EEPROM_READ;
+    op_req.tr.write = 1'b0;
+    op_req.tr.opcode = req.frame_mode == {{ settings.class_prefix }}settings::ENHANCED ? 8'h0B : 8'h03;
+    op_req.tr.address = req.address;
+    op_req.tr.length = req.length;
+    op_req.tr.io_lanes = req.io_lanes;
+    op_req.tr.speed_multiplier = req.speed_multiplier;
+    op_req.tr.spi_mode = req.spi_mode;
+    op_req.tr.data_frame_bits = req.data_frame_bits;
+    op_req.tr.cs_id = req.cs_id;
+    op_req.tr.inst_bytes = 1;
+    op_req.tr.addr_bytes = req.addr_bytes == 0
+        ? p_sequencer.settings.default_addr_bytes : req.addr_bytes;
+    op_req.tr.dummy_cycles = req.dummy_cycles;
+    op_seq = {{ settings.class_prefix }}transfer_seq::type_id::create("transfer");
+    op_seq.req = op_req;
+    op_seq.start(p_sequencer);
+    op_rsp = op_seq.rsp;
+    rs = {{ settings.class_prefix }}flash_read_rsp::type_id::create("rsp");
+    rs.ok = op_rsp != null && op_rsp.ok;
+    if (op_rsp != null)
+        rs.data = op_rsp.read_data;
+    rsp = rs;
+endtask
+
+`endif

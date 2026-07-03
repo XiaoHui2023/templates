@@ -1,0 +1,17 @@
+`ifndef {{ (settings.class_prefix ~ "irq_if") | upper }}
+`define {{ (settings.class_prefix ~ "irq_if") | upper }}
+
+interface {{ settings.class_prefix }}irq_if(input logic irq);
+    timeunit 1ns;
+    timeprecision 1fs;
+
+    function bit is_connected();
+        return !$isunknown(irq);
+    endfunction
+
+    function bit is_asserted();
+        return is_connected() && irq;
+    endfunction
+endinterface
+
+`endif

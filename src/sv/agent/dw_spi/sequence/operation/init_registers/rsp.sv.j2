@@ -1,0 +1,19 @@
+`ifndef {{ (settings.class_prefix ~ "init_registers_rsp") | upper }}
+`define {{ (settings.class_prefix ~ "init_registers_rsp") | upper }}
+
+class {{ settings.class_prefix }}init_registers_rsp extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}init_registers_rsp)
+        `uvm_field_int(ok, UVM_ALL_ON)
+        `uvm_field_object(cfg, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    bit ok;
+    {{ settings.class_prefix }}reg_cfg cfg;
+
+    function new(string name="{{ settings.class_prefix }}init_registers_rsp");
+        super.new(name);
+        ok = 1'b1;
+    endfunction
+endclass
+
+`endif

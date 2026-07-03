@@ -1,0 +1,84 @@
+`ifndef {{ (settings.class_prefix ~ "check_clock_seq") | upper }}
+`define {{ (settings.class_prefix ~ "check_clock_seq") | upper }}
+
+class {{ settings.class_prefix }}check_clock_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}check_clock_req,
+    {{ settings.class_prefix }}check_clock_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}check_clock_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name="{{ settings.class_prefix }}check_clock_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+    extern function bit in_range(real value_hz, real min_hz, real max_hz, string label);
+endclass
+
+function bit {{ settings.class_prefix }}check_clock_seq::in_range(
+        real value_hz,
+        real min_hz,
+        real max_hz,
+        string label);
+    if (value_hz <= 0.0) begin
+        `uvm_error("DW_SPI_CLK", {label, " frequency is not measurable"})
+        return 1'b0;
+    end
+    if (min_hz > 0.0 && value_hz < min_hz) begin
+        `uvm_error("DW_SPI_CLK", $sformatf("%s frequency %0.3f Hz is below %0.3f Hz", label, value_hz, min_hz))
+        return 1'b0;
+    end
+    if (max_hz > 0.0 && value_hz > max_hz) begin
+        `uvm_error("DW_SPI_CLK", $sformatf("%s frequency %0.3f Hz is above %0.3f Hz", label, value_hz, max_hz))
+        return 1'b0;
+    end
+    return 1'b1;
+endfunction
+
+task {{ settings.class_prefix }}check_clock_seq::body();
+    {{ settings.class_prefix }}check_clock_req rq;
+    {{ settings.class_prefix }}check_clock_rsp rs;
+    real expected_ssi_hz;
+    real max_allowed_ssi_hz;
+
+    if (req == null)
+        rq = {{ settings.class_prefix }}check_clock_req::type_id::create("req");
+    else
+        rq = req;
+    rs = {{ settings.class_prefix }}check_clock_rsp::type_id::create("rsp");
+    if (p_sequencer.settings.vif == null)
+        `uvm_fatal("DW_SPI_CLK", "check_clock requires virtual dw_spi_if in sequencer settings")
+
+    rs.hclk_connected = p_sequencer.settings.vif.has_hclk();
+    rs.ssi_clk_connected = p_sequencer.settings.vif.has_ssi_clk();
+
+    if ((rq.check_hclk || rq.check_baud_relation) && rs.hclk_connected) begin
+        p_sequencer.settings.vif.hclk_if.measure_frequency_hz(rs.hclk_hz, rq.sample_edges, rq.timeout_ns);
+        if (rq.check_hclk)
+            rs.ok &= in_range(rs.hclk_hz, rq.min_hclk_hz, rq.max_hclk_hz, "hclk");
+    end
+
+    if ((rq.check_ssi_clk || rq.check_baud_relation) && rs.ssi_clk_connected) begin
+        p_sequencer.settings.vif.ssi_clk_if.measure_frequency_hz(rs.ssi_clk_hz, rq.sample_edges, rq.timeout_ns);
+        if (rq.check_ssi_clk)
+            rs.ok &= in_range(rs.ssi_clk_hz, rq.min_ssi_clk_hz, rq.max_ssi_clk_hz, "ssi_clk");
+    end
+
+    if (rq.check_baud_relation && rs.hclk_connected && rs.ssi_clk_connected) begin
+        expected_ssi_hz = rs.hclk_hz / $itor(p_sequencer.settings.default_baud_div);
+        max_allowed_ssi_hz = expected_ssi_hz * (1.0 + $itor(rq.tolerance_ppm) / 1000000.0);
+        rs.recommended_baudr = p_sequencer.settings.vif.baudr_for_target(rs.hclk_hz, p_sequencer.settings.max_output_hz);
+        if (rs.ssi_clk_hz > max_allowed_ssi_hz) begin
+            `uvm_error("DW_SPI_CLK", $sformatf(
+                "ssi_clk %0.3f Hz exceeds hclk/default_baud_div %0.3f Hz with tolerance",
+                rs.ssi_clk_hz,
+                expected_ssi_hz))
+            rs.ok = 1'b0;
+        end
+    end
+
+    rsp = rs;
+endtask
+
+`endif

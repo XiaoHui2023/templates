@@ -1,0 +1,80 @@
+`ifndef {{ (settings.class_prefix ~ "rw_test_seq") | upper }}
+`define {{ (settings.class_prefix ~ "rw_test_seq") | upper }}
+
+class {{ settings.class_prefix }}rw_test_seq extends uvm_sequence #(
+    {{ settings.class_prefix }}rw_test_req,
+    {{ settings.class_prefix }}rw_test_rsp
+);
+    `uvm_object_utils({{ settings.class_prefix }}rw_test_seq)
+    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+
+    function new(string name="{{ settings.class_prefix }}rw_test_seq");
+        super.new(name);
+    endfunction
+
+    extern virtual task body();
+endclass
+
+task {{ settings.class_prefix }}rw_test_seq::body();
+    {{ settings.class_prefix }}flash_write_req wr_req;
+    {{ settings.class_prefix }}flash_write_rsp wr_rsp;
+    {{ settings.class_prefix }}flash_write_seq wr_seq;
+    {{ settings.class_prefix }}flash_read_req rd_req;
+    {{ settings.class_prefix }}flash_read_rsp rd_rsp;
+    {{ settings.class_prefix }}flash_read_seq rd_seq;
+    {{ settings.class_prefix }}rw_test_rsp rs;
+
+    if (req == null)
+        `uvm_fatal("DW_SPI", "rw_test: req is null")
+    rs = {{ settings.class_prefix }}rw_test_rsp::type_id::create("rsp");
+    rs.ok = 1'b1;
+
+    wr_req = {{ settings.class_prefix }}flash_write_req::type_id::create("wr_req");
+    wr_req.address = req.address;
+    wr_req.data = req.write_data;
+    wr_req.io_lanes = req.io_lanes;
+    wr_req.speed_multiplier = req.speed_multiplier;
+    wr_req.spi_mode = req.spi_mode;
+    wr_req.data_frame_bits = req.data_frame_bits;
+    wr_req.cs_id = req.cs_id;
+    wr_req.addr_bytes = req.addr_bytes;
+    wr_req.frame_mode = req.frame_mode;
+    wr_seq = {{ settings.class_prefix }}flash_write_seq::type_id::create("flash_write");
+    wr_seq.req = wr_req;
+    wr_seq.start(p_sequencer);
+    wr_rsp = wr_seq.rsp;
+    if (wr_rsp == null || !wr_rsp.ok)
+        rs.ok = 1'b0;
+
+    rd_req = {{ settings.class_prefix }}flash_read_req::type_id::create("rd_req");
+    rd_req.address = req.address;
+    rd_req.length = req.write_data.size();
+    rd_req.io_lanes = req.io_lanes;
+    rd_req.speed_multiplier = req.speed_multiplier;
+    rd_req.spi_mode = req.spi_mode;
+    rd_req.data_frame_bits = req.data_frame_bits;
+    rd_req.cs_id = req.cs_id;
+    rd_req.addr_bytes = req.addr_bytes;
+    rd_req.frame_mode = req.frame_mode;
+    rd_req.dummy_cycles = req.frame_mode == {{ settings.class_prefix }}settings::ENHANCED ? 8 : 0;
+    rd_seq = {{ settings.class_prefix }}flash_read_seq::type_id::create("flash_read");
+    rd_seq.req = rd_req;
+    rd_seq.start(p_sequencer);
+    rd_rsp = rd_seq.rsp;
+    if (rd_rsp == null || !rd_rsp.ok)
+        rs.ok = 1'b0;
+    else
+        rs.model_read_data = rd_rsp.data;
+
+    if (rs.ok) begin
+        if (req.actual_read_data.size() > 0)
+            rs.ok = p_sequencer.scoreboard.compare_actual(
+                req.address, req.actual_read_data, "actual_read_data");
+        else
+            rs.ok = p_sequencer.scoreboard.compare_actual(
+                req.address, req.write_data, "model_readback");
+    end
+    rsp = rs;
+endtask
+
+`endif

@@ -1,0 +1,18 @@
+`ifndef {{ (settings.class_prefix ~ "callback") | upper }}
+`define {{ (settings.class_prefix ~ "callback") | upper }}
+
+class {{ settings.class_prefix }}callback extends uvm_callback;
+    `uvm_object_utils({{ settings.class_prefix }}callback)
+
+    function new(string name="{{ settings.class_prefix }}callback");
+        super.new(name);
+    endfunction
+
+    virtual task assert_chip_select({{ settings.class_prefix }}transfer tr);
+    endtask
+
+    virtual task deassert_chip_select({{ settings.class_prefix }}transfer tr);
+    endtask
+endclass
+
+`endif

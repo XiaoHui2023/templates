@@ -1,0 +1,167 @@
+`ifndef {{ (settings.class_prefix ~ "kit_sequencer") | upper }}
+`define {{ (settings.class_prefix ~ "kit_sequencer") | upper }}
+
+class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix }}sequencer;
+    `uvm_component_utils({{ settings.class_prefix }}kit_sequencer)
+
+    function new(string name="{{ settings.class_prefix }}kit_sequencer", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    extern task reg_write(int unsigned offset, bit [31:0] value);
+    extern task reg_read(output bit [31:0] value, int unsigned offset);
+    extern task init_registers({{ settings.class_prefix }}transfer tr);
+    extern task flash_write(bit [63:0] address, bit [7:0] data[$]);
+    extern task flash_read(output bit [7:0] data[$], bit [63:0] address, int unsigned length);
+    extern task check_clocks(output {{ settings.class_prefix }}check_clock_rsp result);
+    extern task rw_test(output {{ settings.class_prefix }}rw_test_rsp result,
+        bit [63:0] address,
+        bit [7:0] write_data[$],
+        bit [7:0] actual_read_data[$]);
+endclass
+
+task {{ settings.class_prefix }}kit_sequencer::reg_write(int unsigned offset, bit [31:0] value);
+    {{ settings.class_prefix }}reg_write_req req;
+    {{ settings.class_prefix }}reg_write_rsp seq_rsp;
+    {{ settings.class_prefix }}reg_write_seq seq;
+
+    req = {{ settings.class_prefix }}reg_write_req::type_id::create("req");
+    req.offset = offset;
+    req.value = value;
+    seq = {{ settings.class_prefix }}reg_write_seq::type_id::create("reg_write");
+    seq.req = req;
+    seq.start(this);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("DW_SPI", "reg_write failed")
+endtask
+
+task {{ settings.class_prefix }}kit_sequencer::reg_read(output bit [31:0] value, int unsigned offset);
+    {{ settings.class_prefix }}reg_read_req req;
+    {{ settings.class_prefix }}reg_read_rsp seq_rsp;
+    {{ settings.class_prefix }}reg_read_seq seq;
+
+    value = '0;
+    req = {{ settings.class_prefix }}reg_read_req::type_id::create("req");
+    req.offset = offset;
+    seq = {{ settings.class_prefix }}reg_read_seq::type_id::create("reg_read");
+    seq.req = req;
+    seq.start(this);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("DW_SPI", "reg_read failed")
+    value = seq_rsp.value;
+endtask
+
+task {{ settings.class_prefix }}kit_sequencer::init_registers({{ settings.class_prefix }}transfer tr);
+    {{ settings.class_prefix }}init_registers_req req;
+    {{ settings.class_prefix }}init_registers_rsp seq_rsp;
+    {{ settings.class_prefix }}init_registers_seq seq;
+
+    req = {{ settings.class_prefix }}init_registers_req::type_id::create("req");
+    req.tr = tr;
+    seq = {{ settings.class_prefix }}init_registers_seq::type_id::create("init_registers");
+    seq.req = req;
+    seq.start(this);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("DW_SPI", "init_registers failed")
+endtask
+
+task {{ settings.class_prefix }}kit_sequencer::flash_write(bit [63:0] address, bit [7:0] data[$]);
+    {{ settings.class_prefix }}flash_write_req req;
+    {{ settings.class_prefix }}flash_write_rsp seq_rsp;
+    {{ settings.class_prefix }}flash_write_seq seq;
+
+    req = {{ settings.class_prefix }}flash_write_req::type_id::create("req");
+    req.address = address;
+    req.data = data;
+    req.io_lanes = settings.default_io_lanes;
+    req.speed_multiplier = settings.default_speed_multiplier;
+    req.spi_mode = settings.default_spi_mode;
+    req.data_frame_bits = settings.default_data_frame_bits;
+    req.cs_id = settings.default_cs;
+    req.addr_bytes = settings.default_addr_bytes;
+    req.frame_mode = settings.default_frame_mode;
+    seq = {{ settings.class_prefix }}flash_write_seq::type_id::create("flash_write");
+    seq.req = req;
+    seq.start(this);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("DW_SPI", "flash_write failed")
+endtask
+
+task {{ settings.class_prefix }}kit_sequencer::flash_read(
+        output bit [7:0] data[$],
+        bit [63:0] address,
+        int unsigned length);
+    {{ settings.class_prefix }}flash_read_req req;
+    {{ settings.class_prefix }}flash_read_rsp seq_rsp;
+    {{ settings.class_prefix }}flash_read_seq seq;
+
+    data.delete();
+    req = {{ settings.class_prefix }}flash_read_req::type_id::create("req");
+    req.address = address;
+    req.length = length;
+    req.io_lanes = settings.default_io_lanes;
+    req.speed_multiplier = settings.default_speed_multiplier;
+    req.spi_mode = settings.default_spi_mode;
+    req.data_frame_bits = settings.default_data_frame_bits;
+    req.cs_id = settings.default_cs;
+    req.addr_bytes = settings.default_addr_bytes;
+    req.frame_mode = settings.default_frame_mode;
+    req.dummy_cycles = settings.default_frame_mode == {{ settings.class_prefix }}settings::ENHANCED ? 8 : 0;
+    seq = {{ settings.class_prefix }}flash_read_seq::type_id::create("flash_read");
+    seq.req = req;
+    seq.start(this);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("DW_SPI", "flash_read failed")
+    data = seq_rsp.data;
+endtask
+
+task {{ settings.class_prefix }}kit_sequencer::check_clocks(output {{ settings.class_prefix }}check_clock_rsp result);
+    {{ settings.class_prefix }}check_clock_req req;
+    {{ settings.class_prefix }}check_clock_seq seq;
+
+    req = {{ settings.class_prefix }}check_clock_req::type_id::create("req");
+    req.sample_edges = settings.clock_check_sample_edges;
+    req.timeout_ns = settings.clock_check_timeout_ns;
+    req.tolerance_ppm = settings.clock_check_tolerance_ppm;
+    req.max_ssi_clk_hz = settings.max_output_hz;
+    seq = {{ settings.class_prefix }}check_clock_seq::type_id::create("check_clock");
+    seq.req = req;
+    seq.start(this);
+    result = seq.rsp;
+    if (result == null || !result.ok)
+        `uvm_fatal("DW_SPI", "check_clocks failed")
+endtask
+
+task {{ settings.class_prefix }}kit_sequencer::rw_test(
+        output {{ settings.class_prefix }}rw_test_rsp result,
+        bit [63:0] address,
+        bit [7:0] write_data[$],
+        bit [7:0] actual_read_data[$]);
+    {{ settings.class_prefix }}rw_test_req req;
+    {{ settings.class_prefix }}rw_test_seq seq;
+
+    req = {{ settings.class_prefix }}rw_test_req::type_id::create("req");
+    req.address = address;
+    req.write_data = write_data;
+    req.actual_read_data = actual_read_data;
+    req.io_lanes = settings.default_io_lanes;
+    req.speed_multiplier = settings.default_speed_multiplier;
+    req.spi_mode = settings.default_spi_mode;
+    req.data_frame_bits = settings.default_data_frame_bits;
+    req.cs_id = settings.default_cs;
+    req.addr_bytes = settings.default_addr_bytes;
+    req.frame_mode = settings.default_frame_mode;
+    seq = {{ settings.class_prefix }}rw_test_seq::type_id::create("rw_test");
+    seq.req = req;
+    seq.start(this);
+    result = seq.rsp;
+    if (result == null || !result.ok)
+        `uvm_fatal("DW_SPI", "rw_test failed")
+endtask
+
+`endif
