@@ -75,7 +75,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `interrupt_timeout_ssi_clk_cycles` | transfer 等待 `intr` 的 `ssi_clk` 周期上限，超时直接 `uvm_fatal`。 |
 | `default_tx_fifo_threshold` | 默认 TX FIFO threshold。 |
 | `default_rx_fifo_threshold` | 默认 RX FIFO threshold。 |
-| `default_rx_sample_delay_ns` | 默认 `RX_SAMPLE_DLY`。 |
+| `default_rx_sample_delay_ns` | 默认 `RX_SAMPLE_DELAY`。 |
 | `regmodel` | UVM RAL 句柄。寄存器访问使用大写 REG/FIELD，例如 `settings.regmodel.CTRLR0`。 |
 | `vif` | top interface 句柄，用于中断、时钟测量、可选子 interface。 |
 
@@ -133,8 +133,8 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `dmacr` | 写入 `DMACR` 的 DMA 控制值。 |
 | `dmatdlr` | 写入 `DMATDLR` 的 DMA TX threshold。 |
 | `dmardlr` | 写入 `DMARDLR` 的 DMA RX threshold。 |
-| `rx_sample_dly` | 写入 `RX_SAMPLE_DLY` 的采样延迟值。 |
-| `write_rx_sample_dly` | 是否写 `RX_SAMPLE_DLY`。 |
+| `rx_sample_delay` | 写入 `RX_SAMPLE_DELAY` 的采样延迟值。 |
+| `write_rx_sample_delay` | 是否写 `RX_SAMPLE_DELAY`。 |
 
 `configuration` 可以引用 `settings` 做约束，例如默认分频、FIFO threshold、rx sample delay。它不保存寄存器地址；寄存器地址由 regmodel 托管。实际读写只能通过大写 REG/FIELD 的 regmodel 句柄完成。
 

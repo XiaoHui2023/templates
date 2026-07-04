@@ -15,8 +15,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_object
         `uvm_field_int(dmacr, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(dmatdlr, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dmardlr, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(rx_sample_dly, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(write_rx_sample_dly, UVM_ALL_ON)
+        `uvm_field_int(rx_sample_delay, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(write_rx_sample_delay, UVM_ALL_ON)
     `uvm_object_utils_end
 
     {{ class_prefix }}settings settings;
@@ -33,8 +33,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_object
     rand bit [31:0] dmacr;
     rand bit [31:0] dmatdlr;
     rand bit [31:0] dmardlr;
-    rand bit [31:0] rx_sample_dly;
-    rand bit write_rx_sample_dly;
+    rand bit [31:0] rx_sample_delay;
+    rand bit write_rx_sample_delay;
 
     function new(string name="{{ class_prefix }}configuration");
         super.new(name);
@@ -51,8 +51,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_object
             rxftlr == settings.default_rx_fifo_threshold;
             dmatdlr == settings.default_tx_fifo_threshold;
             dmardlr == settings.default_rx_fifo_threshold;
-            rx_sample_dly == settings.default_rx_sample_delay_ns;
-            write_rx_sample_dly == (settings.default_rx_sample_delay_ns != 0);
+            rx_sample_delay == settings.default_rx_sample_delay_ns;
+            write_rx_sample_delay == (settings.default_rx_sample_delay_ns != 0);
         }
     }
 endclass

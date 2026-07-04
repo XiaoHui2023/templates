@@ -135,10 +135,10 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMATDLR failed status=%s", status.name()))
         settings.regmodel.DMARDLR.write(status, cfg.dmardlr);
         if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMARDLR failed status=%s", status.name()))
-        if (cfg.write_rx_sample_dly)
-            settings.regmodel.RX_SAMPLE_DLY.write(status, cfg.rx_sample_dly);
-        if (cfg.write_rx_sample_dly && status != UVM_IS_OK)
-            `uvm_error("DW_SPI_REG", $sformatf("write RX_SAMPLE_DLY failed status=%s", status.name()))
+        if (cfg.write_rx_sample_delay)
+            settings.regmodel.RX_SAMPLE_DELAY.write(status, cfg.rx_sample_delay);
+        if (cfg.write_rx_sample_delay && status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write RX_SAMPLE_DELAY failed status=%s", status.name()))
         settings.regmodel.SER.write(status, cfg.ser);
         if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
         settings.regmodel.SSIENR.write(status, cfg.ssienr_enable);
