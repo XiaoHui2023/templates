@@ -19,7 +19,7 @@ task {{ class_prefix }}get_value_seq::body();
     uvm_status_e status;
 
     rs = {{ class_prefix }}get_value_rsp::type_id::create("rsp");
-    p_sequencer.cfg.regmodel.gpio_pin_val.read(status, rs.data);
+    p_sequencer.cfg.regmodel.{{ regmodel.pin_val }}.read(status, rs.data);
     rsp = rs;
 endtask
 

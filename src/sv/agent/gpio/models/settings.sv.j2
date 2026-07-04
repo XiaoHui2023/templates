@@ -22,6 +22,7 @@ class {{ class_prefix }}settings extends uvm_sequence_item;
     constraint cst {
         has_randomized == 1;
 {% for group in groups %}        cfg_{{ group.name }}.num == {{ group.num }};
+        cfg_{{ group.name }}.mask == 32'h{{ "%08x"|format(group.mask_value) }};
         cfg_{{ group.name }}.has_randomized == 1;
 {% endfor %}
     }

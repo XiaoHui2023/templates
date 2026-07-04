@@ -5,15 +5,15 @@ class {{ class_prefix }}configuration extends uvm_sequence_item;
     `uvm_object_utils_begin({{ class_prefix }}configuration)
         `uvm_field_string(group_name,UVM_ALL_ON)
         `uvm_field_int(num,UVM_ALL_ON)
-        `uvm_field_int(pin_mask,UVM_ALL_ON)
+        `uvm_field_int(mask,UVM_ALL_ON)
         `uvm_field_object(regmodel,UVM_ALL_ON|UVM_NOPRINT|UVM_NOCOPY)
         `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
     `uvm_object_utils_end
 
     string group_name;
-    {{ class_regmodel }} regmodel;
+    {{ regmodel.type }} regmodel;
     rand int num;
-    rand bit[31:0] pin_mask;
+    rand bit[31:0] mask;
     rand bit has_randomized;
 
     function new(string name="{{ class_prefix }}configuration");
@@ -24,11 +24,11 @@ class {{ class_prefix }}configuration extends uvm_sequence_item;
         regmodel != null;
         has_randomized == 1;
 
-        foreach(pin_mask[i]) {
+        foreach(mask[i]) {
             if(i < num)
-                soft pin_mask[i] == 1;
+                soft mask[i] == 0;
             else
-                pin_mask[i] == 0;
+                mask[i] == 0;
         }
     }
 endclass

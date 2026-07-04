@@ -7,8 +7,9 @@ class {{ class_prefix }}intr_test_seq extends uvm_sequence #(
     `uvm_object_utils({{ class_prefix }}intr_test_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
+    localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
+
     {{ class_prefix }}configuration cfg;
-    virtual {{ class_prefix }}sub_interface vif;
 
     function new(string name = "{{ class_prefix }}intr_test_seq");
         super.new(name);
@@ -32,7 +33,6 @@ task {{ class_prefix }}intr_test_seq::pre_start();
     cfg = p_sequencer.cfg;
     if (cfg == null)
         `uvm_fatal("", "require cfg")
-    vif = p_sequencer.vif;
 
     if (starting_phase)
         starting_phase.raise_objection(this);
@@ -42,6 +42,7 @@ endtask
 task {{ class_prefix }}intr_test_seq::body();
     {{ class_prefix }}intr_test_req rq;
     {{ class_prefix }}intr_test_rsp rs;
+    bit[31:0] pin;
     bit intr;
     bit wait_ok;
     bit op_ok;
@@ -55,6 +56,18 @@ task {{ class_prefix }}intr_test_seq::body();
     rs = {{ class_prefix }}intr_test_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
+    for (int i = 0; i < cfg.num; i++) begin
+        if (!cfg.mask[i]) begin
+            pin = 1 << i;
+            break;
+        end
+    end
+    if (pin == '0) begin
+        `uvm_info("", "skip interrupt test because all inputs are masked", UVM_LOW)
+        rsp = rs;
+        return;
+    end
+
     op_mask_invalid_pin(op_ok);
     rs.ok &= op_ok;
     op_set_dir(0, op_ok);
@@ -65,11 +78,10 @@ task {{ class_prefix }}intr_test_seq::body();
     rs.ok &= op_ok;
     op_drive_input(0, '0, op_ok);
     rs.ok &= op_ok;
-    op_set_rise_intr(1, op_ok);
+    op_set_rise_intr(pin, op_ok);
     rs.ok &= op_ok;
 
-    repeat(20)
-        @(posedge vif.clk);
+    #(20 * GPIO_24M_PERIOD_NS * 1ns);
 
     op_get_intr_status(intr, op_ok);
     rs.ok &= op_ok;
@@ -78,7 +90,7 @@ task {{ class_prefix }}intr_test_seq::body();
         `uvm_error("", "interrupt is asserted before rising edge")
     end
 
-    op_drive_input(1, '0, op_ok);
+    op_drive_input(pin, '0, op_ok);
     rs.ok &= op_ok;
     op_wait_intr(wait_ok, rq.timeout, op_ok);
     rs.ok &= op_ok;

@@ -1,4 +1,13 @@
-class_regmodel: gpio_regmodel
+regmodel:
+  type: gpio_regmodel
+  mask: gpio_mask
+  dir: gpio_dir
+  dout: gpio_dout
+  pin_val: gpio_pin_val
+  int0_status: gpio_int0_status
+  int0_en: gpio_int0_en
+  int_rise_en: gpio_int_rise_en
 groups:
   - name: bank0
     num: 32
+    mask: []

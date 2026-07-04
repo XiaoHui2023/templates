@@ -7,6 +7,8 @@ class {{ class_prefix }}wait_intr_seq extends uvm_sequence #(
     `uvm_object_utils({{ class_prefix }}wait_intr_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
+    localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
+
     function new(string name="{{ class_prefix }}wait_intr_seq");
         super.new(name);
     endfunction
@@ -25,8 +27,7 @@ task {{ class_prefix }}wait_intr_seq::body();
     fork begin
         fork
             begin
-                repeat(req.timeout)
-                    @(posedge p_sequencer.vif.clk);
+                #(req.timeout * GPIO_24M_PERIOD_NS * 1ns);
             end
             begin
                 wait(p_sequencer.vif.intr);

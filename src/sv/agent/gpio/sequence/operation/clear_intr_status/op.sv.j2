@@ -19,7 +19,7 @@ task {{ class_prefix }}clear_intr_status_seq::body();
     uvm_status_e status;
 
     rs = {{ class_prefix }}clear_intr_status_rsp::type_id::create("rsp");
-    p_sequencer.cfg.regmodel.gpio_int0_status.write(status, 'hffff_ffff);
+    p_sequencer.cfg.regmodel.{{ regmodel.int0_status }}.write(status, 'hffff_ffff);
     rsp = rs;
 endtask
 

@@ -21,8 +21,8 @@ task {{ class_prefix }}set_rise_intr_seq::body();
     if (req == null)
         `uvm_fatal("", "set_rise_intr req is null")
     rs = {{ class_prefix }}set_rise_intr_rsp::type_id::create("rsp");
-    p_sequencer.cfg.regmodel.gpio_int0_en.write(status, req.data);
-    p_sequencer.cfg.regmodel.gpio_int_rise_en.write(status, req.data);
+    p_sequencer.cfg.regmodel.{{ regmodel.int0_en }}.write(status, req.data);
+    p_sequencer.cfg.regmodel.{{ regmodel.int_rise_en }}.write(status, req.data);
     rsp = rs;
 endtask
 

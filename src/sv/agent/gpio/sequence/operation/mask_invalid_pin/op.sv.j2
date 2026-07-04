@@ -16,13 +16,11 @@ endclass
 
 task {{ class_prefix }}mask_invalid_pin_seq::body();
     {{ class_prefix }}mask_invalid_pin_rsp rs;
+    uvm_status_e status;
 
     rs = {{ class_prefix }}mask_invalid_pin_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
-
-    // Intentionally mirrors the previous SDK behavior: gpio_mask access is
-    // left disabled until the generated regmodel exposes a stable field.
-    // p_sequencer.cfg.regmodel.gpio_mask.write(status, ~p_sequencer.cfg.pin_mask);
+    p_sequencer.cfg.regmodel.{{ regmodel.mask }}.write(status, p_sequencer.cfg.mask);
     rsp = rs;
 endtask
 

@@ -58,6 +58,9 @@ task {{ class_prefix }}inout_test_seq::body();
     rs.ok &= ok;
 
     for (int i = 0; i < cfg.num; i++) begin
+        if (cfg.mask[i])
+            continue;
+
         dir = 1 << i;
 
         data = 1 << i;
@@ -92,24 +95,26 @@ endtask
 
 task {{ class_prefix }}inout_test_seq::run_one(bit[31:0] dir, bit[31:0] data, output bit ok);
     bit[31:0] rdata;
-    bit[31:0] mask;
+    bit[31:0] active_mask;
     bit op_ok;
 
     ok = 1'b1;
-    mask = cfg.pin_mask;
+    active_mask = '0;
+    for (int i = 0; i < cfg.num; i++)
+        active_mask[i] = !cfg.mask[i];
 
-    op_set_dir(dir, op_ok);
+    op_set_dir(dir & active_mask, op_ok);
     ok &= op_ok;
-    op_set_value(data, op_ok);
+    op_set_value(data & active_mask, op_ok);
     ok &= op_ok;
-    op_drive_input(data, ~dir & mask, op_ok);
+    op_drive_input(data & active_mask, ~dir & active_mask, op_ok);
     ok &= op_ok;
     op_get_value(rdata, op_ok);
     ok &= op_ok;
 
-    if ((rdata & mask) != (data & mask)) begin
+    if ((rdata & active_mask) != (data & active_mask)) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("gpio data mismatch: expect=%h actual=%h", data & mask, rdata & mask))
+        `uvm_error("", $sformatf("gpio data mismatch: expect=%h actual=%h", data & active_mask, rdata & active_mask))
     end
 endtask
 
