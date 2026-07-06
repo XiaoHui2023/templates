@@ -24,21 +24,6 @@ interface {{ class_prefix }}interface(
         return interrupt_if.is_connected();
     endfunction
 
-    function int unsigned baudr_for_target(
-            longint unsigned ssi_clk_hz,
-            longint unsigned target_hz);
-        int unsigned div;
-
-        if (ssi_clk_hz == 0 || target_hz == 0)
-            return 0;
-        div = int'((ssi_clk_hz + target_hz - 1) / target_hz);
-        if (div < 2)
-            div = 2;
-        if (div[0])
-            div++;
-        return div;
-    endfunction
-
     task automatic measure_hclk_frequency_hz(
             output longint unsigned frequency_hz,
             input longint unsigned min_frequency_hz);

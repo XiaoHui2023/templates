@@ -136,7 +136,6 @@ task {{ class_prefix }}kit_sequencer::check_clocks();
     req.min_hclk_hz = settings.min_hclk_hz;
     req.min_ssi_clk_hz = settings.min_ssi_clk_hz;
     req.tolerance_ppm = settings.clock_check_tolerance_ppm;
-    req.max_sclk_out_hz = settings.max_output_hz;
     seq = {{ class_prefix }}check_clock_seq::type_id::create("check_clock");
     seq.req = req;
     seq.start(this);

@@ -21,7 +21,7 @@
 
 `sclk_out = ssi_clk / BAUDR`。
 
-`ssi_clk` 是输入 DesignWare SPI/SSI 控制器的参考时钟。输出到从机的频率最大按 6 MHz 约束，常用配置为 6 MHz。
+`ssi_clk` 是输入 DesignWare SPI/SSI 控制器的参考时钟。`BAUDR` 由 `ssi_clk` 和目标串行输出频率推导，常用目标为 6 MHz。
 
 ## DMACR
 

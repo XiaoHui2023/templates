@@ -74,22 +74,16 @@ class Models(BaseModel):
         le=1_048_576,
         description="Default byte count randomized by rw_test when write_data is empty.",
     )
-    default_baud_div: int = Field(
-        2,
-        ge=2,
-        le=65534,
-        description="Default even serial clock divider written to BAUDR by register configuration tasks.",
+    target_sclk_hz: int = Field(
+        6_000_000,
+        ge=1,
+        description="Target SPI serial output frequency used to derive BAUDR from measured ssi_clk.",
     )
     fifo_depth_bytes: int = Field(
         32,
         ge=1,
         le=4096,
         description="DesignWare SPI FIFO depth in bytes.",
-    )
-    max_output_hz: int = Field(
-        6_000_000,
-        ge=1,
-        description="Maximum allowed SPI output frequency after BAUDR division.",
     )
     min_hclk_hz: int = Field(
         24_000_000,
@@ -208,12 +202,6 @@ class Models(BaseModel):
             raise ValueError("default_frame_mode STANDARD requires support_standard")
         if self.default_frame_mode == "ENHANCED" and not self.support_enhanced:
             raise ValueError("default_frame_mode ENHANCED requires support_enhanced")
-        return self
-
-    @model_validator(mode="after")
-    def _validate_baud_div_even(self) -> Models:
-        if self.default_baud_div % 2:
-            raise ValueError("default_baud_div must be even")
         return self
 
     @model_validator(mode="after")

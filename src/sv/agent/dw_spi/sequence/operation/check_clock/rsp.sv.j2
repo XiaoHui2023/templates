@@ -8,8 +8,6 @@ class {{ class_prefix }}check_clock_rsp extends {{ class_prefix }}spec#(uvm_sequ
         `uvm_field_int(ssi_clk_connected, UVM_ALL_ON)
         `uvm_field_int(hclk_hz, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ssi_clk_hz, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(sclk_out_hz, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(recommended_baudr, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
 
     bit ok;
@@ -17,8 +15,6 @@ class {{ class_prefix }}check_clock_rsp extends {{ class_prefix }}spec#(uvm_sequ
     bit ssi_clk_connected;
     longint unsigned hclk_hz;
     longint unsigned ssi_clk_hz;
-    longint unsigned sclk_out_hz;
-    int unsigned recommended_baudr;
 
     function new(string name="{{ class_prefix }}check_clock_rsp");
         super.new(name);

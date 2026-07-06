@@ -69,9 +69,8 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | 字段 | 用途 |
 | --- | --- |
 | `ssi_variant` | `core/register_access.sv` 根据 PSSI/HSSI 选择需要设置的 `CTRLR0` FIELD。 |
-| `default_baud_div` | 默认 `BAUDR` 分频值。 |
+| `target_sclk_hz` | 目标串行输出频率；`BAUDR` 由测量到的 `ssi_clk` 和该目标频率推导。 |
 | `fifo_depth_bytes` | FIFO 阈值约束和默认值边界。默认 32 字节。 |
-| `max_output_hz` | `sclk_out = ssi_clk / BAUDR` 的最大输出频率约束。 |
 | `min_hclk_hz` | optional clock check 的 `hclk` 最低频率，默认 24MHz。 |
 | `min_ssi_clk_hz` | optional clock check 的 `ssi_clk` 最低频率，默认 24MHz。 |
 | `clock_check_tolerance_ppm` | optional clock check 的频率容差，默认 1%。 |
@@ -132,7 +131,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `ndf` | 配置 `CTRLR1.NDF`。 |
 | `ssi_en` | 配置 `SSIENR.SSI_EN`。 |
 | `ser` | 配置 `SER.SER` 片选 mask。 |
-| `baudr` | 配置 `BAUDR.SCKDV` 分频值。 |
+| `baudr` | 配置 `BAUDR.SCKDV`；该值由 `ssi_clk` 和目标串行输出频率推导。 |
 | `txftlr` | 配置 `TXFTLR.TFT`。 |
 | `rxftlr` | 配置 `RXFTLR.RFT`。 |
 | `txeim/txoim/rxuim/rxoim/rxfim/mstim` | 配置 `IMR` 各中断 mask field。 |

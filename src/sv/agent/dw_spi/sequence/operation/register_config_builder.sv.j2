@@ -20,11 +20,38 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         endcase
     endfunction
 
-    function void build(
+    function longint unsigned ceil_div(
+            longint unsigned dividend,
+            longint unsigned divisor);
+        if (divisor == 0)
+            return 0;
+        return (dividend + divisor - 1) / divisor;
+    endfunction
+
+    function int unsigned baudr_from_clock(
+            longint unsigned ssi_clk_hz,
+            longint unsigned target_sclk_hz);
+        longint unsigned div;
+
+        if (ssi_clk_hz == 0 || target_sclk_hz == 0)
+            return 0;
+        div = ceil_div(ssi_clk_hz, target_sclk_hz);
+        if (div < 2)
+            div = 2;
+        if (div[0])
+            div++;
+        if (div > 65534)
+            return 0;
+        return int'(div);
+    endfunction
+
+    task build(
             {{ class_prefix }}transfer_req rq,
             output {{ class_prefix }}configuration cfg);
         int unsigned length;
         int unsigned spi_frf;
+        int unsigned baudr;
+        longint unsigned ssi_clk_hz;
         host_mode_e host_mode;
         transfer_mode_e transfer_mode;
         bit rdmae;
@@ -40,7 +67,21 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             `uvm_fatal("DW_SPI_CFG", "failed to cast host_mode")
         if (!$cast(transfer_mode, rq.transfer_mode))
             `uvm_fatal("DW_SPI_CFG", "failed to cast transfer_mode")
+        if (settings.vif == null)
+            `uvm_fatal("DW_SPI_CFG", "settings.vif is null; BAUDR requires measured ssi_clk")
+        if (!settings.vif.has_ssi_clk())
+            `uvm_fatal("DW_SPI_CFG", "ssi_clk must be connected to derive BAUDR")
 
+        settings.vif.ssi_clk_if.measure_frequency_hz(
+            ssi_clk_hz,
+            settings.min_ssi_clk_hz,
+            settings.clock_check_tolerance_ppm);
+        baudr = baudr_from_clock(ssi_clk_hz, settings.target_sclk_hz);
+        if (baudr == 0)
+            `uvm_fatal("DW_SPI_CFG", $sformatf(
+                "failed to derive BAUDR: ssi_clk_hz=%0d target_sclk_hz=%0d",
+                ssi_clk_hz,
+                settings.target_sclk_hz))
         length = rq.payload.get_data_length();
         spi_frf = spi_frf_from_speed(rq.speed_multiplier);
         rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ});
@@ -58,6 +99,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 spi_frf == local::spi_frf;
                 spi_mode == rq.spi_mode;
                 data_frame_bits == rq.data_frame_bits;
+                baudr == local::baudr;
                 if (local::transfer_mode inside {RX_ONLY, EEPROM_READ}) {
                     ndf == (local::length > 0 ? local::length - 1 : 0);
                 } else {
@@ -70,7 +112,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             `uvm_fatal("DW_SPI_CFG", "failed to randomize register configuration")
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
-    endfunction
+    endtask
 endclass
 
 `endif

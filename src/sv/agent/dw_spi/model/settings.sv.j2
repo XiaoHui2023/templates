@@ -4,9 +4,8 @@
 class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     `uvm_object_utils_begin({{ class_prefix }}settings)
         `uvm_field_enum(ssi_variant_e, ssi_variant, UVM_ALL_ON)
-        `uvm_field_int(default_baud_div, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(target_sclk_hz, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(fifo_depth_bytes, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(max_output_hz, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(min_hclk_hz, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(min_ssi_clk_hz, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(clock_check_tolerance_ppm, UVM_ALL_ON | UVM_DEC)
@@ -17,9 +16,8 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     `uvm_object_utils_end
 
     rand ssi_variant_e ssi_variant;
-    rand int unsigned default_baud_div;
+    rand longint unsigned target_sclk_hz;
     rand int unsigned fifo_depth_bytes;
-    rand longint unsigned max_output_hz;
     rand longint unsigned min_hclk_hz;
     rand longint unsigned min_ssi_clk_hz;
     rand int unsigned clock_check_tolerance_ppm;
@@ -33,9 +31,8 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     function new(string name="{{ class_prefix }}settings");
         super.new(name);
         ssi_variant = {{ ssi_variant }};
-        default_baud_div = {{ default_baud_div }};
+        target_sclk_hz = {{ target_sclk_hz }};
         fifo_depth_bytes = {{ fifo_depth_bytes }};
-        max_output_hz = {{ max_output_hz }};
         min_hclk_hz = {{ min_hclk_hz }};
         min_ssi_clk_hz = {{ min_ssi_clk_hz }};
         clock_check_tolerance_ppm = {{ clock_check_tolerance_ppm }};
@@ -47,9 +44,8 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
 
     constraint cst {
         soft ssi_variant == {{ ssi_variant }};
-        soft default_baud_div == {{ default_baud_div }};
+        soft target_sclk_hz == {{ target_sclk_hz }};
         soft fifo_depth_bytes == {{ fifo_depth_bytes }};
-        soft max_output_hz == {{ max_output_hz }};
         soft min_hclk_hz == {{ min_hclk_hz }};
         soft min_ssi_clk_hz == {{ min_ssi_clk_hz }};
         soft clock_check_tolerance_ppm == {{ clock_check_tolerance_ppm }};
@@ -57,8 +53,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
         soft default_tx_fifo_threshold == {{ default_tx_fifo_threshold }};
         soft default_rx_fifo_threshold == {{ default_rx_fifo_threshold }};
         soft default_rx_sample_delay_ns == {{ default_rx_sample_delay_ns }};
-        default_baud_div inside {[2:65534]};
-        default_baud_div[0] == 1'b0;
+        target_sclk_hz > 0;
         fifo_depth_bytes inside {[1:4096]};
         default_tx_fifo_threshold < fifo_depth_bytes;
         default_rx_fifo_threshold < fifo_depth_bytes;

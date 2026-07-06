@@ -72,7 +72,6 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         soft rdmae == 1'b0;
         soft tdmae == 1'b0;
         if (settings != null) {
-            baudr == settings.default_baud_div;
             txftlr == settings.default_tx_fifo_threshold;
             rxftlr == settings.default_rx_fifo_threshold;
             dmatdl == settings.default_tx_fifo_threshold;

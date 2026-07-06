@@ -66,7 +66,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 
 启动可选时钟检查 operation。kit 内部检查 rsp，失败时 fatal，不输出 result。
 
-默认检查 `hclk` 和 `ssi_clk` 是否高于各自最低频率 24MHz，容差 1%。`ssi_clk` 是控制器输入时钟，`sclk_out = ssi_clk / BAUDR`，不会检查 `hclk` 与 `ssi_clk` 的频率关系。
+默认检查 `hclk` 和 `ssi_clk` 是否高于各自最低频率 24MHz，容差 1%。`ssi_clk` 是控制器输入时钟；check_clock 不检查 `sclk_out`，也不会检查 `hclk` 与 `ssi_clk` 的频率关系。
 
 ### `rw_test`
 

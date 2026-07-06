@@ -11,9 +11,8 @@ default_cs: 0
 default_addr_bytes: 3
 default_use_dma: false
 default_rw_data_bytes: 256
-default_baud_div: 2
+target_sclk_hz: 6000000
 fifo_depth_bytes: 32
-max_output_hz: 6000000
 min_hclk_hz: 24000000
 min_ssi_clk_hz: 24000000
 clock_check_tolerance_ppm: 10000

@@ -39,7 +39,6 @@
 
 | 函数/task | 说明 |
 | --- | --- |
-| `baudr_for_target(ssi_clk_hz, target_hz)` | 使用整数 Hz 计算不小于 2 的偶数 BAUDR，满足 `ssi_clk_hz / BAUDR` 不超过目标频率 |
 | `measure_hclk_frequency_hz(frequency_hz, min_frequency_hz)` | 调用 `hclk_if` 测量 `hclk` 频率，返回整数 Hz |
 | `measure_ssi_clk_frequency_hz(frequency_hz, min_frequency_hz)` | 调用 `ssi_clk_if` 测量 `ssi_clk` 频率，返回整数 Hz |
 | `wait_interrupt_asserted(timeout_ssi_clk_cycles, timed_out, missing_signal)` | 等待 `intr` 拉高；用 `ssi_clk` 计数超时，缺少 `intr` 或 `ssi_clk` 时置 `missing_signal` |
@@ -72,4 +71,4 @@
 
 `hclk` 和 `ssi_clk` 之间没有频率关系检查。默认只检查两者各自高于最低频率 24MHz，容差 1%。
 
-`ssi_clk` 是控制器输入时钟。输出到从机的串行时钟按 `sclk_out = ssi_clk / BAUDR` 计算，check_clock 会用这个公式检查 `sclk_out` 是否超过 `max_output_hz`，并给出推荐 BAUDR。
+`ssi_clk` 是控制器输入时钟。输出频率由寄存器配置阶段选择 `BAUDR` 控制，check_clock 不检查 `sclk_out`。
