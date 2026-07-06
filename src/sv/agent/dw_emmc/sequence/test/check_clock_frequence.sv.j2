@@ -5,9 +5,11 @@ class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }
     `uvm_object_utils_begin({{ class_prefix }}check_clock_frequence_test_seq)
         `uvm_field_int(should, UVM_ALL_ON)
 {% for clk in monitored_clocks %}
+{% if not clk.volatile %}
         `uvm_field_int(should_{{ clk.name }}, UVM_ALL_ON)
         `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
         `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
+{% endif %}
 {% endfor %}
     `uvm_object_utils_end
 
@@ -17,17 +19,21 @@ class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }
 
     rand bit should; // 是否检查
 {% for clk in monitored_clocks %}
+{% if not clk.volatile %}
     rand bit should_{{ clk.name }}; // 是否检查 {{ clk.name }}
     rand int frequence_{{ clk.name }}; // {{ clk.name }} 频率 (Hz)
     rand int tolerance_{{ clk.name }}; // {{ clk.name }} 允许误差范围 (百分比)
+{% endif %}
 {% endfor %}
 
     constraint cst_test {
         soft should == sys_cfg.chk_clk_cfg.should;
 {% for clk in monitored_clocks %}
+{% if not clk.volatile %}
         soft should_{{ clk.name }} == sys_cfg.chk_clk_cfg.should_{{ clk.name }};
         soft frequence_{{ clk.name }} == sys_cfg.chk_clk_cfg.frequence_{{ clk.name }};
         soft tolerance_{{ clk.name }} == sys_cfg.chk_clk_cfg.tolerance_{{ clk.name }};
+{% endif %}
 {% endfor %}
     }
 
@@ -42,8 +48,10 @@ task {{ class_prefix }}check_clock_frequence_test_seq::body();
     `uvm_info("", $psprintf("check:\n%s", sprint()), UVM_DEBUG)
 
 {% for clk in monitored_clocks %}
+{% if not clk.volatile %}
     if (should_{{ clk.name }})
         check_single_clock("{{ clk.name }}", frequence_{{ clk.name }}, tolerance_{{ clk.name }});
+{% endif %}
 {% endfor %}
 
     `uvm_info("", "done", UVM_DEBUG)
@@ -61,8 +69,10 @@ task {{ class_prefix }}check_clock_frequence_test_seq::check_single_clock(input 
 
     case (name)
 {% for clk in monitored_clocks %}
+{% if not clk.volatile %}
         "{{ clk.name }}" :
             sys_cfg.vif.monitor_if.check_{{ clk.name }}_frequence(frequence, is_pass, is_timeout, measure_result, tol_percent);
+{% endif %}
 {% endfor %}
         default:
             `uvm_fatal("", "NotImplemented")

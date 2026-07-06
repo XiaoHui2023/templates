@@ -104,11 +104,11 @@ task {{ class_prefix }}command_request_seq::write(bit [7:0] data[$]);
 endtask
 
 task {{ class_prefix }}command_request_seq::init_memory();
-    if (cmd_req.dma_enable)
+    if (!cmd_req.dma_enable)
         return;
     if (cmd_req.data_xfer_dir != cmd_req.XFER_WRITE)
         return;
-    write_memory(cmd_req.data);
+    write_memory(cmd_req.wdata);
 endtask
 
 task {{ class_prefix }}command_request_seq::write_memory(bit [7:0] data[$]);
@@ -201,7 +201,7 @@ endtask
 task {{ class_prefix }}command_request_seq::abort();
     rm.BGAP_CTRL_R.STOP_BG_REQ.set(1);
     rm.BGAP_CTRL_R.CONTINUE_REQ.set(0);
-    rm.BGAP_CTRL_R.MD_WAIT_CTRL.set(0);
+    rm.BGAP_CTRL_R.RD_WAIT_CTRL.set(0);
     rm.BGAP_CTRL_R.INT_AT_BGAP.set(1);
     rm.BGAP_CTRL_R.write(status, rm.BGAP_CTRL_R.get());
 endtask

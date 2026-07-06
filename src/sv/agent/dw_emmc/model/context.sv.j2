@@ -17,9 +17,11 @@ class {{ class_prefix }}context extends {{ class_prefix }}base_item;
 
     constraint cst {
         data_width_cur == 1;
-        bus_speed_mode_cur == LEGACY;                {%- if is_emmc %}
-        bus_speed_mode_cur == DS;                    {%- elif is_sd %}
-                                                                                                          {%- endif %}
+{% if is_emmc %}
+        bus_speed_mode_cur == LEGACY;
+{% elif is_sd %}
+        bus_speed_mode_cur == DS;
+{% endif %}
     }
 
     function new(string name="{{ class_prefix }}context");
