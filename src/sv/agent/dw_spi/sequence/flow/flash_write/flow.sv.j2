@@ -29,10 +29,14 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     op_req.payload.set_command(UVM_TLM_READ_COMMAND);
     op_req.payload.set_address(0);
     op_req.payload.set_data_length(0);
-    op_req.host_mode = cfg.host_mode;
-    op_req.protocol = FLASH_SPI;
-    op_req.frame_mode = cfg.frame_mode;
-    op_req.transfer_mode = TX_ONLY;
+    if (!$cast(op_req.host_mode, cfg.host_mode))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable host_mode")
+    if (!$cast(op_req.protocol, FLASH_SPI))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable protocol")
+    if (!$cast(op_req.frame_mode, cfg.frame_mode))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable frame_mode")
+    if (!$cast(op_req.transfer_mode, TX_ONLY))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable transfer_mode")
     op_req.opcode = 8'h06;
     op_req.io_lanes = cfg.io_lanes;
     op_req.speed_multiplier = cfg.speed_multiplier;
@@ -68,10 +72,14 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     foreach (chunk[i])
         payload_data[i] = chunk[i];
     op_req.payload.set_data(payload_data);
-    op_req.host_mode = cfg.host_mode;
-    op_req.protocol = FLASH_SPI;
-    op_req.frame_mode = cfg.frame_mode;
-    op_req.transfer_mode = TX_ONLY;
+    if (!$cast(op_req.host_mode, cfg.host_mode))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast host_mode")
+    if (!$cast(op_req.protocol, FLASH_SPI))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast protocol")
+    if (!$cast(op_req.frame_mode, cfg.frame_mode))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast frame_mode")
+    if (!$cast(op_req.transfer_mode, TX_ONLY))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast transfer_mode")
     op_req.opcode = 8'h02;
     op_req.io_lanes = cfg.io_lanes;
     op_req.speed_multiplier = cfg.speed_multiplier;

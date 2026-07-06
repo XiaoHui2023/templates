@@ -34,17 +34,23 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         bit [31:0] v;
         int unsigned dfs;
         bit [1:0] tmod;
+        host_mode_e host_mode;
+        transfer_mode_e transfer_mode;
 
         v = '0;
+        if (!$cast(host_mode, req.host_mode))
+            `uvm_fatal("DW_SPI_REG", "failed to cast host_mode")
+        if (!$cast(transfer_mode, req.transfer_mode))
+            `uvm_fatal("DW_SPI_REG", "failed to cast transfer_mode")
         dfs = req.data_frame_bits - 1;
-        tmod = transfer_mode_bits(req.transfer_mode);
+        tmod = transfer_mode_bits(transfer_mode);
         if (settings.ssi_variant == HSSI) begin
             v[4:0] = dfs[4:0];
             v[7:6] = spi_frf_bits(req.speed_multiplier);
             v[8] = req.spi_mode[0];
             v[9] = req.spi_mode[1];
             v[11:10] = tmod;
-            if (req.host_mode == MASTER)
+            if (host_mode == MASTER)
                 v[31] = 1'b1;
         end else begin
             if (req.data_frame_bits > 16)
@@ -55,7 +61,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             v[6] = req.spi_mode[0];
             v[7] = req.spi_mode[1];
             v[9:8] = tmod;
-            if (req.host_mode == SLAVE)
+            if (host_mode == SLAVE)
                 v[10] = 1'b1;
         end
         return v;
@@ -63,13 +69,16 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
 
     function bit [31:0] dma_control_bits({{ class_prefix }}transfer_req req);
         bit [31:0] v;
+        transfer_mode_e transfer_mode;
 
         v = '0;
         if (req == null || !req.use_dma)
             return v;
-        if (req.transfer_mode inside {RX_ONLY, EEPROM_READ})
+        if (!$cast(transfer_mode, req.transfer_mode))
+            `uvm_fatal("DW_SPI_REG", "failed to cast DMA transfer_mode")
+        if (transfer_mode inside {RX_ONLY, EEPROM_READ})
             v[DMACR_RDMAE] = 1'b1;
-        if (req.transfer_mode inside {TX_ONLY, TX_AND_RX})
+        if (transfer_mode inside {TX_ONLY, TX_AND_RX})
             v[DMACR_TDMAE] = 1'b1;
         return v;
     endfunction
@@ -78,6 +87,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             {{ class_prefix }}transfer_req req,
             output {{ class_prefix }}configuration cfg);
         int unsigned length;
+        transfer_mode_e transfer_mode;
 
         if (settings == null)
             `uvm_fatal("DW_SPI_REG", "settings is null")
@@ -88,8 +98,10 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         cfg = {{ class_prefix }}configuration::type_id::create("configuration");
         cfg.settings = settings;
         length = req.payload.get_data_length();
+        if (!$cast(transfer_mode, req.transfer_mode))
+            `uvm_fatal("DW_SPI_REG", "failed to cast transfer_mode for configuration")
         if (!cfg.randomize() with {
-                if (req.transfer_mode inside {
+                if (transfer_mode inside {
                         RX_ONLY,
                         EEPROM_READ
                     }) {
