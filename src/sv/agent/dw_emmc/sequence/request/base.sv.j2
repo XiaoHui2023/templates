@@ -4,8 +4,8 @@
 class {{ class_prefix }}base_request_seq#(type RSP={{ class_prefix }}base_response) extends {{ class_prefix }}base_seq#(RSP);
     `uvm_object_param_utils({{ class_prefix }}base_request_seq#(RSP))
 
-    ral_block_DWC_mshc_map rm; // 主寄存器
-    ral_block_DWC_mshc_map rm_vd1; // 供应商寄存器1
+    {{ class_regmodel_rm }} rm; // 主寄存器
+    {{ class_regmodel_rm_vd1 }} rm_vd1; // 供应商寄存器1
     uvm_status_e status;
 
     function new(string name="{{ class_prefix }}base_request_seq");

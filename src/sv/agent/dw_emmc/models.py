@@ -26,6 +26,14 @@ class Models(BaseModel):
     class_prefix: str = Field("Emmc_ctrl", description="默认类名的前缀")
     card_type: Literal["emmc", "sdcard", "sdio"] = Field(..., description="card类型")
     class_regmodel: str = Field("ral_sys_DWC_mshc", description="寄存器类名")
+    class_regmodel_rm: str = Field(
+        "ral_block_DWC_mshc_map_DWC_mshc_block",
+        description="rm寄存器块类名",
+    )
+    class_regmodel_rm_vd1: str = Field(
+        "ral_block_DWC_mshc_map_DWC_mshc_vendor1_block",
+        description="rm_vd1寄存器块类名",
+    )
     data_width: Optional[int] = None
     monitored_clocks: Optional[List[MonitoredClock]] = None
     connections: Optional[List[Connection]] = None
