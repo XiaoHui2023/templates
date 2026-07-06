@@ -93,9 +93,9 @@ function bit {{ class_name }}::main();
         return 0;
 
     if(!compare(gld,mon)) begin
-        `uvm_error("",$psprintf("compare failed #%0d: 0x%x != 0x%x", compare_count, gld, mon))
+        `uvm_error("",$psprintf("compare failed #%0d: 0x%h != 0x%h", compare_count, gld, mon))
     end else
-        `uvm_info("",$psprintf("compare success #%0d 0x%x == 0x%x", compare_count, gld, mon),UVM_DEBUG)
+        `uvm_info("",$psprintf("compare success #%0d 0x%h == 0x%h", compare_count, gld, mon),UVM_DEBUG)
 
     has_compared = 1;
     return 1;
@@ -137,9 +137,9 @@ function void {{ class_name }}::fifo_check();
     num_mon = fifo_mon.size();
 
     if(num_gld > 0)
-        `uvm_error("",$psprintf("remain : num_gld = %0d. first: 0x%x", num_gld, fifo_gld[0]))
+        `uvm_error("",$psprintf("remain : num_gld = %0d. first: 0x%h", num_gld, fifo_gld[0]))
     else if(num_mon > 0)
-        `uvm_error("",$psprintf("remain : num_mon = %0d. first: 0x%x", num_mon, fifo_mon[0]))
+        `uvm_error("",$psprintf("remain : num_mon = %0d. first: 0x%h", num_mon, fifo_mon[0]))
     else if(has_compared)
         `uvm_info("","compare success",UVM_LOW)
 endfunction

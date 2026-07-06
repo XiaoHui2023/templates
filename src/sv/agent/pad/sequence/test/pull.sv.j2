@@ -50,7 +50,7 @@ task {{ class_pull_test_seq }}::test_pull_up({{ class_pull_data }} data,bit wdat
     value = cfg.pin_if.data[data.id];
 
     if(value !== exp)
-        `uvm_error("",$spsrintf("pin[%0d] pull up is require %x,but %x",
+        `uvm_error("",$spsrintf("pin[%0d] pull up is require %h,but %h",
             data.id,
             wdata ? "valid" : "invalid",
             exp,
@@ -76,7 +76,7 @@ task {{ class_pull_test_seq }}::test_pull_down({{ class_pull_data }} data,bit wd
     value = cfg.pin_if.data[data.id];
 
     if(value !== exp)
-        `uvm_error("",$spsrintf("pin[%0d] pull down is require %x,but %x",
+        `uvm_error("",$spsrintf("pin[%0d] pull down is require %h,but %h",
             data.id,
             wdata ? "valid" : "invalid",
             exp,

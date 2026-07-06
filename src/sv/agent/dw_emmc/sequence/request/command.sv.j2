@@ -215,7 +215,7 @@ task {{ class_prefix }}command_request_seq::read_resp();
     rm.RESP67_R.read(status, w3);
     rsp.resp = {w3, w2, w1, w0};
 
-    `uvm_info("", $psprintf("resp = %0xh", rsp.resp), UVM_LOW)
+    `uvm_info("", $psprintf("resp = %0h", rsp.resp), UVM_LOW)
 endtask
 
 task {{ class_prefix }}command_request_seq::wait_cmd_complete();

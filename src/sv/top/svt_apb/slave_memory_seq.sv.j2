@@ -74,13 +74,13 @@ class {{ class_slave_memory_seq }} extends svt_apb_slave_base_sequence;
             if (!req.pslverr_enable) begin
                 // For write transaction, put the write data to memory
                 if(req.xact_type == svt_apb_slave_transaction::WRITE) begin
-                    `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0x.", `SVT_APB_PRINT_PREFIX(req), byteen));
+                    `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0h.", `SVT_APB_PRINT_PREFIX(req), byteen));
                     void'(apb_slave_mem.write(req.address, req.data, byteen));
                 end
                 // For Read transaction, get the read data from memory
                 else if(req.xact_type == svt_apb_slave_transaction::READ)begin
                     req.data = apb_slave_mem.read(req.address);
-                    `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0x.", `SVT_APB_PRINT_PREFIX(req), byteen));
+                    `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0h.", `SVT_APB_PRINT_PREFIX(req), byteen));
 `ifdef SVT_APB_SLAVE_DRIVE_X_IF_MEMDATA_X
                     // If the value read from apb slave mem contains X, set the following.
                     // $isunknown(data) can be used, but using this for performance.
