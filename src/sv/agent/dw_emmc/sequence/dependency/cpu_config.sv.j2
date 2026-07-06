@@ -87,7 +87,7 @@ task {{ class_prefix }}cpu_config_dependency_seq::body();
 
                 repeat(4)
                     q.push_back(buff.pop_front());
-                {{ "word = {<<32{{<<8{q}}}}; }" }}
+                {{ "word = {<<32{{<<8{q}}}};" }}
 
                 cpu_write(adr,word);
                 adr += 4;
