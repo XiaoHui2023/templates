@@ -218,8 +218,16 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {% if any_node_path %}
     // Assign measurement interfaces from the top-level tree interface.
     extern function void connect_tree(virtual {{ settings.class_prefix }}tree_interface tree_if);
+{% if not regs_enabled %}
+    // Initialize check_measure expectations without solving register configuration.
+    extern function void init_measure_expectations();
 {% endif %}
+{% endif %}
+{% if regs_enabled %}
     // Bind interfaces and register fields, then randomize tree nodes.
+{% else %}
+    // Bind interfaces and initialize measurement expectations.
+{% endif %}
     extern function void build({% if any_node_path %}virtual {{ settings.class_prefix }}tree_interface tree_if{% if regs_enabled %}, {% endif %}{% endif %}{% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
 endclass
 
@@ -238,6 +246,56 @@ function void {{ settings.class_prefix }}tree::connect_tree(
 {%- endfor %}
 endfunction
 
+{% if not regs_enabled %}
+function void {{ settings.class_prefix }}tree::init_measure_expectations();
+{%- for slot in tree.connectable_slots %}
+{%- set node = tree.nodes[slot.node_key] %}
+    {{ slot.access }}._resolved_active = 1'b0;
+    {{ slot.access }}._resolved_freq = 0;
+{%- if node.kind in ["source", "pll"] %}
+    if ({{ slot.access }}.frequence > 0) begin
+        {{ slot.access }}._resolved_active = 1'b1;
+        {{ slot.access }}._resolved_freq = {{ slot.access }}.frequence;
+    end
+{%- elif node.kind == "clk" %}
+    if ({{ slot.access }}.enabled && {{ slot.access }}.frequence > 0) begin
+        {{ slot.access }}._resolved_active = 1'b1;
+        {{ slot.access }}._resolved_freq = {{ slot.access }}.frequence;
+    end
+{%- elif node.kind in ["cell", "inv"] and node.sources %}
+{%- set src = node.sources[0] %}
+{%- set peer = tree.nodes[src.name] %}
+{%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' if peer.output_groups else src.name %}
+    {{ slot.access }}._resolved_active = {{ peer_access }}._resolved_active;
+    {{ slot.access }}._resolved_freq = {{ peer_access }}._resolved_freq;
+{%- elif node.kind == "gate" and node.sources and node.open == 1 %}
+{%- set src = node.sources[0] %}
+{%- set peer = tree.nodes[src.name] %}
+{%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' if peer.output_groups else src.name %}
+    {{ slot.access }}._resolved_active = {{ peer_access }}._resolved_active;
+    {{ slot.access }}._resolved_freq = {{ peer_access }}._resolved_freq;
+{%- elif node.kind == "div" and node.sources and node.ratio is not none %}
+{%- set src = node.sources[0] %}
+{%- set peer = tree.nodes[src.name] %}
+{%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' if peer.output_groups else src.name %}
+    if ({{ peer_access }}._resolved_active && {{ node.ratio }} > 0) begin
+        {{ slot.access }}._resolved_active = 1'b1;
+        {{ slot.access }}._resolved_freq = {{ peer_access }}._resolved_freq / {{ node.ratio }};
+    end
+{%- elif node.kind == "mux" and node.sel is not none %}
+{%- for src in node.sources %}
+{%- if src.key == node.sel %}
+{%- set peer = tree.nodes[src.name] %}
+{%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' if peer.output_groups else src.name %}
+    {{ slot.access }}._resolved_active = {{ peer_access }}._resolved_active;
+    {{ slot.access }}._resolved_freq = {{ peer_access }}._resolved_freq;
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endfor %}
+endfunction
+
+{% endif %}
 {% endif %}
 function void {{ settings.class_prefix }}tree::build({% if any_node_path %}virtual {{ settings.class_prefix }}tree_interface tree_if{% if regs_enabled %}, {% endif %}{% endif %}{% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
 {%- if any_node_path %}
@@ -255,8 +313,12 @@ function void {{ settings.class_prefix }}tree::build({% if any_node_path %}virtu
 {%- endif %}
 {%- endfor %}
     end
-{%- endif %}
     if (!randomize())
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
+{%- else %}
+{%- if any_node_path %}
+    init_measure_expectations();
+{%- endif %}
+{%- endif %}
 endfunction
 `endif
