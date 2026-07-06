@@ -64,7 +64,7 @@ task {{ class_prefix }}switch_bus_seq::body();
     })
 
     // 分频
-    `uvm_do_with(freq_set_seq)
+    `uvm_do(freq_set_seq)
 
     {%- elif is_sdcard %}
 
