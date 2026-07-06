@@ -30,6 +30,11 @@ class Group(BaseModel):
             value |= 1 << bit
         return value
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def mask_hex(self) -> str:
+        return f"{self.mask_value:08x}"
+
 
 class RegModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
