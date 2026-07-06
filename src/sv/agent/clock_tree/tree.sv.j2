@@ -231,9 +231,9 @@ function void {{ settings.class_prefix }}tree::connect_tree(
 {%- for slot in tree.connectable_slots %}
 {%- set node = tree.nodes[slot.node_key] %}
 {%- if node.sv_is_array %}
-    {{ slot.access }}.vif = tree_if.{{ settings.class_prefix }}{{ slot.node_key }}_{{ slot.group_id }}_if;
+    {{ slot.access }}.vif = tree_if.{{ slot.node_key }}_{{ slot.group_id }}_if;
 {%- else %}
-    {{ slot.access }}.vif = tree_if.{{ settings.class_prefix }}{{ slot.node_key }}_if;
+    {{ slot.access }}.vif = tree_if.{{ slot.node_key }}_if;
 {%- endif %}
 {%- endfor %}
 endfunction

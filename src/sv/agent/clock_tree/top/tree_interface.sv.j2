@@ -6,9 +6,9 @@ interface {{ settings.class_prefix }}tree_interface;
 {%- for slot in tree.connectable_slots %}
 {%- set node = tree.nodes[slot.node_key] %}
 {%- if node.sv_is_array %}
-    {{ settings.class_prefix }}interface {{ settings.class_prefix }}{{ slot.node_key }}_{{ slot.group_id }}_if(.in({{ node.path }}));
+    {{ settings.class_prefix }}interface {{ slot.node_key }}_{{ slot.group_id }}_if(.in({{ node.path }}));
 {%- else %}
-    {{ settings.class_prefix }}interface {{ settings.class_prefix }}{{ slot.node_key }}_if(.in({{ node.path }}));
+    {{ settings.class_prefix }}interface {{ slot.node_key }}_if(.in({{ node.path }}));
 {%- endif %}
 {%- endfor %}
 endinterface
