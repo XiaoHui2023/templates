@@ -2,14 +2,15 @@
 
 `dma_engine` 是内置 DMA mover，用于 transfer operation 的 DMA 模式。
 
-它不配置寄存器。寄存器配置由 `core/register_access.sv` 根据 `transfer_req.use_dma` 写入 `DMACR`、`DMATDLR`、`DMARDLR`。
+它不配置寄存器。sequence 层先把 operation 请求里的 DMA 意图转换成 `configuration.rdmae/tdmae`，再由 `core/register_access.sv` 写入 `DMACR`、`DMATDLR`、`DMARDLR` 的 FIELD。
 
 ## 输入
 
 | 项 | 说明 |
 | --- | --- |
 | `scoreboard` | flash/model memory mirror 句柄 |
-| `transfer_req` | 带 payload 的底层 transfer 请求 |
+| `payload` | 带地址和 byte queue 的通用传输数据包 |
+| `use_dma` | 调用侧确认本次走 DMA mover |
 
 ## 行为
 

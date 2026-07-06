@@ -1,0 +1,76 @@
+`ifndef {{ (class_prefix ~ "register_config_builder") | upper }}
+`define {{ (class_prefix ~ "register_config_builder") | upper }}
+
+class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(uvm_object);
+    `uvm_object_utils({{ class_prefix }}register_config_builder)
+
+    {{ class_prefix }}settings settings;
+
+    function new(string name="{{ class_prefix }}register_config_builder");
+        super.new(name);
+    endfunction
+
+    function int unsigned spi_frf_from_speed(int unsigned speed_multiplier);
+        case (speed_multiplier)
+            1: return CTRLR0_SPI_FRF_STANDARD;
+            2: return CTRLR0_SPI_FRF_DUAL;
+            4: return CTRLR0_SPI_FRF_QUAD;
+            8: return CTRLR0_SPI_FRF_OCTAL;
+            default: return CTRLR0_SPI_FRF_STANDARD;
+        endcase
+    endfunction
+
+    function void build(
+            {{ class_prefix }}transfer_req rq,
+            output {{ class_prefix }}configuration cfg);
+        int unsigned length;
+        int unsigned spi_frf;
+        host_mode_e host_mode;
+        transfer_mode_e transfer_mode;
+        bit rdmae;
+        bit tdmae;
+
+        if (settings == null)
+            `uvm_fatal("DW_SPI_CFG", "settings is null")
+        if (rq == null)
+            `uvm_fatal("DW_SPI_CFG", "transfer req is null")
+        if (rq.payload == null)
+            `uvm_fatal("DW_SPI_CFG", "transfer req payload is null")
+        if (!$cast(host_mode, rq.host_mode))
+            `uvm_fatal("DW_SPI_CFG", "failed to cast host_mode")
+        if (!$cast(transfer_mode, rq.transfer_mode))
+            `uvm_fatal("DW_SPI_CFG", "failed to cast transfer_mode")
+
+        length = rq.payload.get_data_length();
+        spi_frf = spi_frf_from_speed(rq.speed_multiplier);
+        rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ});
+        tdmae = rq.use_dma && (transfer_mode inside {TX_ONLY, TX_AND_RX});
+
+        cfg = {{ class_prefix }}configuration::type_id::create("configuration");
+        cfg.settings = settings;
+        if (!$cast(cfg.host_mode, host_mode))
+            `uvm_fatal("DW_SPI_CFG", "failed to cast configuration host_mode")
+        if (!$cast(cfg.transfer_mode, transfer_mode))
+            `uvm_fatal("DW_SPI_CFG", "failed to cast configuration transfer_mode")
+        cfg.host_mode.rand_mode(0);
+        cfg.transfer_mode.rand_mode(0);
+        if (!cfg.randomize() with {
+                spi_frf == local::spi_frf;
+                spi_mode == rq.spi_mode;
+                data_frame_bits == rq.data_frame_bits;
+                if (local::transfer_mode inside {RX_ONLY, EEPROM_READ}) {
+                    ndf == (local::length > 0 ? local::length - 1 : 0);
+                } else {
+                    ndf == 0;
+                }
+                ser == (32'h1 << rq.cs_id);
+                rdmae == local::rdmae;
+                tdmae == local::tdmae;
+            })
+            `uvm_fatal("DW_SPI_CFG", "failed to randomize register configuration")
+        cfg.host_mode.rand_mode(1);
+        cfg.transfer_mode.rand_mode(1);
+    endfunction
+endclass
+
+`endif

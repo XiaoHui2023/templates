@@ -13,7 +13,7 @@
 | `transfer_configuration.sv` | `dw_spi_transfer_configuration` | 单次传输的协议形态配置包。 |
 | `host_configuration.sv` | `dw_spi_host_configuration` | 主机侧单次传输配置包，约束 `host_mode == MASTER`。 |
 | `slave_configuration.sv` | `dw_spi_slave_configuration` | 从机侧单次传输配置包，约束 `host_mode == SLAVE`。 |
-| `configuration.sv` | `dw_spi_configuration` | 单次寄存器配置值包。 |
+| `configuration.sv` | `dw_spi_configuration` | 单次寄存器字段配置包。 |
 
 ## 继承关系
 
@@ -68,7 +68,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 | 字段 | 用途 |
 | --- | --- |
-| `ssi_variant` | `core/register_access.sv` 根据 PSSI/HSSI 选择 `CTRLR0` bit packing。 |
+| `ssi_variant` | `core/register_access.sv` 根据 PSSI/HSSI 选择需要设置的 `CTRLR0` FIELD。 |
 | `default_baud_div` | 默认 `BAUDR` 分频值。 |
 | `fifo_depth_bytes` | FIFO 阈值约束和默认值边界。默认 32 字节。 |
 | `max_output_hz` | `sclk_out = ssi_clk / BAUDR` 的最大输出频率约束。 |
@@ -120,26 +120,29 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 ## `configuration.sv`
 
-`configuration` 是单次寄存器配置值包，用来承载一次 init/apply 需要写入的值。
+`configuration` 是单次寄存器字段配置包，用来承载一次 init/apply 需要写入 regmodel FIELD 的值。
 
 | 字段 | 用途 |
 | --- | --- |
-| `ctrlr0` | 写入 `CTRLR0` 的完整配置值。 |
-| `ctrlr1` | 写入 `CTRLR1` 的配置值。 |
-| `ssienr_disable` | disable SSI 时写入 `SSIENR` 的值。 |
-| `ssienr_enable` | enable SSI 时写入 `SSIENR` 的值。 |
-| `ser` | 写入 `SER` 的片选 mask。 |
-| `baudr` | 写入 `BAUDR` 的分频值。 |
-| `txftlr` | 写入 `TXFTLR` 的 TX FIFO threshold。 |
-| `rxftlr` | 写入 `RXFTLR` 的 RX FIFO threshold。 |
-| `imr` | 写入 `IMR` 的中断 mask。 |
-| `dmacr` | 写入 `DMACR` 的 DMA 控制值。 |
-| `dmatdlr` | 写入 `DMATDLR` 的 DMA TX threshold。 |
-| `dmardlr` | 写入 `DMARDLR` 的 DMA RX threshold。 |
-| `rx_sample_delay` | 写入 `RX_SAMPLE_DELAY` 的采样延迟值。 |
+| `host_mode` | 配置 `CTRLR0.SSI_IS_MST`。 |
+| `transfer_mode` | 配置 `CTRLR0.TMOD`。 |
+| `spi_frf` | 配置 `CTRLR0.SPI_FRF`。 |
+| `spi_mode` | 配置 `CTRLR0.SCPOL/SCPH`。 |
+| `data_frame_bits` | 配置 `CTRLR0.DFS` 或 `CTRLR0.DFS_32`。 |
+| `ndf` | 配置 `CTRLR1.NDF`。 |
+| `ssi_en` | 配置 `SSIENR.SSI_EN`。 |
+| `ser` | 配置 `SER.SER` 片选 mask。 |
+| `baudr` | 配置 `BAUDR.SCKDV` 分频值。 |
+| `txftlr` | 配置 `TXFTLR.TFT`。 |
+| `rxftlr` | 配置 `RXFTLR.RFT`。 |
+| `txeim/txoim/rxuim/rxoim/rxfim/mstim` | 配置 `IMR` 各中断 mask field。 |
+| `rdmae/tdmae` | 配置 `DMACR.RDMAE/TDMAE`。 |
+| `dmatdl` | 配置 `DMATDLR.DMATDL`。 |
+| `dmardl` | 配置 `DMARDLR.DMARDL`。 |
+| `rx_sample_delay` | 配置 `RX_SAMPLE_DELAY.RSD`。 |
 | `write_rx_sample_delay` | 是否写 `RX_SAMPLE_DELAY`。 |
 
-`configuration` 可以引用 `settings` 做约束，例如默认分频、FIFO threshold、rx sample delay。它不保存寄存器地址；寄存器地址由 regmodel 托管。实际读写只能通过大写 REG/FIELD 的 regmodel 句柄完成。
+`configuration` 可以引用 `settings` 做约束，例如默认分频、FIFO threshold、rx sample delay。它不保存寄存器地址，也不保存拼好的完整寄存器值；寄存器地址和 bit layout 由 regmodel/FIELD 托管。实际读写只能通过大写 REG/FIELD 的 regmodel 句柄完成。
 
 ## 与 scoreboard/mem 的边界
 
@@ -165,4 +168,4 @@ sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 s
 - memh/`.hex` 文件解析逻辑。
 - sequencer/kit_sequencer 快捷函数。
 
-重复寄存器 pack/apply 逻辑放在 `core/register_access.sv` 的实例化工具类中；具体调用入口放在 operation sequence 中。
+重复寄存器 FIELD apply 逻辑放在 `core/register_access.sv` 的实例化工具类中；从 operation req 生成 `configuration` 的入口放在 operation sequence 中。

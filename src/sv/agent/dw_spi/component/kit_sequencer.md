@@ -88,6 +88,6 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 
 ## 边界
 
-`kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里调用明确的大写 `settings.regmodel.<REG>.write/read`。
+`kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里设置明确的大写 REG/FIELD，并由所属 REG `update/read/write`。
 
 `kit_sequencer` 不输出 `actual_read_data` 或 result。测试 sequence 会把读写结果送到 scoreboard，scoreboard 用内部 mem mirror 自动校验。

@@ -20,141 +20,124 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         endcase
     endfunction
 
-    function bit [1:0] spi_frf_bits(int unsigned speed_multiplier);
-        case (speed_multiplier)
-            1: return 2'h0;
-            2: return 2'h1;
-            4: return 2'h2;
-            8: return 2'h3;
-            default: return 2'h0;
-        endcase
+    protected function uvm_reg_field get_field(
+            uvm_reg rg,
+            string reg_name,
+            string field_name);
+        uvm_reg_field field;
+
+        if (rg == null)
+            `uvm_fatal("DW_SPI_REG", $sformatf("%s register handle is null", reg_name))
+        field = rg.get_field_by_name(field_name);
+        if (field == null)
+            `uvm_fatal("DW_SPI_REG", $sformatf("%s.%s field handle is null", reg_name, field_name))
+        return field;
     endfunction
 
-    function bit [31:0] pack_ctrlr0({{ class_prefix }}transfer_req req);
-        bit [31:0] v;
-        int unsigned dfs;
-        bit [1:0] tmod;
-        host_mode_e host_mode;
-        transfer_mode_e transfer_mode;
-
-        v = '0;
-        if (!$cast(host_mode, req.host_mode))
-            `uvm_fatal("DW_SPI_REG", "failed to cast host_mode")
-        if (!$cast(transfer_mode, req.transfer_mode))
-            `uvm_fatal("DW_SPI_REG", "failed to cast transfer_mode")
-        dfs = req.data_frame_bits - 1;
-        tmod = transfer_mode_bits(transfer_mode);
-        if (settings.ssi_variant == HSSI) begin
-            v[4:0] = dfs[4:0];
-            v[7:6] = spi_frf_bits(req.speed_multiplier);
-            v[8] = req.spi_mode[0];
-            v[9] = req.spi_mode[1];
-            v[11:10] = tmod;
-            if (host_mode == MASTER)
-                v[31] = 1'b1;
-        end else begin
-            if (req.data_frame_bits > 16)
-                v[20:16] = dfs[4:0];
-            else
-                v[3:0] = dfs[3:0];
-            v[5:4] = spi_frf_bits(req.speed_multiplier);
-            v[6] = req.spi_mode[0];
-            v[7] = req.spi_mode[1];
-            v[9:8] = tmod;
-            if (host_mode == SLAVE)
-                v[10] = 1'b1;
-        end
-        return v;
+    protected function void set_field(
+            uvm_reg rg,
+            string reg_name,
+            string field_name,
+            uvm_reg_data_t value);
+        get_field(rg, reg_name, field_name).set(value);
     endfunction
 
-    function bit [31:0] dma_control_bits({{ class_prefix }}transfer_req req);
-        bit [31:0] v;
-        transfer_mode_e transfer_mode;
+    protected task update_reg(uvm_reg rg, string reg_name);
+        uvm_status_e status;
 
-        v = '0;
-        if (req == null || !req.use_dma)
-            return v;
-        if (!$cast(transfer_mode, req.transfer_mode))
-            `uvm_fatal("DW_SPI_REG", "failed to cast DMA transfer_mode")
-        if (transfer_mode inside {RX_ONLY, EEPROM_READ})
-            v[DMACR_RDMAE] = 1'b1;
-        if (transfer_mode inside {TX_ONLY, TX_AND_RX})
-            v[DMACR_TDMAE] = 1'b1;
-        return v;
-    endfunction
-
-    function void build_configuration(
-            {{ class_prefix }}transfer_req req,
-            output {{ class_prefix }}configuration cfg);
-        int unsigned length;
-        transfer_mode_e transfer_mode;
-
-        if (settings == null)
-            `uvm_fatal("DW_SPI_REG", "settings is null")
-        if (req == null)
-            `uvm_fatal("DW_SPI_REG", "transfer req is null")
-        if (req.payload == null)
-            `uvm_fatal("DW_SPI_REG", "transfer req payload is null")
-        cfg = {{ class_prefix }}configuration::type_id::create("configuration");
-        cfg.settings = settings;
-        length = req.payload.get_data_length();
-        if (!$cast(transfer_mode, req.transfer_mode))
-            `uvm_fatal("DW_SPI_REG", "failed to cast transfer_mode for configuration")
-        if (!cfg.randomize() with {
-                if (transfer_mode inside {
-                        RX_ONLY,
-                        EEPROM_READ
-                    }) {
-                    ctrlr1 == (length > 0 ? length - 1 : 0);
-                } else {
-                    ctrlr1 == 0;
-                }
-                dmacr == dma_control_bits(req);
-                ser == (32'h1 << req.cs_id);
-            })
-            `uvm_fatal("DW_SPI_REG", "failed to randomize register configuration")
-        cfg.ctrlr0 = pack_ctrlr0(req);
-    endfunction
+        if (rg == null)
+            `uvm_fatal("DW_SPI_REG", $sformatf("%s register handle is null", reg_name))
+        rg.update(status);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("update %s failed status=%s", reg_name, status.name()))
+    endtask
 
     task apply_configuration({{ class_prefix }}configuration cfg);
         uvm_status_e status;
+        host_mode_e host_mode;
+        transfer_mode_e transfer_mode;
+        uvm_reg_data_t dfs;
 
         if (cfg == null)
             `uvm_fatal("DW_SPI_REG", "configuration is null")
         if (settings == null || settings.regmodel == null)
             `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
-        settings.regmodel.SSIENR.write(status, cfg.ssienr_disable);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SSIENR failed status=%s", status.name()))
-        settings.regmodel.IMR.write(status, cfg.imr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write IMR failed status=%s", status.name()))
+        if (!$cast(host_mode, cfg.host_mode))
+            `uvm_fatal("DW_SPI_REG", "failed to cast configuration host_mode")
+        if (!$cast(transfer_mode, cfg.transfer_mode))
+            `uvm_fatal("DW_SPI_REG", "failed to cast configuration transfer_mode")
+
+        set_field(settings.regmodel.SSIENR, "SSIENR", "SSI_EN", 0);
+        update_reg(settings.regmodel.SSIENR, "SSIENR");
+
+        set_field(settings.regmodel.IMR, "IMR", "TXEIM", cfg.txeim);
+        set_field(settings.regmodel.IMR, "IMR", "TXOIM", cfg.txoim);
+        set_field(settings.regmodel.IMR, "IMR", "RXUIM", cfg.rxuim);
+        set_field(settings.regmodel.IMR, "IMR", "RXOIM", cfg.rxoim);
+        set_field(settings.regmodel.IMR, "IMR", "RXFIM", cfg.rxfim);
+        set_field(settings.regmodel.IMR, "IMR", "MSTIM", cfg.mstim);
+        update_reg(settings.regmodel.IMR, "IMR");
+
         settings.regmodel.ICR.write(status, '0);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write ICR failed status=%s", status.name()))
-        settings.regmodel.SER.write(status, '0);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
-        settings.regmodel.CTRLR0.write(status, cfg.ctrlr0);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRLR0 failed status=%s", status.name()))
-        settings.regmodel.CTRLR1.write(status, cfg.ctrlr1);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write CTRLR1 failed status=%s", status.name()))
-        settings.regmodel.BAUDR.write(status, cfg.baudr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write BAUDR failed status=%s", status.name()))
-        settings.regmodel.TXFTLR.write(status, cfg.txftlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write TXFTLR failed status=%s", status.name()))
-        settings.regmodel.RXFTLR.write(status, cfg.rxftlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write RXFTLR failed status=%s", status.name()))
-        settings.regmodel.DMACR.write(status, cfg.dmacr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMACR failed status=%s", status.name()))
-        settings.regmodel.DMATDLR.write(status, cfg.dmatdlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMATDLR failed status=%s", status.name()))
-        settings.regmodel.DMARDLR.write(status, cfg.dmardlr);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write DMARDLR failed status=%s", status.name()))
-        if (cfg.write_rx_sample_delay)
-            settings.regmodel.RX_SAMPLE_DELAY.write(status, cfg.rx_sample_delay);
-        if (cfg.write_rx_sample_delay && status != UVM_IS_OK)
-            `uvm_error("DW_SPI_REG", $sformatf("write RX_SAMPLE_DELAY failed status=%s", status.name()))
-        settings.regmodel.SER.write(status, cfg.ser);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
-        settings.regmodel.SSIENR.write(status, cfg.ssienr_enable);
-        if (status != UVM_IS_OK) `uvm_error("DW_SPI_REG", $sformatf("write SSIENR failed status=%s", status.name()))
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write ICR failed status=%s", status.name()))
+
+        set_field(settings.regmodel.SER, "SER", "SER", 0);
+        update_reg(settings.regmodel.SER, "SER");
+
+        dfs = cfg.data_frame_bits - 1;
+        if (settings.ssi_variant == HSSI) begin
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "DFS", dfs);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SPI_FRF", cfg.spi_frf);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPH", cfg.spi_mode[0]);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPOL", cfg.spi_mode[1]);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "TMOD", transfer_mode_bits(transfer_mode));
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SSI_IS_MST", host_mode == MASTER);
+        end else begin
+            if (cfg.data_frame_bits > 16)
+                set_field(settings.regmodel.CTRLR0, "CTRLR0", "DFS_32", dfs);
+            else
+                set_field(settings.regmodel.CTRLR0, "CTRLR0", "DFS", dfs);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SPI_FRF", cfg.spi_frf);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPH", cfg.spi_mode[0]);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPOL", cfg.spi_mode[1]);
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "TMOD", transfer_mode_bits(transfer_mode));
+            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SSI_IS_MST", host_mode == MASTER);
+        end
+        update_reg(settings.regmodel.CTRLR0, "CTRLR0");
+
+        set_field(settings.regmodel.CTRLR1, "CTRLR1", "NDF", cfg.ndf);
+        update_reg(settings.regmodel.CTRLR1, "CTRLR1");
+
+        set_field(settings.regmodel.BAUDR, "BAUDR", "SCKDV", cfg.baudr);
+        update_reg(settings.regmodel.BAUDR, "BAUDR");
+
+        set_field(settings.regmodel.TXFTLR, "TXFTLR", "TFT", cfg.txftlr);
+        update_reg(settings.regmodel.TXFTLR, "TXFTLR");
+
+        set_field(settings.regmodel.RXFTLR, "RXFTLR", "RFT", cfg.rxftlr);
+        update_reg(settings.regmodel.RXFTLR, "RXFTLR");
+
+        set_field(settings.regmodel.DMACR, "DMACR", "RDMAE", cfg.rdmae);
+        set_field(settings.regmodel.DMACR, "DMACR", "TDMAE", cfg.tdmae);
+        update_reg(settings.regmodel.DMACR, "DMACR");
+
+        set_field(settings.regmodel.DMATDLR, "DMATDLR", "DMATDL", cfg.dmatdl);
+        update_reg(settings.regmodel.DMATDLR, "DMATDLR");
+
+        set_field(settings.regmodel.DMARDLR, "DMARDLR", "DMARDL", cfg.dmardl);
+        update_reg(settings.regmodel.DMARDLR, "DMARDLR");
+
+        if (cfg.write_rx_sample_delay) begin
+            set_field(settings.regmodel.RX_SAMPLE_DELAY, "RX_SAMPLE_DELAY", "RSD", cfg.rx_sample_delay);
+            update_reg(settings.regmodel.RX_SAMPLE_DELAY, "RX_SAMPLE_DELAY");
+        end
+
+        set_field(settings.regmodel.SER, "SER", "SER", cfg.ser);
+        update_reg(settings.regmodel.SER, "SER");
+
+        set_field(settings.regmodel.SSIENR, "SSIENR", "SSI_EN", cfg.ssi_en);
+        update_reg(settings.regmodel.SSIENR, "SSIENR");
     endtask
 endclass
 
