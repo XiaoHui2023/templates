@@ -3,13 +3,11 @@
 
 interface {{ class_prefix }}interface(
 {% for group in groups %}    input wire intr_{{ group.name }},
-    inout wire[{{ group.num - 1 }}:0] data_{{ group.name }}{% if not loop.last %},{% endif %}
+    inout wire[31:0] data_{{ group.name }}{% if not loop.last %},{% endif %}
 {% endfor -%}
 );
 
-{% for group in groups %}{{ class_prefix }}sub_interface #(
-    .NUM({{ group.num }})
-) {{ group.name }} (
+{% for group in groups %}{{ class_prefix }}sub_interface {{ group.name }} (
     .intr(intr_{{ group.name }}),
     .data(data_{{ group.name }})
 );
