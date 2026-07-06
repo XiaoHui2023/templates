@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "transfer_configuration") | upper }}
 `define {{ (class_prefix ~ "transfer_configuration") | upper }}
 
-class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(uvm_object);
+class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(uvm_sequence_item);
     `uvm_object_utils_begin({{ class_prefix }}transfer_configuration)
         `uvm_field_enum(host_mode_e, host_mode, UVM_ALL_ON)
         `uvm_field_enum(frame_mode_e, frame_mode, UVM_ALL_ON)

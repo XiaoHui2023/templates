@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "init_registers_req") | upper }}
 `define {{ (class_prefix ~ "init_registers_req") | upper }}
 
-class {{ class_prefix }}init_registers_req extends uvm_sequence_item;
+class {{ class_prefix }}init_registers_req extends {{ class_prefix }}spec#(uvm_sequence_item);
     `uvm_object_utils_begin({{ class_prefix }}init_registers_req)
         `uvm_field_object(transfer_req, UVM_ALL_ON)
     `uvm_object_utils_end

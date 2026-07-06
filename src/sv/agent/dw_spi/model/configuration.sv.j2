@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "configuration") | upper }}
 `define {{ (class_prefix ~ "configuration") | upper }}
 
-class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_object);
+class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequence_item);
     `uvm_object_utils_begin({{ class_prefix }}configuration)
         `uvm_field_int(ctrlr0, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(ctrlr1, UVM_ALL_ON | UVM_HEX)

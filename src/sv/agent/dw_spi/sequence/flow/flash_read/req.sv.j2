@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "flash_read_req") | upper }}
 `define {{ (class_prefix ~ "flash_read_req") | upper }}
 
-class {{ class_prefix }}flash_read_req extends uvm_sequence_item;
+class {{ class_prefix }}flash_read_req extends {{ class_prefix }}spec#(uvm_sequence_item);
     `uvm_object_utils_begin({{ class_prefix }}flash_read_req)
         `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(length, UVM_ALL_ON | UVM_DEC)
