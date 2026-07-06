@@ -1,9 +1,8 @@
-`ifndef {{ (settings.class_prefix ~ "trees") | upper }}
-`define {{ (settings.class_prefix ~ "trees") | upper }}
+`ifndef {{ (settings.class_prefix ~ "tree") | upper }}
+`define {{ (settings.class_prefix ~ "tree") | upper }}
 
-{%- for tree in trees %}
-class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_prefix }}tree_base;
-    `uvm_object_utils_begin({{ settings.class_prefix }}{{ tree.name }}_tree)
+class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}tree)
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind in ["clk", "pll", "source"] %}
 {%- set field_flags = "UVM_ALL_ON" %}
@@ -55,7 +54,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
     constraint cst_case;
 
     // Create node objects, connect sources, and populate tree queues.
-    function new(string name="{{ settings.class_prefix }}{{ tree.name }}_tree");
+    function new(string name="{{ settings.class_prefix }}tree");
         super.new(name);
 {%- for node in tree.nodes_ordered %}
 {%- if node.output_groups %}
@@ -73,7 +72,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- if node.kind == "div" %}
         {{ node.name }}["{{ g }}"].div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
-{%- if node.div_trees_emit_unfix_ratio %}
+{%- if node.div_tree_emit_unfix_ratio %}
         {{ node.name }}["{{ g }}"].ratio = {{ node.div_init_ratio }};
 {%- if enable_node_fix %}
         {{ node.name }}["{{ g }}"].unfix_ratio = 1'b0;
@@ -95,7 +94,7 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- elif node.kind == "div" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_div_class }}::type_id::create("{{ node.name }}");
         {{ node.name }}.div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
-{%- if node.div_trees_emit_unfix_ratio %}
+{%- if node.div_tree_emit_unfix_ratio %}
         {{ node.name }}.ratio = {{ node.div_init_ratio }};
 {%- if enable_node_fix %}
         {{ node.name }}.unfix_ratio = 1'b0;
@@ -137,16 +136,16 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
 {%- set clk_acc = node.name ~ '["' ~ g ~ '"]' %}
-{%- if node.clk_trees_emit_frequence %}
+{%- if node.clk_tree_emit_frequence %}
         {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
-{%- if node.clk_trees_emit_enabled %}
+{%- if node.clk_tree_emit_enabled %}
         {{ clk_acc }}.enabled = {{ node.clk_init_enabled }};
 {%- endif %}
-{%- if enable_node_fix and node.clk_trees_emit_unfix_frequence %}
+{%- if enable_node_fix and node.clk_tree_emit_unfix_frequence %}
         {{ clk_acc }}.unfix_frequence = 1'b0;
 {%- endif %}
-{%- if enable_node_fix and node.clk_trees_emit_unfix_enabled %}
+{%- if enable_node_fix and node.clk_tree_emit_unfix_enabled %}
         {{ clk_acc }}.unfix_enabled = 1'b0;
 {%- endif %}
 {%- if node.stable %}
@@ -154,16 +153,16 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- endfor %}
 {%- else %}
-{%- if node.clk_trees_emit_frequence %}
+{%- if node.clk_tree_emit_frequence %}
         {{ node.name }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
-{%- if node.clk_trees_emit_enabled %}
+{%- if node.clk_tree_emit_enabled %}
         {{ node.name }}.enabled = {{ node.clk_init_enabled }};
 {%- endif %}
-{%- if enable_node_fix and node.clk_trees_emit_unfix_frequence %}
+{%- if enable_node_fix and node.clk_tree_emit_unfix_frequence %}
         {{ node.name }}.unfix_frequence = 1'b0;
 {%- endif %}
-{%- if enable_node_fix and node.clk_trees_emit_unfix_enabled %}
+{%- if enable_node_fix and node.clk_tree_emit_unfix_enabled %}
         {{ node.name }}.unfix_enabled = 1'b0;
 {%- endif %}
 {%- if node.stable %}
@@ -189,14 +188,14 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
 {%- endif %}
 {%- if node.kind == "mux" %}
         {{ node.name }}.max_sel = {{ node.mux_max_sel }};
-{%- if node.mux_trees_emit_unfix_sel %}
+{%- if node.mux_tree_emit_unfix_sel %}
         {{ node.name }}.sel = {{ node.mux_init_sel }};
 {%- if enable_node_fix %}
         {{ node.name }}.unfix_sel = 1'b0;
 {%- endif %}
 {%- endif %}
 {%- elif node.kind == "gate" %}
-{%- if node.gate_trees_emit_unfix_open %}
+{%- if node.gate_tree_emit_unfix_open %}
         {{ node.name }}.open = {{ node.gate_init_open }};
 {%- if enable_node_fix %}
         {{ node.name }}.unfix_open = 1'b0;
@@ -220,11 +219,10 @@ class {{ settings.class_prefix }}{{ tree.name }}_tree extends {{ settings.class_
     extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
 endclass
 
-function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
+function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
 {%- if regs_enabled %}
     if (regmodel != null) begin
-{%- for tree_name, sv_access, member, path, offset, width in reg_bindings %}
-{%- if tree_name == tree.name %}
+{%- for sv_access, member, path, offset, width in reg_bindings %}
         {{ sv_access }}.{{ member }}.field = regmodel.{{ path }};
         {{ sv_access }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
 {%- if width is none %}
@@ -232,13 +230,10 @@ function void {{ settings.class_prefix }}{{ tree.name }}_tree::build({% if regs_
 {%- else %}
         {{ sv_access }}.{{ member }}.width = {{ width }};
 {%- endif %}
-{%- endif %}
 {%- endfor %}
     end
 {%- endif %}
     if (!randomize())
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
 endfunction
-
-{%- endfor %}
 `endif

@@ -5,21 +5,20 @@
 ## 示例
 
 ```yaml
-trees:
-  - name: main
-    nodes:
-      osc:
-        kind: source
-        freq: 24000000
-      pll0:
-        kind: pll
-        source: osc
-        pll_kind: tci
-        freq: 1000000000
-      clk_cpu:
-        kind: clk
-        source: pll0
-        freq: 1000000000
+tree:
+  nodes:
+    osc:
+      kind: source
+      freq: 24000000
+    pll0:
+      kind: pll
+      source: osc
+      pll_kind: tci
+      freq: 1000000000
+    clk_cpu:
+      kind: clk
+      source: pll0
+      freq: 1000000000
 settings:
   class_prefix: chip_clk_
 ```
@@ -28,7 +27,7 @@ settings:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `trees` | `list[Tree]` | | 时钟树。 |
+| `tree` | `Tree` | | 时钟树。 |
 | `settings` | `Settings` | | 全局选项。 |
 
 ### Settings
@@ -82,7 +81,6 @@ settings:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `name` | `str` | | 时钟树名称。 |
 | `module_path` | `str` | `""` | 该树可测量 RTL 模块的层次路径，按 `.` 分隔；非空时仅 **path** 等于此路径或以其为前缀的节点接测量 interface 并参与 **check_measure**；省略或空字符串表示不按模块过滤。 |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名；某键值为 **null** 时跳过该节点，不生成 SV 对象；其它节点仍引用该名字时会 **model_validate** 失败。 |
 
@@ -178,7 +176,7 @@ settings:
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
 | `freq` | `int` | | 典型频率，单位 Hz；省略则频率与使能均不参与随机；正数同时指定频率与使能；负值仅放宽输出频率随机范围。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `stable` | `bool` | `false` | 锚定时钟：结构探测与低功耗下不得关断或改频。为真时应给出正整数 **freq**，trees 锁定 **frequence** 与 **enabled**。**low_power** 不关断该 **clk**。**test_route** 跳过该节点及其当前选通路径上的 **gate**、**mux**、**div**、**pll** 探测，并固定路径控制量；路径上 **pll** 不参与改频策略。**check_measure** 期望为锁定后的 **_resolved_freq**。 |
+| `stable` | `bool` | `false` | 锚定时钟：结构探测与低功耗下不得关断或改频。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。**low_power** 不关断该 **clk**。**test_route** 跳过该节点及其当前选通路径上的 **gate**、**mux**、**div**、**pll** 探测，并固定路径控制量；路径上 **pll** 不参与改频策略。**check_measure** 期望为锁定后的 **_resolved_freq**。 |
 
 ### Node - gate
 

@@ -248,7 +248,7 @@ class GateNode(NodeBase):
     )
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="trees 构造写入 open；省略时为 -1；YAML 不可传入。",
+        description="tree 构造写入 open；省略时为 -1；YAML 不可传入。",
     )
     @property
     def gate_init_open(self) -> int:
@@ -258,7 +258,7 @@ class GateNode(NodeBase):
         description="open 非 gate::new 默认 -1 时为真；YAML 不可传入。",
     )
     @property
-    def gate_trees_emit_unfix_open(self) -> bool:
+    def gate_tree_emit_unfix_open(self) -> bool:
         return self.open is not None
 
     @model_validator(mode="after")
@@ -328,7 +328,7 @@ class DivNode(NodeBase):
         return self
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="trees 构造写入 ratio；省略时为 -1；YAML 不可传入。",
+        description="tree 构造写入 ratio；省略时为 -1；YAML 不可传入。",
     )
     @property
     def div_init_ratio(self) -> int:
@@ -338,7 +338,7 @@ class DivNode(NodeBase):
         description="ratio 非 div_base::new 默认 -1 时为真；YAML 不可传入。",
     )
     @property
-    def div_trees_emit_unfix_ratio(self) -> bool:
+    def div_tree_emit_unfix_ratio(self) -> bool:
         return self.ratio is not None
 
 
@@ -526,7 +526,7 @@ class ClkNode(NodeBase):
     )
     disable: bool = Field(
         default=False,
-        description="为真时 trees 构造将 enabled 置 0；省略或为假时 enabled 为 1。",
+        description="为真时 tree 构造将 enabled 置 0；省略或为假时 enabled 为 1。",
     )
     source: OptionalUpstreamSource = Field(
         default=None,
@@ -535,7 +535,7 @@ class ClkNode(NodeBase):
     stable: bool = Field(
         default=False,
         description="为真时表示锚定时钟：结构探测与低功耗下不得关断或改频；"
-        "应配合正整数 freq，trees 锁定 frequence 并将 enabled 置 1。",
+        "应配合正整数 freq，tree 锁定 frequence 并将 enabled 置 1。",
     )
 
     @field_validator("freq", mode="before")
@@ -544,14 +544,14 @@ class ClkNode(NodeBase):
         return _coerce_optional_int(value)
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="trees 构造写入 frequence；省略 freq 时为 -1；YAML 不可传入。",
+        description="tree 构造写入 frequence；省略 freq 时为 -1；YAML 不可传入。",
     )
     @property
     def clk_init_frequence(self) -> int:
         return -1 if self.freq is None else self.freq
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="trees 构造写入 enabled；disable 为真时为 0，否则为 1；YAML 不可传入。",
+        description="tree 构造写入 enabled；disable 为真时为 0，否则为 1；YAML 不可传入。",
     )
     @property
     def clk_init_enabled(self) -> int:
@@ -561,21 +561,21 @@ class ClkNode(NodeBase):
         description="frequence 非 clk::new 默认 -1 时为真；YAML 不可传入。",
     )
     @property
-    def clk_trees_emit_frequence(self) -> bool:
+    def clk_tree_emit_frequence(self) -> bool:
         return self.freq is not None and self.freq != -1
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="disable 为真或 stable 为真时 trees 写入 enabled；YAML 不可传入。",
+        description="disable 为真或 stable 为真时 tree 写入 enabled；YAML 不可传入。",
     )
     @property
-    def clk_trees_emit_enabled(self) -> bool:
+    def clk_tree_emit_enabled(self) -> bool:
         return self.disable or self.stable
 
     @computed_field(  # type: ignore[prop-decorator]
         description="unfix_frequence 非 clk::new 默认 1 时为真；YAML 不可传入。",
     )
     @property
-    def clk_trees_emit_unfix_frequence(self) -> bool:
+    def clk_tree_emit_unfix_frequence(self) -> bool:
         if self.stable:
             return True
         if self.freq is None or self.freq <= 0:
@@ -583,10 +583,10 @@ class ClkNode(NodeBase):
         return True
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="disable 为真或 stable 为真时 trees 写入 unfix_enabled 为 0；YAML 不可传入。",
+        description="disable 为真或 stable 为真时 tree 写入 unfix_enabled 为 0；YAML 不可传入。",
     )
     @property
-    def clk_trees_emit_unfix_enabled(self) -> bool:
+    def clk_tree_emit_unfix_enabled(self) -> bool:
         return self.disable or self.stable
 
     @model_validator(mode="after")
@@ -629,7 +629,7 @@ class MuxNode(NodeBase):
     )
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="trees 构造写入 sel；省略时为 -1；YAML 不可传入。",
+        description="tree 构造写入 sel；省略时为 -1；YAML 不可传入。",
     )
     @property
     def mux_init_sel(self) -> int:
@@ -639,7 +639,7 @@ class MuxNode(NodeBase):
         description="sel 非 mux::new 默认 -1 时为真；YAML 不可传入。",
     )
     @property
-    def mux_trees_emit_unfix_sel(self) -> bool:
+    def mux_tree_emit_unfix_sel(self) -> bool:
         return self.sel is not None
 
     @model_validator(mode="after")
@@ -727,7 +727,6 @@ def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
 class Tree(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., min_length=1, description="时钟树名称。")
     module_path: str = Field(
         "",
         description="该树可测量 RTL 模块的层次路径，按 `.` 分隔；"
@@ -820,14 +819,6 @@ class Tree(BaseModel):
             built[key] = node
         return built
 
-    @model_validator(mode="after")
-    def _validate_name(self) -> Tree:
-        if not _SV_ID.match(self.name):
-            raise ValueError(
-                f"tree.name {self.name!r} 须为合法 SystemVerilog 类型名片段"
-            )
-        return self
-
     @computed_field(  # type: ignore[prop-decorator]
         description="nodes 值的有序列表；YAML 与 model_validate 不可传入。",
     )
@@ -863,7 +854,7 @@ class Tree(BaseModel):
         return slots
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="module_path 范围内且 path 非空的 sv_slots；用于测量 interface 与 tree_connection；YAML 不可传入。",
+        description="module_path 范围内且 path 非空的 sv_slots；用于测量 interface 与 tree_interface；YAML 不可传入。",
     )
     @property
     def connectable_slots(self) -> List[SvNodeSlot]:

@@ -14,7 +14,7 @@
 
 ### 不参与测试的节点
 
-YAML 将 **clk** 节点的 **stable** 设为真时，该时钟为锚定点：**enabled** 与 **frequence** 由 trees 锁定，**low_power** 不关断。
+YAML 将 **clk** 节点的 **stable** 设为真时，该时钟为锚定点：**enabled** 与 **frequence** 由 tree 锁定，**low_power** 不关断。
 
 **test_route** 初始化在首次 **config_reg** 之后，沿各 **stable** **clk** 当前 **source** 选通链向上收集 **gate**、**mux**、**div**、**pll**，这些节点不参与 subject 探测；路径上 **pll** 也不参与改频策略，控制量与分频比在探测前固定。落在上述路径上的 subject 直接跳过。
 

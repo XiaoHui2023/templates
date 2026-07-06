@@ -238,7 +238,7 @@ class RegPathSpec:
     width: Optional[int]
 
 
-RegBindingRow = tuple[str, str, str, str, Optional[int], Optional[int]]
+RegBindingRow = tuple[str, str, str, Optional[int], Optional[int]]
 
 
 def _validate_dot_path(path: str, *, ctx: str) -> None:
@@ -442,7 +442,7 @@ def node_path_connectable(tree: Tree, node: object) -> bool:
 
 
 def any_node_path(tree: Tree) -> bool:
-    """任一节点有可连接 RTL path 时为真，用于决定是否展开 interface 与 tree_connection。"""
+    """任一节点有可连接 RTL path 时为真，用于决定是否展开 interface 与 tree_interface。"""
     for node in tree.nodes_ordered:
         if node_path_connectable(tree, node):
             return True
@@ -456,16 +456,15 @@ def tree_has_path_and_reg(tree: Tree) -> bool:
 
 def _append_binding(
     out: List[RegBindingRow],
-    tree_name: str,
     sv_access: str,
     member: str,
     raw_path: str,
 ) -> None:
     spec = parse_reg_path(
         raw_path,
-        ctx=f"tree {tree_name!r} access {sv_access!r} member {member!r}",
+        ctx=f"tree access {sv_access!r} member {member!r}",
     )
-    out.append((tree_name, sv_access, member, spec.path, spec.offset, spec.width))
+    out.append((sv_access, member, spec.path, spec.offset, spec.width))
 
 
 def _pll_reg_bindings(
@@ -487,19 +486,19 @@ def _pll_reg_bindings(
             access = sv_node_access(node.name, group_id, groups)
             for key in sorted(INNO_PLL_SHARED_REG_KEYS):
                 _append_binding(
-                    out, tree.name, access, f"f_{key}", regs[key]
+                    out, access, f"f_{key}", regs[key]
                 )
             p1_key, p2_key = inno_postdiv_reg_keys(group_id)
             _append_binding(
-                out, tree.name, access, "f_postdiv1", regs[p1_key]
+                out, access, "f_postdiv1", regs[p1_key]
             )
             _append_binding(
-                out, tree.name, access, "f_postdiv2", regs[p2_key]
+                out, access, "f_postdiv2", regs[p2_key]
             )
         return
     access = sv_node_access(node.name, "", groups)
     for key, path in sorted(regs.items()):
-        _append_binding(out, tree.name, access, f"f_{key}", path)
+        _append_binding(out, access, f"f_{key}", path)
 
 
 def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
@@ -510,7 +509,7 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
         if node.kind in SINGLE_REG_NODE_KINDS:
             validate_optional_reg(node.reg, node_name=node.name, kind=node.kind)
             access = sv_node_access(node.name, "", node_output_groups(node))
-            _append_binding(out, tree.name, access, "f_reg", node.reg)
+            _append_binding(out, access, "f_reg", node.reg)
         elif node.kind == "pll":
             _pll_reg_bindings(out, tree, node)
         elif node.kind == "div":
@@ -525,10 +524,10 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
                 node.name, primary_output_group(node), groups
             )
             for key, path in sorted(node.regs.items()):
-                _append_binding(out, tree.name, access, f"f_{key}", path)
+                _append_binding(out, access, f"f_{key}", path)
         else:
             flat = flatten_regs(node.regs)
             access = sv_node_access(node.name, "", node_output_groups(node))
             for key, path in sorted(flat.items()):
-                _append_binding(out, tree.name, access, f"f_{key}", path)
+                _append_binding(out, access, f"f_{key}", path)
     return out

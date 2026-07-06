@@ -191,9 +191,8 @@ class Settings(BaseModel):
 class Models(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    trees: List[Tree] = Field(
+    tree: Tree = Field(
         ...,
-        min_length=1,
         description="时钟树。",
     )
     settings: Settings = Field(
@@ -209,44 +208,26 @@ class Models(BaseModel):
             )
         return self
 
-    @model_validator(mode="after")
-    def _validate_tree_names_unique(self) -> Models:
-        seen: set[str] = set()
-        for tree in self.trees:
-            if tree.name in seen:
-                raise ValueError(f"trees 中 name {tree.name!r} 重复")
-            seen.add(tree.name)
-        return self
-
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 PLL 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
     )
     @property
     def pll_sv_classes(self) -> List[str]:
-        kinds: set[str] = set()
-        for tree in self.trees:
-            kinds.update(collect_pll_sv_classes(tree))
-        return sorted(kinds)
+        return collect_pll_sv_classes(self.tree)
 
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 div 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
     )
     @property
     def div_sv_classes(self) -> List[str]:
-        kinds: set[str] = set()
-        for tree in self.trees:
-            kinds.update(collect_div_sv_classes(tree))
-        return sorted(kinds)
+        return collect_div_sv_classes(self.tree)
 
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 inv 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
     )
     @property
     def inv_sv_classes(self) -> List[str]:
-        kinds: set[str] = set()
-        for tree in self.trees:
-            kinds.update(collect_inv_sv_classes(tree))
-        return sorted(kinds)
+        return collect_inv_sv_classes(self.tree)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -263,10 +244,7 @@ class Models(BaseModel):
     )
     @property
     def source_sv_classes(self) -> List[str]:
-        kinds: set[str] = set()
-        for tree in self.trees:
-            kinds.update(collect_source_sv_classes(tree))
-        return sorted(kinds)
+        return collect_source_sv_classes(self.tree)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -281,14 +259,14 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def any_regs_configured(self) -> bool:
-        return any(tree_has_node_regs(tree) for tree in self.trees)
+        return tree_has_node_regs(self.tree)
 
     @computed_field(  # type: ignore[prop-decorator]
         description="分别存在带 path 的节点与带 reg(regs) 的节点时为真；YAML 与 model_validate 不可传入。",
     )
     @property
     def enable_node_fix(self) -> bool:
-        return any(tree_has_path_and_reg(tree) for tree in self.trees)
+        return tree_has_path_and_reg(self.tree)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -314,30 +292,17 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def reg_bindings(self) -> List[RegBindingRow]:
-        out: List[RegBindingRow] = []
-        for tree in self.trees:
-            out.extend(iter_reg_bindings(tree))
-        return out
+        return iter_reg_bindings(self.tree)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def any_node_path(self) -> bool:
-        return any(any_node_path(tree) for tree in self.trees)
+        return any_node_path(self.tree)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_name(self) -> Optional[str]:
-        for tree in self.trees:
-            for node in tree.nodes_ordered:
-                if node.kind == "clk":
-                    return node.name
-        return None
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def first_clk_tree_name(self) -> Optional[str]:
-        for tree in self.trees:
-            for node in tree.nodes_ordered:
-                if node.kind == "clk":
-                    return tree.name
+        for node in self.tree.nodes_ordered:
+            if node.kind == "clk":
+                return node.name
         return None

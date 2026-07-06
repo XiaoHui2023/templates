@@ -8,37 +8,37 @@
   + `cst_case`
 
 ```systemverilog
-constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_base {
+constraint {{ settings.class_prefix }}tree::cst_base {
     ...
 }
-constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_user {
+constraint {{ settings.class_prefix }}tree::cst_user {
     ...
 }
-constraint {{ settings.class_prefix }}{{ trees[0].name }}_tree::cst_case {
+constraint {{ settings.class_prefix }}tree::cst_case {
     ...
 }
 ```
 
 ## 建立与使用
 
-在平台中建立 `{{ settings.class_prefix }}agent`，放入构建后的 `{{ settings.class_prefix }}{{ trees[0].name }}_tree`
+在平台中建立 `{{ settings.class_prefix }}agent`，放入构建后的 `{{ settings.class_prefix }}tree`
 
 ```systemverilog
 {{ settings.class_prefix }}agent clk_agt;
 {{ settings.class_prefix }}kit_sequencer clk_sqr;
-{{ settings.class_prefix }}{{ trees[0].name }}_tree tree;
+{{ settings.class_prefix }}tree tree;
 
 function void build_phase(uvm_phase phase);
     ...
     clk_agt = {{ settings.class_prefix }}agent::type_id::create("clk_agt", this);
-    tree = {{ settings.class_prefix }}{{ trees[0].name }}_tree::type_id::create("tree");
+    tree = {{ settings.class_prefix }}tree::type_id::create("tree");
 {%- if regs_enabled %}
     tree.build(your_regmodel);
 {%- else %}
     tree.build();
 {%- endif %}
     $cast(clk_sqr, clk_agt.sqr); // 取出工具方便使用
-    uvm_config_db#({{ settings.class_prefix }}tree_base)::set(this, "clk_agt", "tree", tree);
+    uvm_config_db#({{ settings.class_prefix }}tree)::set(this, "clk_agt", "tree", tree);
 endfunction
 ```
 
@@ -61,7 +61,7 @@ endtask
 {% if first_clk_name and regs_enabled %}
 ## 配置时钟
 
-开关时钟或改变频率，以 {{ first_clk_name }} 为例（详见 `trees.sv`）。
+开关时钟或改变频率，以 {{ first_clk_name }} 为例（详见 `tree.sv`）。
 
 ```systemverilog
 task main_phase(uvm_phase phase);
@@ -79,12 +79,12 @@ endtask
 {% if any_node_path %}
 ## 顶层连线
 
-添加连线文件到模块顶层
+在模块顶层例化 tree interface
 
 ```systemverilog
 module your-top-module;
     ...
-    `include "path-to-clock-tree/top/tree_connection.sv"
+    {{ settings.class_prefix }}tree_interface clk_tree_if();
     ...
 endmodule
 ```
@@ -94,7 +94,7 @@ endmodule
 ```systemverilog
 function void build_phase(uvm_phase phase);
     ...
-    your-top-module.{{ settings.class_prefix }}connect_{{ trees[0].name }}_tree(tree);
+    your-top-module.clk_tree_if.connect_tree(tree);
 endfunction
 ```
 

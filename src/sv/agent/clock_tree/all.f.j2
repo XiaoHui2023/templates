@@ -2,6 +2,7 @@ model/spec.sv
 {% if any_node_path %}
 top/measure_interface.sv
 top/interface.sv
+top/tree_interface.sv
 {% endif %}
 model/base.sv
 model/node_base.sv
@@ -41,7 +42,7 @@ core/tree_nodes.sv
 core/route_ctrl_snap.sv
 core/route_structure.sv
 {% endif %}
-trees.sv
+tree.sv
 component/sequencer.sv
 sequence/base.sv
 {% if regs_enabled %}
