@@ -13,6 +13,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     endfunction
 
     extern function void start_of_simulation();
+    extern function void resolve_vif();
     extern task reset_phase(uvm_phase phase);
 endclass
 
@@ -32,11 +33,22 @@ function void {{ class_prefix }}sequencer::start_of_simulation();
         `uvm_fatal("", "require settings")
     if (!settings.has_randomized)
         assert(settings.randomize()) else `uvm_fatal("", "randomize settings failed")
+    resolve_vif();
     if (!vif)
         `uvm_fatal("", "require vif")
     if (!cfg.has_randomized)
         `uvm_fatal("", "configuration is not randomized by settings")
     `uvm_info("", $sformatf("config:\n%s", cfg.sprint()), UVM_LOW)
 endfunction
+
+function void {{ class_prefix }}sequencer::resolve_vif();
+    if (vif != null || settings == null || settings.vif == null || cfg == null)
+        return;
+
+{% for group in groups %}    if (cfg.group_name == "{{ group.name }}") begin
+        vif = settings.vif.{{ group.name }};
+        return;
+    end
+{% endfor %}endfunction
 
 `endif
