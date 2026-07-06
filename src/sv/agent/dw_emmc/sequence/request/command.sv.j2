@@ -70,7 +70,7 @@ task {{ class_prefix }}command_request_seq::body();
             write(cmd_req.wdata);
     end
     // 读答案
-    if (cmd_req.resp_type_select != cmd_req.NO_RESP)
+    if (cmd_req.access_req.resp_type_select != cmd_req.access_req.NO_RESP)
         read_resp();
 endtask
 

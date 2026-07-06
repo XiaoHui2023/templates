@@ -46,10 +46,7 @@ task {{ class_prefix }}initial_seq::body();
     `uvm_do(power_up_seq)
 
     // 检查时钟频率
-    `uvm_do_with(chk_clk_freq_seq, {
-        frequence_cclk_in == local::freq;
-        frequence_cclk_out == local::freq;
-    })
+    `uvm_do(chk_clk_freq_seq)
 
     // 执行初始化
     execute_initial();

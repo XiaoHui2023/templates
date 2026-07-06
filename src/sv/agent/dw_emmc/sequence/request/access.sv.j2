@@ -103,7 +103,7 @@ task {{ class_prefix }}access_request_seq::execute_access();
     rm.XFER_MODE_R.AUTO_CMD_ENABLE.set(access_req.auto_cmd_enable);
     rm.XFER_MODE_R.DATA_XFER_DIR.set(access_req.data_xfer_dir);
     rm.XFER_MODE_R.MULTI_BLK_SEL.set(access_req.multi_blk_sel);
-    rm.XFER_MODE_R.RESP_TYPE_SELECT.set(access_req.resp_type);
+    rm.XFER_MODE_R.RESP_TYPE.set(access_req.resp_type);
     rm.XFER_MODE_R.RESP_ERR_CHK_ENABLE.set(0);
     rm.XFER_MODE_R.RESP_INT_DISABLE.set(0);
     rm.XFER_MODE_R.write(status, rm.XFER_MODE_R.get());

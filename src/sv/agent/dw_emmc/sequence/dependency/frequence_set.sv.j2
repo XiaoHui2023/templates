@@ -46,10 +46,7 @@ task {{ class_prefix }}frequence_set_dependency_seq::post_start();
     if(!should_check_clock_frequence)
         return;
 
-    `uvm_do_with(chk_clk_freq_test_seq, {
-        frequence_cclk_rx == local::frequence;
-        frequence_cclk_tx == local::frequence;
-    })
+    `uvm_do(chk_clk_freq_test_seq)
 endtask
 
 `endif

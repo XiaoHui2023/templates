@@ -2,6 +2,10 @@
 `define {{ class_prefix | upper }}SPEC
 
 class {{ class_prefix }}spec#(type T = uvm_object) extends T;
+    function new(string name="{{ class_prefix }}spec");
+        super.new(name);
+    endfunction
+
 {%- if is_sd %}
     typedef enum {
         SDSC,
