@@ -32,6 +32,13 @@ class {{ class_prefix }}check_clock_req extends {{ class_prefix }}spec#(uvm_sequ
     endfunction
 
     constraint cst {
+        soft check_hclk == 1'b1;
+        soft check_ssi_clk == 1'b1;
+        soft check_sclk_out == 1'b1;
+        soft tolerance_ppm == {{ clock_check_tolerance_ppm }};
+        soft min_hclk_hz == {{ min_hclk_hz }};
+        soft min_ssi_clk_hz == {{ min_ssi_clk_hz }};
+        soft max_sclk_out_hz == {{ max_output_hz }};
         tolerance_ppm <= 1000000;
         min_hclk_hz > 0;
         min_ssi_clk_hz > 0;
