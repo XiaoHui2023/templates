@@ -32,7 +32,11 @@ function void build_phase(uvm_phase phase);
     ...
     clk_agt = {{ settings.class_prefix }}agent::type_id::create("clk_agt", this);
     tree = {{ settings.class_prefix }}tree::type_id::create("tree");
-{%- if regs_enabled %}
+{%- if any_node_path and regs_enabled %}
+    tree.build(your_top_module.clk_tree_if, your_regmodel);
+{%- elif any_node_path %}
+    tree.build(your_top_module.clk_tree_if);
+{%- elif regs_enabled %}
     tree.build(your_regmodel);
 {%- else %}
     tree.build();
@@ -82,19 +86,19 @@ endtask
 在模块顶层例化 tree interface
 
 ```systemverilog
-module your-top-module;
+module your_top_module;
     ...
     {{ settings.class_prefix }}tree_interface clk_tree_if();
     ...
 endmodule
 ```
 
-在平台中连接 tree 与 interface
+tree 构建时传入该 interface 实例
 
 ```systemverilog
 function void build_phase(uvm_phase phase);
     ...
-    your-top-module.clk_tree_if.connect_tree(tree);
+    tree.build(your_top_module.clk_tree_if{% if regs_enabled %}, your_regmodel{% endif %});
 endfunction
 ```
 

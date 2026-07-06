@@ -11,19 +11,6 @@ interface {{ settings.class_prefix }}tree_interface;
     {{ settings.class_prefix }}interface {{ settings.class_prefix }}{{ slot.node_key }}_if(.in({{ node.path }}));
 {%- endif %}
 {%- endfor %}
-
-    function automatic void connect_tree({{ settings.class_prefix }}tree t);
-        if (t == null)
-            uvm_report_fatal("CLK_TREE", "connect_tree: tree is null");
-{%- for slot in tree.connectable_slots %}
-{%- set node = tree.nodes[slot.node_key] %}
-{%- if node.sv_is_array %}
-        t.{{ slot.access }}.vif = {{ settings.class_prefix }}{{ slot.node_key }}_{{ slot.group_id }}_if;
-{%- else %}
-        t.{{ slot.access }}.vif = {{ settings.class_prefix }}{{ slot.node_key }}_if;
-{%- endif %}
-{%- endfor %}
-    endfunction
 endinterface
 
 `endif

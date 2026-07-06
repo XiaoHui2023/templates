@@ -215,11 +215,34 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         end
     endfunction
 
-    // Bind node register fields when a register model is provided; randomize tree nodes.
-    extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
+{% if any_node_path %}
+    // Assign measurement interfaces from the top-level tree interface.
+    extern function void connect_tree(virtual {{ settings.class_prefix }}tree_interface tree_if);
+{% endif %}
+    // Bind interfaces and register fields, then randomize tree nodes.
+    extern function void build({% if any_node_path %}virtual {{ settings.class_prefix }}tree_interface tree_if{% if regs_enabled %}, {% endif %}{% endif %}{% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
 endclass
 
-function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
+{% if any_node_path %}
+function void {{ settings.class_prefix }}tree::connect_tree(
+        virtual {{ settings.class_prefix }}tree_interface tree_if);
+    if (tree_if == null)
+        `uvm_fatal("CLK_TREE", "connect_tree: tree_if is null")
+{%- for slot in tree.connectable_slots %}
+{%- set node = tree.nodes[slot.node_key] %}
+{%- if node.sv_is_array %}
+    {{ slot.access }}.vif = tree_if.{{ settings.class_prefix }}{{ slot.node_key }}_{{ slot.group_id }}_if;
+{%- else %}
+    {{ slot.access }}.vif = tree_if.{{ settings.class_prefix }}{{ slot.node_key }}_if;
+{%- endif %}
+{%- endfor %}
+endfunction
+
+{% endif %}
+function void {{ settings.class_prefix }}tree::build({% if any_node_path %}virtual {{ settings.class_prefix }}tree_interface tree_if{% if regs_enabled %}, {% endif %}{% endif %}{% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
+{%- if any_node_path %}
+    connect_tree(tree_if);
+{%- endif %}
 {%- if regs_enabled %}
     if (regmodel != null) begin
 {%- for sv_access, member, path, offset, width in reg_bindings %}
