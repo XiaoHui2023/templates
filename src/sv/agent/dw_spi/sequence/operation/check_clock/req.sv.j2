@@ -7,18 +7,18 @@ class {{ class_prefix }}check_clock_req extends {{ class_prefix }}spec#(uvm_sequ
         `uvm_field_int(check_ssi_clk, UVM_ALL_ON)
         `uvm_field_int(check_sclk_out, UVM_ALL_ON)
         `uvm_field_int(tolerance_ppm, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_real(min_hclk_hz, UVM_ALL_ON)
-        `uvm_field_real(min_ssi_clk_hz, UVM_ALL_ON)
-        `uvm_field_real(max_sclk_out_hz, UVM_ALL_ON)
+        `uvm_field_int(min_hclk_hz, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(min_ssi_clk_hz, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(max_sclk_out_hz, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
 
     rand bit check_hclk;
     rand bit check_ssi_clk;
     rand bit check_sclk_out;
     rand int unsigned tolerance_ppm;
-    real min_hclk_hz;
-    real min_ssi_clk_hz;
-    real max_sclk_out_hz;
+    rand longint unsigned min_hclk_hz;
+    rand longint unsigned min_ssi_clk_hz;
+    rand longint unsigned max_sclk_out_hz;
 
     function new(string name="{{ class_prefix }}check_clock_req");
         super.new(name);
@@ -26,16 +26,15 @@ class {{ class_prefix }}check_clock_req extends {{ class_prefix }}spec#(uvm_sequ
         check_ssi_clk = 1'b1;
         check_sclk_out = 1'b1;
         tolerance_ppm = {{ clock_check_tolerance_ppm }};
-        min_hclk_hz = {{ min_hclk_hz }}.0;
-        min_ssi_clk_hz = {{ min_ssi_clk_hz }}.0;
-        max_sclk_out_hz = {{ max_output_hz }}.0;
+        min_hclk_hz = {{ min_hclk_hz }};
+        min_ssi_clk_hz = {{ min_ssi_clk_hz }};
+        max_sclk_out_hz = {{ max_output_hz }};
     endfunction
 
     constraint cst {
         tolerance_ppm <= 1000000;
-        min_hclk_hz > 0.0;
-        min_ssi_clk_hz > 0.0;
-        max_sclk_out_hz >= 0.0;
+        min_hclk_hz > 0;
+        min_ssi_clk_hz > 0;
     }
 endclass
 

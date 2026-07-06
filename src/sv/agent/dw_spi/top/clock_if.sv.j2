@@ -5,15 +5,15 @@ interface {{ class_prefix }}clock_if(input logic clk);
     timeunit 1ns;
     timeprecision 1fs;
 
-    localparam real RT_PER_SEC = 1.0e9;
+    localparam longint unsigned HZ_PER_SEC = 1000000000;
 
     function bit is_connected();
         return !$isunknown(clk);
     endfunction
 
     task automatic measure_frequency_hz(
-            output real frequency_hz,
-            input real min_frequency_hz,
+            output longint unsigned frequency_hz,
+            input longint unsigned min_frequency_hz,
             input int unsigned tolerance_ppm = {{ clock_check_tolerance_ppm }});
         realtime first_edge_ns;
         realtime last_edge_ns;
@@ -21,16 +21,16 @@ interface {{ class_prefix }}clock_if(input logic clk);
         realtime timeout_ns;
         bit got_edge;
 
-        frequency_hz = 0.0;
-        first_edge_ns = 0.0;
-        last_edge_ns = 0.0;
-        elapsed_ns = 0.0;
+        frequency_hz = 0;
+        first_edge_ns = 0;
+        last_edge_ns = 0;
+        elapsed_ns = 0;
         if (!is_connected())
             return;
-        if (min_frequency_hz <= 0.0)
+        if (min_frequency_hz == 0)
             return;
 
-        timeout_ns = RT_PER_SEC / min_frequency_hz;
+        timeout_ns = $itor(HZ_PER_SEC) / $itor(min_frequency_hz);
         timeout_ns = timeout_ns * (1.0 + $itor(tolerance_ppm) / 1000000.0);
 
         got_edge = 1'b0;
@@ -64,9 +64,9 @@ interface {{ class_prefix }}clock_if(input logic clk);
         last_edge_ns = $realtime;
 
         elapsed_ns = last_edge_ns - first_edge_ns;
-        if (elapsed_ns <= 0.0)
+        if (elapsed_ns <= 0)
             return;
-        frequency_hz = RT_PER_SEC / elapsed_ns;
+        frequency_hz = longint'($itor(HZ_PER_SEC) / elapsed_ns + 0.5);
     endtask
 endinterface
 
