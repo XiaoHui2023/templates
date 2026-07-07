@@ -9,32 +9,36 @@ class {{ class_prefix }}svt_configuration extends svt_emmc_card_agent_configurat
     endfunction
 
     extern function void configure({{ class_prefix }}system_configuration sys_cfg);
+    {%- if is_emmc %}
     extern function void load_emmc_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    {%- elif is_sdio %}
     extern function void load_sdio_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    {%- elif is_sdcard %}
     extern function void load_sd_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    {%- endif %}
 endclass
 
 function void {{ class_prefix }}svt_configuration::configure({{ class_prefix }}system_configuration sys_cfg);
-    this.reg_cfg = svt_emmc_register_configuration::type_id::create("reg_cfg");
+    this.reg_cfg = svt_emmc_register_configuration::type_id::create("card_reg_cfg");
     this.timing_cfg = svt_emmc_timing_configuration::type_id::create("card_timing");
 
     this.enable_setup_hold_time_checks = sys_cfg.should_check_timing;
     this.enable_transaction_tracing = 1;
     this.enable_card_reporting = 1;
     this.enable_card_tracing = 1;
-    this.enable_tolerated_td_fp = 1;
-    this.config_fifo_switch_time = 20;
-    this.timing_cfg.Ncr_min_ck = 64;
-    this.timing_cfg.Ncr_max_ck = 64;
-    this.timing_cfg.Ncc_ck = 8;
-    this.timing_cfg.Nwr_min_ck = 8;
-    this.timing_cfg.Nwr_max_ck = 8;
-    this.timing_cfg.Ncrc_min_ck = 8;
-    this.timing_cfg.Ncrc_max_ck = 8;
-    this.timing_cfg.Ncrc_hs200_min_ck = 8;
-    this.timing_cfg.Ncrc_hs200_max_ck = 8;
-    this.timing_cfg.Ncrc_hs400_min_ck = 8;
-    this.timing_cfg.Ncrc_hs400_max_ck = 8;
+    this.enable_tolerated_fod_fpp = 1;
+    this.config_func_switch_time = 20;
+    this.timing_cfg.tNcr_min_ck = 64;
+    this.timing_cfg.tNcr_max_ck = 64;
+    this.timing_cfg.tNac_ck = 8;
+    this.timing_cfg.tNwr_min_ck = 8;
+    this.timing_cfg.tNwr_max_ck = 8;
+    this.timing_cfg.tNcrc_min_ck = 8;
+    this.timing_cfg.tNcrc_max_ck = 8;
+    this.timing_cfg.tNcrc_hs200_min_ck = 8;
+    this.timing_cfg.tNcrc_hs200_max_ck = 8;
+    this.timing_cfg.tNcrc_hs400_min_ck = 8;
+    this.timing_cfg.tNcrc_hs400_max_ck = 8;
 
     {%- if is_emmc %}
     load_emmc_config(sys_cfg,this.reg_cfg);
@@ -45,69 +49,792 @@ function void {{ class_prefix }}svt_configuration::configure({{ class_prefix }}s
     {%- endif %}
 endfunction
 
+{%- if is_emmc %}
 function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
     this.card_type = svt_emmc_types::EMMC;
-    this.card_capacity = svt_emmc_types::EMMC_CAP_REG_HS_2GB;
-    this.emmc_spec_ver = (sys_cfg.version == sys_cfg.VERSION_5_1) ? svt_emmc_types::EMMC_5_1 : svt_emmc_types::EMMC_5_0;
 
-    // Default values for CID/CSD/EXT_CSD/Device Status registers.
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_MID, 8'hff);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_CBX, 2'b01);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_PNM, 48'h0);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_PRV, 8'h0);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_PSN, 32'h0);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_MDT, 8'h0);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CID_REG_CRC, 7'h0);
+    // TODO: Once tPH & tVW capabilities are implemented from host side,
+    // below variable usage will be removed from code in case of H5200 mode.
+    this.hs200_tph_tvw_config_enable = 0;
+    case(sys_cfg.version)
+        sys_cfg.VERSION_5_1 : this.emmc_spec_ver = svt_emmc_types::EMMC_5_1;
+        sys_cfg.VERSION_5_0 : this.emmc_spec_ver = svt_emmc_types::EMMC_5_0;
+        default : `uvm_fatal("","NotImplemented")
+    endcase
 
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_CSD_STRUCTURE, 2'b11);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_SPEC_VERS, 4'b0100);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_TAAC, 8'h0E);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_NSAC, 8'h00);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_TRAN_SPEED, 8'h32);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_CCC, 12'h1F5);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_READ_BL_LEN, 4'h9);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_C_SIZE, 12'hFFF);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_SIZE, 5'h1F);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_MULT, 5'h1F);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_WP_GRP_SIZE, 5'h1F);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_CSD_REG_WRITE_BL_LEN, 4'h9);
+    // Default values for CID eMMC register configuration
+    reg_cfg.set_emmc_emmc_reg_field(8'd0, svt_emmc_types::EMMC_CID_REG_MID_B127_B120);
+    reg_cfg.set_emmc_emmc_reg_field(6'd0, svt_emmc_types::EMMC_CID_REG_RSVD_B119_B114);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_CID_REG_CBX_B113_B112);
+    reg_cfg.set_emmc_emmc_reg_field(8'd0, svt_emmc_types::EMMC_CID_REG_OID_B111_B104);
+    reg_cfg.set_emmc_emmc_reg_field(8'd0, svt_emmc_types::EMMC_CID_REG_PRV_B55_B48);
+    reg_cfg.set_emmc_emmc_reg_field(32'd0, svt_emmc_types::EMMC_CID_REG_PSN_B47_B16);
+    reg_cfg.set_emmc_emmc_reg_field(8'd0, svt_emmc_types::EMMC_CID_REG_MDT_B15_B8);
+    reg_cfg.set_emmc_emmc_reg_field(7'd0, svt_emmc_types::EMMC_CID_REG_CRC_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CID_REG_NOT_USED_B0);
+    reg_cfg.set_emmc_emmc_reg_field(48'd0, svt_emmc_types::EMMC_CID_REG_PNM_B103_B56);
+    // Default values for RCA eMMC register configuration
+    reg_cfg.set_emmc_emmc_reg_field(16'h0001, svt_emmc_types::EMMC_RCA_REG_B15_B0);
+    // Default values for DSR eMMC register configuration
+    reg_cfg.set_emmc_emmc_reg_field(16'h404, svt_emmc_types::EMMC_DSR_REG_B15_B0);
+    // Default values for CSD eMMC register configuration
+    reg_cfg.set_emmc_emmc_reg_field(2'd2, svt_emmc_types::EMMC_CSD_REG_CSD_STRUCTURE_B127_B126);
+    reg_cfg.set_emmc_emmc_reg_field(4'd4, svt_emmc_types::EMMC_CSD_REG_SPEC_VERS_B125_B122);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_CSD_REG_RSVD_B121_B120);
+    reg_cfg.set_emmc_emmc_reg_field(8'd0, svt_emmc_types::EMMC_CSD_REG_TAAC_B119_B112);
+    reg_cfg.set_emmc_emmc_reg_field(8'd0, svt_emmc_types::EMMC_CSD_REG_NSAC_B111_B104);
+    reg_cfg.set_emmc_emmc_reg_field(8'd1, svt_emmc_types::EMMC_CSD_REG_TRAN_SPEED_B103_B96);
+    reg_cfg.set_emmc_emmc_reg_field(12'b0111_1111_0101, svt_emmc_types::EMMC_CSD_REG_CCC_B95_B84);
+    reg_cfg.set_emmc_emmc_reg_field(4'd11, svt_emmc_types::EMMC_CSD_REG_READ_BL_LEN_B83_B80);
+    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_CSD_REG_READ_BL_PARTIAL_B79);
+    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_CSD_REG_WRITE_BLK_MISALIGN_B78);
+    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_CSD_REG_READ_BLK_MISALIGN_B77);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_DSR_IMP_B76);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_CSD_REG_RSVD_B75_B74);
+    reg_cfg.set_emmc_emmc_reg_field(12'd4095, svt_emmc_types::EMMC_CSD_REG_C_SIZE_B73_B62);
+    reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_R_CURR_MIN_B61_B59);
+    reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_R_CURR_MAX_B58_B56);
 
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_READY_FOR_DATA, 1'b1);
-    reg_cfg.set_emmc_cmc_reg_field('d0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CURRENT_STATE, 4'h4);
+
+
+
+    reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_W_CURR_MIN_B55_B53);
+    reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_W_CURR_MAX_B52_B50);
+    reg_cfg.set_emmc_emmc_reg_field(3'd6, svt_emmc_types::EMMC_CSD_REG_C_SIZE_MULT_B49_B47);
+    reg_cfg.set_emmc_emmc_reg_field(5'd3, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_SIZE_B46_B42);
+    reg_cfg.set_emmc_emmc_reg_field(5'd0, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_MULT_B41_B37);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_WP_GRP_SIZE_B36_B32);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_WP_GRP_ENABLE_B31);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_CSD_REG_DEFAULT_ECC_B30_B29);
+    reg_cfg.set_emmc_emmc_reg_field(3'd2, svt_emmc_types::EMMC_CSD_REG_R2W_FACTOR_B28_B26);
+    reg_cfg.set_emmc_emmc_reg_field(4'd11, svt_emmc_types::EMMC_CSD_REG_WRITE_BL_LEN_B25_B22);
+    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_CSD_REG_WRITE_BL_PARTIAL_B21);
+    reg_cfg.set_emmc_emmc_reg_field(4'd0, svt_emmc_types::EMMC_CSD_REG_RSVD_B20_B17);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_CONTENT_PROT_APP_B16);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_FILE_FORMAT_GRP_B15);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_COPY_B14);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_PERM_WRITE_PROTECT_B13);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_TMP_WRITE_PROTECT_B12);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_CSD_REG_FILE_FORMAT_B11_B10);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_CSD_REG_ECC_B9_B8);
+    reg_cfg.set_emmc_emmc_reg_field(7'd18, svt_emmc_types::EMMC_CSD_REG_CRC_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_CSD_REG_NOT_USED_B0);
+    // Get field values from OCR register
+    reg_cfg.set_emmc_emmc_reg_field(7'd0, svt_emmc_types::EMMC_OCR_REG_VDD_RSVD_B6_B0);
+    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_OCR_REG_VDD_B7_1PT7_1PT9);
+    reg_cfg.set_emmc_emmc_reg_field(7'd0, svt_emmc_types::EMMC_OCR_REG_VDD_B14_B8_2PT0_2PT6);
+    reg_cfg.set_emmc_emmc_reg_field(9'd511, svt_emmc_types::EMMC_OCR_REG_VDD_B23_B15_2PT7_3PT6);
+    reg_cfg.set_emmc_emmc_reg_field(5'd0, svt_emmc_types::EMMC_OCR_REG_VDD_RSVD_B28_B24);
+    reg_cfg.set_emmc_emmc_reg_field(2'd2, svt_emmc_types::EMMC_OCR_REG_VDD_ACCESS_MODE_B30_B29);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_OCR_REG_CARD_POWERUP_STATUS_B31);
+
+    // Get field values from EXT_CSD register
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE511_BYTE506);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_SECURITY_ERR_BYTE505_RSVD_B7_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_SECURITY_ERR_BYTE505_ACCESS_DENIED_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_SECURITY_ERR_BYTE505_SEC_INVALID_COMMAND_PARAMETERS_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_S_CMD_SET_BYTE504);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_HPI_FEATURES_BYTE503_RSVD_B7_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_HPI_FEATURES_BYTE503_HPI_IMPLEMENTATION_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_HPI_FEATURES_BYTE503_HPI_SUPPORT_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BKOPS_SUPPORT_BYTE502_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BKOPS_SUPPORT_BYTE502_SUPPORTED_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d5, svt_emmc_types::EMMC_EXT_CSD_REG_MAX_PACKED_READS_BYTE501);
+    reg_cfg.set_emmc_emmc_reg_field('d3, svt_emmc_types::EMMC_EXT_CSD_REG_MAX_PACKED_WRITES_BYTE500);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DATA_TAG_SUPPORT_BYTE499_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DATA_TAG_SUPPORT_BYTE499_SYSTEM_DATA_TAG_SUPPORT_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_TAG_UNIT_SIZE_BYTE498);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_TAG_RES_SIZE_BYTE497);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CAPABILITIES_BYTE496_RSVD_B7);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CAPABILITIES_BYTE496_LARGE_UNIT_MAX_MULTIPLIER_M1_B6_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d5, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CAPABILITIES_BYTE496_MAX_CONTEXT_ID_B3_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_LARGE_UNIT_SIZE_M1_BYTE495);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_SUPPORT_BYTE494_RSVD_B7_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_SUPPORT_BYTE494_NON_PERSISTENT_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_SUPPORT_BYTE494_SYSTEM_CODE_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SUPPORTED_MODES_BYTE493_RSVD_B7_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SUPPORTED_MODES_BYTE493_VSM_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SUPPORTED_MODES_BYTE493_FFU_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FFU_FEATURES_BYTE492_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FFU_FEATURES_BYTE492_SUPPORTED_MODE_OPERATION_CODES_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_OPERATION_CODE_TIMEOUT_BYTE491);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FFU_ARG_BYTE490_BYTE487);
+    if (this.emmc_spec_ver == svt_emmc_types::EMMC_5_1) begin
+        reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BARRIER_SUPPORT_BYTE486);
+        reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE485_BYTE309);
+        reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_CMDQ_SUPPORT_BYTE308_B0);
+        //reg_cfg.set_emmc_emmc_reg_field('d31, svt_emmc_types::EMMC_EXT_CSD_REG_CMDQ_DEPTH_BYTE307_B4_B0);
+        reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RESERVED_BYTE306);
+    end
+    else begin
+        reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE486_BYTE306);
+    end
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_NUMBER_OF_FW_SECTORS_CORRECTLY_PROGRAMMED_BYTE305_BYTE302);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_VENDOR_PROPRIETARY_HEALTH_REPORT_BYTE301_BYTE270);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DEVICE_LIFE_TIME_EST_TYP_B_BYTE269);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DEVICE_LIFE_TIME_EST_TYP_A_BYTE268);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRE_EOL_INFO_BYTE267);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_OPTIMAL_READ_SIZE_BYTE266);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_OPTIMAL_WRITE_SIZE_BYTE265);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_OPTIMAL_TRIM_UNIT_SIZE_BYTE264);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DEVICE_VERSION_BYTE263_BYTE262);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FIRMWARE_VERSION_BYTE261_BYTE254);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_DDR_200_360_BYTE253);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CACHE_SIZE_BYTE252_BYTE249);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GENERIC_CMD6_TIME_BYTE248);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_POWER_OFF_LONG_TIME_BYTE247);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BKOPS_STATUS_BYTE246_RSVD_B7_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BKOPS_STATUS_BYTE246_OUTSTANDING_B1_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CORRECTLY_PRG_SECTORS_NUM_3_BYTE245);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CORRECTLY_PRG_SECTORS_NUM_2_BYTE244);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CORRECTLY_PRG_SECTORS_NUM_1_BYTE243);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CORRECTLY_PRG_SECTORS_NUM_0_BYTE242);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_INI_TIMEOUT_AP_BYTE241);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE240);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_DDR_52_360_BYTE239);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_DDR_52_195_BYTE238);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_200_195_BYTE237);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_200_130_BYTE236);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_DDR_W_8_52_BYTE235);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_DDR_R_8_52_BYTE234);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE233);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_TRIM_MULT_BYTE232);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_FEATURE_SUPPORT_BYTE231_RSVD_B7);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_FEATURE_SUPPORT_BYTE231_SEC_SANITIZE_B6);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_FEATURE_SUPPORT_BYTE231_RSVD_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_FEATURE_SUPPORT_BYTE231_SEC_GB_CL_EN_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_FEATURE_SUPPORT_BYTE231_RSVD_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_FEATURE_SUPPORT_BYTE231_SEC_BD_BLK_EN_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_FEATURE_SUPPORT_BYTE231_RSVD_B1_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_ERASE_MULT_BYTE230);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_TRIM_MULT_BYTE229);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_INFO_BYTE228_RSVD_B7_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_INFO_BYTE228_HS_BOOT_MODE_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_INFO_BYTE228_DDR_BOOT_MODE_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_INFO_BYTE228_ALT_BOOT_MODE_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE227);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_SIZE_MULTI_BYTE226);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ACC_SIZE_BYTE225_RSVD_B7_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ACC_SIZE_BYTE225_SUPER_PAGE_SIZE_B3_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_HC_ERASE_GRP_SIZE_BYTE224);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ERASE_TIMEOUT_MULT_BYTE223);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_REL_WR_SEC_C_BYTE222);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_HC_WP_GRP_SIZE_BYTE221);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_S_C_VCC_BYTE220);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_S_C_VCCQ_BYTE219);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCTION_STATE_AWARENESS_TIMEOUT_BYTE218);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_S_A_TIMEOUT_BYTE217);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SLEEP_NOTIFICATION_TIME_BYTE216);
+    reg_cfg.set_emmc_emmc_reg_field('d536870912, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_COUNT_BYTE215_BYTE212);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE211);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_W_8_52_BYTE210);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_R_8_52_BYTE209);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_W_8_26_4_52_BYTE208);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_R_8_26_4_52_BYTE207);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_W_4_26_BYTE206);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MIN_PERF_R_4_26_BYTE205);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE204);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_26_360_BYTE203);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_52_360_BYTE202);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_26_195_BYTE201);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PWR_CL_52_195_BYTE200);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITION_SWITCH_TIME_BYTE199);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_OUT_OF_INTERRUPT_TIME_BYTE198);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DRIVER_STRENGTH_BYTE197);
+    reg_cfg.set_emmc_emmc_reg_field(8'hFF, svt_emmc_types::EMMC_EXT_CSD_REG_DEVICE_TYPE_BYTE196);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE195);
+    reg_cfg.set_emmc_emmc_reg_field('d2, svt_emmc_types::EMMC_EXT_CSD_REG_CSD_STRUCTURE_BYTE194);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE193);
+    reg_cfg.set_emmc_emmc_reg_field('d7, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_CSD_REV_BYTE192);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CMD_SET_BYTE191);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE190);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_CMD_SET_REV_BYTE189);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE188);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_POWER_CLASS_BYTE187);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE186);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_HS_TIMING_BYTE185_SELECTED_DRIVER_STRENGTH_B7_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_HS_TIMING_BYTE185_TIMING_INTERFACE_B3_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE184);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BUS_WIDTH_BYTE183);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE182);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ERASED_MEM_CONT_BYTE181);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE180);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITION_CONFIG_BYTE179_RSVD_B7);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITION_CONFIG_BYTE179_BOOT_ACK_B6);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITION_CONFIG_BYTE179_BOOT_PARTITION_ENABLE_B5_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITION_CONFIG_BYTE179_PARTITION_ACCESS_B2_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_CONFIG_PROT_BYTE178_RSVD_B7_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_CONFIG_PROT_BYTE178_PERM_BOOT_CONFIG_PROT_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_CONFIG_PROT_BYTE178_RSVD_B3_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_CONFIG_PROT_BYTE178_PWR_BOOT_CONFIG_PROT_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_BUS_CONDITIONS_BYTE177_RSVD_B7_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_BUS_CONDITIONS_BYTE177_BOOT_MODE_B4_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_BUS_CONDITIONS_BYTE177_RESET_BOOT_BUS_CONDITIONS_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_BUS_CONDITIONS_BYTE177_BOOT_BUS_WIDTH_B1_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE176);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ERASE_GROUP_DEF_BYTE175_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ERASE_GROUP_DEF_BYTE175_ENABLE_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_STATUS_BYTE174_RSVD_B7_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_STATUS_BYTE174_B_AREA_2_WP_B3_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_STATUS_BYTE174_B_AREA_1_WP_B1_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_B_SEC_WP_SEL_B7);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_B_PWR_WP_DIS_B6);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_RSVD_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_B_PERM_WP_DIS_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_B_PERM_WP_SEC_SEL_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_B_PERM_WP_EN_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_B_PWR_WP_SEC_SEL_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BOOT_WP_BYTE173_B_PWR_WP_EN_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE172);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_PERM_PSWD_DIS_B7);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_CD_PERM_WP_DIS_B6);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_RSVD_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_US_PERM_WP_DIS_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_US_PWR_WP_DIS_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_US_PERM_WP_EN_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_RSVD_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USER_WP_BYTE171_US_PWR_WP_EN_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE170);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FW_CONFIG_BYTE169_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_FW_CONFIG_BYTE169_UPDATE_DISABLE_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RPMB_SIZE_MULT_BYTE168);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_SET_BYTE167_RSVD_B7_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_SET_BYTE167_WR_DATA_REL_4_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_SET_BYTE167_WR_DATA_REL_3_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_SET_BYTE167_WR_DATA_REL_2_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_SET_BYTE167_WR_DATA_REL_1_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_SET_BYTE167_WR_DATA_REL_USR_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_PARAM_BYTE166_RSVD_B7_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_PARAM_BYTE166_EN_REL_WR_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_PARAM_BYTE166_RSVD_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_WR_REL_PARAM_BYTE166_HS_CTRL_REL_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SANITIZE_START_BYTE165);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BKOPS_START_BYTE164);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BKOPS_EN_BYTE163_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_BKOPS_EN_BYTE163_ENABLE_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RST_n_FUNCTION_BYTE162_RSVD_B7_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RST_n_FUNCTION_BYTE162_RST_n_ENABLE_B1_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_HPI_MGMT_BYTE161_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_HPI_MGMT_BYTE161_HPI_EN_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITIONING_SUPPORT_BYTE160_RSVD_B7_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITIONING_SUPPORT_BYTE160_EXT_ATTRIBUTE_EN_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITIONING_SUPPORT_BYTE160_ENH_ATTRIBUTE_EN_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITIONING_SUPPORT_BYTE160_PARTITIONING_EN_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MAX_ENH_SIZE_MULT_2_BYTE159);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MAX_ENH_SIZE_MULT_1_BYTE158);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MAX_ENH_SIZE_MULT_0_BYTE157);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITIONS_ATTRIBUTE_BYTE156);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITION_SETTING_COMPLETED_BYTE155_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PARTITION_SETTING_COMPLETED_BYTE155_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_4_2_BYTE154);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_4_1_BYTE153);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_4_0_BYTE152);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_3_2_BYTE151);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_3_1_BYTE150);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_3_0_BYTE149);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_2_2_BYTE148);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_2_1_BYTE147);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_2_0_BYTE146);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_1_2_BYTE145);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_1_1_BYTE144);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_GP_SIZE_MULT_1_0_BYTE143);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ENH_SIZE_MULT_2_BYTE142);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ENH_SIZE_MULT_1_BYTE141);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ENH_SIZE_MULT_0_BYTE140);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ENH_START_ADDR_3_BYTE139);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ENH_START_ADDR_2_BYTE138);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ENH_START_ADDR_1_BYTE137);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_ENH_START_ADDR_0_BYTE136);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE135);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_BAD_BLK_MGMNT_BYTE134_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SEC_BAD_BLK_MGMNT_BYTE134_SEC_BAD_BLK_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCTION_STATE_AWARENESS_BYTE133);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_TCASE_SUPPORT_BYTE132);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PERIODIC_WAKEUP_BYTE131_WAKEUP_UNIT_B7_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PERIODIC_WAKEUP_BYTE131_WAKEUP_PERIOD_B4_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PROGRAM_CID_CSD_DDR_SUPPORT_BYTE130_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PROGRAM_CID_CSD_DDR_SUPPORT_BYTE130_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE129_BYTE128);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_VENDOR_SPECIFIC_FIELD_BYTE127_BYTE64);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_NATIVE_SECTOR_SIZE_BYTE63);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_USE_NATIVE_SECTOR_BYTE62);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DATA_SECTOR_SIZE_BYTE61);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_INI_TIMEOUT_EMU_BYTE60);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CLASS_6_CTRL_BYTE59);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_DYNCAP_NEEDED_BYTE58);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_CTRL_RSVD_BYTE57);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_CTRL_BYTE56_RSVD_B7_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_CTRL_BYTE56_EXTENDED_SECURITY_EN_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_CTRL_BYTE56_PACKED_EVENT_EN_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_CTRL_BYTE56_SYSPOOL_EVENT_EN_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d1, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_CTRL_BYTE56_DYNCAP_EVENT_EN_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_CTRL_BYTE56_RSVD_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_STATUS_RSVD_BYTE55);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_STATUS_BYTE54_RSVD_B7_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_STATUS_BYTE54_EXTENDED_SECURITY_FAILURE_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_STATUS_BYTE54_PACKED_FAILURE_B3);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_STATUS_BYTE54_SYSPOOL_EXHAUSTED_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_STATUS_BYTE54_DYNCAP_NEEDED_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXCEPTION_EVENTS_STATUS_BYTE54_URGENT_BKOPS_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_PARTITIONS_ATTRIBUTE_BYTE53_EXT_4_B7_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_PARTITIONS_ATTRIBUTE_BYTE53_EXT_3_B3_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_PARTITIONS_ATTRIBUTE_BYTE52_EXT_2_B7_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_EXT_PARTITIONS_ATTRIBUTE_BYTE52_EXT_1_B3_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE51);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE50);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE49);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE48);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE47);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE46);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE45);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE44);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE43);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE42);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE41);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE40);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE39);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE38);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CONTEXT_CONF_BYTE37);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PACKED_COMMAND_STATUS_BYTE36_RSVD_B7_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PACKED_COMMAND_STATUS_BYTE36_INDEXED_ERROR_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PACKED_COMMAND_STATUS_BYTE36_ERROR_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PACKED_FAILURE_INDEX_BYTE35);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_POWER_OFF_NOTIFICATION_BYTE34);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CACHE_CTRL_BYTE33_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_CACHE_CTRL_BYTE33_CACHE_EN_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FLUSH_CACHE_BYTE32_RSVD_B7_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FLUSH_CACHE_BYTE32_FLUSH_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE31);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MODE_CONFIG_BYTE30);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MODE_OPERATION_CODES_BYTE29);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE28_BYTE27);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_FFU_STATUS_BYTE26);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRE_LOADING_DATA_SIZE_BYTE25);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRE_LOADING_DATA_SIZE_BYTE24);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRE_LOADING_DATA_SIZE_BYTE23);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRE_LOADING_DATA_SIZE_BYTE22);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_MAX_PRE_LOADING_DATA_SIZE_BYTE21_BYTE18);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCT_STATE_AWARENESS_ENABLEMENT_BYTE17_RSVD_B7_B6);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCT_STATE_AWARENESS_ENABLEMENT_BYTE17_MODE_B5);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCT_STATE_AWARENESS_ENABLEMENT_BYTE17_PRODUCTION_STATE_AWARENESS_ENABLE_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCT_STATE_AWARENESS_ENABLEMENT_BYTE17_RSVD_B3_B2);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCT_STATE_AWARENESS_ENABLEMENT_BYTE17_AUTO_MODE_SUPPORTED_B1);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_PRODUCT_STATE_AWARENESS_ENABLEMENT_BYTE17_MANUAL_MODE_SUPPORTED_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SECURE_REMOVAL_TYPE_BYTE16_RSVD_B7_B6);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SECURE_REMOVAL_TYPE_BYTE16_CONFIGURE_SECURE_REMOVAL_TYPE_B5_B4);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_SECURE_REMOVAL_TYPE_BYTE16_SUPPORTED_SECURE_REMOVAL_TYPE_B3_B0);
+    reg_cfg.set_emmc_emmc_reg_field('d0, svt_emmc_types::EMMC_EXT_CSD_REG_RSVD_BYTE15_BYTE0);
+
+    // Field values of Device Status register
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ADDRESS_OUT_OF_RANGE_B31);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ADDRESS_MISALIGN_B30);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_BLOCK_LEN_ERROR_B29);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ERASE_SEQ_ERROR_B28);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ERASE_PARAM_B27);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_WP_VIOLATION_B26);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_DEVICE_IS_LOCKED_B25);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_LOCK_UNLOCK_FAILED_B24);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_COM_CRC_ERROR_B23);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ILLEGAL_COMMAND_B22);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_DEVICE_ECC_FAILED_B21);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CC_ERROR_B20);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ERROR_B19);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_OBLIT_B18);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_OBLIT_B17);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CID_CSD_OVERWRITE_B16);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_WP_ERASE_SKIP_B15);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_RSVD_B14);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ERASE_RESET_B13);
+    reg_cfg.set_emmc_emmc_reg_field(4'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CURRENT_STATE_B12_B9);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_READY_FOR_DATA_B8);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_SWITCH_ERROR_B7);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_EXCEPTION_EVENT_B6);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_APP_CMD_B5);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_RSVD_B4);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_RSVD_B3_B2);
+    reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_RSVD_B1_B0);
+endfunction
+{%- elif is_sdcard %}
+function void {{ class_prefix }}svt_configuration::load_sd_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
+    this.card_type = svt_emmc_types::SD;
+    case(sys_cfg.capacity_type)
+        sys_cfg.SDSC : this.card_capacity = svt_emmc_types::SDSC;
+        sys_cfg.SDHC : this.card_capacity = svt_emmc_types::SDHC;
+        sys_cfg.SDXC : this.card_capacity = svt_emmc_types::SDXC;
+        default : `uvm_fatal("","NotImplemented")
+    endcase
+    this.timing_cfg.fPP_min_MHz = 25;
+    this.timing_cfg.fPP_max_MHz = 50;
+
+    // uhs1
+    case(sys_cfg.capacity_type)
+        sys_cfg.SDSC : this.uhs1_card_support = svt_emmc_types::NON_UHS_I;
+        sys_cfg.SDHC,sys_cfg.SDXC : this.uhs1_card_support = svt_emmc_types::UHS104;
+        default : `uvm_fatal("","NotImplemented")
+    endcase
+
+    case(sys_cfg.version)
+        sys_cfg.VERSION_6_00 : this.emmc_spec_ver = svt_emmc_types::SD_6_0;
+        sys_cfg.VERSION_5_10 : this.emmc_spec_ver = svt_emmc_types::SD_5_1;
+        sys_cfg.VERSION_5_00 : this.emmc_spec_ver = svt_emmc_types::SD_5_0;
+        sys_cfg.VERSION_4_20 : this.emmc_spec_ver = svt_emmc_types::SD_4_20;
+        sys_cfg.VERSION_3_00 : this.emmc_spec_ver = svt_emmc_types::SD_3_00;
+        sys_cfg.VERSION_2_00 : this.emmc_spec_ver = svt_emmc_types::SD_2_00;
+        sys_cfg.VERSION_1_10 : this.emmc_spec_ver = svt_emmc_types::SD_1_10;
+        sys_cfg.VERSION_1_01 : this.emmc_spec_ver = svt_emmc_types::SD_1_01;
+        default : `uvm_fatal("","NotImplemented")
+    endcase
+
+    this.allow_single_range_ocr_voltage_validation = sys_cfg.reg_cfg.allow_single_range_ocr_voltage_validation;
+
+
+    // Default values for CID SD register configuration
+    reg_cfg.set_emmc_sd_reg_field(8'd0, svt_emmc_types::SD_CID_REG_MID_B127_B120);
+    reg_cfg.set_emmc_sd_reg_field(16'd0, svt_emmc_types::SD_CID_REG_OID_B119_B104);
+    reg_cfg.set_emmc_sd_reg_field(40'd0, svt_emmc_types::SD_CID_REG_PNM_B103_B64);
+    reg_cfg.set_emmc_sd_reg_field(8'd0, svt_emmc_types::SD_CID_REG_PRV_B63_B56);
+    reg_cfg.set_emmc_sd_reg_field(32'd0, svt_emmc_types::SD_CID_REG_PSN_B55_B24);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_CID_REG_RSVD_B23_B20);
+    reg_cfg.set_emmc_sd_reg_field(12'd0, svt_emmc_types::SD_CID_REG_MDT_B19_B8);
+    reg_cfg.set_emmc_sd_reg_field(7'd0, svt_emmc_types::SD_CID_REG_CRC_B7_B1);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CID_REG_NOT_USED_B1);
+
+
+    // Default values for RCA SD register configuration
+    reg_cfg.set_emmc_sd_reg_field(16'd0, svt_emmc_types::SD_RCA_REG_B16_B0);
+
+    // Default values for DSR SD register configuration
+    reg_cfg.set_emmc_sd_reg_field(16'h404, svt_emmc_types::SD_DSR_REG_B16_B0);
+
+    // Default values for CSD Version 1.0 SD register configuration
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V1_CSD_STRUCTURE_B127_B126);
+    reg_cfg.set_emmc_sd_reg_field(6'd0, svt_emmc_types::SD_CSD_REG_V1_RSVD_B125_B120);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_TAAC_RSVD_B119);
+    reg_cfg.set_emmc_sd_reg_field(4'd1, svt_emmc_types::SD_CSD_REG_V1_TAAC_B118_B115);
+    reg_cfg.set_emmc_sd_reg_field(3'd1, svt_emmc_types::SD_CSD_REG_V1_TAAC_B114_B112);
+    reg_cfg.set_emmc_sd_reg_field(8'd0, svt_emmc_types::SD_CSD_REG_V1_NSAC_B111_B104);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_TRAN_SPEED_RSVD_B103);
+    reg_cfg.set_emmc_sd_reg_field(4'd1, svt_emmc_types::SD_CSD_REG_V1_TRAN_SPEED_B102_B99);
+    reg_cfg.set_emmc_sd_reg_field(4'd3, svt_emmc_types::SD_CSD_REG_V1_TRAN_SPEED_B98_B96);
+    reg_cfg.set_emmc_sd_reg_field(12'b010110110101, svt_emmc_types::SD_CSD_REG_V1_CCC_B95_B84);
+    reg_cfg.set_emmc_sd_reg_field(4'd9, svt_emmc_types::SD_CSD_REG_V1_READ_BL_LEN_B83_B80);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_CSD_REG_V1_READ_BL_PARTIAL_B79);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_CSD_REG_V1_WRITE_BLK_MISALIGN_B78);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_CSD_REG_V1_READ_BLK_MISALIGN_B77);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_DSR_IMP_B76);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V1_RSVD_B75_B74);
+    reg_cfg.set_emmc_sd_reg_field(12'd4095, svt_emmc_types::SD_CSD_REG_V1_C_SIZE_B73_B62);
+    reg_cfg.set_emmc_sd_reg_field(3'd0, svt_emmc_types::SD_CSD_REG_V1_VDD_R_CURR_MIN_B61_B59);
+    reg_cfg.set_emmc_sd_reg_field(3'd0, svt_emmc_types::SD_CSD_REG_V1_VDD_R_CURR_MAX_B58_B56);
+    reg_cfg.set_emmc_sd_reg_field(3'd0, svt_emmc_types::SD_CSD_REG_V1_VDD_W_CURR_MIN_B55_B53);
+    reg_cfg.set_emmc_sd_reg_field(3'd0, svt_emmc_types::SD_CSD_REG_V1_VDD_W_CURR_MAX_B52_B50);
+    reg_cfg.set_emmc_sd_reg_field(3'd6, svt_emmc_types::SD_CSD_REG_V1_C_SIZE_MULT_B49_B47);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_ERASE_BLK_EN_B46);
+    reg_cfg.set_emmc_sd_reg_field(7'd0, svt_emmc_types::SD_CSD_REG_V1_SECTOR_SIZE_B45_B39);
+    reg_cfg.set_emmc_sd_reg_field(7'd0, svt_emmc_types::SD_CSD_REG_V1_WP_GRP_SIZE_B38_B32);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_WP_GRP_ENABLE_B31);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V1_RSVD_B30_B29);
+    reg_cfg.set_emmc_sd_reg_field(3'd0, svt_emmc_types::SD_CSD_REG_V1_R2W_FACTOR_B28_B26);
+    reg_cfg.set_emmc_sd_reg_field(4'd9, svt_emmc_types::SD_CSD_REG_V1_WRITE_BL_LEN_B25_B22);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_CSD_REG_V1_WRITE_BL_PARTIAL_B21);
+    reg_cfg.set_emmc_sd_reg_field(5'd0, svt_emmc_types::SD_CSD_REG_V1_RSVD_B20_B16);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_FILE_FORMAT_GRP_B15);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_COPY_B14);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_PERM_WRITE_PROTECT_B13);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_TMP_WRITE_PROTECT_B12);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V1_FILE_FORMAT_B11_B10);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V1_RSVD_B9_B8);
+    reg_cfg.set_emmc_sd_reg_field(7'h0, svt_emmc_types::SD_CSD_REG_V1_CRC_B7_B1);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V1_NOT_USED_B0);
+
+    // Default values for CSD Version 2.0 SD register configuration
+    reg_cfg.set_emmc_sd_reg_field(2'd1, svt_emmc_types::SD_CSD_REG_V2_CSD_STRUCTURE_B127_B126);
+    reg_cfg.set_emmc_sd_reg_field(6'd0, svt_emmc_types::SD_CSD_REG_V2_RSVD_B125_B120);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_TAAC_RSVD_B119);
+    reg_cfg.set_emmc_sd_reg_field(4'b0001, svt_emmc_types::SD_CSD_REG_V2_TAAC_B118_B115);
+    reg_cfg.set_emmc_sd_reg_field(3'b110, svt_emmc_types::SD_CSD_REG_V2_TAAC_B114_B112);
+    reg_cfg.set_emmc_sd_reg_field(8'd0, svt_emmc_types::SD_CSD_REG_V2_NSAC_B111_B104);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_TRAN_SPEED_RSVD_B103);
+    reg_cfg.set_emmc_sd_reg_field(4'd6, svt_emmc_types::SD_CSD_REG_V2_TRAN_SPEED_B102_B99);
+    reg_cfg.set_emmc_sd_reg_field(3'd2, svt_emmc_types::SD_CSD_REG_V2_TRAN_SPEED_B98_B96);
+    reg_cfg.set_emmc_sd_reg_field(12'b010110110101, svt_emmc_types::SD_CSD_REG_V2_CCC_B95_B84);
+    reg_cfg.set_emmc_sd_reg_field(4'd9, svt_emmc_types::SD_CSD_REG_V2_READ_BL_LEN_B83_B80);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_READ_BL_PARTIAL_B79);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_WRITE_BLK_MISALIGN_B78);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_READ_BLK_MISALIGN_B77);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_DSR_IMP_B76);
+    reg_cfg.set_emmc_sd_reg_field(6'd0, svt_emmc_types::SD_CSD_REG_V2_RSVD_B75_B70);
+    reg_cfg.set_emmc_sd_reg_field(22'h00FFFF, svt_emmc_types::SD_CSD_REG_V2_C_SIZE_B69_B48);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_RSVD_B47);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_CSD_REG_V2_ERASE_BLK_EN_B46);
+    reg_cfg.set_emmc_sd_reg_field(7'h7f, svt_emmc_types::SD_CSD_REG_V2_ERASE_SECTOR_SIZE_B45_B39);
+    reg_cfg.set_emmc_sd_reg_field(7'd0, svt_emmc_types::SD_CSD_REG_V2_WP_PROTECT_GRP_SIZE_B38_B32);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_WP_PROTECT_GRP_ENABLE_B31);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V2_RSVD_B30_B29);
+    reg_cfg.set_emmc_sd_reg_field(3'd2, svt_emmc_types::SD_CSD_REG_V2_R2W_FACTOR_B28_B26);
+    reg_cfg.set_emmc_sd_reg_field(4'd9, svt_emmc_types::SD_CSD_REG_V2_WRITE_BL_LEN_B25_B22);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_WRITE_BL_PARTIAL_B21);
+    reg_cfg.set_emmc_sd_reg_field(5'd0, svt_emmc_types::SD_CSD_REG_V2_RSVD_B20_B16);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_FILE_FORMAT_GRP_B15);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_COPY_B14);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_PERM_WRITE_PROTECT_B13);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_TMP_WRITE_PROTECT_B12);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V2_FILE_FORMAT_B11_B10);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_CSD_REG_V2_RSVD_B9_B8);
+    reg_cfg.set_emmc_sd_reg_field(7'h0, svt_emmc_types::SD_CSD_REG_V2_CRC_B7_B1);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CSD_REG_V2_NOT_USED_B0);
+
+    // Default values for SCR SD register configuration
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_SCR_REG_SCR_STRUCTURE_B63_B60);
+    reg_cfg.set_emmc_sd_reg_field(4'd1, svt_emmc_types::SD_SCR_REG_SD_SPEC_B59_B56);
+    reg_cfg.set_emmc_sd_reg_field(4'd2, svt_emmc_types::SD_SCR_REG_SD_SPEC_B59_B56);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_SCR_REG_DATA_STAT_AFTER_ERASE_B55);
+    reg_cfg.set_emmc_sd_reg_field(3'd2, svt_emmc_types::SD_SCR_REG_SD_SECURITY_B54_B52);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_SCR_REG_SD_BUS_WIDTH_RSVD_B51);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_SCR_REG_SD_BUS_WIDTH_B50);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_SCR_REG_SD_BUS_WIDTH_RSVD_B49);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_SCR_REG_SD_BUS_WIDTH_B48);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_SCR_REG_SD_SPEC3_B47);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_SCR_REG_EXTN_SECURITY_B46_B43);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_SCR_REG_SD_SPEC4_B42);
+    reg_cfg.set_emmc_sd_reg_field(6'd0, svt_emmc_types::SD_SCR_REG_RSVD_B41_B36);
+    //reg_cfg.set_emmc_sd_reg_field(4'b1110, svt_emmc_types::SD_SCR_REG_CMD_SUPPORT_B35_B32);
+    reg_cfg.set_emmc_sd_reg_field(4'b1111, svt_emmc_types::SD_SCR_REG_CMD_SUPPORT_B35_B32);
+    reg_cfg.set_emmc_sd_reg_field(32'd0, svt_emmc_types::SD_SCR_REG_RSVD_B31_B0);
+
+    // Get field values from OCR SD register
+    reg_cfg.set_emmc_sd_reg_field(15'd0, svt_emmc_types::SD_OCR_REG_VDD_RSVD_B14_B0);
+    if (this.emmc_spec_ver inside {svt_emmc_types::SD_1_10, svt_emmc_types::SD_1_01}) begin
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[15], svt_emmc_types::SD_OCR_REG_VDD_B23_3PT5_3PT6);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[14], svt_emmc_types::SD_OCR_REG_VDD_B22_3PT4_3PT5);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[13], svt_emmc_types::SD_OCR_REG_VDD_B21_3PT3_3PT4);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[12], svt_emmc_types::SD_OCR_REG_VDD_B20_3PT2_3PT3);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[11], svt_emmc_types::SD_OCR_REG_VDD_B19_3PT1_3PT2);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[10], svt_emmc_types::SD_OCR_REG_VDD_B18_3PT0_3PT1);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[9], svt_emmc_types::SD_OCR_REG_VDD_B17_2PT9_3PT0);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[8], svt_emmc_types::SD_OCR_REG_VDD_B16_2PT8_2PT9);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[7], svt_emmc_types::SD_OCR_REG_VDD_B15_2PT7_2PT8);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[6], svt_emmc_types::SD_OCR_REG_VDD_B14_2PT6_2PT7);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[5], svt_emmc_types::SD_OCR_REG_VDD_B13_2PT5_2PT6);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[4], svt_emmc_types::SD_OCR_REG_VDD_B12_2PT4_2PT5);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[3], svt_emmc_types::SD_OCR_REG_VDD_B11_2PT3_2PT4);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[2], svt_emmc_types::SD_OCR_REG_VDD_B10_2PT2_2PT3);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[1], svt_emmc_types::SD_OCR_REG_VDD_B9_2PT1_2PT2);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[0], svt_emmc_types::SD_OCR_REG_VDD_B8_2PT0_2PT1);
+    end
+    else begin
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[8], svt_emmc_types::SD_OCR_REG_VDD_B23_3PT5_3PT6);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[7], svt_emmc_types::SD_OCR_REG_VDD_B22_3PT4_3PT5);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[6], svt_emmc_types::SD_OCR_REG_VDD_B21_3PT3_3PT4);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[5], svt_emmc_types::SD_OCR_REG_VDD_B20_3PT2_3PT3);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[4], svt_emmc_types::SD_OCR_REG_VDD_B19_3PT1_3PT2);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[3], svt_emmc_types::SD_OCR_REG_VDD_B18_3PT0_3PT1);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[2], svt_emmc_types::SD_OCR_REG_VDD_B17_2PT9_3PT0);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[1], svt_emmc_types::SD_OCR_REG_VDD_B16_2PT8_2PT9);
+        reg_cfg.set_emmc_sd_reg_field(sys_cfg.reg_cfg.ocr_voltage_window_supported_by_card[0], svt_emmc_types::SD_OCR_REG_VDD_B15_2PT7_2PT8);
+    end
+    //reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_OCR_REG_VDD_B24_SWITCH_1PT8_ACCEPTED);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_OCR_REG_VDD_B24_SWITCH_1PT8_ACCEPTED);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_OCR_REG_RSVD_B25_B28);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_OCR_REG_B29_UHS2_CARD_STATUS);
+    //reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_OCR_REG_B30_CARD_CAPACITY_STATUS);
+    reg_cfg.set_emmc_sd_reg_field(1'd1, svt_emmc_types::SD_OCR_REG_B30_CARD_CAPACITY_STATUS);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_OCR_REG_B31_CARD_POWERUP_STATUS);
+
+    // Get field values from SD STATUS register
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_STATUS_REG_DAT_BUS_WIDTH_B511_B510);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_STATUS_REG_SECURED_MODE_B509);
+    reg_cfg.set_emmc_sd_reg_field(13'd0, svt_emmc_types::SD_STATUS_REG_RSVD_B508_B496);
+    reg_cfg.set_emmc_sd_reg_field(16'h0000, svt_emmc_types::SD_STATUS_REG_SD_CARD_TYPE_B495_B480);
+    reg_cfg.set_emmc_sd_reg_field(22'd1024, svt_emmc_types::SD_STATUS_REG_SIZE_OF_PROTECTED_AREA_B479_B448);
+    reg_cfg.set_emmc_sd_reg_field(8'd2, svt_emmc_types::SD_STATUS_REG_SPEED_CLASS_B447_B440);
+    reg_cfg.set_emmc_sd_reg_field(8'd0, svt_emmc_types::SD_STATUS_REG_PERFORMANCE_MOVE_B439_B432);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_STATUS_REG_AU_SIZE_B431_B428);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_STATUS_REG_RSVD_B427_B424);
+    reg_cfg.set_emmc_sd_reg_field(16'd0, svt_emmc_types::SD_STATUS_REG_ERASE_SIZE_B423_B408);
+    reg_cfg.set_emmc_sd_reg_field(6'd0, svt_emmc_types::SD_STATUS_REG_ERASE_TIMEOUT_B407_B402);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_STATUS_REG_ERASE_OFFSET_B401_B400);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_STATUS_REG_UHS_SPEED_GRADE_B399_B396);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_STATUS_REG_UHS_AU_SIZE_B395_B392);
+    reg_cfg.set_emmc_sd_reg_field(80'd0, svt_emmc_types::SD_STATUS_REG_RSVD_B391_B312);
+    reg_cfg.set_emmc_sd_reg_field(0, svt_emmc_types::SD_STATUS_REG_RSVD_B311_B0);
+
+    // Field values of SD Card Status register
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_OUT_OF_RANGE_B31);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_ADDRESS_ERR_B30);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_BLOCK_LEN_ERR_B29);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_ERASE_SEQ_ERR_B28);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_ERASE_PARAM_B27);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_WP_VIOLATION_B26);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_CARD_IS_LOCKED_B25);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_LOCK_UNLOCK_FAILED_B24);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_COM_CRC_ERR_B23);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_ILLEGAL_COMMAND_B22);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_CARD_ECC_FAILED_B21);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_CC_ERR_B20);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_ERR_B19);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_RSVD_B18);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_RSVD_B17);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_CSD_OVERWRITE_B16);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_WP_ERASE_SKIP_B15);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_CARD_ECC_DISABLED_B14);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_ERASE_RESET_B13);
+    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_CARD_STATUS_REG_CURRENT_STATE_B12_B9);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_READY_FOR_DATA_B8);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_RSVD_B7);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_FX_EVENT_B6);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_APP_CMD_B5);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_RSVD_B4);
+    reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CARD_STATUS_REG_AKE_SEQ_ERROR_B3);
+    reg_cfg.set_emmc_sd_reg_field(3'd0, svt_emmc_types::SD_CARD_STATUS_REG_RSVD_B2_B0);
+    reg_cfg.set_emmc_sd_reg_field(8'd32, svt_emmc_types::SD_EXT_PERF_ENHANCE_FUNC_REG_CMDQ_SUPPORT_BYTE6);
 endfunction
 
+{%- elif is_sdio %}
 function void {{ class_prefix }}svt_configuration::load_sdio_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
     this.card_type = svt_emmc_types::SDIO;
     case(sys_cfg.capacity_type)
         sys_cfg.SDSC : this.card_capacity = svt_emmc_types::SDSC;
         sys_cfg.SDHC : this.card_capacity = svt_emmc_types::SDHC;
         sys_cfg.SDXC : this.card_capacity = svt_emmc_types::SDXC;
-        default : `uvm_fatal("","Not Implemented")
+        default : `uvm_fatal("","NotImplemented")
     endcase
-    this.sd_card_support = svt_emmc_types::UHS104;
+    this.uhs1_card_support = svt_emmc_types::UHS104;
 
-    reg_cfg.set_emmc_sdio_reg_field('d16, svt_emmc_types::SDIO_RCA_REG_RCA, 16'h0);
-    for(int i=0;i<24;i++)
-        reg_cfg.set_emmc_sdio_reg_field(i, svt_emmc_types::SDIO_OCR_REG_VDD_20_21P, 1'b1);
-    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CARD_STATUS_REG_READY_FOR_DATA, 1'b1);
-endfunction
-
-function void {{ class_prefix }}svt_configuration::load_sd_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
-    this.card_type = svt_emmc_types::SDCARD;
-    case(sys_cfg.capacity_type)
-        sys_cfg.SDSC : this.card_capacity = svt_emmc_types::SDSC;
-        sys_cfg.SDHC : this.card_capacity = svt_emmc_types::SDHC;
-        sys_cfg.SDXC : this.card_capacity = svt_emmc_types::SDXC;
-        default : `uvm_fatal("","Not Implemented")
+    /** To support Interrupt and Read Wait the Nac should be a minimum of 4 clocks */
+    case(sys_cfg.version)
+        sys_cfg.VERSION_4_0 : this.emmc_spec_ver = svt_emmc_types::SDIO_4_00;
+        default : `uvm_fatal("","NotImplemented")
     endcase
-    this.sd_card_support = svt_emmc_types::UHS104;
 
-    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_CID_REG_MID, 8'hFF);
-    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_CSD_REG_CSD_STRUCTURE, 2'b10);
-    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_OCR_REG_CARD_CAPACITY_STATUS, 1'b1);
-    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_STATUS_REG_READY_FOR_DATA, 1'b1);
-    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SD_CARD_STATUS_REG_READY_FOR_DATA, 1'b1);
-    reg_cfg.set_emmc_sdc_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_SMB, 1'b1);
+
+    // Default values for RCA SDIO register configuration
+    reg_cfg.set_emmc_sdio_reg_field(16'd0, svt_emmc_types::SDIO_RCA_REG_B16_B0);
+    // Default values for OCR SDIO register configuration
+    reg_cfg.set_emmc_sdio_reg_field(8'd0, svt_emmc_types::SDIO_OCR_REG_VDD_RSVD_B7_B0);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_OCR_REG_VDD_B8_2PT0_2PT1);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_OCR_REG_VDD_B9_2PT1_2PT2);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_OCR_REG_VDD_B10_2PT2_2PT3);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_OCR_REG_VDD_B11_2PT3_2PT4);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_OCR_REG_VDD_B12_2PT4_2PT5);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_OCR_REG_VDD_B13_2PT5_2PT6);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_OCR_REG_VDD_B14_2PT6_2PT7);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B15_2PT7_2PT8);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B16_2PT8_2PT9);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B17_2PT9_3PT0);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B18_3PT0_3PT1);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B19_3PT1_3PT2);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B20_3PT2_3PT3);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B21_3PT3_3PT4);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B22_3PT4_3PT5);
+    reg_cfg.set_emmc_sdio_reg_field(1'd1, svt_emmc_types::SDIO_OCR_REG_VDD_B23_3PT5_3PT6);
+
+    // Default values for Card Status SDIO register configuration
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_OUT_OF_RANGE_B31);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_ADDRESS_ERR_B30); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_BLOCK_LEN_ERR_B29); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_ERASE_SEQ_ERR_B28); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_ERASE_PARAM_B27); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_WP_VIOLATION_B26); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_CARD_IS_LOCKED_B25); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_LOCK_UNLOCK_FAILED_B24); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_COM_CRC_ERR_B23);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_ILLEGAL_COMMAND_B22);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_CARD_ECC_FAILED_B21); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_CC_ERR_B20); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_ERR_B19);
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_RSVD_B18); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_RSVD_B17); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_CSD_OVERWRITE_B16); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_WP_ERASE_SKIP_B15); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_CARD_ECC_DISABLED_B14); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_ERASE_RESET_B13); //NA for IO only
+    if (this.card_type == svt_emmc_types::SDIO)
+        reg_cfg.set_emmc_sdio_reg_field(4'd15, svt_emmc_types::SDIO_CARD_STATUS_REG_CURRENT_STATE_B12_B9); //For IO only card, the current state shall be fixed at a value of 0Fh.
+    else if (this.card_type == svt_emmc_types::COMBO)
+        reg_cfg.set_emmc_sdio_reg_field(4'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_CURRENT_STATE_B12_B9); //For IO only card, the current state shall be fixed at a value of 0Fh.
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_READY_FOR_DATA_B8); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_RSVD_B7); //RSVD
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_FX_EVENT_B6); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_APP_CMD_B5); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_RSVD_B4); //RSVD
+    reg_cfg.set_emmc_sdio_reg_field(1'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_AKE_SEQ_ERROR_B3); //NA for IO only
+    reg_cfg.set_emmc_sdio_reg_field(3'd0, svt_emmc_types::SDIO_CARD_STATUS_REG_RSVD_B2_B0); //RSVD
+
+    // Default values for CCCR SDIO register configuration
+    reg_cfg.set_emmc_sdio_reg_field('d4, svt_emmc_types::SDIO_CCCR_REG_CCCR_REVISION_B3_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d6, svt_emmc_types::SDIO_CCCR_REG_SDIO_REVISION_B7_B4);
+    reg_cfg.set_emmc_sdio_reg_field('d4, svt_emmc_types::SDIO_CCCR_REG_SD_SPEC_REVISION_B3_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_SD_SPEC_REVISION_RSVD_B7_B4);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_IO_ENABLE_RSVD_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_IO_ENABLE_B7_B1); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_IO_READY_RSVD_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_IO_READY_B7_B1);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_INT_ENABLE_MASTER_B0); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_INT_ENABLE_B7_B1); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_INT_PENDING_RSVD_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_INT_PENDING_B7_B1);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_IO_ABORT_SELECT_B2_B0); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_IO_ABORT_RESET_B3); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_IO_ABORT_RSVD_B7_B4);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_INTF_CTRL_BUS_WIDTH_B1_B0); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_BUS_INTF_CTRL_S8B_B2); //Support 8-bit Bus Mode
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_INTF_CTRL_RSVD_B4_B3);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_INTF_CTRL_ECSI_B5); //Not Support Enable Continuous SPI Interrupt
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_INTF_CTRL_SCSI_B6); //Not Support Support Continuous SPI interrupt
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_BUS_INTF_CTRL_CARD_DISABLE_B7); //Not Support Card Detect Disable. Keep By-default 1.
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_SDC_B0); //Support Direct Command (CMD52)
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_SMB_B1); //Support Multiple Block Transfer
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_SRW_B2); //Support Read Wait
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_SBS_B3); //Support Bus Control
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_S4MI_B4); //Support Block Gap Interrupt
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_E4MI_B5); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_LSC_B6); //Not Support Low-Speed Card
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_CARD_CAPABILITY_BLS_B7); //Not Support 4-bit Mode Support for Low-Speed Card
+    reg_cfg.set_emmc_sdio_reg_field('h001000, svt_emmc_types::SDIO_CCCR_REG_COMMON_CIS_POINTER); //Set to 001000h
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SUSPEND_BS_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SUSPEND_BR_B1);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SUSPEND_RSVD_B7_B1);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_FUNCTION_SELECT_FS_B3_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_FUNCTION_SELECT_RSVD_B6_B4);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_FUNCTION_SELECT_DF_B7);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_EXEC_FLAGS_EX_B7_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_READY_FLAGS_RF_B7_B0);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_FN0_BLOCK_SIZE); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_POWER_CONTROL_SMPC_B0); //Not Support Support Master Power Control
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_POWER_CONTROL_EMPC_B1); //Not Support Enable Master Power Control
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_POWER_CONTROL_TCP_B4_B2); //Not Support Total Card Power
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_POWER_CONTROL_RSVD_B7_B5);
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_BUS_SPEED_SELECT_SHS_B0); //Support Support High-Speed
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SPEED_SELECT_BSS_B1); //Default Speed
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SPEED_SELECT_BSS_B3_B2); //Default Speed
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SPEED_SELECT_RSVD_B7_B4);
+    reg_cfg.set_emmc_sdio_reg_field('b011, svt_emmc_types::SDIO_CCCR_REG_UHSI_SUPPORT_RSVD_B7_B0); //Support SDR50/SDR104/DDR50 TODO Here will need to separate this into four fields.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_SDTA_B0); //Not Support Support Driver Type A
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_SDTC_B1); //Not Support Support Driver Type C
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_SDTD_B2); //Not Support Support Driver Type D
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_RSVD_B3);
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_DTS_B5_B4); //All writeable bits are set to 0 after power-up or reset.
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_RSVD_B7_B6);
+    reg_cfg.set_emmc_sdio_reg_field('d1, svt_emmc_types::SDIO_CCCR_REG_INTR_EXTENSION_SAI_B0); //Support Support Asynchronous Interrupt
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_INTR_EXTENSION_EAI_B1); //Support Enable Asynchronous Interrupt
+    reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_INTR_EXTENSION_RSVD_B7_B2);
+
+    // FBR FUNCTION1 REGISTER
+    reg_cfg.set_emmc_sdio_reg_field(2'b01, svt_emmc_types::SDIO_FBR_REG_FUNC1_CSA_B7_B6);
+    // FBR FUNCTION2 REGISTER
+    reg_cfg.set_emmc_sdio_reg_field(2'b01, svt_emmc_types::SDIO_FBR_REG_FUNC2_CSA_B7_B6);
+    // FBR FUNCTION3 REGISTER
+    reg_cfg.set_emmc_sdio_reg_field(2'b01, svt_emmc_types::SDIO_FBR_REG_FUNC3_CSA_B7_B6);
+    // FBR FUNCTION4 REGISTER
+    reg_cfg.set_emmc_sdio_reg_field(2'b01, svt_emmc_types::SDIO_FBR_REG_FUNC4_CSA_B7_B6);
+    // FBR FUNCTION5 REGISTER
+    reg_cfg.set_emmc_sdio_reg_field(2'b01, svt_emmc_types::SDIO_FBR_REG_FUNC5_CSA_B7_B6);
+    // FBR FUNCTION6 REGISTER
+    reg_cfg.set_emmc_sdio_reg_field(2'b01, svt_emmc_types::SDIO_FBR_REG_FUNC6_CSA_B7_B6);
+    // FBR FUNCTION7 REGISTER
+    reg_cfg.set_emmc_sdio_reg_field(2'b01, svt_emmc_types::SDIO_FBR_REG_FUNC7_CSA_B7_B6);
 endfunction
+{%- endif %}
 
 `endif
