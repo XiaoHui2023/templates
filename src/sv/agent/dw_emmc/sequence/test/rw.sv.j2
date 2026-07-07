@@ -73,6 +73,7 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq;
         soft wr_multi_block_count == 2;
         soft rd_block_size == 512;
         soft wr_block_size == 512;
+        soft addr == 0;
         soft dma_enable == 0;
         soft rd_blocking == 0;
         soft rd == 1;
@@ -155,10 +156,11 @@ task {{ class_prefix }}rw_test_seq::body();
     })
 
     // 设置分区
-    `uvm_do_with(switch_part_cfg_seq,{
-        cmd_req.boot_partition_enable == local::boot_partition_enable;
-        cmd_req.boot_partition_access == local::boot_partition_access;
-    })
+    if(boot_partition_enable != BOOT_PARTITION_ENABLE_NO || boot_partition_access != BOOT_PARTITION_ACCESS_NO)
+        `uvm_do_with(switch_part_cfg_seq,{
+            cmd_req.boot_partition_enable == local::boot_partition_enable;
+            cmd_req.boot_partition_access == local::boot_partition_access;
+        })
 
     // 读1块
     if(rd_single) begin

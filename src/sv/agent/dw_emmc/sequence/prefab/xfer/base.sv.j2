@@ -115,9 +115,6 @@ endfunction
 task {{ class_prefix }}xfer_base_seq::body();
     write_adma_des();
     set_block_length();
-        {%- if is_emmc or is_sdcard %}
-    set_block_count();
-        {%- endif %}
     execute_command();
     do_abort();
 endtask
