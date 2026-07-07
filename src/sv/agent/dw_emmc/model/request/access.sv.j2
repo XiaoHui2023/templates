@@ -42,7 +42,7 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
     rand bit dma_enable; // DMA使能
     rand bit[31:0] dma_addr; // DMA起始地址
     rand dma_sel_e dma_sel; // DMA种类选择
-    rand int uhs_mode_sel; // 读写模式选择
+    rand int uhs_mode_sel; // 速度模式选择
     rand bit data_present_sel; // 是否有数据
     rand bit dat_xfer_width; // 影响数据位宽是否为 4bit (取决于 data_width)
     rand bit ext_dat_xfer; // 影响数据位宽是否为 8bit (取决于 data_width)

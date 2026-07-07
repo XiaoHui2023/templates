@@ -23,7 +23,7 @@ class Connection(BaseModel):
 class Models(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    class_prefix: str = Field("Emmc_ctrl", description="默认类名的前缀")
+    class_prefix: str = Field("Emmc_ctrl_", description="默认类名的前缀")
     card_type: Literal["emmc", "sdcard", "sdio"] = Field(..., description="card类型")
     class_regmodel: str = Field("ral_sys_DWC_mshc", description="寄存器类名")
     class_regmodel_rm: str = Field(

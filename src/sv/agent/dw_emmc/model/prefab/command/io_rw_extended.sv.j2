@@ -68,6 +68,11 @@ class {{ class_prefix }}io_rw_extended_command_request extends {{ class_prefix }
             argument[8:0] == count;
         }
 
+        if(block_mode == BLOCK && count != 1)
+            multi_blk_sel == MULTI;
+        else
+            multi_blk_sel == SINGLE;
+
         resp == R5;
         data_present_sel == 1;
         (rw_flag == RW_FLAG_READ) -> data_xfer_dir == XFER_READ;
