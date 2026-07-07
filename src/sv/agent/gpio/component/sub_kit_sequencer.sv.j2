@@ -4,6 +4,8 @@
 class {{ class_prefix }}sub_kit_sequencer extends {{ class_prefix }}sequencer;
     `uvm_component_utils({{ class_prefix }}sub_kit_sequencer)
 
+    bit last_test_ok = 1'b1;
+
     function new(string name="{{ class_prefix }}sub_kit_sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
@@ -162,13 +164,16 @@ task {{ class_prefix }}sub_kit_sequencer::run_inout_test();
     {{ class_prefix }}inout_test_rsp seq_rsp;
     {{ class_prefix }}inout_test_seq seq;
 
+    last_test_ok = 1'b1;
     req = {{ class_prefix }}inout_test_req::type_id::create("req");
     seq = {{ class_prefix }}inout_test_seq::type_id::create("inout_test");
     seq.req = req;
     seq.start(this);
     seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("", "inout_test: test failed")
+    if (seq_rsp == null || !seq_rsp.ok) begin
+        last_test_ok = 1'b0;
+        `uvm_error("", $sformatf("inout_test failed in group %s", cfg.group_name))
+    end
 endtask
 
 task {{ class_prefix }}sub_kit_sequencer::run_intr_test();
@@ -176,13 +181,16 @@ task {{ class_prefix }}sub_kit_sequencer::run_intr_test();
     {{ class_prefix }}intr_test_rsp seq_rsp;
     {{ class_prefix }}intr_test_seq seq;
 
+    last_test_ok = 1'b1;
     req = {{ class_prefix }}intr_test_req::type_id::create("req");
     seq = {{ class_prefix }}intr_test_seq::type_id::create("intr_test");
     seq.req = req;
     seq.start(this);
     seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("", "intr_test: test failed")
+    if (seq_rsp == null || !seq_rsp.ok) begin
+        last_test_ok = 1'b0;
+        `uvm_error("", $sformatf("intr_test failed in group %s", cfg.group_name))
+    end
 endtask
 
 `endif

@@ -86,13 +86,31 @@ task {{ class_prefix }}kit_sequencer::get_intr_status(output bit intr[string]);
 {% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::run_inout_test();
+    int fail_count;
+    int total_count;
+
     check_ready();
+    fail_count = 0;
+    total_count = {{ groups|length }};
 {% for group in groups %}    sqr_{{ group.name }}.run_inout_test();
-{% endfor %}endtask
+    if (!sqr_{{ group.name }}.last_test_ok)
+        fail_count++;
+{% endfor %}    if (fail_count != 0)
+        `uvm_error("", $sformatf("inout_test failed in %0d/%0d groups", fail_count, total_count))
+endtask
 
 task {{ class_prefix }}kit_sequencer::run_intr_test();
+    int fail_count;
+    int total_count;
+
     check_ready();
+    fail_count = 0;
+    total_count = {{ groups|length }};
 {% for group in groups %}    sqr_{{ group.name }}.run_intr_test();
-{% endfor %}endtask
+    if (!sqr_{{ group.name }}.last_test_ok)
+        fail_count++;
+{% endfor %}    if (fail_count != 0)
+        `uvm_error("", $sformatf("intr_test failed in %0d/%0d groups", fail_count, total_count))
+endtask
 
 `endif
