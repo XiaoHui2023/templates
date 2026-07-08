@@ -258,9 +258,20 @@ function void {{ settings.class_prefix }}tree::init_measure_expectations();
         {{ slot.access }}._resolved_freq = {{ slot.access }}.frequence;
     end
 {%- elif node.kind == "clk" %}
-    if ({{ slot.access }}.enabled && {{ slot.access }}.frequence > 0) begin
-        {{ slot.access }}._resolved_active = 1'b1;
-        {{ slot.access }}._resolved_freq = {{ slot.access }}.frequence;
+    if ({{ slot.access }}.enabled) begin
+        if ({{ slot.access }}.frequence > 0) begin
+            {{ slot.access }}._resolved_active = 1'b1;
+            {{ slot.access }}._resolved_freq = {{ slot.access }}.frequence;
+        end
+{%- if node.sources %}
+{%- set src = node.sources[0] %}
+{%- set peer = tree.nodes[src.name] %}
+{%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' if peer.output_groups else src.name %}
+        else begin
+            {{ slot.access }}._resolved_active = {{ peer_access }}._resolved_active;
+            {{ slot.access }}._resolved_freq = {{ peer_access }}._resolved_freq;
+        end
+{%- endif %}
     end
 {%- elif node.kind in ["cell", "inv"] and node.sources %}
 {%- set src = node.sources[0] %}
