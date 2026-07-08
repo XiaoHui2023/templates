@@ -1,0 +1,48 @@
+`ifndef {{ class_prefix | upper }}SET_BLOCK_COUNT_COMMAND_REQ
+`define {{ class_prefix | upper }}SET_BLOCK_COUNT_COMMAND_REQ
+
+// 发送CMD23, 设置块数
+class {{ class_prefix }}set_block_count_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils_begin({{ class_prefix }}set_block_count_command_request)
+        `uvm_field_int(tag_request, UVM_ALL_ON)
+        `uvm_field_int(context_id, UVM_ALL_ON)
+        `uvm_field_int(forced_programming, UVM_ALL_ON)
+        `uvm_field_int(number_of_blocks, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit tag_request; // tag 请求
+    rand bit[3:0] context_id; // 上下文ID
+    rand bit forced_programming; // 强制编程
+    rand bit[15:0] number_of_blocks; // 块数
+
+    function new(string name="{{ class_prefix }}set_block_count_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_command {
+        cmd_index == 23;
+        argument[29] == tag_request;
+        argument[28:25] == context_id;
+        argument[24] == forced_programming;
+        argument[15:0] == number_of_blocks;
+        resp == R1;
+
+        // 两者不能同时启用
+        $countones({
+            (tag_request != 0),
+            (context_id != 0)
+        }) <= 1;
+        soft tag_request == 0;
+        soft context_id == 0;
+        soft forced_programming == 0;
+
+                                                                                {%- if is_sd %}
+
+        // 不支持SDSC
+        settings.boot_cfg.sd_capacity_type != SDSC;
+
+                                                                                {%- endif %}
+    }
+endclass
+
+`endif

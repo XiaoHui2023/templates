@@ -1,0 +1,63 @@
+`ifndef {{ class_prefix | upper }}RESET_OP_SEQ
+`define {{ class_prefix | upper }}RESET_OP_SEQ
+
+class {{ class_prefix }}reset_operation_seq extends {{ class_prefix }}base_operation_seq#({{ class_prefix }}reset_response);
+    `uvm_object_utils({{ class_prefix }}reset_operation_seq)
+
+    rand {{ class_prefix }}reset_request rst_request;
+
+    function new(string name="{{ class_prefix }}reset_operation_seq");
+        super.new(name);
+    endfunction
+
+    extern function void pre_randomize();
+    extern task body();
+
+    // 复位 DAT 和 CMD
+    extern task execute_reset();
+endclass
+
+function void {{ class_prefix }}reset_operation_seq::pre_randomize();
+    super.pre_randomize();
+
+    if(!rst_request)
+        `uvm_create(rst_request)
+endfunction
+
+task {{ class_prefix }}reset_operation_seq::body();
+    `uvm_info("",$psprintf("reset:\n%s",sprint()),UVM_DEBUG)
+
+    execute_reset();
+endtask
+
+task {{ class_prefix }}reset_operation_seq::execute_reset();
+    bit[31:0] rdata;
+
+    if(rst_request.sw_rst_cmd) begin
+        // 复位CMD
+        rm.SW_RST_R.SW_RST_ALL.set(0);
+        rm.SW_RST_R.SW_RST_CMD.set(1);
+        rm.SW_RST_R.SW_RST_DAT.set(0);
+        rm.SW_RST_R.write(status,rm.SW_RST_R.get());
+
+        // 等待复位完毕
+        do begin
+            rm.SW_RST_R.read(status,rdata);
+        end while(rm.SW_RST_R.get());
+    end
+
+    if(rst_request.sw_rst_dat) begin
+        // 复位DAT
+        rm.SW_RST_R.SW_RST_ALL.set(0);
+        rm.SW_RST_R.SW_RST_CMD.set(0);
+        rm.SW_RST_R.SW_RST_DAT.set(1);
+        rm.SW_RST_R.write(status,rm.SW_RST_R.get());
+
+        // 等待复位完毕
+        do begin
+            rm.SW_RST_R.read(status,rdata);
+        end while(rm.SW_RST_R.get());
+    end
+endtask
+
+`endif

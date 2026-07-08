@@ -1,0 +1,26 @@
+`ifndef {{ class_prefix | upper }}RESET_REQ
+`define {{ class_prefix | upper }}RESET_REQ
+
+class {{ class_prefix }}reset_request extends {{ class_prefix }}base_request;
+    `uvm_object_utils_begin({{ class_prefix }}reset_request)
+        `uvm_field_int(sw_rst_cmd, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(sw_rst_dat, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(sw_rst_all, UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    rand bit sw_rst_cmd; // 软复位命令
+    rand bit sw_rst_dat; // 软复位数据
+    rand bit sw_rst_all; // 全部软复位
+
+    constraint cst_reset_request {
+        soft sw_rst_cmd == 0;
+        soft sw_rst_dat == 0;
+        sw_rst_all == (sw_rst_cmd && sw_rst_dat);
+    }
+
+    function new(string name="{{ class_prefix }}reset_request");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

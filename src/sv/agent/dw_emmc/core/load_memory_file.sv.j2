@@ -2,70 +2,33 @@
 `define {{ class_prefix | upper }}LOAD_MEMORY_FILE
 
 /*
-     加载MEM文件
-   
-    filename : 文件名
-    data[$] : 输出数据
-    dw : 数据位宽，默认等于最长的一行的位宽
-    start_addr : 起始地址，默认0
-    len : 长度（Byte），默认全部
+    加载 memh 文件到字节队列。
+
+    filename   : 文件名
+    data[$]    : 输出数据
+    dw         : 数据位宽检查，必须按 byte 对齐
+    start_addr : 从 mirror 中读取的起始地址
+    len        : 读取长度，<=0 表示从 start_addr 读到文件末尾
 */
-function automatic void {{ class_prefix }}load_memory_file(input string filename,output bit[7:0] data[$],input int dw=-1,input bit[31:0] start_addr=0,input int len=-1);
-    svt_mem mem;
-    bit[31:0] end_addr;
-    int width;
-    int dw_auto;
+function automatic void {{ class_prefix }}load_memory_file(input string filename, output bit[7:0] data[$], input int dw = -1, input bit[31:0] start_addr = 0, input int len = -1);
+    {{ class_prefix }}mem mem;
+    string message;
 
-    // 全部长度
-    if(len <= 0) begin
-        int fh;
-        string s;
-        int n;
+    if(dw != -1 && dw % 8 > 0)
+        `uvm_fatal("", $psprintf("require data width align to byte, but dw=%0d", dw))
 
-        fh = $fopen(filename,"r");
-        if(!fh)
-            `uvm_fatal("",$psprintf("Not found '%s'",filename))
+    mem = {{ class_prefix }}mem::type_id::create("mem");
+    if(!mem.load_memh(filename))
+        `uvm_fatal("", $psprintf("load memory file failed: %s", filename))
 
-        while(!$feof(fh))begin
-            $fgets(s,fh);
-            if(s.len)
-                n++;
-            dw_auto = $max(dw_auto,(s.len-1)*4);
-        end
-        $fclose(fh);
+    if(start_addr > mem.data.size())
+        `uvm_fatal("", $psprintf("start_addr 0x%0h exceeds memory size %0d", start_addr, mem.data.size()))
 
-        len = n;
-    end
+    if(len <= 0)
+        len = mem.data.size() - start_addr;
 
-    if(dw == -1)
-        dw = dw_auto;
-    else if(dw % 8 > 0)
-        `uvm_fatal("",$psprintf("require data width align to byte,but dw=%0d",dw))
-
-    // init
-    width = `SVT_MEM_MAX_DATA_WIDTH / 8;
-    end_addr = start_addr + (len-1)*width;
-
-    // new
-    mem = new(.data_wdth(`SVT_MEM_MAX_DATA_WIDTH));
-
-    // load
-    if(!mem.load_mem(filename,.start_addr(start_addr),.end_addr(end_addr)))
-        `uvm_fatal("","")
-
-    for(int J=0;J<len;J++) begin
-        bit[31:0] adr;
-        bit[`SVT_MEM_MAX_DATA_WIDTH-1:0] rdat;
-        bit[7:0] dat[$];
-
-        adr = start_addr+J*width;
-        rdat = mem.read(adr);
-
-        dat = {{ '{<<8{{<<`SVT_MEM_MAX_DATA_WIDTH{rdat}}}};' }}
-        dat = dat[0:dw/8-1];
-
-        data = {data,dat};
-    end
+    if(!mem.read(start_addr, len, data, message))
+        `uvm_fatal("", message)
 endfunction
 
 `endif

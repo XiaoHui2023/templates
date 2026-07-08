@@ -13,13 +13,6 @@ class MonitoredClock(BaseModel):
     tolerance: int = Field(5)
 
 
-class Connection(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(...)
-    width: int = Field(1)
-
-
 class Models(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -36,7 +29,6 @@ class Models(BaseModel):
     )
     data_width: Optional[int] = None
     monitored_clocks: Optional[List[MonitoredClock]] = None
-    connections: Optional[List[Connection]] = None
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由 card_type 推导；配置不可传入。",
@@ -127,7 +119,6 @@ class Models(BaseModel):
     def model_post_init(self, ctx):
         self._set_data_width()
         self._create_monitored_clocks()
-        self._create_connections()
 
     def _set_data_width(self):
         """设置数据位宽"""
@@ -175,24 +166,3 @@ class Models(BaseModel):
         for data in datas:
             self.monitored_clocks.append(MonitoredClock(**data))
 
-    def _create_connections(self):
-        """创建连线"""
-        if self.connections is None:
-            self.connections = []
-        datas = [
-            {"name": "clk"},
-            {"name": "cmd"},
-            {
-                "name": "data",
-                "width": self.data_width,
-            },
-        ]
-        if self.is_sd:
-            datas.extend(
-                [
-                    {"name": "wp"},
-                    {"name": "cd"},
-                ]
-            )
-        for data in datas:
-            self.connections.append(Connection(**data))

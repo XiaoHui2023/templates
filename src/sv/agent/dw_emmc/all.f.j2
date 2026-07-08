@@ -1,138 +1,142 @@
 import.sv
-core/read_card_memory.sv
-core/load_memory_file.sv
 core/yield.sv
 
-interface/sample.sv
-interface/monitor.sv
-interface/connection.sv
-interface/connections.sv
-interface/interface.sv
+top/sample_interface.sv
+top/monitor_interface.sv
+top/interface.sv
 
 model/spec.sv
 model/base_item.sv
 model/context.sv
 
+core/mem.sv
+core/load_memory_file.sv
+
 model/configuration/boot.sv
 model/configuration/check_clock.sv
-model/configuration/assert_connection.sv
-model/configuration/system.sv
-
-component/sequencer.sv
+model/settings.sv
 
 model/data/base.sv
 model/data/adma_des.sv
 
-model/request/base.sv
-model/request/access.sv
-model/request/check_error.sv
-model/request/reset.sv
-model/request/command.sv
-model/request/power_up.sv
-model/request/wait_field.sv
-model/request/wait_interrupt.sv
-model/response/base.sv
-model/response/command.sv
-model/response/check_error.sv
-model/prefab/command/all_send_cid.sv
+sequence/operation/base/req.sv
+sequence/operation/check_error/req.sv
+sequence/operation/wait_interrupt/req.sv
+sequence/operation/wait_field/req.sv
+sequence/operation/reset/req.sv
+sequence/operation/access/req.sv
+sequence/operation/command/req.sv
+sequence/operation/power_up/req.sv
+sequence/operation/frequence_set/req.sv
+sequence/operation/cpu_config/req.sv
+
+model/command/all_send_cid.sv
                                         {%- if is_sd %}
-model/prefab/command/app_cmd.sv
-model/prefab/command/send_if_cond.sv
-model/prefab/command/send_relative_addr.sv
-model/prefab/command/voltage_switch.sv
-model/prefab/acmd/base.sv
-model/prefab/acmd/sd_send_op_cond.sv
-model/prefab/acmd/send_scr.sv
-model/prefab/acmd/set_bus_width.sv
+model/command/app_cmd.sv
+model/command/send_if_cond.sv
+model/command/send_relative_addr.sv
+model/command/voltage_switch.sv
+model/acmd/base.sv
+model/acmd/sd_send_op_cond.sv
+model/acmd/send_scr.sv
+model/acmd/set_bus_width.sv
                                         {%- endif %}
                                         {%- if is_emmc %}
-model/prefab/command/boot_initiation.sv
-model/prefab/command/go_pre_idle_state.sv
-model/prefab/command/send_ext_csd.sv
-model/prefab/command/set_relative_addr.sv
-model/prefab/command/switch/base.sv
-model/prefab/command/switch/bus_width.sv
-model/prefab/command/switch/hs_timing.sv
-model/prefab/command/switch/partition_config.sv
+model/command/boot_initiation.sv
+model/command/go_pre_idle_state.sv
+model/command/send_ext_csd.sv
+model/command/set_relative_addr.sv
+model/command/switch/base.sv
+model/command/switch/bus_width.sv
+model/command/switch/hs_timing.sv
+model/command/switch/partition_config.sv
                                         {%- endif %}
                                         {%- if is_sdio %}
-model/prefab/command/io_rw_extended.sv
-model/prefab/command/io_send_op_cond.sv
-model/prefab/command/io_rw_direct/base.sv
-model/prefab/command/io_rw_direct/bus_interface_control.sv
-model/prefab/command/io_rw_direct/bus_speed_select.sv
-model/prefab/command/io_rw_direct/fn0_block_size.sv
-model/prefab/command/io_rw_direct/io_abort.sv
-model/prefab/command/io_rw_direct/io_enable.sv
+model/command/io_rw_extended.sv
+model/command/io_send_op_cond.sv
+model/command/io_rw_direct/base.sv
+model/command/io_rw_direct/bus_interface_control.sv
+model/command/io_rw_direct/bus_speed_select.sv
+model/command/io_rw_direct/fn0_block_size.sv
+model/command/io_rw_direct/io_abort.sv
+model/command/io_rw_direct/io_enable.sv
                                         {%- endif %}
                                         {%- if is_sdcard %}
-model/prefab/command/switch_func.sv
+model/command/switch_func.sv
                                         {%- endif %}
-model/prefab/command/go_idle_state.sv
-model/prefab/command/go_inactive_state.sv
-model/prefab/command/go_irq_state.sv
-model/prefab/command/read_multiple_block.sv
-model/prefab/command/select_card.sv
-model/prefab/command/read_single_block.sv
-model/prefab/command/send_cid.sv
-model/prefab/command/send_csd.sv
-model/prefab/command/send_op_cond.sv
-model/prefab/command/send_status.sv
-model/prefab/command/send_tuning_block.sv
-model/prefab/command/set_block_count.sv
-model/prefab/command/set_blocklen.sv
-model/prefab/command/set_dsr.sv
-model/prefab/command/sleep_awake.sv
-model/prefab/command/stop_transmission.sv
-model/prefab/command/write_block.sv
-model/prefab/command/write_multiple_block.sv
+model/command/go_idle_state.sv
+model/command/go_inactive_state.sv
+model/command/go_irq_state.sv
+model/command/read_multiple_block.sv
+model/command/select_card.sv
+model/command/read_single_block.sv
+model/command/send_cid.sv
+model/command/send_csd.sv
+model/command/send_op_cond.sv
+model/command/send_status.sv
+model/command/send_tuning_block.sv
+model/command/set_block_count.sv
+model/command/set_blocklen.sv
+model/command/set_dsr.sv
+model/command/sleep_awake.sv
+model/command/stop_transmission.sv
+model/command/write_block.sv
+model/command/write_multiple_block.sv
+
+component/scoreboard.sv
+component/callback.sv
+component/sequencer.sv
 
 sequence/base.sv
+sequence/operation/base/rsp.sv
+sequence/operation/base/op.sv
 sequence/default.sv
 
 sequence/test/check_clock_frequence.sv
-sequence/test/assert_connection.sv
-
-sequence/dependency/base.sv
-sequence/dependency/frequence_set.sv
-sequence/dependency/cpu_config.sv
-sequence/dependency/card_memory_get.sv
-sequence/request/base.sv
-sequence/request/check_error.sv
-sequence/request/wait_interrupt.sv
-sequence/request/wait_field.sv
-sequence/request/reset.sv
-sequence/request/access.sv
-sequence/request/command.sv
-sequence/request/power_up.sv
-sequence/prefab/commands.sv
+sequence/operation/check_error/rsp.sv
+sequence/operation/check_error/op.sv
+sequence/operation/wait_interrupt/rsp.sv
+sequence/operation/wait_interrupt/op.sv
+sequence/operation/wait_field/rsp.sv
+sequence/operation/wait_field/op.sv
+sequence/operation/reset/rsp.sv
+sequence/operation/reset/op.sv
+sequence/operation/access/rsp.sv
+sequence/operation/access/op.sv
+sequence/operation/command/rsp.sv
+sequence/operation/cpu_config/rsp.sv
+sequence/operation/cpu_config/op.sv
+sequence/operation/command/op.sv
+sequence/operation/power_up/rsp.sv
+sequence/operation/power_up/op.sv
+sequence/operation/frequence_set/rsp.sv
+sequence/operation/frequence_set/op.sv
+sequence/flow/commands.sv
                                         {%- if is_sd %}
-sequence/prefab/acmds.sv
+sequence/flow/acmds.sv
                                         {%- endif %}
                                         {%- if is_sdio %}
-sequence/prefab/io_rw_direct/fn0_block_size.sv
+sequence/flow/io_rw_direct/fn0_block_size.sv
                                         {%- endif %}
-sequence/prefab/xfer/base.sv
-sequence/prefab/xfer/read.sv
-sequence/prefab/xfer/write.sv
+sequence/flow/xfer/base.sv
+sequence/flow/xfer/read.sv
+sequence/flow/xfer/write.sv
                                         {%- if is_sd %}
-sequence/prefab/voltage_switch.sv
+sequence/flow/voltage_switch.sv
                                         {%- endif %}
-sequence/prefab/switch_bus.sv
+sequence/flow/switch_bus.sv
                                         {%- if is_emmc %}
-sequence/prefab/send_ext_csd.sv
+sequence/flow/send_ext_csd.sv
                                         {%- endif %}
-sequence/prefab/initial.sv
-sequence/prefab/tune.sv
+sequence/flow/initial.sv
+sequence/flow/tune.sv
 
-sequence/test/compare_card_memory.sv
 sequence/test/rw.sv
-sequence/test/dma.sv
 sequence/test/tune.sv
 sequence/test/speed_mode.sv
 sequence/test/sram.sv
-sequence/test/power_up.sv
                                         {%- if is_emmc or is_sdcard %}
 sequence/test/reg.sv
                                         {%- endif %}
+component/kit_sequencer.sv
 component/agent.sv

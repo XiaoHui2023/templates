@@ -1,0 +1,66 @@
+`ifndef {{ class_prefix | upper }}SCOREBOARD
+`define {{ class_prefix | upper }}SCOREBOARD
+
+class {{ class_prefix }}scoreboard extends uvm_scoreboard;
+    `uvm_component_utils({{ class_prefix }}scoreboard)
+
+    {{ class_prefix }}mem model;
+
+    function new(string name = "{{ class_prefix }}scoreboard", uvm_component parent = null);
+        super.new(name, parent);
+        model = {{ class_prefix }}mem::type_id::create("model");
+    endfunction
+
+    extern function bit load_hex(string filename, longint unsigned base_addr = 0);
+    extern function bit load_memh(string filename, longint unsigned base_addr = 0);
+    extern function void write_expected(longint unsigned addr, const ref bit[7:0] bytes[$], string label = "");
+    extern function void write_expected_payload(uvm_tlm_generic_payload payload, string label = "");
+    extern function bit read_expected(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+    extern function bit compare_actual(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
+    extern function bit compare_actual_payload(uvm_tlm_generic_payload payload, string label = "");
+endclass
+
+function bit {{ class_prefix }}scoreboard::load_hex(string filename, longint unsigned base_addr = 0);
+    return model.load_hex(filename, base_addr);
+endfunction
+
+function bit {{ class_prefix }}scoreboard::load_memh(string filename, longint unsigned base_addr = 0);
+    return model.load_memh(filename, base_addr);
+endfunction
+
+function void {{ class_prefix }}scoreboard::write_expected(longint unsigned addr, const ref bit[7:0] bytes[$], string label = "");
+    model.write(addr, bytes);
+    `uvm_info("SCOREBOARD", $psprintf("%s expected write addr=0x%0h len=%0d", label, addr, bytes.size()), UVM_LOW)
+endfunction
+
+function void {{ class_prefix }}scoreboard::write_expected_payload(uvm_tlm_generic_payload payload, string label = "");
+    byte unsigned data[];
+    bit[7:0] bytes[$];
+
+    payload.get_data(data);
+    foreach(data[j])
+        bytes.push_back(data[j]);
+
+    write_expected(payload.get_address(), bytes, label);
+endfunction
+
+function bit {{ class_prefix }}scoreboard::read_expected(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+    return model.read(addr, len, bytes, message);
+endfunction
+
+function bit {{ class_prefix }}scoreboard::compare_actual(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
+    return model.compare(addr, actual, label);
+endfunction
+
+function bit {{ class_prefix }}scoreboard::compare_actual_payload(uvm_tlm_generic_payload payload, string label = "");
+    byte unsigned data[];
+    bit[7:0] bytes[$];
+
+    payload.get_data(data);
+    foreach(data[j])
+        bytes.push_back(data[j]);
+
+    return compare_actual(payload.get_address(), bytes, label);
+endfunction
+
+`endif

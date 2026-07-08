@@ -1,0 +1,12 @@
+`ifndef {{ class_prefix | upper }}FREQUENCE_SET_RSP
+`define {{ class_prefix | upper }}FREQUENCE_SET_RSP
+
+class {{ class_prefix }}frequence_set_response extends {{ class_prefix }}base_response;
+    `uvm_object_utils({{ class_prefix }}frequence_set_response)
+
+    function new(string name = "{{ class_prefix }}frequence_set_response");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

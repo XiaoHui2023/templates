@@ -1,0 +1,40 @@
+{% if is_sdio -%}
+`ifndef {{ class_prefix | upper }}_IO_RW_DIRECT_BUS_SPEED_SELECT_COMMAND_REQ
+`define {{ class_prefix | upper }}_IO_RW_DIRECT_BUS_SPEED_SELECT_COMMAND_REQ
+
+// CCCR.bus speed select
+class {{ class_prefix }}io_rw_direct_bus_speed_select_command_request extends {{ class_prefix }}io_rw_direct_command_request;
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_bus_speed_select_command_request)
+        `uvm_field_int(bss, UVM_ALL_ON)
+        `uvm_field_int(shs, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit[2:0] bss; // bus speed select
+    rand bit[2:0] shs; // support high speed
+    rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
+
+    function new(string name="{{ class_prefix }}io_rw_direct_bus_speed_select_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_io_rw_direct_command {
+        function_number == 0;
+        register_address == 'h13;
+        write_data[3:1] == bss;
+        write_data[0] == shs;
+        (bus_speed_mode inside {DS, SDR12}) -> bss == 3'b000;
+        (bus_speed_mode inside {HS, SDR25}) -> bss == 3'b001;
+        (bus_speed_mode == SDR50) -> bss == 3'b010;
+        (bus_speed_mode == SDR104) -> bss == 3'b011;
+        (bus_speed_mode == DDR50) -> bss == 3'b100;
+
+        if (bus_speed_mode inside {DS, HS})
+            shs == 0;
+        else if (bus_speed_mode inside {SDR12, SDR25, SDR50, SDR104, DDR50})
+            shs == 1;
+    }
+endclass
+
+`endif
+{% endif %}

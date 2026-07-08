@@ -1,0 +1,65 @@
+`ifndef {{ class_prefix | upper }}WAIT_INTERRUPT_REQ
+`define {{ class_prefix | upper }}WAIT_INTERRUPT_REQ
+
+class {{ class_prefix }}wait_interrupt_request extends {{ class_prefix }}base_request;
+    `uvm_object_utils_begin({{ class_prefix }}wait_interrupt_request)
+        `uvm_field_int(cmd_complete, UVM_ALL_ON|(cmd_complete?0:UVM_NOPRINT))
+        `uvm_field_int(xfer_complete, UVM_ALL_ON|(xfer_complete?0:UVM_NOPRINT))
+        `uvm_field_int(bgap_event, UVM_ALL_ON|(bgap_event?0:UVM_NOPRINT))
+        `uvm_field_int(dma_interrupt, UVM_ALL_ON|(dma_interrupt?0:UVM_NOPRINT))
+        `uvm_field_int(buf_wr_ready, UVM_ALL_ON|(buf_wr_ready?0:UVM_NOPRINT))
+        `uvm_field_int(buf_rd_ready, UVM_ALL_ON|(buf_rd_ready?0:UVM_NOPRINT))
+        `uvm_field_int(card_insertion, UVM_ALL_ON|(card_insertion?0:UVM_NOPRINT))
+        `uvm_field_int(card_removal, UVM_ALL_ON|(card_removal?0:UVM_NOPRINT))
+        `uvm_field_int(card_interrupt, UVM_ALL_ON|(card_interrupt?0:UVM_NOPRINT))
+        `uvm_field_int(int_a, UVM_ALL_ON|(int_a?0:UVM_NOPRINT))
+        `uvm_field_int(int_b, UVM_ALL_ON|(int_b?0:UVM_NOPRINT))
+        `uvm_field_int(int_c, UVM_ALL_ON|(int_c?0:UVM_NOPRINT))
+        `uvm_field_int(re_tune_event, UVM_ALL_ON|(re_tune_event?0:UVM_NOPRINT))
+        `uvm_field_int(fx_event, UVM_ALL_ON|(fx_event?0:UVM_NOPRINT))
+        `uvm_field_int(cqc_event, UVM_ALL_ON|(cqc_event?0:UVM_NOPRINT))
+        `uvm_field_int(timeout_us, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit cmd_complete;
+    rand bit xfer_complete;
+    rand bit bgap_event;
+    rand bit dma_interrupt;
+    rand bit buf_wr_ready;
+    rand bit buf_rd_ready;
+    rand bit card_insertion;
+    rand bit card_removal;
+    rand bit card_interrupt;
+    rand bit int_a;
+    rand bit int_b;
+    rand bit int_c;
+    rand bit re_tune_event;
+    rand bit fx_event;
+    rand bit cqc_event;
+    rand int timeout_us; // 超时时间[us]
+
+    constraint cst_wait_interrupt_request {
+        soft cmd_complete == 0;
+        soft xfer_complete == 0;
+        soft bgap_event == 0;
+        soft dma_interrupt == 0;
+        soft buf_wr_ready == 0;
+        soft buf_rd_ready == 0;
+        soft card_insertion == 0;
+        soft card_removal == 0;
+        soft card_interrupt == 0;
+        soft int_a == 0;
+        soft int_b == 0;
+        soft int_c == 0;
+        soft re_tune_event == 0;
+        soft fx_event == 0;
+        soft cqc_event == 0;
+        soft timeout_us == 1000;
+    }
+
+    function new(string name="{{ class_prefix }}wait_interrupt_request");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

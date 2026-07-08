@@ -1,0 +1,186 @@
+`ifndef {{ class_prefix | upper }}MEM
+`define {{ class_prefix | upper }}MEM
+
+class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
+    `uvm_object_utils({{ class_prefix }}mem)
+
+    bit[7:0] data[$];
+
+    function new(string name = "{{ class_prefix }}mem");
+        super.new(name);
+    endfunction
+
+    extern function void clear();
+    extern function void ensure_size(longint unsigned size);
+    extern function void write(longint unsigned addr, const ref bit[7:0] bytes[$]);
+    extern function bit read(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+    extern function bit compare(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
+    extern function bit load_hex(string filename, longint unsigned base_addr = 0);
+    extern function bit load_memh(string filename, longint unsigned base_addr = 0);
+    extern function bit hex_digit(byte unsigned ch, output bit[3:0] value);
+    extern function bit append_hex_token(string token, ref bit[7:0] bytes[$], output string message);
+endclass
+
+function void {{ class_prefix }}mem::clear();
+    data.delete();
+endfunction
+
+function void {{ class_prefix }}mem::ensure_size(longint unsigned size);
+    while(data.size() < size)
+        data.push_back('0);
+endfunction
+
+function void {{ class_prefix }}mem::write(longint unsigned addr, const ref bit[7:0] bytes[$]);
+    ensure_size(addr + bytes.size());
+    foreach(bytes[j])
+        data[addr + j] = bytes[j];
+endfunction
+
+function bit {{ class_prefix }}mem::read(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+    bytes.delete();
+    if(addr + len > data.size()) begin
+        message = $psprintf("read [0x%0h:+%0d] exceeds memory size %0d", addr, len, data.size());
+        return 0;
+    end
+
+    for(int unsigned j = 0; j < len; j++)
+        bytes.push_back(data[addr + j]);
+    return 1;
+endfunction
+
+function bit {{ class_prefix }}mem::compare(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
+    bit[7:0] expected[$];
+    string message;
+
+    if(!read(addr, actual.size(), expected, message)) begin
+        `uvm_error("MEM_COMPARE", {label, " ", message})
+        return 0;
+    end
+
+    foreach(actual[j]) begin
+        if(actual[j] == expected[j])
+            continue;
+
+        `uvm_error("MEM_COMPARE", $psprintf("%s mismatch addr=0x%0h offset=%0d expected=0x%02h actual=0x%02h",
+            label, addr + j, j, expected[j], actual[j]))
+        return 0;
+    end
+
+    `uvm_info("MEM_COMPARE", $psprintf("%s compare pass addr=0x%0h len=%0d", label, addr, actual.size()), UVM_LOW)
+    return 1;
+endfunction
+
+function bit {{ class_prefix }}mem::load_hex(string filename, longint unsigned base_addr = 0);
+    int fh;
+    string line;
+    bit[7:0] bytes[$];
+    string message;
+
+    fh = $fopen(filename, "r");
+    if(!fh) begin
+        `uvm_error("MEM_LOAD", $psprintf("cannot open hex file '%s'", filename))
+        return 0;
+    end
+
+    while(!$feof(fh)) begin
+        void'($fgets(line, fh));
+        if(!append_hex_token(line, bytes, message)) begin
+            `uvm_error("MEM_LOAD", $psprintf("%s: %s", filename, message))
+            $fclose(fh);
+            return 0;
+        end
+    end
+    $fclose(fh);
+
+    write(base_addr, bytes);
+    `uvm_info("MEM_LOAD", $psprintf("loaded hex file '%s' at 0x%0h, bytes=%0d", filename, base_addr, bytes.size()), UVM_LOW)
+    return 1;
+endfunction
+
+function bit {{ class_prefix }}mem::load_memh(string filename, longint unsigned base_addr = 0);
+    int fh;
+    string token;
+    longint unsigned cursor;
+    bit[7:0] bytes[$];
+    string message;
+
+    fh = $fopen(filename, "r");
+    if(!fh) begin
+        `uvm_error("MEM_LOAD", $psprintf("cannot open memh file '%s'", filename))
+        return 0;
+    end
+
+    cursor = base_addr;
+    while($fscanf(fh, "%s", token) == 1) begin
+        if(token.len() == 0)
+            continue;
+        if(token.getc(0) == 8'h2f || token.getc(0) == 8'h23)
+            continue;
+        if(token.getc(0) == 8'h40) begin
+            bytes.delete();
+            void'($sscanf(token.substr(1, token.len() - 1), "%h", cursor));
+            cursor += base_addr;
+            continue;
+        end
+
+        bytes.delete();
+        if(!append_hex_token(token, bytes, message)) begin
+            `uvm_error("MEM_LOAD", $psprintf("%s token '%s': %s", filename, token, message))
+            $fclose(fh);
+            return 0;
+        end
+        write(cursor, bytes);
+        cursor += bytes.size();
+    end
+    $fclose(fh);
+
+    `uvm_info("MEM_LOAD", $psprintf("loaded memh file '%s' at base 0x%0h, memory size=%0d", filename, base_addr, data.size()), UVM_LOW)
+    return 1;
+endfunction
+
+function bit {{ class_prefix }}mem::hex_digit(byte unsigned ch, output bit[3:0] value);
+    if(ch >= 8'h30 && ch <= 8'h39) begin
+        value = ch - 8'h30;
+        return 1;
+    end
+    if(ch >= 8'h61 && ch <= 8'h66) begin
+        value = ch - 8'h61 + 10;
+        return 1;
+    end
+    if(ch >= 8'h41 && ch <= 8'h46) begin
+        value = ch - 8'h41 + 10;
+        return 1;
+    end
+    return 0;
+endfunction
+
+function bit {{ class_prefix }}mem::append_hex_token(string token, ref bit[7:0] bytes[$], output string message);
+    bit[3:0] nibbles[$];
+    bit[3:0] value;
+
+    for(int j = 0; j < token.len(); j++) begin
+        byte unsigned ch;
+
+        ch = token.getc(j);
+        if(ch == 8'h5f || ch == 8'h20 || ch == 8'h09 || ch == 8'h0a || ch == 8'h0d)
+            continue;
+        if(ch == 8'h2f || ch == 8'h23)
+            break;
+        if(!hex_digit(ch, value)) begin
+            message = $psprintf("invalid hex character '%c'", ch);
+            return 0;
+        end
+        nibbles.push_back(value);
+    end
+
+    if(nibbles.size() % 2) begin
+        message = $psprintf("odd hex digit count %0d", nibbles.size());
+        return 0;
+    end
+
+    for(int j = 0; j < nibbles.size(); j += 2)
+        bytes.push_back({nibbles[j], nibbles[j + 1]});
+    return 1;
+endfunction
+
+`endif

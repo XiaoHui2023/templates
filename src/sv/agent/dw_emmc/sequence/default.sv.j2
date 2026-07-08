@@ -1,8 +1,8 @@
 `ifndef {{ class_prefix | upper }}DEFAULT_SEQ
 `define {{ class_prefix | upper }}DEFAULT_SEQ
 
-class {{ class_prefix }}default_seq extends {{ class_prefix }}base_seq;
-    `uvm_object_utils({{ class_prefix }}default_seq)
+class {{ class_prefix }}default_seq#(type RSP={{ class_prefix }}base_item) extends {{ class_prefix }}base_seq#(RSP);
+    `uvm_object_param_utils({{ class_prefix }}default_seq#(RSP))
 
     function new(string name = "{{ class_prefix }}default_seq");
         super.new(name);

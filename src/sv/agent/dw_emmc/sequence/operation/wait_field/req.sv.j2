@@ -1,0 +1,44 @@
+`ifndef {{ class_prefix | upper }}WAIT_FIELD_REQ
+`define {{ class_prefix | upper }}WAIT_FIELD_REQ
+
+class {{ class_prefix }}wait_field_request extends {{ class_prefix }}base_request;
+    `uvm_object_utils_begin({{ class_prefix }}wait_field_request)
+        `uvm_field_int(cmd_uninhibit,UVM_ALL_ON|(cmd_uninhibit?0:UVM_NOPRINT))
+        `uvm_field_int(cmd_uninhibit_dat,UVM_ALL_ON|(cmd_uninhibit_dat?0:UVM_NOPRINT))
+        `uvm_field_int(internal_clk_stable,UVM_ALL_ON|(internal_clk_stable?0:UVM_NOPRINT))
+        `uvm_field_int(card_inserted,UVM_ALL_ON|(card_inserted?0:UVM_NOPRINT))
+        `uvm_field_int(card_stable,UVM_ALL_ON|(card_stable?0:UVM_NOPRINT))
+        `uvm_field_int(rd_xfer_inactive,UVM_ALL_ON|(rd_xfer_inactive?0:UVM_NOPRINT))
+        `uvm_field_int(wr_xfer_inactive,UVM_ALL_ON|(wr_xfer_inactive?0:UVM_NOPRINT))
+        `uvm_field_int(dat_line_inactive,UVM_ALL_ON|(dat_line_inactive?0:UVM_NOPRINT))
+        `uvm_field_int(timeout_us,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit cmd_uninhibit; // 命令就绪
+    rand bit cmd_uninhibit_dat; // 命令（数据）就绪
+    rand bit internal_clk_stable;
+    rand bit card_inserted;
+    rand bit card_stable;
+    rand bit rd_xfer_inactive; // 从机读传输结束
+    rand bit wr_xfer_inactive; // 从机写传输结束
+    rand bit dat_line_inactive; // 数据线低休眠
+    rand int timeout_us; // 超时时间 [us]
+
+    constraint cst_wait_field_request {
+        soft cmd_uninhibit == 0;
+        soft cmd_uninhibit_dat == 0;
+        soft internal_clk_stable == 0;
+        soft card_inserted == 0;
+        soft card_stable == 0;
+        soft rd_xfer_inactive == 0;
+        soft wr_xfer_inactive == 0;
+        soft dat_line_inactive == 0;
+        soft timeout_us == 1000;
+    }
+
+    function new(string name="{{ class_prefix }}wait_field_request");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -1,0 +1,237 @@
+`ifndef {{ class_prefix | upper }}KIT_SEQUENCER
+`define {{ class_prefix | upper }}KIT_SEQUENCER
+
+class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
+    `uvm_component_utils({{ class_prefix }}kit_sequencer)
+
+    function new(string name = "{{ class_prefix }}kit_sequencer", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    // operation shortcuts
+    extern task run_frequence_set_operation(int frequence, bit should_check_clock_frequence = 1);
+    extern task run_power_up_operation({{ class_prefix }}power_up_request req = null);
+    extern task run_reset_operation(bit sw_rst_cmd = 0, bit sw_rst_dat = 0);
+    extern task cpu_read_bytes(bit[63:0] addr, int unsigned len, ref bit[7:0] rdata[$],
+        uvm_path_e path = UVM_FRONTDOOR);
+    extern task cpu_write_bytes(bit[63:0] addr, const ref bit[7:0] wdata[$], uvm_path_e path = UVM_FRONTDOOR);
+
+    // flow shortcuts
+    extern task initial_card();
+    extern task switch_bus(bus_speed_mode_e bus_speed_mode, int data_width);
+{% if is_emmc %}
+    extern task send_ext_csd(bus_speed_mode_e bus_speed_mode, int data_width);
+{% endif %}
+    extern task tune_phase(bit[7:0] phase);
+
+    // test shortcuts
+    extern task rw(bit[63:0] addr = 0, int unsigned count = 2, bit use_dma = 0);
+{% if is_emmc or is_sdcard %}
+    extern task run_reg_test();
+{% endif %}
+    extern task run_speed_mode_test();
+    extern task run_sram_test(int unsigned block_count = 0, int unsigned block_size = 0);
+    extern task run_tune_test(bus_speed_mode_e bus_speed_mode, int data_width);
+    extern task run_check_clock_frequence_test();
+endclass
+
+task {{ class_prefix }}kit_sequencer::run_frequence_set_operation(int frequence, bit should_check_clock_frequence = 1);
+    {{ class_prefix }}frequence_set_operation_seq seq;
+
+    seq = {{ class_prefix }}frequence_set_operation_seq::type_id::create("frequence_set_operation_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        freq_set_request.frequence == local::frequence;
+        freq_set_request.should_check_clock_frequence == local::should_check_clock_frequence;
+    })
+        `uvm_fatal("KIT", "frequence_set_operation_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::run_power_up_operation({{ class_prefix }}power_up_request req = null);
+    {{ class_prefix }}power_up_operation_seq seq;
+
+    seq = {{ class_prefix }}power_up_operation_seq::type_id::create("power_up_operation_seq");
+    if(req != null)
+        seq.power_up_request = req;
+    seq.set_item_context(null, this);
+    if(!seq.randomize())
+        `uvm_fatal("KIT", "power_up_operation_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::run_reset_operation(bit sw_rst_cmd = 0, bit sw_rst_dat = 0);
+    {{ class_prefix }}reset_operation_seq seq;
+
+    seq = {{ class_prefix }}reset_operation_seq::type_id::create("reset_operation_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        rst_request.sw_rst_cmd == local::sw_rst_cmd;
+        rst_request.sw_rst_dat == local::sw_rst_dat;
+    })
+        `uvm_fatal("KIT", "reset_operation_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::cpu_read_bytes(bit[63:0] addr, int unsigned len, ref bit[7:0] rdata[$],
+        uvm_path_e path = UVM_FRONTDOOR);
+    {{ class_prefix }}cpu_config_operation_seq seq;
+
+    seq = {{ class_prefix }}cpu_config_operation_seq::type_id::create("cpu_read_bytes_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        cpu_cfg_request.access == UVM_READ;
+        cpu_cfg_request.addr == local::addr;
+        cpu_cfg_request.len == local::len;
+        cpu_cfg_request.path == local::path;
+    })
+        `uvm_fatal("KIT", "cpu_config_operation_seq read randomize failed")
+    seq.start(this);
+    rdata = seq.rsp.rdata;
+endtask
+
+task {{ class_prefix }}kit_sequencer::cpu_write_bytes(bit[63:0] addr, const ref bit[7:0] wdata[$],
+        uvm_path_e path = UVM_FRONTDOOR);
+    {{ class_prefix }}cpu_config_operation_seq seq;
+    int unsigned write_len;
+
+    write_len = wdata.size();
+    seq = {{ class_prefix }}cpu_config_operation_seq::type_id::create("cpu_write_bytes_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        cpu_cfg_request.access == UVM_WRITE;
+        cpu_cfg_request.addr == local::addr;
+        cpu_cfg_request.len == local::write_len;
+        cpu_cfg_request.path == local::path;
+    })
+        `uvm_fatal("KIT", "cpu_config_operation_seq write randomize failed")
+    seq.cpu_cfg_request.wdata = wdata;
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::initial_card();
+    {{ class_prefix }}initial_seq seq;
+
+    seq = {{ class_prefix }}initial_seq::type_id::create("initial_card_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize())
+        `uvm_fatal("KIT", "initial_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::switch_bus(bus_speed_mode_e bus_speed_mode, int data_width);
+    {{ class_prefix }}switch_bus_seq seq;
+
+    seq = {{ class_prefix }}switch_bus_seq::type_id::create("switch_bus_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        bus_speed_mode == local::bus_speed_mode;
+        data_width == local::data_width;
+    })
+        `uvm_fatal("KIT", "switch_bus_seq randomize failed")
+    seq.start(this);
+endtask
+
+{% if is_emmc %}
+task {{ class_prefix }}kit_sequencer::send_ext_csd(bus_speed_mode_e bus_speed_mode, int data_width);
+    {{ class_prefix }}send_ext_csd_seq seq;
+
+    seq = {{ class_prefix }}send_ext_csd_seq::type_id::create("send_ext_csd_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        bus_speed_mode == local::bus_speed_mode;
+        data_width == local::data_width;
+    })
+        `uvm_fatal("KIT", "send_ext_csd_seq randomize failed")
+    seq.start(this);
+endtask
+
+{% endif %}
+task {{ class_prefix }}kit_sequencer::tune_phase(bit[7:0] phase);
+    {{ class_prefix }}tune_seq seq;
+
+    seq = {{ class_prefix }}tune_seq::type_id::create("tune_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        phase == local::phase;
+    })
+        `uvm_fatal("KIT", "tune_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::rw(bit[63:0] addr = 0, int unsigned count = 2, bit use_dma = 0);
+    {{ class_prefix }}rw_test_seq seq;
+
+    seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        addr == local::addr;
+        rd_multi_block_count == local::count;
+        wr_multi_block_count == local::count;
+        dma_enable == local::use_dma;
+    })
+        `uvm_fatal("KIT", "rw_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+{% if is_emmc or is_sdcard %}
+task {{ class_prefix }}kit_sequencer::run_reg_test();
+    {{ class_prefix }}reg_test_seq seq;
+
+    seq = {{ class_prefix }}reg_test_seq::type_id::create("reg_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize())
+        `uvm_fatal("KIT", "reg_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+{% endif %}
+task {{ class_prefix }}kit_sequencer::run_speed_mode_test();
+    {{ class_prefix }}speed_mode_test_seq seq;
+
+    seq = {{ class_prefix }}speed_mode_test_seq::type_id::create("speed_mode_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize())
+        `uvm_fatal("KIT", "speed_mode_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::run_sram_test(int unsigned block_count = 0, int unsigned block_size = 0);
+    {{ class_prefix }}sram_test_seq seq;
+
+    seq = {{ class_prefix }}sram_test_seq::type_id::create("sram_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        if(local::block_count != 0)
+            block_count == local::block_count;
+        if(local::block_size != 0)
+            block_size == local::block_size;
+    })
+        `uvm_fatal("KIT", "sram_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::run_tune_test(bus_speed_mode_e bus_speed_mode, int data_width);
+    {{ class_prefix }}tune_test_seq seq;
+
+    seq = {{ class_prefix }}tune_test_seq::type_id::create("tune_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        bus_speed_mode == local::bus_speed_mode;
+        data_width == local::data_width;
+    })
+        `uvm_fatal("KIT", "tune_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::run_check_clock_frequence_test();
+    {{ class_prefix }}check_clock_frequence_test_seq seq;
+
+    seq = {{ class_prefix }}check_clock_frequence_test_seq::type_id::create("check_clock_frequence_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize())
+        `uvm_fatal("KIT", "check_clock_frequence_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+`endif

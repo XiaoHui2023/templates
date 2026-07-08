@@ -1,0 +1,12 @@
+`ifndef {{ class_prefix | upper }}ACCESS_RSP
+`define {{ class_prefix | upper }}ACCESS_RSP
+
+class {{ class_prefix }}access_response extends {{ class_prefix }}base_response;
+    `uvm_object_utils({{ class_prefix }}access_response)
+
+    function new(string name = "{{ class_prefix }}access_response");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

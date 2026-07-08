@@ -1,0 +1,38 @@
+`ifndef {{ class_prefix | upper }}CPU_CONFIG_REQ
+`define {{ class_prefix | upper }}CPU_CONFIG_REQ
+
+class {{ class_prefix }}cpu_config_request extends {{ class_prefix }}base_request;
+    `uvm_object_utils_begin({{ class_prefix }}cpu_config_request)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(len, UVM_ALL_ON)
+        `uvm_field_enum(uvm_path_e, path, UVM_ALL_ON)
+        `uvm_field_enum(uvm_access_e, access, UVM_ALL_ON)
+        if(access == UVM_WRITE)
+            `uvm_field_queue_int(wdata, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit[63:0] addr;
+    rand int len;
+    rand uvm_path_e path;
+    rand uvm_access_e access;
+    rand bit[7:0] wdata[$];
+
+    function new(string name = "{{ class_prefix }}cpu_config_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_cpu_config_request {
+        soft path == UVM_FRONTDOOR;
+        path inside {UVM_FRONTDOOR, UVM_BACKDOOR};
+        access inside {UVM_READ, UVM_WRITE};
+        len > 0;
+        if(access == UVM_READ) {
+            wdata.size == 0;
+        }
+        else if(access == UVM_WRITE) {
+            wdata.size == len;
+        }
+    }
+endclass
+
+`endif

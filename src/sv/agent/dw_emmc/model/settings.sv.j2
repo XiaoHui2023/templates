@@ -1,0 +1,51 @@
+`ifndef {{ class_prefix | upper }}SETTINGS
+`define {{ class_prefix | upper }}SETTINGS
+
+class {{ class_prefix }}settings extends {{ class_prefix }}base_item;
+    `uvm_object_utils_begin({{ class_prefix }}settings)
+        `uvm_field_object(boot_cfg, UVM_ALL_ON)
+        `uvm_field_object(chk_clk_cfg, UVM_ALL_ON)
+        `uvm_field_object(regmodel, UVM_ALL_ON | UVM_NOPRINT | UVM_NOCOPY)
+        `uvm_field_int(has_randomized, UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    rand {{ class_prefix }}boot_configuration boot_cfg; // 启动配置
+    rand {{ class_prefix }}check_clock_configuration chk_clk_cfg; // 时钟检查配置
+    virtual {{ class_prefix }}interface vif; // 接口
+    {{ class_regmodel }} regmodel; // 寄存器模型虚拟句柄
+    rand bit has_randomized; // 是否随机过
+
+    function new(string name="{{ class_prefix }}settings");
+        super.new(name);
+
+        boot_cfg = {{ class_prefix }}boot_configuration::type_id::create({get_full_name(),".boot_cfg"});
+        chk_clk_cfg = {{ class_prefix }}check_clock_configuration::type_id::create({get_full_name(),".chk_clk_cfg"});
+    endfunction
+
+    constraint cst_settings {
+        regmodel != null;
+        has_randomized == 1;
+    }
+
+    constraint cst_user;
+    constraint cst_case;
+
+    extern function void pre_randomize();
+    extern function void post_randomize();
+endclass
+
+function void {{ class_prefix }}settings::pre_randomize();
+    super.pre_randomize();
+
+    set_child_context(boot_cfg);
+    set_child_context(chk_clk_cfg);
+endfunction
+
+function void {{ class_prefix }}settings::post_randomize();
+    super.post_randomize();
+
+    if(!vif)
+        `uvm_fatal("", "require vif")
+endfunction
+
+`endif

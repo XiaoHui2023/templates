@@ -1,0 +1,12 @@
+`ifndef {{ class_prefix | upper }}WAIT_FIELD_RSP
+`define {{ class_prefix | upper }}WAIT_FIELD_RSP
+
+class {{ class_prefix }}wait_field_response extends {{ class_prefix }}base_response;
+    `uvm_object_utils({{ class_prefix }}wait_field_response)
+
+    function new(string name = "{{ class_prefix }}wait_field_response");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

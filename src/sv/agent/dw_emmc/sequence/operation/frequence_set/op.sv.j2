@@ -1,0 +1,41 @@
+`ifndef {{ class_prefix | upper }}FREQUENCE_SET_OP_SEQ
+`define {{ class_prefix | upper }}FREQUENCE_SET_OP_SEQ
+
+class {{ class_prefix }}frequence_set_operation_seq extends {{ class_prefix }}base_operation_seq#({{ class_prefix }}frequence_set_response);
+    `uvm_object_utils_begin({{ class_prefix }}frequence_set_operation_seq)
+        `uvm_field_object(freq_set_request, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand {{ class_prefix }}frequence_set_request freq_set_request;
+
+    function new(string name = "{{ class_prefix }}frequence_set_operation_seq");
+        super.new(name);
+    endfunction
+
+    extern function void pre_randomize();
+    extern task body();
+    extern task post_start();
+endclass
+
+function void {{ class_prefix }}frequence_set_operation_seq::pre_randomize();
+    super.pre_randomize();
+
+    if(!freq_set_request)
+        `uvm_create(freq_set_request)
+endfunction
+
+task {{ class_prefix }}frequence_set_operation_seq::body();
+    p_sequencer.set_frequence(freq_set_request.frequence);
+endtask
+
+task {{ class_prefix }}frequence_set_operation_seq::post_start();
+    {{ class_prefix }}check_clock_frequence_test_seq chk_clk_freq_test_seq;
+    super.post_start();
+
+    if(!freq_set_request.should_check_clock_frequence)
+        return;
+
+    `uvm_do(chk_clk_freq_test_seq)
+endtask
+
+`endif

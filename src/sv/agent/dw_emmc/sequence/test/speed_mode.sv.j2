@@ -1,18 +1,18 @@
-`ifndef {{ class_prefix }}SPEED_MODE_TEST_SEQ
-`define {{ class_prefix }}SPEED_MODE_TEST_SEQ
+`ifndef {{ class_prefix | upper }}SPEED_MODE_TEST_SEQ
+`define {{ class_prefix | upper }}SPEED_MODE_TEST_SEQ
 
-class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_seq;
+class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
     `uvm_object_utils({{ class_prefix }}speed_mode_test_seq)
+
+    {{ class_prefix }}rw_test_seq rw_test_seq;
 
     function new(string name = "{{ class_prefix }}speed_mode_test_seq");
         super.new(name);
     endfunction
 
-    {{ class_prefix }}rw_test_seq rw_test_seq;
-
     task body();
-                                                                                                                                        {%- if is_sd %}
-        if(sys_cfg.boot_cfg.voltage_inside(V3_3)) begin
+{%- if is_sd %}
+        if(settings.boot_cfg.voltage_inside(V3_3)) begin
             `uvm_do_with(rw_test_seq, {
                 data_width == 4;
                 bus_speed_mode == DS;
@@ -24,38 +24,38 @@ class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_se
             })
         end
 
-        if(sys_cfg.boot_cfg.voltage_inside(V1_8)) begin
-            if(sys_cfg.boot_cfg.is_support_sdr12)
+        if(settings.boot_cfg.voltage_inside(V1_8)) begin
+            if(settings.boot_cfg.is_support_sdr12)
                 `uvm_do_with(rw_test_seq, {
                     data_width == 4;
                     bus_speed_mode == SDR12;
                 })
 
-            if(sys_cfg.boot_cfg.is_support_sdr25)
+            if(settings.boot_cfg.is_support_sdr25)
                 `uvm_do_with(rw_test_seq, {
                     data_width == 4;
                     bus_speed_mode == SDR25;
                 })
 
-            if(sys_cfg.boot_cfg.is_support_ddr50)
+            if(settings.boot_cfg.is_support_ddr50)
                 `uvm_do_with(rw_test_seq, {
                     data_width == 4;
                     bus_speed_mode == DDR50;
                 })
 
-            if(sys_cfg.boot_cfg.is_support_sdr50)
+            if(settings.boot_cfg.is_support_sdr50)
                 `uvm_do_with(rw_test_seq, {
                     data_width == 4;
                     bus_speed_mode == SDR50;
                 })
 
-            if(sys_cfg.boot_cfg.is_support_sdr104)
+            if(settings.boot_cfg.is_support_sdr104)
                 `uvm_do_with(rw_test_seq, {
                     data_width == 4;
                     bus_speed_mode == SDR104;
                 })
         end
-                                                                                                                                        {%- elif is_emmc %}
+{%- elif is_emmc %}
         `uvm_do_with(rw_test_seq, {
             data_width == 8;
             bus_speed_mode == LEGACY;
@@ -80,9 +80,8 @@ class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_se
             data_width == 8;
             bus_speed_mode == HS400;
         })
-                                                                                                                                        {%- endif %}
+{%- endif %}
     endtask
-
 endclass
 
 `endif

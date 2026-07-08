@@ -1,0 +1,27 @@
+`ifndef {{ class_prefix | upper }}CALLBACK
+`define {{ class_prefix | upper }}CALLBACK
+
+typedef class {{ class_prefix }}sequencer;
+
+class {{ class_prefix }}callback extends uvm_callback;
+    `uvm_object_utils({{ class_prefix }}callback)
+
+    function new(string name = "{{ class_prefix }}callback");
+        super.new(name);
+    endfunction
+
+    extern virtual task set_frequence({{ class_prefix }}sequencer sqr, int frequence, ref bit handled);
+    extern virtual task cpu_read({{ class_prefix }}sequencer sqr, bit[63:0] addr, uvm_path_e path, output bit[31:0] data, ref bit handled);
+    extern virtual task cpu_write({{ class_prefix }}sequencer sqr, bit[63:0] addr, bit[31:0] data, uvm_path_e path, ref bit handled);
+endclass
+
+task {{ class_prefix }}callback::set_frequence({{ class_prefix }}sequencer sqr, int frequence, ref bit handled);
+endtask
+
+task {{ class_prefix }}callback::cpu_read({{ class_prefix }}sequencer sqr, bit[63:0] addr, uvm_path_e path, output bit[31:0] data, ref bit handled);
+endtask
+
+task {{ class_prefix }}callback::cpu_write({{ class_prefix }}sequencer sqr, bit[63:0] addr, bit[31:0] data, uvm_path_e path, ref bit handled);
+endtask
+
+`endif

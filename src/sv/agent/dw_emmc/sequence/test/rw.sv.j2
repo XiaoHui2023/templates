@@ -1,73 +1,74 @@
 `ifndef {{ class_prefix | upper }}RW_TEST_SEQ
 `define {{ class_prefix | upper }}RW_TEST_SEQ
 
-// 读写测试
-class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq;
+class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}rw_test_seq)
-        `uvm_field_int(addr,UVM_ALL_ON)
-        `uvm_field_int(rd_multi_block_count,UVM_ALL_ON)
-        `uvm_field_int(wr_multi_block_count,UVM_ALL_ON)
-        `uvm_field_int(rd_block_size,UVM_ALL_ON)
-        `uvm_field_int(wr_block_size,UVM_ALL_ON)
-        `uvm_field_int(data_width,UVM_ALL_ON)
-        `uvm_field_enum(bus_speed_mode_e,bus_speed_mode,UVM_ALL_ON)
-        `uvm_field_int(dma_enable,UVM_ALL_ON)
-        `uvm_field_enum(dma_sel_e,dma_sel,UVM_ALL_ON)
-        `uvm_field_int(rd_blocking,UVM_ALL_ON)
-        `uvm_field_int(rd,UVM_ALL_ON)
-        `uvm_field_int(wr,UVM_ALL_ON)
-        `uvm_field_int(rd_single,UVM_ALL_ON)
-        `uvm_field_int(wr_single,UVM_ALL_ON)
-        `uvm_field_int(rd_multi,UVM_ALL_ON)
-        `uvm_field_int(wr_multi,UVM_ALL_ON)
-        `uvm_field_int(abort,UVM_ALL_ON)
-        `uvm_field_int(wp,UVM_ALL_ON)
-        `uvm_field_int(adma_des_addr,UVM_ALL_ON)
-        `uvm_field_int(should_compare,UVM_ALL_ON)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(rd_multi_block_count, UVM_ALL_ON)
+        `uvm_field_int(wr_multi_block_count, UVM_ALL_ON)
+        `uvm_field_int(rd_block_size, UVM_ALL_ON)
+        `uvm_field_int(wr_block_size, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+        `uvm_field_int(dma_enable, UVM_ALL_ON)
+        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+        `uvm_field_int(rd_blocking, UVM_ALL_ON)
+        `uvm_field_int(rd, UVM_ALL_ON)
+        `uvm_field_int(wr, UVM_ALL_ON)
+        `uvm_field_int(rd_single, UVM_ALL_ON)
+        `uvm_field_int(wr_single, UVM_ALL_ON)
+        `uvm_field_int(rd_multi, UVM_ALL_ON)
+        `uvm_field_int(wr_multi, UVM_ALL_ON)
+        `uvm_field_int(abort, UVM_ALL_ON)
+        `uvm_field_int(wp, UVM_ALL_ON)
+        `uvm_field_int(adma_des_addr, UVM_ALL_ON)
+        `uvm_field_int(should_compare, UVM_ALL_ON)
+        `uvm_field_enum(boot_partition_enable_e, boot_partition_enable, UVM_ALL_ON)
+        `uvm_field_enum(boot_partition_access_e, boot_partition_access, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand bit[63:0] addr; // 地址
-    rand int rd_multi_block_count; // 读多块个数
-    rand int wr_multi_block_count; // 写多块个数
-    rand int rd_block_size; // 读每块大小
-    rand int wr_block_size; // 写每块大小
-    rand int data_width; // 数据位宽
-    rand int dma_enable; // 是否开启DMA
-    rand dma_sel_e dma_sel; // DMA种类
-    rand bit rd_blocking; // 读是否阻塞
-    rand bit rd; // 是否读
-    rand bit wr; // 是否写
-    rand bit rd_single; // 是否单读
-    rand bit wr_single; // 是否单写
-    rand bit rd_multi; // 是否多块读
-    rand bit wr_multi; // 是否多块写
-    rand bit abort; // 是否Abort
-    rand bit wp; // 是否写保护
-    rand bit[31:0] adma_des_addr; // ADMA描述符地址
-    rand bus_speed_mode_e bus_speed_mode; // 总线速度模式
-    rand bit should_compare; // 是否应该比较结果
-    rand boot_partition_enable_e boot_partition_enable; // 用户选择要发送给主机的启动数据来源
-    rand boot_partition_access_e boot_partition_access; // 用户选择要访问的分区
-    event e_wr_single_done; // 写单块完成事件
-    event e_rd_single_done; // 读单块完成事件
+    rand bit[63:0] addr;
+    rand int rd_multi_block_count;
+    rand int wr_multi_block_count;
+    rand int rd_block_size;
+    rand int wr_block_size;
+    rand int data_width;
+    rand int dma_enable;
+    rand dma_sel_e dma_sel;
+    rand bit rd_blocking;
+    rand bit rd;
+    rand bit wr;
+    rand bit rd_single;
+    rand bit wr_single;
+    rand bit rd_multi;
+    rand bit wr_multi;
+    rand bit abort;
+    rand bit wp;
+    rand bit[31:0] adma_des_addr;
+    rand bus_speed_mode_e bus_speed_mode;
+    rand bit should_compare;
+    rand boot_partition_enable_e boot_partition_enable;
+    rand boot_partition_access_e boot_partition_access;
+    event e_wr_single_done;
+    event e_rd_single_done;
 
-    function new(string name = "{{ class_prefix }}rw_test_seq");
-        super.new(name);
-    endfunction
-
-    {{ class_prefix }}initial_seq initial_seq; // 初始化
+    {{ class_prefix }}initial_seq initial_seq;
     {{ class_prefix }}switch_bus_seq switch_bus_seq;
     {{ class_prefix }}xfer_read_seq read_seq;
     {{ class_prefix }}xfer_write_seq write_seq;
     {{ class_prefix }}switch_partition_config_command_seq switch_part_cfg_seq;
 
+    function new(string name = "{{ class_prefix }}rw_test_seq");
+        super.new(name);
+    endfunction
+
     constraint cst_test {
         addr[63:32] == 0;
 
-                                                                            {%- if is_sdio %}
-        if(sys_cfg.boot_cfg.voltage == V1_8)
+{%- if is_sdio %}
+        if(settings.boot_cfg.voltage == V1_8)
             data_width == 4;
-                                                                            {%- endif %}
+{%- endif %}
 
         soft rd_multi_block_count == 2;
         soft wr_multi_block_count == 2;
@@ -78,22 +79,24 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq;
         soft rd_blocking == 0;
         soft rd == 1;
         soft wr == 1;
-        soft $countones({rd_single, wr_single}) == 1;
-        soft $countones({rd_multi, wr_multi}) == 1;
+        soft rd_single == 0;
+        soft wr_single == 0;
+        soft rd_multi == 1;
+        soft wr_multi == 1;
         soft abort == 0;
         soft adma_des_addr == 'h1000_0000;
         soft wp == 0;
-        soft bus_speed_mode == sys_cfg.boot_cfg.default_bus_speed_mode;
-        soft data_width == sys_cfg.boot_cfg.default_data_width;
+        soft bus_speed_mode == settings.boot_cfg.default_bus_speed_mode;
+        soft data_width == settings.boot_cfg.default_data_width;
         soft boot_partition_enable == BOOT_PARTITION_ENABLE_NO;
         soft boot_partition_access == BOOT_PARTITION_ACCESS_NO;
 
-                                                                            {%- if is_emmc %}
+{%- if is_emmc %}
         if(bus_speed_mode inside {HIGH_SPEED_DDR, HS400}) {
             rd_block_size == 512;
             wr_block_size == 512;
         }
-                                                                            {%- endif %}
+{%- endif %}
 
         if(rd) {
             $countones({rd_multi, rd_single, rd_blocking}) > 0;
@@ -110,33 +113,33 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq;
             wr_multi == 0;
         }
 
-                                                                            {%- if is_sd %}
-        if(sys_cfg.boot_cfg.sd_capacity_type == SDSC) {
+{%- if is_sd %}
+        if(settings.boot_cfg.sd_capacity_type == SDSC) {
             rd_multi == 0;
             wr_multi == 0;
             abort == 0;
         }
-                                                                            {%- endif %}
+{%- endif %}
 
-                                                                            {%- if is_sdcard %}
+{%- if is_sdcard %}
         rd_block_size == 2048;
-                                                                            {%- else %}
+{%- else %}
         rd_block_size == 512;
         wr_block_size == 512;
-                                                                            {%- endif %}
+{%- endif %}
 
         soft should_compare == 1;
-
     }
-
-    extern task body();
-    extern function void post_randomize();
-
-    // 比较结果
-    extern task compare_result(bit[7:0] rw_data[$]);
 
     constraint cst_user {}
     constraint cst_case {}
+
+    extern task body();
+    extern function void post_randomize();
+    extern task compare_result(bit[7:0] rw_data[$]);
+    extern function void update_expected(bit[7:0] rw_data[$]);
+    extern function uvm_tlm_generic_payload create_scoreboard_payload(bit[7:0] rw_data[$], string name);
+    extern function bit[63:0] scoreboard_addr();
 endclass
 
 function void {{ class_prefix }}rw_test_seq::post_randomize();
@@ -149,20 +152,61 @@ task {{ class_prefix }}rw_test_seq::body();
     if(!ctx.has_initialized)
         `uvm_do(initial_seq)
 
-    // 切换总线模式
     `uvm_do_with(switch_bus_seq,{
         bus_speed_mode == local::bus_speed_mode;
         data_width == local::data_width;
     })
 
-    // 设置分区
     if(boot_partition_enable != BOOT_PARTITION_ENABLE_NO || boot_partition_access != BOOT_PARTITION_ACCESS_NO)
         `uvm_do_with(switch_part_cfg_seq,{
-            cmd_req.boot_partition_enable == local::boot_partition_enable;
-            cmd_req.boot_partition_access == local::boot_partition_access;
+            cmd_request.boot_partition_enable == local::boot_partition_enable;
+            cmd_request.boot_partition_access == local::boot_partition_access;
         })
 
-    // 读1块
+    if(wr_single) begin
+        `uvm_do_with(write_seq, {
+            addr == local::addr;
+            count == 1;
+            size == local::wr_block_size;
+            dma_enable == local::dma_enable;
+            dma_sel == local::dma_sel;
+            adma_des.cmd_addr == local::adma_des_addr;
+            write_protected == local::wp;
+        })
+        if(!wp)
+            update_expected(write_seq.wdata);
+        -> e_wr_single_done;
+    end
+
+    if(wr_multi) begin
+        `uvm_do_with(write_seq, {
+            addr == local::addr;
+            count == local::wr_multi_block_count;
+            size == local::wr_block_size;
+            dma_enable == local::dma_enable;
+            dma_sel == local::dma_sel;
+            adma_des.cmd_addr == local::adma_des_addr;
+            write_protected == local::wp;
+        })
+        if(!wp)
+            update_expected(write_seq.wdata);
+    end
+
+    if(abort && wr) begin
+        `uvm_do_with(write_seq, {
+            addr == local::addr;
+            count == 2;
+            size == local::wr_block_size;
+            abort == 1;
+            dma_enable == local::dma_enable;
+            dma_sel == local::dma_sel;
+            adma_des.cmd_addr == local::adma_des_addr;
+            write_protected == local::wp;
+        })
+        if(!wp)
+            update_expected(write_seq.wdata);
+    end
+
     if(rd_single) begin
         `uvm_do_with(read_seq,{
             addr == local::addr;
@@ -173,11 +217,9 @@ task {{ class_prefix }}rw_test_seq::body();
             adma_des.cmd_addr == local::adma_des_addr;
         })
         compare_result(read_seq.rdata);
-
         -> e_rd_single_done;
     end
 
-    // 读多块
     if(rd_multi) begin
         `uvm_do_with(read_seq,{
             addr == local::addr;
@@ -191,88 +233,65 @@ task {{ class_prefix }}rw_test_seq::body();
         compare_result(read_seq.rdata);
     end
 
-                                                                    {%- if is_sdio %}
-    // abort 读2块
-    if(abort) begin
-        if(rd) begin
-            `uvm_do_with(read_seq,{
-                addr == local::addr;
-                count == 2;
-                size == local::rd_block_size;
-                abort == 1;
-                dma_enable == local::dma_enable;
-                dma_sel == local::dma_sel;
-                adma_des.cmd_addr == local::adma_des_addr;
-            })
-            compare_result(read_seq.rdata);
-        end
-    end
-                                                                    {%- endif %}
-
-    // 写1块
-    if(wr_single) begin
-        `uvm_do_with(write_seq, {
+{%- if is_sdio %}
+    if(abort && rd) begin
+        `uvm_do_with(read_seq,{
             addr == local::addr;
-            count == 1;
-            size == local::wr_block_size;
+            count == 2;
+            size == local::rd_block_size;
+            abort == 1;
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
             adma_des.cmd_addr == local::adma_des_addr;
-            wp == local::wp;
         })
-        compare_result(write_seq.wdata);
-
-        -> e_wr_single_done;
+        compare_result(read_seq.rdata);
     end
-
-    // 写多块
-    if(wr_multi) begin
-        `uvm_do_with(write_seq, {
-            addr == local::addr;
-            count == local::wr_multi_block_count;
-            size == local::wr_block_size;
-            dma_enable == local::dma_enable;
-            dma_sel == local::dma_sel;
-            adma_des.cmd_addr == local::adma_des_addr;
-            wp == local::wp;
-        })
-        compare_result(write_seq.wdata);
-
-    end
-
-    // abort 写2块
-    if(abort) begin
-        if(wr) begin
-            `uvm_do_with(write_seq, {
-                addr == local::addr;
-                count == 2;
-                size == local::wr_block_size;
-                abort == 1;
-                dma_enable == local::dma_enable;
-                dma_sel == local::dma_sel;
-                adma_des.cmd_addr == local::adma_des_addr;
-                wp == local::wp;
-            })
-            compare_result(write_seq.wdata);
-        end
-    end
+{%- endif %}
 endtask
 
 task {{ class_prefix }}rw_test_seq::compare_result(bit[7:0] rw_data[$]);
-    bit[63:0] adr;
-    {{ class_prefix }}compare_card_memory_test_seq cmp_seq;
+    uvm_tlm_generic_payload payload;
 
     if(!should_compare)
         return;
 
-    adr = addr + boot_partition_access * 'h1_0000_0000;
+    if(p_sequencer.scoreboard == null)
+        `uvm_fatal("", "sequencer require scoreboard")
 
-    `uvm_do_with(cmp_seq, {
-        addr == local::adr;
-        data.size == local::rw_data.size;
-        foreach(local::rw_data[j])
-            data[j] == local::rw_data[j];
-    })
+    payload = create_scoreboard_payload(rw_data, "rw_test_seq_read_payload");
+    void'(p_sequencer.scoreboard.compare_actual_payload(payload, "rw_test_seq read"));
 endtask
+
+function void {{ class_prefix }}rw_test_seq::update_expected(bit[7:0] rw_data[$]);
+    uvm_tlm_generic_payload payload;
+
+    if(p_sequencer.scoreboard == null) begin
+        if(should_compare)
+            `uvm_fatal("", "sequencer require scoreboard")
+        return;
+    end
+
+    payload = create_scoreboard_payload(rw_data, "rw_test_seq_write_payload");
+    p_sequencer.scoreboard.write_expected_payload(payload, "rw_test_seq write");
+endfunction
+
+function uvm_tlm_generic_payload {{ class_prefix }}rw_test_seq::create_scoreboard_payload(bit[7:0] rw_data[$], string name);
+    byte unsigned data[];
+    uvm_tlm_generic_payload payload;
+
+    data = new[rw_data.size()];
+    foreach(rw_data[j])
+        data[j] = rw_data[j];
+
+    payload = new(name);
+    payload.set_address(scoreboard_addr());
+    payload.set_data_length(data.size());
+    payload.set_data(data);
+    return payload;
+endfunction
+
+function bit[63:0] {{ class_prefix }}rw_test_seq::scoreboard_addr();
+    return addr + boot_partition_access * 'h1_0000_0000;
+endfunction
 
 `endif

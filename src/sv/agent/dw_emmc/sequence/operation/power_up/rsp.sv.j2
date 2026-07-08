@@ -1,0 +1,12 @@
+`ifndef {{ class_prefix | upper }}POWER_UP_RSP
+`define {{ class_prefix | upper }}POWER_UP_RSP
+
+class {{ class_prefix }}power_up_response extends {{ class_prefix }}base_response;
+    `uvm_object_utils({{ class_prefix }}power_up_response)
+
+    function new(string name = "{{ class_prefix }}power_up_response");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

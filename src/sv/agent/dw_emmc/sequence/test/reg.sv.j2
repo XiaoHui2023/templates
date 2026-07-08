@@ -1,9 +1,8 @@
 {% if is_emmc or is_sdcard -%}
-`ifndef {{ class_prefix }}REG_TEST_SEQ
-`define {{ class_prefix }}REG_TEST_SEQ
+`ifndef {{ class_prefix | upper }}REG_TEST_SEQ
+`define {{ class_prefix | upper }}REG_TEST_SEQ
 
-// 测试
-class {{ class_prefix }}reg_test_seq extends {{ class_prefix }}default_seq;
+class {{ class_prefix }}reg_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
     `uvm_object_utils({{ class_prefix }}reg_test_seq)
 
     function new(string name = "{{ class_prefix }}reg_test_seq");
@@ -11,16 +10,12 @@ class {{ class_prefix }}reg_test_seq extends {{ class_prefix }}default_seq;
     endfunction
 
     extern task body();
-
-    // 处理 pre_switch 让步
     extern task handle_pre_switch_yield({{ class_prefix }}yield yield);
-
-    // 处理 post_switch 让步
     extern task handle_post_switch_yield({{ class_prefix }}yield yield);
 endclass
 
 task {{ class_prefix }}reg_test_seq::body();
-    {{ class_prefix }}initial_seq initial_seq; // 初始化
+    {{ class_prefix }}initial_seq initial_seq;
 
     `uvm_create(initial_seq)
 
@@ -35,7 +30,6 @@ task {{ class_prefix }}reg_test_seq::handle_pre_switch_yield({{ class_prefix }}y
     {%- if is_emmc %}
     {{ class_prefix }}send_csd_command_seq send_csd_seq;
     {{ class_prefix }}send_cid_command_seq send_cid_seq;
-    {%- elif is_sdio %}
     {%- elif is_sdcard %}
     {{ class_prefix }}send_csd_command_seq send_csd_seq;
     {{ class_prefix }}send_cid_command_seq send_cid_seq;
@@ -45,24 +39,11 @@ task {{ class_prefix }}reg_test_seq::handle_pre_switch_yield({{ class_prefix }}y
 
     {%- if is_emmc %}
 
-    // CMD9 查询CSD
     `uvm_do(send_csd_seq)
-
-    // CMD10 查询CID
     `uvm_do(send_cid_seq)
-    {%- elif is_sdio %}
-
-    // CMD10
-    // `uvm_do(send_cid_seq)
-
-    // CMD9
-    // `uvm_do(send_csd_seq)
     {%- elif is_sdcard %}
 
-    // CMD10
     `uvm_do(send_cid_seq)
-
-    // CMD9
     `uvm_do(send_csd_seq)
     {%- endif %}
 
@@ -72,7 +53,6 @@ endtask
 task {{ class_prefix }}reg_test_seq::handle_post_switch_yield({{ class_prefix }}yield yield);
     {%- if is_emmc %}
     {{ class_prefix }}send_ext_csd_seq send_ext_csd_seq;
-    {%- elif is_sdio %}
     {%- elif is_sdcard %}
     {{ class_prefix }}send_scr_acmd_seq send_scr_seq;
     {%- endif %}
@@ -80,14 +60,9 @@ task {{ class_prefix }}reg_test_seq::handle_post_switch_yield({{ class_prefix }}
     yield.request();
     {%- if is_emmc %}
 
-    // CMD8 查询 EXT_CSD
     `uvm_do(send_ext_csd_seq)
-    {%- elif is_sdio %}
-
-    // ACMD51?
     {%- elif is_sdcard %}
 
-    // ACMD51
     `uvm_do(send_scr_seq)
     {%- endif %}
 

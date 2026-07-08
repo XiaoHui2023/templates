@@ -1,0 +1,86 @@
+`ifndef {{ class_prefix | upper }}XFER_READ_SEQ
+`define {{ class_prefix | upper }}XFER_READ_SEQ
+
+// EMMC 控制器读数据，分块发送读数据
+class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
+    `uvm_object_utils_begin({{ class_prefix }}xfer_read_seq)
+        `uvm_field_int(blocking, UVM_ALL_ON)
+        `uvm_field_queue_int(rdata, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit blocking; // 是否阻塞 (不立即结束，积攒起来一口气读)
+    bit[7:0] rdata[$]; // 返回数据
+
+    function new(string name="{{ class_prefix }}xfer_read_seq");
+        super.new(name);
+    endfunction
+
+    constraint cst_xfer_flow {
+        data_xfer_dir == XFER_READ;
+
+                                                                                {%- if is_emmc or is_sdcard %}
+        abort == 0;
+                                                                                {%- endif %}
+
+        if(abort) {
+            blocking == 0;
+            if(count == 1)
+                blocking == 0;
+            soft blocking == 0;
+        }
+    }
+
+    virtual task execute_command();
+        {{ class_prefix }}command_response cmd_response;
+
+                                                                                {%- if is_emmc or is_sdcard %}
+        {{ class_prefix }}read_single_block_command_seq read_single_block_seq;
+        {{ class_prefix }}read_multiple_block_command_seq read_multiple_block_seq;
+
+        if(count > 1) begin
+            set_block_count();
+
+            `uvm_do_with(read_multiple_block_seq, {
+                cmd_request.block_count == local::count;
+                cmd_request.block_size == local::size;
+                cmd_request.dma_enable == local::dma_enable;
+                cmd_request.addr == local::addr;
+                cmd_request.dma_sel == local::dma_sel;
+                if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
+                    cmd_request.dma_addr == local::adma_des.cmd_addr;
+                else
+                    cmd_request.dma_addr == local::addr;
+                cmd_request.rd_blocking == local::blocking;
+            })
+
+            cmd_response = read_multiple_block_seq.rsp;
+        end
+        else begin
+            `uvm_do_with(read_single_block_seq, {
+                cmd_request.block_count == local::count;
+                cmd_request.block_size == local::size;
+                cmd_request.dma_enable == local::dma_enable;
+                cmd_request.addr == local::addr;
+                cmd_request.dma_sel == local::dma_sel;
+                if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
+                    cmd_request.dma_addr == local::adma_des.cmd_addr;
+                else
+                    cmd_request.dma_addr == local::addr;
+                cmd_request.rd_blocking == local::blocking;
+            })
+
+            cmd_response = read_single_block_seq.rsp;
+        end
+                                                                                {%- elif is_sdio %}
+
+        execute_sdio();
+
+        cmd_response = io_rw_extended_seq.rsp;
+
+                                                                                {%- endif %}
+
+        rdata = cmd_response.data;
+    endtask
+endclass
+
+`endif

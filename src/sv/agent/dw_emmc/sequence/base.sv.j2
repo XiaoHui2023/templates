@@ -5,7 +5,7 @@ class {{ class_prefix }}base_seq#(type RSP={{ class_prefix }}base_item) extends 
     `uvm_object_param_utils({{ class_prefix }}base_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    {{ class_prefix }}system_configuration sys_cfg;
+    {{ class_prefix }}settings settings;
     {{ class_prefix }}boot_configuration boot_cfg;
     {{ class_prefix }}context ctx;
 
@@ -24,8 +24,8 @@ endclass
 function void {{ class_prefix }}base_seq::pre_randomize();
     super.pre_randomize();
 
-    $cast(sys_cfg,p_sequencer.sys_cfg);
-    $cast(boot_cfg,sys_cfg.boot_cfg);
+    $cast(settings,p_sequencer.settings);
+    $cast(boot_cfg,settings.boot_cfg);
     $cast(ctx,p_sequencer.ctx);
 
     cnt_pre_randomize++;

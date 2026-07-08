@@ -1,0 +1,34 @@
+`ifndef {{ class_prefix | upper }}SELECT_CARD_COMMAND_REQ
+`define {{ class_prefix | upper }}SELECT_CARD_COMMAND_REQ
+
+// 发送CMD7, 切换从机的 待命/传输 状态, 或 选择/断开 状态
+class {{ class_prefix }}select_card_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils_begin({{ class_prefix }}select_card_command_request)
+        `uvm_field_int(rca, UVM_ALL_ON)
+        `uvm_field_int(busy, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand bit[15:0] rca; // 相对地址。{{ '0表示取消选中' if is_sd }}
+    rand bit busy; // 应答是否为 R1b。在 transfer 和 standby 之间切换时, 为 R1; 在 disconnected programming 之间切换时, 为 R1b
+
+    function new(string name="{{ class_prefix }}select_card_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_command {
+        cmd_index == 7;
+        argument[31:16] == rca;
+        if (busy)
+            resp == R1b;
+        else
+            resp == R1;
+                                                                                        {%- if is_emmc %}
+        rca != 0;
+                                                                                        {%- endif %}
+
+        soft busy == 0;
+        soft rca == settings.boot_cfg.relative_addr;
+    }
+endclass
+
+`endif

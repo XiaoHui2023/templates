@@ -1,0 +1,77 @@
+`ifndef {{ class_prefix | upper }}INTERFACE
+`define {{ class_prefix | upper }}INTERFACE
+
+interface {{ class_prefix }}interface(
+    {%- for clk in monitored_clocks %}
+    input wire {{ clk.name }},
+    {%- endfor %}
+    {%- if is_sd %}
+    output wire cd,
+    output wire wp,
+    {%- endif %}
+    input wire intr,
+    input wire[UVM_HDL_MAX_WIDTH-1:0] heartbeat
+);
+
+timeunit 1fs;
+timeprecision 1fs;
+
+    {%- if is_sd %}
+reg cd_r;
+reg wp_r;
+
+assign cd = cd_r;
+assign wp = wp_r;
+    {%- endif %}
+
+{{ class_prefix }}monitor_interface monitor_if(
+    {%- for clk in monitored_clocks %}
+    .{{ clk.name }}({{ clk.name }}){{ ',' if not loop.last }}
+    {%- endfor %}
+);
+
+initial begin
+    {%- if is_sd %}
+    cd_r <= 1'b1;
+    wp_r <= 1'b1;
+    {%- endif %}
+end
+
+{%- if is_sd %}
+
+function automatic void card_insert();
+    cd_r = 0;
+endfunction
+
+function automatic void card_remove();
+    cd_r = 1;
+endfunction
+
+function automatic void set_write_protect(bit enable);
+    wp_r = ~enable;
+endfunction
+
+{%- endif %}
+
+task automatic wait_timeout(longint timeout_us);
+    longint heartbeat_count;
+
+    fork begin
+        fork
+            forever begin
+                heartbeat_count = timeout_us;
+                @(heartbeat);
+            end
+            forever begin
+                #1us;
+                if(heartbeat_count-- < 0)
+                    break;
+            end
+        join_any
+        disable fork;
+    end join
+endtask
+
+endinterface
+
+`endif

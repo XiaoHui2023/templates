@@ -3,30 +3,62 @@
 
 class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
+    `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
 
-    {{ class_prefix }}system_configuration sys_cfg; // 系统配置包
-    {{ class_prefix }}context ctx; // 上下文
-    virtual {{ class_prefix }}interface vif; // 接口
+    {{ class_prefix }}settings settings;
+    {{ class_prefix }}context ctx;
+    {{ class_prefix }}scoreboard scoreboard;
+    virtual {{ class_prefix }}interface vif;
 
-    function new(string name="{{ class_prefix }}sequencer",uvm_component parent=null);
-        super.new(name,parent);
+    function new(string name = "{{ class_prefix }}sequencer", uvm_component parent = null);
+        super.new(name, parent);
     endfunction
 
     extern function void start_of_simulation();
     extern task reset_phase(uvm_phase phase);
+    extern virtual task set_frequence(int frequence);
+    extern virtual task cpu_read(bit[63:0] addr, uvm_path_e path, output bit[31:0] data);
+    extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
 endclass
 
 task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
 
-    stop_sequences(); // 直接丢弃未完成的sequence,清空等待队列
+    stop_sequences();
     start_phase_sequence(phase);
 endtask
 
 function void {{ class_prefix }}sequencer::start_of_simulation();
     super.start_of_simulation();
 
-    vif = sys_cfg.vif;
+    vif = settings.vif;
 endfunction
+
+task {{ class_prefix }}sequencer::set_frequence(int frequence);
+    bit handled;
+
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, set_frequence(this, frequence, handled))
+
+    if(!handled)
+        `uvm_fatal("CALLBACK", "set_frequence callback is not handled")
+endtask
+
+task {{ class_prefix }}sequencer::cpu_read(bit[63:0] addr, uvm_path_e path, output bit[31:0] data);
+    bit handled;
+
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, cpu_read(this, addr, path, data, handled))
+
+    if(!handled)
+        `uvm_fatal("CALLBACK", "cpu_read callback is not handled")
+endtask
+
+task {{ class_prefix }}sequencer::cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
+    bit handled;
+
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, cpu_write(this, addr, data, path, handled))
+
+    if(!handled)
+        `uvm_fatal("CALLBACK", "cpu_write callback is not handled")
+endtask
 
 `endif

@@ -1,0 +1,18 @@
+`ifndef {{ class_prefix | upper }}GO_INACTIVE_STATE_COMMAND_REQ
+`define {{ class_prefix | upper }}GO_INACTIVE_STATE_COMMAND_REQ
+
+// 发送CMD15进入未激活状态
+class {{ class_prefix }}go_inactive_state_command_request extends {{ class_prefix }}command_request;
+    `uvm_object_utils({{ class_prefix }}go_inactive_state_command_request)
+
+    function new(string name="{{ class_prefix }}go_inactive_state_command_request");
+        super.new(name);
+    endfunction
+
+    constraint cst_command {
+        cmd_index == 15;
+        resp == NR;
+    }
+endclass
+
+`endif

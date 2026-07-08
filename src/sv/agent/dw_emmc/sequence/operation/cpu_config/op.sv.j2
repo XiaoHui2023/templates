@@ -1,0 +1,92 @@
+`ifndef {{ class_prefix | upper }}CPU_CONFIG_OP_SEQ
+`define {{ class_prefix | upper }}CPU_CONFIG_OP_SEQ
+
+class {{ class_prefix }}cpu_config_operation_seq extends {{ class_prefix }}base_operation_seq#({{ class_prefix }}cpu_config_response);
+    `uvm_object_utils_begin({{ class_prefix }}cpu_config_operation_seq)
+        `uvm_field_object(cpu_cfg_request, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    rand {{ class_prefix }}cpu_config_request cpu_cfg_request;
+
+    function new(string name = "{{ class_prefix }}cpu_config_operation_seq");
+        super.new(name);
+    endfunction
+
+    extern function void pre_randomize();
+    extern task body();
+    extern task post_start();
+    extern task cpu_read(input bit[63:0] addr, output bit[31:0] data);
+    extern task cpu_write(bit[63:0] addr, bit[31:0] data);
+endclass
+
+function void {{ class_prefix }}cpu_config_operation_seq::pre_randomize();
+    super.pre_randomize();
+
+    if(!cpu_cfg_request)
+        `uvm_create(cpu_cfg_request)
+endfunction
+
+task {{ class_prefix }}cpu_config_operation_seq::body();
+    case(cpu_cfg_request.access)
+        UVM_READ : begin
+            bit[31:0] word;
+            bit[7:0] q[$];
+            bit[31:0] adr;
+            int count;
+
+            adr = cpu_cfg_request.addr;
+            count = cpu_cfg_request.len;
+
+            repeat($ceil(1.0 * count / 4)) begin
+                cpu_read(adr, word);
+                { << 8 {q} } = { << 32 {word} };
+                repeat(4)
+                    if(count > 0) begin
+                        rsp.rdata.push_back(q.pop_front());
+                        count--;
+                    end
+                adr += 4;
+            end
+        end
+        UVM_WRITE : begin
+            bit[31:0] word;
+            bit[7:0] buff[$];
+            bit[31:0] adr;
+
+            adr = cpu_cfg_request.addr;
+            buff = cpu_cfg_request.wdata;
+
+            while(buff.size % 4)
+                buff.push_back(0);
+
+            repeat(buff.size / 4) begin
+                bit[7:0] q[$];
+
+                repeat(4)
+                    q.push_back(buff.pop_front());
+                {{ "word = {<<32{{<<8{q}}}};" }}
+
+                cpu_write(adr, word);
+                adr += 4;
+            end
+        end
+    endcase
+endtask
+
+task {{ class_prefix }}cpu_config_operation_seq::post_start();
+    super.post_start();
+
+    if(cpu_cfg_request.access == UVM_READ)
+        if(rsp.rdata.size != cpu_cfg_request.len)
+            `uvm_fatal("", $psprintf("require %0d rdata, but %0d", cpu_cfg_request.len, rsp.rdata.size))
+endtask
+
+task {{ class_prefix }}cpu_config_operation_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data);
+    p_sequencer.cpu_read(addr, cpu_cfg_request.path, data);
+endtask
+
+task {{ class_prefix }}cpu_config_operation_seq::cpu_write(bit[63:0] addr, bit[31:0] data);
+    p_sequencer.cpu_write(addr, data, cpu_cfg_request.path);
+endtask
+
+`endif
