@@ -113,8 +113,9 @@ task {{ class_prefix }}inout_test_seq::run_one(int bit_index, bit[31:0] dir, bit
 
     if ((rdata & active_mask) != (data & active_mask)) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("gpio %s test mismatch: bit=%0d dir=%h expect=%h actual=%h",
+        `uvm_error("", $sformatf("gpio %s test mismatch: group=%s bit=%0d dir=%h expect=%h actual=%h",
                 dir[bit_index] ? "output" : "input",
+                cfg.group_name,
                 bit_index,
                 dir & active_mask,
                 data & active_mask,
