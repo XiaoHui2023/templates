@@ -130,7 +130,7 @@ DMA 生成模式由 Python `internal_dma` 和 `external_dma` 决定，二者不�
 | `transfer_mode` | 配置 `CTRLR0.TMOD`。 |
 | `spi_frf` | 配置 `CTRLR0.SPI_FRF`。 |
 | `spi_mode` | 配置 `CTRLR0.SCPOL/SCPH`。 |
-| `data_frame_bits` | 配置 `CTRLR0.DFS` 或 `CTRLR0.DFS_32`。 |
+| `data_frame_bits` | 配置 `CTRLR0.DFS`。 |
 | `ndf` | 配置 `CTRLR1.NDF`，单位是 DFS frame，不是 byte。 |
 | `ssi_en` | 配置 `SSIENR.SSIC_EN`。 |
 | `ser` | 配置 `SER.SER` 片选 mask。 |
@@ -178,7 +178,7 @@ sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 s
 - memh/`.hex` 文件解析逻辑。
 - sequencer/kit_sequencer 快捷函数。
 
-重复寄存器 FIELD apply 逻辑放在 `core/register_access.sv` 的实例化工具类中；从 operation req 生成 `configuration` 的入口放在 operation sequence 中。
+重复寄存器 FIELD apply 流程放在 `core/register_access.sv` 的实例化工具类中，但寄存器访问必须直接写 `settings.regmodel.<REG>.read(status, data)`、`settings.regmodel.<REG>.<FIELD>.set(...)` 和 `settings.regmodel.<REG>.write(status, settings.regmodel.<REG>.get())`，不使用 `update()`，不再封装 `set_field/get_field/update_reg`。从 operation req 生成 `configuration` 的入口放在 operation sequence 中。
 
 ## Interrupt Timeout Settings
 

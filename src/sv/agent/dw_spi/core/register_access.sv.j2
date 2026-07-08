@@ -20,43 +20,12 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         endcase
     endfunction
 
-    protected function uvm_reg_field get_field(
-            uvm_reg rg,
-            string reg_name,
-            string field_name);
-        uvm_reg_field field;
-
-        if (rg == null)
-            `uvm_fatal("DW_SPI_REG", $sformatf("%s register handle is null", reg_name))
-        field = rg.get_field_by_name(field_name);
-        if (field == null)
-            `uvm_fatal("DW_SPI_REG", $sformatf("%s.%s field handle is null", reg_name, field_name))
-        return field;
-    endfunction
-
-    protected function void set_field(
-            uvm_reg rg,
-            string reg_name,
-            string field_name,
-            uvm_reg_data_t value);
-        get_field(rg, reg_name, field_name).set(value);
-    endfunction
-
-    protected task update_reg(uvm_reg rg, string reg_name);
-        uvm_status_e status;
-
-        if (rg == null)
-            `uvm_fatal("DW_SPI_REG", $sformatf("%s register handle is null", reg_name))
-        rg.update(status);
-        if (status != UVM_IS_OK)
-            `uvm_error("DW_SPI_REG", $sformatf("update %s failed status=%s", reg_name, status.name()))
-    endtask
-
     task apply_configuration({{ class_prefix }}configuration cfg);
         uvm_status_e status;
         host_mode_e host_mode;
         transfer_mode_e transfer_mode;
         uvm_reg_data_t dfs;
+        uvm_reg_data_t reg_data;
 
         if (cfg == null)
             `uvm_fatal("DW_SPI_REG", "configuration is null")
@@ -67,104 +36,187 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         if (!$cast(transfer_mode, cfg.transfer_mode))
             `uvm_fatal("DW_SPI_REG", "failed to cast configuration transfer_mode")
 
-        set_field(settings.regmodel.SSIENR, "SSIENR", "SSIC_EN", 0);
-        update_reg(settings.regmodel.SSIENR, "SSIENR");
+        settings.regmodel.SSIENR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read SSIENR failed status=%s", status.name()))
+        settings.regmodel.SSIENR.SSIC_EN.set(0);
+        settings.regmodel.SSIENR.write(status, settings.regmodel.SSIENR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write SSIENR failed status=%s", status.name()))
 
-        set_field(settings.regmodel.IMR, "IMR", "TXEIM", cfg.txeim);
-        set_field(settings.regmodel.IMR, "IMR", "TXOIM", cfg.txoim);
-        set_field(settings.regmodel.IMR, "IMR", "RXUIM", cfg.rxuim);
-        set_field(settings.regmodel.IMR, "IMR", "RXOIM", cfg.rxoim);
-        set_field(settings.regmodel.IMR, "IMR", "RXFIM", cfg.rxfim);
-        set_field(settings.regmodel.IMR, "IMR", "MSTIM", cfg.mstim);
-        update_reg(settings.regmodel.IMR, "IMR");
+        settings.regmodel.IMR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read IMR failed status=%s", status.name()))
+        settings.regmodel.IMR.TXEIM.set(cfg.txeim);
+        settings.regmodel.IMR.TXOIM.set(cfg.txoim);
+        settings.regmodel.IMR.RXUIM.set(cfg.rxuim);
+        settings.regmodel.IMR.RXOIM.set(cfg.rxoim);
+        settings.regmodel.IMR.RXFIM.set(cfg.rxfim);
+        settings.regmodel.IMR.MSTIM.set(cfg.mstim);
+        settings.regmodel.IMR.write(status, settings.regmodel.IMR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write IMR failed status=%s", status.name()))
 
         settings.regmodel.ICR.write(status, '0);
         if (status != UVM_IS_OK)
             `uvm_error("DW_SPI_REG", $sformatf("write ICR failed status=%s", status.name()))
 
-        set_field(settings.regmodel.SER, "SER", "SER", 0);
-        update_reg(settings.regmodel.SER, "SER");
+        settings.regmodel.SER.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read SER failed status=%s", status.name()))
+        settings.regmodel.SER.SER.set(0);
+        settings.regmodel.SER.write(status, settings.regmodel.SER.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
 
         dfs = cfg.data_frame_bits - 1;
-        if (settings.ssi_variant == HSSI) begin
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "DFS", dfs);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SPI_FRF", cfg.spi_frf);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPH", cfg.spi_mode[0]);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPOL", cfg.spi_mode[1]);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "TMOD", transfer_mode_bits(transfer_mode));
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SSI_IS_MST", host_mode == MASTER);
-        end else begin
-            if (cfg.data_frame_bits > 16)
-                set_field(settings.regmodel.CTRLR0, "CTRLR0", "DFS_32", dfs);
-            else
-                set_field(settings.regmodel.CTRLR0, "CTRLR0", "DFS", dfs);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SPI_FRF", cfg.spi_frf);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPH", cfg.spi_mode[0]);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SCPOL", cfg.spi_mode[1]);
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "TMOD", transfer_mode_bits(transfer_mode));
-            set_field(settings.regmodel.CTRLR0, "CTRLR0", "SSI_IS_MST", host_mode == MASTER);
-        end
-        update_reg(settings.regmodel.CTRLR0, "CTRLR0");
+        settings.regmodel.CTRLR0.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read CTRLR0 failed status=%s", status.name()))
+        settings.regmodel.CTRLR0.DFS.set(dfs);
+        settings.regmodel.CTRLR0.SPI_FRF.set(cfg.spi_frf);
+        settings.regmodel.CTRLR0.SCPH.set(cfg.spi_mode[0]);
+        settings.regmodel.CTRLR0.SCPOL.set(cfg.spi_mode[1]);
+        settings.regmodel.CTRLR0.TMOD.set(transfer_mode_bits(transfer_mode));
+        settings.regmodel.CTRLR0.SSI_IS_MST.set(host_mode == MASTER);
+        settings.regmodel.CTRLR0.write(status, settings.regmodel.CTRLR0.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write CTRLR0 failed status=%s", status.name()))
 
-        set_field(settings.regmodel.CTRLR1, "CTRLR1", "NDF", cfg.ndf);
-        update_reg(settings.regmodel.CTRLR1, "CTRLR1");
+        settings.regmodel.CTRLR1.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read CTRLR1 failed status=%s", status.name()))
+        settings.regmodel.CTRLR1.NDF.set(cfg.ndf);
+        settings.regmodel.CTRLR1.write(status, settings.regmodel.CTRLR1.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write CTRLR1 failed status=%s", status.name()))
 
-        set_field(settings.regmodel.BAUDR, "BAUDR", "SCKDV", cfg.baudr);
-        update_reg(settings.regmodel.BAUDR, "BAUDR");
+        settings.regmodel.BAUDR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read BAUDR failed status=%s", status.name()))
+        settings.regmodel.BAUDR.SCKDV.set(cfg.baudr);
+        settings.regmodel.BAUDR.write(status, settings.regmodel.BAUDR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write BAUDR failed status=%s", status.name()))
 
-        set_field(settings.regmodel.TXFTLR, "TXFTLR", "TFT", cfg.txftlr);
-        update_reg(settings.regmodel.TXFTLR, "TXFTLR");
+        settings.regmodel.TXFTLR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read TXFTLR failed status=%s", status.name()))
+        settings.regmodel.TXFTLR.TFT.set(cfg.txftlr);
+        settings.regmodel.TXFTLR.write(status, settings.regmodel.TXFTLR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write TXFTLR failed status=%s", status.name()))
 
-        set_field(settings.regmodel.RXFTLR, "RXFTLR", "RFT", cfg.rxftlr);
-        update_reg(settings.regmodel.RXFTLR, "RXFTLR");
+        settings.regmodel.RXFTLR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read RXFTLR failed status=%s", status.name()))
+        settings.regmodel.RXFTLR.RFT.set(cfg.rxftlr);
+        settings.regmodel.RXFTLR.write(status, settings.regmodel.RXFTLR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write RXFTLR failed status=%s", status.name()))
 
 {% if internal_dma or external_dma %}
+        settings.regmodel.DMACR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read DMACR failed status=%s", status.name()))
 {% if external_dma %}
-        set_field(settings.regmodel.DMACR, "DMACR", "RDMAE", cfg.rdmae);
-        set_field(settings.regmodel.DMACR, "DMACR", "TDMAE", cfg.tdmae);
+        settings.regmodel.DMACR.RDMAE.set(cfg.rdmae);
+        settings.regmodel.DMACR.TDMAE.set(cfg.tdmae);
 {% endif %}
 {% if internal_dma %}
-        set_field(settings.regmodel.DMACR, "DMACR", "IDMAE", cfg.idmae);
-        set_field(settings.regmodel.DMACR, "DMACR", "AINC", cfg.ainc);
+        settings.regmodel.DMACR.IDMAE.set(cfg.idmae);
+        settings.regmodel.DMACR.AINC.set(cfg.ainc);
 {% endif %}
-        update_reg(settings.regmodel.DMACR, "DMACR");
+        settings.regmodel.DMACR.write(status, settings.regmodel.DMACR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write DMACR failed status=%s", status.name()))
 
-        set_field(settings.regmodel.DMATDLR, "DMATDLR", "DMATDL", cfg.dmatdl);
-        update_reg(settings.regmodel.DMATDLR, "DMATDLR");
+        settings.regmodel.DMATDLR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read DMATDLR failed status=%s", status.name()))
+        settings.regmodel.DMATDLR.DMATDL.set(cfg.dmatdl);
+        settings.regmodel.DMATDLR.write(status, settings.regmodel.DMATDLR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write DMATDLR failed status=%s", status.name()))
 
-        set_field(settings.regmodel.DMARDLR, "DMARDLR", "DMARDL", cfg.dmardl);
-        update_reg(settings.regmodel.DMARDLR, "DMARDLR");
+        settings.regmodel.DMARDLR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read DMARDLR failed status=%s", status.name()))
+        settings.regmodel.DMARDLR.DMARDL.set(cfg.dmardl);
+        settings.regmodel.DMARDLR.write(status, settings.regmodel.DMARDLR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write DMARDLR failed status=%s", status.name()))
 
 {% if internal_dma %}
         if (cfg.write_internal_dma_regs) begin
-            set_field(settings.regmodel.AXIAWLEN, "AXIAWLEN", "AWLEN", cfg.awlen);
-            update_reg(settings.regmodel.AXIAWLEN, "AXIAWLEN");
+            settings.regmodel.AXIAWLEN.read(status, reg_data);
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("read AXIAWLEN failed status=%s", status.name()))
+            settings.regmodel.AXIAWLEN.AWLEN.set(cfg.awlen);
+            settings.regmodel.AXIAWLEN.write(status, settings.regmodel.AXIAWLEN.get());
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("write AXIAWLEN failed status=%s", status.name()))
 
-            set_field(settings.regmodel.AXIARLEN, "AXIARLEN", "ARLEN", cfg.arlen);
-            update_reg(settings.regmodel.AXIARLEN, "AXIARLEN");
+            settings.regmodel.AXIARLEN.read(status, reg_data);
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("read AXIARLEN failed status=%s", status.name()))
+            settings.regmodel.AXIARLEN.ARLEN.set(cfg.arlen);
+            settings.regmodel.AXIARLEN.write(status, settings.regmodel.AXIARLEN.get());
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("write AXIARLEN failed status=%s", status.name()))
 
-            set_field(settings.regmodel.SPIDR, "SPIDR", "SPI_INST", cfg.spi_inst);
-            update_reg(settings.regmodel.SPIDR, "SPIDR");
+            settings.regmodel.SPIDR.read(status, reg_data);
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("read SPIDR failed status=%s", status.name()))
+            settings.regmodel.SPIDR.SPI_INST.set(cfg.spi_inst);
+            settings.regmodel.SPIDR.write(status, settings.regmodel.SPIDR.get());
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("write SPIDR failed status=%s", status.name()))
 
-            set_field(settings.regmodel.SPIAR, "SPIAR", "SDAR", cfg.sdar);
-            update_reg(settings.regmodel.SPIAR, "SPIAR");
+            settings.regmodel.SPIAR.read(status, reg_data);
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("read SPIAR failed status=%s", status.name()))
+            settings.regmodel.SPIAR.SDAR.set(cfg.sdar);
+            settings.regmodel.SPIAR.write(status, settings.regmodel.SPIAR.get());
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("write SPIAR failed status=%s", status.name()))
 
-            set_field(settings.regmodel.AXIAR0, "AXIAR0", "AXIAR0", cfg.axiar0);
-            update_reg(settings.regmodel.AXIAR0, "AXIAR0");
+            settings.regmodel.AXIAR0.read(status, reg_data);
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("read AXIAR0 failed status=%s", status.name()))
+            settings.regmodel.AXIAR0.AXIAR0.set(cfg.axiar0);
+            settings.regmodel.AXIAR0.write(status, settings.regmodel.AXIAR0.get());
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("write AXIAR0 failed status=%s", status.name()))
         end
 {% endif %}
 {% endif %}
 
         if (cfg.write_rx_sample_delay) begin
-            set_field(settings.regmodel.RX_SAMPLE_DELAY, "RX_SAMPLE_DELAY", "RSD", cfg.rx_sample_delay);
-            update_reg(settings.regmodel.RX_SAMPLE_DELAY, "RX_SAMPLE_DELAY");
+            settings.regmodel.RX_SAMPLE_DELAY.read(status, reg_data);
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("read RX_SAMPLE_DELAY failed status=%s", status.name()))
+            settings.regmodel.RX_SAMPLE_DELAY.RSD.set(cfg.rx_sample_delay);
+            settings.regmodel.RX_SAMPLE_DELAY.write(status, settings.regmodel.RX_SAMPLE_DELAY.get());
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("write RX_SAMPLE_DELAY failed status=%s", status.name()))
         end
 
-        set_field(settings.regmodel.SER, "SER", "SER", cfg.ser);
-        update_reg(settings.regmodel.SER, "SER");
+        settings.regmodel.SER.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read SER failed status=%s", status.name()))
+        settings.regmodel.SER.SER.set(cfg.ser);
+        settings.regmodel.SER.write(status, settings.regmodel.SER.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write SER failed status=%s", status.name()))
 
-        set_field(settings.regmodel.SSIENR, "SSIENR", "SSIC_EN", cfg.ssi_en);
-        update_reg(settings.regmodel.SSIENR, "SSIENR");
+        settings.regmodel.SSIENR.read(status, reg_data);
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("read SSIENR failed status=%s", status.name()))
+        settings.regmodel.SSIENR.SSIC_EN.set(cfg.ssi_en);
+        settings.regmodel.SSIENR.write(status, settings.regmodel.SSIENR.get());
+        if (status != UVM_IS_OK)
+            `uvm_error("DW_SPI_REG", $sformatf("write SSIENR failed status=%s", status.name()))
     endtask
 endclass
 

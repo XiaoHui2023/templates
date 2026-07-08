@@ -26,8 +26,10 @@
 ## 注意事项
 
 - 不保存寄存器地址，不维护字符串到寄存器的地址表。
-- 不拼接完整寄存器值；只设置 FIELD，然后更新所属 REG。
+- 不拼接完整寄存器值；直接使用 `settings.regmodel.<REG>.read(status, data)` 刷新镜像，`settings.regmodel.<REG>.<FIELD>.set(...)` 修改字段，再调用 `settings.regmodel.<REG>.write(status, settings.regmodel.<REG>.get())`。
 - 不提供通用 `reg_write` / `reg_read` 包装。
 - 不声明静态函数集合；sequence 实例化工具对象并注入依赖。
 - 不从 core 反向引用 sequence 层类型。
 - DMA 寄存器也按明确 FIELD 写入，不使用完整寄存器拼值。
+- 不在 core 中封装 `set_field/get_field/update_reg` 这类寄存器访问二次 API；代码必须显式写出具体 REG/FIELD。
+- 不使用 `update()`；本模块寄存器总线访问只用 `read()` 和 `write()`。

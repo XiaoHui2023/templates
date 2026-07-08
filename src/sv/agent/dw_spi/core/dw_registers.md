@@ -11,7 +11,7 @@
 5. 写 `SER.SER` 选择目标片选。
 6. 写 `SSIENR.SSIC_EN = 1` 打开控制器。
 
-配置字段时使用 regmodel FIELD `set()`，再对所属 REG 调 `update()`。不要在 core 里拼接完整寄存器值，也不要在 configuration 里保存寄存器地址。
+配置字段时先用 regmodel REG `read()` 刷新镜像，再使用 FIELD `set()`，最后对所属 REG 调 `write()`。不要使用 `update()`，不要在 core 里拼接完整寄存器值，也不要在 configuration 里保存寄存器地址。
 
 ## CTRLR0
 
@@ -29,8 +29,7 @@
 | `TMOD` | `1` | TX only |
 | `TMOD` | `2` | RX only |
 | `TMOD` | `3` | EEPROM read |
-| `DFS` | `data_frame_bits - 1` | 数据帧位宽，HSSI 使用该字段 |
-| `DFS_32` | `data_frame_bits - 1` | PSSI 且位宽大于 16 时使用 |
+| `DFS` | `data_frame_bits - 1` | 数据帧位宽 |
 
 PSSI/HSSI 的 bit layout 可能不同，代码必须通过 FIELD 名访问，不依赖固定 bit slice。
 
@@ -40,7 +39,7 @@ PSSI/HSSI 的 bit layout 可能不同，代码必须通过 FIELD 名访问，不
 | --- | --- |
 | `NDF` | receive-only 或 EEPROM-read 类传输的数据帧数量配置 |
 
-`NDF` 来自单次 register `configuration`，由 sequence 层根据 transfer req 推导。`NDF` 以 DFS frame 为单位，不以 byte 为单位；当 `CTRLR0.DFS/DFS_32` 大于 8 时，必须先把 payload byte length 转成 bit length，再按 `data_frame_bits` 向上取整得到 frame 数。
+`NDF` 来自单次 register `configuration`，由 sequence 层根据 transfer req 推导。`NDF` 以 DFS frame 为单位，不以 byte 为单位；当 `CTRLR0.DFS` 大于 8 时，必须先把 payload byte length 转成 bit length，再按 `data_frame_bits` 向上取整得到 frame 数。
 
 ```text
 payload_bits = payload_bytes * 8
