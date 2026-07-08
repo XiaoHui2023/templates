@@ -223,6 +223,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
     {{ settings.class_prefix }}check_measure_rsp rs
 );
     bit expect_active;
+    longint expected_freq_hz;
     real expected_hz;
     real measured_hz;
     real rel_diff;
@@ -231,7 +232,8 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
         return;
 
     expect_active = nd._resolved_active;
-    expected_hz = real'(nd._resolved_freq);
+    expected_freq_hz = nd._resolved_freq;
+    expected_hz = real'(expected_freq_hz);
 
     if (nd.vif.meas.inactive) begin
         if (!expect_active || expected_hz <= 0.0) begin
@@ -240,40 +242,40 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
             return;
         end
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s expected %0.0f Hz no activity",
-            nd.get_name(), expected_hz))
+            "check_measure: node %s expected %0d Hz no activity",
+            nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
         return;
     end
 
     if (!nd.vif.meas.activity_ok) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s activity not confirmed",
-            nd.get_name()))
+            "check_measure: node %s activity not confirmed expected %0d Hz",
+            nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
         return;
     end
 
     if (nd.vif.meas.timed_out) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s frequency did not stabilize",
-            nd.get_name()))
+            "check_measure: node %s frequency did not stabilize expected %0d Hz",
+            nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
         return;
     end
 
     if (!nd.vif.meas.freq_stable) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s frequency did not stabilize",
-            nd.get_name()))
+            "check_measure: node %s frequency did not stabilize expected %0d Hz",
+            nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
         return;
     end
 
     if (!expect_active || expected_hz <= 0.0) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s expected inactive measured %0.2f Hz",
-            nd.get_name(), nd.vif.meas.freq_hz))
+            "check_measure: node %s expected inactive (%0d Hz) measured %0.2f Hz",
+            nd.get_name(), expected_freq_hz, nd.vif.meas.freq_hz))
         rs.ok = 1'b0;
         return;
     end
@@ -284,8 +286,8 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
         (expected_hz - measured_hz) / expected_hz;
     if (rel_diff > {{ settings.period_tolerance }}) begin
         `uvm_error("CLK_TREE", $sformatf(
-            "check_measure: node %s freq expected %0.0f Hz measured %0.2f Hz rel %0.4f",
-            nd.get_name(), expected_hz, measured_hz, rel_diff))
+            "check_measure: node %s freq expected %0d Hz measured %0.2f Hz rel %0.4f",
+            nd.get_name(), expected_freq_hz, measured_hz, rel_diff))
         rs.ok = 1'b0;
         return;
     end
