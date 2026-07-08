@@ -14,11 +14,13 @@ interface {{ class_prefix }}interface #(
     timeprecision {{ time_precision }};
 
     bit check_enable;
+    string instance_path;
     reg [DW-1:0] input_value_queue[$];
     realtime input_time_queue[$];
 
     initial begin
         check_enable = CHECK_ENABLE_DEFAULT;
+        instance_path = $sformatf("%m");
     end
 
     initial begin
@@ -42,11 +44,18 @@ interface {{ class_prefix }}interface #(
     endtask
 
     task automatic watch_input();
+        reg [DW-1:0] last_input_value;
+
         forever begin
             wait(check_enable === 1'b1);
+            last_input_value = in;
             @(in);
 
             if (!check_enable)
+                continue;
+
+            #0;
+            if (in === last_input_value)
                 continue;
 
             input_value_queue.push_back(in);
@@ -55,18 +64,23 @@ interface {{ class_prefix }}interface #(
     endtask
 
     task automatic watch_output();
+        reg [DW-1:0] last_output_value;
         reg [DW-1:0] expected_value;
         realtime input_time;
         realtime output_time;
 
         forever begin
             wait(check_enable === 1'b1);
+            last_output_value = out;
             @(out);
 
             if (!check_enable)
                 continue;
 
             #0;
+            if (out === last_output_value)
+                continue;
+
             output_time = $realtime;
 
             if (input_value_queue.size() == 0) begin
@@ -106,6 +120,10 @@ interface {{ class_prefix }}interface #(
         end
     endtask
 
+    function automatic void set_instance_path(input string path);
+        instance_path = path;
+    endfunction
+
     function automatic void report_check_error(
         input string reason,
         input reg [DW-1:0] expected_value,
@@ -116,8 +134,9 @@ interface {{ class_prefix }}interface #(
         `uvm_error(
             "{{ class_prefix }}connection",
             $sformatf(
-                "%s: expected=0x%h actual=0x%h input_time=%0.3f output_time=%0.3f latency=%0.3f",
+                "%s: path=%s expected=0x%h actual=0x%h input_time=%0.3f output_time=%0.3f latency=%0.3f",
                 reason,
+                instance_path,
                 expected_value,
                 actual_value,
                 input_time,
