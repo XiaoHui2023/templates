@@ -19,7 +19,7 @@ f_hw = f_ref / ratio
 
 整数除法，**f_hw** 为寄存器按 **ratio** 配置后硅片输出频率。
 
-model 里 **\_resolved_freq** 相对 **f_hw** 允许整数偏差，与 **check_measure** 频率容差同一 **period_tolerance**；由 **div_freq_tol_num**、**div_freq_tol_den** 在配置渲染时算出 **div_freq_tol_lo**、**div_freq_tol_hi**，默认 **period_tolerance** 0.01 时为 99、101 与分母 100：
+model 里 **\_resolved_freq** 相对 **f_hw** 允许整数偏差，与 **check_measure** 频率容差同一 **period_tolerance**；由 **div_freq_tol_num**、**div_freq_tol_den** 在配置渲染时算出 **div_freq_tol_lo**、**div_freq_tol_hi**，默认 **period_tolerance** 0.02 时为 98、102 与分母 100：
 
 ```
 _resolved_freq * div_freq_tol_lo <= f_hw * div_freq_tol_den

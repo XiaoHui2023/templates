@@ -73,7 +73,7 @@ class Settings(BaseModel):
         description="config_reg 写 mux 选择前，按待切换 mux 最慢直接前级时钟等待的周期数。",
     )
     period_tolerance: float = Field(
-        0.01,
+        0.02,
         gt=0.0,
         lt=1.0,
         description="相邻周期相对偏差上限。",
