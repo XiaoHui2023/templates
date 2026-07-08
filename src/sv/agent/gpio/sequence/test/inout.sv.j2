@@ -75,6 +75,13 @@ task {{ class_prefix }}inout_test_seq::body();
         run_one(i, dir, data, op_ok);
         ok &= op_ok;
     end
+
+    op_drive_input(0, '0, op_ok);
+    ok &= op_ok;
+    op_set_value(0, op_ok);
+    ok &= op_ok;
+    op_set_dir(0, op_ok);
+    ok &= op_ok;
 endtask
 
 task {{ class_prefix }}inout_test_seq::post_start();
