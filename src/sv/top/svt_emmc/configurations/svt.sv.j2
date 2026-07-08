@@ -121,7 +121,7 @@ function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ cla
     reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_CSD_REG_NOT_USED_B0);
     // Get field values from OCR register
     reg_cfg.set_emmc_emmc_reg_field(7'd0, svt_emmc_types::EMMC_OCR_REG_VDD_RSVD_B6_B0);
-    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_OCR_REG_VDD_B7_1PT7_1PT9);
+    reg_cfg.set_emmc_emmc_reg_field(1'd1, svt_emmc_types::EMMC_OCR_REG_VDD_B7_1PT7_1PT95);
     reg_cfg.set_emmc_emmc_reg_field(7'd0, svt_emmc_types::EMMC_OCR_REG_VDD_B14_B8_2PT0_2PT6);
     reg_cfg.set_emmc_emmc_reg_field(9'd511, svt_emmc_types::EMMC_OCR_REG_VDD_B23_B15_2PT7_3PT6);
     reg_cfg.set_emmc_emmc_reg_field(5'd0, svt_emmc_types::EMMC_OCR_REG_VDD_RSVD_B28_B24);
@@ -439,9 +439,9 @@ function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ cla
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_DEVICE_ECC_FAILED_B21);
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CC_ERROR_B20);
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ERROR_B19);
-    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_OBLIT_B18);
-    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_OBLIT_B17);
-    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CID_CSD_OVERWRITE_B16);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_OBLT_B18);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_OBLT_B17);
+    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_CID_OR_CSD_OVERWRITE_B16);
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_WP_ERASE_SKIP_B15);
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_RSVD_B14);
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_DEVICE_STATUS_REG_ERASE_RESET_B13);
@@ -586,7 +586,7 @@ function void {{ class_prefix }}svt_configuration::load_sd_config(input {{ class
 
     // Default values for SCR SD register configuration
     reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_SCR_REG_SCR_STRUCTURE_B63_B60);
-    reg_cfg.set_emmc_sd_reg_field(4'd1, svt_emmc_types::SD_SCR_REG_SD_SPEC_B59_B56);
+    // reg_cfg.set_emmc_sd_reg_field(4'd11, svt_emmc_types::SD_SCR_REG_SD_SPEC_B59_B56);
     reg_cfg.set_emmc_sd_reg_field(4'd2, svt_emmc_types::SD_SCR_REG_SD_SPEC_B59_B56);
     reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_SCR_REG_DATA_STAT_AFTER_ERASE_B55);
     reg_cfg.set_emmc_sd_reg_field(3'd2, svt_emmc_types::SD_SCR_REG_SD_SECURITY_B54_B52);
@@ -642,14 +642,14 @@ function void {{ class_prefix }}svt_configuration::load_sd_config(input {{ class
     reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_OCR_REG_B31_CARD_POWERUP_STATUS);
 
     // Get field values from SD STATUS register
-    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_STATUS_REG_DAT_BUS_WIDTH_B511_B510);
+    reg_cfg.set_emmc_sd_reg_field(2'd0, svt_emmc_types::SD_STATUS_REG_DAT_BUS_WIDTH_B511_510);
     reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_STATUS_REG_SECURED_MODE_B509);
     reg_cfg.set_emmc_sd_reg_field(13'd0, svt_emmc_types::SD_STATUS_REG_RSVD_B508_B496);
     reg_cfg.set_emmc_sd_reg_field(16'h0000, svt_emmc_types::SD_STATUS_REG_SD_CARD_TYPE_B495_B480);
     reg_cfg.set_emmc_sd_reg_field(22'd1024, svt_emmc_types::SD_STATUS_REG_SIZE_OF_PROTECTED_AREA_B479_B448);
     reg_cfg.set_emmc_sd_reg_field(8'd2, svt_emmc_types::SD_STATUS_REG_SPEED_CLASS_B447_B440);
     reg_cfg.set_emmc_sd_reg_field(8'd0, svt_emmc_types::SD_STATUS_REG_PERFORMANCE_MOVE_B439_B432);
-    reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_STATUS_REG_AU_SIZE_B431_B428);
+    reg_cfg.set_emmc_sd_reg_field(4'd8, svt_emmc_types::SD_STATUS_REG_AU_SIZE_B431_B428);
     reg_cfg.set_emmc_sd_reg_field(4'd0, svt_emmc_types::SD_STATUS_REG_RSVD_B427_B424);
     reg_cfg.set_emmc_sd_reg_field(16'd0, svt_emmc_types::SD_STATUS_REG_ERASE_SIZE_B423_B408);
     reg_cfg.set_emmc_sd_reg_field(6'd0, svt_emmc_types::SD_STATUS_REG_ERASE_TIMEOUT_B407_B402);
@@ -809,7 +809,7 @@ function void {{ class_prefix }}svt_configuration::load_sdio_config(input {{ cla
     reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SPEED_SELECT_BSS_B1); //Default Speed
     reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SPEED_SELECT_BSS_B3_B2); //Default Speed
     reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_BUS_SPEED_SELECT_RSVD_B7_B4);
-    reg_cfg.set_emmc_sdio_reg_field('b011, svt_emmc_types::SDIO_CCCR_REG_UHSI_SUPPORT_RSVD_B7_B0); //Support SDR50/SDR104/DDR50 TODO Here will need to separate this into four fields.
+    reg_cfg.set_emmc_sdio_reg_field('b111, svt_emmc_types::SDIO_CCCR_REG_UHSI_SUPPORT_RSVD_B7_B0); //Support SDR50/SDR104/DDR50 TODO Here will need to separate this into four fields.
     reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_SDTA_B0); //Not Support Support Driver Type A
     reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_SDTC_B1); //Not Support Support Driver Type C
     reg_cfg.set_emmc_sdio_reg_field('d0, svt_emmc_types::SDIO_CCCR_REG_DRIVE_STRENGTH_SDTD_B2); //Not Support Support Driver Type D

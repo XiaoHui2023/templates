@@ -1,0 +1,135 @@
+`ifndef {{ (class_prefix ~ 'interface') | upper }}
+`define {{ (class_prefix ~ 'interface') | upper }}
+
+interface {{ class_prefix }}interface #(
+    parameter int DW = {{ default_data_width }},
+    parameter real LATENCY = {{ default_latency }},
+    parameter bit CHECK_ENABLE_DEFAULT = {{ 1 if check_enable_default else 0 }}
+)(
+    input wire [DW-1:0] in,
+    input wire [DW-1:0] out
+);
+
+    timeunit {{ time_unit }};
+    timeprecision {{ time_precision }};
+
+    bit check_enable;
+    reg [DW-1:0] input_value_queue[$];
+    realtime input_time_queue[$];
+
+    initial begin
+        check_enable = CHECK_ENABLE_DEFAULT;
+    end
+
+    initial begin
+        watch_input();
+    end
+
+    initial begin
+        watch_output();
+    end
+
+    initial begin
+        watch_check_enable();
+    end
+
+    task automatic watch_check_enable();
+        forever begin
+            @(negedge check_enable);
+            input_value_queue.delete();
+            input_time_queue.delete();
+        end
+    endtask
+
+    task automatic watch_input();
+        forever begin
+            wait(check_enable === 1'b1);
+            @(in);
+
+            if (!check_enable)
+                continue;
+
+            input_value_queue.push_back(in);
+            input_time_queue.push_back($realtime);
+        end
+    endtask
+
+    task automatic watch_output();
+        reg [DW-1:0] expected_value;
+        realtime input_time;
+        realtime output_time;
+
+        forever begin
+            wait(check_enable === 1'b1);
+            @(out);
+
+            if (!check_enable)
+                continue;
+
+            #0;
+            output_time = $realtime;
+
+            if (input_value_queue.size() == 0) begin
+                report_check_error(
+                    "output changed without queued input change",
+                    'x,
+                    out,
+                    0.0,
+                    output_time
+                );
+                continue;
+            end
+
+            expected_value = input_value_queue.pop_front();
+            input_time = input_time_queue.pop_front();
+
+            if (out !== expected_value) begin
+                report_check_error(
+                    "output value does not match input value",
+                    expected_value,
+                    out,
+                    input_time,
+                    output_time
+                );
+                continue;
+            end
+
+            if ((output_time - input_time) > LATENCY) begin
+                report_check_error(
+                    "output changed after allowed latency",
+                    expected_value,
+                    out,
+                    input_time,
+                    output_time
+                );
+            end
+        end
+    endtask
+
+    function automatic void report_check_error(
+        input string reason,
+        input reg [DW-1:0] expected_value,
+        input reg [DW-1:0] actual_value,
+        input realtime input_time,
+        input realtime output_time
+    );
+        `uvm_error(
+            "{{ class_prefix }}connection",
+            $sformatf(
+                "%s: expected=0x%h actual=0x%h input_time=%0.3f output_time=%0.3f latency=%0.3f",
+                reason,
+                expected_value,
+                actual_value,
+                input_time,
+                output_time,
+                LATENCY
+            )
+        )
+        check_enable = 1'b0;
+        input_value_queue.delete();
+        input_time_queue.delete();
+    endfunction
+
+endinterface
+
+`endif
