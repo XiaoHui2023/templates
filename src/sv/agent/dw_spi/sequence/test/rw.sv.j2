@@ -1,0 +1,77 @@
+`ifndef {{ (class_prefix ~ "rw_test_seq") | upper }}
+`define {{ (class_prefix ~ "rw_test_seq") | upper }}
+
+class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}spec#(uvm_sequence);
+    `uvm_object_utils_begin({{ class_prefix }}rw_test_seq)
+        `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_queue_int(write_data, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_object(configuration, UVM_ALL_ON)
+        `uvm_field_int(ok, UVM_ALL_ON)
+        `uvm_field_queue_int(model_read_data, UVM_ALL_ON | UVM_HEX)
+    `uvm_object_utils_end
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    rand bit [31:0] address;
+    rand bit [7:0] write_data[$];
+    {{ class_prefix }}transfer_configuration configuration;
+    bit ok;
+    bit [7:0] model_read_data[$];
+
+    function new(string name="{{ class_prefix }}rw_test_seq");
+        super.new(name);
+        configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    endfunction
+
+    constraint cst {
+        soft address == '0;
+        soft write_data.size() == {{ default_rw_data_bytes }};
+    }
+
+    extern virtual task body();
+endclass
+
+task {{ class_prefix }}rw_test_seq::body();
+    {{ class_prefix }}flash_write_seq wr_seq;
+    {{ class_prefix }}flash_read_seq rd_seq;
+    {{ class_prefix }}transfer_configuration cfg;
+
+    if (configuration == null) begin
+        configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+        if (!configuration.randomize())
+            `uvm_fatal("DW_SPI", "rw_test: failed to randomize configuration")
+    end
+    if (write_data.size() == 0) begin
+        if (!randomize(write_data) with {
+                write_data.size() == {{ default_rw_data_bytes }};
+            })
+            `uvm_fatal("DW_SPI", "rw_test: failed to randomize write_data")
+    end
+    cfg = configuration;
+    ok = 1'b1;
+    model_read_data.delete();
+
+    wr_seq = {{ class_prefix }}flash_write_seq::type_id::create("flash_write");
+    wr_seq.address = address;
+    wr_seq.data = write_data;
+    wr_seq.configuration = cfg;
+    wr_seq.start(p_sequencer);
+    if (!wr_seq.ok)
+        ok = 1'b0;
+
+    rd_seq = {{ class_prefix }}flash_read_seq::type_id::create("flash_read");
+    rd_seq.address = address;
+    rd_seq.length = write_data.size();
+    rd_seq.configuration = cfg;
+    rd_seq.start(p_sequencer);
+    if (!rd_seq.ok)
+        ok = 1'b0;
+    else
+        model_read_data = rd_seq.data;
+
+    if (ok) begin
+        ok = p_sequencer.scoreboard.compare_actual(
+            address, write_data, "model_readback");
+    end
+endtask
+
+`endif

@@ -2,7 +2,7 @@
 
 `kit_sequencer` 是 `sequencer` 的便捷 facade。
 
-它只负责创建 req/seq、补默认参数、启动 sequence、检查 rsp 是否成功。不要在 `kit_sequencer` 中实现寄存器配置、传输执行、scoreboard 比较或 callback 行为。
+它只负责创建 req/seq、补默认参数、启动 sequence、检查返回状态是否成功。不要在 `kit_sequencer` 中实现寄存器配置、传输执行、scoreboard 比较或 callback 行为。
 
 ## 传输配置入参
 
@@ -21,7 +21,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `arlen` | 内部 DMA 读突发长度，默认 0。 |
 | `axi_addr` | DMA 访问系统内存的 AXI buffer 地址，默认 0。 |
 
-每个快捷入口在自己的 req 中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
+每个 flow/test 快捷入口在 sequence 字段中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。operation 快捷入口仍按 operation req/rsp 三件套传参。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
 
 ## 快捷入口
 
@@ -54,7 +54,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 
 ### `flash_read`
 
-启动 flash 读 flow。读回数据不从 kit API 输出；flow 内部的 rsp 和 scoreboard 路径负责校验。
+启动 flash 读 flow。读回数据不从 kit API 输出；flow sequence 的返回字段和 scoreboard 路径负责校验。
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |

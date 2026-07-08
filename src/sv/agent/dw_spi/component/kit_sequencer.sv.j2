@@ -77,15 +77,13 @@ task {{ class_prefix }}kit_sequencer::flash_write(
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
         bit [31:0] axi_addr = '0);
-    {{ class_prefix }}flash_write_req req;
-    {{ class_prefix }}flash_write_rsp seq_rsp;
     {{ class_prefix }}flash_write_seq seq;
 
-    req = {{ class_prefix }}flash_write_req::type_id::create("req");
-    req.address = address;
-    req.data = data;
-    req.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
-    if (!req.configuration.randomize() with {
+    seq = {{ class_prefix }}flash_write_seq::type_id::create("flash_write");
+    seq.address = address;
+    seq.data = data;
+    seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    if (!seq.configuration.randomize() with {
             io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
             spi_mode == local::spi_mode;
@@ -98,11 +96,8 @@ task {{ class_prefix }}kit_sequencer::flash_write(
             axi_addr == local::axi_addr;
         })
         `uvm_fatal("DW_SPI", "failed to randomize flash_write configuration")
-    seq = {{ class_prefix }}flash_write_seq::type_id::create("flash_write");
-    seq.req = req;
     seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
+    if (!seq.ok)
         `uvm_fatal("DW_SPI", "flash_write failed")
 endtask
 
@@ -119,15 +114,13 @@ task {{ class_prefix }}kit_sequencer::flash_read(
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
         bit [31:0] axi_addr = '0);
-    {{ class_prefix }}flash_read_req req;
-    {{ class_prefix }}flash_read_rsp seq_rsp;
     {{ class_prefix }}flash_read_seq seq;
 
-    req = {{ class_prefix }}flash_read_req::type_id::create("req");
-    req.address = address;
-    req.length = length;
-    req.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
-    if (!req.configuration.randomize() with {
+    seq = {{ class_prefix }}flash_read_seq::type_id::create("flash_read");
+    seq.address = address;
+    seq.length = length;
+    seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    if (!seq.configuration.randomize() with {
             io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
             spi_mode == local::spi_mode;
@@ -140,11 +133,8 @@ task {{ class_prefix }}kit_sequencer::flash_read(
             axi_addr == local::axi_addr;
         })
         `uvm_fatal("DW_SPI", "failed to randomize flash_read configuration")
-    seq = {{ class_prefix }}flash_read_seq::type_id::create("flash_read");
-    seq.req = req;
     seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
+    if (!seq.ok)
         `uvm_fatal("DW_SPI", "flash_read failed")
 endtask
 
@@ -178,15 +168,13 @@ task {{ class_prefix }}kit_sequencer::rw_test(
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
         bit [31:0] axi_addr = '0);
-    {{ class_prefix }}rw_test_req req;
-    {{ class_prefix }}rw_test_rsp seq_rsp;
     {{ class_prefix }}rw_test_seq seq;
 
-    req = {{ class_prefix }}rw_test_req::type_id::create("req");
-    req.address = address;
-    req.write_data = write_data;
-    req.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
-    if (!req.configuration.randomize() with {
+    seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test");
+    seq.address = address;
+    seq.write_data = write_data;
+    seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    if (!seq.configuration.randomize() with {
             io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
             spi_mode == local::spi_mode;
@@ -199,11 +187,8 @@ task {{ class_prefix }}kit_sequencer::rw_test(
             axi_addr == local::axi_addr;
         })
         `uvm_fatal("DW_SPI", "failed to randomize rw_test configuration")
-    seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test");
-    seq.req = req;
     seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok)
+    if (!seq.ok)
         `uvm_fatal("DW_SPI", "rw_test failed")
 endtask
 

@@ -37,12 +37,12 @@ uvm_sequence_item
       -> dw_spi_host_configuration
       -> dw_spi_slave_configuration
     -> dw_spi_configuration
-    -> operation/flow/test req/rsp
+    -> operation req/rsp
 ```
 
 继承后类内直接写 `MASTER`、`FLASH_SPI`、`ENHANCED`、`EEPROM_READ`，不要写 `settings::` 或 `spec::`。`settings::type_id::create` 是 UVM factory 用法，不属于 enum/constant 命名空间。
 
-凡是作为 sequence req/rsp 或传输配置包传播的数据包，统一继承 `dw_spi_spec#(uvm_sequence_item)`。运行期 settings、mem、register_access、dma_engine 这类工具或共享对象才继承 `dw_spi_spec#(uvm_object)`。
+凡是作为 operation req/rsp 或传输配置包传播的数据包，统一继承 `dw_spi_spec#(uvm_sequence_item)`。flow/test 扁平化为单文件 sequence，输入字段和返回字段直接放在 sequence 类中。运行期 settings、mem、register_access、dma_engine 这类工具或共享对象才继承 `dw_spi_spec#(uvm_object)`。
 
 ## `spec.sv`
 
@@ -118,7 +118,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 `use_dma` 的默认值来自 Python `default_use_dma`。如果 Python `support_dma` 为 false，生成的 transfer configuration 和 operation req 会约束 `use_dma == 0`。
 
-`rw_test_req` 的 `address` 默认约束为 0。`write_data` 为空时，test sequence 会随机生成一段数据；长度由 Python 配置 `default_rw_data_bytes` 生成，默认 256 字节。
+`rw_test_seq` 的 `address` 默认约束为 0。`write_data` 为空时，test sequence 会随机生成一段数据；长度由 Python 配置 `default_rw_data_bytes` 生成，默认 256 字节。
 
 ## `configuration.sv`
 

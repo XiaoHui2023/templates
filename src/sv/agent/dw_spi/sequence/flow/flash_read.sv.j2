@@ -1,15 +1,25 @@
 `ifndef {{ (class_prefix ~ "flash_read_seq") | upper }}
 `define {{ (class_prefix ~ "flash_read_seq") | upper }}
 
-class {{ class_prefix }}flash_read_seq extends {{ class_prefix }}spec#(uvm_sequence #(
-    {{ class_prefix }}flash_read_req,
-    {{ class_prefix }}flash_read_rsp
-));
-    `uvm_object_utils({{ class_prefix }}flash_read_seq)
+class {{ class_prefix }}flash_read_seq extends {{ class_prefix }}spec#(uvm_sequence);
+    `uvm_object_utils_begin({{ class_prefix }}flash_read_seq)
+        `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(length, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_object(configuration, UVM_ALL_ON)
+        `uvm_field_int(ok, UVM_ALL_ON)
+        `uvm_field_queue_int(data, UVM_ALL_ON | UVM_HEX)
+    `uvm_object_utils_end
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    rand bit [31:0] address;
+    rand int unsigned length;
+    {{ class_prefix }}transfer_configuration configuration;
+    bit ok;
+    bit [7:0] data[$];
 
     function new(string name="{{ class_prefix }}flash_read_seq");
         super.new(name);
+        configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
 
     extern virtual task body();
@@ -39,23 +49,20 @@ task {{ class_prefix }}flash_read_seq::body();
     {{ class_prefix }}transfer_req op_req;
     {{ class_prefix }}transfer_rsp op_rsp;
     {{ class_prefix }}transfer_seq op_seq;
-    {{ class_prefix }}flash_read_rsp rs;
     {{ class_prefix }}transfer_configuration cfg;
     frame_mode_e frame_mode;
 
-    if (req == null)
-        `uvm_fatal("DW_SPI", "flash_read: req is null")
-    if (req.configuration == null) begin
-        req.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
-        if (!req.configuration.randomize())
+    if (configuration == null) begin
+        configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+        if (!configuration.randomize())
             `uvm_fatal("DW_SPI", "flash_read: failed to randomize configuration")
     end
-    cfg = req.configuration;
+    cfg = configuration;
     op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_READ_COMMAND);
-    op_req.payload.set_address(req.address);
-    op_req.payload.set_data_length(req.length);
+    op_req.payload.set_address(address);
+    op_req.payload.set_data_length(length);
     if (!$cast(op_req.host_mode, cfg.host_mode))
         `uvm_fatal("DW_SPI", "flash_read: failed to cast host_mode")
     if (!$cast(op_req.protocol, FLASH_SPI))
@@ -83,11 +90,10 @@ task {{ class_prefix }}flash_read_seq::body();
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
     op_rsp = op_seq.rsp;
-    rs = {{ class_prefix }}flash_read_rsp::type_id::create("rsp");
-    rs.ok = op_rsp != null && op_rsp.ok;
+    ok = op_rsp != null && op_rsp.ok;
+    data.delete();
     if (op_rsp != null)
-        rs.data = op_rsp.read_data;
-    rsp = rs;
+        data = op_rsp.read_data;
 endtask
 
 `endif

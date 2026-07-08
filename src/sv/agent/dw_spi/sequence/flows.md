@@ -38,31 +38,31 @@ callback 只注入 chip-select 行为。寄存器读写、scoreboard 比较、DM
 
 ## Flash Read
 
-1. req 未携带 configuration 时创建 `host_configuration` 并 randomize。
+1. sequence 未携带 configuration 时创建 `host_configuration` 并 randomize。
 2. 创建 operation transfer req 和 `uvm_tlm_generic_payload`。
 3. payload command 设为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读长度。
 4. 协议设为 `FLASH_SPI`，transfer mode 设为 `EEPROM_READ`。
 5. read opcode 根据倍速选择：1 倍速 standard 使用 `8'h03`，1 倍速 enhanced 使用 `8'h0B`，2 倍速使用 `8'h3B`，4 倍速使用 `8'hEB`，8 倍速使用 `8'hEC`。
 6. 从 configuration 传播 io lanes、倍速、SPI mode、data frame bits、CS、地址字节数、dummy cycles、DMA 开关。
 7. 启动 `transfer_seq`。
-8. flow rsp 保存 transfer rsp 的 `read_data`。
+8. flow sequence 保存 transfer rsp 的 `read_data` 到自身返回字段。
 
 地址是 32 bit flash/model 地址，不是寄存器地址。
 
 ## Flash Write
 
-1. req 未携带 configuration 时创建 `host_configuration` 并 randomize。
+1. sequence 未携带 configuration 时创建 `host_configuration` 并 randomize。
 2. 启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。
 3. write-enable 成功后启动 page/program 风格写 transfer：1/2 倍速 opcode 使用 `8'h02`，4 倍速使用 `8'h32`，8 倍速使用 `8'h12`，`TX_ONLY`。
 4. 写 transfer 的 payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为写入 byte 队列。
 5. 写 transfer 按 configuration 传播 io lanes、倍速、SPI mode、data frame bits、CS、地址字节数、DMA 开关。
-6. flow rsp 记录 `ok` 和 `bytes_written`。
+6. flow sequence 在自身字段记录 `ok` 和 `bytes_written`。
 
 当前模板不建模页大小、擦除值和擦除流程。
 
 ## RW Test
 
-1. req 未携带 configuration 时创建 `host_configuration` 并 randomize。
+1. sequence 未携带 configuration 时创建 `host_configuration` 并 randomize。
 2. `write_data` 为空时随机生成一段数据，长度来自 Python `default_rw_data_bytes`，默认 256 byte。
 3. 启动 `flash_write`。
 4. 启动同地址同长度的 `flash_read`。

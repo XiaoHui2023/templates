@@ -1,15 +1,25 @@
 `ifndef {{ (class_prefix ~ "flash_write_seq") | upper }}
 `define {{ (class_prefix ~ "flash_write_seq") | upper }}
 
-class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequence #(
-    {{ class_prefix }}flash_write_req,
-    {{ class_prefix }}flash_write_rsp
-));
-    `uvm_object_utils({{ class_prefix }}flash_write_seq)
+class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequence);
+    `uvm_object_utils_begin({{ class_prefix }}flash_write_seq)
+        `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_queue_int(data, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_object(configuration, UVM_ALL_ON)
+        `uvm_field_int(ok, UVM_ALL_ON)
+        `uvm_field_int(bytes_written, UVM_ALL_ON | UVM_DEC)
+    `uvm_object_utils_end
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    rand bit [31:0] address;
+    rand bit [7:0] data[$];
+    {{ class_prefix }}transfer_configuration configuration;
+    bit ok;
+    int unsigned bytes_written;
 
     function new(string name="{{ class_prefix }}flash_write_seq");
         super.new(name);
+        configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
 
     extern virtual task body();
@@ -39,7 +49,7 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     {{ class_prefix }}transfer_seq op_seq;
     {{ class_prefix }}transfer_configuration cfg;
 
-    cfg = req.configuration;
+    cfg = configuration;
     op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_READ_COMMAND);
@@ -82,7 +92,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     {{ class_prefix }}transfer_configuration cfg;
     byte unsigned payload_data[];
 
-    cfg = req.configuration;
+    cfg = configuration;
     op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_WRITE_COMMAND);
@@ -119,28 +129,24 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
 endtask
 
 task {{ class_prefix }}flash_write_seq::body();
-    {{ class_prefix }}flash_write_rsp rs;
-    bit ok;
+    bit chunk_ok;
 
-    if (req == null)
-        `uvm_fatal("DW_SPI", "flash_write: req is null")
-    if (req.configuration == null) begin
-        req.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
-        if (!req.configuration.randomize())
+    if (configuration == null) begin
+        configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+        if (!configuration.randomize())
             `uvm_fatal("DW_SPI", "flash_write: failed to randomize configuration")
     end
-    rs = {{ class_prefix }}flash_write_rsp::type_id::create("rsp");
-    rs.ok = 1'b1;
-    run_write_enable(ok);
-    if (!ok) begin
-        rs.ok = 1'b0;
+    ok = 1'b1;
+    bytes_written = 0;
+    run_write_enable(chunk_ok);
+    if (!chunk_ok) begin
+        ok = 1'b0;
     end else begin
-        run_chunk(req.address, req.data, ok);
-        rs.ok = ok;
-        if (ok)
-            rs.bytes_written = req.data.size();
+        run_chunk(address, data, chunk_ok);
+        ok = chunk_ok;
+        if (chunk_ok)
+            bytes_written = data.size();
     end
-    rsp = rs;
 endtask
 
 `endif
