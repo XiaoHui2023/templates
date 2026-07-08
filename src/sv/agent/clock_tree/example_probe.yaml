@@ -1,0 +1,28 @@
+nodes:
+    osc:
+      kind: source
+      path: dut.osc
+      freq: 24000000
+    pll_probe:
+      kind: pll
+      pll_kind: tci
+      path: dut.pll_probe
+      freq: 480000000
+    clk_cpu:
+      kind: clk
+      path: dut.clk_cpu
+      freq: 1000000000
+    clk_without_freq:
+      kind: clk
+      path: dut.clk_without_freq
+    clk_disabled:
+      kind: clk
+      path: dut.clk_disabled
+      disable: true
+    gate_without_freq:
+      kind: gate
+      path: dut.gate_without_freq
+      source: osc
+settings:
+  class_prefix: clk_tree_
+  probe_mode: true

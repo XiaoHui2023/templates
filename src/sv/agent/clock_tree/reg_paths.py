@@ -429,16 +429,9 @@ def any_reg_configured(tree: Tree) -> bool:
 
 
 def node_path_connectable(tree: Tree, node: object) -> bool:
-    """节点 RTL path 非空且落在 tree.module_path 范围内时为真。"""
+    """节点 RTL path 非空时为真。"""
     path = getattr(node, "path", "")
-    if not path:
-        return False
-    scope = tree.module_path
-    if not scope:
-        return True
-    if path == scope:
-        return True
-    return path.startswith(scope + ".")
+    return bool(path)
 
 
 def any_node_path(tree: Tree) -> bool:

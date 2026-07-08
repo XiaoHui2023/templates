@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
-from nodes import Tree
+from nodes import Node, Tree, validate_nodes_graph
 from reg_paths import (
     DIV_KIND_TO_SV_ENUM,
     INV_KIND_TO_SV_ENUM,
@@ -38,6 +38,10 @@ class Settings(BaseModel):
     class_regmodel: str = Field(
         "",
         description="寄存器模型类型名。",
+    )
+    probe_mode: bool = Field(
+        False,
+        description="为真时启用纯路径探针模式：不连接前级，只检查带 path 且有正数 freq 的节点，以及 disable 的 clk。",
     )
     min_freq_hz: int = Field(
         15000,
@@ -191,22 +195,59 @@ class Settings(BaseModel):
 class Models(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    tree: Tree = Field(
+    nodes: Dict[str, Node] = Field(
         ...,
-        description="时钟树。",
+        min_length=1,
+        description="节点表，键为节点名。",
     )
     settings: Settings = Field(
         default_factory=Settings,
         description="全局选项。",
     )
 
+    @field_validator("nodes", mode="before")
+    @classmethod
+    def _validate_nodes(cls, value: Any) -> Any:
+        return Tree.model_validate({"nodes": value}).nodes
+
     @model_validator(mode="after")
-    def _validate_regmodel_when_nodes_have_regs(self) -> Models:
+    def _validate_nodes_for_mode(self) -> Models:
+        if self.settings.probe_mode:
+            if not self.tree.nodes_ordered:
+                raise ValueError(
+                    "probe_mode 为真时须至少包含一个 path 非空且 freq 为正数或 disable 为真的 source、pll 或 clk 节点"
+                )
+        else:
+            validate_nodes_graph(self.nodes)
         if self.any_regs_configured and not self.settings.class_regmodel:
             raise ValueError(
                 "任意节点配置了 reg 或 regs 时须在 settings 中填写 class_regmodel"
             )
         return self
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="模板内部使用的节点树；probe_mode 为真时只保留探针节点。",
+    )
+    @property
+    def tree(self) -> Tree:
+        if not self.settings.probe_mode:
+            return Tree(nodes=self.nodes)
+        return Tree(
+            nodes={
+                key: node
+                for key, node in self.nodes.items()
+                if self._node_probe_enabled(node)
+            }
+        )
+
+    def _node_probe_enabled(self, node: Node) -> bool:
+        if not getattr(node, "path", ""):
+            return False
+        if node.kind in ("source", "pll"):
+            return True
+        if node.kind == "clk":
+            return node.disable or (node.freq is not None and node.freq > 0)
+        return False
 
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 PLL 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",

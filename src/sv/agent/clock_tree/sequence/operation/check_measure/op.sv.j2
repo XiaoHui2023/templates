@@ -151,6 +151,8 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
 );
     if (nd == null || nd.vif == null)
         return 1'b0;
+    if (!nd._resolved_active || nd._resolved_freq <= 0)
+        return nd.kind == "clk" && (check_freq || check_duty);
     if (check_duty)
         return 1'b1;
     if (!check_freq)
@@ -162,8 +164,10 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check
     {{ settings.class_prefix }}node_base nd,
     bit check_freq
 );
-    if (!check_freq)
+    if (nd == null || !check_freq)
         return 1'b0;
+    if (!nd._resolved_active || nd._resolved_freq <= 0)
+        return nd.kind == "clk";
     return nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll";
 endfunction
 

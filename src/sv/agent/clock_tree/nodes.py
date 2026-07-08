@@ -56,8 +56,6 @@ PllKind = Literal["tci", "sc", "dw", "inno"]
 DivKind = Literal["div", "div_n", "dto", "dto_n", "div_r"]
 InvKind = Literal["inv", "inv_mux", "inv_cell"]
 SourceKind = Literal["source", "pad"]
-
-
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
     kind = item.get("kind")
     canonical = _NODE_KIND_ALIASES.get(kind)
@@ -562,6 +560,8 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_tree_emit_frequence(self) -> bool:
+        if self.disable:
+            return False
         return self.freq is not None and self.freq != -1
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -576,6 +576,8 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_tree_emit_unfix_frequence(self) -> bool:
+        if self.disable:
+            return False
         if self.stable:
             return True
         if self.freq is None or self.freq <= 0:
@@ -727,30 +729,11 @@ def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
 class Tree(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    module_path: str = Field(
-        "",
-        description="该树可测量 RTL 模块的层次路径，按 `.` 分隔；"
-        "非空时仅 path 等于此路径或以其为前缀的节点接测量 interface；"
-        "省略或空字符串表示不按模块过滤。",
-    )
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
         description="节点表，键为节点名；值为 null 时跳过该键，不纳入树。",
     )
-
-    @field_validator("module_path")
-    @classmethod
-    def _validate_module_path(cls, value: str) -> str:
-        if not value:
-            return value
-        for seg in value.split("."):
-            if not _SV_ID.match(seg):
-                raise ValueError(
-                    f"module_path 段 {seg!r} 须为合法 SystemVerilog 名字，"
-                    f"完整 module_path: {value!r}"
-                )
-        return value
 
     @model_validator(mode="before")
     @classmethod
@@ -854,7 +837,7 @@ class Tree(BaseModel):
         return slots
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="module_path 范围内且 path 非空的 sv_slots；用于测量 interface 与 tree_interface；YAML 不可传入。",
+        description="path 非空的 sv_slots；用于测量 interface 与 tree_interface；YAML 不可传入。",
     )
     @property
     def connectable_slots(self) -> List[SvNodeSlot]:
@@ -878,7 +861,6 @@ class Tree(BaseModel):
 
     @model_validator(mode="after")
     def _validate_nodes_graph(self) -> Tree:
-        validate_nodes_graph(self.nodes)
         return self
 
 

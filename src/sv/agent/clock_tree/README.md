@@ -5,29 +5,44 @@
 ## 示例
 
 ```yaml
-tree:
-  nodes:
-    osc:
-      kind: source
-      freq: 24000000
-    pll0:
-      kind: pll
-      source: osc
-      pll_kind: tci
-      freq: 1000000000
-    clk_cpu:
-      kind: clk
-      source: pll0
-      freq: 1000000000
+nodes:
+  osc:
+    kind: source
+    freq: 24000000
+  pll0:
+    kind: pll
+    source: osc
+    pll_kind: tci
+    freq: 1000000000
+  clk_cpu:
+    kind: clk
+    source: pll0
+    freq: 1000000000
 settings:
   class_prefix: chip_clk_
+```
+
+纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的节点，以及 `disable: true` 的 `clk`；其它没有 `freq` 的节点不会出现在生成代码里。
+
+```yaml
+nodes:
+  osc:
+    kind: source
+    path: dut.osc
+    freq: 24000000
+  clk_cpu:
+    kind: clk
+    path: dut.clk_cpu
+    freq: 1000000000
+settings:
+  probe_mode: true
 ```
 
 ## 数据结构
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `tree` | `Tree` | | 时钟树。 |
+| `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
 | `settings` | `Settings` | | 全局选项。 |
 
 ### Settings
@@ -36,6 +51,7 @@ settings:
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
+| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的节点，以及 **disable** 的 **clk**。 |
 | `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
 | `max_freq_hz` | `int` | `5000000000` | **clk** 节点 randomize 后允许的最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 判定时钟有活动所需连续上升沿个数；超过一个最低频率周期仍无边沿则 inactive。 |
@@ -77,12 +93,9 @@ settings:
 | `pll0` | 单路输出前级 |
 | `pll0["0"]` 或 `pll0[0]` | 多路输出前级，输出名为 `0` |
 
-### Tree
+### Nodes
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `module_path` | `str` | `""` | 该树可测量 RTL 模块的层次路径，按 `.` 分隔；非空时仅 **path** 等于此路径或以其为前缀的节点接测量 interface 并参与 **check_measure**；省略或空字符串表示不按模块过滤。 |
-| `nodes` | `dict[str, Node]` | | 节点表，键为节点名；某键值为 **null** 时跳过该节点，不生成 SV 对象；其它节点仍引用该名字时会 **model_validate** 失败。 |
+**nodes** 是顶层字段，键为节点名；某键值为 **null** 时跳过该节点，不生成 SV 对象；其它节点仍引用该名字时会 **model_validate** 失败。
 
 写 **nodes** 时可用 `节点名: ~` 表示跳过。
 

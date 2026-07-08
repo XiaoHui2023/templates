@@ -1,7 +1,5 @@
 # clock_tree 全功能示范：各 kind、三种 pll_kind、path 与 reg/regs、test_route 条件均覆盖
-tree:
-  module_path: dut
-  nodes:
+nodes:
     xtal:
       kind: source
       source_kind: source
