@@ -1,12 +1,15 @@
 `ifndef {{ (class_prefix ~ "inout_test_seq") | upper }}
 `define {{ (class_prefix ~ "inout_test_seq") | upper }}
 
-class {{ class_prefix }}inout_test_seq extends uvm_sequence #(
-        {{ class_prefix }}inout_test_req,
-        {{ class_prefix }}inout_test_rsp);
-    `uvm_object_utils({{ class_prefix }}inout_test_seq)
+class {{ class_prefix }}inout_test_seq extends uvm_sequence;
+    `uvm_object_utils_begin({{ class_prefix }}inout_test_seq)
+        `uvm_field_int(quiet,UVM_ALL_ON)
+        `uvm_field_int(ok,UVM_ALL_ON)
+    `uvm_object_utils_end
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
+    bit quiet;
+    bit ok = 1'b1;
     {{ class_prefix }}configuration cfg;
     virtual {{ class_prefix }}sub_interface vif;
 
@@ -17,7 +20,7 @@ class {{ class_prefix }}inout_test_seq extends uvm_sequence #(
     extern task pre_start();
     extern task body();
     extern task post_start();
-    extern task run_one(bit[31:0] dir, bit[31:0] data, output bit ok);
+    extern task run_one(int bit_index, bit[31:0] dir, bit[31:0] data, output bit ok);
     extern task op_mask_invalid_pin(output bit ok);
     extern task op_set_dir(bit[31:0] data, output bit ok);
     extern task op_set_value(bit[31:0] data, output bit ok);
@@ -39,23 +42,14 @@ task {{ class_prefix }}inout_test_seq::pre_start();
 endtask
 
 task {{ class_prefix }}inout_test_seq::body();
-    {{ class_prefix }}inout_test_req rq;
-    {{ class_prefix }}inout_test_rsp rs;
     bit[31:0] dir;
     bit[31:0] data;
-    bit ok;
+    bit op_ok;
 
-    if (req == null) begin
-        rq = {{ class_prefix }}inout_test_req::type_id::create("req");
-    end else begin
-        rq = req;
-    end
+    ok = 1'b1;
 
-    rs = {{ class_prefix }}inout_test_rsp::type_id::create("rsp");
-    rs.ok = 1'b1;
-
-    op_mask_invalid_pin(ok);
-    rs.ok &= ok;
+    op_mask_invalid_pin(op_ok);
+    ok &= op_ok;
 
     for (int i = 0; i < cfg.num; i++) begin
         if (cfg.mask[i])
@@ -64,25 +58,23 @@ task {{ class_prefix }}inout_test_seq::body();
         dir = 1 << i;
 
         data = 1 << i;
-        run_one(dir, data, ok);
-        rs.ok &= ok;
+        run_one(i, dir, data, op_ok);
+        ok &= op_ok;
 
         data = ~data;
-        run_one(dir, data, ok);
-        rs.ok &= ok;
+        run_one(i, dir, data, op_ok);
+        ok &= op_ok;
 
         dir = ~dir;
 
         data = 1 << i;
-        run_one(dir, data, ok);
-        rs.ok &= ok;
+        run_one(i, dir, data, op_ok);
+        ok &= op_ok;
 
         data = ~data;
-        run_one(dir, data, ok);
-        rs.ok &= ok;
+        run_one(i, dir, data, op_ok);
+        ok &= op_ok;
     end
-
-    rsp = rs;
 endtask
 
 task {{ class_prefix }}inout_test_seq::post_start();
@@ -93,7 +85,7 @@ task {{ class_prefix }}inout_test_seq::post_start();
         starting_phase.drop_objection(this);
 endtask
 
-task {{ class_prefix }}inout_test_seq::run_one(bit[31:0] dir, bit[31:0] data, output bit ok);
+task {{ class_prefix }}inout_test_seq::run_one(int bit_index, bit[31:0] dir, bit[31:0] data, output bit ok);
     bit[31:0] rdata;
     bit[31:0] active_mask;
     bit op_ok;
@@ -114,7 +106,12 @@ task {{ class_prefix }}inout_test_seq::run_one(bit[31:0] dir, bit[31:0] data, ou
 
     if ((rdata & active_mask) != (data & active_mask)) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("gpio data mismatch: expect=%h actual=%h", data & active_mask, rdata & active_mask))
+        `uvm_error("", $sformatf("gpio %s test mismatch: bit=%0d dir=%h expect=%h actual=%h",
+                dir[bit_index] ? "output" : "input",
+                bit_index,
+                dir & active_mask,
+                data & active_mask,
+                rdata & active_mask))
     end
 endtask
 

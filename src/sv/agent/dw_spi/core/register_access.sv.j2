@@ -67,7 +67,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         if (!$cast(transfer_mode, cfg.transfer_mode))
             `uvm_fatal("DW_SPI_REG", "failed to cast configuration transfer_mode")
 
-        set_field(settings.regmodel.SSIENR, "SSIENR", "SSI_EN", 0);
+        set_field(settings.regmodel.SSIENR, "SSIENR", "SSIC_EN", 0);
         update_reg(settings.regmodel.SSIENR, "SSIENR");
 
         set_field(settings.regmodel.IMR, "IMR", "TXEIM", cfg.txeim);
@@ -118,8 +118,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         set_field(settings.regmodel.RXFTLR, "RXFTLR", "RFT", cfg.rxftlr);
         update_reg(settings.regmodel.RXFTLR, "RXFTLR");
 
-        set_field(settings.regmodel.DMACR, "DMACR", "RDMAE", cfg.rdmae);
-        set_field(settings.regmodel.DMACR, "DMACR", "TDMAE", cfg.tdmae);
+        set_field(settings.regmodel.DMACR, "DMACR", "IDMAE", cfg.idmae);
+        set_field(settings.regmodel.DMACR, "DMACR", "AINC", cfg.ainc);
         update_reg(settings.regmodel.DMACR, "DMACR");
 
         set_field(settings.regmodel.DMATDLR, "DMATDLR", "DMATDL", cfg.dmatdl);
@@ -127,6 +127,23 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
 
         set_field(settings.regmodel.DMARDLR, "DMARDLR", "DMARDL", cfg.dmardl);
         update_reg(settings.regmodel.DMARDLR, "DMARDLR");
+
+        if (cfg.write_internal_dma_regs) begin
+            set_field(settings.regmodel.AXIAWLEN, "AXIAWLEN", "AWLEN", cfg.awlen);
+            update_reg(settings.regmodel.AXIAWLEN, "AXIAWLEN");
+
+            set_field(settings.regmodel.AXIARLEN, "AXIARLEN", "ARLEN", cfg.arlen);
+            update_reg(settings.regmodel.AXIARLEN, "AXIARLEN");
+
+            set_field(settings.regmodel.SPIDR, "SPIDR", "SPI_INST", cfg.spi_inst);
+            update_reg(settings.regmodel.SPIDR, "SPIDR");
+
+            set_field(settings.regmodel.SPIAR, "SPIAR", "SDAR", cfg.sdar);
+            update_reg(settings.regmodel.SPIAR, "SPIAR");
+
+            set_field(settings.regmodel.AXIAR0, "AXIAR0", "AXIAR0", cfg.axiar0);
+            update_reg(settings.regmodel.AXIAR0, "AXIAR0");
+        end
 
         if (cfg.write_rx_sample_delay) begin
             set_field(settings.regmodel.RX_SAMPLE_DELAY, "RX_SAMPLE_DELAY", "RSD", cfg.rx_sample_delay);
@@ -136,7 +153,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         set_field(settings.regmodel.SER, "SER", "SER", cfg.ser);
         update_reg(settings.regmodel.SER, "SER");
 
-        set_field(settings.regmodel.SSIENR, "SSIENR", "SSI_EN", cfg.ssi_en);
+        set_field(settings.regmodel.SSIENR, "SSIENR", "SSIC_EN", cfg.ssi_en);
         update_reg(settings.regmodel.SSIENR, "SSIENR");
     endtask
 endclass

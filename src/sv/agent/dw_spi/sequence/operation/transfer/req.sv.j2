@@ -18,6 +18,9 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(use_dma, UVM_ALL_ON)
+        `uvm_field_int(awlen, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(arlen, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(axi_addr, UVM_ALL_ON | UVM_HEX)
     `uvm_object_utils_end
 
     uvm_tlm_generic_payload payload;
@@ -35,6 +38,9 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
     rand int unsigned addr_bytes;
     rand int unsigned dummy_cycles;
     rand bit use_dma;
+    rand bit [7:0] awlen;
+    rand bit [7:0] arlen;
+    rand bit [31:0] axi_addr;
 
     function new(string name="{{ class_prefix }}transfer_req");
         super.new(name);
@@ -50,6 +56,9 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
         cs_id < {{ num_cs }};
         inst_bytes inside {[0:1]};
         addr_bytes inside {[0:4]};
+        soft awlen == '0;
+        soft arlen == '0;
+        soft axi_addr == '0;
         if (protocol == FLASH_SPI) {
             inst_bytes == 1;
             addr_bytes inside {3, 4};

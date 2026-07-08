@@ -1,14 +1,17 @@
 `ifndef {{ (class_prefix ~ "intr_test_seq") | upper }}
 `define {{ (class_prefix ~ "intr_test_seq") | upper }}
 
-class {{ class_prefix }}intr_test_seq extends uvm_sequence #(
-        {{ class_prefix }}intr_test_req,
-        {{ class_prefix }}intr_test_rsp);
-    `uvm_object_utils({{ class_prefix }}intr_test_seq)
+class {{ class_prefix }}intr_test_seq extends uvm_sequence;
+    `uvm_object_utils_begin({{ class_prefix }}intr_test_seq)
+        `uvm_field_int(timeout,UVM_ALL_ON)
+        `uvm_field_int(ok,UVM_ALL_ON)
+    `uvm_object_utils_end
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
     localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
 
+    int timeout = 100;
+    bit ok = 1'b1;
     {{ class_prefix }}configuration cfg;
 
     function new(string name = "{{ class_prefix }}intr_test_seq");
@@ -40,21 +43,12 @@ task {{ class_prefix }}intr_test_seq::pre_start();
 endtask
 
 task {{ class_prefix }}intr_test_seq::body();
-    {{ class_prefix }}intr_test_req rq;
-    {{ class_prefix }}intr_test_rsp rs;
     bit[31:0] pin;
     bit intr;
     bit wait_ok;
     bit op_ok;
 
-    if (req == null) begin
-        rq = {{ class_prefix }}intr_test_req::type_id::create("req");
-    end else begin
-        rq = req;
-    end
-
-    rs = {{ class_prefix }}intr_test_rsp::type_id::create("rsp");
-    rs.ok = 1'b1;
+    ok = 1'b1;
 
     for (int i = 0; i < cfg.num; i++) begin
         if (!cfg.mask[i]) begin
@@ -64,49 +58,46 @@ task {{ class_prefix }}intr_test_seq::body();
     end
     if (pin == '0) begin
         `uvm_info("", "skip interrupt test because all inputs are masked", UVM_LOW)
-        rsp = rs;
         return;
     end
 
     op_mask_invalid_pin(op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     op_set_dir(0, op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     op_set_rise_intr(0, op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     op_clear_intr_status(op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     op_drive_input(0, '0, op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     op_set_rise_intr(pin, op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
 
     #(20 * GPIO_24M_PERIOD_NS * 1ns);
 
     op_get_intr_status(intr, op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     if (intr) begin
-        rs.ok = 1'b0;
+        ok = 1'b0;
         `uvm_error("", "interrupt is asserted before rising edge")
     end
 
     op_drive_input(pin, '0, op_ok);
-    rs.ok &= op_ok;
-    op_wait_intr(wait_ok, rq.timeout, op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
+    op_wait_intr(wait_ok, timeout, op_ok);
+    ok &= op_ok;
     op_get_intr_status(intr, op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     if (!wait_ok || !intr) begin
-        rs.ok = 1'b0;
+        ok = 1'b0;
         `uvm_error("", "interrupt is not asserted after rising edge")
     end
 
     op_clear_intr_status(op_ok);
-    rs.ok &= op_ok;
+    ok &= op_ok;
     op_set_rise_intr(0, op_ok);
-    rs.ok &= op_ok;
-
-    rsp = rs;
+    ok &= op_ok;
 endtask
 
 task {{ class_prefix }}intr_test_seq::post_start();

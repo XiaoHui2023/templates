@@ -13,7 +13,27 @@ class {{ class_prefix }}flash_read_seq extends {{ class_prefix }}spec#(uvm_seque
     endfunction
 
     extern virtual task body();
+    extern function bit [7:0] read_opcode(
+        int unsigned speed_multiplier,
+        frame_mode_e frame_mode);
 endclass
+
+function bit [7:0] {{ class_prefix }}flash_read_seq::read_opcode(
+        int unsigned speed_multiplier,
+        frame_mode_e frame_mode);
+    case (speed_multiplier)
+        1: return frame_mode == ENHANCED ? 8'h0B : 8'h03;
+        2: return 8'h3B;
+        4: return 8'hEB;
+        8: return 8'hEC;
+        default: begin
+            `uvm_fatal("DW_SPI", $sformatf(
+                "unsupported flash read speed_multiplier=%0d",
+                speed_multiplier))
+            return 8'h03;
+        end
+    endcase
+endfunction
 
 task {{ class_prefix }}flash_read_seq::body();
     {{ class_prefix }}transfer_req op_req;
@@ -46,7 +66,7 @@ task {{ class_prefix }}flash_read_seq::body();
         `uvm_fatal("DW_SPI", "flash_read: failed to cast local frame_mode")
     if (!$cast(op_req.transfer_mode, EEPROM_READ))
         `uvm_fatal("DW_SPI", "flash_read: failed to cast transfer_mode")
-    op_req.opcode = frame_mode == ENHANCED ? 8'h0B : 8'h03;
+    op_req.opcode = read_opcode(cfg.speed_multiplier, frame_mode);
     op_req.io_lanes = cfg.io_lanes;
     op_req.speed_multiplier = cfg.speed_multiplier;
     op_req.spi_mode = cfg.spi_mode;
@@ -56,6 +76,9 @@ task {{ class_prefix }}flash_read_seq::body();
     op_req.addr_bytes = cfg.addr_bytes;
     op_req.dummy_cycles = cfg.dummy_cycles;
     op_req.use_dma = cfg.use_dma;
+    op_req.awlen = cfg.awlen;
+    op_req.arlen = cfg.arlen;
+    op_req.axi_addr = cfg.axi_addr;
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);

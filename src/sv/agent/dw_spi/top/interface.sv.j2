@@ -38,16 +38,22 @@ interface {{ class_prefix }}interface(
 
     task automatic wait_interrupt_asserted(
             input int unsigned timeout_ssi_clk_cycles,
+            input longint unsigned min_ssi_clk_hz,
+            input int unsigned tolerance_ppm,
             output bit timed_out,
             output bit missing_signal);
+        realtime timeout_ns;
+
         timed_out = 1'b0;
         missing_signal = 1'b0;
-        if (!has_irq() || !has_ssi_clk()) begin
+        if (!has_irq() || !has_ssi_clk() || min_ssi_clk_hz == 0) begin
             missing_signal = 1'b1;
             return;
         end
         if (interrupt_if.is_asserted())
             return;
+        timeout_ns = ($itor(timeout_ssi_clk_cycles) * 1000000000.0) / $itor(min_ssi_clk_hz);
+        timeout_ns = timeout_ns * (1.0 + ($itor(tolerance_ppm) / 1000000.0));
         fork
             begin
                 @(posedge intr);
@@ -55,6 +61,10 @@ interface {{ class_prefix }}interface(
             begin
                 repeat (timeout_ssi_clk_cycles)
                     @(posedge ssi_clk);
+                timed_out = 1'b1;
+            end
+            begin
+                #(timeout_ns * 1ns);
                 timed_out = 1'b1;
             end
         join_any

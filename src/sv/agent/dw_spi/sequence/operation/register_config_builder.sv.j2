@@ -45,17 +45,36 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(div);
     endfunction
 
+    function int unsigned ndf_from_payload_bytes(
+            int unsigned payload_bytes,
+            int unsigned data_frame_bits);
+        longint unsigned payload_bits;
+        longint unsigned frames;
+
+        if (payload_bytes == 0)
+            return 0;
+        if (data_frame_bits == 0)
+            `uvm_fatal("DW_SPI_CFG", "data_frame_bits must be non-zero to derive CTRLR1.NDF")
+        payload_bits = longint'(payload_bytes) * 8;
+        frames = ceil_div(payload_bits, data_frame_bits);
+        if (frames == 0)
+            return 0;
+        return int'(frames - 1);
+    endfunction
+
     task build(
             {{ class_prefix }}transfer_req rq,
             output {{ class_prefix }}configuration cfg);
         int unsigned length;
+        int unsigned ndf;
         int unsigned spi_frf;
         int unsigned baudr;
         longint unsigned ssi_clk_hz;
         host_mode_e host_mode;
         transfer_mode_e transfer_mode;
-        bit rdmae;
-        bit tdmae;
+        bit write_internal_dma_regs;
+        bit [63:0] flash_addr;
+        bit [31:0] sdar;
 
         if (settings == null)
             `uvm_fatal("DW_SPI_CFG", "settings is null")
@@ -83,9 +102,11 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 ssi_clk_hz,
                 settings.target_sclk_hz))
         length = rq.payload.get_data_length();
+        ndf = ndf_from_payload_bytes(length, rq.data_frame_bits);
         spi_frf = spi_frf_from_speed(rq.speed_multiplier);
-        rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ});
-        tdmae = rq.use_dma && (transfer_mode inside {TX_ONLY, TX_AND_RX});
+        write_internal_dma_regs = rq.use_dma;
+        flash_addr = rq.payload.get_address();
+        sdar = flash_addr[31:0];
 
         cfg = {{ class_prefix }}configuration::type_id::create("configuration");
         cfg.settings = settings;
@@ -101,13 +122,19 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 data_frame_bits == rq.data_frame_bits;
                 baudr == local::baudr;
                 if (local::transfer_mode inside {RX_ONLY, EEPROM_READ}) {
-                    ndf == (local::length > 0 ? local::length - 1 : 0);
+                    ndf == local::ndf;
                 } else {
                     ndf == 0;
                 }
                 ser == (32'h1 << rq.cs_id);
-                rdmae == local::rdmae;
-                tdmae == local::tdmae;
+                write_internal_dma_regs == local::write_internal_dma_regs;
+                idmae == local::write_internal_dma_regs;
+                ainc == local::write_internal_dma_regs;
+                awlen == rq.awlen;
+                arlen == rq.arlen;
+                spi_inst == {24'h0, rq.opcode};
+                sdar == local::sdar;
+                axiar0 == rq.axi_addr;
             })
             `uvm_fatal("DW_SPI_CFG", "failed to randomize register configuration")
         cfg.host_mode.rand_mode(1);

@@ -62,6 +62,8 @@ task {{ class_prefix }}transfer_seq::wait_transfer_interrupt({{ class_prefix }}t
 
     p_sequencer.settings.vif.wait_interrupt_asserted(
         p_sequencer.settings.interrupt_timeout_ssi_clk_cycles,
+        p_sequencer.settings.min_ssi_clk_hz,
+        p_sequencer.settings.clock_check_tolerance_ppm,
         timed_out,
         missing_signal);
     if (missing_signal)

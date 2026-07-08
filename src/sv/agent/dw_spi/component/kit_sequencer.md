@@ -17,6 +17,9 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `cs_id` | 片选编号。 |
 | `addr_bytes` | flash 地址阶段字节数。 |
 | `use_dma` | 是否配置 `DMACR` 并使用内置 DMA mover 搬运 payload。 |
+| `awlen` | 内部 DMA 写突发长度，默认 0。 |
+| `arlen` | 内部 DMA 读突发长度，默认 0。 |
+| `axi_addr` | DMA 访问系统内存的 AXI buffer 地址，默认 0。 |
 
 每个快捷入口在自己的 req 中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
 
@@ -45,6 +48,9 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `cs_id` | `int unsigned` | 可选传输配置 |
 | `addr_bytes` | `int unsigned` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
+| `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
+| `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
+| `axi_addr` | `bit [31:0]` | 可选 DMA AXI buffer 地址 |
 
 ### `flash_read`
 
@@ -61,6 +67,9 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `cs_id` | `int unsigned` | 可选传输配置 |
 | `addr_bytes` | `int unsigned` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
+| `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
+| `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
+| `axi_addr` | `bit [31:0]` | 可选 DMA AXI buffer 地址 |
 
 ### `check_clocks`
 
@@ -85,6 +94,9 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `cs_id` | `int unsigned` | 可选传输配置 |
 | `addr_bytes` | `int unsigned` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
+| `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
+| `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
+| `axi_addr` | `bit [31:0]` | 可选 DMA AXI buffer 地址 |
 
 ## 边界
 

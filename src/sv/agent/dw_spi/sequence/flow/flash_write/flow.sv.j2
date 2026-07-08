@@ -15,7 +15,23 @@ class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequ
     extern virtual task body();
     extern task run_write_enable(output bit ok);
     extern task run_chunk(bit [31:0] addr, bit [7:0] chunk[$], output bit ok);
+    extern function bit [7:0] page_program_opcode(int unsigned speed_multiplier);
 endclass
+
+function bit [7:0] {{ class_prefix }}flash_write_seq::page_program_opcode(
+        int unsigned speed_multiplier);
+    case (speed_multiplier)
+        1, 2: return 8'h02;
+        4: return 8'h32;
+        8: return 8'h12;
+        default: begin
+            `uvm_fatal("DW_SPI", $sformatf(
+                "unsupported flash write speed_multiplier=%0d",
+                speed_multiplier))
+            return 8'h02;
+        end
+    endcase
+endfunction
 
 task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     {{ class_prefix }}transfer_req op_req;
@@ -46,6 +62,9 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     op_req.inst_bytes = 1;
     op_req.addr_bytes = 0;
     op_req.use_dma = 1'b0;
+    op_req.awlen = cfg.awlen;
+    op_req.arlen = cfg.arlen;
+    op_req.axi_addr = cfg.axi_addr;
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("write_enable");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
@@ -80,7 +99,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
         `uvm_fatal("DW_SPI", "flash_write: failed to cast frame_mode")
     if (!$cast(op_req.transfer_mode, TX_ONLY))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast transfer_mode")
-    op_req.opcode = 8'h02;
+    op_req.opcode = page_program_opcode(cfg.speed_multiplier);
     op_req.io_lanes = cfg.io_lanes;
     op_req.speed_multiplier = cfg.speed_multiplier;
     op_req.spi_mode = cfg.spi_mode;
@@ -89,6 +108,9 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     op_req.inst_bytes = 1;
     op_req.addr_bytes = cfg.addr_bytes;
     op_req.use_dma = cfg.use_dma;
+    op_req.awlen = cfg.awlen;
+    op_req.arlen = cfg.arlen;
+    op_req.axi_addr = cfg.axi_addr;
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);

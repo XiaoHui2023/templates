@@ -20,10 +20,16 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         `uvm_field_int(rxoim, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(rxfim, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(mstim, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(rdmae, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(tdmae, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dmatdl, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dmardl, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(write_internal_dma_regs, UVM_ALL_ON)
+        `uvm_field_int(idmae, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(ainc, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(awlen, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(arlen, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(spi_inst, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(sdar, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(axiar0, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(rx_sample_delay, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(write_rx_sample_delay, UVM_ALL_ON)
     `uvm_object_utils_end
@@ -47,10 +53,16 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     rand bit rxoim;
     rand bit rxfim;
     rand bit mstim;
-    rand bit rdmae;
-    rand bit tdmae;
     rand int unsigned dmatdl;
     rand int unsigned dmardl;
+    rand bit write_internal_dma_regs;
+    rand bit idmae;
+    rand bit ainc;
+    rand bit [7:0] awlen;
+    rand bit [7:0] arlen;
+    rand bit [31:0] spi_inst;
+    rand bit [31:0] sdar;
+    rand bit [31:0] axiar0;
     rand bit [31:0] rx_sample_delay;
     rand bit write_rx_sample_delay;
 
@@ -69,8 +81,14 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         rxoim == 1'b0;
         rxfim == 1'b0;
         mstim == 1'b0;
-        soft rdmae == 1'b0;
-        soft tdmae == 1'b0;
+        soft write_internal_dma_regs == 1'b0;
+        soft idmae == 1'b0;
+        soft ainc == 1'b0;
+        soft awlen == '0;
+        soft arlen == '0;
+        soft spi_inst == '0;
+        soft sdar == '0;
+        soft axiar0 == '0;
         if (settings != null) {
             txftlr == settings.default_tx_fifo_threshold;
             rxftlr == settings.default_rx_fifo_threshold;

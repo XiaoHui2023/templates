@@ -105,6 +105,9 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `io_lanes` | 1/2/4 线传输选择。 |
 | `speed_multiplier` | 1/2/4/8 倍速；映射到 `CTRLR0.SPI_FRF`。 |
 | `use_dma` | 本次 transfer 是否配置 `DMACR` 并使用内置 DMA mover 搬运 payload。 |
+| `awlen` | 配置 `AXIAWLEN.AWLEN`。 |
+| `arlen` | 配置 `AXIARLEN.ARLEN`。 |
+| `axi_addr` | DMA 访问系统内存的 AXI buffer 地址，写入 `AXIAR0.AXIAR0`。 |
 | `spi_mode` | SPI mode 0-3；用于 CPOL/CPHA 相关配置。 |
 | `data_frame_bits` | 每帧数据位宽。 |
 | `cs_id` | 片选编号；用于 `SER` 和 callback 控制。 |
@@ -128,16 +131,23 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `spi_frf` | 配置 `CTRLR0.SPI_FRF`。 |
 | `spi_mode` | 配置 `CTRLR0.SCPOL/SCPH`。 |
 | `data_frame_bits` | 配置 `CTRLR0.DFS` 或 `CTRLR0.DFS_32`。 |
-| `ndf` | 配置 `CTRLR1.NDF`。 |
-| `ssi_en` | 配置 `SSIENR.SSI_EN`。 |
+| `ndf` | 配置 `CTRLR1.NDF`，单位是 DFS frame，不是 byte。 |
+| `ssi_en` | 配置 `SSIENR.SSIC_EN`。 |
 | `ser` | 配置 `SER.SER` 片选 mask。 |
 | `baudr` | 配置 `BAUDR.SCKDV`；该值由 `ssi_clk` 和目标串行输出频率推导。 |
 | `txftlr` | 配置 `TXFTLR.TFT`。 |
 | `rxftlr` | 配置 `RXFTLR.RFT`。 |
 | `txeim/txoim/rxuim/rxoim/rxfim/mstim` | 配置 `IMR` 各中断 mask field。 |
-| `rdmae/tdmae` | 配置 `DMACR.RDMAE/TDMAE`。 |
 | `dmatdl` | 配置 `DMATDLR.DMATDL`。 |
 | `dmardl` | 配置 `DMARDLR.DMARDL`。 |
+| `write_internal_dma_regs` | 内部 DMA 模式下写 `AXIAWLEN/AXIARLEN/SPIDR/SPIAR/AXIAR0`。 |
+| `idmae` | 配置 `DMACR.IDMAE`，内部 DMA 模式下为 1。 |
+| `ainc` | 配置 `DMACR.AINC`，内部 DMA 模式下为 1。 |
+| `awlen` | 配置 `AXIAWLEN.AWLEN`。 |
+| `arlen` | 配置 `AXIARLEN.ARLEN`。 |
+| `spi_inst` | 配置 `SPIDR.SPI_INST`，来自当前 transfer opcode。 |
+| `sdar` | 配置 `SPIAR.SDAR`，来自 payload address 的低 32 bit。 |
+| `axiar0` | 配置 `AXIAR0.AXIAR0`，来自 `axi_addr`。 |
 | `rx_sample_delay` | 配置 `RX_SAMPLE_DELAY.RSD`。 |
 | `write_rx_sample_delay` | 是否写 `RX_SAMPLE_DELAY`。 |
 
@@ -168,3 +178,9 @@ sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 s
 - sequencer/kit_sequencer 快捷函数。
 
 重复寄存器 FIELD apply 逻辑放在 `core/register_access.sv` 的实例化工具类中；从 operation req 生成 `configuration` 的入口放在 operation sequence 中。
+
+## Interrupt Timeout Settings
+
+`interrupt_timeout_ssi_clk_cycles` 是 transfer 等待 `intr` 的周期上限。
+
+interface 会同时使用 `min_ssi_clk_hz` 和 `clock_check_tolerance_ppm` 推导一个仿真时间兜底超时。这样既能覆盖正常慢响应，也能覆盖 `ssi_clk` 停住导致周期计数不前进的情况。
