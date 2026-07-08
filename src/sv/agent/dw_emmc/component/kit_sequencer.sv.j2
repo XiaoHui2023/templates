@@ -17,9 +17,9 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
 
     // flow shortcuts
     extern task initial_card();
-    extern task switch_bus(bus_speed_mode_e bus_speed_mode, int data_width);
+    extern task switch_bus(int bus_speed_mode, int data_width);
 {% if is_emmc %}
-    extern task send_ext_csd(bus_speed_mode_e bus_speed_mode, int data_width);
+    extern task send_ext_csd(int bus_speed_mode, int data_width);
 {% endif %}
     extern task tune_phase(bit[7:0] phase);
 
@@ -30,7 +30,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
 {% endif %}
     extern task speed_mode_test();
     extern task sram_test(int unsigned block_count = 0, int unsigned block_size = 0);
-    extern task tune_test(bus_speed_mode_e bus_speed_mode, int data_width);
+    extern task tune_test(int bus_speed_mode, int data_width);
     extern task check_clock_frequence_test();
 endclass
 
@@ -114,7 +114,7 @@ task {{ class_prefix }}kit_sequencer::initial_card();
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::switch_bus(bus_speed_mode_e bus_speed_mode, int data_width);
+task {{ class_prefix }}kit_sequencer::switch_bus(int bus_speed_mode, int data_width);
     {{ class_prefix }}switch_bus_seq seq;
 
     seq = {{ class_prefix }}switch_bus_seq::type_id::create("switch_bus_seq");
@@ -128,7 +128,7 @@ task {{ class_prefix }}kit_sequencer::switch_bus(bus_speed_mode_e bus_speed_mode
 endtask
 
 {% if is_emmc %}
-task {{ class_prefix }}kit_sequencer::send_ext_csd(bus_speed_mode_e bus_speed_mode, int data_width);
+task {{ class_prefix }}kit_sequencer::send_ext_csd(int bus_speed_mode, int data_width);
     {{ class_prefix }}send_ext_csd_seq seq;
 
     seq = {{ class_prefix }}send_ext_csd_seq::type_id::create("send_ext_csd_seq");
@@ -206,7 +206,7 @@ task {{ class_prefix }}kit_sequencer::sram_test(int unsigned block_count = 0, in
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::tune_test(bus_speed_mode_e bus_speed_mode, int data_width);
+task {{ class_prefix }}kit_sequencer::tune_test(int bus_speed_mode, int data_width);
     {{ class_prefix }}tune_test_seq seq;
 
     seq = {{ class_prefix }}tune_test_seq::type_id::create("tune_test_seq");

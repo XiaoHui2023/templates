@@ -1,7 +1,7 @@
 `ifndef {{ class_prefix | upper }}SEQUENCER
 `define {{ class_prefix | upper }}SEQUENCER
 
-class {{ class_prefix }}sequencer extends {{ class_prefix }}spec#(uvm_sequencer);
+class {{ class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ class_prefix }}sequencer)
     `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
 
