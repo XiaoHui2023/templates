@@ -18,8 +18,8 @@
 5. 写 `SER.SER = 0`，释放片选。
 6. 根据 `settings.ssi_variant` 选择 PSSI/HSSI 字段集合，配置 `CTRLR0`。
 7. 配置 `CTRLR1.NDF`、`BAUDR.SCKDV`、`TXFTLR.TFT`、`RXFTLR.RFT`。
-8. 配置 `DMACR.IDMAE/AINC`、`DMATDLR.DMATDL`、`DMARDLR.DMARDL`。
-9. 内部 DMA 模式下配置 `AXIAWLEN.AWLEN`、`AXIARLEN.ARLEN`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`。
+8. DMA 生成模式开启时配置 `DMACR` 和 DMA threshold；内部 DMA 写 `IDMAE/AINC`，外部 DMA 写 `RDMAE/TDMAE`。
+9. 内部 DMA 模式下配置 `AXIAWLEN.AWLEN`、`AXIARLEN.ARLEN`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`；外部 DMA 和无 DMA 模式不写这些寄存器。
 10. 按 `write_rx_sample_delay` 决定是否配置 `RX_SAMPLE_DELAY.RSD`。
 11. 写 `SER.SER` 和 `SSIENR.SSIC_EN`，完成本次配置。
 
@@ -30,4 +30,4 @@
 - 不提供通用 `reg_write` / `reg_read` 包装。
 - 不声明静态函数集合；sequence 实例化工具对象并注入依赖。
 - 不从 core 反向引用 sequence 层类型。
-- 内部 DMA 寄存器也按明确 FIELD 写入，不使用完整寄存器拼值。
+- DMA 寄存器也按明确 FIELD 写入，不使用完整寄存器拼值。

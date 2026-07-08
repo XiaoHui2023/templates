@@ -16,11 +16,11 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         int unsigned spi_mode = {{ default_spi_mode }},
         int unsigned data_frame_bits = {{ default_data_frame_bits }},
         int unsigned cs_id = {{ default_cs }},
-        int unsigned addr_bytes = {{ default_addr_bytes }},
-        bit use_dma = {{ "1'b1" if default_use_dma else "1'b0" }},
+        int unsigned addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
+        bit use_dma = 1'b0{% endif %}{% if internal_dma %},
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0);
+        bit [31:0] axi_addr = '0{% endif %});
     extern task flash_read(bit [31:0] address,
         int unsigned length,
         int unsigned io_lanes = {{ default_io_lanes }},
@@ -28,11 +28,11 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         int unsigned spi_mode = {{ default_spi_mode }},
         int unsigned data_frame_bits = {{ default_data_frame_bits }},
         int unsigned cs_id = {{ default_cs }},
-        int unsigned addr_bytes = {{ default_addr_bytes }},
-        bit use_dma = {{ "1'b1" if default_use_dma else "1'b0" }},
+        int unsigned addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
+        bit use_dma = 1'b0{% endif %}{% if internal_dma %},
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0);
+        bit [31:0] axi_addr = '0{% endif %});
     extern task check_clocks();
     extern task rw_test(
         bit [31:0] address = '0,
@@ -42,11 +42,11 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         int unsigned spi_mode = {{ default_spi_mode }},
         int unsigned data_frame_bits = {{ default_data_frame_bits }},
         int unsigned cs_id = {{ default_cs }},
-        int unsigned addr_bytes = {{ default_addr_bytes }},
-        bit use_dma = {{ "1'b1" if default_use_dma else "1'b0" }},
+        int unsigned addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
+        bit use_dma = 1'b0{% endif %}{% if internal_dma %},
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0);
+        bit [31:0] axi_addr = '0{% endif %});
 endclass
 
 task {{ class_prefix }}kit_sequencer::init_registers({{ class_prefix }}transfer_req transfer_req);
@@ -72,11 +72,11 @@ task {{ class_prefix }}kit_sequencer::flash_write(
         int unsigned spi_mode = {{ default_spi_mode }},
         int unsigned data_frame_bits = {{ default_data_frame_bits }},
         int unsigned cs_id = {{ default_cs }},
-        int unsigned addr_bytes = {{ default_addr_bytes }},
-        bit use_dma = {{ "1'b1" if default_use_dma else "1'b0" }},
+        int unsigned addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
+        bit use_dma = 1'b0{% endif %}{% if internal_dma %},
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0);
+        bit [31:0] axi_addr = '0{% endif %});
     {{ class_prefix }}flash_write_seq seq;
 
     seq = {{ class_prefix }}flash_write_seq::type_id::create("flash_write");
@@ -90,10 +90,14 @@ task {{ class_prefix }}kit_sequencer::flash_write(
             data_frame_bits == local::data_frame_bits;
             cs_id == local::cs_id;
             addr_bytes == local::addr_bytes;
+{% if internal_dma or external_dma %}
             use_dma == local::use_dma;
+{% endif %}
+{% if internal_dma %}
             awlen == local::awlen;
             arlen == local::arlen;
             axi_addr == local::axi_addr;
+{% endif %}
         })
         `uvm_fatal("DW_SPI", "failed to randomize flash_write configuration")
     seq.start(this);
@@ -109,11 +113,11 @@ task {{ class_prefix }}kit_sequencer::flash_read(
         int unsigned spi_mode = {{ default_spi_mode }},
         int unsigned data_frame_bits = {{ default_data_frame_bits }},
         int unsigned cs_id = {{ default_cs }},
-        int unsigned addr_bytes = {{ default_addr_bytes }},
-        bit use_dma = {{ "1'b1" if default_use_dma else "1'b0" }},
+        int unsigned addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
+        bit use_dma = 1'b0{% endif %}{% if internal_dma %},
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0);
+        bit [31:0] axi_addr = '0{% endif %});
     {{ class_prefix }}flash_read_seq seq;
 
     seq = {{ class_prefix }}flash_read_seq::type_id::create("flash_read");
@@ -127,10 +131,14 @@ task {{ class_prefix }}kit_sequencer::flash_read(
             data_frame_bits == local::data_frame_bits;
             cs_id == local::cs_id;
             addr_bytes == local::addr_bytes;
+{% if internal_dma or external_dma %}
             use_dma == local::use_dma;
+{% endif %}
+{% if internal_dma %}
             awlen == local::awlen;
             arlen == local::arlen;
             axi_addr == local::axi_addr;
+{% endif %}
         })
         `uvm_fatal("DW_SPI", "failed to randomize flash_read configuration")
     seq.start(this);
@@ -163,11 +171,11 @@ task {{ class_prefix }}kit_sequencer::rw_test(
         int unsigned spi_mode = {{ default_spi_mode }},
         int unsigned data_frame_bits = {{ default_data_frame_bits }},
         int unsigned cs_id = {{ default_cs }},
-        int unsigned addr_bytes = {{ default_addr_bytes }},
-        bit use_dma = {{ "1'b1" if default_use_dma else "1'b0" }},
+        int unsigned addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
+        bit use_dma = 1'b0{% endif %}{% if internal_dma %},
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0);
+        bit [31:0] axi_addr = '0{% endif %});
     {{ class_prefix }}rw_test_seq seq;
 
     seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test");
@@ -181,10 +189,14 @@ task {{ class_prefix }}kit_sequencer::rw_test(
             data_frame_bits == local::data_frame_bits;
             cs_id == local::cs_id;
             addr_bytes == local::addr_bytes;
+{% if internal_dma or external_dma %}
             use_dma == local::use_dma;
+{% endif %}
+{% if internal_dma %}
             awlen == local::awlen;
             arlen == local::arlen;
             axi_addr == local::axi_addr;
+{% endif %}
         })
         `uvm_fatal("DW_SPI", "failed to randomize rw_test configuration")
     seq.start(this);

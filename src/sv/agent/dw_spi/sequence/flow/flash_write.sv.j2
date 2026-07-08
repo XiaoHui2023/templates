@@ -71,10 +71,14 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     op_req.cs_id = cfg.cs_id;
     op_req.inst_bytes = 1;
     op_req.addr_bytes = 0;
+{% if internal_dma or external_dma %}
     op_req.use_dma = 1'b0;
+{% endif %}
+{% if internal_dma %}
     op_req.awlen = cfg.awlen;
     op_req.arlen = cfg.arlen;
     op_req.axi_addr = cfg.axi_addr;
+{% endif %}
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("write_enable");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
@@ -117,10 +121,14 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     op_req.cs_id = cfg.cs_id;
     op_req.inst_bytes = 1;
     op_req.addr_bytes = cfg.addr_bytes;
+{% if internal_dma or external_dma %}
     op_req.use_dma = cfg.use_dma;
+{% endif %}
+{% if internal_dma %}
     op_req.awlen = cfg.awlen;
     op_req.arlen = cfg.arlen;
     op_req.axi_addr = cfg.axi_addr;
+{% endif %}
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);

@@ -12,10 +12,14 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
         `uvm_field_int(cs_id, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
+{% if internal_dma or external_dma %}
         `uvm_field_int(use_dma, UVM_ALL_ON)
+{% endif %}
+{% if internal_dma %}
         `uvm_field_int(awlen, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(arlen, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(axi_addr, UVM_ALL_ON | UVM_HEX)
+{% endif %}
     `uvm_object_utils_end
 
     rand host_mode_e host_mode;
@@ -27,10 +31,14 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
     rand int unsigned cs_id;
     rand int unsigned addr_bytes;
     rand int unsigned dummy_cycles;
+{% if internal_dma or external_dma %}
     rand bit use_dma;
+{% endif %}
+{% if internal_dma %}
     rand bit [7:0] awlen;
     rand bit [7:0] arlen;
     rand bit [31:0] axi_addr;
+{% endif %}
 
     function new(string name="{{ class_prefix }}transfer_configuration");
         super.new(name);
@@ -46,10 +54,14 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
         soft cs_id == {{ default_cs }};
         soft addr_bytes == {{ default_addr_bytes }};
         soft dummy_cycles == (frame_mode == ENHANCED ? 8 : 0);
-        soft use_dma == {{ "1'b1" if default_use_dma else "1'b0" }};
+{% if internal_dma or external_dma %}
+        soft use_dma == 1'b0;
+{% endif %}
+{% if internal_dma %}
         soft awlen == '0;
         soft arlen == '0;
         soft axi_addr == '0;
+{% endif %}
 
         io_lanes inside {1, 2, 4};
         speed_multiplier inside {1, 2, 4, 8};
@@ -70,9 +82,6 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
 {% endif %}
 {% if not support_enhanced %}
         frame_mode != ENHANCED;
-{% endif %}
-{% if not support_dma %}
-        use_dma == 1'b0;
 {% endif %}
     }
 endclass

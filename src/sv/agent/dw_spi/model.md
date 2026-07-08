@@ -104,10 +104,10 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `frame_mode` | 标准/增强模式；增强模式允许 2/4/8 倍速。 |
 | `io_lanes` | 1/2/4 线传输选择。 |
 | `speed_multiplier` | 1/2/4/8 倍速；映射到 `CTRLR0.SPI_FRF`。 |
-| `use_dma` | 本次 transfer 是否配置 `DMACR` 并使用内置 DMA mover 搬运 payload。 |
-| `awlen` | 配置 `AXIAWLEN.AWLEN`。 |
-| `arlen` | 配置 `AXIARLEN.ARLEN`。 |
-| `axi_addr` | DMA 访问系统内存的 AXI buffer 地址，写入 `AXIAR0.AXIAR0`。 |
+| `use_dma` | 仅在 Python 开启内部或外部 DMA 时生成；默认约束为 0。 |
+| `awlen` | 仅内部 DMA 生成，配置 `AXIAWLEN.AWLEN`。 |
+| `arlen` | 仅内部 DMA 生成，配置 `AXIARLEN.ARLEN`。 |
+| `axi_addr` | 仅内部 DMA 生成，写入 `AXIAR0.AXIAR0`。 |
 | `spi_mode` | SPI mode 0-3；用于 CPOL/CPHA 相关配置。 |
 | `data_frame_bits` | 每帧数据位宽。 |
 | `cs_id` | 片选编号；用于 `SER` 和 callback 控制。 |
@@ -116,7 +116,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。主机测试默认创建 `host_configuration`，从机测试可显式创建 `slave_configuration`。
 
-`use_dma` 的默认值来自 Python `default_use_dma`。如果 Python `support_dma` 为 false，生成的 transfer configuration 和 operation req 会约束 `use_dma == 0`。
+DMA 生成模式由 Python `internal_dma` 和 `external_dma` 决定，二者不能同时为 true。两者都为 false 时不生成 DMA 字段、DMA 寄存器配置和 `dma_engine` filelist 条目。
 
 `rw_test_seq` 的 `address` 默认约束为 0。`write_data` 为空时，test sequence 会随机生成一段数据；长度由 Python 配置 `default_rw_data_bytes` 生成，默认 256 字节。
 
@@ -138,11 +138,12 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `txftlr` | 配置 `TXFTLR.TFT`。 |
 | `rxftlr` | 配置 `RXFTLR.RFT`。 |
 | `txeim/txoim/rxuim/rxoim/rxfim/mstim` | 配置 `IMR` 各中断 mask field。 |
-| `dmatdl` | 配置 `DMATDLR.DMATDL`。 |
-| `dmardl` | 配置 `DMARDLR.DMARDL`。 |
-| `write_internal_dma_regs` | 内部 DMA 模式下写 `AXIAWLEN/AXIARLEN/SPIDR/SPIAR/AXIAR0`。 |
-| `idmae` | 配置 `DMACR.IDMAE`，内部 DMA 模式下为 1。 |
-| `ainc` | 配置 `DMACR.AINC`，内部 DMA 模式下为 1。 |
+| `dmatdl` | 仅 DMA 模式生成，配置 `DMATDLR.DMATDL`。 |
+| `dmardl` | 仅 DMA 模式生成，配置 `DMARDLR.DMARDL`。 |
+| `rdmae/tdmae` | 仅外部 DMA 生成，配置 `DMACR.RDMAE/TDMAE`。 |
+| `write_internal_dma_regs` | 仅内部 DMA 生成，控制是否写 `AXIAWLEN/AXIARLEN/SPIDR/SPIAR/AXIAR0`。 |
+| `idmae` | 仅内部 DMA 生成，配置 `DMACR.IDMAE`。 |
+| `ainc` | 仅内部 DMA 生成，配置 `DMACR.AINC`。 |
 | `awlen` | 配置 `AXIAWLEN.AWLEN`。 |
 | `arlen` | 配置 `AXIARLEN.ARLEN`。 |
 | `spi_inst` | 配置 `SPIDR.SPI_INST`，来自当前 transfer opcode。 |

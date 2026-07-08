@@ -72,9 +72,17 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         longint unsigned ssi_clk_hz;
         host_mode_e host_mode;
         transfer_mode_e transfer_mode;
+{% if internal_dma %}
         bit write_internal_dma_regs;
+{% endif %}
+{% if external_dma %}
+        bit rdmae;
+        bit tdmae;
+{% endif %}
+{% if internal_dma %}
         bit [63:0] flash_addr;
         bit [31:0] sdar;
+{% endif %}
 
         if (settings == null)
             `uvm_fatal("DW_SPI_CFG", "settings is null")
@@ -104,9 +112,15 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         length = rq.payload.get_data_length();
         ndf = ndf_from_payload_bytes(length, rq.data_frame_bits);
         spi_frf = spi_frf_from_speed(rq.speed_multiplier);
+{% if internal_dma %}
         write_internal_dma_regs = rq.use_dma;
         flash_addr = rq.payload.get_address();
         sdar = flash_addr[31:0];
+{% endif %}
+{% if external_dma %}
+        rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX});
+        tdmae = rq.use_dma && (transfer_mode inside {TX_ONLY, TX_AND_RX});
+{% endif %}
 
         cfg = {{ class_prefix }}configuration::type_id::create("configuration");
         cfg.settings = settings;
@@ -127,6 +141,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                     ndf == 0;
                 }
                 ser == (32'h1 << rq.cs_id);
+{% if internal_dma %}
                 write_internal_dma_regs == local::write_internal_dma_regs;
                 idmae == local::write_internal_dma_regs;
                 ainc == local::write_internal_dma_regs;
@@ -135,6 +150,11 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 spi_inst == {24'h0, rq.opcode};
                 sdar == local::sdar;
                 axiar0 == rq.axi_addr;
+{% endif %}
+{% if external_dma %}
+                rdmae == local::rdmae;
+                tdmae == local::tdmae;
+{% endif %}
             })
             `uvm_fatal("DW_SPI_CFG", "failed to randomize register configuration")
         cfg.host_mode.rand_mode(1);

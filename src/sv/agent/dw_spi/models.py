@@ -64,10 +64,6 @@ class Models(BaseModel):
         3,
         description="Default flash address phase width in bytes.",
     )
-    default_use_dma: bool = Field(
-        False,
-        description="Default DMA movement mode used by per-transfer configuration constraints.",
-    )
     default_rw_data_bytes: int = Field(
         256,
         ge=1,
@@ -127,9 +123,13 @@ class Models(BaseModel):
         True,
         description="Allow transfers to request receive sample delay.",
     )
-    support_dma: bool = Field(
-        True,
-        description="Allow transfer operation to enable controller DMA request registers and use the built-in DMA mover.",
+    internal_dma: bool = Field(
+        False,
+        description="Generate internal DMA register programming and built-in DMA mover support.",
+    )
+    external_dma: bool = Field(
+        False,
+        description="Generate external DMA request register programming support.",
     )
     support_master: bool = Field(
         True,
@@ -184,6 +184,8 @@ class Models(BaseModel):
             raise ValueError("at least one of support_standard or support_enhanced must be enabled")
         if not self.support_general_spi and not self.support_flash_spi:
             raise ValueError("at least one of support_general_spi or support_flash_spi must be enabled")
+        if self.internal_dma and self.external_dma:
+            raise ValueError("internal_dma and external_dma cannot both be enabled")
         return self
 
     @model_validator(mode="after")

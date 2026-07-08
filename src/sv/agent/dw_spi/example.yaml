@@ -9,7 +9,6 @@ num_cs: 4
 default_spi_mode: 0
 default_cs: 0
 default_addr_bytes: 3
-default_use_dma: false
 default_rw_data_bytes: 256
 target_sclk_hz: 6000000
 fifo_depth_bytes: 32
@@ -21,7 +20,8 @@ default_tx_fifo_threshold: 0
 default_rx_fifo_threshold: 0
 default_rx_sample_delay_ns: 0
 support_rx_sample_delay: true
-support_dma: true
+internal_dma: false
+external_dma: false
 support_master: true
 support_slave: true
 support_standard: true

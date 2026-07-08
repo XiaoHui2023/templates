@@ -16,12 +16,14 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `data_frame_bits` | 数据帧位宽。 |
 | `cs_id` | 片选编号。 |
 | `addr_bytes` | flash 地址阶段字节数。 |
-| `use_dma` | 是否配置 `DMACR` 并使用内置 DMA mover 搬运 payload。 |
-| `awlen` | 内部 DMA 写突发长度，默认 0。 |
-| `arlen` | 内部 DMA 读突发长度，默认 0。 |
-| `axi_addr` | DMA 访问系统内存的 AXI buffer 地址，默认 0。 |
+| `use_dma` | 仅在 Python 开启内部或外部 DMA 时生成，默认 0。 |
+| `awlen` | 仅内部 DMA 生成，内部 DMA 写突发长度，默认 0。 |
+| `arlen` | 仅内部 DMA 生成，内部 DMA 读突发长度，默认 0。 |
+| `axi_addr` | 仅内部 DMA 生成，DMA 访问系统内存的 AXI buffer 地址，默认 0。 |
 
 每个 flow/test 快捷入口在 sequence 字段中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。operation 快捷入口仍按 operation req/rsp 三件套传参。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
+
+DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同时开启；两者都关闭时 kit API 不出现 DMA 参数。
 
 ## 快捷入口
 

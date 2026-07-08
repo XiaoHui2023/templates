@@ -118,8 +118,15 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         set_field(settings.regmodel.RXFTLR, "RXFTLR", "RFT", cfg.rxftlr);
         update_reg(settings.regmodel.RXFTLR, "RXFTLR");
 
+{% if internal_dma or external_dma %}
+{% if external_dma %}
+        set_field(settings.regmodel.DMACR, "DMACR", "RDMAE", cfg.rdmae);
+        set_field(settings.regmodel.DMACR, "DMACR", "TDMAE", cfg.tdmae);
+{% endif %}
+{% if internal_dma %}
         set_field(settings.regmodel.DMACR, "DMACR", "IDMAE", cfg.idmae);
         set_field(settings.regmodel.DMACR, "DMACR", "AINC", cfg.ainc);
+{% endif %}
         update_reg(settings.regmodel.DMACR, "DMACR");
 
         set_field(settings.regmodel.DMATDLR, "DMATDLR", "DMATDL", cfg.dmatdl);
@@ -128,6 +135,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         set_field(settings.regmodel.DMARDLR, "DMARDLR", "DMARDL", cfg.dmardl);
         update_reg(settings.regmodel.DMARDLR, "DMARDLR");
 
+{% if internal_dma %}
         if (cfg.write_internal_dma_regs) begin
             set_field(settings.regmodel.AXIAWLEN, "AXIAWLEN", "AWLEN", cfg.awlen);
             update_reg(settings.regmodel.AXIAWLEN, "AXIAWLEN");
@@ -144,6 +152,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             set_field(settings.regmodel.AXIAR0, "AXIAR0", "AXIAR0", cfg.axiar0);
             update_reg(settings.regmodel.AXIAR0, "AXIAR0");
         end
+{% endif %}
+{% endif %}
 
         if (cfg.write_rx_sample_delay) begin
             set_field(settings.regmodel.RX_SAMPLE_DELAY, "RX_SAMPLE_DELAY", "RSD", cfg.rx_sample_delay);

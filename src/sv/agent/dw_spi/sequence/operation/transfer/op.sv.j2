@@ -22,7 +22,9 @@ task {{ class_prefix }}transfer_seq::body();
     {{ class_prefix }}configuration cfg;
     {{ class_prefix }}register_config_builder config_builder;
     {{ class_prefix }}register_access register_access;
+{% if internal_dma %}
     {{ class_prefix }}dma_engine dma_engine;
+{% endif %}
 
     if (req == null)
         `uvm_fatal("DW_SPI", "transfer: req is null")
@@ -39,14 +41,20 @@ task {{ class_prefix }}transfer_seq::body();
     register_access.settings = p_sequencer.settings;
     register_access.apply_configuration(cfg);
     p_sequencer.activate_chip_select(rq.cs_id);
+{% if internal_dma %}
     if (rq.use_dma) begin
         dma_engine = {{ class_prefix }}dma_engine::type_id::create("dma_engine");
         dma_engine.scoreboard = p_sequencer.scoreboard;
         rs.ok = dma_engine.move_payload(rq.payload, rq.use_dma, rs.read_data);
     end
+{% endif %}
     wait_transfer_interrupt(rq);
+{% if internal_dma %}
     if (!rq.use_dma)
         rs.ok = p_sequencer.scoreboard.apply_payload(rq.payload, rs.read_data);
+{% else %}
+    rs.ok = p_sequencer.scoreboard.apply_payload(rq.payload, rs.read_data);
+{% endif %}
     p_sequencer.release_chip_select(rq.cs_id);
     rsp = rs;
 endtask

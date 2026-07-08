@@ -17,10 +17,14 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
         `uvm_field_int(inst_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
+{% if internal_dma or external_dma %}
         `uvm_field_int(use_dma, UVM_ALL_ON)
+{% endif %}
+{% if internal_dma %}
         `uvm_field_int(awlen, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(arlen, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(axi_addr, UVM_ALL_ON | UVM_HEX)
+{% endif %}
     `uvm_object_utils_end
 
     uvm_tlm_generic_payload payload;
@@ -37,10 +41,14 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
     rand int unsigned inst_bytes;
     rand int unsigned addr_bytes;
     rand int unsigned dummy_cycles;
+{% if internal_dma or external_dma %}
     rand bit use_dma;
+{% endif %}
+{% if internal_dma %}
     rand bit [7:0] awlen;
     rand bit [7:0] arlen;
     rand bit [31:0] axi_addr;
+{% endif %}
 
     function new(string name="{{ class_prefix }}transfer_req");
         super.new(name);
@@ -56,9 +64,14 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
         cs_id < {{ num_cs }};
         inst_bytes inside {[0:1]};
         addr_bytes inside {[0:4]};
+{% if internal_dma or external_dma %}
+        soft use_dma == 1'b0;
+{% endif %}
+{% if internal_dma %}
         soft awlen == '0;
         soft arlen == '0;
         soft axi_addr == '0;
+{% endif %}
         if (protocol == FLASH_SPI) {
             inst_bytes == 1;
             addr_bytes inside {3, 4};
@@ -80,9 +93,6 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
 {% endif %}
 {% if not support_enhanced %}
         frame_mode != ENHANCED;
-{% endif %}
-{% if not support_dma %}
-        use_dma == 1'b0;
 {% endif %}
     }
 endclass

@@ -28,7 +28,7 @@
 1. `transfer_seq` 检查 req、payload、scoreboard。
 2. 生成并应用本次寄存器 `configuration`。
 3. 调用 `p_sequencer.activate_chip_select(cs_id)`。
-4. `use_dma == 1` 时，实例化 `dma_engine` 并搬运 payload。
+4. 内部 DMA 且 `use_dma == 1` 时，实例化 `dma_engine` 并搬运 payload。
 5. 等待 top interface 的 `intr` 断言，超时按 `ssi_clk` 周期计数。
 6. `use_dma == 0` 时，调用 `scoreboard.apply_payload()` 建模 PIO 数据效果。
 7. 调用 `p_sequencer.release_chip_select(cs_id)`。
@@ -72,12 +72,11 @@ callback 只注入 chip-select 行为。寄存器读写、scoreboard 比较、DM
 
 ## DMA Transfer
 
-1. per-transfer configuration 设置 `use_dma`。
-2. `register_config_builder` 把 DMA 意图转换成 `DMACR.IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN`、`AXIARLEN.ARLEN`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`。
-3. `SPIDR.SPI_INST` 来自 transfer opcode，`SPIAR.SDAR` 来自 payload address，`AXIAR0.AXIAR0` 来自 per-transfer `axi_addr`。
-4. `register_access` 写 `DMACR`、`DMATDLR`、`DMARDLR`、`AXIAWLEN`、`AXIARLEN`、`SPIDR`、`SPIAR`、`AXIAR0`。
-5. `transfer_seq` 在 chip-select 打开后调用 `dma_engine.move_payload()`。
-6. DMA mover 只搬运 payload 与 scoreboard mirror，不配置寄存器，不处理 CS。
+1. Python 通过 `internal_dma` / `external_dma` 选择生成内部 DMA、外部 DMA 或无 DMA，二者不能同时开启。
+2. 无 DMA 时不生成 `use_dma`、DMA 寄存器配置和 `dma_engine` filelist 条目。
+3. 内部 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；`register_config_builder` 转换成 `DMACR.IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN`、`AXIARLEN.ARLEN`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`。
+4. 外部 DMA 时，per-transfer configuration 只设置 `use_dma`；`register_config_builder` 根据传输方向配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold。
+5. 内部 DMA 的 `transfer_seq` 在 chip-select 打开后调用 `dma_engine.move_payload()`；外部 DMA 不使用内置 mover。
 
 DMA 是单次传输模式，不是 sequencer 快捷函数。
 

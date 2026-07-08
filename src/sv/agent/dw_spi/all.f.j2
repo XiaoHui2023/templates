@@ -15,8 +15,8 @@ sequence/base.sv
 sequence/operation/transfer/req.sv
 sequence/operation/register_config_builder.sv
 core/register_access.sv
-core/dma_engine.sv
-sequence/operation/init_registers/req.sv
+{% if internal_dma %}core/dma_engine.sv
+{% endif %}sequence/operation/init_registers/req.sv
 sequence/operation/init_registers/rsp.sv
 sequence/operation/init_registers/op.sv
 sequence/operation/transfer/rsp.sv

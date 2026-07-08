@@ -177,16 +177,22 @@ PIO 真实搬运可以用 `TFNF/RFNE/TFE/BUSY` 驱动。当前模板的内置搬
 
 | Register | Field | Effect |
 | --- | --- | --- |
+| `DMACR` | `RDMAE` | 使能外部 RX DMA request |
+| `DMACR` | `TDMAE` | 使能外部 TX DMA request |
 | `DMACR` | `IDMAE` | 使能内部 DMA |
 | `DMACR` | `AINC` | 使能 AXI 地址自增 |
 | `DMATDLR` | `DMATDL` | TX DMA threshold |
 | `DMARDLR` | `DMARDL` | RX DMA threshold |
 
-当 transfer 的 `use_dma` 为 `1` 时，register configuration 设置 `IDMAE = 1` 和 `AINC = 1`。数据搬运由 `core/dma_engine` 处理；寄存器配置不放在 DMA engine 内。
+Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DMA 配置代码。
+
+内部 DMA 模式下，transfer 的 `use_dma` 为 `1` 时设置 `IDMAE = 1` 和 `AINC = 1`。数据搬运由 `core/dma_engine` 处理；寄存器配置不放在 DMA engine 内。
+
+外部 DMA 模式下，transfer 的 `use_dma` 为 `1` 时根据传输方向设置 `RDMAE/TDMAE`。外部 DMA 不使用 `core/dma_engine`。
 
 ## AXIAWLEN / AXIARLEN / SPIDR / SPIAR / AXIAR0
 
-DMA 模式还需要配置 SPI instruction、SPI device address 和 AXI buffer address。当前模板在 `use_dma == 1` 时写这些寄存器；非 DMA 传输不写。
+内部 DMA 模式还需要配置 SPI instruction、SPI device address 和 AXI buffer address。仅在 `internal_dma: true` 且 `use_dma == 1` 时写这些寄存器；外部 DMA 和无 DMA 模式不写。
 
 | Register | Field | Source |
 | --- | --- | --- |
