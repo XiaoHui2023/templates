@@ -120,10 +120,6 @@ interface {{ class_prefix }}interface #(
         end
     endtask
 
-    function automatic void set_instance_path(input string path);
-        instance_path = path;
-    endfunction
-
     function automatic void report_check_error(
         input string reason,
         input reg [DW-1:0] expected_value,
