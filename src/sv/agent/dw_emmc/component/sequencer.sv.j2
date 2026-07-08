@@ -1,7 +1,7 @@
 `ifndef {{ class_prefix | upper }}SEQUENCER
 `define {{ class_prefix | upper }}SEQUENCER
 
-class {{ class_prefix }}sequencer extends uvm_sequencer;
+class {{ class_prefix }}sequencer extends {{ class_prefix }}spec#(uvm_sequencer);
     `uvm_component_utils({{ class_prefix }}sequencer)
     `uvm_register_cb({{ class_prefix }}sequencer, {{ class_prefix }}callback)
 
@@ -17,8 +17,8 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern function void start_of_simulation();
     extern task reset_phase(uvm_phase phase);
     extern virtual task set_frequence(int frequence);
-    extern virtual task cpu_read(bit[63:0] addr, uvm_path_e path, output bit[31:0] data);
-    extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
+    extern virtual task cpu_read(bit[63:0] addr, output bit[31:0] data);
+    extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data);
 endclass
 
 task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
@@ -35,30 +35,15 @@ function void {{ class_prefix }}sequencer::start_of_simulation();
 endfunction
 
 task {{ class_prefix }}sequencer::set_frequence(int frequence);
-    bit handled;
-
-    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, set_frequence(this, frequence, handled))
-
-    if(!handled)
-        `uvm_fatal("CALLBACK", "set_frequence callback is not handled")
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, set_frequence(frequence))
 endtask
 
-task {{ class_prefix }}sequencer::cpu_read(bit[63:0] addr, uvm_path_e path, output bit[31:0] data);
-    bit handled;
-
-    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, cpu_read(this, addr, path, data, handled))
-
-    if(!handled)
-        `uvm_fatal("CALLBACK", "cpu_read callback is not handled")
+task {{ class_prefix }}sequencer::cpu_read(bit[63:0] addr, output bit[31:0] data);
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, cpu_read(addr, data))
 endtask
 
-task {{ class_prefix }}sequencer::cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
-    bit handled;
-
-    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, cpu_write(this, addr, data, path, handled))
-
-    if(!handled)
-        `uvm_fatal("CALLBACK", "cpu_write callback is not handled")
+task {{ class_prefix }}sequencer::cpu_write(bit[63:0] addr, bit[31:0] data);
+    `uvm_do_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, cpu_write(addr, data))
 endtask
 
 `endif

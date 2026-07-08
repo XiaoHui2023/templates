@@ -82,11 +82,11 @@ task {{ class_prefix }}cpu_config_operation_seq::post_start();
 endtask
 
 task {{ class_prefix }}cpu_config_operation_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data);
-    p_sequencer.cpu_read(addr, cpu_cfg_request.path, data);
+    p_sequencer.cpu_read(addr, data);
 endtask
 
 task {{ class_prefix }}cpu_config_operation_seq::cpu_write(bit[63:0] addr, bit[31:0] data);
-    p_sequencer.cpu_write(addr, data, cpu_cfg_request.path);
+    p_sequencer.cpu_write(addr, data);
 endtask
 
 `endif

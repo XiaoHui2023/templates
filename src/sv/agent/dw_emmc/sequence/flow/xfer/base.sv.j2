@@ -153,7 +153,6 @@ task {{ class_prefix }}xfer_base_seq::write_adma_des();
         foreach(local::d[j])
             cpu_cfg_request.wdata[j] == local::d[j];
         cpu_cfg_request.len == local::d.size;
-        cpu_cfg_request.path == UVM_BACKDOOR;
         cpu_cfg_request.access == UVM_WRITE;
     })
 endtask

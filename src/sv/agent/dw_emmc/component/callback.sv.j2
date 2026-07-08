@@ -10,18 +10,18 @@ class {{ class_prefix }}callback extends uvm_callback;
         super.new(name);
     endfunction
 
-    extern virtual task set_frequence({{ class_prefix }}sequencer sqr, int frequence, ref bit handled);
-    extern virtual task cpu_read({{ class_prefix }}sequencer sqr, bit[63:0] addr, uvm_path_e path, output bit[31:0] data, ref bit handled);
-    extern virtual task cpu_write({{ class_prefix }}sequencer sqr, bit[63:0] addr, bit[31:0] data, uvm_path_e path, ref bit handled);
+    extern virtual task set_frequence(int frequence);
+    extern virtual task cpu_read(bit[63:0] addr, output bit[31:0] data);
+    extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data);
 endclass
 
-task {{ class_prefix }}callback::set_frequence({{ class_prefix }}sequencer sqr, int frequence, ref bit handled);
+task {{ class_prefix }}callback::set_frequence(int frequence);
 endtask
 
-task {{ class_prefix }}callback::cpu_read({{ class_prefix }}sequencer sqr, bit[63:0] addr, uvm_path_e path, output bit[31:0] data, ref bit handled);
+task {{ class_prefix }}callback::cpu_read(bit[63:0] addr, output bit[31:0] data);
 endtask
 
-task {{ class_prefix }}callback::cpu_write({{ class_prefix }}sequencer sqr, bit[63:0] addr, bit[31:0] data, uvm_path_e path, ref bit handled);
+task {{ class_prefix }}callback::cpu_write(bit[63:0] addr, bit[31:0] data);
 endtask
 
 `endif

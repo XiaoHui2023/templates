@@ -89,4 +89,4 @@ DMA 传输仍由读写命令触发，flow 只负责把描述符和 request 字�
 
 ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA 模式下，命令寄存器使用数据地址 `addr`。
 
-读写流程不要自己搬数据。DUT 侧数据搬运由 CPU path 或 DMA path 决定，scoreboard 只接收最终期望和实际数据。
+读写流程不要自己搬数据。DUT 侧数据搬运由 CPU 访问或 DMA 决定，scoreboard 只接收最终期望和实际数据。

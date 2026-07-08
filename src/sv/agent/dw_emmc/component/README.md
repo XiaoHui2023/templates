@@ -12,8 +12,8 @@
 env.emmc_agent.scb.load_memh("card_init.memh");
 env.emmc_agent.sqr.initial_card();
 env.emmc_agent.sqr.switch_bus(HS400, 8);
-env.emmc_agent.sqr.rw(.addr(0), .count(2), .use_dma(0));
-env.emmc_agent.sqr.run_speed_mode_test();
+env.emmc_agent.sqr.rw_test(.addr(0), .count(2), .use_dma(0));
+env.emmc_agent.sqr.speed_mode_test();
 ```
 
 sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
@@ -24,9 +24,9 @@ sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
 
 | 层次 | 入口 |
 | --- | --- |
-| operation | `run_frequence_set_operation()`、`run_power_up_operation()`、`run_reset_operation()`、`cpu_read_bytes()`、`cpu_write_bytes()` |
+| operation | `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`cpu_read_bytes()`、`cpu_write_bytes()` |
 | flow | `initial_card()`、`switch_bus()`、`send_ext_csd()`、`tune_phase()` |
-| test | `rw()`、`run_reg_test()`、`run_speed_mode_test()`、`run_sram_test()`、`run_tune_test()`、`run_check_clock_frequence_test()` |
+| test | `rw_test()`、`reg_test()`、`speed_mode_test()`、`sram_test()`、`tune_test()`、`check_clock_frequence_test()` |
 
 ## Scoreboard
 
@@ -46,10 +46,10 @@ sequence 从 `p_sequencer.scoreboard` 发送 `uvm_tlm_generic_payload`。scorebo
 
 | callback task | 用途 |
 | --- | --- |
-| `set_frequence(sqr, frequence, handled)` | 调用 testbench/时钟环境设置输入时钟 |
-| `cpu_read(sqr, addr, path, data, handled)` | 按 `path` 从 CPU/backdoor memory 读取 32-bit word |
-| `cpu_write(sqr, addr, data, path, handled)` | 按 `path` 向 CPU/backdoor memory 写入 32-bit word |
+| `set_frequence(frequence)` | 调用 testbench/时钟环境设置输入时钟 |
+| `cpu_read(addr, data)` | 按地址读取 32-bit word |
+| `cpu_write(addr, data)` | 按地址写入 32-bit word |
 
-callback 实现必须在处理后置 `handled = 1`。没有 callback 处理时，sequencer wrapper 直接 `uvm_fatal`。
+callback 只接收必要数据，不传 sequencer 句柄、path 或 handled 标记。
 
 `frequence_set_operation_seq` 和 `cpu_config_operation_seq` 只负责收集参数、拆装 byte/word、触发 callback。它们不是外部依赖注入点。

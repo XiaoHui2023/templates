@@ -51,31 +51,22 @@ class tb_emmc_callback extends Emmc_ctrl_callback;
         super.new(name);
     endfunction
 
-    task set_frequence(Emmc_ctrl_sequencer sqr, int frequence, ref bit handled);
+    task set_frequence(int frequence);
         clock_ctrl.set_cclk(frequence);
-        handled = 1;
     endtask
 
     task cpu_read(
-        Emmc_ctrl_sequencer sqr,
         bit[63:0] addr,
-        uvm_path_e path,
-        output bit[31:0] data,
-        ref bit handled
+        output bit[31:0] data
     );
-        cpu_bus.read32(addr, data, path);
-        handled = 1;
+        cpu_bus.read32(addr, data);
     endtask
 
     task cpu_write(
-        Emmc_ctrl_sequencer sqr,
         bit[63:0] addr,
-        bit[31:0] data,
-        uvm_path_e path,
-        ref bit handled
+        bit[31:0] data
     );
-        cpu_bus.write32(addr, data, path);
-        handled = 1;
+        cpu_bus.write32(addr, data);
     endtask
 endclass
 ```
@@ -87,7 +78,7 @@ cb = tb_emmc_callback::type_id::create("cb");
 uvm_callbacks#(Emmc_ctrl_sequencer, Emmc_ctrl_callback)::add(env.emmc_agent.sqr, cb);
 ```
 
-调频、CPU 读、CPU 写都走 callback；没有 callback 或 callback 未置 `handled = 1` 时会直接 `uvm_fatal`。
+调频、CPU 读、CPU 写都通过 callback。callback 只传必要数据：频率、地址和 32-bit word。
 
 ## Scoreboard
 
@@ -106,12 +97,12 @@ task run_phase(uvm_phase phase);
 
     env.emmc_agent.sqr.initial_card();
     env.emmc_agent.sqr.switch_bus(HS400, 8);
-    env.emmc_agent.sqr.rw(.addr('h0), .count(2), .use_dma(0));
-    env.emmc_agent.sqr.rw(.addr('h1000), .count(2), .use_dma(1));
-    env.emmc_agent.sqr.run_speed_mode_test();
+    env.emmc_agent.sqr.rw_test(.addr('h0), .count(2), .use_dma(0));
+    env.emmc_agent.sqr.rw_test(.addr('h1000), .count(2), .use_dma(1));
+    env.emmc_agent.sqr.speed_mode_test();
 
     phase.drop_objection(this);
 endtask
 ```
 
-`initial_card()` 完成初始化流程；`switch_bus()` 执行切总线 flow；`rw()` 按地址先写后读，`use_dma = 1` 时走内置 DMA 搬运。kit sequencer 还提供 `run_frequence_set_operation()`、`run_power_up_operation()`、`run_reset_operation()`、`run_reg_test()`、`run_speed_mode_test()`、`run_sram_test()`、`run_tune_test()`、`run_check_clock_frequence_test()`。
+`initial_card()` 完成初始化流程；`switch_bus()` 执行切总线 flow；`rw_test()` 按地址先写后读，`use_dma = 1` 时使用内置 DMA 搬运。kit sequencer 还提供 `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`reg_test()`、`speed_mode_test()`、`sram_test()`、`tune_test()`、`check_clock_frequence_test()`。
