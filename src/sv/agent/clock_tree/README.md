@@ -37,6 +37,8 @@ settings:
   probe_mode: true
 ```
 
+纯 SV 直接检查可使用 `settings.direct_mode: true`。该模式生成 `top/top.f` 与 `top/direct_check.sv`，`all.f` 只通过 `-F top/top.f` 引用 `tree_interface`、测量 interface 和 direct 检查 task，不编译 UVM tree、component、sequence。用户在顶层例化 `tree_interface` 后调用 `<class_prefix>direct_check(tree_if, ok)` 即可完成检查。
+
 ## 数据结构
 
 | 字段 | 类型 | 默认值 | 说明 |
@@ -51,6 +53,7 @@ settings:
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
 | `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk**，以及 **disable** 的 **clk**。 |
+| `direct_mode` | `bool` | `false` | 为真时生成直接调用的纯 SV 检查入口，不依赖 UVM。 |
 | `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
 | `max_freq_hz` | `int` | `5000000000` | **clk** 节点 randomize 后允许的最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 判定时钟有活动所需连续上升沿个数；超过一个最低频率周期仍无边沿则 inactive。 |

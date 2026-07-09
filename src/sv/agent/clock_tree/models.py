@@ -43,6 +43,10 @@ class Settings(BaseModel):
         False,
         description="为真时启用纯路径探针模式：不连接前级，只检查带 path 且有正数 freq 的 clk，以及 disable 的 clk。",
     )
+    direct_mode: bool = Field(
+        False,
+        description="为真时生成直接调用的纯 SystemVerilog 检查入口，不依赖 UVM tree、component 或 sequence。",
+    )
     min_freq_hz: int = Field(
         15000,
         ge=15000,
@@ -217,9 +221,21 @@ class Models(BaseModel):
                 raise ValueError(
                     "probe_mode 为真时须至少包含一个 path 非空且 freq 为正数或 disable 为真的 clk 节点"
                 )
-        else:
+        elif not self.settings.direct_mode:
             validate_nodes_graph(self.nodes)
-        if self.any_regs_configured and not self.settings.class_regmodel:
+        if self.settings.direct_mode:
+            if not any(
+                self._node_direct_check_enabled(node)
+                for node in self.tree.nodes_ordered
+            ):
+                raise ValueError(
+                    "direct_mode 为真时须至少包含一个 path 非空且 freq 为正数的 source、pll、clk 节点，或 disable 为真的 clk 节点"
+                )
+        if (
+            self.any_regs_configured
+            and not self.settings.direct_mode
+            and not self.settings.class_regmodel
+        ):
             raise ValueError(
                 "任意节点配置了 reg 或 regs 时须在 settings 中填写 class_regmodel"
             )
@@ -246,6 +262,19 @@ class Models(BaseModel):
         if node.kind == "clk":
             return node.disable or (node.freq is not None and node.freq > 0)
         return False
+
+    def _node_direct_check_enabled(self, node: Node) -> bool:
+        if not getattr(node, "path", ""):
+            return False
+        if node.kind == "clk" and node.disable:
+            return True
+        if node.kind == "pll" and isinstance(node.freq, dict):
+            return any(freq > 0 for freq in node.freq.values())
+        return (
+            node.kind in ("source", "pll", "clk")
+            and node.freq is not None
+            and node.freq > 0
+        )
 
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 PLL 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",

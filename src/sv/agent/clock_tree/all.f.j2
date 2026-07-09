@@ -1,8 +1,14 @@
+{% if settings.direct_mode and any_node_path %}
+-F top/top.f
+{% else %}
 model/spec.sv
 {% if any_node_path %}
 top/measure_interface.sv
 top/interface.sv
 top/tree_interface.sv
+{% if settings.direct_mode %}
+top/direct_check.sv
+{% endif %}
 {% endif %}
 model/base.sv
 model/node_base.sv
@@ -70,3 +76,4 @@ sequence/test/test_route/test.sv
 {% endif %}
 component/kit_sequencer.sv
 component/agent.sv
+{% endif %}

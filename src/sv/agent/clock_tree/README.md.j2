@@ -86,6 +86,12 @@ endtask
 
 `probe` 模式仍调用 `randomize()`，由节点自身约束把 `freq` 或 `disable` 解析成 check_measure 使用的 `_resolved_freq` 与 `_resolved_active`。
 
+## direct 模式
+
+`settings.direct_mode: true` 表示纯 SystemVerilog 直接检查模式。该模式生成 `top/top.f` 与 `top/direct_check.sv`，`all.f` 只通过 `-F top/top.f` 引用 `tree_interface`、测量 interface 和 direct 检查 task，不编译 UVM tree、component、sequence。
+
+在顶层例化 `{{ settings.class_prefix }}tree_interface` 后调用 `{{ settings.class_prefix }}direct_check(tree_if, ok)`。task 会根据 YAML 中带 `path` 的显式配置检查：`freq > 0` 表示期望有对应频率，`clk.disable: true` 表示期望 inactive。
+
 {% if any_node_path %}
 ## 顶层连线
 
