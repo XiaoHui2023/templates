@@ -20,6 +20,13 @@ class Models(BaseModel):
             "每个 field 测完立刻写回测前读到的整寄存器值，再测下一个 field；不依赖后门或 HDL 路径。"
         ),
     )
+    block_access: bool = Field(
+        False,
+        description=(
+            "启用 block 级前门连通性自测：每个 block 在其直接下属寄存器中任意一个成功即可，"
+            "每个 reg 只要任意一个 field 成功即可。"
+        ),
+    )
     mem_hdl_paths: bool = Field(
         False, description="启用 `uvm_reg_mem_hdl_paths_seq`。"
     )
@@ -38,10 +45,11 @@ class Models(BaseModel):
         if not (
             self.reset
             or self.access
+            or self.block_access
             or self.mem_hdl_paths
             or self.bit_bash
         ):
             raise ValueError(
-                "须至少启用 reset、access、mem_hdl_paths、bit_bash 之一。"
+                "至少启用 reset、access、block_access、mem_hdl_paths、bit_bash 之一。"
             )
         return self

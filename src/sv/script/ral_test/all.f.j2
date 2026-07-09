@@ -6,4 +6,7 @@ reg_fd_reset_seq.sv
 reg_fd_single_seq.sv
 reg_fd_access_seq.sv
 {% endif %}
+{%- if block_access | default(false) %}
+reg_fd_block_access_seq.sv
+{% endif %}
 seq.sv

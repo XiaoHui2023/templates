@@ -1,0 +1,197 @@
+{%- set _blk_acc = block_access | default(false) %}
+{%- if _blk_acc %}
+`ifndef {{ (class_prefix ~ "reg_fd_block_access_seq") | upper }}
+`define {{ (class_prefix ~ "reg_fd_block_access_seq") | upper }}
+
+class {{ class_prefix }}reg_fd_block_access_seq extends uvm_reg_access_seq;
+    `uvm_object_utils({{ class_prefix }}reg_fd_block_access_seq)
+
+    // 创建前门 block 连通性检查 sequence。
+    function new(string name = "{{ class_prefix }}reg_fd_block_access_seq");
+        super.new(name);
+    endfunction
+
+    // 判断 field 是否被资源库标记为跳过。
+    protected function bit field_is_skipped(uvm_reg_field fld);
+        return uvm_resource_db#(bit)::get_by_name({"FIELD::", fld.get_full_name()},
+            "NO_FIELD_TESTS", 0) != null;
+    endfunction
+
+    // 判断 register 是否被资源库标记为跳过。
+    protected function bit reg_is_skipped(uvm_reg rg);
+        return uvm_resource_db#(bit)::get_by_name({"REG::", rg.get_full_name()},
+                "NO_REG_TESTS", 0) != null ||
+            uvm_resource_db#(bit)::get_by_name({"REG::", rg.get_full_name()},
+                "NO_REG_ACCESS_TEST", 0) != null;
+    endfunction
+
+    // 判断 block 是否被资源库标记为跳过。
+    protected function bit block_is_skipped(uvm_reg_block blk);
+        return uvm_resource_db#(bit)::get_by_name({"REG::", blk.get_full_name()},
+                "NO_REG_TESTS", 0) != null ||
+            uvm_resource_db#(bit)::get_by_name({"REG::", blk.get_full_name()},
+                "NO_REG_ACCESS_TEST", 0) != null;
+    endfunction
+
+    // 计算 field 在父寄存器数据中的位掩码。
+    protected function uvm_reg_data_t field_mask(uvm_reg_field fld);
+        int lsb;
+        int n_bits;
+        uvm_reg_data_t ones;
+
+        lsb = fld.get_lsb_pos();
+        n_bits = fld.get_n_bits();
+        if (n_bits >= $bits(uvm_reg_data_t)) begin
+            ones = '1;
+        end else begin
+            ones = '0;
+            ones[0] = 1'b1;
+            ones = (ones << n_bits) - 1;
+        end
+        return ones << lsb;
+    endfunction
+
+    // 尝试用一个 field 证明寄存器前门可读写。
+    // passed — 该 field 是否通过
+    // rg — 被测寄存器
+    // fld — 探针 field
+    // map — 前门 map
+    // v_orig — 测前读到的整寄存器值
+    protected task try_field_access(
+        output bit passed,
+        uvm_reg rg,
+        uvm_reg_field fld,
+        uvm_reg_map map,
+        uvm_reg_data_t v_orig
+    );
+        uvm_status_e status;
+        uvm_reg_data_t mask;
+        uvm_reg_data_t wdata;
+        uvm_reg_data_t rdata;
+        string acc;
+
+        passed = 0;
+        if (field_is_skipped(fld))
+            return;
+
+        acc = fld.get_access(map);
+        if (!fld.is_known_access(map)) begin
+            `uvm_info("RAL_TEST/BLOCK_FD", {"Skipping unknown access field '",
+                fld.get_full_name(), "' access='", acc, "'"}, UVM_LOW)
+            return;
+        end
+
+        if (acc == "RO") begin
+            passed = 1;
+            return;
+        end
+
+        mask = field_mask(fld);
+        wdata = (v_orig & ~mask) | ((~v_orig) & mask);
+
+        rg.write(status, wdata, UVM_FRONTDOOR, map, this);
+        if (status != UVM_IS_OK)
+            return;
+
+        rg.read(status, rdata, UVM_FRONTDOOR, map, this);
+        if (status == UVM_IS_OK && ((rdata & mask) == (wdata & mask)))
+            passed = 1;
+
+        rg.write(status, v_orig, UVM_FRONTDOOR, map, this);
+    endtask
+
+    // 遍历 register 的 map 与 field，任意一个 field 通过即返回成功。
+    // passed — 该寄存器是否通过
+    // rg — 被测寄存器
+    protected task try_reg_access(
+        output bit passed,
+        uvm_reg rg
+    );
+        uvm_reg_map maps[$];
+
+        passed = 0;
+        if (reg_is_skipped(rg))
+            return;
+
+        rg.get_maps(maps);
+        foreach (maps[j]) begin
+            uvm_status_e status;
+            uvm_reg_data_t v_orig;
+            uvm_reg_field fields[$];
+
+            rg.read(status, v_orig, UVM_FRONTDOOR, maps[j], this);
+            if (status != UVM_IS_OK)
+                continue;
+
+            rg.get_fields(fields);
+            foreach (fields[i]) begin
+                bit field_passed;
+
+                try_field_access(field_passed, rg, fields[i], maps[j], v_orig);
+                if (field_passed) begin
+                    `uvm_info("RAL_TEST/BLOCK_FD", {"Register '", rg.get_full_name(),
+                        "' passed block access check through field '",
+                        fields[i].get_full_name(), "' map '", maps[j].get_full_name(),
+                        "'"}, UVM_LOW)
+                    passed = 1;
+                    return;
+                end
+            end
+        end
+    endtask
+
+    // 从根 block 开始执行 block 级连通性检查。
+    virtual task body();
+        if (model == null) begin
+            `uvm_error("RAL_TEST/BLOCK_FD", "No register model specified to run sequence on")
+            return;
+        end
+
+        uvm_report_info("RAL_TEST/BLOCK_FD",
+            {"\n\nStarting ", get_name(), " (frontdoor block connectivity access) ...\n"}, UVM_LOW);
+
+        this.reset_blk(model);
+        model.reset();
+
+        do_block(model);
+    endtask
+
+    // 检查当前 block 直接下属任意一个 register，并递归检查子 block。
+    // blk — 当前寄存器块
+    protected virtual task do_block(uvm_reg_block blk);
+        uvm_reg regs[$];
+        uvm_reg_block blks[$];
+        bit has_testable_reg;
+        bit block_passed;
+
+        if (block_is_skipped(blk))
+            return;
+
+        blk.get_registers(regs, UVM_NO_HIER);
+        foreach (regs[i]) begin
+            bit reg_passed;
+
+            if (reg_is_skipped(regs[i]))
+                continue;
+
+            has_testable_reg = 1;
+            try_reg_access(reg_passed, regs[i]);
+            if (reg_passed) begin
+                block_passed = 1;
+                break;
+            end
+        end
+
+        if (has_testable_reg && !block_passed) begin
+            `uvm_error("RAL_TEST/BLOCK_FD", {"No register passed block access check in block '",
+                blk.get_full_name(), "'"})
+        end
+
+        blk.get_blocks(blks, UVM_NO_HIER);
+        foreach (blks[i])
+            do_block(blks[i]);
+    endtask
+endclass
+
+`endif
+{%- endif %}

@@ -3,6 +3,7 @@
 
 {%- set _rst = reset | default(false) %}
 {%- set _acc = access | default(false) %}
+{%- set _blk_acc = block_access | default(false) %}
 {%- set _mh = mem_hdl_paths | default(false) %}
 {%- set _bb = bit_bash | default(false) %}
 {%- set _ignore_pro = ignore_partial_ro_fields | default(false) %}
@@ -19,10 +20,12 @@ class {{ class_prefix }}seq extends uvm_sequence;
     // 跳过内建测试的 field；空队列表示不排除
     uvm_reg_field no_test_fields[$];
 
+    // 创建主寄存器自测 sequence。
     function new(string name = "{{ class_prefix }}seq");
         super.new(name);
     endfunction
 
+    // 将显式指定的 field 标记为通用自测跳过。
     protected function void mark_no_test_fields();
         foreach (no_test_fields[i]) begin
             if (no_test_fields[i] != null)
@@ -31,6 +34,7 @@ class {{ class_prefix }}seq extends uvm_sequence;
         end
     endfunction
 
+    // 将混合 RO/RW 寄存器中的 RO field 标记为跳过。
     protected function void mark_partial_ro_fields(uvm_reg_block blk);
         uvm_reg regs[$];
         uvm_reg_block blks[$];
@@ -75,12 +79,16 @@ class {{ class_prefix }}seq extends uvm_sequence;
             mark_partial_ro_fields(blks[i]);
     endfunction
 
+    // 按配置顺序启动选中的 RAL 自测 sequence。
     task body();
 {%- if _rst %}
         {{ class_prefix }}reg_fd_reset_seq reg_fd_reset_seq;
 {%- endif %}
 {%- if _acc %}
         {{ class_prefix }}reg_fd_access_seq reg_fd_access_seq;
+{%- endif %}
+{%- if _blk_acc %}
+        {{ class_prefix }}reg_fd_block_access_seq reg_fd_block_access_seq;
 {%- endif %}
 {%- if _mh %}
         uvm_reg_mem_hdl_paths_seq mem_hdl_paths_seq;
@@ -119,6 +127,12 @@ class {{ class_prefix }}seq extends uvm_sequence;
         reg_fd_access_seq = {{ class_prefix }}reg_fd_access_seq::type_id::create({get_name(), ".reg_fd_access"});
         reg_fd_access_seq.model = regmodel;
         reg_fd_access_seq.start(p_sequencer);
+{%- endif %}
+{%- if _blk_acc %}
+
+        reg_fd_block_access_seq = {{ class_prefix }}reg_fd_block_access_seq::type_id::create({get_name(), ".reg_fd_block_access"});
+        reg_fd_block_access_seq.model = regmodel;
+        reg_fd_block_access_seq.start(p_sequencer);
 {%- endif %}
 {%- if _mh %}
 

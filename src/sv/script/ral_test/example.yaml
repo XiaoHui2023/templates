@@ -2,3 +2,4 @@
 
 class_prefix: ral_test_
 access: true
+block_access: true
