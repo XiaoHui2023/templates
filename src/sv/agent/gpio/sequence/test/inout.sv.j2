@@ -26,6 +26,7 @@ class {{ class_prefix }}inout_test_seq extends uvm_sequence;
     extern task op_set_value(bit[31:0] data, output bit ok);
     extern task op_drive_input(bit[31:0] data, bit[31:0] enable, output bit ok);
     extern task op_get_value(output bit[31:0] data, output bit ok);
+    extern task op_get_external_value(output bit[31:0] data, output bit ok);
 endclass
 
 task {{ class_prefix }}inout_test_seq::pre_start();
@@ -93,8 +94,12 @@ task {{ class_prefix }}inout_test_seq::post_start();
 endtask
 
 task {{ class_prefix }}inout_test_seq::run_one(int bit_index, bit[31:0] dir, bit[31:0] data, output bit ok);
-    bit[31:0] rdata;
+    bit[31:0] external_data;
+    bit[31:0] controller_data;
+    bit[31:0] actual_data;
     bit[31:0] active_mask;
+    bit[31:0] output_mask;
+    bit[31:0] input_mask;
     bit op_ok;
 
     ok = 1'b1;
@@ -108,18 +113,25 @@ task {{ class_prefix }}inout_test_seq::run_one(int bit_index, bit[31:0] dir, bit
     ok &= op_ok;
     op_drive_input(data & active_mask, ~dir & active_mask, op_ok);
     ok &= op_ok;
-    op_get_value(rdata, op_ok);
+    output_mask = dir & active_mask;
+    input_mask = ~dir & active_mask;
+    op_get_external_value(external_data, op_ok);
     ok &= op_ok;
+    op_get_value(controller_data, op_ok);
+    ok &= op_ok;
+    actual_data = (external_data & output_mask) | (controller_data & input_mask);
 
-    if ((rdata & active_mask) != (data & active_mask)) begin
+    if ((actual_data & active_mask) != (data & active_mask)) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("gpio %s test mismatch: group=%s bit=%0d dir=%h expect=%h actual=%h",
-                dir[bit_index] ? "output" : "input",
+        `uvm_error("", $sformatf("gpio inout test mismatch: group=%s bit=%0d output_mask=%h input_mask=%h expect=%h actual=%h external=%h controller=%h",
                 cfg.group_name,
                 bit_index,
-                dir & active_mask,
+                output_mask,
+                input_mask,
                 data & active_mask,
-                rdata & active_mask))
+                actual_data & active_mask,
+                external_data & active_mask,
+                controller_data & active_mask))
     end
 endtask
 
@@ -209,6 +221,25 @@ task {{ class_prefix }}inout_test_seq::op_get_value(output bit[31:0] data, outpu
     if (seq_rsp == null || !seq_rsp.ok) begin
         ok = 1'b0;
         `uvm_error("", "get_value operation failed")
+    end else begin
+        data = seq_rsp.data;
+    end
+endtask
+
+task {{ class_prefix }}inout_test_seq::op_get_external_value(output bit[31:0] data, output bit ok);
+    {{ class_prefix }}get_external_value_req req;
+    {{ class_prefix }}get_external_value_rsp seq_rsp;
+    {{ class_prefix }}get_external_value_seq seq;
+
+    ok = 1'b1;
+    req = {{ class_prefix }}get_external_value_req::type_id::create("req");
+    seq = {{ class_prefix }}get_external_value_seq::type_id::create("get_external_value");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok) begin
+        ok = 1'b0;
+        `uvm_error("", "get_external_value operation failed")
     end else begin
         data = seq_rsp.data;
     end
