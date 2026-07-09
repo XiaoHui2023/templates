@@ -38,6 +38,8 @@ function void {{ class_prefix }}sequencer::start_of_simulation();
         `uvm_fatal("", "require vif")
     if (!cfg.has_randomized)
         `uvm_fatal("", "configuration is not randomized by settings")
+    if (cfg.regmodel == null)
+        `uvm_fatal("", "require cfg.regmodel")
     `uvm_info("", $sformatf("config:\n%s", cfg.sprint()), UVM_LOW)
 endfunction
 

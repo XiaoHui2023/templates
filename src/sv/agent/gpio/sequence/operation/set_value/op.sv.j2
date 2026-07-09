@@ -17,11 +17,15 @@ endclass
 task {{ class_prefix }}set_value_seq::body();
     {{ class_prefix }}set_value_rsp rs;
     uvm_status_e status;
+    bit[31:0] active_mask;
 
     if (req == null)
         `uvm_fatal("", "set_value req is null")
     rs = {{ class_prefix }}set_value_rsp::type_id::create("rsp");
-    p_sequencer.cfg.regmodel.{{ regmodel.dout }}.write(status, req.data);
+    active_mask = '0;
+    for (int i = 0; i < p_sequencer.cfg.num; i++)
+        active_mask[i] = !p_sequencer.cfg.mask[i];
+    p_sequencer.cfg.regmodel.{{ regmodel.dout }}.write(status, req.data & active_mask);
     rsp = rs;
 endtask
 

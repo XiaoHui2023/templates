@@ -12,25 +12,14 @@ class {{ class_prefix }}configuration extends uvm_sequence_item;
 
     string group_name;
     {{ regmodel.type }} regmodel;
-    rand int num;
-    rand bit[31:0] mask;
-    rand bit has_randomized;
+    int num;
+    bit[31:0] mask;
+    bit has_randomized;
 
     function new(string name="{{ class_prefix }}configuration");
         super.new(name);
     endfunction
 
-    constraint cst {
-        regmodel != null;
-        has_randomized == 1;
-
-        foreach(mask[i]) {
-            if(i < num)
-                soft mask[i] == 0;
-            else
-                mask[i] == 0;
-        }
-    }
 endclass
 
 `endif

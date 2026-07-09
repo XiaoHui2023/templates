@@ -8,7 +8,7 @@ class {{ class_prefix }}settings extends uvm_sequence_item;
     `uvm_object_utils_end
 
     virtual {{ class_prefix }}interface vif;
-{% for group in groups %}    rand {{ class_prefix }}configuration cfg_{{ group.name }};
+{% for group in groups %}    {{ class_prefix }}configuration cfg_{{ group.name }};
 {% endfor %}    rand bit has_randomized;
 
     function new(string name="{{ class_prefix }}settings");
@@ -21,10 +21,6 @@ class {{ class_prefix }}settings extends uvm_sequence_item;
 
     constraint cst {
         has_randomized == 1;
-{% for group in groups %}        cfg_{{ group.name }}.num == {{ group.num }};
-        cfg_{{ group.name }}.mask == 32'h{{ group.mask_hex }};
-        cfg_{{ group.name }}.has_randomized == 1;
-{% endfor %}
     }
 
     function void post_randomize();
@@ -32,6 +28,10 @@ class {{ class_prefix }}settings extends uvm_sequence_item;
 
         if(!vif)
             `uvm_fatal("", "require vif")
+{% for group in groups %}        cfg_{{ group.name }}.num = {{ group.num }};
+        cfg_{{ group.name }}.mask = 32'h{{ group.mask_hex }};
+        cfg_{{ group.name }}.has_randomized = 1;
+{% endfor %}
     endfunction
 endclass
 

@@ -83,7 +83,7 @@ task {{ class_prefix }}intr_test_seq::body();
         `uvm_error("", "interrupt is asserted before rising edge")
     end
 
-    op_drive_input(pin, '0, op_ok);
+    op_drive_input(pin, pin, op_ok);
     ok &= op_ok;
     op_wait_intr(wait_ok, timeout, op_ok);
     ok &= op_ok;

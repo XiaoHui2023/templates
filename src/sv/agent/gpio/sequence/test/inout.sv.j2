@@ -8,6 +8,8 @@ class {{ class_prefix }}inout_test_seq extends uvm_sequence;
     `uvm_object_utils_end
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
+    localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
+
     bit quiet;
     bit ok = 1'b1;
     {{ class_prefix }}configuration cfg;
@@ -20,7 +22,7 @@ class {{ class_prefix }}inout_test_seq extends uvm_sequence;
     extern task pre_start();
     extern task body();
     extern task post_start();
-    extern task run_one(int bit_index, bit[31:0] dir, bit[31:0] data, output bit ok);
+    extern task check_one(int bit_index, bit is_output, bit value, output bit ok);
     extern task op_mask_invalid_pin(output bit ok);
     extern task op_set_dir(bit[31:0] data, output bit ok);
     extern task op_set_value(bit[31:0] data, output bit ok);
@@ -43,8 +45,6 @@ task {{ class_prefix }}inout_test_seq::pre_start();
 endtask
 
 task {{ class_prefix }}inout_test_seq::body();
-    bit[31:0] dir;
-    bit[31:0] data;
     bit op_ok;
 
     ok = 1'b1;
@@ -56,24 +56,14 @@ task {{ class_prefix }}inout_test_seq::body();
         if (cfg.mask[i])
             continue;
 
-        dir = 1 << i;
-
-        data = 1 << i;
-        run_one(i, dir, data, op_ok);
+        check_one(i, 1'b1, 1'b1, op_ok);
+        ok &= op_ok;
+        check_one(i, 1'b1, 1'b0, op_ok);
         ok &= op_ok;
 
-        data = ~data;
-        run_one(i, dir, data, op_ok);
+        check_one(i, 1'b0, 1'b1, op_ok);
         ok &= op_ok;
-
-        dir = ~dir;
-
-        data = 1 << i;
-        run_one(i, dir, data, op_ok);
-        ok &= op_ok;
-
-        data = ~data;
-        run_one(i, dir, data, op_ok);
+        check_one(i, 1'b0, 1'b0, op_ok);
         ok &= op_ok;
     end
 
@@ -93,13 +83,17 @@ task {{ class_prefix }}inout_test_seq::post_start();
         starting_phase.drop_objection(this);
 endtask
 
-task {{ class_prefix }}inout_test_seq::run_one(int bit_index, bit[31:0] dir, bit[31:0] data, output bit ok);
+task {{ class_prefix }}inout_test_seq::check_one(int bit_index, bit is_output, bit value, output bit ok);
+    bit[31:0] dir;
+    bit[31:0] output_data;
+    bit[31:0] input_data;
+    bit[31:0] drive_enable;
+    bit[31:0] expect_data;
+    bit[31:0] actual_data;
     bit[31:0] external_data;
     bit[31:0] controller_data;
-    bit[31:0] actual_data;
     bit[31:0] active_mask;
-    bit[31:0] output_mask;
-    bit[31:0] input_mask;
+    bit[31:0] check_mask;
     bit op_ok;
 
     ok = 1'b1;
@@ -107,28 +101,48 @@ task {{ class_prefix }}inout_test_seq::run_one(int bit_index, bit[31:0] dir, bit
     for (int i = 0; i < cfg.num; i++)
         active_mask[i] = !cfg.mask[i];
 
+    check_mask = 1 << bit_index;
+    if (is_output) begin
+        dir = check_mask;
+        output_data = value ? check_mask : '0;
+        input_data = value ? '0 : active_mask;
+        drive_enable = active_mask & ~check_mask;
+    end else begin
+        dir = active_mask & ~check_mask;
+        output_data = value ? '0 : active_mask;
+        input_data = value ? check_mask : '0;
+        drive_enable = check_mask;
+    end
+    expect_data = (output_data & dir) | (input_data & drive_enable);
+
     op_set_dir(dir & active_mask, op_ok);
     ok &= op_ok;
-    op_set_value(data & active_mask, op_ok);
+    op_set_value(output_data & active_mask, op_ok);
     ok &= op_ok;
-    op_drive_input(data & active_mask, ~dir & active_mask, op_ok);
+    op_drive_input(input_data & active_mask, drive_enable & active_mask, op_ok);
     ok &= op_ok;
-    output_mask = dir & active_mask;
-    input_mask = ~dir & active_mask;
+
+    #(GPIO_24M_PERIOD_NS * 1ns);
+
     op_get_external_value(external_data, op_ok);
     ok &= op_ok;
     op_get_value(controller_data, op_ok);
     ok &= op_ok;
-    actual_data = (external_data & output_mask) | (controller_data & input_mask);
+    actual_data = is_output ? external_data : controller_data;
 
-    if ((actual_data & active_mask) != (data & active_mask)) begin
+    if ((actual_data & active_mask) != (expect_data & active_mask)) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("gpio inout test mismatch: group=%s bit=%0d output_mask=%h input_mask=%h expect=%h actual=%h external=%h controller=%h",
+        `uvm_error("", $sformatf("gpio %s test mismatch: group=%s bit=%0d value=%0d active_mask=%h dir=%h output_data=%h drive_enable=%h input_data=%h expect=%h actual=%h external=%h controller=%h",
+                is_output ? "output" : "input",
                 cfg.group_name,
                 bit_index,
-                output_mask,
-                input_mask,
-                data & active_mask,
+                value,
+                active_mask,
+                dir & active_mask,
+                output_data & active_mask,
+                drive_enable & active_mask,
+                input_data & active_mask,
+                expect_data & active_mask,
                 actual_data & active_mask,
                 external_data & active_mask,
                 controller_data & active_mask))

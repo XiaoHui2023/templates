@@ -16,11 +16,15 @@ endclass
 
 task {{ class_prefix }}drive_input_seq::body();
     {{ class_prefix }}drive_input_rsp rs;
+    bit[31:0] active_mask;
 
     if (req == null)
         `uvm_fatal("", "drive_input req is null")
     rs = {{ class_prefix }}drive_input_rsp::type_id::create("rsp");
-    p_sequencer.vif.set(req.data, req.enable);
+    active_mask = '0;
+    for (int i = 0; i < p_sequencer.cfg.num; i++)
+        active_mask[i] = !p_sequencer.cfg.mask[i];
+    p_sequencer.vif.set(req.data & active_mask, req.enable & active_mask);
     rsp = rs;
 endtask
 
