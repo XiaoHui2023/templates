@@ -140,7 +140,7 @@ module {{ class_prefix }}top#(
         size = data.size();
         write_memory(addr,data);
 
-        `uvm_info("",$psprintf("%m: load memory[0x%16h+: %0d] = '%s'",addr,size,filename),UVM_LOW)
+        `uvm_info("",$psprintf("%m: load memory[0x%0h+:%0d] = '%s'",addr,size,filename),UVM_LOW)
         for(int i=0;i<$min(size,16);i++)
             `uvm_info("",$psprintf("display memory[%0d] : 0x%0h",i,data[i]),UVM_LOW)
         if(!size)

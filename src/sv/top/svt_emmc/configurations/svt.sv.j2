@@ -103,7 +103,7 @@ function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ cla
     reg_cfg.set_emmc_emmc_reg_field(3'd6, svt_emmc_types::EMMC_CSD_REG_C_SIZE_MULT_B49_B47);
     reg_cfg.set_emmc_emmc_reg_field(5'd3, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_SIZE_B46_B42);
     reg_cfg.set_emmc_emmc_reg_field(5'd0, svt_emmc_types::EMMC_CSD_REG_ERASE_GRP_MULT_B41_B37);
-    reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_WP_GRP_SIZE_B36_B32);
+    reg_cfg.set_emmc_emmc_reg_field(5'd0, svt_emmc_types::EMMC_CSD_REG_WP_GRP_SIZE_B36_B32);
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_CSD_REG_WP_GRP_ENABLE_B31);
     reg_cfg.set_emmc_emmc_reg_field(2'd0, svt_emmc_types::EMMC_CSD_REG_DEFAULT_ECC_B30_B29);
     reg_cfg.set_emmc_emmc_reg_field(3'd2, svt_emmc_types::EMMC_CSD_REG_R2W_FACTOR_B28_B26);
