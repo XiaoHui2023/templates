@@ -62,7 +62,7 @@ module {{ class_prefix }}top#(
     assign dat_out_en_s[2] = svt_if.dat2_rw_irq_en;
     assign dat_out_s[2] = svt_if.dat2_rw_irq_out;
     assign dat_out_en_s[3] = svt_if.cd_dat3_en;
-    assign dat_out_s[3] = svt_if.cd_dat3_out;
+    assign dat_out_s[3] = svt_if.cd_dat3_cs_out;
     assign dat_out_en_s[4] = svt_if.dat4_en;
     assign dat_out_s[4] = svt_if.dat4_out;
     assign dat_out_en_s[5] = svt_if.dat5_en;
@@ -74,7 +74,7 @@ module {{ class_prefix }}top#(
     assign svt_if.dat0_rclk_plus = dat_out_en_s[0] ? 1'bz : dat_in_dl[0];
     assign svt_if.dat1_rclk_minus_irq = dat_out_en_s[1] ? 1'bz : dat_in_dl[1];
     assign svt_if.dat2_rw_irq = dat_out_en_s[2] ? 1'bz : dat_in_dl[2];
-    assign svt_if.cd_dat3 = dat_out_en_s[3] ? 1'bz : dat_in_dl[3];
+    assign svt_if.cd_dat3_cs = dat_out_en_s[3] ? 1'bz : dat_in_dl[3];
     assign svt_if.dat4 = dat_out_en_s[4] ? 1'bz : dat_in_dl[4];
     assign svt_if.dat5 = dat_out_en_s[5] ? 1'bz : dat_in_dl[5];
     assign svt_if.dat6 = dat_out_en_s[6] ? 1'bz : dat_in_dl[6];
