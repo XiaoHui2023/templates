@@ -34,6 +34,19 @@ task {{ class_prefix }}transfer_seq::body();
         `uvm_fatal("DW_SPI", "transfer: sequencer scoreboard is null")
     rq = req;
     rs = {{ class_prefix }}transfer_rsp::type_id::create("rsp");
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "transfer start: protocol=%s mode=%s frame=%s opcode=0x%02h address=0x%0h length=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        rq.protocol.name(),
+        rq.transfer_mode.name(),
+        rq.frame_mode.name(),
+        rq.opcode,
+        rq.payload.get_address(),
+        rq.payload.get_data_length(),
+        rq.cs_id,
+        rq.io_lanes,
+        rq.speed_multiplier,
+        rq.data_frame_bits{% if internal_dma or external_dma %},
+        rq.use_dma{% endif %}), UVM_LOW)
     config_builder = {{ class_prefix }}register_config_builder::type_id::create("config_builder");
     config_builder.settings = p_sequencer.settings;
     config_builder.build(rq, cfg);
@@ -56,6 +69,14 @@ task {{ class_prefix }}transfer_seq::body();
     rs.ok = p_sequencer.scoreboard.apply_payload(rq.payload, rs.read_data);
 {% endif %}
     p_sequencer.release_chip_select(rq.cs_id);
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "transfer done: ok=%0b protocol=%s mode=%s address=0x%0h length=%0d read_bytes=%0d",
+        rs.ok,
+        rq.protocol.name(),
+        rq.transfer_mode.name(),
+        rq.payload.get_address(),
+        rq.payload.get_data_length(),
+        rs.read_data.size()), UVM_LOW)
     rsp = rs;
 endtask
 

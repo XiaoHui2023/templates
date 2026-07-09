@@ -159,6 +159,15 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             `uvm_fatal("DW_SPI_CFG", "failed to randomize register configuration")
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
+        `uvm_info("DW_SPI_CFG", $sformatf(
+            "register configuration derived: ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf=%0d spi_frf=%0d ser=0x%0h",
+            ssi_clk_hz,
+            settings.target_sclk_hz,
+            cfg.baudr,
+            cfg.data_frame_bits,
+            cfg.ndf,
+            cfg.spi_frf,
+            cfg.ser), UVM_LOW)
     endtask
 endclass
 

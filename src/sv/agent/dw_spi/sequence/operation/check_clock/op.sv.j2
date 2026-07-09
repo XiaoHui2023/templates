@@ -72,12 +72,24 @@ task {{ class_prefix }}check_clock_seq::body();
         p_sequencer.settings.vif.hclk_if.measure_frequency_hz(
             rs.hclk_hz, rq.min_hclk_hz, rq.tolerance_ppm);
         rs.ok &= above_min_frequency(rs.hclk_hz, rq.min_hclk_hz, rq.tolerance_ppm, "hclk");
+        if (rs.ok)
+            `uvm_info("DW_SPI_CLK", $sformatf(
+                "hclk check passed: measured=%0d Hz min=%0d Hz tolerance_ppm=%0d",
+                rs.hclk_hz, rq.min_hclk_hz, rq.tolerance_ppm), UVM_LOW)
+    end else if (rq.check_hclk) begin
+        `uvm_info("DW_SPI_CLK", "hclk check skipped: hclk is not connected", UVM_LOW)
     end
 
     if (rq.check_ssi_clk && rs.ssi_clk_connected) begin
         p_sequencer.settings.vif.ssi_clk_if.measure_frequency_hz(
             rs.ssi_clk_hz, rq.min_ssi_clk_hz, rq.tolerance_ppm);
         rs.ok &= above_min_frequency(rs.ssi_clk_hz, rq.min_ssi_clk_hz, rq.tolerance_ppm, "ssi_clk");
+        if (rs.ok)
+            `uvm_info("DW_SPI_CLK", $sformatf(
+                "ssi_clk check passed: measured=%0d Hz min=%0d Hz tolerance_ppm=%0d",
+                rs.ssi_clk_hz, rq.min_ssi_clk_hz, rq.tolerance_ppm), UVM_LOW)
+    end else if (rq.check_ssi_clk) begin
+        `uvm_info("DW_SPI_CLK", "ssi_clk check skipped: ssi_clk is not connected", UVM_LOW)
     end
 
     rsp = rs;

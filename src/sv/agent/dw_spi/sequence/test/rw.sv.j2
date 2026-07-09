@@ -49,6 +49,14 @@ task {{ class_prefix }}rw_test_seq::body();
     cfg = configuration;
     ok = 1'b1;
     model_read_data.delete();
+    `uvm_info("DW_SPI_TEST", $sformatf(
+        "rw_test start: address=0x%08h bytes=%0d lanes=%0d speed=%0dx frame=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        address,
+        write_data.size(),
+        cfg.io_lanes,
+        cfg.speed_multiplier,
+        cfg.frame_mode.name(){% if internal_dma or external_dma %},
+        cfg.use_dma{% endif %}), UVM_LOW)
 
     wr_seq = {{ class_prefix }}flash_write_seq::type_id::create("flash_write");
     wr_seq.address = address;
@@ -72,6 +80,9 @@ task {{ class_prefix }}rw_test_seq::body();
         ok = p_sequencer.scoreboard.compare_actual(
             address, write_data, "model_readback");
     end
+    `uvm_info("DW_SPI_TEST", $sformatf(
+        "rw_test done: ok=%0b address=0x%08h bytes=%0d read_bytes=%0d",
+        ok, address, write_data.size(), model_read_data.size()), UVM_LOW)
 endtask
 
 `endif

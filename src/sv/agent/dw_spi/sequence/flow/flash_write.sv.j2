@@ -84,6 +84,9 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     op_seq.start(p_sequencer);
     op_rsp = op_seq.rsp;
     ok = op_rsp != null && op_rsp.ok;
+    `uvm_info("DW_SPI_FLASH", $sformatf(
+        "flash_write write-enable done: ok=%0b cs=%0d",
+        ok, cfg.cs_id), UVM_LOW)
 endtask
 
 task {{ class_prefix }}flash_write_seq::run_chunk(
@@ -134,6 +137,13 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     op_seq.start(p_sequencer);
     op_rsp = op_seq.rsp;
     ok = op_rsp != null && op_rsp.ok;
+    `uvm_info("DW_SPI_FLASH", $sformatf(
+        "flash_write chunk done: ok=%0b address=0x%08h bytes=%0d opcode=0x%02h{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        ok,
+        addr,
+        chunk.size(),
+        op_req.opcode{% if internal_dma or external_dma %},
+        op_req.use_dma{% endif %}), UVM_LOW)
 endtask
 
 task {{ class_prefix }}flash_write_seq::body();
@@ -146,6 +156,14 @@ task {{ class_prefix }}flash_write_seq::body();
     end
     ok = 1'b1;
     bytes_written = 0;
+    `uvm_info("DW_SPI_FLASH", $sformatf(
+        "flash_write start: address=0x%08h bytes=%0d lanes=%0d speed=%0dx frame=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        address,
+        data.size(),
+        configuration.io_lanes,
+        configuration.speed_multiplier,
+        configuration.frame_mode.name(){% if internal_dma or external_dma %},
+        configuration.use_dma{% endif %}), UVM_LOW)
     run_write_enable(chunk_ok);
     if (!chunk_ok) begin
         ok = 1'b0;
@@ -155,6 +173,9 @@ task {{ class_prefix }}flash_write_seq::body();
         if (chunk_ok)
             bytes_written = data.size();
     end
+    `uvm_info("DW_SPI_FLASH", $sformatf(
+        "flash_write done: ok=%0b address=0x%08h bytes_written=%0d",
+        ok, address, bytes_written), UVM_LOW)
 endtask
 
 `endif

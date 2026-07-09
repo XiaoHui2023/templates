@@ -12,6 +12,8 @@
 
 `ssi_clk` 是控制器输入参考时钟。`sclk_out` 由 register configuration 阶段按 `BAUDR` 公式推导。
 
+`check_clock_seq` 使用 `UVM_LOW` 打印检查结果。时钟已连接且检查通过时打印测得频率、最低频率和容差；时钟未连接时打印跳过原因。
+
 ## Init Registers
 
 1. `init_registers_seq` 接收一个 `transfer_req`。
@@ -22,6 +24,8 @@
 6. `register_access.apply_configuration()` 按 FIELD 写 regmodel。
 
 寄存器配置不通过 sequencer 函数完成，不通过 callback 完成，也不在 core 里引用 operation req。
+
+`register_config_builder` 使用 `UVM_LOW` 打印本次推导出的 `ssi_clk`、目标 `sclk`、`BAUDR`、DFS 位宽、`NDF`、`SPI_FRF` 和 `SER`。
 
 ## Primitive Transfer
 
@@ -36,6 +40,8 @@
 
 callback 只注入 chip-select 行为。寄存器读写、scoreboard 比较、DMA 搬运都不放进 callback。
 
+`transfer_seq` 使用 `UVM_LOW` 打印 primitive transfer 的开始和结束摘要，包括协议、传输模式、opcode、地址、长度、CS、线数、倍速、DFS 位宽、DMA 开关和读回字节数。
+
 ## Flash Read
 
 1. sequence 未携带 configuration 时创建 `host_configuration` 并 randomize。
@@ -49,6 +55,8 @@ callback 只注入 chip-select 行为。寄存器读写、scoreboard 比较、DM
 
 地址是 32 bit flash/model 地址，不是寄存器地址。
 
+`flash_read_seq` 使用 `UVM_LOW` 打印开始和结束摘要，包括地址、长度、线数、倍速、frame mode、DMA 开关、opcode 和接收字节数。
+
 ## Flash Write
 
 1. sequence 未携带 configuration 时创建 `host_configuration` 并 randomize。
@@ -60,6 +68,8 @@ callback 只注入 chip-select 行为。寄存器读写、scoreboard 比较、DM
 
 当前模板不建模页大小、擦除值和擦除流程。
 
+`flash_write_seq` 使用 `UVM_LOW` 打印开始、write-enable 结果、chunk 写结果和最终写入字节数。
+
 ## RW Test
 
 1. sequence 未携带 configuration 时创建 `host_configuration` 并 randomize。
@@ -69,6 +79,8 @@ callback 只注入 chip-select 行为。寄存器读写、scoreboard 比较、DM
 5. 调用 `scoreboard.compare_actual(address, write_data, "model_readback")`。
 
 读写测试顺序是写后读。读回数据不从 kit API 返回，test sequence 负责把数据交给 scoreboard 自动校验。
+
+`rw_test_seq` 使用 `UVM_LOW` 打印测试开始和结束摘要，包括地址、数据长度、线数、倍速、frame mode、DMA 开关、读回字节数和最终 `ok`。
 
 ## DMA Transfer
 
