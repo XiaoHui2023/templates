@@ -12,7 +12,7 @@ class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_se
 
     task body();
 {%- if is_sd %}
-        if(settings.boot_cfg.voltage_inside(V3_3)) begin
+        if(settings.boot_cfg.voltage inside {V3_3}) begin
             `uvm_do_with(rw_test_seq, {
                 data_width == 4;
                 bus_speed_mode == DS;
@@ -24,7 +24,7 @@ class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_se
             })
         end
 
-        if(settings.boot_cfg.voltage_inside(V1_8)) begin
+        if(settings.boot_cfg.voltage inside {V1_8}) begin
             if(settings.boot_cfg.is_support_sdr12)
                 `uvm_do_with(rw_test_seq, {
                     data_width == 4;
