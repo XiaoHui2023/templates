@@ -19,7 +19,7 @@
 | `default_latency` | `5.0` | `LATENCY` 默认值。 |
 | `time_unit` | `1ns` | `timeunit`。 |
 | `time_precision` | `1ps` | `timeprecision`。 |
-| `check_enable_default` | `true` | `check_enable` 初始值。 |
+| `check_enable_default` | `false` | `check_enable` 初始值。 |
 
 ## SV parameter
 

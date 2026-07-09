@@ -3,4 +3,4 @@ default_data_width: 1
 default_latency: 5
 time_unit: 1ns
 time_precision: 1ps
-check_enable_default: true
+check_enable_default: false

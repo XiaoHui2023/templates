@@ -37,9 +37,28 @@ interface {{ class_prefix }}interface #(
 
     task automatic watch_check_enable();
         forever begin
-            @(negedge check_enable);
+            @(check_enable);
+            #0;
             input_value_queue.delete();
             input_time_queue.delete();
+
+            if (check_enable === 1'b1)
+                check_current_value_on_enable();
+        end
+    endtask
+
+    task automatic check_current_value_on_enable();
+        realtime check_time;
+
+        check_time = $realtime;
+
+        if (out !== in) begin
+            report_check_enable_error(
+                "output value does not match input value when check enabled",
+                in,
+                out,
+                check_time
+            );
         end
     endtask
 
@@ -138,6 +157,28 @@ interface {{ class_prefix }}interface #(
                 input_time,
                 output_time,
                 LATENCY
+            )
+        )
+        check_enable = 1'b0;
+        input_value_queue.delete();
+        input_time_queue.delete();
+    endfunction
+
+    function automatic void report_check_enable_error(
+        input string reason,
+        input reg [DW-1:0] expected_value,
+        input reg [DW-1:0] actual_value,
+        input realtime check_time
+    );
+        `uvm_error(
+            "{{ class_prefix }}connection",
+            $sformatf(
+                "%s: path=%s expected=0x%h actual=0x%h check_time=%0.3f",
+                reason,
+                instance_path,
+                expected_value,
+                actual_value,
+                check_time
             )
         )
         check_enable = 1'b0;

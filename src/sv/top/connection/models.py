@@ -26,6 +26,6 @@ class Models(BaseModel):
         description="SystemVerilog timeprecision used by the interface.",
     )
     check_enable_default: bool = Field(
-        True,
+        False,
         description="Initial runtime value of check_enable.",
     )
