@@ -21,7 +21,7 @@ class {{ class_prefix }}seq extends uvm_sequence;
     uvm_reg_field no_test_fields[$];
 
     // 创建主寄存器自测 sequence。
-    function new(string name = "{{ class_prefix }}seq");
+    function new(input string name = "{{ class_prefix }}seq");
         super.new(name);
     endfunction
 
@@ -35,7 +35,7 @@ class {{ class_prefix }}seq extends uvm_sequence;
     endfunction
 
     // 将混合 RO/RW 寄存器中的 RO field 标记为跳过。
-    protected function void mark_partial_ro_fields(uvm_reg_block blk);
+    protected function void mark_partial_ro_fields(input uvm_reg_block blk);
         uvm_reg regs[$];
         uvm_reg_block blks[$];
 

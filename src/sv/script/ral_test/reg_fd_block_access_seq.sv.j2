@@ -7,18 +7,18 @@ class {{ class_prefix }}reg_fd_block_access_seq extends uvm_reg_access_seq;
     `uvm_object_utils({{ class_prefix }}reg_fd_block_access_seq)
 
     // 创建前门 block 连通性检查 sequence。
-    function new(string name = "{{ class_prefix }}reg_fd_block_access_seq");
+    function new(input string name = "{{ class_prefix }}reg_fd_block_access_seq");
         super.new(name);
     endfunction
 
     // 判断 field 是否被资源库标记为跳过。
-    protected function bit field_is_skipped(uvm_reg_field fld);
+    protected function bit field_is_skipped(input uvm_reg_field fld);
         return uvm_resource_db#(bit)::get_by_name({"FIELD::", fld.get_full_name()},
             "NO_FIELD_TESTS", 0) != null;
     endfunction
 
     // 判断 register 是否被资源库标记为跳过。
-    protected function bit reg_is_skipped(uvm_reg rg);
+    protected function bit reg_is_skipped(input uvm_reg rg);
         return uvm_resource_db#(bit)::get_by_name({"REG::", rg.get_full_name()},
                 "NO_REG_TESTS", 0) != null ||
             uvm_resource_db#(bit)::get_by_name({"REG::", rg.get_full_name()},
@@ -26,7 +26,7 @@ class {{ class_prefix }}reg_fd_block_access_seq extends uvm_reg_access_seq;
     endfunction
 
     // 判断 block 是否被资源库标记为跳过。
-    protected function bit block_is_skipped(uvm_reg_block blk);
+    protected function bit block_is_skipped(input uvm_reg_block blk);
         return uvm_resource_db#(bit)::get_by_name({"REG::", blk.get_full_name()},
                 "NO_REG_TESTS", 0) != null ||
             uvm_resource_db#(bit)::get_by_name({"REG::", blk.get_full_name()},
@@ -34,7 +34,7 @@ class {{ class_prefix }}reg_fd_block_access_seq extends uvm_reg_access_seq;
     endfunction
 
     // 计算 field 在父寄存器数据中的位掩码。
-    protected function uvm_reg_data_t field_mask(uvm_reg_field fld);
+    protected function uvm_reg_data_t field_mask(input uvm_reg_field fld);
         int lsb;
         int n_bits;
         uvm_reg_data_t ones;
@@ -59,10 +59,10 @@ class {{ class_prefix }}reg_fd_block_access_seq extends uvm_reg_access_seq;
     // v_orig — 测前读到的整寄存器值
     protected task try_field_access(
         output bit passed,
-        uvm_reg rg,
-        uvm_reg_field fld,
-        uvm_reg_map map,
-        uvm_reg_data_t v_orig
+        input uvm_reg rg,
+        input uvm_reg_field fld,
+        input uvm_reg_map map,
+        input uvm_reg_data_t v_orig
     );
         uvm_status_e status;
         uvm_reg_data_t mask;
@@ -105,7 +105,7 @@ class {{ class_prefix }}reg_fd_block_access_seq extends uvm_reg_access_seq;
     // rg — 被测寄存器
     protected task try_reg_access(
         output bit passed,
-        uvm_reg rg
+        input uvm_reg rg
     );
         uvm_reg_map maps[$];
 
@@ -158,7 +158,7 @@ class {{ class_prefix }}reg_fd_block_access_seq extends uvm_reg_access_seq;
 
     // 检查当前 block 直接下属任意一个 register，并递归检查子 block。
     // blk — 当前寄存器块
-    protected virtual task do_block(uvm_reg_block blk);
+    protected virtual task do_block(input uvm_reg_block blk);
         uvm_reg regs[$];
         uvm_reg_block blks[$];
         bit has_testable_reg;
