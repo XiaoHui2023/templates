@@ -229,7 +229,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_div** | **ratio** 只能取 1～64 的整数 |
-| **cst_resolve_freq_from_src** | **source** 已连接且 **ratio** 大于 0 时，**_resolved_freq** 落在 **source._resolved_freq** 整除 **ratio** 结果的 **period_tolerance** 相对偏差带内 |
+| **cst_resolve_freq_from_src** | **source** 已连接且 **ratio** 大于 0 时，**_resolved_freq** 等于 **source._resolved_freq** 整除 **ratio** 的结果 |
 
 ### div_div_r
 
@@ -245,7 +245,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_div** | **ratio** 等于 **fixed_ratio**，大于 0 |
-| **cst_resolve_freq_from_src** | 继承 **div_base**，容差同 **div** |
+| **cst_resolve_freq_from_src** | 继承 **div_base**，等于前级频率整除 **ratio** 的结果 |
 
 ### dto
 
@@ -264,7 +264,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_dto** | **ratio** 只能取 1～2^25 的正整数 |
-| **cst_resolve_freq_from_src** | 继承 **div_base**，容差同 **div** |
+| **cst_resolve_freq_from_src** | 继承 **div_base**，等于前级频率整除 **ratio** 的结果 |
 
 ### gate
 

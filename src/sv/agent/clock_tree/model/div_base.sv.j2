@@ -1,9 +1,5 @@
 `ifndef {{ (settings.class_prefix ~ "div_base") | upper }}
 `define {{ (settings.class_prefix ~ "div_base") | upper }}
-{%- set div_freq_tol_den = 100 %}
-{%- set div_freq_tol_num = (settings.period_tolerance * div_freq_tol_den) | round | int %}
-{%- set div_freq_tol_lo = div_freq_tol_den - div_freq_tol_num %}
-{%- set div_freq_tol_hi = div_freq_tol_den + div_freq_tol_num %}
 
 class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}div_base)
@@ -30,10 +26,8 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
     }
 
     constraint cst_resolve_freq_from_src {
-        source != null && _resolved_ratio > 0 -> {
-            _resolved_freq * {{ div_freq_tol_lo }} <= (source._resolved_freq / _resolved_ratio) * {{ div_freq_tol_den }};
-            _resolved_freq * {{ div_freq_tol_hi }} >= (source._resolved_freq / _resolved_ratio) * {{ div_freq_tol_den }};
-        }
+        source != null && _resolved_ratio > 0 ->
+            _resolved_freq == source._resolved_freq / _resolved_ratio;
     }
 
     function new(string name = "");

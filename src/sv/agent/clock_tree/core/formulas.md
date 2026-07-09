@@ -17,13 +17,10 @@
 f_hw = f_ref / ratio
 ```
 
-整数除法，**f_hw** 为寄存器按 **ratio** 配置后硅片输出频率。
-
-model 里 **\_resolved_freq** 相对 **f_hw** 允许整数偏差，与 **check_measure** 频率容差同一 **period_tolerance**；由 **div_freq_tol_num**、**div_freq_tol_den** 在配置渲染时算出 **div_freq_tol_lo**、**div_freq_tol_hi**，默认 **period_tolerance** 0.02 时为 98、102 与分母 100：
+整数除法，**f_hw** 为寄存器按 **ratio** 配置后硅片输出频率。model 里 **\_resolved_freq** 精确等于 **f_hw**；**period_tolerance** 只用于测量稳定与 **check_measure** 结果验收，不参与 div 期望频率计算。
 
 ```
-_resolved_freq * div_freq_tol_lo <= f_hw * div_freq_tol_den
-_resolved_freq * div_freq_tol_hi >= f_hw * div_freq_tol_den
+_resolved_freq = f_hw
 ```
 
 **N** 与 **ratio**：**N** 为 0 时 **ratio** 为 1；**N** 大于 0 时 **ratio** 为 **N + 1**。反之 **ratio** 不大于 1 时 **N** 为 0，否则 **N** 为 **ratio − 1**。
@@ -42,7 +39,7 @@ _resolved_freq * div_freq_tol_hi >= f_hw * div_freq_tol_den
 f_hw = f_ref / ratio
 ```
 
-频率容差与 **div** 相同，由 **period_tolerance** 导出 **div_freq_tol_lo**、**div_freq_tol_hi**。
+model 里 **\_resolved_freq** 精确等于 **f_hw**。
 
 ## dto
 
@@ -58,7 +55,7 @@ f_hw = f_ref / ratio
 f_hw = f_ref / ratio
 ```
 
-**\_resolved_freq** 容差同 **div** 节。
+model 里 **\_resolved_freq** 精确等于 **f_hw**。
 
 ```
 step = 2^25 / ratio
