@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .formulas import freq_tolerance_bounds
+from .formulas import DTO_MAX_RATIO, best_div_ratio, freq_tolerance_bounds
 from .pll_search import diagnose_pll_coefficients, search_pll_coefficients
 from model.freq_graph import Port, parent_port_for_child, parse_port_ref
 from model.nodes import (
@@ -27,7 +27,22 @@ def fit_pll_vars(
 ) -> SolveModel:
     """在频率图已定后，为尚未有系数的 PLL 反推寄存器系数。"""
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
-    merged = dict(model.pll_vars)
+    ratios = _best_effort_ratios(
+        tree,
+        model,
+        tol_lo=tol_lo,
+        tol_hi=tol_hi,
+        tol_den=tol_den,
+    )
+    normalized_model = SolveModel(
+        active=model.active,
+        port_freq=model.port_freq,
+        ratios=ratios,
+        mux_sel=model.mux_sel,
+        gate_open=model.gate_open,
+        pll_vars=model.pll_vars,
+    )
+    merged = dict(normalized_model.pll_vars)
 
     pll_nodes = [
         (name, node)
@@ -38,7 +53,11 @@ def fit_pll_vars(
         if name in merged:
             continue
         ref_port = parent_port_for_child(tree, name)
-        ref_hz = model.port_hz(ref_port) or _static_port_hz(tree, model, ref_port)
+        ref_hz = normalized_model.port_hz(ref_port) or _static_port_hz(
+            tree,
+            normalized_model,
+            ref_port,
+        )
         if ref_hz <= 0:
             raise RuntimeError(f"PLL {name!r} 参考频率无效")
         if node.pll_kind == "inno":
@@ -103,11 +122,52 @@ def fit_pll_vars(
     return SolveModel(
         active=model.active,
         port_freq=model.port_freq,
-        ratios=model.ratios,
+        ratios=ratios,
         mux_sel=model.mux_sel,
         gate_open=model.gate_open,
         pll_vars=merged,
     )
+
+
+def _best_effort_ratios(
+    tree: Tree,
+    model: SolveModel,
+    *,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> dict[str, int]:
+    ratios = dict(model.ratios)
+    for name, node in tree.nodes.items():
+        if not isinstance(node, DivNode):
+            continue
+        if not model.active.get(name, False):
+            continue
+        if node.ratio is not None:
+            ratios[name] = node.ratio
+            continue
+        try:
+            parent = parent_port_for_child(tree, name)
+        except ValueError:
+            continue
+        in_hz = model.port_hz(parent)
+        out_hz = model.port_hz(Port(name, ""))
+        if in_hz <= 0 or out_hz <= 0:
+            continue
+        min_ratio = 2 if node.div_kind in ("dto", "dto_n") else 1
+        max_ratio = DTO_MAX_RATIO if node.div_kind in ("dto", "dto_n") else 64
+        ratio = best_div_ratio(
+            in_hz,
+            out_hz,
+            min_ratio=min_ratio,
+            max_ratio=max_ratio,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+        if ratio is not None:
+            ratios[name] = ratio
+    return ratios
 
 
 def _static_port_hz(

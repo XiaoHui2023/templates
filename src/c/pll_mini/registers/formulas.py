@@ -84,6 +84,50 @@ def find_div_ratio(
     return None
 
 
+def best_div_ratio(
+    in_hz: int,
+    want_out_hz: int,
+    *,
+    min_ratio: int,
+    max_ratio: int,
+    tol_lo: int,
+    tol_hi: int,
+    tol_den: int,
+) -> int | None:
+    """Return the legal ratio with the smallest integer-divider frequency error."""
+    if in_hz <= 0 or want_out_hz <= 0 or min_ratio < 1 or max_ratio < min_ratio:
+        return None
+
+    raw = in_hz // want_out_hz
+    candidates = {
+        min_ratio,
+        max_ratio,
+        raw - 1,
+        raw,
+        raw + 1,
+        raw + 2,
+    }
+    best_ratio: int | None = None
+    best_error: int | None = None
+    for ratio in sorted(candidates):
+        if ratio < min_ratio or ratio > max_ratio:
+            continue
+        freq_hw, _ = div_hw_from_input(in_hz, ratio)
+        if not freq_within_tolerance(
+            want_out_hz,
+            freq_hw,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        ):
+            continue
+        error = abs(freq_hw - want_out_hz)
+        if best_error is None or error < best_error:
+            best_error = error
+            best_ratio = ratio
+    return best_ratio
+
+
 def dto_ratio_candidates_for_pair(
     in_hz: int,
     want_out_hz: int,

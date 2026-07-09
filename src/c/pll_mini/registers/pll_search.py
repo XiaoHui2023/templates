@@ -140,6 +140,7 @@ def _search_pll_sc_uncached(
 ) -> dict[str, int] | None:
     if ref_hz <= 0 or out_hz <= 0:
         return None
+    best: tuple[int, dict[str, int]] | None = None
     for refdiv in range(1, 64):
         for postdiv1 in range(1, 8):
             for postdiv2 in range(1, 8):
@@ -154,13 +155,16 @@ def _search_pll_sc_uncached(
                         tol_hi=tol_hi,
                         tol_den=tol_den,
                     ):
-                        return {
+                        coeffs = {
                             "fbdiv": fbdiv,
                             "refdiv": refdiv,
                             "postdiv1": postdiv1,
                             "postdiv2": postdiv2,
                         }
-    return None
+                        error = abs(actual - out_hz)
+                        if best is None or error < best[0]:
+                            best = (error, coeffs)
+    return best[1] if best is not None else None
 
 
 @lru_cache(maxsize=4096)
@@ -191,6 +195,7 @@ def _search_pll_dw_uncached(
 ) -> dict[str, int] | None:
     if ref_hz <= 0 or out_hz <= 0:
         return None
+    best: tuple[int, dict[str, int]] | None = None
     for p in range(0, 8):
         for fbdiv in range(DW_FBDIV_MIN, DW_FBDIV_MAX + 1):
             actual = pll_dw_actual_hz(ref_hz, fbdiv, p)
@@ -201,8 +206,11 @@ def _search_pll_dw_uncached(
                 tol_hi=tol_hi,
                 tol_den=tol_den,
             ):
-                return {"fbdiv": fbdiv, "p": p}
-    return None
+                coeffs = {"fbdiv": fbdiv, "p": p}
+                error = abs(actual - out_hz)
+                if best is None or error < best[0]:
+                    best = (error, coeffs)
+    return best[1] if best is not None else None
 
 
 def search_pll_inno(
@@ -220,51 +228,45 @@ def search_pll_inno(
     }
     if not active_groups:
         return None
-    for refdiv in range(1, 64):
-        for fbdiv in range(1, 4096):
-            if not inno_fbdiv_legal(fbdiv):
-                continue
-            vars_map: dict[str, int] = {
-                "refdiv": refdiv,
-                "fbdiv": fbdiv,
-            }
-            ok = True
-            for group_id, target_hz in active_groups.items():
-                matched = False
-                for postdiv1 in range(1, 8):
-                    for postdiv2 in range(1, 8):
-                        actual = pll_inno_actual_hz(
-                            ref_hz,
-                            fbdiv,
-                            refdiv,
-                            postdiv1,
-                            postdiv2,
-                        )
-                        if freq_within_tolerance(
-                            target_hz,
-                            actual,
-                            tol_lo=tol_lo,
-                            tol_hi=tol_hi,
-                            tol_den=tol_den,
-                        ):
-                            vars_map[f"postdiv1_{group_id}"] = postdiv1
-                            vars_map[f"postdiv2_{group_id}"] = postdiv2
-                            matched = True
-                            break
-                    if matched:
-                        break
-                if not matched:
-                    ok = False
-                    break
-            if ok:
-                for group_id in group_out_hz:
-                    p1_key = f"postdiv1_{group_id}"
-                    p2_key = f"postdiv2_{group_id}"
-                    if p1_key not in vars_map:
-                        vars_map[p1_key] = 1
-                        vars_map[p2_key] = 1
-                return vars_map
-    return None
+
+    per_group = {
+        group_id: _inno_group_candidates(
+            ref_hz,
+            group_id,
+            target_hz,
+            tol_lo=tol_lo,
+            tol_hi=tol_hi,
+            tol_den=tol_den,
+        )
+        for group_id, target_hz in active_groups.items()
+    }
+    shared_keys: set[tuple[int, int]] | None = None
+    for candidates in per_group.values():
+        keys = set(candidates)
+        shared_keys = keys if shared_keys is None else shared_keys & keys
+    if not shared_keys:
+        return None
+
+    best: tuple[int, int, dict[str, int]] | None = None
+    for refdiv, fbdiv in sorted(shared_keys):
+        vars_map: dict[str, int] = {"refdiv": refdiv, "fbdiv": fbdiv}
+        total_error = 0
+        worst_error = 0
+        for group_id, candidates in per_group.items():
+            item = candidates[(refdiv, fbdiv)]
+            vars_map[f"postdiv1_{group_id}"] = item.postdiv1
+            vars_map[f"postdiv2_{group_id}"] = item.postdiv2
+            total_error += item.abs_error_hz
+            worst_error = max(worst_error, item.abs_error_hz)
+        for group_id in group_out_hz:
+            p1_key = f"postdiv1_{group_id}"
+            p2_key = f"postdiv2_{group_id}"
+            if p1_key not in vars_map:
+                vars_map[p1_key] = 1
+                vars_map[p2_key] = 1
+        if best is None or (total_error, worst_error) < (best[0], best[1]):
+            best = (total_error, worst_error, vars_map)
+    return best[2] if best is not None else None
 
 
 def diagnose_pll_coefficients(
