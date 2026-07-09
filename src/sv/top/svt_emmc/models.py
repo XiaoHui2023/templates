@@ -3,9 +3,9 @@ from pydantic import BaseModel, Field
 
 
 class Models(BaseModel):
-    class_prefix: str = Field('emmc_vip_', description="默认类名前缀")
-    card_type: Literal['emmc', 'sdcard', 'sdio'] = Field(..., description="card类型")
-    max_mem_data_width: int = Field(4096, description="最大内存数据位宽")
+    class_prefix: str = Field('emmc_vip_', description="Class name prefix.")
+    card_type: Literal['emmc', 'sdcard', 'sdio'] = Field(..., description="Card type.")
+    max_mem_data_width: int = Field(4096, description="Maximum memory data width.")
 
     @property
     def is_emmc(self) -> bool:
