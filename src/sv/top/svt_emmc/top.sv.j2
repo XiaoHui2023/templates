@@ -160,16 +160,16 @@ module {{ class_prefix }}top#(
             data.push_back(0);
 
         for(int i=0;i<len;i++) begin
-            bit[SVT_MEM_MAX_DATA_WIDTH-1:0] d;
+            bit[`SVT_MEM_MAX_DATA_WIDTH-1:0] d;
 
             repeat(cnt) begin
                 if(!data.size())
                     `uvm_fatal("","")
 
                 d >>= 8;
-                d[SVT_MEM_MAX_DATA_WIDTH-1-:8] = data.pop_front();
+                d[`SVT_MEM_MAX_DATA_WIDTH-1-:8] = data.pop_front();
             end
-            d >>= SVT_MEM_MAX_DATA_WIDTH - mw;
+            d >>= `SVT_MEM_MAX_DATA_WIDTH - mw;
 
             {%- if is_emmc %}
             void'(get_mem().poke(addr + i, d));
@@ -192,7 +192,7 @@ module {{ class_prefix }}top#(
         bytes_per_word = mw / 8;
 
         for(int i=0;i<cnt;i++) begin
-            bit[SVT_MEM_MAX_DATA_WIDTH-1:0] mem;
+            bit[`SVT_MEM_MAX_DATA_WIDTH-1:0] mem;
 
             void'(get_mem().peek(addr + i, mem));
             for(int j=0;j<bytes_per_word;j++) begin
