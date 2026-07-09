@@ -2,6 +2,38 @@
 `ifndef {{ (settings.class_prefix ~ "direct_check") | upper }}
 `define {{ (settings.class_prefix ~ "direct_check") | upper }}
 
+task automatic {{ settings.class_prefix }}direct_check(
+    virtual {{ settings.class_prefix }}tree_interface tree_if
+);
+    bit ok;
+
+    ok = 1'b1;
+
+    if (tree_if == null)
+        $fatal(1, "CLK_TREE: direct_check tree_if is null");
+
+{%- for slot in tree.connectable_slots %}
+{%- set node = tree.nodes[slot.node_key] %}
+{%- set vif_name = slot.node_key ~ ("_" ~ slot.group_id if slot.group_id else "") ~ "_if" %}
+{%- if node.kind == "clk" and node.disable %}
+    {{ settings.class_prefix }}direct_check_inactive("{{ slot.access }}", tree_if.{{ vif_name }}, ok);
+{%- elif node.kind == "clk" and node.freq is not none and node.freq > 0 %}
+    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
+{%- elif node.kind == "source" and node.freq is not none and node.freq > 0 %}
+    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
+{%- elif node.kind == "pll" and node.freq is mapping and node.freq[slot.group_id] > 0 %}
+    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq[slot.group_id] > 2147483647 %}64'd{{ node.freq[slot.group_id] }}{% else %}{{ node.freq[slot.group_id] }}{% endif %}, ok);
+{%- elif node.kind == "pll" and node.freq is not mapping and node.freq > 0 %}
+    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
+{%- endif %}
+{%- endfor %}
+
+    if (ok)
+        $display("CLK_TREE: direct_check passed");
+    else
+        $error("CLK_TREE: direct_check failed");
+endtask
+
 task automatic {{ settings.class_prefix }}direct_check_freq(
     input string node_name,
     virtual {{ settings.class_prefix }}interface vif,
@@ -74,37 +106,6 @@ task automatic {{ settings.class_prefix }}direct_check_inactive(
     end
 
     vif.stop_measure();
-endtask
-
-task automatic {{ settings.class_prefix }}direct_check(
-    virtual {{ settings.class_prefix }}tree_interface tree_if,
-    output bit ok
-);
-    ok = 1'b1;
-
-    if (tree_if == null)
-        $fatal(1, "CLK_TREE: direct_check tree_if is null");
-
-{%- for slot in tree.connectable_slots %}
-{%- set node = tree.nodes[slot.node_key] %}
-{%- set vif_name = slot.node_key ~ ("_" ~ slot.group_id if slot.group_id else "") ~ "_if" %}
-{%- if node.kind == "clk" and node.disable %}
-    {{ settings.class_prefix }}direct_check_inactive("{{ slot.access }}", tree_if.{{ vif_name }}, ok);
-{%- elif node.kind == "clk" and node.freq is not none and node.freq > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
-{%- elif node.kind == "source" and node.freq is not none and node.freq > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
-{%- elif node.kind == "pll" and node.freq is mapping and node.freq[slot.group_id] > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq[slot.group_id] > 2147483647 %}64'd{{ node.freq[slot.group_id] }}{% else %}{{ node.freq[slot.group_id] }}{% endif %}, ok);
-{%- elif node.kind == "pll" and node.freq is not mapping and node.freq > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
-{%- endif %}
-{%- endfor %}
-
-    if (ok)
-        $display("CLK_TREE: direct_check passed");
-    else
-        $error("CLK_TREE: direct_check failed");
 endtask
 
 `endif

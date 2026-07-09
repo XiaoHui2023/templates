@@ -37,7 +37,7 @@ settings:
   probe_mode: true
 ```
 
-纯 SV 直接检查可使用 `settings.direct_mode: true`。该模式生成 `top/top.f` 与 `top/direct_check.sv`，`all.f` 只通过 `-F top/top.f` 引用 `tree_interface`、测量 interface 和 direct 检查 task，不编译 UVM tree、component、sequence。用户在顶层例化 `tree_interface` 后调用 `<class_prefix>direct_check(tree_if, ok)` 即可完成检查。
+纯 SV 直接检查可使用 `settings.direct_mode: true`。该模式生成 `top/top.f` 与 `top/direct_check.sv`，`all.f` 只通过 `-F top/top.f` 引用 `tree_interface`、测量 interface 和 direct 检查 task，不编译 UVM tree、component、sequence。用户在顶层例化 `tree_interface` 后调用 `<class_prefix>direct_check(tree_if)` 即可完成检查。
 
 ## 数据结构
 
