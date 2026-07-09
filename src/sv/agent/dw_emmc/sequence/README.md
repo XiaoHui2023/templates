@@ -58,7 +58,7 @@ HS400 + 8bit 的 CMD6 期望序列：
 
 1. 初始化缺失时运行 `initial_seq`
 2. 运行 `switch_bus_seq`
-3. 分区配置非默认时运行 `switch_partition_config_command_seq`
+3. eMMC 分区配置非默认时运行 `switch_partition_config_command_seq`；SD/SDIO 不生成该命令
 4. 按 `rd_single/rd_multi/wr_single/wr_multi/abort` 运行读写 transfer
 5. 写操作完成后向 scoreboard 发送 payload，更新 expected memory
 6. 读操作完成后向 scoreboard 发送 payload，自动与 expected memory 比较

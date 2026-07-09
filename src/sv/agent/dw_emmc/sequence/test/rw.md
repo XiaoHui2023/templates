@@ -18,7 +18,7 @@
 
 1. 未初始化时运行 `initial_seq`。
 2. 运行 `switch_bus_seq`。
-3. 分区配置非默认时发送 `switch_partition_config_command_seq`。
+3. eMMC 分区配置非默认时发送 `switch_partition_config_command_seq`；SD/SDIO 不生成该命令。
 4. 按写路径先更新 scoreboard expected memory。
 5. 按读路径从 DUT 取数据并与 scoreboard memory 比较。
 

@@ -23,8 +23,10 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
         `uvm_field_int(wp, UVM_ALL_ON)
         `uvm_field_int(adma_des_addr, UVM_ALL_ON)
         `uvm_field_int(should_compare, UVM_ALL_ON)
+{%- if is_emmc %}
         `uvm_field_enum(boot_partition_enable_e, boot_partition_enable, UVM_ALL_ON)
         `uvm_field_enum(boot_partition_access_e, boot_partition_access, UVM_ALL_ON)
+{%- endif %}
     `uvm_object_utils_end
 
     rand bit[63:0] addr;
@@ -47,8 +49,10 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
     rand bit[31:0] adma_des_addr;
     rand bus_speed_mode_e bus_speed_mode;
     rand bit should_compare;
+{%- if is_emmc %}
     rand boot_partition_enable_e boot_partition_enable;
     rand boot_partition_access_e boot_partition_access;
+{%- endif %}
     event e_wr_single_done;
     event e_rd_single_done;
 
@@ -56,7 +60,9 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
     {{ class_prefix }}switch_bus_seq switch_bus_seq;
     {{ class_prefix }}xfer_read_seq read_seq;
     {{ class_prefix }}xfer_write_seq write_seq;
+{%- if is_emmc %}
     {{ class_prefix }}switch_partition_config_command_seq switch_part_cfg_seq;
+{%- endif %}
 
     function new(string name = "{{ class_prefix }}rw_test_seq");
         super.new(name);
@@ -88,8 +94,10 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
         soft wp == 0;
         soft bus_speed_mode == settings.boot_cfg.default_bus_speed_mode;
         soft data_width == settings.boot_cfg.default_data_width;
+{%- if is_emmc %}
         soft boot_partition_enable == BOOT_PARTITION_ENABLE_NO;
         soft boot_partition_access == BOOT_PARTITION_ACCESS_NO;
+{%- endif %}
 
 {%- if is_emmc %}
         if(bus_speed_mode inside {HIGH_SPEED_DDR, HS400}) {
@@ -157,11 +165,13 @@ task {{ class_prefix }}rw_test_seq::body();
         data_width == local::data_width;
     })
 
+{%- if is_emmc %}
     if(boot_partition_enable != BOOT_PARTITION_ENABLE_NO || boot_partition_access != BOOT_PARTITION_ACCESS_NO)
         `uvm_do_with(switch_part_cfg_seq,{
             cmd_request.boot_partition_enable == local::boot_partition_enable;
             cmd_request.boot_partition_access == local::boot_partition_access;
         })
+{%- endif %}
 
     if(wr_single) begin
         `uvm_do_with(write_seq, {
@@ -291,7 +301,11 @@ function uvm_tlm_generic_payload {{ class_prefix }}rw_test_seq::create_scoreboar
 endfunction
 
 function bit[63:0] {{ class_prefix }}rw_test_seq::scoreboard_addr();
+{%- if is_emmc %}
     return addr + boot_partition_access * 'h1_0000_0000;
+{%- else %}
+    return addr;
+{%- endif %}
 endfunction
 
 `endif
