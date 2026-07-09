@@ -41,7 +41,7 @@ class Settings(BaseModel):
     )
     probe_mode: bool = Field(
         False,
-        description="为真时启用纯路径探针模式：不连接前级，只检查带 path 且有正数 freq 的节点，以及 disable 的 clk。",
+        description="为真时启用纯路径探针模式：不连接前级，只检查带 path 且有正数 freq 的 clk，以及 disable 的 clk。",
     )
     min_freq_hz: int = Field(
         15000,
@@ -215,7 +215,7 @@ class Models(BaseModel):
         if self.settings.probe_mode:
             if not self.tree.nodes_ordered:
                 raise ValueError(
-                    "probe_mode 为真时须至少包含一个 path 非空且 freq 为正数或 disable 为真的 source、pll 或 clk 节点"
+                    "probe_mode 为真时须至少包含一个 path 非空且 freq 为正数或 disable 为真的 clk 节点"
                 )
         else:
             validate_nodes_graph(self.nodes)
@@ -243,8 +243,6 @@ class Models(BaseModel):
     def _node_probe_enabled(self, node: Node) -> bool:
         if not getattr(node, "path", ""):
             return False
-        if node.kind in ("source", "pll"):
-            return True
         if node.kind == "clk":
             return node.disable or (node.freq is not None and node.freq > 0)
         return False

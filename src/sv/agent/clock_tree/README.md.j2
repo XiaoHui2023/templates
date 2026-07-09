@@ -82,7 +82,7 @@ endtask
 
 ## probe 模式
 
-`settings.probe_mode: true` 表示纯路径探针模式。该模式不表达树状连接关系，不连接 `source`，只例化带 `path` 且有正数 `freq` 的 `source`、`pll`、`clk` 节点，以及 `disable: true` 的 `clk`；其它没有 `freq` 的节点不会出现在生成的 `tree.sv` 和 `tree_interface.sv` 中。
+`settings.probe_mode: true` 表示纯路径探针模式。该模式不表达树状连接关系，不连接 `source`，只例化带 `path` 且有正数 `freq` 的 `clk`，以及 `disable: true` 的 `clk`；`source`、`pll` 和其它中间节点不会出现在生成的 `tree.sv` 和 `tree_interface.sv` 中。
 
 `probe` 模式仍调用 `randomize()`，由节点自身约束把 `freq` 或 `disable` 解析成 check_measure 使用的 `_resolved_freq` 与 `_resolved_active`。
 

@@ -381,10 +381,8 @@ class ClockSourceNode(NodeBase):
         "source",
         description="输入源型号：source、pad，大小写不限。",
     )
-    freq: int = Field(
-        ...,
-        ge=1,
-        le=_FREQ_HZ_U32_MAX,
+    freq: Optional[int] = Field(
+        None,
         description="典型频率，单位 Hz。",
     )
 
@@ -403,16 +401,7 @@ class ClockSourceNode(NodeBase):
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_freq(cls, value: Any) -> Any:
-        return _coerce_required_freq(value)
-
-    @model_validator(mode="after")
-    def _validate_source_freq(self) -> ClockSourceNode:
-        if self.freq < 1:
-            raise ValueError(
-                "source_kind 为 source、pad 时须填写大于 0 的 freq"
-            )
-        return self
-
+        return _coerce_optional_int(value)
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
@@ -929,6 +918,12 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
         if node.name != key:
             raise ValueError(
                 f"nodes[{key!r}] 的 name 字段 {node.name!r} 须与字典键一致"
+            )
+        if node.kind == "source" and (
+            node.freq is None or node.freq < 1 or node.freq > _FREQ_HZ_U32_MAX
+        ):
+            raise ValueError(
+                f"source 节点 {node.name!r} 在非 probe_mode 下须填写 1～{_FREQ_HZ_U32_MAX} 的 freq"
             )
         if node.kind == "mux":
             for mux_key, peer in node.source.items():

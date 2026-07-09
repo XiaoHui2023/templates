@@ -22,14 +22,13 @@ settings:
   class_prefix: chip_clk_
 ```
 
-纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的节点，以及 `disable: true` 的 `clk`；其它没有 `freq` 的节点不会出现在生成代码里。
+纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk`，以及 `disable: true` 的 `clk`；`source`、`pll` 和其它中间节点不会出现在生成代码里。
 
 ```yaml
 nodes:
   osc:
     kind: source
     path: dut.osc
-    freq: 24000000
   clk_cpu:
     kind: clk
     path: dut.clk_cpu
@@ -51,7 +50,7 @@ settings:
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的节点，以及 **disable** 的 **clk**。 |
+| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk**，以及 **disable** 的 **clk**。 |
 | `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
 | `max_freq_hz` | `int` | `5000000000` | **clk** 节点 randomize 后允许的最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 判定时钟有活动所需连续上升沿个数；超过一个最低频率周期仍无边沿则 inactive。 |
@@ -106,7 +105,7 @@ settings:
 | `kind` | `str` | `source` | |
 | `source_kind` | `str` | `source` | 取 `source`、`pad`。 |
 | `path` | `str` | `""` | RTL 层次路径，按 `.` 分隔。 |
-| `freq` | `int` | | 典型频率，单位 Hz。 |
+| `freq` | `int` | | 典型频率，单位 Hz；非 `probe_mode` 必填，`probe_mode` 可省略且不参与检查。 |
 
 **source_kind** 为 `pad` 时字段与上表相同，仅型号不同。
 
