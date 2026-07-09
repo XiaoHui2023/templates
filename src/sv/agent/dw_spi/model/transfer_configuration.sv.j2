@@ -64,7 +64,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
 {% endif %}
 
         io_lanes inside {1, 2, 4};
-        speed_multiplier inside {1, 2, 4, 8};
+        speed_multiplier inside {1, 2, 4};
         if (frame_mode == STANDARD) speed_multiplier == 1;
         if (speed_multiplier > 1) frame_mode == ENHANCED;
         spi_mode inside {[0:3]};

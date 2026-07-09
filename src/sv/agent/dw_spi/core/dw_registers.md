@@ -22,7 +22,6 @@
 | `SPI_FRF` | `0` | 单倍速标准模式 |
 | `SPI_FRF` | `1` | 2 倍速 enhanced 模式 |
 | `SPI_FRF` | `2` | 4 倍速 enhanced 模式 |
-| `SPI_FRF` | `3` | 8 倍速 enhanced 模式 |
 | `SCPH` | `spi_mode[0]` | SPI phase |
 | `SCPOL` | `spi_mode[1]` | SPI polarity |
 | `TMOD` | `0` | TX and RX |
@@ -51,7 +50,7 @@ NDF = max(frames, 1) - 1
 
 ## SPI_CTRLR0
 
-`SPI_CTRLR0` 用于 DWC_ssi enhanced SPI、XIP、DDR、HyperBus 等扩展传输控制。当前模板只记录字段语义，不在代码中配置；只有 sequence 明确需要 XIP、DDR、HyperBus、mode bits、data mask 或特殊 instruction/address format 时，才把相关字段加入 `configuration` 和 `register_access`。
+`SPI_CTRLR0` 用于 DWC_ssi enhanced SPI、XIP、DDR、HyperBus 等扩展传输控制。当前 flash enhanced flow 配置 `WAIT_CYCLES`、`INST_L`、`ADDR_L` 和 `TRANS_TYPE`；XIP、DDR、HyperBus、mode bits 和 data mask 字段只记录语义，等具体 flow 消费时再加入代码。
 
 | Field | Effect |
 | --- | --- |
@@ -64,7 +63,7 @@ NDF = max(frames, 1) - 1
 | `SPI_RXDS_EN` | Read data strobe enable |
 | `INST_DDR_EN` | Instruction DDR enable |
 | `SPI_DDR_EN` | SPI DDR enable |
-| `WAIT_CYCLES` | Dual/quad/octal mode 下 control frames 发送和 data reception 之间的 wait cycles |
+| `WAIT_CYCLES` | Dual/quad mode 下 control frames 发送和 data reception 之间的 wait cycles；当前增强读常用 8 拍 |
 | `XIP_MD_BIT_EN` | XIP mode 下使能 mode bits |
 
 ### `XIP_MBL`
@@ -78,7 +77,7 @@ NDF = max(frames, 1) - 1
 
 ### `INST_L`
 
-Dual/quad/octal mode 下 instruction length。
+Dual/quad mode 下 instruction length。
 
 | Value | Instruction length |
 | ---: | --- |
@@ -170,7 +169,7 @@ threshold 必须小于 Python settings 配置的 FIFO 深度，默认 FIFO 深�
 | `TFNF` | TX FIFO 不满 |
 | `BUSY` | 总线忙碌 |
 
-PIO 真实搬运可以用 `TFNF/RFNE/TFE/BUSY` 驱动。当前模板的内置搬运路径通过 scoreboard 和 DMA mover 建模数据效果。
+PIO 真实搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR`，读传输等待 `RFNE` 后读 `DR`。scoreboard 只接收最终写入的 expected data 或读回的 actual data，不替代 DUT 读路径。
 
 ## DMACR / DMATDLR / DMARDLR
 
@@ -185,9 +184,9 @@ PIO 真实搬运可以用 `TFNF/RFNE/TFE/BUSY` 驱动。当前模板的内置搬
 
 Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DMA 配置代码。
 
-内部 DMA 模式下，transfer 的 `use_dma` 为 `1` 时设置 `IDMAE = 1` 和 `AINC = 1`。数据搬运由 `core/dma_engine` 处理；寄存器配置不放在 DMA engine 内。
+内部 DMA 模式下，transfer 的 `use_dma` 为 `1` 时按方向设置 `RDMAE/TDMAE`，同时设置 `IDMAE = 1` 和 `AINC = 1`。数据搬运通过 callback 注入的 CPU 32-bit 读写访问 `axi_addr` buffer；寄存器配置不放在 callback 内。
 
-外部 DMA 模式下，transfer 的 `use_dma` 为 `1` 时根据传输方向设置 `RDMAE/TDMAE`。外部 DMA 不使用 `core/dma_engine`。
+外部 DMA 模式下，transfer 的 `use_dma` 为 `1` 时根据传输方向设置 `RDMAE/TDMAE`。外部 DMA 不使用内部 CPU buffer mover。
 
 ## AXIAWLEN / AXIARLEN / SPIDR / SPIAR / AXIAR0
 
@@ -195,8 +194,8 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DM
 
 | Register | Field | Source |
 | --- | --- | --- |
-| `AXIAWLEN` | `AWLEN` | per-transfer `awlen` |
-| `AXIARLEN` | `ARLEN` | per-transfer `arlen` |
+| `AXIAWLEN` | `AWLEN` | per-transfer `awlen << 8` |
+| `AXIARLEN` | `ARLEN` | per-transfer `arlen << 8` |
 | `SPIDR` | `SPI_INST` | 当前 transfer opcode，例如 flash read/page program opcode |
 | `SPIAR` | `SDAR` | 当前 payload address 的低 32 bit，表示 SPI device/flash address |
 | `AXIAR0` | `AXIAR0` | per-transfer `axi_addr` |

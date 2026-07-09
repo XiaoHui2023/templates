@@ -13,6 +13,12 @@ class {{ class_prefix }}callback extends uvm_callback;
 
     virtual task release_chip_select(int unsigned cs_id);
     endtask
+
+    virtual task cpu_read(bit [63:0] addr, output bit [31:0] data);
+    endtask
+
+    virtual task cpu_write(bit [63:0] addr, bit [31:0] data);
+    endtask
 endclass
 
 `endif

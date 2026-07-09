@@ -33,9 +33,8 @@ function bit [7:0] {{ class_prefix }}flash_read_seq::read_opcode(
         frame_mode_e frame_mode);
     case (speed_multiplier)
         1: return frame_mode == ENHANCED ? 8'h0B : 8'h03;
-        2: return 8'h3B;
+        2: return 8'hBB;
         4: return 8'hEB;
-        8: return 8'hEC;
         default: begin
             `uvm_fatal("DW_SPI", $sformatf(
                 "unsupported flash read speed_multiplier=%0d",
@@ -79,7 +78,7 @@ task {{ class_prefix }}flash_read_seq::body();
         `uvm_fatal("DW_SPI", "flash_read: failed to cast frame_mode")
     if (!$cast(frame_mode, cfg.frame_mode))
         `uvm_fatal("DW_SPI", "flash_read: failed to cast local frame_mode")
-    if (!$cast(op_req.transfer_mode, EEPROM_READ))
+    if (!$cast(op_req.transfer_mode, RX_ONLY))
         `uvm_fatal("DW_SPI", "flash_read: failed to cast transfer_mode")
     op_req.opcode = read_opcode(cfg.speed_multiplier, frame_mode);
     op_req.io_lanes = cfg.io_lanes;
@@ -106,6 +105,8 @@ task {{ class_prefix }}flash_read_seq::body();
     data.delete();
     if (op_rsp != null)
         data = op_rsp.read_data;
+    if (ok)
+        ok = p_sequencer.scoreboard.check_actual_read(address, data, "flash_read_actual");
     `uvm_info("DW_SPI_FLASH", $sformatf(
         "flash_read done: ok=%0b address=0x%08h requested=%0d received=%0d opcode=0x%02h",
         ok, address, length, data.size(), op_req.opcode), UVM_LOW)

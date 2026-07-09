@@ -15,9 +15,23 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             1: return CTRLR0_SPI_FRF_STANDARD;
             2: return CTRLR0_SPI_FRF_DUAL;
             4: return CTRLR0_SPI_FRF_QUAD;
-            8: return CTRLR0_SPI_FRF_OCTAL;
             default: return CTRLR0_SPI_FRF_STANDARD;
         endcase
+    endfunction
+
+    function int unsigned inst_l_from_bytes(int unsigned inst_bytes);
+        case (inst_bytes)
+            0: return 0;
+            1: return 2;
+            2: return 3;
+            default: return 2;
+        endcase
+    endfunction
+
+    function int unsigned addr_l_from_bytes(int unsigned addr_bytes);
+        if (addr_bytes == 0)
+            return 0;
+        return addr_bytes * 2;
     endfunction
 
     function longint unsigned ceil_div(
@@ -69,13 +83,20 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         int unsigned ndf;
         int unsigned spi_frf;
         int unsigned baudr;
+        int unsigned inst_l;
+        int unsigned addr_l;
+        int unsigned trans_type;
+        int unsigned cfg_ndf;
+        bit spi_ctrlr0_en;
+        int unsigned wait_cycles;
         longint unsigned ssi_clk_hz;
         host_mode_e host_mode;
+        frame_mode_e frame_mode;
         transfer_mode_e transfer_mode;
 {% if internal_dma %}
         bit write_internal_dma_regs;
 {% endif %}
-{% if external_dma %}
+{% if internal_dma or external_dma %}
         bit rdmae;
         bit tdmae;
 {% endif %}
@@ -92,6 +113,8 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             `uvm_fatal("DW_SPI_CFG", "transfer req payload is null")
         if (!$cast(host_mode, rq.host_mode))
             `uvm_fatal("DW_SPI_CFG", "failed to cast host_mode")
+        if (!$cast(frame_mode, rq.frame_mode))
+            `uvm_fatal("DW_SPI_CFG", "failed to cast frame_mode")
         if (!$cast(transfer_mode, rq.transfer_mode))
             `uvm_fatal("DW_SPI_CFG", "failed to cast transfer_mode")
         if (settings.vif == null)
@@ -112,12 +135,18 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         length = rq.payload.get_data_length();
         ndf = ndf_from_payload_bytes(length, rq.data_frame_bits);
         spi_frf = spi_frf_from_speed(rq.speed_multiplier);
+        inst_l = inst_l_from_bytes(rq.inst_bytes);
+        addr_l = addr_l_from_bytes(rq.addr_bytes);
+        trans_type = frame_mode == ENHANCED ? 1 : 0;
+        spi_ctrlr0_en = frame_mode == ENHANCED;
+        wait_cycles = spi_ctrlr0_en ? rq.dummy_cycles : 0;
+        cfg_ndf = (transfer_mode inside {RX_ONLY, EEPROM_READ}) ? ndf : 0;
 {% if internal_dma %}
         write_internal_dma_regs = rq.use_dma;
         flash_addr = rq.payload.get_address();
         sdar = flash_addr[31:0];
 {% endif %}
-{% if external_dma %}
+{% if internal_dma or external_dma %}
         rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX});
         tdmae = rq.use_dma && (transfer_mode inside {TX_ONLY, TX_AND_RX});
 {% endif %}
@@ -132,21 +161,24 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         cfg.transfer_mode.rand_mode(0);
         if (!cfg.randomize() with {
                 spi_frf == local::spi_frf;
+                spi_ctrlr0_en == local::spi_ctrlr0_en;
+                wait_cycles == local::wait_cycles;
+                inst_l == local::inst_l;
+                addr_l == local::addr_l;
+                trans_type == local::trans_type;
                 spi_mode == rq.spi_mode;
                 data_frame_bits == rq.data_frame_bits;
                 baudr == local::baudr;
-                if (local::transfer_mode inside {RX_ONLY, EEPROM_READ}) {
-                    ndf == local::ndf;
-                } else {
-                    ndf == 0;
-                }
+                ndf == local::cfg_ndf;
                 ser == (32'h1 << rq.cs_id);
 {% if internal_dma %}
                 write_internal_dma_regs == local::write_internal_dma_regs;
+                rdmae == local::rdmae;
+                tdmae == local::tdmae;
                 idmae == local::write_internal_dma_regs;
                 ainc == local::write_internal_dma_regs;
-                awlen == rq.awlen;
-                arlen == rq.arlen;
+                awlen == ({8'h0, rq.awlen} << 8);
+                arlen == ({8'h0, rq.arlen} << 8);
                 spi_inst == {24'h0, rq.opcode};
                 sdar == local::sdar;
                 axiar0 == rq.axi_addr;

@@ -31,9 +31,9 @@ endclass
 function bit [7:0] {{ class_prefix }}flash_write_seq::page_program_opcode(
         int unsigned speed_multiplier);
     case (speed_multiplier)
-        1, 2: return 8'h02;
+        1: return 8'h02;
+        2: return 8'hA2;
         4: return 8'h32;
-        8: return 8'h12;
         default: begin
             `uvm_fatal("DW_SPI", $sformatf(
                 "unsupported flash write speed_multiplier=%0d",
@@ -52,7 +52,7 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     cfg = configuration;
     op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
-    op_req.payload.set_command(UVM_TLM_READ_COMMAND);
+    op_req.payload.set_command(UVM_TLM_WRITE_COMMAND);
     op_req.payload.set_address(0);
     op_req.payload.set_data_length(0);
     if (!$cast(op_req.host_mode, cfg.host_mode))
@@ -114,7 +114,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
         `uvm_fatal("DW_SPI", "flash_write: failed to cast protocol")
     if (!$cast(op_req.frame_mode, cfg.frame_mode))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast frame_mode")
-    if (!$cast(op_req.transfer_mode, TX_ONLY))
+    if (!$cast(op_req.transfer_mode, TX_AND_RX))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast transfer_mode")
     op_req.opcode = page_program_opcode(cfg.speed_multiplier);
     op_req.io_lanes = cfg.io_lanes;

@@ -17,9 +17,9 @@
 4. 配置 `IMR` 并写 `ICR` 清中断。
 5. 写 `SER.SER = 0`，释放片选。
 6. 根据 `settings.ssi_variant` 选择 PSSI/HSSI 字段集合，配置 `CTRLR0`。
-7. 配置 `CTRLR1.NDF`、`BAUDR.SCKDV`、`TXFTLR.TFT`、`RXFTLR.RFT`。
-8. DMA 生成模式开启时配置 `DMACR` 和 DMA threshold；内部 DMA 写 `IDMAE/AINC`，外部 DMA 写 `RDMAE/TDMAE`。
-9. 内部 DMA 模式下配置 `AXIAWLEN.AWLEN`、`AXIARLEN.ARLEN`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`；外部 DMA 和无 DMA 模式不写这些寄存器。
+7. 配置 `SPI_CTRLR0.WAIT_CYCLES/INST_L/ADDR_L/TRANS_TYPE`（仅增强模式）、`CTRLR1.NDF`、`BAUDR.SCKDV`、`TXFTLR.TFT`、`RXFTLR.RFT`。
+8. DMA 生成模式开启时配置 `DMACR` 和 DMA threshold；内部 DMA 写 `RDMAE/TDMAE/IDMAE/AINC`，外部 DMA 写 `RDMAE/TDMAE`。
+9. 内部 DMA 模式下配置 `AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`；外部 DMA 和无 DMA 模式不写这些寄存器。
 10. 按 `write_rx_sample_delay` 决定是否配置 `RX_SAMPLE_DELAY.RSD`。
 11. 写 `SER.SER` 和 `SSIENR.SSIC_EN`，完成本次配置。
 

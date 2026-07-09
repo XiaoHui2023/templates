@@ -57,4 +57,4 @@ scoreboard 不消费协议专用 transfer 类，也不配置寄存器。
 | `check_actual_write()` | 检查真实写入数据 |
 | `compare_actual()` | 通用逐 byte 比较 |
 
-读写测试中，sequence 先写入，再读回，然后用 `compare_actual(address, write_data, "model_readback")` 检查 mirror 中的数据是否与写入数据一致。
+读写测试中，sequence 先写入，再读回，然后用 `check_actual_read(address, read_data, "rw_readback_actual")` 检查 DUT 读回数据是否与 mirror 一致。`read_data` 必须来自读传输从 `DR` 读回的 actual data，不能由 scoreboard 自己合成。

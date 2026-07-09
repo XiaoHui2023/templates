@@ -6,6 +6,11 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         `uvm_field_enum(host_mode_e, host_mode, UVM_ALL_ON)
         `uvm_field_enum(transfer_mode_e, transfer_mode, UVM_ALL_ON)
         `uvm_field_int(spi_frf, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(spi_ctrlr0_en, UVM_ALL_ON)
+        `uvm_field_int(wait_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(inst_l, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(addr_l, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(trans_type, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ndf, UVM_ALL_ON | UVM_DEC)
@@ -23,8 +28,6 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
 {% if internal_dma or external_dma %}
         `uvm_field_int(dmatdl, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dmardl, UVM_ALL_ON | UVM_DEC)
-{% endif %}
-{% if external_dma %}
         `uvm_field_int(rdmae, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(tdmae, UVM_ALL_ON | UVM_DEC)
 {% endif %}
@@ -47,6 +50,11 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     rand host_mode_e host_mode;
     rand transfer_mode_e transfer_mode;
     rand int unsigned spi_frf;
+    rand bit spi_ctrlr0_en;
+    rand int unsigned wait_cycles;
+    rand int unsigned inst_l;
+    rand int unsigned addr_l;
+    rand int unsigned trans_type;
     rand int unsigned spi_mode;
     rand int unsigned data_frame_bits;
     rand int unsigned ndf;
@@ -64,8 +72,6 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
 {% if internal_dma or external_dma %}
     rand int unsigned dmatdl;
     rand int unsigned dmardl;
-{% endif %}
-{% if external_dma %}
     rand bit rdmae;
     rand bit tdmae;
 {% endif %}
@@ -73,8 +79,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     rand bit write_internal_dma_regs;
     rand bit idmae;
     rand bit ainc;
-    rand bit [7:0] awlen;
-    rand bit [7:0] arlen;
+    rand bit [15:0] awlen;
+    rand bit [15:0] arlen;
     rand bit [31:0] spi_inst;
     rand bit [31:0] sdar;
     rand bit [31:0] axiar0;
@@ -87,7 +93,12 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     endfunction
 
     constraint cst {
-        spi_frf inside {0, 1, 2, 3};
+        spi_frf inside {0, 1, 2};
+        soft spi_ctrlr0_en == 1'b0;
+        wait_cycles inside {[0:31]};
+        inst_l inside {[0:3]};
+        addr_l inside {[0:15]};
+        trans_type inside {[0:2]};
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
         ssi_en == 1'b1;
@@ -98,6 +109,10 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         rxfim == 1'b0;
         mstim == 1'b0;
 {% if external_dma %}
+        soft rdmae == 1'b0;
+        soft tdmae == 1'b0;
+{% endif %}
+{% if internal_dma %}
         soft rdmae == 1'b0;
         soft tdmae == 1'b0;
 {% endif %}

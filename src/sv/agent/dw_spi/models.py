@@ -29,7 +29,7 @@ class Models(BaseModel):
         4,
         description="Default SPI data lanes used by per-transfer configuration constraints.",
     )
-    default_speed_multiplier: Literal[1, 2, 4, 8] = Field(
+    default_speed_multiplier: Literal[1, 2, 4] = Field(
         4,
         description="Default transfer-rate multiplier used by per-transfer configuration constraints.",
     )
@@ -38,7 +38,7 @@ class Models(BaseModel):
         description="Default standard/enhanced transfer mode used by per-transfer configuration constraints.",
     )
     default_data_frame_bits: int = Field(
-        32,
+        8,
         ge=4,
         le=32,
         description="Default data frame size used by per-transfer configuration constraints.",

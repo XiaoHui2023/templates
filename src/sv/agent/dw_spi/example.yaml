@@ -4,7 +4,7 @@ ssi_variant: PSSI
 default_io_lanes: 4
 default_speed_multiplier: 4
 default_frame_mode: ENHANCED
-default_data_frame_bits: 32
+default_data_frame_bits: 8
 num_cs: 4
 default_spi_mode: 0
 default_cs: 0

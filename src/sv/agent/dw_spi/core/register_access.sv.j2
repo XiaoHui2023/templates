@@ -20,6 +20,104 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         endcase
     endfunction
 
+    task wait_tfnf(output bit ok);
+        uvm_status_e status;
+        uvm_reg_data_t reg_data;
+
+        ok = 1'b0;
+        repeat (settings.interrupt_timeout_ssi_clk_cycles) begin
+            settings.regmodel.SR.read(status, reg_data);
+            if (status != UVM_IS_OK) begin
+                `uvm_error("DW_SPI_REG", $sformatf("read SR failed while waiting TFNF status=%s", status.name()))
+                return;
+            end
+            if (settings.regmodel.SR.TFNF.get()) begin
+                ok = 1'b1;
+                return;
+            end
+        end
+        `uvm_error("DW_SPI_REG", "timeout waiting SR.TFNF before DR write")
+    endtask
+
+    task wait_rfne(output bit ok);
+        uvm_status_e status;
+        uvm_reg_data_t reg_data;
+
+        ok = 1'b0;
+        repeat (settings.interrupt_timeout_ssi_clk_cycles) begin
+            settings.regmodel.SR.read(status, reg_data);
+            if (status != UVM_IS_OK) begin
+                `uvm_error("DW_SPI_REG", $sformatf("read SR failed while waiting RFNE status=%s", status.name()))
+                return;
+            end
+            if (settings.regmodel.SR.RFNE.get()) begin
+                ok = 1'b1;
+                return;
+            end
+        end
+        `uvm_error("DW_SPI_REG", "timeout waiting SR.RFNE before DR read")
+    endtask
+
+    task write_payload_to_dr(uvm_tlm_generic_payload payload, output bit ok);
+        uvm_status_e status;
+        byte unsigned gp_data[];
+        bit ready;
+
+        ok = 1'b1;
+        if (payload == null)
+            `uvm_fatal("DW_SPI_REG", "payload is null")
+        payload.get_data(gp_data);
+        foreach (gp_data[i]) begin
+            wait_tfnf(ready);
+            if (!ready) begin
+                ok = 1'b0;
+                return;
+            end
+            settings.regmodel.DR.write(status, uvm_reg_data_t'(gp_data[i]));
+            if (status != UVM_IS_OK) begin
+                `uvm_error("DW_SPI_REG", $sformatf("write DR failed index=%0d status=%s", i, status.name()))
+                ok = 1'b0;
+                return;
+            end
+        end
+        `uvm_info("DW_SPI_REG", $sformatf("wrote %0d byte(s) to DR", gp_data.size()), UVM_LOW)
+    endtask
+
+    task read_dr_to_payload(
+            uvm_tlm_generic_payload payload,
+            output bit [7:0] read_data[$],
+            output bit ok);
+        uvm_status_e status;
+        uvm_reg_data_t reg_data;
+        byte unsigned gp_data[];
+        bit ready;
+        int unsigned length;
+
+        ok = 1'b1;
+        read_data.delete();
+        if (payload == null)
+            `uvm_fatal("DW_SPI_REG", "payload is null")
+        length = payload.get_data_length();
+        gp_data = new[length];
+        for (int unsigned i = 0; i < length; i++) begin
+            wait_rfne(ready);
+            if (!ready) begin
+                ok = 1'b0;
+                return;
+            end
+            settings.regmodel.DR.read(status, reg_data);
+            if (status != UVM_IS_OK) begin
+                `uvm_error("DW_SPI_REG", $sformatf("read DR failed index=%0d status=%s", i, status.name()))
+                ok = 1'b0;
+                return;
+            end
+            read_data.push_back(reg_data[7:0]);
+            gp_data[i] = reg_data[7:0];
+        end
+        payload.set_data(gp_data);
+        `uvm_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_LOW)
+    endtask
+
     task apply_configuration({{ class_prefix }}configuration cfg);
         uvm_status_e status;
         host_mode_e host_mode;
@@ -83,6 +181,19 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         if (status != UVM_IS_OK)
             `uvm_error("DW_SPI_REG", $sformatf("write CTRLR0 failed status=%s", status.name()))
 
+        if (cfg.spi_ctrlr0_en) begin
+            settings.regmodel.SPI_CTRLR0.read(status, reg_data);
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("read SPI_CTRLR0 failed status=%s", status.name()))
+            settings.regmodel.SPI_CTRLR0.WAIT_CYCLES.set(cfg.wait_cycles);
+            settings.regmodel.SPI_CTRLR0.INST_L.set(cfg.inst_l);
+            settings.regmodel.SPI_CTRLR0.ADDR_L.set(cfg.addr_l);
+            settings.regmodel.SPI_CTRLR0.TRANS_TYPE.set(cfg.trans_type);
+            settings.regmodel.SPI_CTRLR0.write(status, settings.regmodel.SPI_CTRLR0.get());
+            if (status != UVM_IS_OK)
+                `uvm_error("DW_SPI_REG", $sformatf("write SPI_CTRLR0 failed status=%s", status.name()))
+        end
+
         settings.regmodel.CTRLR1.read(status, reg_data);
         if (status != UVM_IS_OK)
             `uvm_error("DW_SPI_REG", $sformatf("read CTRLR1 failed status=%s", status.name()))
@@ -124,6 +235,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         settings.regmodel.DMACR.TDMAE.set(cfg.tdmae);
 {% endif %}
 {% if internal_dma %}
+        settings.regmodel.DMACR.RDMAE.set(cfg.rdmae);
+        settings.regmodel.DMACR.TDMAE.set(cfg.tdmae);
         settings.regmodel.DMACR.IDMAE.set(cfg.idmae);
         settings.regmodel.DMACR.AINC.set(cfg.ainc);
 {% endif %}

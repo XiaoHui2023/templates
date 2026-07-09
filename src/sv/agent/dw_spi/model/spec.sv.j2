@@ -11,7 +11,6 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
     localparam int unsigned CTRLR0_SPI_FRF_STANDARD = 0;
     localparam int unsigned CTRLR0_SPI_FRF_DUAL = 1;
     localparam int unsigned CTRLR0_SPI_FRF_QUAD = 2;
-    localparam int unsigned CTRLR0_SPI_FRF_OCTAL = 3;
 {% if external_dma %}
     localparam int unsigned DMACR_RDMAE = 0;
     localparam int unsigned DMACR_TDMAE = 1;

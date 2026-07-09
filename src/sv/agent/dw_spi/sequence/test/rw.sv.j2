@@ -7,7 +7,7 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}spec#(uvm_sequence
         `uvm_field_queue_int(write_data, UVM_ALL_ON | UVM_HEX)
         `uvm_field_object(configuration, UVM_ALL_ON)
         `uvm_field_int(ok, UVM_ALL_ON)
-        `uvm_field_queue_int(model_read_data, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_queue_int(read_data, UVM_ALL_ON | UVM_HEX)
     `uvm_object_utils_end
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
@@ -15,7 +15,7 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}spec#(uvm_sequence
     rand bit [7:0] write_data[$];
     {{ class_prefix }}transfer_configuration configuration;
     bit ok;
-    bit [7:0] model_read_data[$];
+    bit [7:0] read_data[$];
 
     function new(string name="{{ class_prefix }}rw_test_seq");
         super.new(name);
@@ -48,7 +48,7 @@ task {{ class_prefix }}rw_test_seq::body();
     end
     cfg = configuration;
     ok = 1'b1;
-    model_read_data.delete();
+    read_data.delete();
     `uvm_info("DW_SPI_TEST", $sformatf(
         "rw_test start: address=0x%08h bytes=%0d lanes=%0d speed=%0dx frame=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
@@ -74,15 +74,15 @@ task {{ class_prefix }}rw_test_seq::body();
     if (!rd_seq.ok)
         ok = 1'b0;
     else
-        model_read_data = rd_seq.data;
+        read_data = rd_seq.data;
 
     if (ok) begin
-        ok = p_sequencer.scoreboard.compare_actual(
-            address, write_data, "model_readback");
+        ok = p_sequencer.scoreboard.check_actual_read(
+            address, read_data, "rw_readback_actual");
     end
     `uvm_info("DW_SPI_TEST", $sformatf(
         "rw_test done: ok=%0b address=0x%08h bytes=%0d read_bytes=%0d",
-        ok, address, write_data.size(), model_read_data.size()), UVM_LOW)
+        ok, address, write_data.size(), read_data.size()), UVM_LOW)
 endtask
 
 `endif

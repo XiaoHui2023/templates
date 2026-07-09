@@ -42,7 +42,7 @@ uvm_sequence_item
 
 继承后类内直接写 `MASTER`、`FLASH_SPI`、`ENHANCED`、`EEPROM_READ`，不要写 `settings::` 或 `spec::`。`settings::type_id::create` 是 UVM factory 用法，不属于 enum/constant 命名空间。
 
-凡是作为 operation req/rsp 或传输配置包传播的数据包，统一继承 `dw_spi_spec#(uvm_sequence_item)`。flow/test 扁平化为单文件 sequence，输入字段和返回字段直接放在 sequence 类中。运行期 settings、mem、register_access、dma_engine 这类工具或共享对象才继承 `dw_spi_spec#(uvm_object)`。
+凡是作为 operation req/rsp 或传输配置包传播的数据包，统一继承 `dw_spi_spec#(uvm_sequence_item)`。flow/test 扁平化为单文件 sequence，输入字段和返回字段直接放在 sequence 类中。运行期 settings、mem、register_access 这类工具或共享对象才继承 `dw_spi_spec#(uvm_object)`。
 
 ## `spec.sv`
 
@@ -101,12 +101,12 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | 字段 | 用途 |
 | --- | --- |
 | `host_mode` | 主机/从机模式；影响 `CTRLR0.SSI_IS_MST` 和 sequence 行为。 |
-| `frame_mode` | 标准/增强模式；增强模式允许 2/4/8 倍速。 |
+| `frame_mode` | 标准/增强模式；增强模式允许 2/4 倍速。 |
 | `io_lanes` | 1/2/4 线传输选择。 |
-| `speed_multiplier` | 1/2/4/8 倍速；映射到 `CTRLR0.SPI_FRF`。 |
+| `speed_multiplier` | 1/2/4 倍速；映射到 `CTRLR0.SPI_FRF`。 |
 | `use_dma` | 仅在 Python 开启内部或外部 DMA 时生成；默认约束为 0。 |
-| `awlen` | 仅内部 DMA 生成，配置 `AXIAWLEN.AWLEN`。 |
-| `arlen` | 仅内部 DMA 生成，配置 `AXIARLEN.ARLEN`。 |
+| `awlen` | 仅内部 DMA 生成；builder 转成 `awlen << 8` 后配置 `AXIAWLEN.AWLEN`。 |
+| `arlen` | 仅内部 DMA 生成；builder 转成 `arlen << 8` 后配置 `AXIARLEN.ARLEN`。 |
 | `axi_addr` | 仅内部 DMA 生成，写入 `AXIAR0.AXIAR0`。 |
 | `spi_mode` | SPI mode 0-3；用于 CPOL/CPHA 相关配置。 |
 | `data_frame_bits` | 每帧数据位宽。 |
@@ -116,7 +116,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 
 这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。主机测试默认创建 `host_configuration`，从机测试可显式创建 `slave_configuration`。
 
-DMA 生成模式由 Python `internal_dma` 和 `external_dma` 决定，二者不能同时为 true。两者都为 false 时不生成 DMA 字段、DMA 寄存器配置和 `dma_engine` filelist 条目。
+DMA 生成模式由 Python `internal_dma` 和 `external_dma` 决定，二者不能同时为 true。两者都为 false 时不生成 DMA 字段和 DMA 寄存器配置。
 
 `rw_test_seq` 的 `address` 默认约束为 0。`write_data` 为空时，test sequence 会随机生成一段数据；长度由 Python 配置 `default_rw_data_bytes` 生成，默认 256 字节。
 
@@ -129,6 +129,11 @@ DMA 生成模式由 Python `internal_dma` 和 `external_dma` 决定，二者不�
 | `host_mode` | 配置 `CTRLR0.SSI_IS_MST`。 |
 | `transfer_mode` | 配置 `CTRLR0.TMOD`。 |
 | `spi_frf` | 配置 `CTRLR0.SPI_FRF`。 |
+| `spi_ctrlr0_en` | 增强模式下写 `SPI_CTRLR0`。 |
+| `wait_cycles` | 配置 `SPI_CTRLR0.WAIT_CYCLES`；增强读默认来自 `dummy_cycles`，常用 8 拍。 |
+| `inst_l` | 配置 `SPI_CTRLR0.INST_L`。 |
+| `addr_l` | 配置 `SPI_CTRLR0.ADDR_L`。 |
+| `trans_type` | 配置 `SPI_CTRLR0.TRANS_TYPE`；当前增强 flash flow 使用 instruction 标准、address 按 `SPI_FRF` 的格式。 |
 | `spi_mode` | 配置 `CTRLR0.SCPOL/SCPH`。 |
 | `data_frame_bits` | 配置 `CTRLR0.DFS`。 |
 | `ndf` | 配置 `CTRLR1.NDF`，单位是 DFS frame，不是 byte。 |
@@ -140,12 +145,12 @@ DMA 生成模式由 Python `internal_dma` 和 `external_dma` 决定，二者不�
 | `txeim/txoim/rxuim/rxoim/rxfim/mstim` | 配置 `IMR` 各中断 mask field。 |
 | `dmatdl` | 仅 DMA 模式生成，配置 `DMATDLR.DMATDL`。 |
 | `dmardl` | 仅 DMA 模式生成，配置 `DMARDLR.DMARDL`。 |
-| `rdmae/tdmae` | 仅外部 DMA 生成，配置 `DMACR.RDMAE/TDMAE`。 |
+| `rdmae/tdmae` | DMA 生成时配置 `DMACR.RDMAE/TDMAE`；内部 DMA 也按传输方向打开握手位。 |
 | `write_internal_dma_regs` | 仅内部 DMA 生成，控制是否写 `AXIAWLEN/AXIARLEN/SPIDR/SPIAR/AXIAR0`。 |
 | `idmae` | 仅内部 DMA 生成，配置 `DMACR.IDMAE`。 |
 | `ainc` | 仅内部 DMA 生成，配置 `DMACR.AINC`。 |
-| `awlen` | 配置 `AXIAWLEN.AWLEN`。 |
-| `arlen` | 配置 `AXIARLEN.ARLEN`。 |
+| `awlen` | 配置 `AXIAWLEN.AWLEN`，内部 DMA 使用 `awlen << 8` 后的寄存器字段值。 |
+| `arlen` | 配置 `AXIARLEN.ARLEN`，内部 DMA 使用 `arlen << 8` 后的寄存器字段值。 |
 | `spi_inst` | 配置 `SPIDR.SPI_INST`，来自当前 transfer opcode。 |
 | `sdar` | 配置 `SPIAR.SDAR`，来自 payload address 的低 32 bit。 |
 | `axiar0` | 配置 `AXIAR0.AXIAR0`，来自 `axi_addr`。 |

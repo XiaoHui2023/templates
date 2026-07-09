@@ -11,7 +11,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | 参数 | 说明 |
 | --- | --- |
 | `io_lanes` | 本次传输使用 1/2/4 线。 |
-| `speed_multiplier` | 本次传输使用 1/2/4/8 倍速。 |
+| `speed_multiplier` | 本次传输使用 1/2/4 倍速。 |
 | `spi_mode` | SPI mode 0-3。 |
 | `data_frame_bits` | 数据帧位宽。 |
 | `cs_id` | 片选编号。 |
@@ -102,6 +102,6 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 
 ## 边界
 
-`kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里设置明确的大写 REG/FIELD，并由所属 REG `update/read/write`。
+`kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里设置明确的大写 REG/FIELD，并由所属 REG `read/write`。
 
 `kit_sequencer` 不输出 `actual_read_data` 或 result。测试 sequence 会把读写结果送到 scoreboard，scoreboard 用内部 mem mirror 自动校验。
