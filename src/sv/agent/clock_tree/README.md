@@ -40,6 +40,8 @@ settings:
 
 纯 model 寄存器配置可使用 `settings.direct_config: true`。该模式生成 `model/model.f`，`all.f` 只通过 `-F model/model.f` 引用 model 目录内文件；配置入口为 `<class_prefix>config_reg(tree)`，用于不接 agent、只用 model 完成寄存器配置的场景。
 
+`direct_check` 和 `direct_config` 相互独立，可以同时开启。
+
 ## Agent 使用
 
 完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；如果配置中有 `clk.path`，还要在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree, tree_if)` 连接测量接口。

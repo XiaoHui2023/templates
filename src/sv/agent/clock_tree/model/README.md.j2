@@ -1,31 +1,37 @@
+{% if settings.direct_config %}
 # model
 
+输入 `class_regmodel` 寄存器。
+
+{% if first_clk_name %}
+以 {{ first_clk_name }} 为例。
+
+{% endif %}
 ```systemverilog
 {{ settings.class_prefix }}tree tree;
 
-initial begin
-    // 例化 tree
-    tree = {{ settings.class_prefix }}tree::type_id::create("tree");
+// 例化 tree
+tree = {{ settings.class_prefix }}tree::type_id::create("tree");
 {% if regs_enabled %}
-    // 绑定寄存器并随机化
-    tree.build(your_regmodel);
+// 绑定寄存器
+tree.build(your_regmodel);
 
-    // 进入低功耗状态
-    tree.low_power();
+// 尽可能关闭全部时钟
+tree.low_power();
 {% if first_clk_name %}
 
-    // 使能目标时钟
-    tree.{{ first_clk_name }}.enabled = 1;
+// 使能目标时钟
+tree.{{ first_clk_name }}.enabled = 1;
 
-    // 设置目标频率
-    tree.{{ first_clk_name }}.frequence = 123456000;
+// 设置目标频率
+tree.{{ first_clk_name }}.frequence = 123456000;
 {% endif %}
 
-    // 写入寄存器配置
-    {{ settings.class_prefix }}config_reg(tree);
+// 写入寄存器配置
+{{ settings.class_prefix }}config_reg(tree);
 {% else %}
-    // 随机化
-    tree.build();
+// 随机化
+tree.build();
 {% endif %}
-end
 ```
+{% endif %}

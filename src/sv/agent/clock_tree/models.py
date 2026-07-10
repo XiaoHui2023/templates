@@ -220,14 +220,12 @@ class Models(BaseModel):
 
     @model_validator(mode="after")
     def _validate_nodes_for_mode(self) -> Models:
-        if self.settings.direct_check and self.settings.direct_config:
-            raise ValueError("direct_check 与 direct_config 不可同时为真")
         if self.settings.probe_mode:
             if not self.tree.nodes_ordered:
                 raise ValueError(
                     "probe_mode 为真时须至少包含一个 freq 为正数或 disable 为真的 clk 节点"
                 )
-        elif not self.settings.direct_check:
+        elif not self.settings.direct_check or self.settings.direct_config:
             validate_nodes_graph(self.nodes)
         if self.settings.direct_check:
             if not any(
@@ -241,7 +239,7 @@ class Models(BaseModel):
             raise ValueError("direct_config 为真时须至少配置一个 reg 或 regs")
         if (
             self.any_regs_configured
-            and not self.settings.direct_check
+            and (not self.settings.direct_check or self.settings.direct_config)
             and not self.settings.class_regmodel
         ):
             raise ValueError(

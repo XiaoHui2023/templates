@@ -1,8 +1,10 @@
 {% if settings.direct_check and any_node_path %}
 -F top/top.f
-{% elif settings.direct_config %}
+{% endif %}
+{% if settings.direct_config %}
 -F model/model.f
-{% else %}
+{% endif %}
+{% if not settings.direct_check and not settings.direct_config %}
 model/spec.sv
 {% if any_node_path %}
 top/measure_interface.sv
