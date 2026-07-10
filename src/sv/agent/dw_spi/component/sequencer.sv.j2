@@ -15,8 +15,8 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     endfunction
 
     extern function void build_phase(uvm_phase phase);
-    extern task activate_chip_select(int unsigned cs_id);
-    extern task release_chip_select(int unsigned cs_id);
+    extern task activate_chip_select(int cs_id);
+    extern task release_chip_select(int cs_id);
     extern task cpu_read(bit [63:0] addr, output bit [31:0] data);
     extern task cpu_write(bit [63:0] addr, bit [31:0] data);
 endclass
@@ -36,11 +36,11 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
         vif = settings.vif;
 endfunction
 
-task {{ class_prefix }}sequencer::activate_chip_select(int unsigned cs_id);
+task {{ class_prefix }}sequencer::activate_chip_select(int cs_id);
     `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, activate_chip_select(cs_id))
 endtask
 
-task {{ class_prefix }}sequencer::release_chip_select(int unsigned cs_id);
+task {{ class_prefix }}sequencer::release_chip_select(int cs_id);
     `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, release_chip_select(cs_id))
 endtask
 

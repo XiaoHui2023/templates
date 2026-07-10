@@ -33,14 +33,14 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
     rand frame_mode_e frame_mode;
     rand transfer_mode_e transfer_mode;
     rand bit [7:0] opcode;
-    rand int unsigned io_lanes;
-    rand int unsigned speed_multiplier;
-    rand int unsigned spi_mode;
-    rand int unsigned data_frame_bits;
-    rand int unsigned cs_id;
-    rand int unsigned inst_bytes;
-    rand int unsigned addr_bytes;
-    rand int unsigned dummy_cycles;
+    rand int io_lanes;
+    rand int speed_multiplier;
+    rand int spi_mode;
+    rand int data_frame_bits;
+    rand int cs_id;
+    rand int inst_bytes;
+    rand int addr_bytes;
+    rand int dummy_cycles;
 {% if internal_dma or external_dma %}
     rand bit use_dma;
 {% endif %}

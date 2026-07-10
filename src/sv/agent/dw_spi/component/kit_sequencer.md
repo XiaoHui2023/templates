@@ -43,12 +43,12 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | --- | --- | --- |
 | `address` | `bit [31:0]` | flash 起始地址 |
 | `data` | `bit [7:0] $` | 写入数据 |
-| `io_lanes` | `int unsigned` | 可选传输配置 |
-| `speed_multiplier` | `int unsigned` | 可选传输配置 |
-| `spi_mode` | `int unsigned` | 可选传输配置 |
-| `data_frame_bits` | `int unsigned` | 可选传输配置 |
-| `cs_id` | `int unsigned` | 可选传输配置 |
-| `addr_bytes` | `int unsigned` | 可选传输配置 |
+| `io_lanes` | `int` | 可选传输配置 |
+| `speed_multiplier` | `int` | 可选传输配置 |
+| `spi_mode` | `int` | 可选传输配置 |
+| `data_frame_bits` | `int` | 可选传输配置 |
+| `cs_id` | `int` | 可选传输配置 |
+| `addr_bytes` | `int` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
 | `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
 | `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
@@ -61,13 +61,13 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
 | `address` | `bit [31:0]` | flash 起始地址 |
-| `length` | `int unsigned` | 读长度 |
-| `io_lanes` | `int unsigned` | 可选传输配置 |
-| `speed_multiplier` | `int unsigned` | 可选传输配置 |
-| `spi_mode` | `int unsigned` | 可选传输配置 |
-| `data_frame_bits` | `int unsigned` | 可选传输配置 |
-| `cs_id` | `int unsigned` | 可选传输配置 |
-| `addr_bytes` | `int unsigned` | 可选传输配置 |
+| `length` | `int` | 读长度 |
+| `io_lanes` | `int` | 可选传输配置 |
+| `speed_multiplier` | `int` | 可选传输配置 |
+| `spi_mode` | `int` | 可选传输配置 |
+| `data_frame_bits` | `int` | 可选传输配置 |
+| `cs_id` | `int` | 可选传输配置 |
+| `addr_bytes` | `int` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
 | `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
 | `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
@@ -89,12 +89,12 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | --- | --- | --- |
 | `address` | `bit [31:0]` | flash 起始地址，默认 0 |
 | `write_data` | `bit [7:0] $` | 写入数据；空队列表示随机数据 |
-| `io_lanes` | `int unsigned` | 可选传输配置 |
-| `speed_multiplier` | `int unsigned` | 可选传输配置 |
-| `spi_mode` | `int unsigned` | 可选传输配置 |
-| `data_frame_bits` | `int unsigned` | 可选传输配置 |
-| `cs_id` | `int unsigned` | 可选传输配置 |
-| `addr_bytes` | `int unsigned` | 可选传输配置 |
+| `io_lanes` | `int` | 可选传输配置 |
+| `speed_multiplier` | `int` | 可选传输配置 |
+| `spi_mode` | `int` | 可选传输配置 |
+| `data_frame_bits` | `int` | 可选传输配置 |
+| `cs_id` | `int` | 可选传输配置 |
+| `addr_bytes` | `int` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
 | `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
 | `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |

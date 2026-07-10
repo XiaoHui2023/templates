@@ -13,8 +13,8 @@ class {{ class_prefix }}check_clock_rsp extends {{ class_prefix }}spec#(uvm_sequ
     bit ok;
     bit hclk_connected;
     bit ssi_clk_connected;
-    longint unsigned hclk_hz;
-    longint unsigned ssi_clk_hz;
+    longint hclk_hz;
+    longint ssi_clk_hz;
 
     function new(string name="{{ class_prefix }}check_clock_rsp");
         super.new(name);

@@ -18,17 +18,17 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     `uvm_object_utils_end
 
     rand ssi_variant_e ssi_variant;
-    rand longint unsigned target_sclk_hz;
-    rand int unsigned fifo_depth_bytes;
-    rand longint unsigned min_hclk_hz;
-    rand longint unsigned min_ssi_clk_hz;
-    rand int unsigned clock_check_tolerance_ppm;
-    rand int unsigned interrupt_timeout_margin_percent;
-    rand int unsigned interrupt_timeout_extra_ssi_clk_cycles;
-    rand int unsigned fifo_status_timeout_ssi_clk_cycles;
-    rand int unsigned default_tx_fifo_threshold;
-    rand int unsigned default_rx_fifo_threshold;
-    rand int unsigned default_rx_sample_delay_ns;
+    rand longint target_sclk_hz;
+    rand int fifo_depth_bytes;
+    rand longint min_hclk_hz;
+    rand longint min_ssi_clk_hz;
+    rand int clock_check_tolerance_ppm;
+    rand int interrupt_timeout_margin_percent;
+    rand int interrupt_timeout_extra_ssi_clk_cycles;
+    rand int fifo_status_timeout_ssi_clk_cycles;
+    rand int default_tx_fifo_threshold;
+    rand int default_rx_fifo_threshold;
+    rand int default_rx_sample_delay_ns;
     {{ regmodel_type }} regmodel;
     virtual {{ class_prefix }}interface vif;
 

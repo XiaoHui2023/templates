@@ -5,16 +5,16 @@ interface {{ class_prefix }}clock_if(input logic clk);
     timeunit 1ns;
     timeprecision 1fs;
 
-    localparam longint unsigned HZ_PER_SEC = 1000000000;
+    localparam longint HZ_PER_SEC = 1000000000;
 
     function bit is_connected();
         return !$isunknown(clk);
     endfunction
 
     task automatic measure_frequency_hz(
-            output longint unsigned frequency_hz,
-            input longint unsigned min_frequency_hz,
-            input int unsigned tolerance_ppm = {{ clock_check_tolerance_ppm }});
+            output longint frequency_hz,
+            input longint min_frequency_hz,
+            input int tolerance_ppm = {{ clock_check_tolerance_ppm }});
         realtime first_edge_ns;
         realtime last_edge_ns;
         realtime elapsed_ns;

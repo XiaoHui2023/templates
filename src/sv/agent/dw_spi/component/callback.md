@@ -14,11 +14,11 @@ class my_spi_cb extends dw_spi_callback;
         super.new(name);
     endfunction
 
-    virtual task activate_chip_select(int unsigned cs_id);
+    virtual task activate_chip_select(int cs_id);
         // drive CS active
     endtask
 
-    virtual task release_chip_select(int unsigned cs_id);
+    virtual task release_chip_select(int cs_id);
         // drive CS inactive
     endtask
 
@@ -41,7 +41,7 @@ uvm_callbacks#(dw_spi_sequencer, dw_spi_callback)::add(sqr, cb);
 
 | 方向 | 类型 | 参数名 | 说明 |
 | --- | --- | --- | --- |
-| input | `int unsigned` | `cs_id` | 片选号 |
+| input | `int` | `cs_id` | 片选号 |
 
 ## `release_chip_select`
 
@@ -49,7 +49,7 @@ uvm_callbacks#(dw_spi_sequencer, dw_spi_callback)::add(sqr, cb);
 
 | 方向 | 类型 | 参数名 | 说明 |
 | --- | --- | --- | --- |
-| input | `int unsigned` | `cs_id` | 片选号 |
+| input | `int` | `cs_id` | 片选号 |
 
 ## `cpu_read`
 

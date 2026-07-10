@@ -12,7 +12,7 @@ class {{ class_prefix }}flash_read_seq extends {{ class_prefix }}spec#(uvm_seque
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
     rand bit [31:0] address;
-    rand int unsigned length;
+    rand int length;
     {{ class_prefix }}transfer_configuration configuration;
     bit ok;
     bit [7:0] data[$];
@@ -24,12 +24,12 @@ class {{ class_prefix }}flash_read_seq extends {{ class_prefix }}spec#(uvm_seque
 
     extern virtual task body();
     extern function bit [7:0] read_opcode(
-        int unsigned speed_multiplier,
+        int speed_multiplier,
         frame_mode_e frame_mode);
 endclass
 
 function bit [7:0] {{ class_prefix }}flash_read_seq::read_opcode(
-        int unsigned speed_multiplier,
+        int speed_multiplier,
         frame_mode_e frame_mode);
     case (speed_multiplier)
         1: return frame_mode == ENHANCED ? 8'h0B : 8'h03;

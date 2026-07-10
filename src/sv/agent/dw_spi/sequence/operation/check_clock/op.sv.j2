@@ -8,7 +8,7 @@ class {{ class_prefix }}check_clock_seq extends uvm_sequence #(
     `uvm_object_utils({{ class_prefix }}check_clock_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
-    localparam longint unsigned PPM_SCALE = 1000000;
+    localparam longint PPM_SCALE = 1000000;
 
     function new(string name="{{ class_prefix }}check_clock_seq");
         super.new(name);
@@ -16,18 +16,18 @@ class {{ class_prefix }}check_clock_seq extends uvm_sequence #(
 
     extern virtual task body();
     extern function bit above_min_frequency(
-        longint unsigned value_hz,
-        longint unsigned min_hz,
-        int unsigned tolerance_ppm,
+        longint value_hz,
+        longint min_hz,
+        int tolerance_ppm,
         string label);
 endclass
 
 function bit {{ class_prefix }}check_clock_seq::above_min_frequency(
-        longint unsigned value_hz,
-        longint unsigned min_hz,
-        int unsigned tolerance_ppm,
+        longint value_hz,
+        longint min_hz,
+        int tolerance_ppm,
         string label);
-    longint unsigned min_allowed_hz;
+    longint min_allowed_hz;
 
     if (value_hz == 0) begin
         `uvm_error("DW_SPI_CLK", {label, " frequency is not measurable"})

@@ -23,7 +23,7 @@ class {{ class_prefix }}transfer_seq extends uvm_sequence #(
         output bit ok);
     extern protected task cpu_read_payload_from_axi(
         bit [31:0] axi_addr,
-        int unsigned length,
+        int length,
         output bit [7:0] read_data[$],
         output bit ok);
 {% endif %}
@@ -177,7 +177,7 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
         output bit ok);
     byte unsigned gp_data[];
     bit [31:0] word;
-    int unsigned index;
+    int index;
 
     ok = 1'b1;
     if (payload == null)
@@ -186,7 +186,7 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
     index = 0;
     while (index < gp_data.size()) begin
         word = '0;
-        for (int unsigned byte_index = 0; byte_index < 4; byte_index++) begin
+        for (int byte_index = 0; byte_index < 4; byte_index++) begin
             if (index + byte_index < gp_data.size())
                 word[byte_index * 8 +: 8] = gp_data[index + byte_index];
         end
@@ -203,11 +203,11 @@ endtask
 
 task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
         bit [31:0] axi_addr,
-        int unsigned length,
+        int length,
         output bit [7:0] read_data[$],
         output bit ok);
     bit [31:0] word;
-    int unsigned index;
+    int index;
 
     ok = 1'b1;
     read_data.delete();
@@ -220,7 +220,7 @@ task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
         `uvm_info("DW_SPI_DMA", $sformatf(
             "CPU read DMA destination word done: addr=0x%0h word=0x%08h",
             {32'h0, axi_addr + index}, word), UVM_DEBUG)
-        for (int unsigned byte_index = 0; byte_index < 4; byte_index++) begin
+        for (int byte_index = 0; byte_index < 4; byte_index++) begin
             if (index + byte_index < length)
                 read_data.push_back(word[byte_index * 8 +: 8]);
         end

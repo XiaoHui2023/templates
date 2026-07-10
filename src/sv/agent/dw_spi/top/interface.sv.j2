@@ -25,21 +25,21 @@ interface {{ class_prefix }}interface(
     endfunction
 
     task automatic measure_hclk_frequency_hz(
-            output longint unsigned frequency_hz,
-            input longint unsigned min_frequency_hz);
+            output longint frequency_hz,
+            input longint min_frequency_hz);
         hclk_if.measure_frequency_hz(frequency_hz, min_frequency_hz);
     endtask
 
     task automatic measure_ssi_clk_frequency_hz(
-            output longint unsigned frequency_hz,
-            input longint unsigned min_frequency_hz);
+            output longint frequency_hz,
+            input longint min_frequency_hz);
         ssi_clk_if.measure_frequency_hz(frequency_hz, min_frequency_hz);
     endtask
 
     task automatic wait_interrupt_asserted(
-            input int unsigned timeout_ssi_clk_cycles,
-            input longint unsigned min_ssi_clk_hz,
-            input int unsigned tolerance_ppm,
+            input int timeout_ssi_clk_cycles,
+            input longint min_ssi_clk_hz,
+            input int tolerance_ppm,
             output bit timed_out,
             output bit missing_signal);
         realtime timeout_ns;

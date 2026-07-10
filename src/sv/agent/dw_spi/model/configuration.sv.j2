@@ -50,21 +50,21 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
 
     rand host_mode_e host_mode;
     rand transfer_mode_e transfer_mode;
-    rand int unsigned spi_frf;
+    rand int spi_frf;
     rand bit spi_ctrlr0_en;
-    rand int unsigned wait_cycles;
-    rand int unsigned inst_l;
-    rand int unsigned addr_l;
-    rand int unsigned trans_type;
-    rand int unsigned spi_mode;
-    rand int unsigned data_frame_bits;
-    rand int unsigned ndf;
+    rand int wait_cycles;
+    rand int inst_l;
+    rand int addr_l;
+    rand int trans_type;
+    rand int spi_mode;
+    rand int data_frame_bits;
+    rand int ndf;
     rand bit ssi_en;
     rand bit [31:0] ser;
-    rand int unsigned baudr;
-    rand int unsigned txftlr;
-    rand int unsigned rxftlr;
-    rand int unsigned interrupt_timeout_ssi_clk_cycles;
+    rand int baudr;
+    rand int txftlr;
+    rand int rxftlr;
+    rand int interrupt_timeout_ssi_clk_cycles;
     rand bit txeim;
     rand bit txoim;
     rand bit rxuim;
@@ -72,8 +72,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     rand bit rxfim;
     rand bit mstim;
 {% if internal_dma or external_dma %}
-    rand int unsigned dmatdl;
-    rand int unsigned dmardl;
+    rand int dmatdl;
+    rand int dmardl;
     rand bit rdmae;
     rand bit tdmae;
 {% endif %}

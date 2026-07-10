@@ -8,26 +8,26 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
     typedef enum {PSSI, HSSI} ssi_variant_e;
     typedef enum {TX_AND_RX, TX_ONLY, RX_ONLY, EEPROM_READ} transfer_mode_e;
 
-    localparam int unsigned CTRLR0_SPI_FRF_STANDARD = 0;
-    localparam int unsigned CTRLR0_SPI_FRF_DUAL = 1;
-    localparam int unsigned CTRLR0_SPI_FRF_QUAD = 2;
+    localparam int CTRLR0_SPI_FRF_STANDARD = 0;
+    localparam int CTRLR0_SPI_FRF_DUAL = 1;
+    localparam int CTRLR0_SPI_FRF_QUAD = 2;
 {% if external_dma %}
-    localparam int unsigned DMACR_RDMAE = 0;
-    localparam int unsigned DMACR_TDMAE = 1;
+    localparam int DMACR_RDMAE = 0;
+    localparam int DMACR_TDMAE = 1;
 {% endif %}
 {% if internal_dma %}
-    localparam int unsigned DMACR_IDMAE = 0;
-    localparam int unsigned DMACR_AINC = 1;
+    localparam int DMACR_IDMAE = 0;
+    localparam int DMACR_AINC = 1;
 {% endif %}
 
-    localparam int unsigned SR_BUSY = 0;
-    localparam int unsigned SR_TFNF = 1;
-    localparam int unsigned SR_TFE = 2;
-    localparam int unsigned SR_RFNE = 3;
-    localparam int unsigned SR_RFF = 4;
+    localparam int SR_BUSY = 0;
+    localparam int SR_TFNF = 1;
+    localparam int SR_TFE = 2;
+    localparam int SR_RFNE = 3;
+    localparam int SR_RFF = 4;
 
-    localparam int unsigned ISR_DONES = 0;
-    localparam int unsigned MEMH_MAX_BYTES_PER_LINE = {{ memh_max_bytes_per_line }};
+    localparam int ISR_DONES = 0;
+    localparam int MEMH_MAX_BYTES_PER_LINE = {{ memh_max_bytes_per_line }};
 
     function new(string name="{{ class_prefix }}spec");
         super.new(name);

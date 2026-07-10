@@ -52,7 +52,7 @@ function bit {{ class_prefix }}scoreboard::apply_payload(
     byte unsigned gp_data[];
     bit [7:0] data[$];
     bit [63:0] addr;
-    int unsigned len;
+    int len;
 
     read_data.delete();
     if (gp == null) begin

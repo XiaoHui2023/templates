@@ -10,7 +10,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         super.new(name);
     endfunction
 
-    function int unsigned spi_frf_from_speed(int unsigned speed_multiplier);
+    function int spi_frf_from_speed(int speed_multiplier);
         case (speed_multiplier)
             1: return CTRLR0_SPI_FRF_STANDARD;
             2: return CTRLR0_SPI_FRF_DUAL;
@@ -19,7 +19,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         endcase
     endfunction
 
-    function int unsigned inst_l_from_bytes(int unsigned inst_bytes);
+    function int inst_l_from_bytes(int inst_bytes);
         case (inst_bytes)
             0: return 0;
             1: return 2;
@@ -28,24 +28,24 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         endcase
     endfunction
 
-    function int unsigned addr_l_from_bytes(int unsigned addr_bytes);
+    function int addr_l_from_bytes(int addr_bytes);
         if (addr_bytes == 0)
             return 0;
         return addr_bytes * 2;
     endfunction
 
-    function longint unsigned ceil_div(
-            longint unsigned dividend,
-            longint unsigned divisor);
+    function longint ceil_div(
+            longint dividend,
+            longint divisor);
         if (divisor == 0)
             return 0;
         return (dividend + divisor - 1) / divisor;
     endfunction
 
-    function int unsigned baudr_from_clock(
-            longint unsigned ssi_clk_hz,
-            longint unsigned target_sclk_hz);
-        longint unsigned div;
+    function int baudr_from_clock(
+            longint ssi_clk_hz,
+            longint target_sclk_hz);
+        longint div;
 
         if (ssi_clk_hz == 0 || target_sclk_hz == 0)
             return 0;
@@ -59,11 +59,11 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(div);
     endfunction
 
-    function int unsigned ndf_from_payload_bytes(
-            int unsigned payload_bytes,
-            int unsigned data_frame_bits);
-        longint unsigned payload_bits;
-        longint unsigned frames;
+    function int ndf_from_payload_bytes(
+            int payload_bytes,
+            int data_frame_bits);
+        longint payload_bits;
+        longint frames;
 
         if (payload_bytes == 0)
             return 0;
@@ -76,9 +76,9 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(frames - 1);
     endfunction
 
-    function int unsigned phase_sclk_cycles(
-            int unsigned bits,
-            int unsigned lanes);
+    function int phase_sclk_cycles(
+            int bits,
+            int lanes);
         if (bits == 0)
             return 0;
         if (lanes == 0)
@@ -86,22 +86,22 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(ceil_div(bits, lanes));
     endfunction
 
-    function int unsigned transfer_timeout_cycles(
+    function int transfer_timeout_cycles(
             {{ class_prefix }}transfer_req rq,
-            int unsigned baudr,
-            int unsigned data_bytes,
+            int baudr,
+            int data_bytes,
             frame_mode_e frame_mode);
-        longint unsigned inst_cycles;
-        longint unsigned addr_cycles;
-        longint unsigned data_cycles;
-        longint unsigned serial_cycles;
-        longint unsigned base_cycles;
-        longint unsigned fifo_chunks;
-        longint unsigned fifo_cycles;
-        longint unsigned margin_cycles;
-        longint unsigned timeout_cycles;
-        int unsigned data_width;
-        int unsigned addr_width;
+        longint inst_cycles;
+        longint addr_cycles;
+        longint data_cycles;
+        longint serial_cycles;
+        longint base_cycles;
+        longint fifo_chunks;
+        longint fifo_cycles;
+        longint margin_cycles;
+        longint timeout_cycles;
+        int data_width;
+        int addr_width;
 
         data_width = frame_mode == ENHANCED ? rq.speed_multiplier : 1;
         addr_width = frame_mode == ENHANCED ? rq.speed_multiplier : 1;
@@ -133,24 +133,24 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             margin_cycles,
             settings.interrupt_timeout_extra_ssi_clk_cycles,
             timeout_cycles), UVM_DEBUG)
-        return int unsigned'(timeout_cycles);
+        return timeout_cycles;
     endfunction
 
     task build(
             {{ class_prefix }}transfer_req rq,
             output {{ class_prefix }}configuration cfg);
-        int unsigned length;
-        int unsigned ndf;
-        int unsigned spi_frf;
-        int unsigned baudr;
-        int unsigned inst_l;
-        int unsigned addr_l;
-        int unsigned trans_type;
-        int unsigned cfg_ndf;
+        int length;
+        int ndf;
+        int spi_frf;
+        int baudr;
+        int inst_l;
+        int addr_l;
+        int trans_type;
+        int cfg_ndf;
         bit spi_ctrlr0_en;
-        int unsigned wait_cycles;
-        int unsigned interrupt_timeout_cycles;
-        longint unsigned ssi_clk_hz;
+        int wait_cycles;
+        int interrupt_timeout_cycles;
+        longint ssi_clk_hz;
         host_mode_e host_mode;
         frame_mode_e frame_mode;
         transfer_mode_e transfer_mode;
