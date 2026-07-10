@@ -4,15 +4,15 @@
 class {{ class_prefix }}reg_configuration extends {{ class_prefix }}base_configuration;
     `uvm_object_utils_begin({{ class_prefix }}reg_configuration)
         `uvm_field_enum(version_e, version, UVM_ALL_ON)
-        {%- if is_sd %}
+        {%- if is_sdcard %}
         `uvm_field_int(allow_single_range_ocr_voltage_validation,UVM_ALL_ON)
         `uvm_field_int(ocr_voltage_window_supported_by_card,UVM_ALL_ON)
         {%- endif %}
     `uvm_object_utils_end
 
     rand version_e version;
-    {%- if is_sd %}
-    rand bit allow_single_range_ocr_voltage_validation; // ACMD41 是否允许只支持一个电压范围
+    {%- if is_sdcard %}
+    rand bit allow_single_range_ocr_voltage_validation; // 0 = ACMD41 电压必须等于掩码；1 = 掩码计算后必须大于0
     rand int ocr_voltage_window_supported_by_card; // ACMD41 电压窗口
     {%- endif %}
 
@@ -21,17 +21,13 @@ class {{ class_prefix }}reg_configuration extends {{ class_prefix }}base_configu
     endfunction
 
     constraint cst_svt_reg_cfg {
-        {%- if is_sd %}
+        {%- if is_sdcard %}
         soft allow_single_range_ocr_voltage_validation == 1;
 
-        {%- if is_sdcard %}
         if(version inside {VERSION_1_01, VERSION_1_10})
             soft ocr_voltage_window_supported_by_card == 16'hffff;
         else
             soft ocr_voltage_window_supported_by_card == 9'h1ff;
-        {%- elif is_sdio %}
-        soft ocr_voltage_window_supported_by_card == 9'h1ff;
-        {%- endif %}
         {%- endif %}
     }
 endclass
