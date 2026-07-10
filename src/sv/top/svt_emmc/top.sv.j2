@@ -7,8 +7,10 @@ module {{ class_prefix }}top#(
     input wire clk,
     input wire rst_n,
     inout wire cmd,
-    inout wire [DW-1:0] dat,
+    inout wire [DW-1:0] dat
+    {%- if is_emmc %},
     output wire dat_stb
+    {%- endif %}
 );
 
     timeunit 1fs;
@@ -16,7 +18,10 @@ module {{ class_prefix }}top#(
 
     pullup (cmd);
     pullup (dat[0]);
+    pullup (rst_n);
+    {%- if is_emmc %}
     pulldown (dat_stb);
+    {%- endif %}
     {%- for i in range(1,max_data_width) %}
     if(DW > {{ i }}) pullup (dat[{{ i }}]);
     {%- endfor %}
@@ -36,7 +41,9 @@ module {{ class_prefix }}top#(
 
     // internal
     wire clk_dl;
+    {%- if is_emmc %}
     wire dat_stb_s;
+    {%- endif %}
     wire cmd_in_dl;
     wire[7:0] dat_in_dl;
     wire cmd_out_s;
@@ -55,7 +62,9 @@ module {{ class_prefix }}top#(
     assign svt_if.vdd2_vccq = vccq;
     assign svt_if.clk_sclk = clk_dl;
     assign svt_if.clk = clk_dl;
+    {%- if is_emmc %}
     assign dat_stb_s = svt_if.ds;
+    {%- endif %}
     assign dat_out_en_s[0] = svt_if.dat0_rclk_plus_en;
     assign dat_out_s[0] = svt_if.dat0_rclk_plus_out;
     assign dat_out_en_s[1] = svt_if.dat1_rclk_minus_irq_en;
@@ -91,7 +100,9 @@ module {{ class_prefix }}top#(
     assign dat_in_dl = dat_in;
     assign dat_out = dat_out_s;
     assign dat_out_en = dat_out_en_s;
+    {%- if is_emmc %}
     assign dat_stb = dat_stb_s;
+    {%- endif %}
 
     string hdl; // 模块路径
     {{ class_prefix }}env env; // 环境
