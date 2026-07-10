@@ -67,8 +67,18 @@ task {{ class_prefix }}check_clock_seq::body();
 
     rs.hclk_connected = p_sequencer.settings.vif.has_hclk();
     rs.ssi_clk_connected = p_sequencer.settings.vif.has_ssi_clk();
+    `uvm_info("DW_SPI_CLK", $sformatf(
+        "check_clock start: check_hclk=%0b hclk_connected=%0b check_ssi_clk=%0b ssi_clk_connected=%0b",
+        rq.check_hclk,
+        rs.hclk_connected,
+        rq.check_ssi_clk,
+        rs.ssi_clk_connected), UVM_LOW)
 
     if (rq.check_hclk && rs.hclk_connected) begin
+        `uvm_info("DW_SPI_CLK", "measuring hclk frequency", UVM_LOW)
+        `uvm_info("DW_SPI_CLK", $sformatf(
+            "hclk measurement detail: min_hz=%0d tolerance_ppm=%0d",
+            rq.min_hclk_hz, rq.tolerance_ppm), UVM_DEBUG)
         p_sequencer.settings.vif.hclk_if.measure_frequency_hz(
             rs.hclk_hz, rq.min_hclk_hz, rq.tolerance_ppm);
         rs.ok &= above_min_frequency(rs.hclk_hz, rq.min_hclk_hz, rq.tolerance_ppm, "hclk");
@@ -81,6 +91,10 @@ task {{ class_prefix }}check_clock_seq::body();
     end
 
     if (rq.check_ssi_clk && rs.ssi_clk_connected) begin
+        `uvm_info("DW_SPI_CLK", "measuring ssi_clk frequency", UVM_LOW)
+        `uvm_info("DW_SPI_CLK", $sformatf(
+            "ssi_clk measurement detail: min_hz=%0d tolerance_ppm=%0d",
+            rq.min_ssi_clk_hz, rq.tolerance_ppm), UVM_DEBUG)
         p_sequencer.settings.vif.ssi_clk_if.measure_frequency_hz(
             rs.ssi_clk_hz, rq.min_ssi_clk_hz, rq.tolerance_ppm);
         rs.ok &= above_min_frequency(rs.ssi_clk_hz, rq.min_ssi_clk_hz, rq.tolerance_ppm, "ssi_clk");
@@ -93,6 +107,7 @@ task {{ class_prefix }}check_clock_seq::body();
     end
 
     rsp = rs;
+    `uvm_info("DW_SPI_CLK", $sformatf("check_clock done: ok=%0b", rs.ok), UVM_LOW)
 endtask
 
 `endif

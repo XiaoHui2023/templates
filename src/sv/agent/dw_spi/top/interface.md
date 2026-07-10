@@ -65,7 +65,7 @@
 
 `sequence/operation/check_clock` 通过 `p_sequencer.settings.vif` 访问 `dw_spi_interface`。
 
-`sequence/operation/transfer` 发起传输后通过 `wait_interrupt_asserted()` 等待 `intr`。超过 `settings.interrupt_timeout_ssi_clk_cycles` 个 `ssi_clk` 周期时 fatal；如果 `ssi_clk` 停住，则按 `settings.min_ssi_clk_hz` 和 `settings.clock_check_tolerance_ppm` 推导出的仿真时间兜底超时，防止仿真卡死。
+`sequence/operation/transfer` 发起传输后通过 `wait_interrupt_asserted()` 等待 `intr`。等待周期数来自本次 `configuration.interrupt_timeout_ssi_clk_cycles`；如果 `ssi_clk` 停住，则按 `settings.min_ssi_clk_hz` 和 `settings.clock_check_tolerance_ppm` 推导出的仿真时间兜底超时，防止仿真卡死。
 
 当 `hclk` 或 `ssi_clk` 未连接时，检查会跳过对应时钟。
 

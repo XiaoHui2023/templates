@@ -97,10 +97,21 @@ class Models(BaseModel):
         le=1_000_000,
         description="Default tolerance used by clock check sequences.",
     )
-    interrupt_timeout_ssi_clk_cycles: int = Field(
-        1_000_000,
+    interrupt_timeout_margin_percent: int = Field(
+        50,
+        ge=0,
+        le=1000,
+        description="Extra margin percentage added to the theoretical per-transfer interrupt timeout.",
+    )
+    interrupt_timeout_extra_ssi_clk_cycles: int = Field(
+        1024,
         ge=1,
-        description="Maximum ssi_clk cycles to wait for intr before transfer sequences fatal.",
+        description="Fixed extra ssi_clk cycles added to the theoretical per-transfer interrupt timeout.",
+    )
+    fifo_status_timeout_ssi_clk_cycles: int = Field(
+        256,
+        ge=1,
+        description="Maximum ssi_clk cycles to poll a single FIFO status condition before reporting timeout.",
     )
     default_tx_fifo_threshold: int = Field(
         0,

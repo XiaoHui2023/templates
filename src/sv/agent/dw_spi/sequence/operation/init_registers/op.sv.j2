@@ -24,12 +24,15 @@ task {{ class_prefix }}init_registers_seq::body();
     if (req.transfer_req == null)
         `uvm_fatal("DW_SPI_REG", "init_registers req.transfer_req is null")
     rsp = {{ class_prefix }}init_registers_rsp::type_id::create("rsp");
+    `uvm_info("DW_SPI_REG", "init_registers: building register configuration", UVM_LOW)
     config_builder = {{ class_prefix }}register_config_builder::type_id::create("config_builder");
     config_builder.settings = p_sequencer.settings;
     config_builder.build(req.transfer_req, rsp.cfg);
+    `uvm_info("DW_SPI_REG", "init_registers: applying register configuration", UVM_LOW)
     register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
     register_access.apply_configuration(rsp.cfg);
+    `uvm_info("DW_SPI_REG", "init_registers: configuration applied", UVM_LOW)
 endtask
 
 `endif

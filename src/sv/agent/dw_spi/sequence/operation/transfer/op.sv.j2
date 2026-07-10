@@ -13,7 +13,9 @@ class {{ class_prefix }}transfer_seq extends uvm_sequence #(
     endfunction
 
     extern virtual task body();
-    extern protected task wait_transfer_interrupt({{ class_prefix }}transfer_req rq);
+    extern protected task wait_transfer_interrupt(
+        {{ class_prefix }}transfer_req rq,
+        {{ class_prefix }}configuration cfg);
 {% if internal_dma %}
     extern protected task cpu_write_payload_to_axi(
         bit [31:0] axi_addr,
@@ -63,12 +65,17 @@ task {{ class_prefix }}transfer_seq::body();
         rq.use_dma{% endif %}), UVM_LOW)
     config_builder = {{ class_prefix }}register_config_builder::type_id::create("config_builder");
     config_builder.settings = p_sequencer.settings;
+    `uvm_info("DW_SPI_XFER", "building register configuration for transfer", UVM_LOW)
     config_builder.build(rq, cfg);
 {% if internal_dma %}
     if (rq.use_dma && command == UVM_TLM_WRITE_COMMAND) begin
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "preparing internal DMA source buffer before controller start: axi_addr=0x%08h bytes=%0d",
+            rq.axi_addr, rq.payload.get_data_length()), UVM_LOW)
         cpu_write_payload_to_axi(rq.axi_addr, rq.payload, dma_ok);
         if (!dma_ok) begin
             rs.ok = 1'b0;
+            `uvm_info("DW_SPI_XFER", "internal DMA source buffer preparation failed", UVM_LOW)
             rsp = rs;
             return;
         end
@@ -76,29 +83,41 @@ task {{ class_prefix }}transfer_seq::body();
 {% endif %}
     register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
+    `uvm_info("DW_SPI_XFER", "applying controller register configuration", UVM_LOW)
     register_access.apply_configuration(cfg);
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "activating chip select: cs=%0d", rq.cs_id), UVM_LOW)
     p_sequencer.activate_chip_select(rq.cs_id);
 {% if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
+        `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; waiting for interrupt", UVM_LOW)
     end
     else begin
         pio_ok = 1'b1;
-        if (command == UVM_TLM_WRITE_COMMAND)
+        if (command == UVM_TLM_WRITE_COMMAND) begin
+            `uvm_info("DW_SPI_XFER", "PIO write path: writing payload to DR", UVM_LOW)
             register_access.write_payload_to_dr(rq.payload, pio_ok);
+        end
     end
 {% else %}
     pio_ok = 1'b1;
-    if (command == UVM_TLM_WRITE_COMMAND)
+    if (command == UVM_TLM_WRITE_COMMAND) begin
+        `uvm_info("DW_SPI_XFER", "PIO write path: writing payload to DR", UVM_LOW)
         register_access.write_payload_to_dr(rq.payload, pio_ok);
+    end
 {% endif %}
-    wait_transfer_interrupt(rq);
+    `uvm_info("DW_SPI_XFER", "waiting for transfer completion interrupt", UVM_LOW)
+    wait_transfer_interrupt(rq, cfg);
 {% if internal_dma %}
     if (rq.use_dma) begin
-        if (dma_ok && command == UVM_TLM_READ_COMMAND)
+        if (dma_ok && command == UVM_TLM_READ_COMMAND) begin
+            `uvm_info("DW_SPI_XFER", "internal DMA read path: reading destination buffer through CPU callback", UVM_LOW)
             cpu_read_payload_from_axi(
                 rq.axi_addr, rq.payload.get_data_length(), rs.read_data, dma_ok);
+        end
         if (dma_ok && command == UVM_TLM_WRITE_COMMAND) begin
+            `uvm_info("DW_SPI_XFER", "internal DMA write path: recording expected payload in scoreboard", UVM_LOW)
             rq.payload.get_data(gp_data);
             foreach (gp_data[i])
                 write_data.push_back(gp_data[i]);
@@ -108,9 +127,12 @@ task {{ class_prefix }}transfer_seq::body();
         rs.ok = dma_ok;
     end
     else begin
-        if (pio_ok && command == UVM_TLM_READ_COMMAND)
+        if (pio_ok && command == UVM_TLM_READ_COMMAND) begin
+            `uvm_info("DW_SPI_XFER", "PIO read path: reading payload from DR", UVM_LOW)
             register_access.read_dr_to_payload(rq.payload, rs.read_data, pio_ok);
+        end
         if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
+            `uvm_info("DW_SPI_XFER", "PIO write path: recording expected payload in scoreboard", UVM_LOW)
             rq.payload.get_data(gp_data);
             foreach (gp_data[i])
                 write_data.push_back(gp_data[i]);
@@ -120,9 +142,12 @@ task {{ class_prefix }}transfer_seq::body();
         rs.ok = pio_ok;
     end
 {% else %}
-    if (pio_ok && command == UVM_TLM_READ_COMMAND)
+    if (pio_ok && command == UVM_TLM_READ_COMMAND) begin
+        `uvm_info("DW_SPI_XFER", "PIO read path: reading payload from DR", UVM_LOW)
         register_access.read_dr_to_payload(rq.payload, rs.read_data, pio_ok);
+    end
     if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
+        `uvm_info("DW_SPI_XFER", "PIO write path: recording expected payload in scoreboard", UVM_LOW)
         rq.payload.get_data(gp_data);
         foreach (gp_data[i])
             write_data.push_back(gp_data[i]);
@@ -131,6 +156,8 @@ task {{ class_prefix }}transfer_seq::body();
     end
     rs.ok = pio_ok;
 {% endif %}
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "releasing chip select: cs=%0d", rq.cs_id), UVM_LOW)
     p_sequencer.release_chip_select(rq.cs_id);
     `uvm_info("DW_SPI_XFER", $sformatf(
         "transfer done: ok=%0b protocol=%s mode=%s address=0x%0h length=%0d read_bytes=%0d",
@@ -163,6 +190,9 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
             if (index + byte_index < gp_data.size())
                 word[byte_index * 8 +: 8] = gp_data[index + byte_index];
         end
+        `uvm_info("DW_SPI_DMA", $sformatf(
+            "CPU write DMA source word: addr=0x%0h word=0x%08h byte_index=%0d",
+            {32'h0, axi_addr + index}, word, index), UVM_DEBUG)
         p_sequencer.cpu_write({32'h0, axi_addr + index}, word);
         index += 4;
     end
@@ -183,7 +213,13 @@ task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
     read_data.delete();
     index = 0;
     while (index < length) begin
+        `uvm_info("DW_SPI_DMA", $sformatf(
+            "CPU read DMA destination word: addr=0x%0h byte_index=%0d",
+            {32'h0, axi_addr + index}, index), UVM_DEBUG)
         p_sequencer.cpu_read({32'h0, axi_addr + index}, word);
+        `uvm_info("DW_SPI_DMA", $sformatf(
+            "CPU read DMA destination word done: addr=0x%0h word=0x%08h",
+            {32'h0, axi_addr + index}, word), UVM_DEBUG)
         for (int unsigned byte_index = 0; byte_index < 4; byte_index++) begin
             if (index + byte_index < length)
                 read_data.push_back(word[byte_index * 8 +: 8]);
@@ -196,7 +232,9 @@ task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
 endtask
 {% endif %}
 
-task {{ class_prefix }}transfer_seq::wait_transfer_interrupt({{ class_prefix }}transfer_req rq);
+task {{ class_prefix }}transfer_seq::wait_transfer_interrupt(
+        {{ class_prefix }}transfer_req rq,
+        {{ class_prefix }}configuration cfg);
     bit timed_out;
     bit missing_signal;
 
@@ -204,9 +242,16 @@ task {{ class_prefix }}transfer_seq::wait_transfer_interrupt({{ class_prefix }}t
         `uvm_fatal("DW_SPI", "transfer: settings is null")
     if (p_sequencer.settings.vif == null)
         `uvm_fatal("DW_SPI", "transfer: settings.vif is null")
+    if (cfg == null)
+        `uvm_fatal("DW_SPI", "transfer: configuration is null")
 
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "waiting intr asserted: timeout_cycles=%0d min_ssi_clk_hz=%0d tolerance_ppm=%0d",
+        cfg.interrupt_timeout_ssi_clk_cycles,
+        p_sequencer.settings.min_ssi_clk_hz,
+        p_sequencer.settings.clock_check_tolerance_ppm), UVM_LOW)
     p_sequencer.settings.vif.wait_interrupt_asserted(
-        p_sequencer.settings.interrupt_timeout_ssi_clk_cycles,
+        cfg.interrupt_timeout_ssi_clk_cycles,
         p_sequencer.settings.min_ssi_clk_hz,
         p_sequencer.settings.clock_check_tolerance_ppm,
         timed_out,
@@ -216,11 +261,12 @@ task {{ class_prefix }}transfer_seq::wait_transfer_interrupt({{ class_prefix }}t
     if (timed_out)
         `uvm_fatal("DW_SPI", $sformatf(
             "transfer interrupt timeout after %0d ssi_clk cycles: cs_id=%0d transfer_mode=%s protocol=%s frame_mode=%s",
-            p_sequencer.settings.interrupt_timeout_ssi_clk_cycles,
+            cfg.interrupt_timeout_ssi_clk_cycles,
             rq.cs_id,
             rq.transfer_mode.name(),
             rq.protocol.name(),
             rq.frame_mode.name()))
+    `uvm_info("DW_SPI_XFER", "transfer completion interrupt observed", UVM_LOW)
 endtask
 
 `endif

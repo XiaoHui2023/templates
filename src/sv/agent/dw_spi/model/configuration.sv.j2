@@ -19,6 +19,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         `uvm_field_int(baudr, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(txftlr, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(rxftlr, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(interrupt_timeout_ssi_clk_cycles, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(txeim, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(txoim, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(rxuim, UVM_ALL_ON | UVM_DEC)
@@ -63,6 +64,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     rand int unsigned baudr;
     rand int unsigned txftlr;
     rand int unsigned rxftlr;
+    rand int unsigned interrupt_timeout_ssi_clk_cycles;
     rand bit txeim;
     rand bit txoim;
     rand bit rxuim;
@@ -136,6 +138,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
             rx_sample_delay == settings.default_rx_sample_delay_ns;
             write_rx_sample_delay == (settings.default_rx_sample_delay_ns != 0);
         }
+        interrupt_timeout_ssi_clk_cycles > 0;
     }
 endclass
 

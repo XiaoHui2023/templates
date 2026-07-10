@@ -26,3 +26,42 @@ f_sclk_out = f_ssi / BAUDR
 ```
 
 `BAUDR` 是由输入时钟和目标输出频率推导出的寄存器写入值，不是固定默认值。
+
+## Transfer Interrupt Timeout
+
+中断等待上限按单次 transfer 推导，不使用固定全局周期数。
+
+| 参数 | 说明 |
+| --- | --- |
+| **inst_bits** | instruction 阶段 bit 数，通常为 `inst_bytes * 8`。 |
+| **addr_bits** | address 阶段 bit 数，通常为 `addr_bytes * 8`。 |
+| **data_bits** | data 阶段 bit 数，通常为 `payload_bytes * 8`。 |
+| **width_addr** | address 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `speed_multiplier`。 |
+| **width_data** | data 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `speed_multiplier`。 |
+| **dummy_cycles** | `SPI_CTRLR0.WAIT_CYCLES` 对应的 dummy sclk 周期。 |
+| **fifo_chunks** | `ceil(max(payload_bytes, 1) / fifo_depth_bytes)`。 |
+| **margin_percent** | Python 输入的 `interrupt_timeout_margin_percent`。 |
+| **extra_cycles** | Python 输入的 `interrupt_timeout_extra_ssi_clk_cycles`。 |
+
+```text
+inst_sclk = ceil(inst_bits / 1)
+
+addr_sclk = ceil(addr_bits / width_addr)
+
+data_sclk = ceil(data_bits / width_data)
+
+serial_sclk = max(1, inst_sclk + addr_sclk + dummy_cycles + data_sclk)
+
+base_ssi_cycles = serial_sclk * BAUDR
+
+fifo_chunks = ceil(max(payload_bytes, 1) / fifo_depth_bytes)
+
+fifo_ssi_cycles = fifo_chunks * BAUDR
+
+margin_ssi_cycles = ceil((base_ssi_cycles + fifo_ssi_cycles) * margin_percent / 100)
+
+interrupt_timeout_ssi_clk_cycles =
+    base_ssi_cycles + fifo_ssi_cycles + margin_ssi_cycles + extra_cycles
+```
+
+`fifo_ssi_cycles` 是按 FIFO chunk 给的调度余量，不表示控制器每个 chunk 都一定产生中断。这样小传输能尽早超时，长传输仍按理论串行时间放宽。

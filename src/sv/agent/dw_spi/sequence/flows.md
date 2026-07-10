@@ -25,7 +25,7 @@
 
 寄存器配置不通过 sequencer 函数完成，不通过 callback 完成，也不在 core 里引用 operation req。
 
-`register_config_builder` 使用 `UVM_LOW` 打印本次推导出的 `ssi_clk`、目标 `sclk`、`BAUDR`、DFS 位宽、`NDF`、`SPI_FRF` 和 `SER`。
+`register_config_builder` 使用 `UVM_LOW` 打印正在测量时钟、正在随机寄存器配置、已推导出关键配置。`UVM_DEBUG` 打印测量参数、BAUDR/NDF/SPI_CTRLR0/DMA 字段推导细节。
 
 ## Primitive Transfer
 
@@ -33,7 +33,7 @@
 2. 生成并应用本次寄存器 `configuration`。
 3. 调用 `p_sequencer.activate_chip_select(cs_id)`。
 4. 内部 DMA 且 `use_dma == 1` 的写传输，在寄存器配置/启动前通过 callback `cpu_write()` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
-5. 等待 top interface 的 `intr` 断言，超时按 `ssi_clk` 周期计数。
+5. 等待 top interface 的 `intr` 断言，超时使用本次 `configuration.interrupt_timeout_ssi_clk_cycles`。
 6. `use_dma == 0` 时，PIO 写传输先等待 `SR.TFNF` 再把 payload byte 写入 `DR`。
 7. 等待 `intr` 后，PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内部 DMA 读传输通过 callback `cpu_read()` 从 `axi_addr` 读回 actual byte；写传输把已生效 payload 记录为 scoreboard 期望值。
 8. 调用 `p_sequencer.release_chip_select(cs_id)`。
@@ -41,7 +41,7 @@
 
 callback 注入 chip-select 行为和 CPU 32-bit 读写。寄存器配置、scoreboard 比较和协议编排不放进 callback。
 
-`transfer_seq` 使用 `UVM_LOW` 打印 primitive transfer 的开始和结束摘要，包括协议、传输模式、opcode、地址、长度、CS、线数、倍速、DFS 位宽、DMA 开关和读回字节数。
+`transfer_seq` 使用 `UVM_LOW` 打印 primitive transfer 的开始、配置、CS、PIO/DMA 路径、等待中断、释放 CS 和结束摘要。`UVM_DEBUG` 打印 CPU DMA buffer word、DR byte、FIFO 状态轮询和寄存器字段细节。
 
 ## Flash Read
 
@@ -56,7 +56,7 @@ callback 注入 chip-select 行为和 CPU 32-bit 读写。寄存器配置、scor
 
 地址是 32 bit flash/model 地址，不是寄存器地址。
 
-`flash_read_seq` 使用 `UVM_LOW` 打印开始和结束摘要，包括地址、长度、线数、倍速、frame mode、DMA 开关、opcode 和接收字节数。
+`flash_read_seq` 使用 `UVM_LOW` 打印开始、启动 primitive transfer、scoreboard 检查和结束摘要；`UVM_DEBUG` 打印构造出的 operation request 细节。
 
 ## Flash Write
 
@@ -69,7 +69,7 @@ callback 注入 chip-select 行为和 CPU 32-bit 读写。寄存器配置、scor
 
 当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、QE/WRSR 和 256B 分页写限制；后续加入真实 SPI-NOR 行为时必须把这些流程补进 flash write/erase flow。
 
-`flash_write_seq` 使用 `UVM_LOW` 打印开始、write-enable 结果、chunk 写结果和最终写入字节数。
+`flash_write_seq` 使用 `UVM_LOW` 打印开始、write-enable、program chunk、scoreboard 记录和最终写入字节数；`UVM_DEBUG` 打印 write-enable 和 program request 细节。
 
 ## RW Test
 
@@ -81,7 +81,13 @@ callback 注入 chip-select 行为和 CPU 32-bit 读写。寄存器配置、scor
 
 读写测试顺序是写后读。读回数据不从 kit API 返回，test sequence 负责把数据交给 scoreboard 自动校验。
 
-`rw_test_seq` 使用 `UVM_LOW` 打印测试开始和结束摘要，包括地址、数据长度、线数、倍速、frame mode、DMA 开关、读回字节数和最终 `ok`。
+`rw_test_seq` 使用 `UVM_LOW` 打印测试开始、写阶段、读回阶段、scoreboard 检查和结束摘要。
+
+## Log Verbosity
+
+- `UVM_LOW`：只说明流程正在做什么、正在等待什么、完成了什么。
+- `UVM_DEBUG`：打印帮助定位问题的细节，包括寄存器字段值、推导中间值、FIFO 状态轮询、DR byte、CPU DMA buffer word、scoreboard byte 比较。
+- 错误路径继续使用 `uvm_error` / `uvm_fatal`，并保留地址、长度、状态码等定位信息。
 
 ## DMA Transfer
 
@@ -103,5 +109,6 @@ DMA 是单次传输模式，不是 sequencer 快捷函数。
 
 `transfer_seq` 等待 `intr` 时必须有超时保护。
 
-- 正常路径按 `settings.interrupt_timeout_ssi_clk_cycles` 统计 `ssi_clk` 周期。
+- 正常路径按 `configuration.interrupt_timeout_ssi_clk_cycles` 统计 `ssi_clk` 周期。这个值由 `register_config_builder` 根据 instruction/address/dummy/data 阶段、`BAUDR`、`fifo_depth_bytes` 和 settings 中的余量参数推导。
 - 防卡死路径按 `settings.min_ssi_clk_hz` 和 `settings.clock_check_tolerance_ppm` 推导仿真时间上限。即使 `ssi_clk` 停住，等待也会返回超时并 `uvm_fatal`。
+- PIO 等待 `SR.TFNF` / `SR.RFNE` 使用 `settings.fifo_status_timeout_ssi_clk_cycles`，不要复用完整 transfer 的中断等待上限。

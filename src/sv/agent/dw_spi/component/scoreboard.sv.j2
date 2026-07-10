@@ -84,6 +84,9 @@ function bit {{ class_prefix }}scoreboard::record_expected_write(
         bit [63:0] addr,
         bit [7:0] data[$],
         string label);
+    `uvm_info("DW_SPI_SB", $sformatf(
+        "record expected write: label=%s addr=0x%016h len=%0d",
+        label, addr, data.size()), UVM_LOW)
     if (!mem.write_bytes(addr, data)) begin
         `uvm_error("DW_SPI_SB", $sformatf("failed to record %s", label))
         return 1'b0;
@@ -95,6 +98,9 @@ function bit {{ class_prefix }}scoreboard::check_actual_read(
         bit [63:0] addr,
         bit [7:0] actual[$],
         string label);
+    `uvm_info("DW_SPI_SB", $sformatf(
+        "check actual read: label=%s addr=0x%016h len=%0d",
+        label, addr, actual.size()), UVM_LOW)
     return mem.compare_bytes(addr, actual, label);
 endfunction
 

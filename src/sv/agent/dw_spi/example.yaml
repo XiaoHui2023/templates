@@ -15,7 +15,9 @@ fifo_depth_bytes: 32
 min_hclk_hz: 24000000
 min_ssi_clk_hz: 24000000
 clock_check_tolerance_ppm: 10000
-interrupt_timeout_ssi_clk_cycles: 1000000
+interrupt_timeout_margin_percent: 50
+interrupt_timeout_extra_ssi_clk_cycles: 1024
+fifo_status_timeout_ssi_clk_cycles: 256
 default_tx_fifo_threshold: 0
 default_rx_fifo_threshold: 0
 default_rx_sample_delay_ns: 0

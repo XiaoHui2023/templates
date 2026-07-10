@@ -76,6 +76,66 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(frames - 1);
     endfunction
 
+    function int unsigned phase_sclk_cycles(
+            int unsigned bits,
+            int unsigned lanes);
+        if (bits == 0)
+            return 0;
+        if (lanes == 0)
+            lanes = 1;
+        return int'(ceil_div(bits, lanes));
+    endfunction
+
+    function int unsigned transfer_timeout_cycles(
+            {{ class_prefix }}transfer_req rq,
+            int unsigned baudr,
+            int unsigned data_bytes,
+            frame_mode_e frame_mode);
+        longint unsigned inst_cycles;
+        longint unsigned addr_cycles;
+        longint unsigned data_cycles;
+        longint unsigned serial_cycles;
+        longint unsigned base_cycles;
+        longint unsigned fifo_chunks;
+        longint unsigned fifo_cycles;
+        longint unsigned margin_cycles;
+        longint unsigned timeout_cycles;
+        int unsigned data_width;
+        int unsigned addr_width;
+
+        data_width = frame_mode == ENHANCED ? rq.speed_multiplier : 1;
+        addr_width = frame_mode == ENHANCED ? rq.speed_multiplier : 1;
+        inst_cycles = phase_sclk_cycles(rq.inst_bytes * 8, 1);
+        addr_cycles = phase_sclk_cycles(rq.addr_bytes * 8, addr_width);
+        data_cycles = phase_sclk_cycles(data_bytes * 8, data_width);
+        serial_cycles = inst_cycles + addr_cycles + rq.dummy_cycles + data_cycles;
+        if (serial_cycles == 0)
+            serial_cycles = 1;
+        base_cycles = serial_cycles * baudr;
+        fifo_chunks = ceil_div(data_bytes == 0 ? 1 : data_bytes, settings.fifo_depth_bytes);
+        fifo_cycles = fifo_chunks * baudr;
+        margin_cycles = ((base_cycles + fifo_cycles) * settings.interrupt_timeout_margin_percent + 99) / 100;
+        timeout_cycles = base_cycles + fifo_cycles + margin_cycles + settings.interrupt_timeout_extra_ssi_clk_cycles;
+        if (timeout_cycles > 32'hffff_ffff)
+            return 32'hffff_ffff;
+        `uvm_info("DW_SPI_CFG", $sformatf(
+            "interrupt timeout detail: inst_sclk=%0d addr_sclk=%0d dummy_sclk=%0d data_sclk=%0d serial_sclk=%0d baudr=%0d base_ssi=%0d fifo_chunks=%0d fifo_ssi=%0d margin_percent=%0d margin_ssi=%0d extra_ssi=%0d timeout_ssi=%0d",
+            inst_cycles,
+            addr_cycles,
+            rq.dummy_cycles,
+            data_cycles,
+            serial_cycles,
+            baudr,
+            base_cycles,
+            fifo_chunks,
+            fifo_cycles,
+            settings.interrupt_timeout_margin_percent,
+            margin_cycles,
+            settings.interrupt_timeout_extra_ssi_clk_cycles,
+            timeout_cycles), UVM_DEBUG)
+        return int unsigned'(timeout_cycles);
+    endfunction
+
     task build(
             {{ class_prefix }}transfer_req rq,
             output {{ class_prefix }}configuration cfg);
@@ -89,6 +149,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         int unsigned cfg_ndf;
         bit spi_ctrlr0_en;
         int unsigned wait_cycles;
+        int unsigned interrupt_timeout_cycles;
         longint unsigned ssi_clk_hz;
         host_mode_e host_mode;
         frame_mode_e frame_mode;
@@ -122,10 +183,17 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         if (!settings.vif.has_ssi_clk())
             `uvm_fatal("DW_SPI_CFG", "ssi_clk must be connected to derive BAUDR")
 
+        `uvm_info("DW_SPI_CFG", "measuring ssi_clk before deriving BAUDR", UVM_LOW)
         settings.vif.ssi_clk_if.measure_frequency_hz(
             ssi_clk_hz,
             settings.min_ssi_clk_hz,
             settings.clock_check_tolerance_ppm);
+        `uvm_info("DW_SPI_CFG", $sformatf(
+            "measured ssi_clk: hz=%0d min_hz=%0d tolerance_ppm=%0d target_sclk_hz=%0d",
+            ssi_clk_hz,
+            settings.min_ssi_clk_hz,
+            settings.clock_check_tolerance_ppm,
+            settings.target_sclk_hz), UVM_DEBUG)
         baudr = baudr_from_clock(ssi_clk_hz, settings.target_sclk_hz);
         if (baudr == 0)
             `uvm_fatal("DW_SPI_CFG", $sformatf(
@@ -141,14 +209,42 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         spi_ctrlr0_en = frame_mode == ENHANCED;
         wait_cycles = spi_ctrlr0_en ? rq.dummy_cycles : 0;
         cfg_ndf = (transfer_mode inside {RX_ONLY, EEPROM_READ}) ? ndf : 0;
+        interrupt_timeout_cycles = transfer_timeout_cycles(
+            rq, baudr, length, frame_mode);
+        `uvm_info("DW_SPI_CFG", $sformatf(
+            "derived transfer fields: length=%0d payload_bits=%0d data_frame_bits=%0d ndf=%0d cfg_ndf=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
+            length,
+            length * 8,
+            rq.data_frame_bits,
+            ndf,
+            cfg_ndf,
+            spi_frf,
+            inst_l,
+            addr_l,
+            trans_type,
+            spi_ctrlr0_en,
+            wait_cycles,
+            interrupt_timeout_cycles), UVM_DEBUG)
 {% if internal_dma %}
         write_internal_dma_regs = rq.use_dma;
         flash_addr = rq.payload.get_address();
         sdar = flash_addr[31:0];
+        `uvm_info("DW_SPI_CFG", $sformatf(
+            "derived internal DMA fields: use_dma=%0b flash_addr=0x%0h sdar=0x%08h axi_addr=0x%08h awlen_field=0x%0h arlen_field=0x%0h spi_inst=0x%02h",
+            rq.use_dma,
+            flash_addr,
+            sdar,
+            rq.axi_addr,
+            ({8'h0, rq.awlen} << 8),
+            ({8'h0, rq.arlen} << 8),
+            rq.opcode), UVM_DEBUG)
 {% endif %}
 {% if internal_dma or external_dma %}
         rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX});
         tdmae = rq.use_dma && (transfer_mode inside {TX_ONLY, TX_AND_RX});
+        `uvm_info("DW_SPI_CFG", $sformatf(
+            "derived DMA handshake fields: use_dma=%0b rdmae=%0b tdmae=%0b transfer_mode=%s",
+            rq.use_dma, rdmae, tdmae, transfer_mode.name()), UVM_DEBUG)
 {% endif %}
 
         cfg = {{ class_prefix }}configuration::type_id::create("configuration");
@@ -159,6 +255,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             `uvm_fatal("DW_SPI_CFG", "failed to cast configuration transfer_mode")
         cfg.host_mode.rand_mode(0);
         cfg.transfer_mode.rand_mode(0);
+        `uvm_info("DW_SPI_CFG", "randomizing one-shot register configuration", UVM_LOW)
         if (!cfg.randomize() with {
                 spi_frf == local::spi_frf;
                 spi_ctrlr0_en == local::spi_ctrlr0_en;
@@ -170,6 +267,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 data_frame_bits == rq.data_frame_bits;
                 baudr == local::baudr;
                 ndf == local::cfg_ndf;
+                interrupt_timeout_ssi_clk_cycles == local::interrupt_timeout_cycles;
                 ser == (32'h1 << rq.cs_id);
 {% if internal_dma %}
                 write_internal_dma_regs == local::write_internal_dma_regs;
@@ -192,13 +290,14 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "register configuration derived: ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf=%0d spi_frf=%0d ser=0x%0h",
+            "register configuration derived: ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf=%0d spi_frf=%0d timeout_ssi_cycles=%0d ser=0x%0h",
             ssi_clk_hz,
             settings.target_sclk_hz,
             cfg.baudr,
             cfg.data_frame_bits,
             cfg.ndf,
             cfg.spi_frf,
+            cfg.interrupt_timeout_ssi_clk_cycles,
             cfg.ser), UVM_LOW)
     endtask
 endclass

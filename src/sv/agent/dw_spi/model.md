@@ -74,7 +74,9 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `min_hclk_hz` | optional clock check 的 `hclk` 最低频率，默认 24MHz。 |
 | `min_ssi_clk_hz` | optional clock check 的 `ssi_clk` 最低频率，默认 24MHz。 |
 | `clock_check_tolerance_ppm` | optional clock check 的频率容差，默认 1%。 |
-| `interrupt_timeout_ssi_clk_cycles` | transfer 等待 `intr` 的 `ssi_clk` 周期上限，超时直接 `uvm_fatal`。 |
+| `interrupt_timeout_margin_percent` | 在单次 transfer 理论耗时上增加的百分比余量。 |
+| `interrupt_timeout_extra_ssi_clk_cycles` | 在单次 transfer 理论耗时上增加的固定 `ssi_clk` 周期余量。 |
+| `fifo_status_timeout_ssi_clk_cycles` | 单次等待 `SR.TFNF` 或 `SR.RFNE` 的短轮询上限。 |
 | `default_tx_fifo_threshold` | 默认 TX FIFO threshold。 |
 | `default_rx_fifo_threshold` | 默认 RX FIFO threshold。 |
 | `default_rx_sample_delay_ns` | 默认 `RX_SAMPLE_DELAY`。 |
@@ -187,6 +189,10 @@ sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 s
 
 ## Interrupt Timeout Settings
 
-`interrupt_timeout_ssi_clk_cycles` 是 transfer 等待 `intr` 的周期上限。
+`interrupt_timeout_ssi_clk_cycles` 不是 Python 输入的固定全局值，而是 `register_config_builder` 为每次 transfer 推导到 `configuration` 的单次等待上限。
+
+推导输入包括 instruction/address/dummy/data 阶段的串行周期数、`BAUDR`、`fifo_depth_bytes`、`interrupt_timeout_margin_percent` 和 `interrupt_timeout_extra_ssi_clk_cycles`。公式见 `core/formulas.md`。
 
 interface 会同时使用 `min_ssi_clk_hz` 和 `clock_check_tolerance_ppm` 推导一个仿真时间兜底超时。这样既能覆盖正常慢响应，也能覆盖 `ssi_clk` 停住导致周期计数不前进的情况。
+
+PIO 路径等待 `SR.TFNF` / `SR.RFNE` 使用 `fifo_status_timeout_ssi_clk_cycles`，不要复用完整 transfer 的中断 timeout。
