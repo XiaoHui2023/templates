@@ -11,7 +11,11 @@
 
 ## 流程
 
-![config_reg 流程](../../../images/config_reg_flow.drawio.svg)
+1. 随机化 tree。
+2. 配置 **PLL** 并等待 lock。
+3. 配置 **div**、**dto**、**inv**。
+4. 切换 **mux** 前打开上游 **gate** 并等待。
+5. 写入 **gate** 与 **mux**。
 
 ## 细节
 

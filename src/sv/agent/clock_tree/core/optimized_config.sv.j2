@@ -1,0 +1,223 @@
+{% if route_test_enabled %}
+`ifndef {{ (settings.class_prefix ~ "optimized_config") | upper }}
+`define {{ (settings.class_prefix ~ "optimized_config") | upper }}
+
+// 树内 source 节点最小正频率；无正频率则 0
+function automatic longint {{ settings.class_prefix }}optimized_config_min_source_freq_hz(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}source_base src_nd;
+    longint min_hz;
+    min_hz = 0;
+    if (tree == null)
+        return 0;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(src_nd, tree.nodes[i]))
+            continue;
+        if (src_nd.frequence <= 0)
+            continue;
+        if (min_hz == 0 || src_nd.frequence < min_hz)
+            min_hz = src_nd.frequence;
+    end
+    return min_hz;
+endfunction
+
+// 统计未在 skip_nodes 中的 pll 数量
+// skip_nodes — 保持原频率的 pll 或路径节点
+function automatic int {{ settings.class_prefix }}optimized_config_count_pll(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
+    {{ settings.class_prefix }}pll_base pll_nd;
+    int n;
+    n = 0;
+    if (tree == null)
+        return 0;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(pll_nd, tree.nodes[i]))
+            continue;
+        if ({{ settings.class_prefix }}node_in_queue(pll_nd, skip_nodes))
+            continue;
+        n++;
+    end
+    return n;
+endfunction
+
+// 按小于 1GHz 的最大晶振倍数为各 pll 分配互异频率
+// skip_nodes — 保持 frequence 不变的 pll 或路径节点
+function automatic void {{ settings.class_prefix }}optimized_config_apply_pll_freq(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
+    {{ settings.class_prefix }}pll_base pll_nd;
+    longint base_hz;
+    int mult;
+    int pll_count;
+
+    base_hz = {{ settings.class_prefix }}optimized_config_min_source_freq_hz(tree);
+    if (base_hz <= 0)
+        `uvm_fatal("CLK_TREE", "optimized_config: no positive source frequence")
+    pll_count = {{ settings.class_prefix }}optimized_config_count_pll(tree, skip_nodes);
+    mult = int'((64'd1000000000 - 1) / base_hz);
+    if (mult < pll_count)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "optimized_config: source %0d Hz supports %0d distinct pll multiplier(s), need %0d",
+            base_hz, mult, pll_count))
+
+    foreach (tree.nodes[i]) begin
+        if (!$cast(pll_nd, tree.nodes[i]))
+            continue;
+        if ({{ settings.class_prefix }}node_in_queue(pll_nd, skip_nodes))
+            continue;
+        pll_nd.frequence = base_hz * mult;
+        mult--;
+    end
+endfunction
+
+// 非 skip 的 div _resolved_ratio 与 ratio 固定为 1
+// skip_nodes — 保持 ratio 不变的 div 或路径节点
+function automatic void {{ settings.class_prefix }}optimized_config_pin_div_dto_ratio_one(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
+    {{ settings.class_prefix }}div_base div_nd;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (!$cast(div_nd, tree.nodes[i]))
+            continue;
+        if ({{ settings.class_prefix }}node_in_queue(div_nd, skip_nodes))
+            continue;
+        {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
+    end
+endfunction
+
+// 结构探测前：stable clk 锁定 frequence 与 enabled；其余 clk 放开随机
+function automatic void {{ settings.class_prefix }}optimized_config_apply_clk_unfix(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}clk clk_nd;
+    bit has_stable;
+    if (tree == null)
+        return;
+    has_stable = tree.has_stable_clk();
+    foreach (tree.nodes[i]) begin
+        if (!$cast(clk_nd, tree.nodes[i]))
+            continue;
+        if (clk_nd.volatile)
+            continue;
+        if (clk_nd.stable) begin
+            clk_nd.unfix_frequence = 1'b0;
+            clk_nd.unfix_enabled = 1'b0;
+        end else begin
+            clk_nd.unfix_frequence = 1'b1;
+            clk_nd.unfix_enabled = has_stable;
+        end
+    end
+endfunction
+
+// 将全部非 volatile clk 的 unfix_frequence 设为同一值
+// unfix_val — 写入各 clk 的 unfix_frequence
+function automatic void {{ settings.class_prefix }}optimized_config_set_all_clk_unfix_frequence(
+        {{ settings.class_prefix }}tree_base tree,
+        bit unfix_val);
+    {{ settings.class_prefix }}clk clk_nd;
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i])
+        if ($cast(clk_nd, tree.nodes[i]) && !clk_nd.volatile)
+            clk_nd.unfix_frequence = unfix_val;
+endfunction
+
+// test_route 与 test_flip 探测前：pll 频率、div ratio、clk 放开策略
+// skip_nodes — stable 路径上保持原配置的节点
+function automatic void {{ settings.class_prefix }}optimized_config_apply_tree(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
+    {{ settings.class_prefix }}optimized_config_apply_pll_freq(tree, skip_nodes);
+    {{ settings.class_prefix }}optimized_config_pin_div_dto_ratio_one(tree, skip_nodes);
+    {{ settings.class_prefix }}optimized_config_apply_clk_unfix(tree);
+endfunction
+
+// 收集 subject 上下游与 keep_nodes 的连通节点，其余写入 disconnected
+// subject — 本轮探测节点
+// keep_nodes — 始终保留在连通集合中的节点
+function automatic void {{ settings.class_prefix }}optimized_config_collect_scope(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base subject,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
+        output {{ settings.class_prefix }}node_base connected[$],
+        output {{ settings.class_prefix }}node_base disconnected[$]);
+    {{ settings.class_prefix }}node_base before[$];
+    {{ settings.class_prefix }}node_base after[$];
+
+    connected.delete();
+    disconnected.delete();
+    if (tree == null || subject == null)
+        return;
+
+    {{ settings.class_prefix }}append_unique_node(connected, subject);
+    {{ settings.class_prefix }}get_nodes_before(tree, subject, before);
+    foreach (before[i])
+        {{ settings.class_prefix }}append_unique_node(connected, before[i]);
+    {{ settings.class_prefix }}get_nodes_after(tree, subject, after);
+    foreach (after[i])
+        {{ settings.class_prefix }}append_unique_node(connected, after[i]);
+    foreach (keep_nodes[i])
+        {{ settings.class_prefix }}append_unique_node(connected, keep_nodes[i]);
+
+    foreach (tree.nodes[i]) begin
+        if (!{{ settings.class_prefix }}node_in_queue(tree.nodes[i], connected))
+            {{ settings.class_prefix }}append_unique_node(disconnected, tree.nodes[i]);
+    end
+endfunction
+
+// 关闭 disconnected 队列中各 gate
+// disconnected — 反选支路节点
+function automatic void {{ settings.class_prefix }}optimized_config_close_disconnected_gates(
+        {{ settings.class_prefix }}node_base disconnected[$]);
+    {{ settings.class_prefix }}gate gate_nd;
+    foreach (disconnected[i]) begin
+        if ($cast(gate_nd, disconnected[i]))
+            {{ settings.class_prefix }}route_structure_set_gate_open(gate_nd, 1'b0, 1'b1);
+    end
+endfunction
+
+// 保存全树各节点控制快照
+function automatic void {{ settings.class_prefix }}optimized_config_save_tree_ctrl(
+        {{ settings.class_prefix }}tree_base tree,
+        output {{ settings.class_prefix }}node_base nodes[$],
+        output {{ settings.class_prefix }}route_ctrl_snap snaps[$]);
+    {{ settings.class_prefix }}route_ctrl_snap one_snap;
+    nodes.delete();
+    snaps.delete();
+    if (tree == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        {{ settings.class_prefix }}append_unique_node(nodes, tree.nodes[i]);
+        {{ settings.class_prefix }}route_structure_save_ctrl(tree.nodes[i], one_snap);
+        snaps.push_back(one_snap);
+    end
+endfunction
+
+// 按保存的快照恢复全树控制量
+// nodes — 与 snaps 一一对应的节点队列
+// snaps — 各节点控制快照
+function automatic void {{ settings.class_prefix }}optimized_config_restore_tree_ctrl(
+        {{ settings.class_prefix }}node_base nodes[$],
+        {{ settings.class_prefix }}route_ctrl_snap snaps[$]);
+    foreach (nodes[i])
+        {{ settings.class_prefix }}route_structure_apply_ctrl(nodes[i], snaps[i], 1'b0);
+endfunction
+
+// 为 subject 划定连通与反选范围，并关闭反选支路 gate
+// subject — 本轮探测节点
+// keep_nodes — 始终保留在连通集合中的节点
+function automatic void {{ settings.class_prefix }}optimized_config_scope_for_subject(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base subject,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
+        output {{ settings.class_prefix }}node_base connected[$],
+        output {{ settings.class_prefix }}node_base disconnected[$]);
+    {{ settings.class_prefix }}optimized_config_collect_scope(
+        tree, subject, keep_nodes, connected, disconnected);
+    {{ settings.class_prefix }}optimized_config_close_disconnected_gates(disconnected);
+endfunction
+
+`endif
+{% endif %}

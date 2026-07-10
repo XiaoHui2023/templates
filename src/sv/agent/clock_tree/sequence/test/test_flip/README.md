@@ -12,7 +12,12 @@
 
 ## 流程
 
-![test_flip 流程](../../../images/test_flip_flow.drawio.svg)
+1. 先执行一次 **config_reg**。
+2. 固定当前 **gate** 与 **mux**。
+3. 进入 **optimized_config**，优化 **PLL** 频率并放开非 stable **clk** 频率。
+4. 对每个 **div** / **dto** 写入翻转 pattern。
+5. 只测被测节点上下游相通支路，关闭反选支路 **gate**。
+6. 恢复配置后测试 **inv** 翻转相位。
 
 ## 细节
 

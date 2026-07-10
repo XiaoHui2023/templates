@@ -20,6 +20,11 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
         bit check_duty,
         bit include_volatile
     );
+    // 该节点是否被本次测量黑名单跳过
+    extern function bit node_skipped(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}node_base skip_nodes[$]
+    );
     // 该节点是否参与频率比对
     // nd — 节点
     // check_freq — 为真时按 kind 过滤
@@ -144,6 +149,16 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
         int meas_timeout_ns
     );
 endclass
+
+function bit {{ settings.class_prefix }}check_measure_seq::node_skipped(
+    {{ settings.class_prefix }}node_base nd,
+    {{ settings.class_prefix }}node_base skip_nodes[$]
+);
+    foreach (skip_nodes[i])
+        if (skip_nodes[i] == nd)
+            return 1'b1;
+    return 1'b0;
+endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
     {{ settings.class_prefix }}node_base nd,
@@ -524,6 +539,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
 
     foreach (rq.tree.nodes[i]) begin
         nd = rq.tree.nodes[i];
+        if (node_skipped(nd, rq.skip_nodes))
+            continue;
         if (!node_needs_measure(nd, rq.check_freq, rq.check_duty, rq.include_volatile))
             continue;
         nodes_to_check.push_back(nd);

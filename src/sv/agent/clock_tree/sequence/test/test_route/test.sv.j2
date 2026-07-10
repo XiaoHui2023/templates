@@ -19,7 +19,8 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
     // 静默校验当前树 clk 频率
     extern task run_check_measure_quiet(
         {{ settings.class_prefix }}tree_base tree,
-        bit debug = 1'b0);
+        bit debug = 1'b0,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
     // 按当前树状态写寄存器
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
@@ -47,7 +48,8 @@ endclass
 
 task {{ settings.class_prefix }}test_route_seq::run_check_measure_quiet(
         {{ settings.class_prefix }}tree_base tree,
-        bit debug = 1'b0);
+        bit debug = 1'b0,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
     {{ settings.class_prefix }}check_measure_req meas_req;
     {{ settings.class_prefix }}check_measure_rsp meas_rsp;
     {{ settings.class_prefix }}check_measure_seq meas_seq;
@@ -61,6 +63,7 @@ task {{ settings.class_prefix }}test_route_seq::run_check_measure_quiet(
     meas_req.check_freq = 1'b1;
     meas_req.check_duty = 1'b0;
     meas_req.include_volatile = 1'b0;
+    meas_req.skip_nodes = skip_nodes;
     meas_req.min_freq_hz = {{ settings.class_prefix }}route_structure_theoretical_min_freq_hz(
         tree, {{ settings.min_freq_hz }});
     meas_seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
@@ -130,6 +133,8 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     string dir_label;
     string line_names;
     string combo_summary;
+    {{ settings.class_prefix }}node_base connected[$];
+    {{ settings.class_prefix }}node_base disconnected[$];
 
     n_run = 0;
     n_skip_sub = 0;
@@ -159,7 +164,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     if (!quiet) begin
         line_names = {{ settings.class_prefix }}route_structure_format_node_names(line);
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: subject [%0d/%0d] %s %s — line %s, %0d self x %0d combo(s)",
+            "test_route: subject [%0d/%0d] %s %s, line %s, %0d self x %0d combo(s)",
             subject_idx + 1, subject_total, subject.get_name(), dir_label,
             line_names, n_sub, n_combo), UVM_LOW)
     end
@@ -169,7 +174,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
         {{ settings.class_prefix }}route_structure_apply_variant_index(subject, sv, 1'b1);
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
-                "test_route:   %s self [%0d/%0d] %s %s — config_reg",
+                "test_route:   %s self [%0d/%0d] %s %s, config_reg",
                 dir_label, sv + 1, n_sub, subject.get_name(),
                 {{ settings.class_prefix }}route_structure_variant_label(subject, sv)),
                 UVM_MEDIUM)
@@ -180,22 +185,29 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
             n_skip_sub++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
-                    "test_route:     skip self variant — stable clk invalid"),
+                    "test_route:     skip self variant, stable clk invalid"),
                     UVM_MEDIUM)
             continue;
         end
 
         for (c = 0; c < n_combo; c++) begin
+            restore_ctrl_snap(stored_nodes, stored_snaps);
+            {{ settings.class_prefix }}route_structure_apply_variant_index(subject, sv, 1'b1);
             restore_ctrl_snap(line_snaps_nodes, line_snaps);
             if (line.size() > 0)
                 {{ settings.class_prefix }}route_structure_apply_line_combo_index(
                     line, c, 1'b1);
             combo_summary = {{ settings.class_prefix }}route_structure_line_combo_summary(
                 line, c);
+            {{ settings.class_prefix }}optimized_config_scope_for_subject(
+                tree, subject, pinned_path, connected, disconnected);
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
-                    "test_route:     %s line [%0d/%0d] %s — config_reg",
-                    dir_label, c + 1, n_combo, combo_summary), UVM_MEDIUM)
+                    "test_route:     %s line [%0d/%0d] %s, check %s, skip %s, config_reg",
+                    dir_label, c + 1, n_combo, combo_summary,
+                    {{ settings.class_prefix }}route_structure_format_node_names(connected),
+                    {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
+                    UVM_MEDIUM)
             run_config_reg(tree, 1'b1);
             if (tree.has_stable_clk()
                     && !{{ settings.class_prefix }}route_structure_stable_clocks_valid(
@@ -203,14 +215,14 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                 n_skip_combo++;
                 if (!quiet)
                     `uvm_info("CLK_TREE", $sformatf(
-                        "test_route:       skip line combo — stable clk invalid"),
+                        "test_route:       skip line combo, stable clk invalid"),
                         UVM_MEDIUM)
                 continue;
             end
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "test_route:       check_measure"), UVM_MEDIUM)
-            run_check_measure_quiet(tree, debug);
+            run_check_measure_quiet(tree, debug, disconnected);
             n_run++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
@@ -223,7 +235,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: subject %s %s done — %0d check_measure run(s), %0d self variant skip(s), %0d line combo skip(s)",
+            "test_route: subject %s %s done, %0d check_measure run(s), %0d self variant skip(s), %0d line combo skip(s)",
             subject.get_name(), dir_label, n_run, n_skip_sub, n_skip_combo),
             UVM_LOW)
 endtask
@@ -266,7 +278,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
                 stable_clk_nodes.size(), req_clk_names), UVM_LOW)
         else
             `uvm_info("CLK_TREE",
-                "test_route: no stable clk — all clk nodes may vary enabled",
+                "test_route: no stable clk, all clk nodes may vary enabled",
                 UVM_LOW)
     end
 
@@ -277,7 +289,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE",
-            "test_route: init — plain config_reg", UVM_LOW)
+            "test_route: init, plain config_reg", UVM_LOW)
     run_config_reg(tree, rq.quiet);
 
     {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
@@ -288,7 +300,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
         if ({{ settings.class_prefix }}node_in_queue(subjects[i], pinned_path)) begin
             if (!rq.quiet)
                 `uvm_info("CLK_TREE", $sformatf(
-                    "test_route: skip subject %s (%s) — on selected path to stable clk",
+                    "test_route: skip subject %s (%s), on selected path to stable clk",
                     subjects[i].get_name(), subjects[i].kind), UVM_LOW)
             continue;
         end
@@ -303,22 +315,22 @@ task {{ settings.class_prefix }}test_route_seq::body();
             pinned_names = {{ settings.class_prefix }}route_structure_format_node_names(
                 pinned_path);
             `uvm_info("CLK_TREE", $sformatf(
-                "test_route: init — pin path gate/mux/div/pll (%0d): %s",
+                "test_route: init, pin path gate/mux/div/pll (%0d): %s",
                 pinned_path.size(), pinned_names), UVM_LOW)
         end
     end
 
-    {{ settings.class_prefix }}route_structure_apply_pll_distinct_freq_policy(tree, pinned_path);
-    {{ settings.class_prefix }}route_structure_pin_div_dto_ratio_one(tree, pinned_path);
+    {{ settings.class_prefix }}optimized_config_apply_pll_freq(tree, pinned_path);
+    {{ settings.class_prefix }}optimized_config_pin_div_dto_ratio_one(tree, pinned_path);
     {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(pinned_path);
-    {{ settings.class_prefix }}route_structure_apply_clk_unfix_policy(tree);
+    {{ settings.class_prefix }}optimized_config_apply_clk_unfix(tree);
 
     stored_nodes = tree.nodes;
     save_ctrl_snap(stored_nodes, stored_snaps);
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE",
-            "test_route: init — pll/div/path fix + non-stable clk unfix — confirm config_reg",
+            "test_route: init, pll/div/path fix + non-stable clk unfix, confirm config_reg",
             UVM_LOW)
     run_config_reg(tree, rq.quiet);
 
@@ -326,7 +338,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
         subject_names = {{ settings.class_prefix }}route_structure_format_node_names(
             probe_subjects);
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: probe — %0d subject(s): %s",
+            "test_route: probe, %0d subject(s): %s",
             probe_subjects.size(), subject_names), UVM_LOW)
     end
 
@@ -347,7 +359,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: passed — %0d subject(s), upstream + downstream each",
+            "test_route: passed, %0d subject(s), upstream + downstream each",
             probe_subjects.size()), UVM_LOW)
 
     rsp = rs;

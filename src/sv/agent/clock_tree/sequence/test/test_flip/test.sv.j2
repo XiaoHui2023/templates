@@ -19,7 +19,8 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
     // 校验当前树频率，默认静默打印
     extern task run_check_measure_quiet(
         {{ settings.class_prefix }}tree_base tree,
-        bit debug = 1'b0);
+        bit debug = 1'b0,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
     // 按当前树状态写寄存器
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
@@ -32,6 +33,7 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
     extern task verify_div_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_div div_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit msb_one_lsb_zero,
         bit quiet,
         bit debug);
@@ -39,12 +41,14 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
     extern task verify_div_flip(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_div div_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet,
         bit debug);
     // 按 MSB 或 LSB 单比特 pattern 写 dto 分频比后校验
     extern task verify_dto_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_dto dto_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit msb_one_lsb_zero,
         bit quiet,
         bit debug);
@@ -52,18 +56,21 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
     extern task verify_dto_flip(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_dto dto_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet,
         bit debug);
     // 翻转 inv 控制并检查相位差约半周期
     extern task verify_inv_flip(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}inv inv_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet);
 endclass
 
 task {{ settings.class_prefix }}test_flip_seq::run_check_measure_quiet(
         {{ settings.class_prefix }}tree_base tree,
-        bit debug = 1'b0);
+        bit debug = 1'b0,
+        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
     {{ settings.class_prefix }}check_measure_req meas_req;
     {{ settings.class_prefix }}check_measure_rsp meas_rsp;
     {{ settings.class_prefix }}check_measure_seq meas_seq;
@@ -77,6 +84,7 @@ task {{ settings.class_prefix }}test_flip_seq::run_check_measure_quiet(
     meas_req.check_freq = 1'b1;
     meas_req.check_duty = 1'b0;
     meas_req.include_volatile = 1'b0;
+    meas_req.skip_nodes = skip_nodes;
     meas_seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
     meas_seq.req = meas_req;
     meas_seq.start(p_sequencer);
@@ -159,10 +167,15 @@ endtask
 task {{ settings.class_prefix }}test_flip_seq::verify_div_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_div div_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit msb_one_lsb_zero,
         bit quiet,
         bit debug);
     {{ settings.class_prefix }}route_ctrl_snap snap;
+    {{ settings.class_prefix }}node_base saved_nodes[$];
+    {{ settings.class_prefix }}route_ctrl_snap saved_snaps[$];
+    {{ settings.class_prefix }}node_base connected[$];
+    {{ settings.class_prefix }}node_base disconnected[$];
     int probe_ratio;
     string pat_label;
 
@@ -176,19 +189,26 @@ task {{ settings.class_prefix }}test_flip_seq::verify_div_flip_pattern(
         div_nd.f_div, msb_one_lsb_zero);
     pat_label = msb_one_lsb_zero ? "msb1_lsb0" : "msb0_lsb1";
 
+    {{ settings.class_prefix }}optimized_config_save_tree_ctrl(tree, saved_nodes, saved_snaps);
     {{ settings.class_prefix }}route_structure_save_ctrl(div_nd, snap);
 
     div_nd.ratio = probe_ratio;
     div_nd.unfix_ratio = 1'b0;
+    {{ settings.class_prefix }}optimized_config_scope_for_subject(
+        tree, div_nd, keep_nodes, connected, disconnected);
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: div %s %s ratio %0d",
-            div_nd.get_name(), pat_label, probe_ratio), UVM_MEDIUM)
+            "test_flip: div %s %s ratio %0d, check %s, skip %s",
+            div_nd.get_name(), pat_label, probe_ratio,
+            {{ settings.class_prefix }}route_structure_format_node_names(connected),
+            {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
+            UVM_MEDIUM)
     run_config_reg(tree, quiet);
-    run_check_measure_quiet(tree, debug);
+    run_check_measure_quiet(tree, debug, disconnected);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(div_nd, snap, 1'b1);
+    {{ settings.class_prefix }}optimized_config_restore_tree_ctrl(saved_nodes, saved_snaps);
     run_config_reg(tree, quiet);
 
     if (!quiet)
@@ -200,6 +220,7 @@ endtask
 task {{ settings.class_prefix }}test_flip_seq::verify_div_flip(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_div div_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet,
         bit debug);
     int width;
@@ -207,18 +228,23 @@ task {{ settings.class_prefix }}test_flip_seq::verify_div_flip(
     if (div_nd == null)
         return;
     width = {{ settings.class_prefix }}reg_field_width(div_nd.f_div);
-    verify_div_flip_pattern(tree, div_nd, 1'b1, quiet, debug);
+    verify_div_flip_pattern(tree, div_nd, keep_nodes, 1'b1, quiet, debug);
     if (width > 1)
-        verify_div_flip_pattern(tree, div_nd, 1'b0, quiet, debug);
+        verify_div_flip_pattern(tree, div_nd, keep_nodes, 1'b0, quiet, debug);
 endtask
 
 task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip_pattern(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_dto dto_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit msb_one_lsb_zero,
         bit quiet,
         bit debug);
     {{ settings.class_prefix }}route_ctrl_snap snap;
+    {{ settings.class_prefix }}node_base saved_nodes[$];
+    {{ settings.class_prefix }}route_ctrl_snap saved_snaps[$];
+    {{ settings.class_prefix }}node_base connected[$];
+    {{ settings.class_prefix }}node_base disconnected[$];
     int probe_ratio;
     string pat_label;
 
@@ -232,19 +258,26 @@ task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip_pattern(
         dto_nd.f_step, msb_one_lsb_zero);
     pat_label = msb_one_lsb_zero ? "msb1_lsb0" : "msb0_lsb1";
 
+    {{ settings.class_prefix }}optimized_config_save_tree_ctrl(tree, saved_nodes, saved_snaps);
     {{ settings.class_prefix }}route_structure_save_ctrl(dto_nd, snap);
 
     dto_nd.ratio = probe_ratio;
     dto_nd.unfix_ratio = 1'b0;
+    {{ settings.class_prefix }}optimized_config_scope_for_subject(
+        tree, dto_nd, keep_nodes, connected, disconnected);
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: dto %s %s ratio %0d",
-            dto_nd.get_name(), pat_label, probe_ratio), UVM_MEDIUM)
+            "test_flip: dto %s %s ratio %0d, check %s, skip %s",
+            dto_nd.get_name(), pat_label, probe_ratio,
+            {{ settings.class_prefix }}route_structure_format_node_names(connected),
+            {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
+            UVM_MEDIUM)
     run_config_reg(tree, quiet);
-    run_check_measure_quiet(tree, debug);
+    run_check_measure_quiet(tree, debug, disconnected);
 
     {{ settings.class_prefix }}route_structure_apply_ctrl(dto_nd, snap, 1'b1);
+    {{ settings.class_prefix }}optimized_config_restore_tree_ctrl(saved_nodes, saved_snaps);
     run_config_reg(tree, quiet);
 
     if (!quiet)
@@ -256,6 +289,7 @@ endtask
 task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}div_dto dto_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet,
         bit debug);
     int width;
@@ -263,14 +297,15 @@ task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip(
     if (dto_nd == null)
         return;
     width = {{ settings.class_prefix }}reg_field_width(dto_nd.f_step);
-    verify_dto_flip_pattern(tree, dto_nd, 1'b1, quiet, debug);
+    verify_dto_flip_pattern(tree, dto_nd, keep_nodes, 1'b1, quiet, debug);
     if (width > 1)
-        verify_dto_flip_pattern(tree, dto_nd, 1'b0, quiet, debug);
+        verify_dto_flip_pattern(tree, dto_nd, keep_nodes, 1'b0, quiet, debug);
 endtask
 
 task {{ settings.class_prefix }}test_flip_seq::verify_inv_flip(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}inv inv_nd,
+        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet);
     real phase_before;
     real phase_after;
@@ -278,6 +313,10 @@ task {{ settings.class_prefix }}test_flip_seq::verify_inv_flip(
     real phase_err;
     bit ok;
     bit saved_inverted;
+    {{ settings.class_prefix }}node_base saved_nodes[$];
+    {{ settings.class_prefix }}route_ctrl_snap saved_snaps[$];
+    {{ settings.class_prefix }}node_base connected[$];
+    {{ settings.class_prefix }}node_base disconnected[$];
 
     if (inv_nd == null)
         return;
@@ -287,6 +326,10 @@ task {{ settings.class_prefix }}test_flip_seq::verify_inv_flip(
         return;
 
     saved_inverted = inv_nd.inverted;
+    {{ settings.class_prefix }}optimized_config_save_tree_ctrl(tree, saved_nodes, saved_snaps);
+    {{ settings.class_prefix }}optimized_config_scope_for_subject(
+        tree, inv_nd, keep_nodes, connected, disconnected);
+    run_config_reg(tree, quiet);
 
     measure_node_phase(inv_nd, phase_before, ok);
     if (!ok)
@@ -299,8 +342,11 @@ task {{ settings.class_prefix }}test_flip_seq::verify_inv_flip(
 
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: inv %s toggle inverted to %0b",
-            inv_nd.get_name(), inv_nd.inverted), UVM_MEDIUM)
+            "test_flip: inv %s toggle inverted to %0b, check %s, skip %s",
+            inv_nd.get_name(), inv_nd.inverted,
+            {{ settings.class_prefix }}route_structure_format_node_names(connected),
+            {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
+            UVM_MEDIUM)
     run_config_reg(tree, quiet);
 
     measure_node_phase(inv_nd, phase_after, ok);
@@ -320,6 +366,7 @@ task {{ settings.class_prefix }}test_flip_seq::verify_inv_flip(
 
     inv_nd.inverted = saved_inverted;
     inv_nd.fix_inverted = 1'b0;
+    {{ settings.class_prefix }}optimized_config_restore_tree_ctrl(saved_nodes, saved_snaps);
     run_config_reg(tree, quiet);
 
     if (!quiet)
@@ -336,6 +383,7 @@ task {{ settings.class_prefix }}test_flip_seq::body();
     {{ settings.class_prefix }}div_div div_nd;
     {{ settings.class_prefix }}div_dto dto_nd;
     {{ settings.class_prefix }}inv inv_nd;
+    {{ settings.class_prefix }}node_base stable_keep[$];
     int i;
 
     if (req == null)
@@ -356,6 +404,8 @@ task {{ settings.class_prefix }}test_flip_seq::body();
         `uvm_info("CLK_TREE",
             "test_flip: fix gate/mux after baseline config_reg", UVM_LOW)
     {{ settings.class_prefix }}route_structure_fix_all_gate_mux(tree);
+    {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
+        tree, stable_keep);
 
     rs = {{ settings.class_prefix }}test_flip_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
@@ -366,13 +416,13 @@ task {{ settings.class_prefix }}test_flip_seq::body();
         `uvm_fatal("CLK_TREE",
             "test_flip: no div or dto node with bound regs in scope")
 
-    {{ settings.class_prefix }}route_structure_set_all_clk_unfix_frequence(tree, 1'b1);
+    {{ settings.class_prefix }}optimized_config_apply_tree(tree, stable_keep);
 
     for (i = 0; i < subjects.size(); i++) begin
         if ($cast(div_nd, subjects[i]))
-            verify_div_flip(tree, div_nd, rq.quiet, rq.debug);
+            verify_div_flip(tree, div_nd, stable_keep, rq.quiet, rq.debug);
         else if ($cast(dto_nd, subjects[i]))
-            verify_dto_flip(tree, dto_nd, rq.quiet, rq.debug);
+            verify_dto_flip(tree, dto_nd, stable_keep, rq.quiet, rq.debug);
         else
             `uvm_fatal("CLK_TREE", $sformatf(
                 "test_flip: subject %s is not div or dto", subjects[i].get_name()))
@@ -381,7 +431,7 @@ task {{ settings.class_prefix }}test_flip_seq::body();
     for (i = 0; i < tree.nodes.size(); i++) begin
         if (!$cast(inv_nd, tree.nodes[i]))
             continue;
-        verify_inv_flip(tree, inv_nd, rq.quiet);
+        verify_inv_flip(tree, inv_nd, stable_keep, rq.quiet);
     end
 
     if (!rq.quiet)

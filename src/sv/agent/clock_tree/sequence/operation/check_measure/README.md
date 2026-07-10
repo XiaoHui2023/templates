@@ -9,14 +9,19 @@
 | **tree** | **tree_base** | 时钟树 |
 | **quiet** | **bit** | 静默打印 |
 | **debug** | **bit** | 为真时等待循环打印未完成节点与测量阶段 |
-| **check_freq** | **bit** | 为真时检查 **source**、**clk**、**pll** 频率 |
+| **check_freq** | **bit** | 为真时检查 **clk** 频率 |
 | **check_duty** | **bit** | 为真时检查全部带 **vif** 节点占空比 |
 | **include_volatile** | **bit** | 默认 1；为 0 时跳过 **volatile** 的 **clk** |
 | **min_freq_hz** | **int** | 允许最低时钟频率；0 则用 **settings.min_freq_hz** |
+| **skip_nodes** | **node_base** 队列 | 不参与本次测量的节点 |
 
 ## 流程
 
-![check_measure 流程](../../../images/check_measure_flow.drawio.svg)
+1. 收集带 **vif**、未在 **skip_nodes** 中的本轮量测节点。
+2. 同一个 **vif** 只启动一次测量。
+3. 等待活动确认、频率稳定和占空比稳定。
+4. 按 **clk** 的 **_resolved_freq** 比对频率。
+5. 全部本轮量测节点完成后关闭空闲 **vif**。
 
 ## rsp
 
