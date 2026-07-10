@@ -183,11 +183,6 @@ class NodeBase(BaseModel):
     def primary_output_group(self) -> str:
         return primary_output_group(self)
 
-    path: str = Field(
-        "",
-        description="RTL 层次路径，按 `.` 分隔。",
-    )
-
     @computed_field(  # type: ignore[prop-decorator]
         description="由 source 或 mux.source 推导；YAML 与 model_validate 不可传入。",
     )
@@ -214,19 +209,6 @@ class NodeBase(BaseModel):
         if self.kind != "mux" or not self.source:
             return 0
         return max(int(k) for k in self.source.keys())
-
-    @field_validator("path")
-    @classmethod
-    def _validate_path(cls, value: str) -> str:
-        if not value:
-            return value
-        for seg in value.split("."):
-            if not _SV_ID.match(seg):
-                raise ValueError(
-                    f"path 段 {seg!r} 须为合法 SystemVerilog 名字，完整 path: {value!r}"
-                )
-        return value
-
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
@@ -506,6 +488,11 @@ class CellNode(NodeBase):
 
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
+    path: str = Field(
+        ...,
+        min_length=1,
+        description="RTL 层次路径，按 `.` 分隔。",
+    )
     freq: Optional[int] = Field(
         default=None,
         description="典型频率，单位 Hz；省略表示不指定频率；"
@@ -525,10 +512,24 @@ class ClkNode(NodeBase):
         "应配合正整数 freq，tree 锁定 frequence 并将 enabled 置 1。",
     )
 
+    volatile: bool = Field(default=False)
+
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_optional_freq(cls, value: Any) -> Any:
         return _coerce_optional_int(value)
+
+    @field_validator("path")
+    @classmethod
+    def _validate_path(cls, value: str) -> str:
+        if not value:
+            raise ValueError("clk 节点 path 必须填写")
+        for seg in value.split("."):
+            if not _SV_ID.match(seg):
+                raise ValueError(
+                    f"path 段 {seg!r} 须为合法 SystemVerilog 名字，完整 path: {value!r}"
+                )
+        return value
 
     @computed_field(  # type: ignore[prop-decorator]
         description="tree 构造写入 frequence；省略 freq 时为 -1；YAML 不可传入。",
@@ -599,6 +600,10 @@ class ClkNode(NodeBase):
         if self.disable and self.stable:
             raise ValueError(
                 f"clk 节点 {self.name!r} disable 与 stable 不可同时为真"
+            )
+        if self.volatile and self.stable:
+            raise ValueError(
+                f"clk node {self.name!r} volatile and stable cannot both be true"
             )
         return self
 
@@ -826,7 +831,7 @@ class Tree(BaseModel):
         return slots
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="path 非空的 sv_slots；用于测量 interface 与 tree_interface；YAML 不可传入。",
+        description="clk path 非空的 sv_slots；用于测量 interface 与 tree_interface；YAML 不可传入。",
     )
     @property
     def connectable_slots(self) -> List[SvNodeSlot]:

@@ -43,9 +43,13 @@ class Settings(BaseModel):
         False,
         description="为真时启用纯路径探针模式：不连接前级，只检查带 path 且有正数 freq 的 clk，以及 disable 的 clk。",
     )
-    direct_mode: bool = Field(
+    direct_check: bool = Field(
         False,
         description="为真时生成直接调用的纯 SystemVerilog 检查入口，不依赖 UVM tree、component 或 sequence。",
+    )
+    direct_config: bool = Field(
+        False,
+        description="为真时只生成 model 目录文件和直接寄存器配置入口，不生成 UVM agent。",
     )
     min_freq_hz: int = Field(
         15000,
@@ -216,24 +220,28 @@ class Models(BaseModel):
 
     @model_validator(mode="after")
     def _validate_nodes_for_mode(self) -> Models:
+        if self.settings.direct_check and self.settings.direct_config:
+            raise ValueError("direct_check 与 direct_config 不可同时为真")
         if self.settings.probe_mode:
             if not self.tree.nodes_ordered:
                 raise ValueError(
-                    "probe_mode 为真时须至少包含一个 path 非空且 freq 为正数或 disable 为真的 clk 节点"
+                    "probe_mode 为真时须至少包含一个 freq 为正数或 disable 为真的 clk 节点"
                 )
-        elif not self.settings.direct_mode:
+        elif not self.settings.direct_check:
             validate_nodes_graph(self.nodes)
-        if self.settings.direct_mode:
+        if self.settings.direct_check:
             if not any(
                 self._node_direct_check_enabled(node)
                 for node in self.tree.nodes_ordered
             ):
                 raise ValueError(
-                    "direct_mode 为真时须至少包含一个 path 非空且 freq 为正数的 source、pll、clk 节点，或 disable 为真的 clk 节点"
+                    "direct_check 为真时须至少包含一个 freq 为正数或 disable 为真的 clk 节点"
                 )
+        if self.settings.direct_config and not self.any_regs_configured:
+            raise ValueError("direct_config 为真时须至少配置一个 reg 或 regs")
         if (
             self.any_regs_configured
-            and not self.settings.direct_mode
+            and not self.settings.direct_check
             and not self.settings.class_regmodel
         ):
             raise ValueError(
@@ -268,10 +276,8 @@ class Models(BaseModel):
             return False
         if node.kind == "clk" and node.disable:
             return True
-        if node.kind == "pll" and isinstance(node.freq, dict):
-            return any(freq > 0 for freq in node.freq.values())
         return (
-            node.kind in ("source", "pll", "clk")
+            node.kind == "clk"
             and node.freq is not None
             and node.freq > 0
         )
@@ -330,7 +336,7 @@ class Models(BaseModel):
         return tree_has_node_regs(self.tree)
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="分别存在带 path 的节点与带 reg(regs) 的节点时为真；YAML 与 model_validate 不可传入。",
+        description="分别存在带 clk path 的节点与带 reg(regs) 的节点时为真；YAML 与 model_validate 不可传入。",
     )
     @property
     def enable_node_fix(self) -> bool:

@@ -1,0 +1,23 @@
+{% if any_node_path and not settings.direct_config %}
+`ifndef {{ (settings.class_prefix ~ "connect") | upper }}
+`define {{ (settings.class_prefix ~ "connect") | upper }}
+
+function automatic void {{ settings.class_prefix }}connect(
+        {{ settings.class_prefix }}tree tree,
+        virtual {{ settings.class_prefix }}tree_interface tree_if);
+    if (tree_if == null)
+        `uvm_fatal("CLK_TREE", "connect: tree_if is null")
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "connect: tree is null")
+{% for slot in tree.connectable_slots %}
+{% set node = tree.nodes[slot.node_key] %}
+{% if node.sv_is_array %}
+    tree.{{ slot.access }}.vif = tree_if.{{ slot.node_key }}_{{ slot.group_id }}_if;
+{% else %}
+    tree.{{ slot.access }}.vif = tree_if.{{ slot.node_key }}_if;
+{% endif %}
+{% endfor %}
+endfunction
+
+`endif
+{% endif %}

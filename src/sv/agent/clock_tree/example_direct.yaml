@@ -1,12 +1,10 @@
 nodes:
     osc:
       kind: source
-      path: dut.osc
       freq: 24000000
     pll_probe:
       kind: pll
       pll_kind: tci
-      path: dut.pll_probe
       freq: 480000000
     clk_cpu:
       kind: clk
@@ -16,9 +14,14 @@ nodes:
       kind: clk
       path: dut.clk_disabled
       disable: true
+    clk_volatile:
+      kind: clk
+      volatile: true
+      path: dut.clk_volatile
+      freq: 50000000
     clk_without_freq:
       kind: clk
       path: dut.clk_without_freq
 settings:
   class_prefix: clk_tree_
-  direct_mode: true
+  direct_check: true

@@ -22,6 +22,22 @@
 | **cst_user** | 外部约束 |
 | **cst_case** | 外部约束 |
 
+## direct_config
+
+`settings.direct_config: true` 时只生成 model 目录相关文件，`all.f` 通过 `-F model/model.f` 引用该目录下的 filelist。该模式用于不接 agent、component、sequence、top，只用 model 完成寄存器配置。
+
+配置入口 task 为 `{class_prefix}config_reg(tree)`。它会例化 direct configurator，并按当前 tree 配置写 PLL、div、dto、inv、gate、mux 等寄存器；调用前应先执行 `tree.build(regmodel)` 绑定寄存器并随机化。
+
+```systemverilog
+{class_prefix}tree tree;
+
+initial begin
+    tree = {class_prefix}tree::type_id::create("tree");
+    tree.build(your_regmodel);
+    {class_prefix}config_reg(tree);
+end
+```
+
 ## reg
 
 | 成员 | 类型 | 说明 |
@@ -82,6 +98,7 @@
 | **frequence** | **longint** | 频率 |
 | **enabled** | **bit**，**rand** | 使能 |
 | **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
+| **volatile** | **bit** | 独立测量时钟；不参与 route/flip/low_power/stable 锚定 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 

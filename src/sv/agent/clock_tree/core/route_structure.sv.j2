@@ -416,6 +416,8 @@ function automatic bit {{ settings.class_prefix }}route_structure_clk_is_stable(
         {{ settings.class_prefix }}clk clk_nd);
     if (clk_nd == null)
         return 1'b0;
+    if (clk_nd.volatile)
+        return 1'b0;
     return clk_nd.stable;
 endfunction
 
@@ -492,6 +494,8 @@ function automatic void {{ settings.class_prefix }}route_structure_apply_clk_unf
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
+        if (clk_nd.volatile)
+            continue;
         if (clk_nd.stable) begin
             clk_nd.unfix_frequence = 1'b0;
             clk_nd.unfix_enabled = 1'b0;
@@ -515,7 +519,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_stabl
         return;
     foreach (tree.clock_nodes[i]) begin
         clk_nd = tree.clock_nodes[i];
-        if (clk_nd == null || !clk_nd.stable)
+        if (clk_nd == null || clk_nd.volatile || !clk_nd.stable)
             continue;
         cur = clk_nd.source;
         while (cur != null) begin
@@ -575,7 +579,7 @@ function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_u
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
-        if ($cast(clk_nd, tree.nodes[i]))
+        if ($cast(clk_nd, tree.nodes[i]) && !clk_nd.volatile)
             clk_nd.unfix_frequence = unfix_val;
     end
 {%- endif %}
@@ -590,7 +594,7 @@ function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_u
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
-        if ($cast(clk_nd, tree.nodes[i]))
+        if ($cast(clk_nd, tree.nodes[i]) && !clk_nd.volatile)
             clk_nd.unfix_enabled = unfix_val;
     end
 {%- endif %}
@@ -693,7 +697,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_stable_clocks_
     if (tree == null)
         return 1'b1;
     foreach (tree.clock_nodes[i]) begin
-        if (!tree.clock_nodes[i].stable)
+        if (tree.clock_nodes[i].volatile || !tree.clock_nodes[i].stable)
             continue;
         if (!tree.clock_nodes[i]._resolved_active)
             return 1'b0;

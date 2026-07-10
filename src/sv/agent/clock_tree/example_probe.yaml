@@ -1,15 +1,12 @@
 nodes:
     osc:
       kind: source
-      path: dut.osc
     ignored_source_with_freq:
       kind: source
-      path: dut.ignored_source_with_freq
       freq: 24000000
     pll_probe:
       kind: pll
       pll_kind: tci
-      path: dut.pll_probe
       freq: 480000000
     clk_cpu:
       kind: clk
@@ -24,7 +21,6 @@ nodes:
       disable: true
     gate_without_freq:
       kind: gate
-      path: dut.gate_without_freq
       source: osc
 settings:
   class_prefix: clk_tree_

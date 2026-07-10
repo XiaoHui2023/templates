@@ -1,0 +1,46 @@
+# model
+
+## tree
+
+```systemverilog
+{{ settings.class_prefix }}tree tree;
+
+initial begin
+    tree = {{ settings.class_prefix }}tree::type_id::create("tree");
+{% if regs_enabled %}
+    tree.build(your_regmodel);
+{% else %}
+    tree.build();
+{% endif %}
+end
+```
+
+{% if regs_enabled %}
+## config_reg
+
+```systemverilog
+{{ settings.class_prefix }}tree tree;
+
+initial begin
+    tree = {{ settings.class_prefix }}tree::type_id::create("tree");
+    tree.build(your_regmodel);
+    {{ settings.class_prefix }}config_reg(tree);
+end
+```
+
+{% endif %}
+{% if first_clk_name and regs_enabled %}
+## 配置
+
+```systemverilog
+constraint {{ settings.class_prefix }}tree::cst_user {
+    ...
+}
+
+initial begin
+    tree.low_power();
+    tree.{{ first_clk_name }}.enabled = 1;
+    tree.{{ first_clk_name }}.frequence = 123456000;
+end
+```
+{% endif %}

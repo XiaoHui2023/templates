@@ -1,27 +1,18 @@
 # 说明
 
-## 外部约束
-
-+ 你可以使用以下外部约束：
-  + `cst_base`
-  + `cst_user`
-  + `cst_case`
+{% if any_node_path %}
+## 例化接口
 
 ```systemverilog
-constraint {{ settings.class_prefix }}tree::cst_base {
+module your_top_module;
     ...
-}
-constraint {{ settings.class_prefix }}tree::cst_user {
+    {{ settings.class_prefix }}tree_interface clk_tree_if();
     ...
-}
-constraint {{ settings.class_prefix }}tree::cst_case {
-    ...
-}
+endmodule
 ```
 
-## 建立与使用
-
-在平台中建立 `{{ settings.class_prefix }}agent`，放入构建后的 `{{ settings.class_prefix }}tree`
+{% endif %}
+## 搭建
 
 ```systemverilog
 {{ settings.class_prefix }}agent clk_agt;
@@ -32,86 +23,35 @@ function void build_phase(uvm_phase phase);
     ...
     clk_agt = {{ settings.class_prefix }}agent::type_id::create("clk_agt", this);
     tree = {{ settings.class_prefix }}tree::type_id::create("tree");
-{%- if any_node_path and regs_enabled %}
-    tree.build(your_top_module.clk_tree_if, your_regmodel);
-{%- elif any_node_path %}
-    tree.build(your_top_module.clk_tree_if);
-{%- elif regs_enabled %}
+{% if any_node_path and regs_enabled %}
     tree.build(your_regmodel);
-{%- else %}
+    {{ settings.class_prefix }}connect(tree, your_top_module.clk_tree_if);
+{% elif any_node_path %}
     tree.build();
-{%- endif %}
-    $cast(clk_sqr, clk_agt.sqr); // 取出工具方便使用
+    {{ settings.class_prefix }}connect(tree, your_top_module.clk_tree_if);
+{% elif regs_enabled %}
+    tree.build(your_regmodel);
+{% else %}
+    tree.build();
+{% endif %}
+    $cast(clk_sqr, clk_agt.sqr);
     uvm_config_db#({{ settings.class_prefix }}tree)::set(this, "clk_agt", "tree", tree);
 endfunction
 ```
 
-使用快捷函数
+## 使用
 
 ```systemverilog
 task main_phase(uvm_phase phase);
     phase.raise_objection(this);
     ...
-{%- if any_node_path and regs_enabled %}
+{% if any_node_path and regs_enabled %}
     clk_sqr.test_measure();
-{%- elif any_node_path %}
+{% elif any_node_path %}
     clk_sqr.check_measure();
-{%- elif regs_enabled %}
+{% elif regs_enabled %}
     clk_sqr.config_reg();
-{%- endif %}
+{% endif %}
     ...
 endtask
 ```
-{% if first_clk_name and regs_enabled %}
-## 配置时钟
-
-开关时钟或改变频率，以 {{ first_clk_name }} 为例（详见 `tree.sv`）。
-
-```systemverilog
-task main_phase(uvm_phase phase);
-    phase.raise_objection(this);
-    
-    tree.low_power(); // 低功耗（关闭全部时钟）
-    tree.{{ first_clk_name }}.enabled = 1; // 开启时钟
-    tree.{{ first_clk_name }}.frequence = 123456000; // 频率123.456Mhz
-    clk_sqr.config_reg(); // 应用配置
-endtask
-```
-
-{% endif %}
-
-## probe 模式
-
-`settings.probe_mode: true` 表示纯路径探针模式。该模式不表达树状连接关系，不连接 `source`，只例化带 `path` 且有正数 `freq` 的 `clk`，以及 `disable: true` 的 `clk`；`source`、`pll` 和其它中间节点不会出现在生成的 `tree.sv` 和 `tree_interface.sv` 中。
-
-`probe` 模式仍调用 `randomize()`，由节点自身约束把 `freq` 或 `disable` 解析成 check_measure 使用的 `_resolved_freq` 与 `_resolved_active`。
-
-## direct 模式
-
-`settings.direct_mode: true` 表示纯 SystemVerilog 直接检查模式。该模式生成 `top/top.f` 与 `top/direct_check.sv`，`all.f` 只通过 `-F top/top.f` 引用 `tree_interface`、测量 interface 和 direct 检查 task，不编译 UVM tree、component、sequence。
-
-在顶层例化 `{{ settings.class_prefix }}tree_interface` 后调用 `{{ settings.class_prefix }}direct_check(tree_if)`。task 会根据 YAML 中带 `path` 的显式配置检查：`freq > 0` 表示期望有对应频率，`clk.disable: true` 表示期望 inactive。
-
-{% if any_node_path %}
-## 顶层连线
-
-在模块顶层例化 tree interface
-
-```systemverilog
-module your_top_module;
-    ...
-    {{ settings.class_prefix }}tree_interface clk_tree_if();
-    ...
-endmodule
-```
-
-tree 构建时传入该 interface 实例
-
-```systemverilog
-function void build_phase(uvm_phase phase);
-    ...
-    tree.build(your_top_module.clk_tree_if{% if regs_enabled %}, your_regmodel{% endif %});
-endfunction
-```
-
-{% endif %}

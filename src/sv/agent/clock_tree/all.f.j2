@@ -1,12 +1,14 @@
-{% if settings.direct_mode and any_node_path %}
+{% if settings.direct_check and any_node_path %}
 -F top/top.f
+{% elif settings.direct_config %}
+-F model/model.f
 {% else %}
 model/spec.sv
 {% if any_node_path %}
 top/measure_interface.sv
 top/interface.sv
 top/tree_interface.sv
-{% if settings.direct_mode %}
+{% if settings.direct_check %}
 top/direct_check.sv
 {% endif %}
 {% endif %}
@@ -48,7 +50,10 @@ core/tree_nodes.sv
 core/route_ctrl_snap.sv
 core/route_structure.sv
 {% endif %}
-tree.sv
+model/tree.sv
+{% if any_node_path %}
+connect.sv
+{% endif %}
 component/sequencer.sv
 sequence/base.sv
 {% if regs_enabled %}

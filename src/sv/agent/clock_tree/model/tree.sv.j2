@@ -114,7 +114,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
 {%- for src in node.sources %}
-{%- if not settings.probe_mode %}
+{%- if not settings.probe_mode and not (node.kind == "clk" and node.volatile) %}
 {%- set peer = tree.nodes[src.name] %}
 {%- if peer.output_groups %}
 {%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' %}
@@ -138,6 +138,9 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
 {%- set clk_acc = node.name ~ '["' ~ g ~ '"]' %}
+{%- if node.volatile %}
+        {{ clk_acc }}.volatile = 1'b1;
+{%- endif %}
 {%- if (settings.probe_mode and not node.disable and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
@@ -159,6 +162,9 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endfor %}
 {%- else %}
+{%- if node.volatile %}
+        {{ node.name }}.volatile = 1'b1;
+{%- endif %}
 {%- if (settings.probe_mode and not node.disable and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ node.name }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
@@ -225,38 +231,15 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         end
     endfunction
 
-{% if any_node_path %}
-    // Assign measurement interfaces from the top-level tree interface.
-    extern function void connect_tree(virtual {{ settings.class_prefix }}tree_interface tree_if);
-{% endif %}
 {% if regs_enabled %}
-    // Bind interfaces and register fields, then randomize tree nodes.
+    // Bind register fields, then randomize tree nodes.
 {% else %}
-    // Bind interfaces, then randomize tree nodes.
+    // Randomize tree nodes.
 {% endif %}
-    extern function void build({% if any_node_path %}virtual {{ settings.class_prefix }}tree_interface tree_if{% if regs_enabled %}, {% endif %}{% endif %}{% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
+    extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
 endclass
 
-{% if any_node_path %}
-function void {{ settings.class_prefix }}tree::connect_tree(
-        virtual {{ settings.class_prefix }}tree_interface tree_if);
-    if (tree_if == null)
-        `uvm_fatal("CLK_TREE", "connect_tree: tree_if is null")
-{%- for slot in tree.connectable_slots %}
-{%- set node = tree.nodes[slot.node_key] %}
-{%- if node.sv_is_array %}
-    {{ slot.access }}.vif = tree_if.{{ slot.node_key }}_{{ slot.group_id }}_if;
-{%- else %}
-    {{ slot.access }}.vif = tree_if.{{ slot.node_key }}_if;
-{%- endif %}
-{%- endfor %}
-endfunction
-
-{% endif %}
-function void {{ settings.class_prefix }}tree::build({% if any_node_path %}virtual {{ settings.class_prefix }}tree_interface tree_if{% if regs_enabled %}, {% endif %}{% endif %}{% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
-{%- if any_node_path %}
-    connect_tree(tree_if);
-{%- endif %}
+function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
 {%- if regs_enabled %}
     if (regmodel != null) begin
 {%- for sv_access, member, path, offset, width in reg_bindings %}

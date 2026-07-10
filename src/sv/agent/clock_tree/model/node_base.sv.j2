@@ -15,7 +15,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     bit _print_fix;
 {%- endif %}
     {{ settings.class_prefix }}node_base source;
-{% if any_node_path %}
+{% if any_node_path and not settings.direct_config %}
     virtual {{ settings.class_prefix }}interface vif;
 {% endif %}
 

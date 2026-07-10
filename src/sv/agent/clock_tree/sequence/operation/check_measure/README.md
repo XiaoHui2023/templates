@@ -11,6 +11,7 @@
 | **debug** | **bit** | 为真时等待循环打印未完成节点与测量阶段 |
 | **check_freq** | **bit** | 为真时检查 **source**、**clk**、**pll** 频率 |
 | **check_duty** | **bit** | 为真时检查全部带 **vif** 节点占空比 |
+| **include_volatile** | **bit** | 默认 1；为 0 时跳过 **volatile** 的 **clk** |
 | **min_freq_hz** | **int** | 允许最低时钟频率；0 则用 **settings.min_freq_hz** |
 
 ## 流程

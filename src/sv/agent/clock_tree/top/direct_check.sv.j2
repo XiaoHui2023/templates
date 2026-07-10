@@ -1,4 +1,4 @@
-{% if settings.direct_mode and any_node_path %}
+{% if settings.direct_check and any_node_path %}
 `ifndef {{ (settings.class_prefix ~ "direct_check") | upper }}
 `define {{ (settings.class_prefix ~ "direct_check") | upper }}
 
@@ -18,12 +18,6 @@ task automatic {{ settings.class_prefix }}direct_check(
 {%- if node.kind == "clk" and node.disable %}
     {{ settings.class_prefix }}direct_check_inactive("{{ slot.access }}", tree_if.{{ vif_name }}, ok);
 {%- elif node.kind == "clk" and node.freq is not none and node.freq > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
-{%- elif node.kind == "source" and node.freq is not none and node.freq > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
-{%- elif node.kind == "pll" and node.freq is mapping and node.freq[slot.group_id] > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq[slot.group_id] > 2147483647 %}64'd{{ node.freq[slot.group_id] }}{% else %}{{ node.freq[slot.group_id] }}{% endif %}, ok);
-{%- elif node.kind == "pll" and node.freq is not mapping and node.freq > 0 %}
     {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
 {%- endif %}
 {%- endfor %}

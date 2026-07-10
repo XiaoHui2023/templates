@@ -17,7 +17,8 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     extern function bit node_needs_measure(
         {{ settings.class_prefix }}node_base nd,
         bit check_freq,
-        bit check_duty
+        bit check_duty,
+        bit include_volatile
     );
     // 该节点是否参与频率比对
     // nd — 节点
@@ -147,9 +148,13 @@ endclass
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
     {{ settings.class_prefix }}node_base nd,
     bit check_freq,
-    bit check_duty
+    bit check_duty,
+    bit include_volatile
 );
+    {{ settings.class_prefix }}clk clk_nd;
     if (nd == null || nd.vif == null)
+        return 1'b0;
+    if (!include_volatile && $cast(clk_nd, nd) && clk_nd.volatile)
         return 1'b0;
     if (!nd._resolved_active || nd._resolved_freq <= 0)
         return nd.kind == "clk" && (check_freq || check_duty);
@@ -157,7 +162,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
         return 1'b1;
     if (!check_freq)
         return 1'b0;
-    return nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll";
+    return nd.kind == "clk";
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check(
@@ -168,7 +173,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check
         return 1'b0;
     if (!nd._resolved_active || nd._resolved_freq <= 0)
         return nd.kind == "clk";
-    return nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll";
+    return nd.kind == "clk";
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_activity_ready(
@@ -402,7 +407,7 @@ function void {{ settings.class_prefix }}check_measure_seq::start_measure_if_new
             return;
     end
     if (rq.check_freq
-            && (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll"))
+            && nd.kind == "clk")
         nd.vif.set_min_freq_hz(meas_min_freq_hz);
     nd.vif.start_measure();
 endfunction
@@ -413,7 +418,7 @@ function void {{ settings.class_prefix }}check_measure_seq::restart_measure_on_v
     int meas_min_freq_hz
 );
     if (rq.check_freq
-            && (nd.kind == "source" || nd.kind == "clk" || nd.kind == "pll"))
+            && nd.kind == "clk")
         nd.vif.set_min_freq_hz(meas_min_freq_hz);
     nd.vif.start_measure();
 endfunction
@@ -519,7 +524,7 @@ task {{ settings.class_prefix }}check_measure_seq::body();
 
     foreach (rq.tree.nodes[i]) begin
         nd = rq.tree.nodes[i];
-        if (!node_needs_measure(nd, rq.check_freq, rq.check_duty))
+        if (!node_needs_measure(nd, rq.check_freq, rq.check_duty, rq.include_volatile))
             continue;
         nodes_to_check.push_back(nd);
     end

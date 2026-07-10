@@ -1,22 +1,19 @@
-# clock_tree 全功能示范：各 kind、三种 pll_kind、path 与 reg/regs、test_route 条件均覆盖
+# clock_tree 全功能示范：各 kind、三种 pll_kind、clk path 与 reg/regs、test_route 条件均覆盖
 nodes:
     xtal:
       kind: source
       source_kind: source
-      path: dut.xtal
       freq: 24000000
 
     pad_xtal:
       kind: source
       source_kind: pad
-      path: dut.pad_xtal
       freq: 24000000
 
     pll_tci:
       kind: pll
       source: xtal
       pll_kind: tci
-      path: dut.pll_tci
       freq: 48000000
       regs:
         lock: blk_pll_tci.lock
@@ -32,7 +29,6 @@ nodes:
       kind: pll
       source: xtal
       pll_kind: sc
-      path: dut.pll_sc
       freq: 60000000
       regs:
         lock: blk_pll_sc.lock
@@ -50,7 +46,6 @@ nodes:
       kind: pll
       source: xtal
       pll_kind: dw
-      path: dut.pll_dw
       freq: 72000000
       regs:
         lock: blk_pll_dw.lock
@@ -71,7 +66,6 @@ nodes:
       kind: pll
       source: xtal
       pll_kind: inno
-      path: dut.pll_inno
       freq: 48000000
       regs:
         lock: blk_pll_inno.lock
@@ -85,7 +79,6 @@ nodes:
 
     mux_pll:
       kind: mux
-      path: dut.mux_pll
       source:
         "0": pll_inno[0]
         "1": pll_inno[1]
@@ -93,7 +86,6 @@ nodes:
 
     mux_ref:
       kind: mux
-      path: dut.mux_ref
       source:
         "0": mux_pll
         "1": xtal
@@ -102,26 +94,22 @@ nodes:
     gate0:
       kind: gate
       source: mux_ref
-      path: dut.gate0
       reg: blk_gate0.en
 
     cell_buf:
       kind: cell
       cell_kind: buf
       source: gate0
-      path: dut.cell_buf
 
     div_r_0:
       kind: div_r
       ratio: 99
       source: cell_buf
-      path: dut.div_r_0
 
     div0:
       kind: div
       div_kind: div
       source: div_r_0
-      path: dut.div0
       regs:
         rst: blk_div0.rst
         load: blk_div0.load
@@ -136,7 +124,6 @@ nodes:
       kind: div
       div_kind: dto
       source: inv0
-      path: dut.dto0
       regs:
         rst: blk_dto0.rst
         load: blk_dto0.load
@@ -155,10 +142,12 @@ nodes:
       path: dut.clk_aux
       source: gate0
 
-    clk_standalone:
+    clk_volatile:
       kind: clk
-      path: dut.clk_standalone
+      volatile: true
+      path: dut.clk_volatile
       freq: 50000000
+      source: gate0
 
     clk_disabled:
       kind: clk
@@ -168,7 +157,6 @@ nodes:
 
     mux_wide:
       kind: mux
-      path: dut.mux_wide
       source:
         "0": pll_tci
         "1": pll_sc
@@ -179,7 +167,6 @@ nodes:
     mux_fixed:
       kind: mux
       sel: 2
-      path: dut.mux_fixed
       source:
         "0": mux_ref
         "1": mux_wide
@@ -190,7 +177,6 @@ nodes:
       kind: gate
       open: 1
       source: mux_fixed
-      path: dut.gate_fixed
       reg: blk_gate_fixed.en
 
     div_fixed:
@@ -198,7 +184,6 @@ nodes:
       div_kind: div_n
       ratio: 6
       source: gate_fixed
-      path: dut.div_fixed
       regs:
         rst: blk_div_fixed.ctrl[0]
         load: blk_div_fixed.ctrl[1]
@@ -208,7 +193,6 @@ nodes:
       kind: div
       div_kind: dto_n
       source: div_fixed
-      path: dut.dto_rand
       regs:
         rst: blk_dto_rand.ctrl[0]
         load: blk_dto_rand.ctrl[1]
@@ -219,7 +203,6 @@ nodes:
       kind: inv
       inv_kind: inv_mux
       source: dto_rand
-      path: dut.inv_mux0
       reg: blk_inv_mux0.sel
 
     clk_wide_a:

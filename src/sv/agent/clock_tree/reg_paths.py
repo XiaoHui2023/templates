@@ -429,13 +429,15 @@ def any_reg_configured(tree: Tree) -> bool:
 
 
 def node_path_connectable(tree: Tree, node: object) -> bool:
-    """节点 RTL path 非空时为真。"""
+    """clk 节点 RTL path 非空时为真。"""
+    if getattr(node, "kind", "") != "clk":
+        return False
     path = getattr(node, "path", "")
     return bool(path)
 
 
 def any_node_path(tree: Tree) -> bool:
-    """任一节点有可连接 RTL path 时为真，用于决定是否展开 interface 与 tree_interface。"""
+    """任一 clk 节点有可连接 RTL path 时为真，用于决定是否展开测量 interface。"""
     for node in tree.nodes_ordered:
         if node_path_connectable(tree, node):
             return True
@@ -443,7 +445,7 @@ def any_node_path(tree: Tree) -> bool:
 
 
 def tree_has_path_and_reg(tree: Tree) -> bool:
-    """树内分别存在带 path 的节点与带 reg 或 regs 的节点时为真，用于 enable_node_fix。"""
+    """树内分别存在带 clk path 的节点与带 reg 或 regs 的节点时为真，用于 enable_node_fix。"""
     return any_node_path(tree) and any_reg_configured(tree)
 
 

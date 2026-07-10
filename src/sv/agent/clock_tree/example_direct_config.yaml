@@ -1,0 +1,50 @@
+nodes:
+    osc:
+      kind: source
+      freq: 24000000
+
+    pll_tci:
+      kind: pll
+      source: osc
+      pll_kind: tci
+      freq: 48000000
+      regs:
+        lock: blk_pll_tci.lock
+        bypass: blk_pll_tci.bypass
+        pwrdn: blk_pll_tci.pwrdn
+        reset: blk_pll_tci.reset
+        clkod: blk_pll_tci.clkod
+        clkf: blk_pll_tci.clkf
+        clkr: blk_pll_tci.clkr
+        bwadj: blk_pll_tci.bwadj
+
+    mux0:
+      kind: mux
+      source:
+        "0": osc
+        "1": pll_tci
+      reg: blk_mux0.sel
+
+    gate0:
+      kind: gate
+      source: mux0
+      reg: blk_gate0.en
+
+    div0:
+      kind: div
+      div_kind: div
+      source: gate0
+      regs:
+        rst: blk_div0.rst
+        load: blk_div0.load
+        div: blk_div0.div
+
+    clk_out:
+      kind: clk
+      path: dut.clk_out
+      source: div0
+
+settings:
+  class_prefix: clk_tree_
+  class_regmodel: regmodel_t
+  direct_config: true
