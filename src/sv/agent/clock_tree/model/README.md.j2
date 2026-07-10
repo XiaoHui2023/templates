@@ -1,46 +1,31 @@
 # model
 
-## tree
-
 ```systemverilog
 {{ settings.class_prefix }}tree tree;
 
 initial begin
+    // 例化 tree
     tree = {{ settings.class_prefix }}tree::type_id::create("tree");
 {% if regs_enabled %}
+    // 绑定寄存器并随机化
     tree.build(your_regmodel);
+
+    // 进入低功耗状态
+    tree.low_power();
+{% if first_clk_name %}
+
+    // 使能目标时钟
+    tree.{{ first_clk_name }}.enabled = 1;
+
+    // 设置目标频率
+    tree.{{ first_clk_name }}.frequence = 123456000;
+{% endif %}
+
+    // 写入寄存器配置
+    {{ settings.class_prefix }}config_reg(tree);
 {% else %}
+    // 随机化
     tree.build();
 {% endif %}
 end
 ```
-
-{% if regs_enabled %}
-## config_reg
-
-```systemverilog
-{{ settings.class_prefix }}tree tree;
-
-initial begin
-    tree = {{ settings.class_prefix }}tree::type_id::create("tree");
-    tree.build(your_regmodel);
-    {{ settings.class_prefix }}config_reg(tree);
-end
-```
-
-{% endif %}
-{% if first_clk_name and regs_enabled %}
-## 配置
-
-```systemverilog
-constraint {{ settings.class_prefix }}tree::cst_user {
-    ...
-}
-
-initial begin
-    tree.low_power();
-    tree.{{ first_clk_name }}.enabled = 1;
-    tree.{{ first_clk_name }}.frequence = 123456000;
-end
-```
-{% endif %}

@@ -16,12 +16,6 @@
 | **collect_stable_clk_nodes** | 收集 **stable** 为真的 **clk** |
 | **has_stable_clk** | 是否存在 **stable** 为真的 **clk** |
 
-| 约束 | 说明 |
-| --- | --- |
-| **cst_base** | 外部约束 |
-| **cst_user** | 外部约束 |
-| **cst_case** | 外部约束 |
-
 ## direct_config
 
 `settings.direct_config: true` 时只生成 model 目录相关文件，`all.f` 通过 `-F model/model.f` 引用该目录下的 filelist。该模式用于不接 agent、component、sequence、top，只用 model 完成寄存器配置。

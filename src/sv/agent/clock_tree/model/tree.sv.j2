@@ -49,10 +49,6 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endfor %}
 
-    constraint cst_base;
-    constraint cst_user;
-    constraint cst_case;
-
     // Create node objects, connect sources, and populate tree queues.
     function new(string name="{{ settings.class_prefix }}tree");
         super.new(name);
