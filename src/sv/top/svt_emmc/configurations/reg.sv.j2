@@ -24,10 +24,14 @@ class {{ class_prefix }}reg_configuration extends {{ class_prefix }}base_configu
         {%- if is_sd %}
         soft allow_single_range_ocr_voltage_validation == 1;
 
+        {%- if is_sdcard %}
         if(version inside {VERSION_1_01, VERSION_1_10})
             soft ocr_voltage_window_supported_by_card == 16'hffff;
         else
             soft ocr_voltage_window_supported_by_card == 9'h1ff;
+        {%- elif is_sdio %}
+        soft ocr_voltage_window_supported_by_card == 9'h1ff;
+        {%- endif %}
         {%- endif %}
     }
 endclass
