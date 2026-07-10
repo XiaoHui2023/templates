@@ -132,20 +132,17 @@ task {{ class_prefix }}inout_test_seq::check_one(int bit_index, bit is_output, b
 
     if ((actual_data & active_mask) != (expect_data & active_mask)) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("gpio %s test mismatch: group=%s bit=%0d value=%0d active_mask=%h dir=%h output_data=%h drive_enable=%h input_data=%h expect=%h actual=%h external=%h controller=%h",
-                is_output ? "output" : "input",
-                cfg.group_name,
-                bit_index,
-                value,
-                active_mask,
-                dir & active_mask,
-                output_data & active_mask,
-                drive_enable & active_mask,
-                input_data & active_mask,
-                expect_data & active_mask,
-                actual_data & active_mask,
-                external_data & active_mask,
-                controller_data & active_mask))
+        for (int i = 0; i < cfg.num; i++) begin
+            if (active_mask[i] && actual_data[i] != expect_data[i]) begin
+                `uvm_error("", $sformatf("gpio %s mismatch: group=%s bit=%0d expect_%s=%0b actual=%0b",
+                        is_output ? "output" : "input",
+                        cfg.group_name,
+                        i,
+                        is_output ? "output" : "input",
+                        expect_data[i],
+                        actual_data[i]))
+            end
+        end
     end
 endtask
 
