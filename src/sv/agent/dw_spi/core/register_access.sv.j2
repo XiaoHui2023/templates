@@ -22,15 +22,15 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
 
         cntxt = get_report_context();
         if (cntxt.uvm_report_enabled(verbosity, UVM_INFO, id))
-            cntxt.uvm_report_info(id, message, verbosity, "", 0, get_full_name(), 1);
+            cntxt.uvm_report_info(id, message, verbosity);
     endfunction
 
     function void report_error(string id, string message);
-        get_report_context().uvm_report_error(id, message, UVM_NONE, "", 0, get_full_name());
+        get_report_context().uvm_report_error(id, message);
     endfunction
 
     function void report_fatal(string id, string message);
-        get_report_context().uvm_report_fatal(id, message, UVM_NONE, "", 0, get_full_name());
+        get_report_context().uvm_report_fatal(id, message);
     endfunction
 
     function bit [1:0] transfer_mode_bits(transfer_mode_e mode);
