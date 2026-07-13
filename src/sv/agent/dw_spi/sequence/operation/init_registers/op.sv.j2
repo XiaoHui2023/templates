@@ -31,6 +31,7 @@ task {{ class_prefix }}init_registers_seq::body();
     `uvm_info("DW_SPI_REG", "init_registers: applying register configuration", UVM_LOW)
     register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
+    register_access.report_context = p_sequencer;
     register_access.apply_configuration(rsp.cfg);
     `uvm_info("DW_SPI_REG", "init_registers: configuration applied", UVM_LOW)
 endtask

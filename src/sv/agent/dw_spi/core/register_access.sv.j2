@@ -5,9 +5,32 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
     `uvm_object_utils({{ class_prefix }}register_access)
 
     {{ class_prefix }}settings settings;
+    uvm_report_object report_context;
 
     function new(string name="{{ class_prefix }}register_access");
         super.new(name);
+    endfunction
+
+    function uvm_report_object get_report_context();
+        if (report_context != null)
+            return report_context;
+        return uvm_root::get();
+    endfunction
+
+    function void report_info(string id, string message, int verbosity);
+        uvm_report_object cntxt;
+
+        cntxt = get_report_context();
+        if (cntxt.uvm_report_enabled(verbosity, UVM_INFO, id))
+            cntxt.uvm_report_info(id, message, verbosity, "", 0, get_full_name(), 1);
+    endfunction
+
+    function void report_error(string id, string message);
+        get_report_context().uvm_report_error(id, message, UVM_NONE, "", 0, get_full_name());
+    endfunction
+
+    function void report_fatal(string id, string message);
+        get_report_context().uvm_report_fatal(id, message, UVM_NONE, "", 0, get_full_name());
     endfunction
 
     function bit [1:0] transfer_mode_bits(transfer_mode_e mode);
@@ -26,29 +49,29 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         uvm_reg_data_t reg_data;
 
         if (settings == null || settings.regmodel == null)
-            `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
         rm = settings.regmodel;
         ok = 1'b0;
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "waiting SR.TFNF before DR write: timeout_cycles=%0d",
-            settings.fifo_status_timeout_ssi_clk_cycles), UVM_LOW)
+            settings.fifo_status_timeout_ssi_clk_cycles), UVM_LOW);
         repeat (settings.fifo_status_timeout_ssi_clk_cycles) begin
             rm.SR.read(status, reg_data);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "poll SR while waiting TFNF: raw=0x%0h TFNF=%0b RFNE=%0b TFE=%0b RFF=%0b BUSY=%0b",
                 reg_data,
                 rm.SR.TFNF.get(),
                 rm.SR.RFNE.get(),
                 rm.SR.TFE.get(),
                 rm.SR.RFF.get(),
-                rm.SR.BUSY.get()), UVM_DEBUG)
+                rm.SR.BUSY.get()), UVM_DEBUG);
             if (rm.SR.TFNF.get()) begin
                 ok = 1'b1;
-                `uvm_info("DW_SPI_REG", "SR.TFNF asserted; DR write can proceed", UVM_DEBUG)
+                report_info("DW_SPI_REG", "SR.TFNF asserted; DR write can proceed", UVM_DEBUG);
                 return;
             end
         end
-        `uvm_error("DW_SPI_REG", "timeout waiting SR.TFNF before DR write")
+        report_error("DW_SPI_REG", "timeout waiting SR.TFNF before DR write");
     endtask
 
     task wait_rfne(output bit ok);
@@ -57,29 +80,29 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         uvm_reg_data_t reg_data;
 
         if (settings == null || settings.regmodel == null)
-            `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
         rm = settings.regmodel;
         ok = 1'b0;
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "waiting SR.RFNE before DR read: timeout_cycles=%0d",
-            settings.fifo_status_timeout_ssi_clk_cycles), UVM_LOW)
+            settings.fifo_status_timeout_ssi_clk_cycles), UVM_LOW);
         repeat (settings.fifo_status_timeout_ssi_clk_cycles) begin
             rm.SR.read(status, reg_data);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "poll SR while waiting RFNE: raw=0x%0h TFNF=%0b RFNE=%0b TFE=%0b RFF=%0b BUSY=%0b",
                 reg_data,
                 rm.SR.TFNF.get(),
                 rm.SR.RFNE.get(),
                 rm.SR.TFE.get(),
                 rm.SR.RFF.get(),
-                rm.SR.BUSY.get()), UVM_DEBUG)
+                rm.SR.BUSY.get()), UVM_DEBUG);
             if (rm.SR.RFNE.get()) begin
                 ok = 1'b1;
-                `uvm_info("DW_SPI_REG", "SR.RFNE asserted; DR read can proceed", UVM_DEBUG)
+                report_info("DW_SPI_REG", "SR.RFNE asserted; DR read can proceed", UVM_DEBUG);
                 return;
             end
         end
-        `uvm_error("DW_SPI_REG", "timeout waiting SR.RFNE before DR read")
+        report_error("DW_SPI_REG", "timeout waiting SR.RFNE before DR read");
     endtask
 
     task write_payload_to_dr(uvm_tlm_generic_payload payload, output bit ok);
@@ -89,28 +112,28 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         bit ready;
 
         if (settings == null || settings.regmodel == null)
-            `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
         rm = settings.regmodel;
         ok = 1'b1;
         if (payload == null)
-            `uvm_fatal("DW_SPI_REG", "payload is null")
+            report_fatal("DW_SPI_REG", "payload is null");
         payload.get_data(gp_data);
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "writing payload to DR: bytes=%0d", gp_data.size()), UVM_LOW)
+        report_info("DW_SPI_REG", $sformatf(
+            "writing payload to DR: bytes=%0d", gp_data.size()), UVM_LOW);
         foreach (gp_data[i]) begin
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "DR write byte[%0d]=0x%02h: wait TX FIFO not full",
-                i, gp_data[i]), UVM_DEBUG)
+                i, gp_data[i]), UVM_DEBUG);
             wait_tfnf(ready);
             if (!ready) begin
                 ok = 1'b0;
                 return;
             end
-            `uvm_info("DW_SPI_REG", $sformatf(
-                "DR write byte[%0d]=0x%02h", i, gp_data[i]), UVM_DEBUG)
+            report_info("DW_SPI_REG", $sformatf(
+                "DR write byte[%0d]=0x%02h", i, gp_data[i]), UVM_DEBUG);
             rm.DR.write(status, uvm_reg_data_t'(gp_data[i]));
         end
-        `uvm_info("DW_SPI_REG", $sformatf("wrote %0d byte(s) to DR", gp_data.size()), UVM_LOW)
+        report_info("DW_SPI_REG", $sformatf("wrote %0d byte(s) to DR", gp_data.size()), UVM_LOW);
     endtask
 
     task read_dr_to_payload(
@@ -125,33 +148,33 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         int length;
 
         if (settings == null || settings.regmodel == null)
-            `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
         rm = settings.regmodel;
         ok = 1'b1;
         read_data.delete();
         if (payload == null)
-            `uvm_fatal("DW_SPI_REG", "payload is null")
+            report_fatal("DW_SPI_REG", "payload is null");
         length = payload.get_data_length();
         gp_data = new[length];
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "reading payload from DR: bytes=%0d", length), UVM_LOW)
+        report_info("DW_SPI_REG", $sformatf(
+            "reading payload from DR: bytes=%0d", length), UVM_LOW);
         for (int i = 0; i < length; i++) begin
-            `uvm_info("DW_SPI_REG", $sformatf(
-                "DR read byte[%0d]: wait RX FIFO not empty", i), UVM_DEBUG)
+            report_info("DW_SPI_REG", $sformatf(
+                "DR read byte[%0d]: wait RX FIFO not empty", i), UVM_DEBUG);
             wait_rfne(ready);
             if (!ready) begin
                 ok = 1'b0;
                 return;
             end
             rm.DR.read(status, reg_data);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "DR read byte[%0d]=0x%02h raw=0x%0h",
-                i, reg_data[7:0], reg_data), UVM_DEBUG)
+                i, reg_data[7:0], reg_data), UVM_DEBUG);
             read_data.push_back(reg_data[7:0]);
             gp_data[i] = reg_data[7:0];
         end
         payload.set_data(gp_data);
-        `uvm_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_LOW)
+        report_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_LOW);
     endtask
 
     task apply_configuration({{ class_prefix }}configuration cfg);
@@ -163,17 +186,17 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         uvm_reg_data_t reg_data;
 
         if (cfg == null)
-            `uvm_fatal("DW_SPI_REG", "configuration is null")
+            report_fatal("DW_SPI_REG", "configuration is null");
         if (settings == null || settings.regmodel == null)
-            `uvm_fatal("DW_SPI_REG", "settings.regmodel is null")
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
         rm = settings.regmodel;
         if (!$cast(host_mode, cfg.host_mode))
-            `uvm_fatal("DW_SPI_REG", "failed to cast configuration host_mode")
+            report_fatal("DW_SPI_REG", "failed to cast configuration host_mode");
         if (!$cast(transfer_mode, cfg.transfer_mode))
-            `uvm_fatal("DW_SPI_REG", "failed to cast configuration transfer_mode")
+            report_fatal("DW_SPI_REG", "failed to cast configuration transfer_mode");
 
-        `uvm_info("DW_SPI_REG", "applying controller register configuration", UVM_LOW)
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", "applying controller register configuration", UVM_LOW);
+        report_info("DW_SPI_REG", $sformatf(
             "configuration detail: host_mode=%s transfer_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d data_frame_bits=%0d ndf=%0d ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
             host_mode.name(),
             transfer_mode.name(),
@@ -190,13 +213,13 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             cfg.baudr,
             cfg.txftlr,
             cfg.rxftlr,
-            cfg.interrupt_timeout_ssi_clk_cycles), UVM_DEBUG)
+            cfg.interrupt_timeout_ssi_clk_cycles), UVM_DEBUG);
 
-        `uvm_info("DW_SPI_REG", "disabling controller before register programming", UVM_LOW)
+        report_info("DW_SPI_REG", "disabling controller before register programming", UVM_LOW);
         rm.SSIENR.read(status, reg_data);
         rm.SSIENR.SSIC_EN.set(0);
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "write SSIENR: SSIC_EN=0 raw=0x%0h", rm.SSIENR.get()), UVM_DEBUG)
+        report_info("DW_SPI_REG", $sformatf(
+            "write SSIENR: SSIC_EN=0 raw=0x%0h", rm.SSIENR.get()), UVM_DEBUG);
         rm.SSIENR.write(status, rm.SSIENR.get());
 
         rm.IMR.read(status, reg_data);
@@ -206,19 +229,19 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.IMR.RXOIM.set(cfg.rxoim);
         rm.IMR.RXFIM.set(cfg.rxfim);
         rm.IMR.MSTIM.set(cfg.mstim);
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "write IMR: TXEIM=%0b TXOIM=%0b RXUIM=%0b RXOIM=%0b RXFIM=%0b MSTIM=%0b raw=0x%0h",
             cfg.txeim, cfg.txoim, cfg.rxuim, cfg.rxoim, cfg.rxfim, cfg.mstim,
-            rm.IMR.get()), UVM_DEBUG)
+            rm.IMR.get()), UVM_DEBUG);
         rm.IMR.write(status, rm.IMR.get());
 
-        `uvm_info("DW_SPI_REG", "clear interrupt status with ICR write", UVM_DEBUG)
+        report_info("DW_SPI_REG", "clear interrupt status with ICR write", UVM_DEBUG);
         rm.ICR.write(status, '0);
 
         rm.SER.read(status, reg_data);
         rm.SER.SER.set(0);
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "release SER before configuration: raw=0x%0h", rm.SER.get()), UVM_DEBUG)
+        report_info("DW_SPI_REG", $sformatf(
+            "release SER before configuration: raw=0x%0h", rm.SER.get()), UVM_DEBUG);
         rm.SER.write(status, rm.SER.get());
 
         dfs = cfg.data_frame_bits - 1;
@@ -229,11 +252,11 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.CTRLR0.SCPOL.set(cfg.spi_mode[1]);
         rm.CTRLR0.TMOD.set(transfer_mode_bits(transfer_mode));
         rm.CTRLR0.SSI_IS_MST.set(host_mode == MASTER);
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "write CTRLR0: DFS=%0d SPI_FRF=%0d SCPH=%0b SCPOL=%0b TMOD=%0d SSI_IS_MST=%0b raw=0x%0h",
             dfs, cfg.spi_frf, cfg.spi_mode[0], cfg.spi_mode[1],
             transfer_mode_bits(transfer_mode), host_mode == MASTER,
-            rm.CTRLR0.get()), UVM_DEBUG)
+            rm.CTRLR0.get()), UVM_DEBUG);
         rm.CTRLR0.write(status, rm.CTRLR0.get());
 
         if (cfg.spi_ctrlr0_en) begin
@@ -242,35 +265,35 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SPI_CTRLR0.INST_L.set(cfg.inst_l);
             rm.SPI_CTRLR0.ADDR_L.set(cfg.addr_l);
             rm.SPI_CTRLR0.TRANS_TYPE.set(cfg.trans_type);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "write SPI_CTRLR0: WAIT_CYCLES=%0d INST_L=%0d ADDR_L=%0d TRANS_TYPE=%0d raw=0x%0h",
                 cfg.wait_cycles, cfg.inst_l, cfg.addr_l, cfg.trans_type,
-                rm.SPI_CTRLR0.get()), UVM_DEBUG)
+                rm.SPI_CTRLR0.get()), UVM_DEBUG);
             rm.SPI_CTRLR0.write(status, rm.SPI_CTRLR0.get());
         end
 
         rm.CTRLR1.read(status, reg_data);
         rm.CTRLR1.NDF.set(cfg.ndf);
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "write CTRLR1: NDF=%0d raw=0x%0h", cfg.ndf, rm.CTRLR1.get()), UVM_DEBUG)
+        report_info("DW_SPI_REG", $sformatf(
+            "write CTRLR1: NDF=%0d raw=0x%0h", cfg.ndf, rm.CTRLR1.get()), UVM_DEBUG);
         rm.CTRLR1.write(status, rm.CTRLR1.get());
 
         rm.BAUDR.read(status, reg_data);
         rm.BAUDR.SCKDV.set(cfg.baudr);
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "write BAUDR: SCKDV=%0d raw=0x%0h", cfg.baudr, rm.BAUDR.get()), UVM_DEBUG)
+        report_info("DW_SPI_REG", $sformatf(
+            "write BAUDR: SCKDV=%0d raw=0x%0h", cfg.baudr, rm.BAUDR.get()), UVM_DEBUG);
         rm.BAUDR.write(status, rm.BAUDR.get());
 
         rm.TXFTLR.read(status, reg_data);
         rm.TXFTLR.TFT.set(cfg.txftlr);
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "write TXFTLR: TFT=%0d raw=0x%0h", cfg.txftlr, rm.TXFTLR.get()), UVM_DEBUG)
+        report_info("DW_SPI_REG", $sformatf(
+            "write TXFTLR: TFT=%0d raw=0x%0h", cfg.txftlr, rm.TXFTLR.get()), UVM_DEBUG);
         rm.TXFTLR.write(status, rm.TXFTLR.get());
 
         rm.RXFTLR.read(status, reg_data);
         rm.RXFTLR.RFT.set(cfg.rxftlr);
-        `uvm_info("DW_SPI_REG", $sformatf(
-            "write RXFTLR: RFT=%0d raw=0x%0h", cfg.rxftlr, rm.RXFTLR.get()), UVM_DEBUG)
+        report_info("DW_SPI_REG", $sformatf(
+            "write RXFTLR: RFT=%0d raw=0x%0h", cfg.rxftlr, rm.RXFTLR.get()), UVM_DEBUG);
         rm.RXFTLR.write(status, rm.RXFTLR.get());
 
 {% if internal_dma or external_dma %}
@@ -285,64 +308,64 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.DMACR.IDMAE.set(cfg.idmae);
         rm.DMACR.AINC.set(cfg.ainc);
 {% endif %}
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "write DMACR: RDMAE=%0b TDMAE=%0b{% if internal_dma %} IDMAE=%0b AINC=%0b{% endif %} raw=0x%0h",
             cfg.rdmae,
             cfg.tdmae{% if internal_dma %},
             cfg.idmae,
             cfg.ainc{% endif %},
-            rm.DMACR.get()), UVM_DEBUG)
+            rm.DMACR.get()), UVM_DEBUG);
         rm.DMACR.write(status, rm.DMACR.get());
 
         rm.DMATDLR.read(status, reg_data);
         rm.DMATDLR.DMATDL.set(cfg.dmatdl);
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "write DMATDLR: DMATDL=%0d raw=0x%0h",
-            cfg.dmatdl, rm.DMATDLR.get()), UVM_DEBUG)
+            cfg.dmatdl, rm.DMATDLR.get()), UVM_DEBUG);
         rm.DMATDLR.write(status, rm.DMATDLR.get());
 
         rm.DMARDLR.read(status, reg_data);
         rm.DMARDLR.DMARDL.set(cfg.dmardl);
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "write DMARDLR: DMARDL=%0d raw=0x%0h",
-            cfg.dmardl, rm.DMARDLR.get()), UVM_DEBUG)
+            cfg.dmardl, rm.DMARDLR.get()), UVM_DEBUG);
         rm.DMARDLR.write(status, rm.DMARDLR.get());
 
 {% if internal_dma %}
         if (cfg.write_internal_dma_regs) begin
             rm.AXIAWLEN.read(status, reg_data);
             rm.AXIAWLEN.AWLEN.set(cfg.awlen);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "write AXIAWLEN: AWLEN=0x%0h raw=0x%0h",
-                cfg.awlen, rm.AXIAWLEN.get()), UVM_DEBUG)
+                cfg.awlen, rm.AXIAWLEN.get()), UVM_DEBUG);
             rm.AXIAWLEN.write(status, rm.AXIAWLEN.get());
 
             rm.AXIARLEN.read(status, reg_data);
             rm.AXIARLEN.ARLEN.set(cfg.arlen);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "write AXIARLEN: ARLEN=0x%0h raw=0x%0h",
-                cfg.arlen, rm.AXIARLEN.get()), UVM_DEBUG)
+                cfg.arlen, rm.AXIARLEN.get()), UVM_DEBUG);
             rm.AXIARLEN.write(status, rm.AXIARLEN.get());
 
             rm.SPIDR.read(status, reg_data);
             rm.SPIDR.SPI_INST.set(cfg.spi_inst);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "write SPIDR: SPI_INST=0x%0h raw=0x%0h",
-                cfg.spi_inst, rm.SPIDR.get()), UVM_DEBUG)
+                cfg.spi_inst, rm.SPIDR.get()), UVM_DEBUG);
             rm.SPIDR.write(status, rm.SPIDR.get());
 
             rm.SPIAR.read(status, reg_data);
             rm.SPIAR.SDAR.set(cfg.sdar);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "write SPIAR: SDAR=0x%0h raw=0x%0h",
-                cfg.sdar, rm.SPIAR.get()), UVM_DEBUG)
+                cfg.sdar, rm.SPIAR.get()), UVM_DEBUG);
             rm.SPIAR.write(status, rm.SPIAR.get());
 
             rm.AXIAR0.read(status, reg_data);
             rm.AXIAR0.AXIAR0.set(cfg.axiar0);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "write AXIAR0: AXIAR0=0x%0h raw=0x%0h",
-                cfg.axiar0, rm.AXIAR0.get()), UVM_DEBUG)
+                cfg.axiar0, rm.AXIAR0.get()), UVM_DEBUG);
             rm.AXIAR0.write(status, rm.AXIAR0.get());
         end
 {% endif %}
@@ -351,26 +374,26 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         if (cfg.write_rx_sample_delay) begin
             rm.RX_SAMPLE_DELAY.read(status, reg_data);
             rm.RX_SAMPLE_DELAY.RSD.set(cfg.rx_sample_delay);
-            `uvm_info("DW_SPI_REG", $sformatf(
+            report_info("DW_SPI_REG", $sformatf(
                 "write RX_SAMPLE_DELAY: RSD=%0d raw=0x%0h",
-                cfg.rx_sample_delay, rm.RX_SAMPLE_DELAY.get()), UVM_DEBUG)
+                cfg.rx_sample_delay, rm.RX_SAMPLE_DELAY.get()), UVM_DEBUG);
             rm.RX_SAMPLE_DELAY.write(status, rm.RX_SAMPLE_DELAY.get());
         end
 
         rm.SER.read(status, reg_data);
         rm.SER.SER.set(cfg.ser);
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "select target chip select with SER: SER=0x%0h raw=0x%0h",
-            cfg.ser, rm.SER.get()), UVM_DEBUG)
+            cfg.ser, rm.SER.get()), UVM_DEBUG);
         rm.SER.write(status, rm.SER.get());
 
         rm.SSIENR.read(status, reg_data);
         rm.SSIENR.SSIC_EN.set(cfg.ssi_en);
-        `uvm_info("DW_SPI_REG", $sformatf(
+        report_info("DW_SPI_REG", $sformatf(
             "enable controller with SSIENR: SSIC_EN=%0b raw=0x%0h",
-            cfg.ssi_en, rm.SSIENR.get()), UVM_DEBUG)
+            cfg.ssi_en, rm.SSIENR.get()), UVM_DEBUG);
         rm.SSIENR.write(status, rm.SSIENR.get());
-        `uvm_info("DW_SPI_REG", "controller register configuration applied", UVM_LOW)
+        report_info("DW_SPI_REG", "controller register configuration applied", UVM_LOW);
     endtask
 endclass
 

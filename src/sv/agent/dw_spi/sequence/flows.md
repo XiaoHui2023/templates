@@ -20,7 +20,7 @@
 2. `register_config_builder` 根据 transfer req 和 settings 生成 `configuration`。
 3. builder 测量 `ssi_clk`，根据 `target_sclk_hz` 计算偶数 `BAUDR`。
 4. builder 根据 `payload_bytes * 8 / data_frame_bits` 向上取整计算 DFS frame 数，并推导 `CTRLR1.NDF`。
-5. `register_access` 实例化后注入 settings。
+5. `register_access` 实例化后注入 settings 和 `report_context = p_sequencer`。
 6. `register_access.apply_configuration()` 按 FIELD 写 regmodel。
 
 寄存器配置不通过 sequencer 函数完成，不通过 callback 完成，也不在 core 里引用 operation req。
@@ -30,7 +30,7 @@
 ## Primitive Transfer
 
 1. `transfer_seq` 检查 req、payload、scoreboard。
-2. 生成并应用本次寄存器 `configuration`。
+2. 生成并应用本次寄存器 `configuration`，其中 `register_access` 由 sequence 注入 `p_sequencer` 作为 report context。
 3. 调用 `p_sequencer.activate_chip_select(cs_id)`。
 4. 内部 DMA 且 `use_dma == 1` 的写传输，在寄存器配置/启动前通过 callback `cpu_write()` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 5. 等待 top interface 的 `intr` 断言，超时使用本次 `configuration.interrupt_timeout_ssi_clk_cycles`。

@@ -7,6 +7,7 @@
 | 对象 | 来源 | 用途 |
 | --- | --- | --- |
 | `settings.regmodel` | sequencer settings | 提供大写 REG/FIELD 句柄；task 内先保存为局部 `rm` |
+| `report_context` | operation sequence 注入的 `p_sequencer` | 让 core 工具类的 `UVM_LOW` / `UVM_DEBUG` 跟随 sequencer/agent 的 report verbosity |
 | `configuration` | operation 层 builder | 承载本次要写入的字段值 |
 
 ## Apply
@@ -33,6 +34,7 @@
 - 不提供通用 `reg_write` / `reg_read` 包装。
 - 不声明静态函数集合；sequence 实例化工具对象并注入依赖。
 - 不从 core 反向引用 sequence 层类型。
+- core 工具类不是 `uvm_component` 时，不直接用 `` `uvm_info`` 承担可控调试打印；调用方注入 `uvm_report_object report_context`，工具类内部先调用 `report_context.uvm_report_enabled()`，再调用 `report_context.uvm_report_info()`。这样把 agent/sequencer verbosity 调到 `UVM_DEBUG` 时，core 的 debug 明细也会打开。
 - DMA 寄存器也按明确 FIELD 写入，不使用完整寄存器拼值。
 - 不在 core 中封装 `set_field/get_field/update_reg` 这类寄存器访问二次 API；代码必须显式写出具体 REG/FIELD。
 - 不使用 `update()`；本模块寄存器总线访问只用 `read()` 和 `write()`。
