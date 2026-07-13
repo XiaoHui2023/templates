@@ -18,3 +18,10 @@
 5. 第二遍不按普通 memory 比较；检查第一块等于溢出的最后一块，说明 SRAM 中原第一块已被覆盖。
 
 该测试会先写入足够数据，不依赖外部初始镜像。
+
+## 关键点
+
+- 该测试验证控制器 SRAM 的暂存和覆盖行为，不是普通 card memory 读写一致性测试。
+- 第一遍读满 `sram_size`，数据仍能按地址与 scoreboard expected memory 比较。
+- 第二遍多读一个 block，控制器 SRAM 最早写入的第一块会被溢出块覆盖；此时只检查 SRAM 覆盖特征，不调用普通 scoreboard 比较。
+- `sram_size` 是 test 输入参数；不要放回 `boot_cfg`。

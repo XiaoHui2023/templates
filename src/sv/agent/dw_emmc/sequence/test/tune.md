@@ -15,3 +15,8 @@
 4. 调谐后运行一次多块写再多块读，验证数据面并触发 scoreboard 比较。
 
 该测试要求 `settings.boot_cfg.voltage == V1_8`。
+
+## 关键点
+
+- 该测试不是只发送 tuning block；phase 扫描后必须用实际读写验证数据面。
+- scoreboard 比较由调谐后的 `rw_test_seq` 完成。
