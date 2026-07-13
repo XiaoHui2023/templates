@@ -60,6 +60,10 @@ class Models(BaseModel):
         ge=0,
         description="Default chip-select index used by kit convenience tasks.",
     )
+    default_cs_control_mode: Literal["HARDWARE_CS", "SOFTWARE_CS"] = Field(
+        "HARDWARE_CS",
+        description="Default chip-select control mode used by per-transfer configuration constraints.",
+    )
     default_addr_bytes: Literal[3, 4] = Field(
         3,
         description="Default flash address phase width in bytes.",
@@ -215,6 +219,11 @@ class Models(BaseModel):
             raise ValueError("default_frame_mode STANDARD requires support_standard")
         if self.default_frame_mode == "ENHANCED" and not self.support_enhanced:
             raise ValueError("default_frame_mode ENHANCED requires support_enhanced")
+        if self.default_cs_control_mode == "SOFTWARE_CS":
+            if not self.support_master:
+                raise ValueError("default_cs_control_mode SOFTWARE_CS requires support_master")
+            if self.default_frame_mode != "STANDARD" or self.default_speed_multiplier != 1:
+                raise ValueError("default_cs_control_mode SOFTWARE_CS requires STANDARD frame mode and 1x speed")
         return self
 
     @model_validator(mode="after")

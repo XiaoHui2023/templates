@@ -1,10 +1,10 @@
 `ifndef {{ (class_prefix ~ "transfer_seq") | upper }}
 `define {{ (class_prefix ~ "transfer_seq") | upper }}
 
-class {{ class_prefix }}transfer_seq extends uvm_sequence #(
+class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequence #(
     {{ class_prefix }}transfer_req,
     {{ class_prefix }}transfer_rsp
-);
+));
     `uvm_object_utils({{ class_prefix }}transfer_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
@@ -13,6 +13,10 @@ class {{ class_prefix }}transfer_seq extends uvm_sequence #(
     endfunction
 
     extern virtual task body();
+    extern protected function void build_pio_dr_write_bytes(
+        {{ class_prefix }}transfer_req rq,
+        bit include_payload,
+        output bit [7:0] dr_bytes[$]);
     extern protected task wait_transfer_interrupt(
         {{ class_prefix }}transfer_req rq,
         {{ class_prefix }}configuration cfg);
@@ -39,6 +43,7 @@ task {{ class_prefix }}transfer_seq::body();
     bit pio_ok;
     bit dma_ok;
     bit [7:0] write_data[$];
+    bit [7:0] pio_dr_bytes[$];
     byte unsigned gp_data[];
 
     if (req == null)
@@ -51,10 +56,11 @@ task {{ class_prefix }}transfer_seq::body();
     command = rq.payload.get_command();
     rs = {{ class_prefix }}transfer_rsp::type_id::create("rsp");
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "transfer start: protocol=%s mode=%s frame=%s opcode=0x%02h address=0x%0h length=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h length=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         rq.protocol.name(),
         rq.transfer_mode.name(),
         rq.frame_mode.name(),
+        rq.cs_control_mode.name(),
         rq.opcode,
         rq.payload.get_address(),
         rq.payload.get_data_length(),
@@ -86,9 +92,16 @@ task {{ class_prefix }}transfer_seq::body();
     register_access.report_context = p_sequencer;
     `uvm_info("DW_SPI_XFER", "applying controller register configuration", UVM_LOW)
     register_access.apply_configuration(cfg);
-    `uvm_info("DW_SPI_XFER", $sformatf(
-        "activating chip select: cs=%0d", rq.cs_id), UVM_LOW)
-    p_sequencer.activate_chip_select(rq.cs_id);
+    if (rq.cs_control_mode == SOFTWARE_CS) begin
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "activating software chip select through callback: cs=%0d",
+            rq.cs_id), UVM_LOW)
+        p_sequencer.activate_chip_select(rq.cs_id);
+    end else begin
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "using hardware chip select through SER: cs=%0d",
+            rq.cs_id), UVM_LOW)
+    end
 {% if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
@@ -96,16 +109,26 @@ task {{ class_prefix }}transfer_seq::body();
     end
     else begin
         pio_ok = 1'b1;
-        if (command == UVM_TLM_WRITE_COMMAND) begin
-            `uvm_info("DW_SPI_XFER", "PIO write path: writing payload to DR", UVM_LOW)
-            register_access.write_payload_to_dr(rq.payload, pio_ok);
+        if (command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
+            build_pio_dr_write_bytes(
+                rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_bytes);
+            `uvm_info("DW_SPI_XFER", $sformatf(
+                "PIO path: writing command/address/data stream to DR: bytes=%0d",
+                pio_dr_bytes.size()), UVM_LOW)
+            register_access.write_bytes_to_dr(
+                pio_dr_bytes, "pio_command_address_data", pio_ok);
         end
     end
 {% else %}
     pio_ok = 1'b1;
-    if (command == UVM_TLM_WRITE_COMMAND) begin
-        `uvm_info("DW_SPI_XFER", "PIO write path: writing payload to DR", UVM_LOW)
-        register_access.write_payload_to_dr(rq.payload, pio_ok);
+    if (command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
+        build_pio_dr_write_bytes(
+            rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_bytes);
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "PIO path: writing command/address/data stream to DR: bytes=%0d",
+            pio_dr_bytes.size()), UVM_LOW)
+        register_access.write_bytes_to_dr(
+            pio_dr_bytes, "pio_command_address_data", pio_ok);
     end
 {% endif %}
     `uvm_info("DW_SPI_XFER", "waiting for transfer completion interrupt", UVM_LOW)
@@ -157,19 +180,65 @@ task {{ class_prefix }}transfer_seq::body();
     end
     rs.ok = pio_ok;
 {% endif %}
+    if (rq.cs_control_mode == SOFTWARE_CS) begin
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "releasing software chip select through callback: cs=%0d",
+            rq.cs_id), UVM_LOW)
+        p_sequencer.release_chip_select(rq.cs_id);
+    end
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "releasing chip select: cs=%0d", rq.cs_id), UVM_LOW)
-    p_sequencer.release_chip_select(rq.cs_id);
-    `uvm_info("DW_SPI_XFER", $sformatf(
-        "transfer done: ok=%0b protocol=%s mode=%s address=0x%0h length=%0d read_bytes=%0d",
+        "transfer done: ok=%0b protocol=%s mode=%s cs_mode=%s address=0x%0h length=%0d read_bytes=%0d",
         rs.ok,
         rq.protocol.name(),
         rq.transfer_mode.name(),
+        rq.cs_control_mode.name(),
         rq.payload.get_address(),
         rq.payload.get_data_length(),
         rs.read_data.size()), UVM_LOW)
     rsp = rs;
 endtask
+
+function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
+        {{ class_prefix }}transfer_req rq,
+        bit include_payload,
+        output bit [7:0] dr_bytes[$]);
+    protocol_e protocol;
+    byte unsigned gp_data[];
+    bit [63:0] address;
+
+    dr_bytes.delete();
+    if (rq == null)
+        `uvm_fatal("DW_SPI", "transfer: req is null")
+    if (rq.payload == null)
+        `uvm_fatal("DW_SPI", "transfer: req.payload is null")
+    if (!$cast(protocol, rq.protocol))
+        `uvm_fatal("DW_SPI", "transfer: failed to cast protocol")
+
+    if (protocol == FLASH_SPI) begin
+        if (rq.inst_bytes != 0)
+            dr_bytes.push_back(rq.opcode);
+        address = rq.payload.get_address();
+        for (int i = rq.addr_bytes; i > 0; i--)
+            dr_bytes.push_back(address[(i - 1) * 8 +: 8]);
+    end
+
+    if (include_payload) begin
+        rq.payload.get_data(gp_data);
+        foreach (gp_data[i])
+            dr_bytes.push_back(gp_data[i]);
+    end
+
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "PIO DR stream built: protocol=%s opcode=0x%02h address=0x%0h inst_bytes=%0d addr_bytes=%0d include_payload=%0b payload_bytes=%0d dr_bytes=%0d",
+        protocol.name(),
+        rq.opcode,
+        rq.payload.get_address(),
+        rq.inst_bytes,
+        rq.addr_bytes,
+        include_payload,
+        rq.payload.get_data_length(),
+        dr_bytes.size()), UVM_DEBUG)
+endfunction
 
 {% if internal_dma %}
 task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(

@@ -61,6 +61,8 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
         `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable protocol")
     if (!$cast(op_req.frame_mode, cfg.frame_mode))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable frame_mode")
+    if (!$cast(op_req.cs_control_mode, cfg.cs_control_mode))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable cs_control_mode")
     if (!$cast(op_req.transfer_mode, TX_ONLY))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast write-enable transfer_mode")
     op_req.opcode = 8'h06;
@@ -81,10 +83,11 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
 {% endif %}
     `uvm_info("DW_SPI_FLASH", "starting write-enable command before flash program", UVM_LOW)
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "write-enable request detail: opcode=0x%02h mode=%s frame=%s cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d",
+        "write-enable request detail: opcode=0x%02h mode=%s frame=%s cs_mode=%s cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d",
         op_req.opcode,
         op_req.transfer_mode.name(),
         op_req.frame_mode.name(),
+        op_req.cs_control_mode.name(),
         op_req.cs_id,
         op_req.io_lanes,
         op_req.speed_multiplier,
@@ -124,6 +127,8 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
         `uvm_fatal("DW_SPI", "flash_write: failed to cast protocol")
     if (!$cast(op_req.frame_mode, cfg.frame_mode))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast frame_mode")
+    if (!$cast(op_req.cs_control_mode, cfg.cs_control_mode))
+        `uvm_fatal("DW_SPI", "flash_write: failed to cast cs_control_mode")
     if (!$cast(op_req.transfer_mode, TX_AND_RX))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast transfer_mode")
     op_req.opcode = page_program_opcode(cfg.speed_multiplier);
@@ -144,10 +149,11 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
 {% endif %}
     `uvm_info("DW_SPI_FLASH", "starting flash program data transfer", UVM_LOW)
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash program request detail: opcode=0x%02h mode=%s frame=%s addr=0x%08h bytes=%0d inst_bytes=%0d addr_bytes=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}{% if internal_dma %} axi_addr=0x%08h awlen=%0d arlen=%0d{% endif %}",
+        "flash program request detail: opcode=0x%02h mode=%s frame=%s cs_mode=%s addr=0x%08h bytes=%0d inst_bytes=%0d addr_bytes=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}{% if internal_dma %} axi_addr=0x%08h awlen=%0d arlen=%0d{% endif %}",
         op_req.opcode,
         op_req.transfer_mode.name(),
         op_req.frame_mode.name(),
+        op_req.cs_control_mode.name(),
         addr,
         chunk.size(),
         op_req.inst_bytes,
@@ -179,18 +185,21 @@ task {{ class_prefix }}flash_write_seq::body();
 
     if (configuration == null) begin
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+        configuration.settings = p_sequencer.settings;
         if (!configuration.randomize())
             `uvm_fatal("DW_SPI", "flash_write: failed to randomize configuration")
     end
+    configuration.settings = p_sequencer.settings;
     ok = 1'b1;
     bytes_written = 0;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_write start: address=0x%08h bytes=%0d lanes=%0d speed=%0dx frame=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_write start: address=0x%08h bytes=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         data.size(),
         configuration.io_lanes,
         configuration.speed_multiplier,
-        configuration.frame_mode.name(){% if internal_dma or external_dma %},
+        configuration.frame_mode.name(),
+        configuration.cs_control_mode.name(){% if internal_dma or external_dma %},
         configuration.use_dma{% endif %}), UVM_LOW)
     `uvm_info("DW_SPI_FLASH", "flash_write flow will issue write-enable then program transfer", UVM_LOW)
     run_write_enable(chunk_ok);

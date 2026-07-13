@@ -53,6 +53,7 @@ uvm_sequence_item
 | `host_mode_e` | 主机/从机模式：`MASTER`、`SLAVE`。 |
 | `protocol_e` | 传输协议：`GENERAL_SPI`、`FLASH_SPI`。 |
 | `frame_mode_e` | 标准/增强模式：`STANDARD`、`ENHANCED`。 |
+| `cs_control_mode_e` | 片选控制模式：`HARDWARE_CS`、`SOFTWARE_CS`。 |
 | `ssi_variant_e` | 控制器变体：`PSSI`、`HSSI`。 |
 | `transfer_mode_e` | 传输方向：`TX_AND_RX`、`TX_ONLY`、`RX_ONLY`、`EEPROM_READ`。 |
 | `CTRLR0_SPI_FRF_*` | DesignWare `CTRLR0.SPI_FRF` 编码。 |
@@ -69,6 +70,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | 字段 | 用途 |
 | --- | --- |
 | `ssi_variant` | `core/register_access.sv` 根据 PSSI/HSSI 选择需要设置的 `CTRLR0` FIELD。 |
+| `default_cs_control_mode` | 单次传输配置的片选控制默认值，默认 `HARDWARE_CS`。 |
 | `target_sclk_hz` | 目标串行输出频率；`BAUDR` 由测量到的 `ssi_clk` 和该目标频率推导。 |
 | `fifo_depth_bytes` | FIFO 阈值约束和默认值边界。默认 32 字节。 |
 | `min_hclk_hz` | optional clock check 的 `hclk` 最低频率，默认 24MHz。 |
@@ -104,6 +106,7 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | --- | --- |
 | `host_mode` | 主机/从机模式；影响 `CTRLR0.SSI_IS_MST` 和 sequence 行为。 |
 | `frame_mode` | 标准/增强模式；增强模式允许 2/4 倍速。 |
+| `cs_control_mode` | 单次传输的片选控制模式；默认 soft 跟随 `settings.default_cs_control_mode`。 |
 | `io_lanes` | 1/2/4 线传输选择。 |
 | `speed_multiplier` | 1/2/4 倍速；映射到 `CTRLR0.SPI_FRF`。 |
 | `use_dma` | 仅在 Python 开启内部或外部 DMA 时生成；默认约束为 0。 |
@@ -117,6 +120,8 @@ agent 可以不从 `config_db` 输入 settings。未输入时，agent 创建一�
 | `dummy_cycles` | flash read dummy cycle 数。 |
 
 这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。主机测试默认创建 `host_configuration`，从机测试可显式创建 `slave_configuration`。
+
+`SOFTWARE_CS` 只支持主机 1x standard。enhanced、2x、4x 都约束为硬件 CS，原因见 [cs_control.md](cs_control.md)。
 
 DMA 生成模式由 Python `internal_dma` 和 `external_dma` 决定，二者不能同时为 true。两者都为 false 时不生成 DMA 字段和 DMA 寄存器配置。
 

@@ -26,6 +26,8 @@
 
 `IMR/ICR` 阶段只设置中断 mask 并清理旧中断状态，不等待 `intr`，也不轮询 `ISR.DONES`。真正等待 transfer 完成中断的动作在 `sequence/operation/transfer` 中，发生在本函数完成寄存器配置、片选激活、PIO/DMA 启动之后。
 
+PIO 写 DR 时使用 `write_bytes_to_dr()`。flash 协议的 operation sequence 会先把 opcode、地址字节和写 payload 组合成 DR byte stream，再交给 core 写 `DR`；core 不理解 opcode/address 语义，只负责等待 `SR.TFNF` 并逐 byte 写 `DR`。
+
 ## 注意事项
 
 - 不保存寄存器地址，不维护字符串到寄存器的地址表。

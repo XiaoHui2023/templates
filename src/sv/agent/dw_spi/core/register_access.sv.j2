@@ -105,35 +105,49 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         report_error("DW_SPI_REG", "timeout waiting SR.RFNE before DR read");
     endtask
 
-    task write_payload_to_dr(uvm_tlm_generic_payload payload, output bit ok);
+    task write_bytes_to_dr(
+            bit [7:0] data[$],
+            string reason,
+            output bit ok);
         uvm_status_e status;
         {{ regmodel_type }} rm;
-        byte unsigned gp_data[];
         bit ready;
 
         if (settings == null || settings.regmodel == null)
             report_fatal("DW_SPI_REG", "settings.regmodel is null");
         rm = settings.regmodel;
         ok = 1'b1;
-        if (payload == null)
-            report_fatal("DW_SPI_REG", "payload is null");
-        payload.get_data(gp_data);
         report_info("DW_SPI_REG", $sformatf(
-            "writing payload to DR: bytes=%0d", gp_data.size()), UVM_LOW);
-        foreach (gp_data[i]) begin
+            "writing bytes to DR: reason=%s bytes=%0d",
+            reason, data.size()), UVM_LOW);
+        foreach (data[i]) begin
             report_info("DW_SPI_REG", $sformatf(
                 "DR write byte[%0d]=0x%02h: wait TX FIFO not full",
-                i, gp_data[i]), UVM_DEBUG);
+                i, data[i]), UVM_DEBUG);
             wait_tfnf(ready);
             if (!ready) begin
                 ok = 1'b0;
                 return;
             end
             report_info("DW_SPI_REG", $sformatf(
-                "DR write byte[%0d]=0x%02h", i, gp_data[i]), UVM_DEBUG);
-            rm.DR.write(status, uvm_reg_data_t'(gp_data[i]));
+                "DR write byte[%0d]=0x%02h", i, data[i]), UVM_DEBUG);
+            rm.DR.write(status, uvm_reg_data_t'(data[i]));
         end
-        report_info("DW_SPI_REG", $sformatf("wrote %0d byte(s) to DR", gp_data.size()), UVM_LOW);
+        report_info("DW_SPI_REG", $sformatf(
+            "wrote %0d byte(s) to DR: reason=%s",
+            data.size(), reason), UVM_LOW);
+    endtask
+
+    task write_payload_to_dr(uvm_tlm_generic_payload payload, output bit ok);
+        byte unsigned gp_data[];
+        bit [7:0] data[$];
+
+        if (payload == null)
+            report_fatal("DW_SPI_REG", "payload is null");
+        payload.get_data(gp_data);
+        foreach (gp_data[i])
+            data.push_back(gp_data[i]);
+        write_bytes_to_dr(data, "payload", ok);
     endtask
 
     task read_dr_to_payload(

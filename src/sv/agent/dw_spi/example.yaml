@@ -8,6 +8,7 @@ default_data_frame_bits: 8
 num_cs: 4
 default_spi_mode: 0
 default_cs: 0
+default_cs_control_mode: HARDWARE_CS
 default_addr_bytes: 3
 default_rw_data_bytes: 256
 target_sclk_hz: 6000000

@@ -83,6 +83,7 @@ task {{ class_prefix }}kit_sequencer::flash_write(
     seq.address = address;
     seq.data = data;
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {
             io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
@@ -124,6 +125,7 @@ task {{ class_prefix }}kit_sequencer::flash_read(
     seq.address = address;
     seq.length = length;
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {
             io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
@@ -182,6 +184,7 @@ task {{ class_prefix }}kit_sequencer::rw_test(
     seq.address = address;
     seq.write_data = write_data;
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {
             io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;

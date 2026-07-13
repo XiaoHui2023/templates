@@ -9,15 +9,19 @@ class {{ class_prefix }}callback extends uvm_callback;
     endfunction
 
     virtual task activate_chip_select(int cs_id);
+        `uvm_fatal("DW_SPI_CB", "activate_chip_select requires callback override when SOFTWARE_CS is used")
     endtask
 
     virtual task release_chip_select(int cs_id);
+        `uvm_fatal("DW_SPI_CB", "release_chip_select requires callback override when SOFTWARE_CS is used")
     endtask
 
     virtual task cpu_read(bit [63:0] addr, output bit [31:0] data);
+        `uvm_fatal("DW_SPI_CB", "cpu_read requires callback override when internal DMA CPU access is used")
     endtask
 
     virtual task cpu_write(bit [63:0] addr, bit [31:0] data);
+        `uvm_fatal("DW_SPI_CB", "cpu_write requires callback override when internal DMA CPU access is used")
     endtask
 endclass
 

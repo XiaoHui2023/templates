@@ -5,6 +5,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
     `uvm_object_utils_begin({{ class_prefix }}transfer_configuration)
         `uvm_field_enum(host_mode_e, host_mode, UVM_ALL_ON)
         `uvm_field_enum(frame_mode_e, frame_mode, UVM_ALL_ON)
+        `uvm_field_enum(cs_control_mode_e, cs_control_mode, UVM_ALL_ON)
         `uvm_field_int(io_lanes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(speed_multiplier, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
@@ -24,6 +25,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
 
     rand host_mode_e host_mode;
     rand frame_mode_e frame_mode;
+    rand cs_control_mode_e cs_control_mode;
     rand int io_lanes;
     rand int speed_multiplier;
     rand int spi_mode;
@@ -39,6 +41,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
     rand bit [7:0] arlen;
     rand bit [31:0] axi_addr;
 {% endif %}
+    {{ class_prefix }}settings settings;
 
     function new(string name="{{ class_prefix }}transfer_configuration");
         super.new(name);
@@ -47,6 +50,10 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
     constraint cst {
         soft host_mode == {{ "MASTER" if support_master else "SLAVE" }};
         soft frame_mode == {{ default_frame_mode }};
+        if (settings != null)
+            soft cs_control_mode == settings.default_cs_control_mode;
+        else
+            soft cs_control_mode == {{ default_cs_control_mode }};
         soft io_lanes == {{ default_io_lanes }};
         soft speed_multiplier == {{ default_speed_multiplier }};
         soft spi_mode == {{ default_spi_mode }};
@@ -67,6 +74,11 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
         speed_multiplier inside {1, 2, 4};
         if (frame_mode == STANDARD) speed_multiplier == 1;
         if (speed_multiplier > 1) frame_mode == ENHANCED;
+        if (cs_control_mode == SOFTWARE_CS) {
+            host_mode == MASTER;
+            frame_mode == STANDARD;
+            speed_multiplier == 1;
+        }
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
         cs_id < {{ num_cs }};

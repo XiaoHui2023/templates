@@ -31,12 +31,12 @@
 
 1. `transfer_seq` 检查 req、payload、scoreboard。
 2. 生成并应用本次寄存器 `configuration`，其中 `register_access` 由 sequence 注入 `p_sequencer` 作为 report context。
-3. 调用 `p_sequencer.activate_chip_select(cs_id)`。
+3. 按 `cs_control_mode` 处理片选：`HARDWARE_CS` 只使用 `SER`，`SOFTWARE_CS` 调用 `p_sequencer.activate_chip_select(cs_id)`。
 4. 内部 DMA 且 `use_dma == 1` 的写传输，在寄存器配置/启动前通过 callback `cpu_write()` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 5. 等待 top interface 的 `intr` 断言，超时使用本次 `configuration.interrupt_timeout_ssi_clk_cycles`。
-6. `use_dma == 0` 时，PIO 写传输先等待 `SR.TFNF` 再把 payload byte 写入 `DR`。
-7. 等待 `intr` 后，PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内部 DMA 读传输通过 callback `cpu_read()` 从 `axi_addr` 读回 actual byte；写传输把已生效 payload 记录为 scoreboard 期望值。
-8. 调用 `p_sequencer.release_chip_select(cs_id)`。
+6. `use_dma == 0` 时，PIO 路径先构造 DR byte stream：flash 协议包含 opcode、big-endian 地址字节；写传输再追加 payload byte。然后等待 `SR.TFNF` 并逐 byte 写入 `DR`。
+7. 等待 `intr` 后，PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内部 DMA 读传输通过 callback `cpu_read()` 从 `axi_addr` 读回 actual byte；写传输只把 payload 数据记录为 scoreboard 期望值，不把 opcode/address 当成 flash 内容。
+8. `SOFTWARE_CS` 调用 `p_sequencer.release_chip_select(cs_id)`；`HARDWARE_CS` 不调用片选 callback。
 9. 写入 rsp，包括 `ok` 和从 `DR` 读回的数据。
 
 callback 注入 chip-select 行为和 CPU 32-bit 读写。寄存器配置、scoreboard 比较和协议编排不放进 callback。
@@ -61,7 +61,7 @@ callback 注入 chip-select 行为和 CPU 32-bit 读写。寄存器配置、scor
 ## Flash Write
 
 1. sequence 未携带 configuration 时创建 `host_configuration` 并 randomize。
-2. 启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。
+2. 启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。该 transfer 的 payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。
 3. write-enable 成功后启动 page/program 风格写 transfer：1 倍速 opcode 使用 `8'h02`，2 倍速使用 `8'hA2`，4 倍速使用 `8'h32`，`TX_AND_RX`。
 4. 写 transfer 的 payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为写入 byte 队列。
 5. 写 transfer 按 configuration 传播 io lanes、倍速、SPI mode、data frame bits、CS、地址字节数、DMA 开关。

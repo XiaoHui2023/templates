@@ -1,6 +1,6 @@
 # callback
 
-`callback` 挂在 `dw_spi_sequencer` 上，用于注入片选行为和 DMA buffer 的 CPU 访问。
+`callback` 挂在 `dw_spi_sequencer` 上，用于注入软件片选行为和 DMA buffer 的 CPU 访问。默认硬件 CS 模式不调用片选 callback；只有 `SOFTWARE_CS` 才调用 `activate_chip_select()` / `release_chip_select()`。
 
 寄存器配置不使用 callback，也不通过 sequencer 封装通用寄存器读写。需要配置寄存器时，operation/core 直接使用大写 REG/FIELD 句柄，设置 FIELD 后由所属 REG `read/write`。
 
@@ -37,7 +37,7 @@ uvm_callbacks#(dw_spi_sequencer, dw_spi_callback)::add(sqr, cb);
 
 ## `activate_chip_select`
 
-一次 primitive transfer 开始前调用，让指定 CS 进入有效态。具体电平极性由 callback 实现决定。
+`SOFTWARE_CS` 模式下，一次 primitive transfer 开始前调用，让指定 CS 进入有效态。具体电平极性由 callback 实现决定。基类默认 `uvm_fatal`，要求软件 CS 环境必须 override。
 
 | 方向 | 类型 | 参数名 | 说明 |
 | --- | --- | --- | --- |
@@ -45,7 +45,7 @@ uvm_callbacks#(dw_spi_sequencer, dw_spi_callback)::add(sqr, cb);
 
 ## `release_chip_select`
 
-一次 primitive transfer 结束后调用，释放指定 CS。具体电平极性由 callback 实现决定。
+`SOFTWARE_CS` 模式下，一次 primitive transfer 结束后调用，释放指定 CS。具体电平极性由 callback 实现决定。基类默认 `uvm_fatal`，要求软件 CS 环境必须 override。
 
 | 方向 | 类型 | 参数名 | 说明 |
 | --- | --- | --- | --- |

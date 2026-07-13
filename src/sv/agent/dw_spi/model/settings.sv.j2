@@ -4,6 +4,7 @@
 class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     `uvm_object_utils_begin({{ class_prefix }}settings)
         `uvm_field_enum(ssi_variant_e, ssi_variant, UVM_ALL_ON)
+        `uvm_field_enum(cs_control_mode_e, default_cs_control_mode, UVM_ALL_ON)
         `uvm_field_int(target_sclk_hz, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(fifo_depth_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(min_hclk_hz, UVM_ALL_ON | UVM_DEC)
@@ -18,6 +19,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     `uvm_object_utils_end
 
     rand ssi_variant_e ssi_variant;
+    rand cs_control_mode_e default_cs_control_mode;
     rand longint target_sclk_hz;
     rand int fifo_depth_bytes;
     rand longint min_hclk_hz;
@@ -35,6 +37,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     function new(string name="{{ class_prefix }}settings");
         super.new(name);
         ssi_variant = {{ ssi_variant }};
+        default_cs_control_mode = {{ default_cs_control_mode }};
         target_sclk_hz = {{ target_sclk_hz }};
         fifo_depth_bytes = {{ fifo_depth_bytes }};
         min_hclk_hz = {{ min_hclk_hz }};
@@ -50,6 +53,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
 
     constraint cst {
         soft ssi_variant == {{ ssi_variant }};
+        soft default_cs_control_mode == {{ default_cs_control_mode }};
         soft target_sclk_hz == {{ target_sclk_hz }};
         soft fifo_depth_bytes == {{ fifo_depth_bytes }};
         soft min_hclk_hz == {{ min_hclk_hz }};

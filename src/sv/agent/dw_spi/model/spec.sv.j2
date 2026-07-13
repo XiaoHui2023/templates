@@ -7,6 +7,7 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
     typedef enum {STANDARD, ENHANCED} frame_mode_e;
     typedef enum {PSSI, HSSI} ssi_variant_e;
     typedef enum {TX_AND_RX, TX_ONLY, RX_ONLY, EEPROM_READ} transfer_mode_e;
+    typedef enum {HARDWARE_CS, SOFTWARE_CS} cs_control_mode_e;
 
     localparam int CTRLR0_SPI_FRF_STANDARD = 0;
     localparam int CTRLR0_SPI_FRF_DUAL = 1;
