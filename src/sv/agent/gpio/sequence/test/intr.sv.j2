@@ -9,13 +9,15 @@ class {{ class_prefix }}intr_test_seq extends uvm_sequence;
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
     localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
+    localparam int DEFAULT_TIMEOUT = 1000;
 
-    int timeout = 1000;
+    int timeout;
     bit ok = 1'b1;
     {{ class_prefix }}configuration cfg;
 
     function new(string name = "{{ class_prefix }}intr_test_seq");
         super.new(name);
+        timeout = DEFAULT_TIMEOUT;
     endfunction
 
     extern task pre_start();
@@ -35,6 +37,8 @@ task {{ class_prefix }}intr_test_seq::pre_start();
     cfg = p_sequencer.cfg;
     if (cfg == null)
         `uvm_fatal("", "require cfg")
+    if (timeout <= 0)
+        timeout = DEFAULT_TIMEOUT;
 
     if (starting_phase)
         starting_phase.raise_objection(this);

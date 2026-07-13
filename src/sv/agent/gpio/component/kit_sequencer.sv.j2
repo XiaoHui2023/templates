@@ -19,7 +19,7 @@ class {{ class_prefix }}kit_sequencer extends uvm_component;
     extern task get_value(output bit[31:0] data[string]);
     extern task clear_intr_status();
     extern task set_rise_intr(bit[31:0] data);
-    extern task wait_intr(int timeout = 100);
+    extern task wait_intr(int timeout = 1000);
     extern task get_intr_status(output bit intr[string]);
     extern task inout_test();
     extern task intr_test();

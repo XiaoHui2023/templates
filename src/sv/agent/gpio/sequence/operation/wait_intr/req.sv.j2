@@ -6,7 +6,7 @@ class {{ class_prefix }}wait_intr_req extends uvm_sequence_item;
         `uvm_field_int(timeout,UVM_ALL_ON)
     `uvm_object_utils_end
 
-    int timeout = 100;
+    int timeout = 1000;
 
     function new(string name="{{ class_prefix }}wait_intr_req");
         super.new(name);
