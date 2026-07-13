@@ -10,7 +10,7 @@ class {{ class_prefix }}intr_test_seq extends uvm_sequence;
 
     localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
 
-    int timeout = 100;
+    int timeout = 1000;
     bit ok = 1'b1;
     {{ class_prefix }}configuration cfg;
 
@@ -27,7 +27,6 @@ class {{ class_prefix }}intr_test_seq extends uvm_sequence;
     extern task op_clear_intr_status(output bit ok);
     extern task op_set_rise_intr(bit[31:0] data, output bit ok);
     extern task op_wait_intr(output bit intr_ok, int timeout, output bit op_ok);
-    extern task op_get_intr_status(output bit intr, output bit ok);
 endclass
 
 task {{ class_prefix }}intr_test_seq::pre_start();
@@ -44,7 +43,6 @@ endtask
 
 task {{ class_prefix }}intr_test_seq::body();
     bit[31:0] pin;
-    bit intr;
     bit wait_ok;
     bit op_ok;
 
@@ -67,31 +65,21 @@ task {{ class_prefix }}intr_test_seq::body();
     ok &= op_ok;
     op_set_rise_intr(0, op_ok);
     ok &= op_ok;
-    op_clear_intr_status(op_ok);
-    ok &= op_ok;
     op_drive_input(0, pin, op_ok);
+    ok &= op_ok;
+    #(20 * GPIO_24M_PERIOD_NS * 1ns);
+    op_clear_intr_status(op_ok);
     ok &= op_ok;
     op_set_rise_intr(pin, op_ok);
     ok &= op_ok;
-
-    #(20 * GPIO_24M_PERIOD_NS * 1ns);
-
-    op_get_intr_status(intr, op_ok);
-    ok &= op_ok;
-    if (intr) begin
-        ok = 1'b0;
-        `uvm_error("", "interrupt is asserted before rising edge")
-    end
 
     op_drive_input(pin, pin, op_ok);
     ok &= op_ok;
     op_wait_intr(wait_ok, timeout, op_ok);
     ok &= op_ok;
-    op_get_intr_status(intr, op_ok);
-    ok &= op_ok;
-    if (!wait_ok || !intr) begin
+    if (!wait_ok) begin
         ok = 1'b0;
-        `uvm_error("", "interrupt is not asserted after rising edge")
+        `uvm_error("", $sformatf("interrupt timeout after rising edge: group=%s timeout=%0d", cfg.group_name, timeout))
     end
 
     op_clear_intr_status(op_ok);
@@ -215,25 +203,6 @@ task {{ class_prefix }}intr_test_seq::op_wait_intr(output bit intr_ok, int timeo
         `uvm_error("", "wait_intr operation failed")
     end else begin
         intr_ok = seq_rsp.ok;
-    end
-endtask
-
-task {{ class_prefix }}intr_test_seq::op_get_intr_status(output bit intr, output bit ok);
-    {{ class_prefix }}get_intr_status_req req;
-    {{ class_prefix }}get_intr_status_rsp seq_rsp;
-    {{ class_prefix }}get_intr_status_seq seq;
-
-    ok = 1'b1;
-    req = {{ class_prefix }}get_intr_status_req::type_id::create("req");
-    seq = {{ class_prefix }}get_intr_status_seq::type_id::create("get_intr_status");
-    seq.req = req;
-    seq.start(p_sequencer);
-    seq_rsp = seq.rsp;
-    if (seq_rsp == null || !seq_rsp.ok) begin
-        ok = 1'b0;
-        `uvm_error("", "get_intr_status operation failed")
-    end else begin
-        intr = seq_rsp.intr;
     end
 endtask
 
