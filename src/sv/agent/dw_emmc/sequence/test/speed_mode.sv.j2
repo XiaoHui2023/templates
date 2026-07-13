@@ -2,7 +2,63 @@
 `define {{ class_prefix | upper }}SPEED_MODE_TEST_SEQ
 
 class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
-    `uvm_object_utils({{ class_prefix }}speed_mode_test_seq)
+    `uvm_object_utils_begin({{ class_prefix }}speed_mode_test_seq)
+{%- if is_emmc %}
+        `uvm_field_int(enable_legacy_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_legacy_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_legacy_8bit, UVM_ALL_ON)
+        `uvm_field_int(enable_high_speed_sdr_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_high_speed_sdr_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_high_speed_sdr_8bit, UVM_ALL_ON)
+        `uvm_field_int(enable_high_speed_ddr_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_high_speed_ddr_8bit, UVM_ALL_ON)
+        `uvm_field_int(enable_hs200_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_hs200_8bit, UVM_ALL_ON)
+        `uvm_field_int(enable_hs400_8bit, UVM_ALL_ON)
+{%- elif is_sd %}
+        `uvm_field_int(enable_ds_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_ds_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_hs_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_hs_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr12_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr12_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr25_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr25_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr50_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr50_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr104_1bit, UVM_ALL_ON)
+        `uvm_field_int(enable_sdr104_4bit, UVM_ALL_ON)
+        `uvm_field_int(enable_ddr50_4bit, UVM_ALL_ON)
+{%- endif %}
+    `uvm_object_utils_end
+
+{%- if is_emmc %}
+    rand bit enable_legacy_1bit;
+    rand bit enable_legacy_4bit;
+    rand bit enable_legacy_8bit;
+    rand bit enable_high_speed_sdr_1bit;
+    rand bit enable_high_speed_sdr_4bit;
+    rand bit enable_high_speed_sdr_8bit;
+    rand bit enable_high_speed_ddr_4bit;
+    rand bit enable_high_speed_ddr_8bit;
+    rand bit enable_hs200_4bit;
+    rand bit enable_hs200_8bit;
+    rand bit enable_hs400_8bit;
+{%- elif is_sd %}
+    rand bit enable_ds_1bit;
+    rand bit enable_ds_4bit;
+    rand bit enable_hs_1bit;
+    rand bit enable_hs_4bit;
+    rand bit enable_sdr12_1bit;
+    rand bit enable_sdr12_4bit;
+    rand bit enable_sdr25_1bit;
+    rand bit enable_sdr25_4bit;
+    rand bit enable_sdr50_1bit;
+    rand bit enable_sdr50_4bit;
+    rand bit enable_sdr104_1bit;
+    rand bit enable_sdr104_4bit;
+    rand bit enable_ddr50_4bit;
+{%- endif %}
 
     {{ class_prefix }}rw_test_seq rw_test_seq;
 
@@ -10,40 +66,114 @@ class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_se
         super.new(name);
     endfunction
 
-    extern task run_rw(bus_speed_mode_e bus_speed_mode, int data_width);
+    constraint cst_test {
+{%- if is_emmc %}
+        soft enable_legacy_1bit == 0;
+        soft enable_legacy_4bit == 0;
+        soft enable_legacy_8bit == 1;
+        soft enable_high_speed_sdr_1bit == 0;
+        soft enable_high_speed_sdr_4bit == 0;
+        soft enable_high_speed_sdr_8bit == 1;
+        soft enable_high_speed_ddr_4bit == 0;
+        soft enable_high_speed_ddr_8bit == 1;
+        soft enable_hs200_4bit == 0;
+        soft enable_hs200_8bit == 1;
+        soft enable_hs400_8bit == 1;
+{%- elif is_sd %}
+        soft enable_ds_1bit == 0;
+        soft enable_ds_4bit == 1;
+        soft enable_hs_1bit == 0;
+        soft enable_hs_4bit == 1;
+        soft enable_sdr12_1bit == 0;
+        soft enable_sdr12_4bit == 1;
+        soft enable_sdr25_1bit == 0;
+        soft enable_sdr25_4bit == 1;
+        soft enable_sdr50_1bit == 0;
+        soft enable_sdr50_4bit == 1;
+        soft enable_sdr104_1bit == 0;
+        soft enable_sdr104_4bit == 1;
+        soft enable_ddr50_4bit == 1;
+{%- endif %}
+    }
 
-    task body();
+    extern task body();
+    extern task run_rw(bus_speed_mode_e bus_speed_mode, int data_width);
+endclass
+
+task {{ class_prefix }}speed_mode_test_seq::body();
 {%- if is_sd %}
-        if(settings.boot_cfg.voltage inside {V3_3}) begin
+    if(settings.boot_cfg.voltage inside {V3_3}) begin
+        if(enable_ds_1bit)
+            run_rw(DS, 1);
+        if(enable_ds_4bit)
             run_rw(DS, 4);
+        if(enable_hs_1bit)
+            run_rw(HS, 1);
+        if(enable_hs_4bit)
             run_rw(HS, 4);
+    end
+
+    if(settings.boot_cfg.voltage inside {V1_8}) begin
+        if(settings.boot_cfg.is_support_sdr12) begin
+            if(enable_sdr12_1bit)
+                run_rw(SDR12, 1);
+            if(enable_sdr12_4bit)
+                run_rw(SDR12, 4);
         end
 
-        if(settings.boot_cfg.voltage inside {V1_8}) begin
-            if(settings.boot_cfg.is_support_sdr12)
-                run_rw(SDR12, 4);
-
-            if(settings.boot_cfg.is_support_sdr25)
+        if(settings.boot_cfg.is_support_sdr25) begin
+            if(enable_sdr25_1bit)
+                run_rw(SDR25, 1);
+            if(enable_sdr25_4bit)
                 run_rw(SDR25, 4);
+        end
 
-            if(settings.boot_cfg.is_support_ddr50)
-                run_rw(DDR50, 4);
+        if(settings.boot_cfg.is_support_ddr50 && enable_ddr50_4bit)
+            run_rw(DDR50, 4);
 
-            if(settings.boot_cfg.is_support_sdr50)
+        if(settings.boot_cfg.is_support_sdr50) begin
+            if(enable_sdr50_1bit)
+                run_rw(SDR50, 1);
+            if(enable_sdr50_4bit)
                 run_rw(SDR50, 4);
+        end
 
-            if(settings.boot_cfg.is_support_sdr104)
+        if(settings.boot_cfg.is_support_sdr104) begin
+            if(enable_sdr104_1bit)
+                run_rw(SDR104, 1);
+            if(enable_sdr104_4bit)
                 run_rw(SDR104, 4);
         end
+    end
 {%- elif is_emmc %}
+    if(enable_legacy_1bit)
+        run_rw(LEGACY, 1);
+    if(enable_legacy_4bit)
+        run_rw(LEGACY, 4);
+    if(enable_legacy_8bit)
         run_rw(LEGACY, 8);
+
+    if(enable_high_speed_sdr_1bit)
+        run_rw(HIGH_SPEED_SDR, 1);
+    if(enable_high_speed_sdr_4bit)
+        run_rw(HIGH_SPEED_SDR, 4);
+    if(enable_high_speed_sdr_8bit)
         run_rw(HIGH_SPEED_SDR, 8);
+
+    if(enable_high_speed_ddr_4bit)
+        run_rw(HIGH_SPEED_DDR, 4);
+    if(enable_high_speed_ddr_8bit)
         run_rw(HIGH_SPEED_DDR, 8);
+
+    if(enable_hs200_4bit)
+        run_rw(HS200, 4);
+    if(enable_hs200_8bit)
         run_rw(HS200, 8);
+
+    if(enable_hs400_8bit)
         run_rw(HS400, 8);
 {%- endif %}
-    endtask
-endclass
+endtask
 
 task {{ class_prefix }}speed_mode_test_seq::run_rw(bus_speed_mode_e bus_speed_mode, int data_width);
     `uvm_do_with(rw_test_seq, {
