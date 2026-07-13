@@ -4,6 +4,7 @@
 class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}sram_test_seq)
         `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(has_sram_size, UVM_ALL_ON)
         `uvm_field_int(sram_size, UVM_ALL_ON)
         `uvm_field_int(block_size, UVM_ALL_ON)
         `uvm_field_int(dma_enable, UVM_ALL_ON)
@@ -12,6 +13,7 @@ class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ 
     `uvm_object_utils_end
 
     rand bit[63:0] addr;
+    bit has_sram_size;
     rand int unsigned sram_size;
     rand int unsigned block_size;
     rand bit dma_enable;
@@ -29,16 +31,15 @@ class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ 
     constraint cst_test {
         soft addr == 0;
 {%- if is_sdcard %}
-        soft sram_size == 4096;
         soft block_size == 2048;
 {%- else %}
-        soft sram_size == 4096;
         soft block_size == 512;
 {%- endif %}
         soft dma_enable == 0;
         soft dma_sel == ADMA2;
         soft adma_des_addr == 'h1000_0000;
 
+        has_sram_size == 1;
         addr[63:32] == 0;
         sram_size > 0;
         block_size > 0;

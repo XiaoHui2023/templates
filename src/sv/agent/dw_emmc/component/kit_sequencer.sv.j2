@@ -29,8 +29,8 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task reg_test();
 {% endif %}
     extern task speed_mode_test();
-    extern task sram_test(int unsigned sram_size = 0, int unsigned block_size = 0);
-    extern task tune_test(int bus_speed_mode, int data_width);
+    extern task sram_test(int unsigned sram_size, int unsigned block_size = 0);
+    extern task tune_test(int bus_speed_mode = -1, int data_width = 0);
     extern task check_clock_frequence_test();
 endclass
 
@@ -191,14 +191,14 @@ task {{ class_prefix }}kit_sequencer::speed_mode_test();
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::sram_test(int unsigned sram_size = 0, int unsigned block_size = 0);
+task {{ class_prefix }}kit_sequencer::sram_test(int unsigned sram_size, int unsigned block_size = 0);
     {{ class_prefix }}sram_test_seq seq;
 
     seq = {{ class_prefix }}sram_test_seq::type_id::create("sram_test_seq");
     seq.set_item_context(null, this);
+    seq.has_sram_size = 1;
     if(!seq.randomize() with {
-        if(local::sram_size != 0)
-            sram_size == local::sram_size;
+        sram_size == local::sram_size;
         if(local::block_size != 0)
             block_size == local::block_size;
     })
@@ -206,14 +206,16 @@ task {{ class_prefix }}kit_sequencer::sram_test(int unsigned sram_size = 0, int 
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::tune_test(int bus_speed_mode, int data_width);
+task {{ class_prefix }}kit_sequencer::tune_test(int bus_speed_mode = -1, int data_width = 0);
     {{ class_prefix }}tune_test_seq seq;
 
     seq = {{ class_prefix }}tune_test_seq::type_id::create("tune_test_seq");
     seq.set_item_context(null, this);
     if(!seq.randomize() with {
-        bus_speed_mode == local::bus_speed_mode;
-        data_width == local::data_width;
+        if(local::bus_speed_mode >= 0)
+            bus_speed_mode == local::bus_speed_mode;
+        if(local::data_width != 0)
+            data_width == local::data_width;
     })
         `uvm_fatal("KIT", "tune_test_seq randomize failed")
     seq.start(this);

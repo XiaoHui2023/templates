@@ -19,8 +19,22 @@ class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}default_seq#({{ 
     endfunction
 
     constraint cst_test {
-        soft bus_speed_mode == settings.boot_cfg.default_bus_speed_mode;
-        soft data_width == settings.boot_cfg.default_data_width;
+{%- if is_emmc %}
+        soft bus_speed_mode == HS400;
+        soft data_width == 8;
+{%- elif is_sd %}
+        if(settings.boot_cfg.is_support_sdr104)
+            soft bus_speed_mode == SDR104;
+        else if(settings.boot_cfg.is_support_ddr50)
+            soft bus_speed_mode == DDR50;
+        else if(settings.boot_cfg.is_support_sdr50)
+            soft bus_speed_mode == SDR50;
+        else if(settings.boot_cfg.is_support_sdr25)
+            soft bus_speed_mode == SDR25;
+        else
+            soft bus_speed_mode == SDR12;
+        soft data_width == 4;
+{%- endif %}
         settings.boot_cfg.voltage == V1_8;
     }
 
