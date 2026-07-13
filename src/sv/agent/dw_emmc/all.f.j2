@@ -132,7 +132,9 @@ sequence/flow/initial.sv
 sequence/flow/tune.sv
 
 sequence/test/rw.sv
+                                        {%- if is_emmc %}
 sequence/test/tune.sv
+                                        {%- endif %}
 sequence/test/speed_mode.sv
 sequence/test/sram.sv
                                         {%- if is_emmc or is_sdcard %}

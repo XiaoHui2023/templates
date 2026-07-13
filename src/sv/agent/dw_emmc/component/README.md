@@ -27,7 +27,7 @@ sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
 | --- | --- |
 | operation | `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`cpu_read_bytes()`、`cpu_write_bytes()` |
 | flow | `initial_card()`、`switch_bus()`、`send_ext_csd()`、`tune_phase()` |
-| test | `rw_test()`、`reg_test()`、`speed_mode_test()`、`sram_test(sram_size, block_size)`（`sram_size` 必填）、`tune_test(bus_speed_mode = highest, data_width = max)`、`check_clock_frequence_test()` |
+| test | `rw_test()`、`reg_test()`、`speed_mode_test()`、`sram_test(sram_size, block_size)`（`sram_size` 必填）、eMMC `tune_test(data_width = 8)`、`check_clock_frequence_test()` |
 
 ## Scoreboard
 

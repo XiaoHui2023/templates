@@ -30,7 +30,9 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
 {% endif %}
     extern task speed_mode_test();
     extern task sram_test(int unsigned sram_size, int unsigned block_size = 0);
-    extern task tune_test(int bus_speed_mode = -1, int data_width = 0);
+{% if is_emmc %}
+    extern task tune_test(int data_width = 0);
+{% endif %}
     extern task check_clock_frequence_test();
 endclass
 
@@ -206,14 +208,13 @@ task {{ class_prefix }}kit_sequencer::sram_test(int unsigned sram_size, int unsi
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::tune_test(int bus_speed_mode = -1, int data_width = 0);
+{% if is_emmc %}
+task {{ class_prefix }}kit_sequencer::tune_test(int data_width = 0);
     {{ class_prefix }}tune_test_seq seq;
 
     seq = {{ class_prefix }}tune_test_seq::type_id::create("tune_test_seq");
     seq.set_item_context(null, this);
     if(!seq.randomize() with {
-        if(local::bus_speed_mode >= 0)
-            bus_speed_mode == local::bus_speed_mode;
         if(local::data_width != 0)
             data_width == local::data_width;
     })
@@ -221,6 +222,7 @@ task {{ class_prefix }}kit_sequencer::tune_test(int bus_speed_mode = -1, int dat
     seq.start(this);
 endtask
 
+{% endif %}
 task {{ class_prefix }}kit_sequencer::check_clock_frequence_test();
     {{ class_prefix }}check_clock_frequence_test_seq seq;
 

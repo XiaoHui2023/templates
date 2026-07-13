@@ -3,12 +3,10 @@
 
 class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}tune_test_seq)
-        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
         `uvm_field_int(data_width, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand int data_width;
-    rand bus_speed_mode_e bus_speed_mode;
     {{ class_prefix }}initial_seq initial_seq;
     {{ class_prefix }}switch_bus_seq switch_bus_seq;
     {{ class_prefix }}tune_seq tune_seq;
@@ -19,22 +17,8 @@ class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}default_seq#({{ 
     endfunction
 
     constraint cst_test {
-{%- if is_emmc %}
-        soft bus_speed_mode == HS400;
         soft data_width == 8;
-{%- elif is_sd %}
-        if(settings.boot_cfg.is_support_sdr104)
-            soft bus_speed_mode == SDR104;
-        else if(settings.boot_cfg.is_support_ddr50)
-            soft bus_speed_mode == DDR50;
-        else if(settings.boot_cfg.is_support_sdr50)
-            soft bus_speed_mode == SDR50;
-        else if(settings.boot_cfg.is_support_sdr25)
-            soft bus_speed_mode == SDR25;
-        else
-            soft bus_speed_mode == SDR12;
-        soft data_width == 4;
-{%- endif %}
+        data_width inside {4, 8};
         settings.boot_cfg.voltage == V1_8;
     }
 
@@ -43,7 +27,7 @@ class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}default_seq#({{ 
             `uvm_do(initial_seq)
 
         `uvm_do_with(switch_bus_seq, {
-            bus_speed_mode == local::bus_speed_mode;
+            bus_speed_mode == HS200;
             data_width == local::data_width;
         })
 
@@ -54,7 +38,7 @@ class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}default_seq#({{ 
 
         `uvm_do_with(rw_test_seq, {
             data_width == local::data_width;
-            bus_speed_mode == local::bus_speed_mode;
+            bus_speed_mode == HS200;
             rd == 1;
             wr == 1;
             rd_single == 0;
