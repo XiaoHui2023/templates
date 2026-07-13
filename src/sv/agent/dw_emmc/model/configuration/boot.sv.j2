@@ -32,7 +32,6 @@ class {{ class_prefix }}boot_configuration extends {{ class_prefix }}base_item;
         `uvm_field_int(frequence_hs200, UVM_ALL_ON)
         `uvm_field_int(frequence_hs400, UVM_ALL_ON)
                                                                                                                                                 {%- endif %}
-        `uvm_field_int(sram_size, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand int power_up_time_ns; // 首次上电等待的时间（ns）。 首次上电等待至少 100000 ns 和 74个时钟周期
@@ -64,8 +63,6 @@ class {{ class_prefix }}boot_configuration extends {{ class_prefix }}base_item;
     rand int frequence_hs200; // HS200模式下时钟频率（HZ）
     rand int frequence_hs400; // HS400模式下时钟频率[Hz]
                                                                                                                                                 {%- endif %}
-
-    rand int sram_size; // sram容量大小
 
     function new(string name="{{ class_prefix }}boot_configuration");
         super.new(name);
@@ -110,9 +107,6 @@ class {{ class_prefix }}boot_configuration extends {{ class_prefix }}base_item;
   {%- endif %}
         soft power_up_time_ns == 200000;
         soft voltage_switch_time_us == 250; // 协议要求5ms，期间持续拉低时钟，保留为了加快仿真，建议您跳过这一步，默认0.25ms
-
-        soft sram_size == 512;
-        sram_size % 512 == 0; // 或512整数倍
 
   {%- if is_sd %}
         (sd_capacity_type == SDSC) -> voltage == V3_3;

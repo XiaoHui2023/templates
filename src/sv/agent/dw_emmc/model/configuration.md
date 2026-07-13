@@ -10,7 +10,6 @@
 | `voltage_switch_time_us` | 电压切换等待时间，默认 `250` |
 | `default_data_width` | 默认数据位宽；eMMC 默认 `8`，SD/SDIO 默认 `4` |
 | `default_bus_speed_mode` | 默认速度模式；eMMC 默认 `HS400` |
-| `sram_size` | SRAM 容量，必须为 512 整数倍 |
 
 ## eMMC 频率
 
@@ -56,4 +55,3 @@
 | `tolerance_<clk>` | 容差，百分比 |
 
 volatile clock 不生成 `should_<clk>`、`frequence_<clk>`、`tolerance_<clk>` 字段。
-

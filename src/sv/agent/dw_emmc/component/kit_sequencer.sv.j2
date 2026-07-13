@@ -29,7 +29,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task reg_test();
 {% endif %}
     extern task speed_mode_test();
-    extern task sram_test(int unsigned block_count = 0, int unsigned block_size = 0);
+    extern task sram_test(int unsigned sram_size = 0, int unsigned block_size = 0);
     extern task tune_test(int bus_speed_mode, int data_width);
     extern task check_clock_frequence_test();
 endclass
@@ -191,14 +191,14 @@ task {{ class_prefix }}kit_sequencer::speed_mode_test();
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::sram_test(int unsigned block_count = 0, int unsigned block_size = 0);
+task {{ class_prefix }}kit_sequencer::sram_test(int unsigned sram_size = 0, int unsigned block_size = 0);
     {{ class_prefix }}sram_test_seq seq;
 
     seq = {{ class_prefix }}sram_test_seq::type_id::create("sram_test_seq");
     seq.set_item_context(null, this);
     if(!seq.randomize() with {
-        if(local::block_count != 0)
-            block_count == local::block_count;
+        if(local::sram_size != 0)
+            sram_size == local::sram_size;
         if(local::block_size != 0)
             block_size == local::block_size;
     })

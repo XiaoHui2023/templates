@@ -10,78 +10,55 @@ class {{ class_prefix }}speed_mode_test_seq extends {{ class_prefix }}default_se
         super.new(name);
     endfunction
 
+    extern task run_rw(bus_speed_mode_e bus_speed_mode, int data_width);
+
     task body();
 {%- if is_sd %}
         if(settings.boot_cfg.voltage inside {V3_3}) begin
-            `uvm_do_with(rw_test_seq, {
-                data_width == 4;
-                bus_speed_mode == DS;
-            })
-
-            `uvm_do_with(rw_test_seq, {
-                data_width == 4;
-                bus_speed_mode == HS;
-            })
+            run_rw(DS, 4);
+            run_rw(HS, 4);
         end
 
         if(settings.boot_cfg.voltage inside {V1_8}) begin
             if(settings.boot_cfg.is_support_sdr12)
-                `uvm_do_with(rw_test_seq, {
-                    data_width == 4;
-                    bus_speed_mode == SDR12;
-                })
+                run_rw(SDR12, 4);
 
             if(settings.boot_cfg.is_support_sdr25)
-                `uvm_do_with(rw_test_seq, {
-                    data_width == 4;
-                    bus_speed_mode == SDR25;
-                })
+                run_rw(SDR25, 4);
 
             if(settings.boot_cfg.is_support_ddr50)
-                `uvm_do_with(rw_test_seq, {
-                    data_width == 4;
-                    bus_speed_mode == DDR50;
-                })
+                run_rw(DDR50, 4);
 
             if(settings.boot_cfg.is_support_sdr50)
-                `uvm_do_with(rw_test_seq, {
-                    data_width == 4;
-                    bus_speed_mode == SDR50;
-                })
+                run_rw(SDR50, 4);
 
             if(settings.boot_cfg.is_support_sdr104)
-                `uvm_do_with(rw_test_seq, {
-                    data_width == 4;
-                    bus_speed_mode == SDR104;
-                })
+                run_rw(SDR104, 4);
         end
 {%- elif is_emmc %}
-        `uvm_do_with(rw_test_seq, {
-            data_width == 8;
-            bus_speed_mode == LEGACY;
-        })
-
-        `uvm_do_with(rw_test_seq, {
-            data_width == 8;
-            bus_speed_mode == HIGH_SPEED_SDR;
-        })
-
-        `uvm_do_with(rw_test_seq, {
-            data_width == 8;
-            bus_speed_mode == HIGH_SPEED_DDR;
-        })
-
-        `uvm_do_with(rw_test_seq, {
-            data_width == 8;
-            bus_speed_mode == HS200;
-        })
-
-        `uvm_do_with(rw_test_seq, {
-            data_width == 8;
-            bus_speed_mode == HS400;
-        })
+        run_rw(LEGACY, 8);
+        run_rw(HIGH_SPEED_SDR, 8);
+        run_rw(HIGH_SPEED_DDR, 8);
+        run_rw(HS200, 8);
+        run_rw(HS400, 8);
 {%- endif %}
     endtask
 endclass
+
+task {{ class_prefix }}speed_mode_test_seq::run_rw(bus_speed_mode_e bus_speed_mode, int data_width);
+    `uvm_do_with(rw_test_seq, {
+        data_width == local::data_width;
+        bus_speed_mode == local::bus_speed_mode;
+        rd == 1;
+        wr == 1;
+        rd_single == 0;
+        wr_single == 0;
+        rd_multi == 1;
+        wr_multi == 1;
+        rd_multi_block_count == 2;
+        wr_multi_block_count == 2;
+        should_compare == 1;
+    })
+endtask
 
 `endif

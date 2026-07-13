@@ -100,6 +100,7 @@ task run_phase(uvm_phase phase);
     env.emmc_agent.sqr.rw_test(.addr('h0), .count(2), .use_dma(0));
     env.emmc_agent.sqr.rw_test(.addr('h1000), .count(2), .use_dma(1));
     env.emmc_agent.sqr.speed_mode_test();
+    env.emmc_agent.sqr.sram_test(.sram_size(4096), .block_size(512));
 
     phase.drop_objection(this);
 endtask

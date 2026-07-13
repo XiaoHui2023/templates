@@ -73,7 +73,32 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
         end
                                                                                 {%- elif is_sdio %}
 
-        execute_sdio();
+        `uvm_do_with(io_rw_extended_seq, {
+            cmd_request.rw_flag == cmd_request.RW_FLAG_READ;
+            cmd_request.function_number == local::function_number;
+            cmd_request.block_mode == (local::count > 1 ? cmd_request.BLOCK : cmd_request.BYTE);
+            cmd_request.op_code == cmd_request.INCREMENTING;
+            cmd_request.register_address == local::addr;
+            if(cmd_request.block_mode == cmd_request.BLOCK) {
+                if(local::abort)
+                    cmd_request.count == 0;
+                else
+                    cmd_request.count == local::count;
+            }
+            else {
+                cmd_request.count == local::size;
+            }
+            cmd_request.block_size == local::size;
+            cmd_request.block_count == local::count;
+            cmd_request.addr == local::addr;
+            cmd_request.dma_enable == local::dma_enable;
+            cmd_request.dma_sel == local::dma_sel;
+            if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
+                cmd_request.dma_addr == local::adma_des.cmd_addr;
+            else
+                cmd_request.dma_addr == local::addr;
+            cmd_request.rd_blocking == local::blocking;
+        })
 
         cmd_response = io_rw_extended_seq.rsp;
 

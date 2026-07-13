@@ -14,6 +14,7 @@ env.emmc_agent.sqr.initial_card();
 env.emmc_agent.sqr.switch_bus(HS400, 8);
 env.emmc_agent.sqr.rw_test(.addr(0), .count(2), .use_dma(0));
 env.emmc_agent.sqr.speed_mode_test();
+env.emmc_agent.sqr.sram_test(.sram_size(4096), .block_size(512));
 ```
 
 sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
@@ -26,7 +27,7 @@ sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
 | --- | --- |
 | operation | `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`cpu_read_bytes()`、`cpu_write_bytes()` |
 | flow | `initial_card()`、`switch_bus()`、`send_ext_csd()`、`tune_phase()` |
-| test | `rw_test()`、`reg_test()`、`speed_mode_test()`、`sram_test()`、`tune_test()`、`check_clock_frequence_test()` |
+| test | `rw_test()`、`reg_test()`、`speed_mode_test()`、`sram_test(sram_size, block_size)`、`tune_test()`、`check_clock_frequence_test()` |
 
 ## Scoreboard
 

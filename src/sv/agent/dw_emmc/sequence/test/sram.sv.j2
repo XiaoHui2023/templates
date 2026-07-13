@@ -3,41 +3,148 @@
 
 class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}sram_test_seq)
-        `uvm_field_int(block_count, UVM_ALL_ON)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(sram_size, UVM_ALL_ON)
         `uvm_field_int(block_size, UVM_ALL_ON)
+        `uvm_field_int(dma_enable, UVM_ALL_ON)
+        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+        `uvm_field_int(adma_des_addr, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand int block_count;
-    rand int block_size;
-    {{ class_prefix }}rw_test_seq rw_test_seq;
+    rand bit[63:0] addr;
+    rand int unsigned sram_size;
+    rand int unsigned block_size;
+    rand bit dma_enable;
+    rand dma_sel_e dma_sel;
+    rand bit[31:0] adma_des_addr;
+
+    {{ class_prefix }}initial_seq initial_seq;
+    {{ class_prefix }}xfer_write_seq write_seq;
+    {{ class_prefix }}xfer_read_seq read_seq;
 
     function new(string name = "{{ class_prefix }}sram_test_seq");
         super.new(name);
     endfunction
 
     constraint cst_test {
-        soft block_count == settings.boot_cfg.sram_size / block_size;
-{%- if is_sdio %}
-        block_size == 512;
-{%- elif is_emmc or is_sdcard %}
-        if (settings.boot_cfg.sram_size % 2048 == 0)
-            block_size == 2048;
-        else if (settings.boot_cfg.sram_size % 1024 == 0)
-            block_size == 1024;
-        else if (settings.boot_cfg.sram_size % 512 == 0)
-            block_size == 512;
+        soft addr == 0;
+{%- if is_sdcard %}
+        soft sram_size == 4096;
+        soft block_size == 2048;
+{%- else %}
+        soft sram_size == 4096;
+        soft block_size == 512;
 {%- endif %}
+        soft dma_enable == 0;
+        soft dma_sel == ADMA2;
+        soft adma_des_addr == 'h1000_0000;
+
+        addr[63:32] == 0;
+        sram_size > 0;
+        block_size > 0;
+        sram_size % block_size == 0;
     }
 
-    task body();
-        `uvm_do_with(rw_test_seq, {
-            rd_multi_block_count == local::block_count;
-            rd_block_size == local::block_size;
-            rd_blocking == 1;
-            rd_multi == 1;
-            wr == 0;
-        })
-    endtask
+    extern task body();
+    extern function void compare_expected(bit[7:0] rdata[$], string label);
+    extern function void update_expected(bit[7:0] wdata[$], string label);
+    extern function uvm_tlm_generic_payload create_scoreboard_payload(bit[7:0] data[$], string name);
+    extern function void check_overwrite(bit[7:0] rdata[$]);
 endclass
+
+task {{ class_prefix }}sram_test_seq::body();
+    int unsigned sram_block_count;
+    int unsigned overflow_block_count;
+
+    sram_block_count = sram_size / block_size;
+    overflow_block_count = sram_block_count + 1;
+
+    if(!ctx.has_initialized)
+        `uvm_do(initial_seq)
+
+    `uvm_do_with(write_seq, {
+        addr == local::addr;
+        count == local::overflow_block_count;
+        size == local::block_size;
+        dma_enable == local::dma_enable;
+        dma_sel == local::dma_sel;
+        adma_des.cmd_addr == local::adma_des_addr;
+        write_protected == 0;
+    })
+    update_expected(write_seq.wdata, "sram_test write");
+
+    `uvm_do_with(read_seq, {
+        addr == local::addr;
+        count == local::sram_block_count;
+        size == local::block_size;
+        dma_enable == local::dma_enable;
+        dma_sel == local::dma_sel;
+        adma_des.cmd_addr == local::adma_des_addr;
+        blocking == 1;
+    })
+    compare_expected(read_seq.rdata, "sram_test exact sram read");
+
+    `uvm_do_with(read_seq, {
+        addr == local::addr;
+        count == local::overflow_block_count;
+        size == local::block_size;
+        dma_enable == local::dma_enable;
+        dma_sel == local::dma_sel;
+        adma_des.cmd_addr == local::adma_des_addr;
+        blocking == 1;
+    })
+    check_overwrite(read_seq.rdata);
+endtask
+
+function void {{ class_prefix }}sram_test_seq::compare_expected(bit[7:0] rdata[$], string label);
+    uvm_tlm_generic_payload payload;
+
+    if(p_sequencer.scoreboard == null)
+        `uvm_fatal("", "sequencer require scoreboard")
+
+    payload = create_scoreboard_payload(rdata, "sram_test_read_payload");
+    void'(p_sequencer.scoreboard.compare_actual_payload(payload, label));
+endfunction
+
+function void {{ class_prefix }}sram_test_seq::update_expected(bit[7:0] wdata[$], string label);
+    uvm_tlm_generic_payload payload;
+
+    if(p_sequencer.scoreboard == null)
+        `uvm_fatal("", "sequencer require scoreboard")
+
+    payload = create_scoreboard_payload(wdata, "sram_test_write_payload");
+    p_sequencer.scoreboard.write_expected_payload(payload, label);
+endfunction
+
+function uvm_tlm_generic_payload {{ class_prefix }}sram_test_seq::create_scoreboard_payload(bit[7:0] data[$], string name);
+    byte unsigned bytes[];
+    uvm_tlm_generic_payload payload;
+
+    bytes = new[data.size()];
+    foreach(data[j])
+        bytes[j] = data[j];
+
+    payload = new(name);
+    payload.set_address(addr);
+    payload.set_data_length(bytes.size());
+    payload.set_data(bytes);
+    return payload;
+endfunction
+
+function void {{ class_prefix }}sram_test_seq::check_overwrite(bit[7:0] rdata[$]);
+    int unsigned expected_size;
+
+    expected_size = sram_size + block_size;
+
+    if(rdata.size() != expected_size)
+        `uvm_fatal("SRAM", $psprintf("overflow read size mismatch actual=%0d expected=%0d", rdata.size(), expected_size))
+
+    for(int j = 0; j < block_size; j++) begin
+        if(rdata[j] != rdata[sram_size + j])
+            `uvm_fatal("SRAM", $psprintf("sram overwrite mismatch byte=%0d first=0x%0h last=0x%0h", j, rdata[j], rdata[sram_size + j]))
+    end
+
+    `uvm_info("SRAM", "sram overwrite behavior matched: first block equals overflow block", UVM_LOW)
+endfunction
 
 `endif
