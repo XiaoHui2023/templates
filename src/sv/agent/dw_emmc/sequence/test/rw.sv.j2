@@ -130,7 +130,8 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
 {%- endif %}
 
 {%- if is_sdcard %}
-        rd_block_size == 2048;
+        rd_block_size == 512;
+        wr_block_size == 512;
 {%- else %}
         rd_block_size == 512;
         wr_block_size == 512;
