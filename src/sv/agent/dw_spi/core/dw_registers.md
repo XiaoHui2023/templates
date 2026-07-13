@@ -1,6 +1,6 @@
 # DesignWare SPI Registers
 
-代码访问 regmodel 时使用大写 REG/FIELD 句柄，例如 `settings.regmodel.CTRLR0`、`settings.regmodel.BAUDR`、`CTRLR0.SPI_FRF`。寄存器地址由 regmodel 托管，本模块文档只记录字段语义和配置顺序。
+代码访问 regmodel 时使用大写 REG/FIELD 句柄。大量访问同一 regmodel 时，task 内先用局部句柄 `rm = settings.regmodel`，后续写 `rm.CTRLR0`、`rm.BAUDR`、`rm.CTRLR0.SPI_FRF`。寄存器地址由 regmodel 托管，本模块文档只记录字段语义和配置顺序。
 
 ## 配置顺序
 
@@ -11,7 +11,7 @@
 5. 写 `SER.SER` 选择目标片选。
 6. 写 `SSIENR.SSIC_EN = 1` 打开控制器。
 
-配置字段时先用 regmodel REG `read()` 刷新镜像，再使用 FIELD `set()`，最后对所属 REG 调 `write()`。不要使用 `update()`，不要在 core 里拼接完整寄存器值，也不要在 configuration 里保存寄存器地址。
+配置字段时先用 regmodel REG `read()` 刷新镜像，再使用 FIELD `set()`，最后对所属 REG 调 `write()`。`status` 只作为 RAL API 形参保留，不逐次检查 `UVM_IS_OK`。不要使用 `update()`，不要在 core 里拼接完整寄存器值，也不要在 configuration 里保存寄存器地址。
 
 ## CTRLR0
 

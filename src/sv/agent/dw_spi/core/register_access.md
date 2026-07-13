@@ -6,7 +6,7 @@
 
 | 对象 | 来源 | 用途 |
 | --- | --- | --- |
-| `settings.regmodel` | sequencer settings | 提供大写 REG/FIELD 句柄 |
+| `settings.regmodel` | sequencer settings | 提供大写 REG/FIELD 句柄；task 内先保存为局部 `rm` |
 | `configuration` | operation 层 builder | 承载本次要写入的字段值 |
 
 ## Apply
@@ -23,10 +23,13 @@
 10. 按 `write_rx_sample_delay` 决定是否配置 `RX_SAMPLE_DELAY.RSD`。
 11. 写 `SER.SER` 和 `SSIENR.SSIC_EN`，完成本次配置。
 
+`IMR/ICR` 阶段只设置中断 mask 并清理旧中断状态，不等待 `intr`，也不轮询 `ISR.DONES`。真正等待 transfer 完成中断的动作在 `sequence/operation/transfer` 中，发生在本函数完成寄存器配置、片选激活、PIO/DMA 启动之后。
+
 ## 注意事项
 
 - 不保存寄存器地址，不维护字符串到寄存器的地址表。
-- 不拼接完整寄存器值；直接使用 `settings.regmodel.<REG>.read(status, data)` 刷新镜像，`settings.regmodel.<REG>.<FIELD>.set(...)` 修改字段，再调用 `settings.regmodel.<REG>.write(status, settings.regmodel.<REG>.get())`。
+- 不拼接完整寄存器值；task 内先写 `rm = settings.regmodel`，再使用 `rm.<REG>.read(status, data)` 刷新镜像，`rm.<REG>.<FIELD>.set(...)` 修改字段，最后调用 `rm.<REG>.write(status, rm.<REG>.get())`。
+- RAL `read()` / `write()` 的 `status` 只作为 API 形参保留，不做 `UVM_IS_OK` 检查和逐次报错；寄存器模型正确性由环境和 regmodel 自身保证。
 - 不提供通用 `reg_write` / `reg_read` 包装。
 - 不声明静态函数集合；sequence 实例化工具对象并注入依赖。
 - 不从 core 反向引用 sequence 层类型。

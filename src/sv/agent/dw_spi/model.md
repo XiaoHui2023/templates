@@ -185,7 +185,7 @@ sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 s
 - memh/`.hex` 文件解析逻辑。
 - sequencer/kit_sequencer 快捷函数。
 
-重复寄存器 FIELD apply 流程放在 `core/register_access.sv` 的实例化工具类中，但寄存器访问必须直接写 `settings.regmodel.<REG>.read(status, data)`、`settings.regmodel.<REG>.<FIELD>.set(...)` 和 `settings.regmodel.<REG>.write(status, settings.regmodel.<REG>.get())`，不使用 `update()`，不再封装 `set_field/get_field/update_reg`。从 operation req 生成 `configuration` 的入口放在 operation sequence 中。
+重复寄存器 FIELD apply 流程放在 `core/register_access.sv` 的实例化工具类中。寄存器访问先把 `settings.regmodel` 保存为局部 `rm`，再写 `rm.<REG>.read(status, data)`、`rm.<REG>.<FIELD>.set(...)` 和 `rm.<REG>.write(status, rm.<REG>.get())`。`status` 不逐次检查；不使用 `update()`，不再封装 `set_field/get_field/update_reg`。从 operation req 生成 `configuration` 的入口放在 operation sequence 中。
 
 ## Interrupt Timeout Settings
 
