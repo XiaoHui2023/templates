@@ -128,8 +128,8 @@ function automatic void {{ settings.class_prefix }}optimized_config_collect_scop
         {{ settings.class_prefix }}node_base keep_nodes[$],
         output {{ settings.class_prefix }}node_base connected[$],
         output {{ settings.class_prefix }}node_base disconnected[$]);
-    {{ settings.class_prefix }}node_base before[$];
-    {{ settings.class_prefix }}node_base after[$];
+    {{ settings.class_prefix }}node_base upstream_nodes[$];
+    {{ settings.class_prefix }}node_base downstream_nodes[$];
 
     connected.delete();
     disconnected.delete();
@@ -137,12 +137,12 @@ function automatic void {{ settings.class_prefix }}optimized_config_collect_scop
         return;
 
     {{ settings.class_prefix }}append_unique_node(connected, subject);
-    {{ settings.class_prefix }}get_nodes_before(tree, subject, before);
-    foreach (before[i])
-        {{ settings.class_prefix }}append_unique_node(connected, before[i]);
-    {{ settings.class_prefix }}get_nodes_after(tree, subject, after);
-    foreach (after[i])
-        {{ settings.class_prefix }}append_unique_node(connected, after[i]);
+    {{ settings.class_prefix }}get_nodes_before(tree, subject, upstream_nodes);
+    foreach (upstream_nodes[i])
+        {{ settings.class_prefix }}append_unique_node(connected, upstream_nodes[i]);
+    {{ settings.class_prefix }}get_nodes_after(tree, subject, downstream_nodes);
+    foreach (downstream_nodes[i])
+        {{ settings.class_prefix }}append_unique_node(connected, downstream_nodes[i]);
     foreach (keep_nodes[i])
         {{ settings.class_prefix }}append_unique_node(connected, keep_nodes[i]);
 
