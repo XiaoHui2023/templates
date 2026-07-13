@@ -69,7 +69,7 @@ task {{ class_prefix }}intr_test_seq::body();
     ok &= op_ok;
     op_clear_intr_status(op_ok);
     ok &= op_ok;
-    op_drive_input(0, '0, op_ok);
+    op_drive_input(0, pin, op_ok);
     ok &= op_ok;
     op_set_rise_intr(pin, op_ok);
     ok &= op_ok;
