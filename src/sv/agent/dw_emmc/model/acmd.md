@@ -17,7 +17,9 @@ ACMD 由 CMD55 + 目标 ACMD 两步组成。
 | `s18a` | 1.8V switching accepted |
 | `vdd` | OCR `[23:0]` |
 
-`vdd == 0` 表示查询；此时其他初始化参数也为 0。
+默认初始化请求为 `hcs == 1`、`xpc == XPC_150`、`s18a == 0`、`vdd == 24'h008000`，因此 ACMD41 argument 为 `32'h50008000`。
+
+`vdd == 0` 表示查询；此时 `hcs/xpc/s18a` 也为 0，argument 为 0。
 
 ## ACMD51 send_scr_acmd_request
 

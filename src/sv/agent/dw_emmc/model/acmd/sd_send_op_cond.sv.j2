@@ -27,17 +27,25 @@ class {{ class_prefix }}sd_send_op_cond_acmd_request extends {{ class_prefix }}b
 
     constraint cst_acmd_command {
         cmd_index == 41;
+        argument[31] == 0;
         argument[30] == hcs;
+        argument[29] == 0;
         argument[28] == xpc;
+        argument[27:25] == 0;
         argument[24] == s18a;
         argument[23:0] == vdd;
         resp == R3;
 
+        soft hcs == 1;
+        soft xpc == XPC_150;
+        soft s18a == 0;
+        soft vdd == 'h008000;
+
         if(vdd == 0) {
             argument == 0;
-            soft hcs == 1;
-            soft xpc == 1;
-            soft vdd == 'h008000;
+            hcs == 0;
+            xpc == XPC_100;
+            s18a == 0;
         }
     }
 
