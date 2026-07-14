@@ -9,7 +9,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     `uvm_object_utils_begin({{ settings.class_prefix }}clk)
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(enabled, UVM_ALL_ON)
-        `uvm_field_int(volatile, UVM_ALL_ON)
+        `uvm_field_int(volatile, UVM_ALL_ON | (volatile ? 0 : UVM_NOPRINT))
 {%- if enable_node_fix %}
         `uvm_field_int(unfix_frequence, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
         `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
