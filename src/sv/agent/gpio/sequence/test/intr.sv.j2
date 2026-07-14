@@ -9,26 +9,28 @@ class {{ class_prefix }}intr_test_seq extends uvm_sequence;
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
     localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
-    localparam int DEFAULT_TIMEOUT = 1000;
-
-    int timeout;
+    rand int timeout;
     bit ok = 1'b1;
     {{ class_prefix }}configuration cfg;
 
     function new(string name = "{{ class_prefix }}intr_test_seq");
         super.new(name);
-        timeout = DEFAULT_TIMEOUT;
     endfunction
+
+    constraint cst {
+        soft timeout == 1000;
+        timeout > 0;
+    }
 
     extern task pre_start();
     extern task body();
     extern task post_start();
     extern task op_mask_invalid_pin(output bit ok);
-    extern task op_set_dir(bit[31:0] data, output bit ok);
-    extern task op_drive_input(bit[31:0] data, bit[31:0] enable, output bit ok);
+    extern task op_set_dir(input bit[31:0] data, output bit ok);
+    extern task op_drive_input(input bit[31:0] data, input bit[31:0] enable, output bit ok);
     extern task op_clear_intr_status(output bit ok);
-    extern task op_set_rise_intr(bit[31:0] data, output bit ok);
-    extern task op_wait_intr(output bit intr_ok, int timeout, output bit op_ok);
+    extern task op_set_rise_intr(input bit[31:0] data, output bit ok);
+    extern task op_wait_intr(output bit intr_ok, input int timeout, output bit op_ok);
 endclass
 
 task {{ class_prefix }}intr_test_seq::pre_start();
@@ -37,8 +39,7 @@ task {{ class_prefix }}intr_test_seq::pre_start();
     cfg = p_sequencer.cfg;
     if (cfg == null)
         `uvm_fatal("", "require cfg")
-    if (timeout <= 0)
-        timeout = DEFAULT_TIMEOUT;
+    assert(randomize()) else `uvm_fatal("", "randomize failed")
 
     if (starting_phase)
         starting_phase.raise_objection(this);
@@ -49,12 +50,8 @@ task {{ class_prefix }}intr_test_seq::body();
     bit[31:0] pin;
     bit wait_ok;
     bit op_ok;
-    int wait_timeout;
 
     ok = 1'b1;
-    wait_timeout = timeout;
-    if (wait_timeout <= 0)
-        wait_timeout = DEFAULT_TIMEOUT;
 
     for (int i = 0; i < cfg.num; i++) begin
         if (!cfg.mask[i]) begin
@@ -83,11 +80,11 @@ task {{ class_prefix }}intr_test_seq::body();
 
     op_drive_input(pin, pin, op_ok);
     ok &= op_ok;
-    op_wait_intr(wait_ok, wait_timeout, op_ok);
+    op_wait_intr(wait_ok, timeout, op_ok);
     ok &= op_ok;
     if (!wait_ok) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("interrupt timeout after rising edge: group=%s timeout=%0d", cfg.group_name, wait_timeout))
+        `uvm_error("", $sformatf("interrupt timeout after rising edge: group=%s timeout=%0d", cfg.group_name, timeout))
     end
 
     op_clear_intr_status(op_ok);
@@ -121,14 +118,16 @@ task {{ class_prefix }}intr_test_seq::op_mask_invalid_pin(output bit ok);
     end
 endtask
 
-task {{ class_prefix }}intr_test_seq::op_set_dir(bit[31:0] data, output bit ok);
+task {{ class_prefix }}intr_test_seq::op_set_dir(input bit[31:0] data, output bit ok);
     {{ class_prefix }}set_dir_req req;
     {{ class_prefix }}set_dir_rsp seq_rsp;
     {{ class_prefix }}set_dir_seq seq;
 
     ok = 1'b1;
     req = {{ class_prefix }}set_dir_req::type_id::create("req");
-    req.data = data;
+    assert(req.randomize() with {
+        data == local::data;
+    }) else `uvm_fatal("", "randomize set_dir req failed")
     seq = {{ class_prefix }}set_dir_seq::type_id::create("set_dir");
     seq.req = req;
     seq.start(p_sequencer);
@@ -139,15 +138,17 @@ task {{ class_prefix }}intr_test_seq::op_set_dir(bit[31:0] data, output bit ok);
     end
 endtask
 
-task {{ class_prefix }}intr_test_seq::op_drive_input(bit[31:0] data, bit[31:0] enable, output bit ok);
+task {{ class_prefix }}intr_test_seq::op_drive_input(input bit[31:0] data, input bit[31:0] enable, output bit ok);
     {{ class_prefix }}drive_input_req req;
     {{ class_prefix }}drive_input_rsp seq_rsp;
     {{ class_prefix }}drive_input_seq seq;
 
     ok = 1'b1;
     req = {{ class_prefix }}drive_input_req::type_id::create("req");
-    req.data = data;
-    req.enable = enable;
+    assert(req.randomize() with {
+        data == local::data;
+        enable == local::enable;
+    }) else `uvm_fatal("", "randomize drive_input req failed")
     seq = {{ class_prefix }}drive_input_seq::type_id::create("drive_input");
     seq.req = req;
     seq.start(p_sequencer);
@@ -175,14 +176,16 @@ task {{ class_prefix }}intr_test_seq::op_clear_intr_status(output bit ok);
     end
 endtask
 
-task {{ class_prefix }}intr_test_seq::op_set_rise_intr(bit[31:0] data, output bit ok);
+task {{ class_prefix }}intr_test_seq::op_set_rise_intr(input bit[31:0] data, output bit ok);
     {{ class_prefix }}set_rise_intr_req req;
     {{ class_prefix }}set_rise_intr_rsp seq_rsp;
     {{ class_prefix }}set_rise_intr_seq seq;
 
     ok = 1'b1;
     req = {{ class_prefix }}set_rise_intr_req::type_id::create("req");
-    req.data = data;
+    assert(req.randomize() with {
+        data == local::data;
+    }) else `uvm_fatal("", "randomize set_rise_intr req failed")
     seq = {{ class_prefix }}set_rise_intr_seq::type_id::create("set_rise_intr");
     seq.req = req;
     seq.start(p_sequencer);
@@ -193,19 +196,17 @@ task {{ class_prefix }}intr_test_seq::op_set_rise_intr(bit[31:0] data, output bi
     end
 endtask
 
-task {{ class_prefix }}intr_test_seq::op_wait_intr(output bit intr_ok, int timeout, output bit op_ok);
+task {{ class_prefix }}intr_test_seq::op_wait_intr(output bit intr_ok, input int timeout, output bit op_ok);
     {{ class_prefix }}wait_intr_req req;
     {{ class_prefix }}wait_intr_rsp seq_rsp;
     {{ class_prefix }}wait_intr_seq seq;
-    int wait_timeout;
 
     intr_ok = 1'b0;
     op_ok = 1'b1;
-    wait_timeout = timeout;
-    if (wait_timeout <= 0)
-        wait_timeout = DEFAULT_TIMEOUT;
     req = {{ class_prefix }}wait_intr_req::type_id::create("req");
-    req.timeout = wait_timeout;
+    assert(req.randomize() with {
+        timeout == local::timeout;
+    }) else `uvm_fatal("", "randomize wait_intr req failed")
     seq = {{ class_prefix }}wait_intr_seq::type_id::create("wait_intr");
     seq.req = req;
     seq.start(p_sequencer);

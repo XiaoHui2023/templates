@@ -22,11 +22,11 @@ class {{ class_prefix }}inout_test_seq extends uvm_sequence;
     extern task pre_start();
     extern task body();
     extern task post_start();
-    extern task check_one(int bit_index, bit is_output, bit value, output bit ok);
+    extern task check_one(input int bit_index, input bit is_output, input bit value, output bit ok);
     extern task op_mask_invalid_pin(output bit ok);
-    extern task op_set_dir(bit[31:0] data, output bit ok);
-    extern task op_set_value(bit[31:0] data, output bit ok);
-    extern task op_drive_input(bit[31:0] data, bit[31:0] enable, output bit ok);
+    extern task op_set_dir(input bit[31:0] data, output bit ok);
+    extern task op_set_value(input bit[31:0] data, output bit ok);
+    extern task op_drive_input(input bit[31:0] data, input bit[31:0] enable, output bit ok);
     extern task op_get_value(output bit[31:0] data, output bit ok);
     extern task op_get_external_value(output bit[31:0] data, output bit ok);
 endclass
@@ -83,7 +83,7 @@ task {{ class_prefix }}inout_test_seq::post_start();
         starting_phase.drop_objection(this);
 endtask
 
-task {{ class_prefix }}inout_test_seq::check_one(int bit_index, bit is_output, bit value, output bit ok);
+task {{ class_prefix }}inout_test_seq::check_one(input int bit_index, input bit is_output, input bit value, output bit ok);
     bit[31:0] dir;
     bit[31:0] output_data;
     bit[31:0] input_data;
@@ -163,14 +163,16 @@ task {{ class_prefix }}inout_test_seq::op_mask_invalid_pin(output bit ok);
     end
 endtask
 
-task {{ class_prefix }}inout_test_seq::op_set_dir(bit[31:0] data, output bit ok);
+task {{ class_prefix }}inout_test_seq::op_set_dir(input bit[31:0] data, output bit ok);
     {{ class_prefix }}set_dir_req req;
     {{ class_prefix }}set_dir_rsp seq_rsp;
     {{ class_prefix }}set_dir_seq seq;
 
     ok = 1'b1;
     req = {{ class_prefix }}set_dir_req::type_id::create("req");
-    req.data = data;
+    assert(req.randomize() with {
+        data == local::data;
+    }) else `uvm_fatal("", "randomize set_dir req failed")
     seq = {{ class_prefix }}set_dir_seq::type_id::create("set_dir");
     seq.req = req;
     seq.start(p_sequencer);
@@ -181,14 +183,16 @@ task {{ class_prefix }}inout_test_seq::op_set_dir(bit[31:0] data, output bit ok)
     end
 endtask
 
-task {{ class_prefix }}inout_test_seq::op_set_value(bit[31:0] data, output bit ok);
+task {{ class_prefix }}inout_test_seq::op_set_value(input bit[31:0] data, output bit ok);
     {{ class_prefix }}set_value_req req;
     {{ class_prefix }}set_value_rsp seq_rsp;
     {{ class_prefix }}set_value_seq seq;
 
     ok = 1'b1;
     req = {{ class_prefix }}set_value_req::type_id::create("req");
-    req.data = data;
+    assert(req.randomize() with {
+        data == local::data;
+    }) else `uvm_fatal("", "randomize set_value req failed")
     seq = {{ class_prefix }}set_value_seq::type_id::create("set_value");
     seq.req = req;
     seq.start(p_sequencer);
@@ -199,15 +203,17 @@ task {{ class_prefix }}inout_test_seq::op_set_value(bit[31:0] data, output bit o
     end
 endtask
 
-task {{ class_prefix }}inout_test_seq::op_drive_input(bit[31:0] data, bit[31:0] enable, output bit ok);
+task {{ class_prefix }}inout_test_seq::op_drive_input(input bit[31:0] data, input bit[31:0] enable, output bit ok);
     {{ class_prefix }}drive_input_req req;
     {{ class_prefix }}drive_input_rsp seq_rsp;
     {{ class_prefix }}drive_input_seq seq;
 
     ok = 1'b1;
     req = {{ class_prefix }}drive_input_req::type_id::create("req");
-    req.data = data;
-    req.enable = enable;
+    assert(req.randomize() with {
+        data == local::data;
+        enable == local::enable;
+    }) else `uvm_fatal("", "randomize drive_input req failed")
     seq = {{ class_prefix }}drive_input_seq::type_id::create("drive_input");
     seq.req = req;
     seq.start(p_sequencer);

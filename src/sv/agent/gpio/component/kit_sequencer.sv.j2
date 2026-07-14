@@ -19,7 +19,7 @@ class {{ class_prefix }}kit_sequencer extends uvm_component;
     extern task get_value(output bit[31:0] data[string]);
     extern task clear_intr_status();
     extern task set_rise_intr(bit[31:0] data);
-    extern task wait_intr(int timeout = 1000);
+    extern task wait_intr(input int timeout = 1000);
     extern task get_intr_status(output bit intr[string]);
     extern task inout_test();
     extern task intr_test();
@@ -71,14 +71,9 @@ task {{ class_prefix }}kit_sequencer::set_rise_intr(bit[31:0] data);
 {% for group in groups %}    sqr_{{ group.name }}.set_rise_intr(data);
 {% endfor %}endtask
 
-task {{ class_prefix }}kit_sequencer::wait_intr(int timeout);
-    int wait_timeout;
-
+task {{ class_prefix }}kit_sequencer::wait_intr(input int timeout);
     check_ready();
-    wait_timeout = timeout;
-    if (wait_timeout <= 0)
-        wait_timeout = 1000;
-{% for group in groups %}    sqr_{{ group.name }}.wait_intr(wait_timeout);
+{% for group in groups %}    sqr_{{ group.name }}.wait_intr(timeout);
 {% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::get_intr_status(output bit intr[string]);

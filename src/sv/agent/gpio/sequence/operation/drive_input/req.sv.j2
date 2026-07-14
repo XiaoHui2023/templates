@@ -7,8 +7,8 @@ class {{ class_prefix }}drive_input_req extends uvm_sequence_item;
         `uvm_field_int(enable,UVM_ALL_ON)
     `uvm_object_utils_end
 
-    bit[31:0] data;
-    bit[31:0] enable;
+    rand bit[31:0] data;
+    rand bit[31:0] enable;
 
     function new(string name="{{ class_prefix }}drive_input_req");
         super.new(name);

@@ -17,7 +17,7 @@ class {{ class_prefix }}sub_kit_sequencer extends {{ class_prefix }}sequencer;
     extern task get_value(output bit[31:0] data);
     extern task clear_intr_status();
     extern task set_rise_intr(bit[31:0] data);
-    extern task wait_intr(int timeout = 1000);
+    extern task wait_intr(input int timeout = 1000);
     extern task get_intr_status(output bit intr);
     extern task inout_test();
     extern task intr_test();
@@ -43,7 +43,9 @@ task {{ class_prefix }}sub_kit_sequencer::set_dir(bit[31:0] data);
     {{ class_prefix }}set_dir_seq seq;
 
     req = {{ class_prefix }}set_dir_req::type_id::create("req");
-    req.data = data;
+    assert(req.randomize() with {
+        data == local::data;
+    }) else `uvm_fatal("", "randomize set_dir req failed")
     seq = {{ class_prefix }}set_dir_seq::type_id::create("set_dir");
     seq.req = req;
     seq.start(this);
@@ -58,7 +60,9 @@ task {{ class_prefix }}sub_kit_sequencer::set_value(bit[31:0] data);
     {{ class_prefix }}set_value_seq seq;
 
     req = {{ class_prefix }}set_value_req::type_id::create("req");
-    req.data = data;
+    assert(req.randomize() with {
+        data == local::data;
+    }) else `uvm_fatal("", "randomize set_value req failed")
     seq = {{ class_prefix }}set_value_seq::type_id::create("set_value");
     seq.req = req;
     seq.start(this);
@@ -73,8 +77,10 @@ task {{ class_prefix }}sub_kit_sequencer::drive_input(bit[31:0] data, bit[31:0] 
     {{ class_prefix }}drive_input_seq seq;
 
     req = {{ class_prefix }}drive_input_req::type_id::create("req");
-    req.data = data;
-    req.enable = enable;
+    assert(req.randomize() with {
+        data == local::data;
+        enable == local::enable;
+    }) else `uvm_fatal("", "randomize drive_input req failed")
     seq = {{ class_prefix }}drive_input_seq::type_id::create("drive_input");
     seq.req = req;
     seq.start(this);
@@ -118,7 +124,9 @@ task {{ class_prefix }}sub_kit_sequencer::set_rise_intr(bit[31:0] data);
     {{ class_prefix }}set_rise_intr_seq seq;
 
     req = {{ class_prefix }}set_rise_intr_req::type_id::create("req");
-    req.data = data;
+    assert(req.randomize() with {
+        data == local::data;
+    }) else `uvm_fatal("", "randomize set_rise_intr req failed")
     seq = {{ class_prefix }}set_rise_intr_seq::type_id::create("set_rise_intr");
     seq.req = req;
     seq.start(this);
@@ -127,17 +135,15 @@ task {{ class_prefix }}sub_kit_sequencer::set_rise_intr(bit[31:0] data);
         `uvm_fatal("", "set_rise_intr: operation failed")
 endtask
 
-task {{ class_prefix }}sub_kit_sequencer::wait_intr(int timeout);
+task {{ class_prefix }}sub_kit_sequencer::wait_intr(input int timeout);
     {{ class_prefix }}wait_intr_req req;
     {{ class_prefix }}wait_intr_rsp seq_rsp;
     {{ class_prefix }}wait_intr_seq seq;
-    int wait_timeout;
 
-    wait_timeout = timeout;
-    if (wait_timeout <= 0)
-        wait_timeout = 1000;
     req = {{ class_prefix }}wait_intr_req::type_id::create("req");
-    req.timeout = wait_timeout;
+    assert(req.randomize() with {
+        timeout == local::timeout;
+    }) else `uvm_fatal("", "randomize wait_intr req failed")
     seq = {{ class_prefix }}wait_intr_seq::type_id::create("wait_intr");
     seq.req = req;
     seq.start(this);
