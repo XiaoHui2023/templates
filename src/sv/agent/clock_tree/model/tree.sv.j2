@@ -140,11 +140,12 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if (settings.probe_mode and not node.disable and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
-{%- if not settings.probe_mode or (settings.probe_mode and node.disable) %}
+{%- if settings.probe_mode %}
+        {{ clk_acc }}.enabled = {{ node.clk_init_enabled }};
+{%- else %}
 {%- if node.clk_tree_emit_enabled %}
         {{ clk_acc }}.enabled = {{ node.clk_init_enabled }};
 {%- endif %}
-{%- if not settings.probe_mode %}
 {%- if enable_node_fix and node.clk_tree_emit_unfix_frequence %}
         {{ clk_acc }}.unfix_frequence = 1'b0;
 {%- endif %}
@@ -155,7 +156,6 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         {{ clk_acc }}.stable = 1;
 {%- endif %}
 {%- endif %}
-{%- endif %}
 {%- endfor %}
 {%- else %}
 {%- if node.volatile %}
@@ -164,11 +164,12 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if (settings.probe_mode and not node.disable and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ node.name }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
-{%- if not settings.probe_mode or (settings.probe_mode and node.disable) %}
+{%- if settings.probe_mode %}
+        {{ node.name }}.enabled = {{ node.clk_init_enabled }};
+{%- else %}
 {%- if node.clk_tree_emit_enabled %}
         {{ node.name }}.enabled = {{ node.clk_init_enabled }};
 {%- endif %}
-{%- if not settings.probe_mode %}
 {%- if enable_node_fix and node.clk_tree_emit_unfix_frequence %}
         {{ node.name }}.unfix_frequence = 1'b0;
 {%- endif %}
@@ -177,7 +178,6 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- if node.stable %}
         {{ node.name }}.stable = 1;
-{%- endif %}
 {%- endif %}
 {%- endif %}
 {%- endif %}
