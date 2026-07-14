@@ -17,10 +17,10 @@
 f_hw = f_ref / ratio
 ```
 
-整数除法，**f_hw** 为寄存器按 **ratio** 配置后硅片输出频率。model 里 **\_resolved_freq** 精确等于 **f_hw**；**period_tolerance** 只用于测量稳定与 **check_measure** 结果验收，不参与 div 期望频率计算。
+整数除法，**f_hw** 为寄存器按 **ratio** 配置后硅片输出频率。model 里 **\_resolved_freq** 按 **settings.div_freq_tolerance** 落在 **f_hw** 附近；**period_tolerance** 只用于测量稳定与 **check_measure** 结果验收。
 
 ```
-_resolved_freq = f_hw
+f_hw * (1 - div_freq_tolerance) <= _resolved_freq <= f_hw * (1 + div_freq_tolerance)
 ```
 
 **N** 与 **ratio**：**N** 为 0 时 **ratio** 为 1；**N** 大于 0 时 **ratio** 为 **N + 1**。反之 **ratio** 不大于 1 时 **N** 为 0，否则 **N** 为 **ratio − 1**。
@@ -39,7 +39,7 @@ _resolved_freq = f_hw
 f_hw = f_ref / ratio
 ```
 
-model 里 **\_resolved_freq** 精确等于 **f_hw**。
+model 里 **\_resolved_freq** 按 **settings.div_freq_tolerance** 落在 **f_hw** 附近。
 
 ## dto
 
@@ -55,7 +55,7 @@ model 里 **\_resolved_freq** 精确等于 **f_hw**。
 f_hw = f_ref / ratio
 ```
 
-model 里 **\_resolved_freq** 精确等于 **f_hw**。
+model 里 **\_resolved_freq** 按 **settings.div_freq_tolerance** 落在 **f_hw** 附近。
 
 ```
 step = 2^25 / ratio

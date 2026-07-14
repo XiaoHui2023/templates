@@ -86,6 +86,12 @@ class Settings(BaseModel):
         lt=1.0,
         description="相邻周期相对偏差上限。",
     )
+    div_freq_tolerance: float = Field(
+        0.02,
+        ge=0.0,
+        lt=1.0,
+        description="分频器解析频率相对容差。",
+    )
     duty_min: float = Field(
         48.0,
         ge=0.0,
