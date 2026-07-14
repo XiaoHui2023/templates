@@ -322,7 +322,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     {{ settings.class_prefix }}optimized_config_apply_pll_freq(tree, pinned_path);
     {{ settings.class_prefix }}optimized_config_pin_div_dto_ratio_one(tree, pinned_path);
-    {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(pinned_path);
+    {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(tree, pinned_path);
     {{ settings.class_prefix }}optimized_config_apply_clk_unfix(tree);
 
     stored_nodes = tree.nodes;

@@ -49,6 +49,8 @@ class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
         output {{ settings.class_prefix }}pll_base plls[$]);
     // 等待已配置 PLL 进入 lock 状态
     extern task wait_pll_nodes({{ settings.class_prefix }}pll_base plls[$]);
+    // 打印无下游 clk 的无效控制器件
+    extern task report_invalid_control_nodes({{ settings.class_prefix }}tree_base tree);
     // 写入 div 与 dto 控制寄存器
     extern task config_div_dto_nodes({{ settings.class_prefix }}tree_base tree);
     // 写入 inv 控制寄存器
@@ -470,6 +472,25 @@ task {{ settings.class_prefix }}config_reg_seq::wait_pll_nodes(
         wait_pll_lock_node(plls[i]);
 endtask
 
+// 打印无下游 clk 的无效控制器件
+task {{ settings.class_prefix }}config_reg_seq::report_invalid_control_nodes(
+        {{ settings.class_prefix }}tree_base tree);
+    if (quiet || tree == null)
+        return;
+    for (int i = 0; i < tree.nodes.size(); i++) begin
+        if (tree.nodes[i] == null)
+            continue;
+        if (!(tree.nodes[i].kind == "gate" || tree.nodes[i].kind == "mux"
+                || tree.nodes[i].kind == "div"))
+            continue;
+        if ({{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
+            continue;
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: %s %s invalid",
+            tree.nodes[i].kind, tree.nodes[i].get_name()), UVM_MEDIUM)
+    end
+endtask
+
 // 写入 div 与 dto 控制寄存器
 task {{ settings.class_prefix }}config_reg_seq::config_div_dto_nodes(
         {{ settings.class_prefix }}tree_base tree);
@@ -477,6 +498,8 @@ task {{ settings.class_prefix }}config_reg_seq::config_div_dto_nodes(
     {{ settings.class_prefix }}div_dto div_dto_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++) begin
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
+            continue;
         if ($cast(div_div_nd, tree.nodes[i])) begin
             if (div_div_nd.f_rst.is_bound() && div_div_nd.f_load.is_bound()
                     && div_div_nd.f_div.is_bound())
@@ -520,6 +543,7 @@ task {{ settings.class_prefix }}config_reg_seq::config_gate_nodes(
 
     for (int i = 0; i < tree.nodes.size(); i++)
         if ($cast(gate_nd, tree.nodes[i]) && gate_nd.f_reg.is_bound()
+                && {{ settings.class_prefix }}control_node_is_valid(tree, gate_nd)
                 && gate_nd._resolved_open == open)
             config_reg_gate_node(gate_nd);
 endtask
@@ -530,7 +554,8 @@ task {{ settings.class_prefix }}config_reg_seq::config_mux_nodes(
     {{ settings.class_prefix }}mux mux_nd;
 
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(mux_nd, tree.nodes[i]) && mux_nd.f_reg.is_bound())
+        if ($cast(mux_nd, tree.nodes[i]) && mux_nd.f_reg.is_bound()
+                && {{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
             config_reg_mux_node(mux_nd);
 endtask
 
@@ -555,6 +580,8 @@ task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
             continue;
         if (!mux_nd.f_reg.is_bound())
             continue;
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
+            continue;
         p_sequencer.tools.node.mux_sel_matches(
             mux_nd.f_reg, mux_nd._resolved_sel, sel_match);
         if (sel_match)
@@ -570,6 +597,8 @@ task {{ settings.class_prefix }}config_reg_seq::prep_mux_switch_gates(
         {{ settings.class_prefix }}get_gates_before(tree, mux_switch[i], upstream_gates);
         foreach (upstream_gates[j]) begin
             if (!$cast(gate_nd, upstream_gates[j]))
+                continue;
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
                 continue;
             {{ settings.class_prefix }}append_unique_node(gates_open, gate_nd);
         end
@@ -634,6 +663,7 @@ task {{ settings.class_prefix }}config_reg_seq::body();
     rs = {{ settings.class_prefix }}config_reg_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
+    report_invalid_control_nodes(tree);
     config_pll_nodes(tree, plls);
     wait_pll_nodes(plls);
     config_div_dto_nodes(tree);

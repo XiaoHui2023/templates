@@ -190,6 +190,32 @@ function automatic void {{ settings.class_prefix }}get_nodes_after(
     {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
 endfunction
 
+// Control nodes are useful only when they can reach at least one connected clk.
+function automatic bit {{ settings.class_prefix }}node_has_downstream_clk(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base nd);
+    {{ settings.class_prefix }}node_base downstream[$];
+    {{ settings.class_prefix }}clk clk_nd;
+    if (!{{ settings.class_prefix }}node_in_tree(tree, nd))
+        return 1'b0;
+    {{ settings.class_prefix }}get_nodes_after(tree, nd, downstream);
+    foreach (downstream[i])
+        if ($cast(clk_nd, downstream[i]))
+            return 1'b1;
+    return 1'b0;
+endfunction
+
+// gate/mux/div without connected downstream clk is ignored by config and tests.
+function automatic bit {{ settings.class_prefix }}control_node_is_valid(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base nd);
+    if (nd == null)
+        return 1'b0;
+    if (nd.kind == "gate" || nd.kind == "mux" || nd.kind == "div")
+        return {{ settings.class_prefix }}node_has_downstream_clk(tree, nd);
+    return 1'b1;
+endfunction
+
 // scope 内是否存在 nd 的直接前级
 function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
         {{ settings.class_prefix }}node_base nd,

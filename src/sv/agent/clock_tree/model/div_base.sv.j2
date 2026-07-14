@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "div_base") | upper }}
 `define {{ (settings.class_prefix ~ "div_base") | upper }}
-{%- set div_freq_tol_den = 100 %}
-{%- set div_freq_tol_num = (settings.div_freq_tolerance * div_freq_tol_den) | round | int %}
+{%- set div_freq_tol_den = settings.div_freq_tolerance_den %}
+{%- set div_freq_tol_num = settings.div_freq_tolerance_num %}
 {%- set div_freq_tol_lo = div_freq_tol_den - div_freq_tol_num %}
 {%- set div_freq_tol_hi = div_freq_tol_den + div_freq_tol_num %}
 

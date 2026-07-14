@@ -226,6 +226,6 @@ nodes:
 settings:
   class_regmodel: regmodel_t
   min_freq_hz: 15000
-  div_freq_tolerance: 0.02
+  div_freq_tolerance: 0.01
   duty_min: 48
   duty_max: 67

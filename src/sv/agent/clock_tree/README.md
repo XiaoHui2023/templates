@@ -85,7 +85,7 @@ endfunction
 | `stable_cycles` | `int` | `3` | 活动确认后频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。 |
 | `mux_switch_wait_cycles` | `int` | `3` | **config_reg** 写 **mux** 选择前，按待切换 **mux** 最慢直接前级时钟等待的周期数。 |
 | `period_tolerance` | `float` | `0.02` | 相邻周期相对偏差上限。 |
-| `div_freq_tolerance` | `float` | `0.02` | 分频器解析频率相对容差。 |
+| `div_freq_tolerance` | `float` | `0.01` | 分频器解析频率相对容差。 |
 | `duty_min` | `float` | `48` | 允许占空比下限，百分数；闭区间端点计入合格。 |
 | `duty_max` | `float` | `67` | 允许占空比上限，百分数；闭区间端点计入合格。 |
 | `duty_tolerance_pct` | `float` | `0.05` | 占空比允许范围在 **duty_min**、**duty_max** 之外的容差，百分数点；合格区间为 **[duty_min − duty_tolerance_pct, duty_max + duty_tolerance_pct]**。 |

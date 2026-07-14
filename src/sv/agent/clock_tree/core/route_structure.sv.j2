@@ -185,7 +185,8 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_upstr
     foreach (raw[i]) begin
         if (raw[i] == subject)
             continue;
-        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i]))
+        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i])
+                && {{ settings.class_prefix }}control_node_is_valid(tree, raw[i]))
             line.push_back(raw[i]);
     end
     begin
@@ -208,7 +209,8 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_downs
     foreach (raw[i]) begin
         if (raw[i] == subject)
             continue;
-        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i]))
+        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i])
+                && {{ settings.class_prefix }}control_node_is_valid(tree, raw[i]))
             line.push_back(raw[i]);
     end
     begin
@@ -228,6 +230,8 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_probe
     foreach (tree.nodes[i]) begin
         if (!{{ settings.class_prefix }}route_structure_is_probe_kind(tree.nodes[i]))
             continue;
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
+            continue;
         if (!{{ settings.class_prefix }}route_structure_regs_ready(tree.nodes[i]))
             continue;
         {{ settings.class_prefix }}append_unique_node(subjects, tree.nodes[i]);
@@ -246,6 +250,8 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_flip_
                 continue;
             if (filter[i].kind != "div")
                 continue;
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, filter[i]))
+                continue;
             if (!{{ settings.class_prefix }}route_structure_regs_ready(filter[i]))
                 continue;
             {{ settings.class_prefix }}append_unique_node(subjects, filter[i]);
@@ -258,6 +264,8 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_flip_
         if (tree.nodes[i] == null)
             continue;
         if (tree.nodes[i].kind != "div")
+            continue;
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
             continue;
         if (!{{ settings.class_prefix }}route_structure_regs_ready(tree.nodes[i]))
             continue;
@@ -447,6 +455,7 @@ endfunction
 
 // gate 固定打开、mux 以当前 _resolved_sel 设 sel、div 固定当前 _resolved_ratio
 function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base gate_mux[$]);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
@@ -455,6 +464,8 @@ function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_
 
     foreach (gate_mux[i]) begin
         if (gate_mux[i] == null)
+            continue;
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_mux[i]))
             continue;
         if ($cast(gate_nd, gate_mux[i]))
             {{ settings.class_prefix }}route_structure_set_gate_open(gate_nd, 1'b1, 1'b1);
@@ -545,9 +556,13 @@ function automatic void {{ settings.class_prefix }}route_structure_fix_all_gate_
         return;
     foreach (tree.nodes[i]) begin
         if ($cast(gate_nd, tree.nodes[i])) begin
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
+                continue;
             {{ settings.class_prefix }}route_structure_save_ctrl(gate_nd, snap);
             {{ settings.class_prefix }}route_structure_apply_ctrl(gate_nd, snap, 1'b1);
         end else if ($cast(mux_nd, tree.nodes[i])) begin
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
+                continue;
             {{ settings.class_prefix }}route_structure_save_ctrl(mux_nd, snap);
             {{ settings.class_prefix }}route_structure_apply_ctrl(mux_nd, snap, 1'b1);
         end
@@ -568,14 +583,20 @@ function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix
     {{ settings.class_prefix }}route_structure_clear_clk_unfix(tree);
     foreach (tree.nodes[i]) begin
         if ($cast(gate_nd, tree.nodes[i])) begin
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
+                continue;
             gate_nd.open = -1;
             gate_nd.unfix_open = 1'b1;
             gate_nd.fix_open = 1'b0;
             gate_nd.fix_close = 1'b0;
         end else if ($cast(mux_nd, tree.nodes[i])) begin
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
+                continue;
             mux_nd.sel = -1;
             mux_nd.unfix_sel = 1'b1;
         end else if ($cast(div_nd, tree.nodes[i])) begin
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, div_nd))
+                continue;
             div_nd.ratio = -1;
             div_nd.unfix_ratio = 1'b1;
         end

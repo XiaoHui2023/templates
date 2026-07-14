@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
@@ -87,11 +88,26 @@ class Settings(BaseModel):
         description="相邻周期相对偏差上限。",
     )
     div_freq_tolerance: float = Field(
-        0.02,
+        0.01,
         ge=0.0,
         lt=1.0,
         description="分频器解析频率相对容差。",
     )
+
+    @property
+    def div_freq_tolerance_den(self) -> int:
+        if self.div_freq_tolerance <= 0.0:
+            return 1
+        exp = Decimal(str(self.div_freq_tolerance)).as_tuple().exponent
+        if exp >= 0:
+            return 1
+        return 10 ** (-exp)
+
+    @property
+    def div_freq_tolerance_num(self) -> int:
+        den = self.div_freq_tolerance_den
+        return int(Decimal(str(self.div_freq_tolerance)) * den)
+
     duty_min: float = Field(
         48.0,
         ge=0.0,

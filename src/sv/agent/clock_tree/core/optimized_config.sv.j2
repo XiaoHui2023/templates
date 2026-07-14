@@ -77,6 +77,8 @@ function automatic void {{ settings.class_prefix }}optimized_config_pin_div_dto_
             continue;
         if ({{ settings.class_prefix }}node_in_queue(div_nd, skip_nodes))
             continue;
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, div_nd))
+            continue;
         {{ settings.class_prefix }}route_structure_set_ratio(div_nd, 1, 1'b1);
     end
 endfunction
@@ -138,25 +140,35 @@ function automatic void {{ settings.class_prefix }}optimized_config_collect_scop
 
     {{ settings.class_prefix }}append_unique_node(connected, subject);
     {{ settings.class_prefix }}get_nodes_before(tree, subject, upstream_nodes);
-    foreach (upstream_nodes[i])
-        {{ settings.class_prefix }}append_unique_node(connected, upstream_nodes[i]);
+    foreach (upstream_nodes[i]) begin
+        if ({{ settings.class_prefix }}control_node_is_valid(tree, upstream_nodes[i]))
+            {{ settings.class_prefix }}append_unique_node(connected, upstream_nodes[i]);
+    end
     {{ settings.class_prefix }}get_nodes_after(tree, subject, downstream_nodes);
-    foreach (downstream_nodes[i])
-        {{ settings.class_prefix }}append_unique_node(connected, downstream_nodes[i]);
-    foreach (keep_nodes[i])
-        {{ settings.class_prefix }}append_unique_node(connected, keep_nodes[i]);
+    foreach (downstream_nodes[i]) begin
+        if ({{ settings.class_prefix }}control_node_is_valid(tree, downstream_nodes[i]))
+            {{ settings.class_prefix }}append_unique_node(connected, downstream_nodes[i]);
+    end
+    foreach (keep_nodes[i]) begin
+        if ({{ settings.class_prefix }}control_node_is_valid(tree, keep_nodes[i]))
+            {{ settings.class_prefix }}append_unique_node(connected, keep_nodes[i]);
+    end
 
     foreach (tree.nodes[i]) begin
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
+            continue;
         if (!{{ settings.class_prefix }}node_in_queue(tree.nodes[i], connected))
             {{ settings.class_prefix }}append_unique_node(disconnected, tree.nodes[i]);
     end
 endfunction
 
 function automatic void {{ settings.class_prefix }}optimized_config_close_disconnected_gates(
+        {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base disconnected[$]);
     {{ settings.class_prefix }}gate gate_nd;
     foreach (disconnected[i]) begin
-        if ($cast(gate_nd, disconnected[i]))
+        if ($cast(gate_nd, disconnected[i])
+                && {{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
             {{ settings.class_prefix }}route_structure_set_gate_open(gate_nd, 1'b0, 1'b1);
     end
 endfunction
@@ -171,6 +183,8 @@ function automatic void {{ settings.class_prefix }}optimized_config_save_tree_ct
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
+        if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
+            continue;
         {{ settings.class_prefix }}append_unique_node(nodes, tree.nodes[i]);
         {{ settings.class_prefix }}route_structure_save_ctrl(tree.nodes[i], one_snap);
         snaps.push_back(one_snap);
@@ -192,7 +206,7 @@ function automatic void {{ settings.class_prefix }}optimized_config_scope_for_su
         output {{ settings.class_prefix }}node_base disconnected[$]);
     {{ settings.class_prefix }}optimized_config_collect_scope(
         tree, subject, keep_nodes, connected, disconnected);
-    {{ settings.class_prefix }}optimized_config_close_disconnected_gates(disconnected);
+    {{ settings.class_prefix }}optimized_config_close_disconnected_gates(tree, disconnected);
 endfunction
 
 `endif

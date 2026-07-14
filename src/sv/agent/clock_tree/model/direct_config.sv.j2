@@ -29,6 +29,29 @@ class {{ settings.class_prefix }}direct_configurator;
     extern function int div_ratio_to_n(int ratio);
     extern function bit dto_ratio_is_bypass(int ratio);
     extern function int dto_ratio_to_step(int ratio);
+    // Check whether a node handle already exists in a queue.
+    extern function bit node_in_queue(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}node_base q[$]);
+    // Append a node handle only when it is non-null and not already present.
+    extern function void append_unique_node(
+        ref {{ settings.class_prefix }}node_base dest[$],
+        input {{ settings.class_prefix }}node_base nd);
+    // Collect direct downstream peers from source and mux input links.
+    extern function void tree_downstream_peers(
+        {{ settings.class_prefix }}tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base peers[$]);
+    // Check whether a node can reach any connected clk node.
+    extern function bit node_has_downstream_clk(
+        {{ settings.class_prefix }}tree tree,
+        {{ settings.class_prefix }}node_base nd);
+    // Check whether a control node should participate in configuration.
+    extern function bit control_node_is_valid(
+        {{ settings.class_prefix }}tree tree,
+        {{ settings.class_prefix }}node_base nd);
+    // Report control nodes that do not reach any connected clk.
+    extern task report_invalid_control_nodes({{ settings.class_prefix }}tree tree);
 
     extern task configure_gate({{ settings.class_prefix }}gate gate_nd, bit open);
     extern task configure_mux({{ settings.class_prefix }}mux mux_nd);
@@ -232,6 +255,113 @@ function int {{ settings.class_prefix }}direct_configurator::dto_ratio_to_step(i
             "direct_config: dto ratio %0d out of range", ratio))
     return int'(step_i);
 endfunction
+
+// Check whether a node handle already exists in a queue.
+function bit {{ settings.class_prefix }}direct_configurator::node_in_queue(
+        {{ settings.class_prefix }}node_base nd,
+        {{ settings.class_prefix }}node_base q[$]);
+    foreach (q[i])
+        if (q[i] == nd)
+            return 1'b1;
+    return 1'b0;
+endfunction
+
+// Append a node handle only when it is non-null and not already present.
+function void {{ settings.class_prefix }}direct_configurator::append_unique_node(
+        ref {{ settings.class_prefix }}node_base dest[$],
+        input {{ settings.class_prefix }}node_base nd);
+    if (nd == null)
+        return;
+    if (node_in_queue(nd, dest))
+        return;
+    dest.push_back(nd);
+endfunction
+
+// Collect direct downstream peers from source and mux input links.
+function void {{ settings.class_prefix }}direct_configurator::tree_downstream_peers(
+        {{ settings.class_prefix }}tree tree,
+        {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}node_base peers[$]);
+    {{ settings.class_prefix }}mux mux_nd;
+    peers.delete();
+    if (tree == null || nd == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (tree.nodes[i] == null)
+            continue;
+        if ($cast(mux_nd, tree.nodes[i])) begin
+            foreach (mux_nd.to_source[k])
+                if (mux_nd.to_source[k] == nd)
+                    append_unique_node(peers, tree.nodes[i]);
+        end else if (tree.nodes[i].source == nd)
+            append_unique_node(peers, tree.nodes[i]);
+    end
+endfunction
+
+// Check whether a node can reach any connected clk node.
+function bit {{ settings.class_prefix }}direct_configurator::node_has_downstream_clk(
+        {{ settings.class_prefix }}tree tree,
+        {{ settings.class_prefix }}node_base nd);
+    {{ settings.class_prefix }}node_base seen[$];
+    {{ settings.class_prefix }}node_base wave[$];
+    {{ settings.class_prefix }}node_base peers[$];
+    {{ settings.class_prefix }}clk clk_nd;
+    int w;
+
+    if (tree == null || nd == null)
+        return 1'b0;
+    tree_downstream_peers(tree, nd, peers);
+    foreach (peers[i]) begin
+        append_unique_node(seen, peers[i]);
+        append_unique_node(wave, peers[i]);
+    end
+    w = 0;
+    while (w < wave.size()) begin
+        {{ settings.class_prefix }}node_base cur;
+        cur = wave[w];
+        w++;
+        if ($cast(clk_nd, cur))
+            return 1'b1;
+        tree_downstream_peers(tree, cur, peers);
+        foreach (peers[j]) begin
+            if (!node_in_queue(peers[j], seen)) begin
+                append_unique_node(seen, peers[j]);
+                append_unique_node(wave, peers[j]);
+            end
+        end
+    end
+    return 1'b0;
+endfunction
+
+// Check whether a control node should participate in configuration.
+function bit {{ settings.class_prefix }}direct_configurator::control_node_is_valid(
+        {{ settings.class_prefix }}tree tree,
+        {{ settings.class_prefix }}node_base nd);
+    if (nd == null)
+        return 1'b0;
+    if (nd.kind == "gate" || nd.kind == "mux" || nd.kind == "div")
+        return node_has_downstream_clk(tree, nd);
+    return 1'b1;
+endfunction
+
+// Report control nodes that do not reach any connected clk.
+task {{ settings.class_prefix }}direct_configurator::report_invalid_control_nodes(
+        {{ settings.class_prefix }}tree tree);
+    if (quiet || tree == null)
+        return;
+    for (int i = 0; i < tree.nodes.size(); i++) begin
+        if (tree.nodes[i] == null)
+            continue;
+        if (!(tree.nodes[i].kind == "gate" || tree.nodes[i].kind == "mux"
+                || tree.nodes[i].kind == "div"))
+            continue;
+        if (control_node_is_valid(tree, tree.nodes[i]))
+            continue;
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: %s %s invalid",
+            tree.nodes[i].kind, tree.nodes[i].get_name()), UVM_MEDIUM)
+    end
+endtask
 
 task {{ settings.class_prefix }}direct_configurator::configure_gate(
         {{ settings.class_prefix }}gate gate_nd,
@@ -715,6 +845,7 @@ task {{ settings.class_prefix }}direct_configurator::configure_all(
     if (tree == null)
         `uvm_fatal("CLK_TREE", "direct_config: tree is null")
 
+    report_invalid_control_nodes(tree);
     for (int i = 0; i < tree.nodes.size(); i++)
         if ($cast(pll_nd, tree.nodes[i])) begin
             configure_pll(pll_nd, pll_configured);
@@ -725,6 +856,8 @@ task {{ settings.class_prefix }}direct_configurator::configure_all(
         wait_pll(plls[i]);
 
     for (int i = 0; i < tree.nodes.size(); i++) begin
+        if (!control_node_is_valid(tree, tree.nodes[i]))
+            continue;
         if ($cast(div_div_nd, tree.nodes[i]))
             configure_div(div_div_nd);
         else if ($cast(div_dto_nd, tree.nodes[i]))
@@ -734,13 +867,15 @@ task {{ settings.class_prefix }}direct_configurator::configure_all(
     end
 
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(gate_nd, tree.nodes[i]) && gate_nd._resolved_open)
+        if ($cast(gate_nd, tree.nodes[i]) && gate_nd._resolved_open
+                && control_node_is_valid(tree, gate_nd))
             configure_gate(gate_nd, 1'b1);
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(mux_nd, tree.nodes[i]))
+        if ($cast(mux_nd, tree.nodes[i]) && control_node_is_valid(tree, mux_nd))
             configure_mux(mux_nd);
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(gate_nd, tree.nodes[i]) && !gate_nd._resolved_open)
+        if ($cast(gate_nd, tree.nodes[i]) && !gate_nd._resolved_open
+                && control_node_is_valid(tree, gate_nd))
             configure_gate(gate_nd, 1'b0);
 endtask
 
