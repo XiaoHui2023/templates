@@ -1,0 +1,85 @@
+`ifndef {{ class_name | upper }}
+`define {{ class_name | upper }}
+
+interface {{ class_name }} #(
+    parameter longint FREQ = 0
+)(
+    output reg clk
+);
+    timeunit 1ns;
+    timeprecision 1fs;
+
+    localparam real NS_PER_SEC = 1.0e9;
+    localparam int PHASE_BUCKETS = 1000000;
+
+    longint frequence;
+    longint active_frequence;
+    int unsigned phase_seed;
+    bit need_phase;
+    realtime half_period_ns;
+    realtime phase_delay_ns;
+
+    initial begin
+        clk = 1'b0;
+        frequence = FREQ;
+        phase_seed = hash($sformatf("%m"));
+        need_phase = 1'b1;
+
+        forever begin
+            if (frequence <= 0) begin
+                clk = 1'b0;
+                need_phase = 1'b1;
+                @(frequence);
+            end
+            else begin
+                active_frequence = frequence;
+                half_period_ns = NS_PER_SEC / (2.0 * active_frequence);
+
+                if (need_phase) begin
+                    need_phase = 1'b0;
+                    phase_delay_ns = 2.0 * half_period_ns
+                        * ($itor(phase_seed % PHASE_BUCKETS) / $itor(PHASE_BUCKETS));
+
+                    fork
+                        begin
+                            #(phase_delay_ns * 1ns);
+                        end
+                        begin
+                            wait (frequence != active_frequence);
+                        end
+                    join_any
+                    disable fork;
+
+                    if (frequence != active_frequence)
+                        need_phase = 1'b1;
+                end
+                else begin
+                    fork
+                        begin
+                            #(half_period_ns * 1ns);
+                        end
+                        begin
+                            wait (frequence != active_frequence);
+                        end
+                    join_any
+                    disable fork;
+
+                    if (frequence == active_frequence)
+                        clk = ~clk;
+                end
+            end
+        end
+    end
+
+    function automatic int unsigned hash(input string str);
+        int unsigned value;
+
+        value = 0;
+        for (int i = 0; i < str.len(); i++)
+            value = value * 31 + str[i];
+
+        return value;
+    endfunction
+endinterface
+
+`endif

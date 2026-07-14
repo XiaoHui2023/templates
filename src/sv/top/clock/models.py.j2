@@ -1,9 +1,0 @@
-from typing import List
-from pydantic import BaseModel, Field
-
-class Models(BaseModel):
-    class_prefix: str = Field('clock_vip', description="默认类名前缀")
-    clocks: List[str] = Field(..., description="时钟列表")
-
-    def model_post_init(self,ctx):
-        pass
