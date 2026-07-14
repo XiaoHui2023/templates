@@ -33,7 +33,7 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
         source != null && _resolved_ratio > 0 -> {
             _resolved_freq >= (source._resolved_freq / _resolved_ratio) * {{ div_freq_tol_lo }} / {{ div_freq_tol_den }};
             _resolved_freq <= (source._resolved_freq / _resolved_ratio) * {{ div_freq_tol_hi }} / {{ div_freq_tol_den }};
-        };
+        }
     }
 
     function new(string name = "");
