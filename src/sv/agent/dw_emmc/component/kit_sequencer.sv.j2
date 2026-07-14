@@ -12,7 +12,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task frequence_set_operation(int frequence, bit should_check_clock_frequence = 1);
     extern task power_up_operation({{ class_prefix }}power_up_request req = null);
     extern task reset_operation(bit sw_rst_cmd = 0, bit sw_rst_dat = 0);
-    extern task cpu_read_bytes(bit[63:0] addr, int unsigned len, ref bit[7:0] rdata[$]);
+    extern task cpu_read_bytes(bit[63:0] addr, int len, ref bit[7:0] rdata[$]);
     extern task cpu_write_bytes(bit[63:0] addr, const ref bit[7:0] wdata[$]);
 
     // flow shortcuts
@@ -24,12 +24,42 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task tune_phase(bit[7:0] phase);
 
     // test shortcuts
-    extern task rw_test(bit[63:0] addr = 0, int unsigned count = 2, bit use_dma = 0);
+    extern task rw_test(bit[63:0] addr = 0, int count = 2, bit use_dma = 0);
 {% if is_emmc or is_sdcard %}
     extern task reg_test();
 {% endif %}
-    extern task speed_mode_test();
-    extern task sram_test(int unsigned sram_size, int unsigned block_size = 0);
+{% if is_emmc %}
+    extern task speed_mode_test(
+        bit enable_legacy_1bit = 0,
+        bit enable_legacy_4bit = 0,
+        bit enable_legacy_8bit = 1,
+        bit enable_high_speed_sdr_1bit = 0,
+        bit enable_high_speed_sdr_4bit = 0,
+        bit enable_high_speed_sdr_8bit = 1,
+        bit enable_high_speed_ddr_4bit = 0,
+        bit enable_high_speed_ddr_8bit = 1,
+        bit enable_hs200_4bit = 0,
+        bit enable_hs200_8bit = 1,
+        bit enable_hs400_8bit = 1
+    );
+{% elif is_sd %}
+    extern task speed_mode_test(
+        bit enable_ds_1bit = 0,
+        bit enable_ds_4bit = 1,
+        bit enable_hs_1bit = 0,
+        bit enable_hs_4bit = 1,
+        bit enable_sdr12_1bit = 0,
+        bit enable_sdr12_4bit = 1,
+        bit enable_sdr25_1bit = 0,
+        bit enable_sdr25_4bit = 1,
+        bit enable_sdr50_1bit = 0,
+        bit enable_sdr50_4bit = 1,
+        bit enable_sdr104_1bit = 0,
+        bit enable_sdr104_4bit = 1,
+        bit enable_ddr50_4bit = 1
+    );
+{% endif %}
+    extern task sram_test(int sram_size, int block_size = 0);
 {% if is_emmc %}
     extern task tune_test(int data_width = 0);
 {% endif %}
@@ -74,7 +104,7 @@ task {{ class_prefix }}kit_sequencer::reset_operation(bit sw_rst_cmd = 0, bit sw
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::cpu_read_bytes(bit[63:0] addr, int unsigned len, ref bit[7:0] rdata[$]);
+task {{ class_prefix }}kit_sequencer::cpu_read_bytes(bit[63:0] addr, int len, ref bit[7:0] rdata[$]);
     {{ class_prefix }}cpu_config_operation_seq seq;
 
     seq = {{ class_prefix }}cpu_config_operation_seq::type_id::create("cpu_read_bytes_seq");
@@ -91,7 +121,7 @@ endtask
 
 task {{ class_prefix }}kit_sequencer::cpu_write_bytes(bit[63:0] addr, const ref bit[7:0] wdata[$]);
     {{ class_prefix }}cpu_config_operation_seq seq;
-    int unsigned write_len;
+    int write_len;
 
     write_len = wdata.size();
     seq = {{ class_prefix }}cpu_config_operation_seq::type_id::create("cpu_write_bytes_seq");
@@ -156,7 +186,7 @@ task {{ class_prefix }}kit_sequencer::tune_phase(bit[7:0] phase);
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int unsigned count = 2, bit use_dma = 0);
+task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 2, bit use_dma = 0);
     {{ class_prefix }}rw_test_seq seq;
 
     seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test_seq");
@@ -183,17 +213,82 @@ task {{ class_prefix }}kit_sequencer::reg_test();
 endtask
 
 {% endif %}
-task {{ class_prefix }}kit_sequencer::speed_mode_test();
+{% if is_emmc %}
+task {{ class_prefix }}kit_sequencer::speed_mode_test(
+    bit enable_legacy_1bit = 0,
+    bit enable_legacy_4bit = 0,
+    bit enable_legacy_8bit = 1,
+    bit enable_high_speed_sdr_1bit = 0,
+    bit enable_high_speed_sdr_4bit = 0,
+    bit enable_high_speed_sdr_8bit = 1,
+    bit enable_high_speed_ddr_4bit = 0,
+    bit enable_high_speed_ddr_8bit = 1,
+    bit enable_hs200_4bit = 0,
+    bit enable_hs200_8bit = 1,
+    bit enable_hs400_8bit = 1
+);
     {{ class_prefix }}speed_mode_test_seq seq;
 
     seq = {{ class_prefix }}speed_mode_test_seq::type_id::create("speed_mode_test_seq");
     seq.set_item_context(null, this);
-    if(!seq.randomize())
+    if(!seq.randomize() with {
+        enable_legacy_1bit == local::enable_legacy_1bit;
+        enable_legacy_4bit == local::enable_legacy_4bit;
+        enable_legacy_8bit == local::enable_legacy_8bit;
+        enable_high_speed_sdr_1bit == local::enable_high_speed_sdr_1bit;
+        enable_high_speed_sdr_4bit == local::enable_high_speed_sdr_4bit;
+        enable_high_speed_sdr_8bit == local::enable_high_speed_sdr_8bit;
+        enable_high_speed_ddr_4bit == local::enable_high_speed_ddr_4bit;
+        enable_high_speed_ddr_8bit == local::enable_high_speed_ddr_8bit;
+        enable_hs200_4bit == local::enable_hs200_4bit;
+        enable_hs200_8bit == local::enable_hs200_8bit;
+        enable_hs400_8bit == local::enable_hs400_8bit;
+    })
         `uvm_fatal("KIT", "speed_mode_test_seq randomize failed")
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::sram_test(int unsigned sram_size, int unsigned block_size = 0);
+{% elif is_sd %}
+task {{ class_prefix }}kit_sequencer::speed_mode_test(
+    bit enable_ds_1bit = 0,
+    bit enable_ds_4bit = 1,
+    bit enable_hs_1bit = 0,
+    bit enable_hs_4bit = 1,
+    bit enable_sdr12_1bit = 0,
+    bit enable_sdr12_4bit = 1,
+    bit enable_sdr25_1bit = 0,
+    bit enable_sdr25_4bit = 1,
+    bit enable_sdr50_1bit = 0,
+    bit enable_sdr50_4bit = 1,
+    bit enable_sdr104_1bit = 0,
+    bit enable_sdr104_4bit = 1,
+    bit enable_ddr50_4bit = 1
+);
+    {{ class_prefix }}speed_mode_test_seq seq;
+
+    seq = {{ class_prefix }}speed_mode_test_seq::type_id::create("speed_mode_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        enable_ds_1bit == local::enable_ds_1bit;
+        enable_ds_4bit == local::enable_ds_4bit;
+        enable_hs_1bit == local::enable_hs_1bit;
+        enable_hs_4bit == local::enable_hs_4bit;
+        enable_sdr12_1bit == local::enable_sdr12_1bit;
+        enable_sdr12_4bit == local::enable_sdr12_4bit;
+        enable_sdr25_1bit == local::enable_sdr25_1bit;
+        enable_sdr25_4bit == local::enable_sdr25_4bit;
+        enable_sdr50_1bit == local::enable_sdr50_1bit;
+        enable_sdr50_4bit == local::enable_sdr50_4bit;
+        enable_sdr104_1bit == local::enable_sdr104_1bit;
+        enable_sdr104_4bit == local::enable_sdr104_4bit;
+        enable_ddr50_4bit == local::enable_ddr50_4bit;
+    })
+        `uvm_fatal("KIT", "speed_mode_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+{% endif %}
+task {{ class_prefix }}kit_sequencer::sram_test(int sram_size, int block_size = 0);
     {{ class_prefix }}sram_test_seq seq;
 
     seq = {{ class_prefix }}sram_test_seq::type_id::create("sram_test_seq");

@@ -16,8 +16,8 @@ class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ 
 
     rand bit[63:0] addr;
     bit has_sram_size;
-    rand int unsigned sram_size;
-    rand int unsigned block_size;
+    rand int sram_size;
+    rand int block_size;
     rand int data_width;
     rand bus_speed_mode_e bus_speed_mode;
     rand bit dma_enable;
@@ -61,8 +61,8 @@ class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ 
 endclass
 
 task {{ class_prefix }}sram_test_seq::body();
-    int unsigned sram_block_count;
-    int unsigned overflow_block_count;
+    int sram_block_count;
+    int overflow_block_count;
 
     sram_block_count = sram_size / block_size;
     overflow_block_count = sram_block_count + 1;
@@ -145,7 +145,7 @@ function uvm_tlm_generic_payload {{ class_prefix }}sram_test_seq::create_scorebo
 endfunction
 
 function void {{ class_prefix }}sram_test_seq::check_overwrite(bit[7:0] rdata[$]);
-    int unsigned expected_size;
+    int expected_size;
 
     expected_size = sram_size + block_size;
 

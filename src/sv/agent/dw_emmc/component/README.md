@@ -13,7 +13,7 @@ env.emmc_agent.scb.load_memh("card_init.memh");
 env.emmc_agent.sqr.initial_card();
 env.emmc_agent.sqr.switch_bus(HS400, 8);
 env.emmc_agent.sqr.rw_test(.addr(0), .count(2), .use_dma(0));
-env.emmc_agent.sqr.speed_mode_test();
+env.emmc_agent.sqr.speed_mode_test(.enable_hs200_4bit(1), .enable_hs400_8bit(1));
 env.emmc_agent.sqr.sram_test(.sram_size(4096), .block_size(512));
 ```
 

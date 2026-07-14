@@ -15,7 +15,7 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     extern function bit load_memh(string filename, longint unsigned base_addr = 0);
     extern function void write_expected(longint unsigned addr, const ref bit[7:0] bytes[$], string label = "");
     extern function void write_expected_payload(uvm_tlm_generic_payload payload, string label = "");
-    extern function bit read_expected(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+    extern function bit read_expected(longint unsigned addr, int len, ref bit[7:0] bytes[$], output string message);
     extern function bit compare_actual(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
     extern function bit compare_actual_payload(uvm_tlm_generic_payload payload, string label = "");
 endclass
@@ -44,7 +44,7 @@ function void {{ class_prefix }}scoreboard::write_expected_payload(uvm_tlm_gener
     write_expected(payload.get_address(), bytes, label);
 endfunction
 
-function bit {{ class_prefix }}scoreboard::read_expected(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+function bit {{ class_prefix }}scoreboard::read_expected(longint unsigned addr, int len, ref bit[7:0] bytes[$], output string message);
     return model.read(addr, len, bytes, message);
 endfunction
 

@@ -13,7 +13,7 @@ class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
     extern function void clear();
     extern function void ensure_size(longint unsigned size);
     extern function void write(longint unsigned addr, const ref bit[7:0] bytes[$]);
-    extern function bit read(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+    extern function bit read(longint unsigned addr, int len, ref bit[7:0] bytes[$], output string message);
     extern function bit compare(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
     extern function bit load_hex(string filename, longint unsigned base_addr = 0);
     extern function bit load_memh(string filename, longint unsigned base_addr = 0);
@@ -36,14 +36,14 @@ function void {{ class_prefix }}mem::write(longint unsigned addr, const ref bit[
         data[addr + j] = bytes[j];
 endfunction
 
-function bit {{ class_prefix }}mem::read(longint unsigned addr, int unsigned len, ref bit[7:0] bytes[$], output string message);
+function bit {{ class_prefix }}mem::read(longint unsigned addr, int len, ref bit[7:0] bytes[$], output string message);
     bytes.delete();
     if(addr + len > data.size()) begin
         message = $psprintf("read [0x%0h:+%0d] exceeds memory size %0d", addr, len, data.size());
         return 0;
     end
 
-    for(int unsigned j = 0; j < len; j++)
+    for(int j = 0; j < len; j++)
         bytes.push_back(data[addr + j]);
     return 1;
 endfunction
