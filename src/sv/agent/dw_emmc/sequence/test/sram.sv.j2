@@ -7,6 +7,8 @@ class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ 
         `uvm_field_int(has_sram_size, UVM_ALL_ON)
         `uvm_field_int(sram_size, UVM_ALL_ON)
         `uvm_field_int(block_size, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
         `uvm_field_int(dma_enable, UVM_ALL_ON)
         `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
         `uvm_field_int(adma_des_addr, UVM_ALL_ON)
@@ -16,11 +18,14 @@ class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ 
     bit has_sram_size;
     rand int unsigned sram_size;
     rand int unsigned block_size;
+    rand int data_width;
+    rand bus_speed_mode_e bus_speed_mode;
     rand bit dma_enable;
     rand dma_sel_e dma_sel;
     rand bit[31:0] adma_des_addr;
 
     {{ class_prefix }}initial_seq initial_seq;
+    {{ class_prefix }}switch_bus_seq switch_bus_seq;
     {{ class_prefix }}xfer_write_seq write_seq;
     {{ class_prefix }}xfer_read_seq read_seq;
 
@@ -35,6 +40,8 @@ class {{ class_prefix }}sram_test_seq extends {{ class_prefix }}default_seq#({{ 
 {%- else %}
         soft block_size == 512;
 {%- endif %}
+        soft data_width == settings.boot_cfg.default_data_width;
+        soft bus_speed_mode == settings.boot_cfg.default_bus_speed_mode;
         soft dma_enable == 0;
         soft dma_sel == ADMA2;
         soft adma_des_addr == 'h1000_0000;
@@ -62,6 +69,11 @@ task {{ class_prefix }}sram_test_seq::body();
 
     if(!ctx.has_initialized)
         `uvm_do(initial_seq)
+
+    `uvm_do_with(switch_bus_seq, {
+        data_width == local::data_width;
+        bus_speed_mode == local::bus_speed_mode;
+    })
 
     `uvm_do_with(write_seq, {
         addr == local::addr;
