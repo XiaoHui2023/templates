@@ -65,7 +65,7 @@
 
 `sequence/operation/check_clock` 通过 `p_sequencer.settings.vif` 访问 `dw_spi_interface`。
 
-`sequence/operation/transfer` 发起传输后通过 `wait_interrupt_asserted()` 等待 `intr`。等待周期数来自本次 `configuration.interrupt_timeout_ssi_clk_cycles`；如果 `ssi_clk` 停住，则按 `settings.min_ssi_clk_hz` 和 `settings.clock_check_tolerance_ppm` 推导出的仿真时间兜底超时，防止仿真卡死。
+`sequence/operation/transfer` 在 `configuration.completion_mode == PREFER_INTERRUPT_COMPLETION` 且 `intr` 已连接时，或 `configuration.completion_mode == INTERRUPT_COMPLETION` 时，通过 `wait_interrupt_asserted()` 等待 `intr`。只有 `intr` 不可用或显式选择 `POLLING_COMPLETION` 时，才通过 regmodel 轮询 `SR.TFE && !SR.BUSY`。
 
 当 `hclk` 或 `ssi_clk` 未连接时，检查会跳过对应时钟。
 

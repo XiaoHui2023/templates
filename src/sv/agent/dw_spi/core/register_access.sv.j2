@@ -191,6 +191,62 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         report_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_LOW);
     endtask
 
+    task wait_idle(
+            int timeout_cycles,
+            output bit ok);
+        uvm_status_e status;
+        {{ regmodel_type }} rm;
+        uvm_reg_data_t reg_data;
+
+        if (settings == null || settings.regmodel == null)
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
+        rm = settings.regmodel;
+        ok = 1'b0;
+        report_info("DW_SPI_REG", $sformatf(
+            "waiting transfer idle by polling SR.TFE && !SR.BUSY: timeout_cycles=%0d",
+            timeout_cycles), UVM_LOW);
+        repeat (timeout_cycles) begin
+            rm.SR.read(status, reg_data);
+            report_info("DW_SPI_REG", $sformatf(
+                "poll SR while waiting idle: raw=0x%0h TFNF=%0b RFNE=%0b TFE=%0b RFF=%0b BUSY=%0b",
+                reg_data,
+                rm.SR.TFNF.get(),
+                rm.SR.RFNE.get(),
+                rm.SR.TFE.get(),
+                rm.SR.RFF.get(),
+                rm.SR.BUSY.get()), UVM_DEBUG);
+            if (rm.SR.TFE.get() && !rm.SR.BUSY.get()) begin
+                ok = 1'b1;
+                report_info("DW_SPI_REG", "transfer idle observed: SR.TFE=1 SR.BUSY=0", UVM_LOW);
+                return;
+            end
+        end
+        report_error("DW_SPI_REG", $sformatf(
+            "timeout waiting transfer idle: timeout_cycles=%0d",
+            timeout_cycles));
+    endtask
+
+    task check_dones(output bit ok);
+        uvm_status_e status;
+        {{ regmodel_type }} rm;
+        uvm_reg_data_t reg_data;
+
+        if (settings == null || settings.regmodel == null)
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
+        rm = settings.regmodel;
+        rm.ISR.read(status, reg_data);
+        ok = rm.ISR.DONES.get();
+        report_info("DW_SPI_REG", $sformatf(
+            "check ISR.DONES after interrupt: raw=0x%0h DONES=%0b",
+            reg_data, ok), UVM_DEBUG);
+        if (ok)
+            report_info("DW_SPI_REG", "transfer completion confirmed by ISR.DONES", UVM_LOW);
+        else
+            report_error("DW_SPI_REG", $sformatf(
+                "top interrupt observed but ISR.DONES is not set: ISR=0x%0h",
+                reg_data));
+    endtask
+
     task apply_configuration({{ class_prefix }}configuration cfg);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -211,9 +267,10 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
 
         report_info("DW_SPI_REG", "applying controller register configuration", UVM_LOW);
         report_info("DW_SPI_REG", $sformatf(
-            "configuration detail: host_mode=%s transfer_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d data_frame_bits=%0d ndf=%0d ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
+            "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d data_frame_bits=%0d ndf=%0d ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
             host_mode.name(),
             transfer_mode.name(),
+            cfg.completion_mode.name(),
             cfg.spi_frf,
             cfg.spi_ctrlr0_en,
             cfg.wait_cycles,

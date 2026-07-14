@@ -154,6 +154,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         host_mode_e host_mode;
         frame_mode_e frame_mode;
         transfer_mode_e transfer_mode;
+        completion_mode_e completion_mode;
 {% if internal_dma %}
         bit write_internal_dma_regs;
 {% endif %}
@@ -178,6 +179,8 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             `uvm_fatal("DW_SPI_CFG", "failed to cast frame_mode")
         if (!$cast(transfer_mode, rq.transfer_mode))
             `uvm_fatal("DW_SPI_CFG", "failed to cast transfer_mode")
+        if (!$cast(completion_mode, settings.default_completion_mode))
+            `uvm_fatal("DW_SPI_CFG", "failed to cast settings.default_completion_mode")
         if (settings.vif == null)
             `uvm_fatal("DW_SPI_CFG", "settings.vif is null; BAUDR requires measured ssi_clk")
         if (!settings.vif.has_ssi_clk())
@@ -265,6 +268,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 trans_type == local::trans_type;
                 spi_mode == rq.spi_mode;
                 data_frame_bits == rq.data_frame_bits;
+                completion_mode == local::completion_mode;
                 baudr == local::baudr;
                 ndf == local::cfg_ndf;
                 interrupt_timeout_ssi_clk_cycles == local::interrupt_timeout_cycles;
@@ -290,13 +294,14 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "register configuration derived: ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf=%0d spi_frf=%0d timeout_ssi_cycles=%0d ser=0x%0h",
+            "register configuration derived: ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf=%0d spi_frf=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
             ssi_clk_hz,
             settings.target_sclk_hz,
             cfg.baudr,
             cfg.data_frame_bits,
             cfg.ndf,
             cfg.spi_frf,
+            cfg.completion_mode.name(),
             cfg.interrupt_timeout_ssi_clk_cycles,
             cfg.ser), UVM_LOW)
     endtask

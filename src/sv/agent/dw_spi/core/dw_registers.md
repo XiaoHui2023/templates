@@ -157,7 +157,7 @@ threshold 必须小于 Python settings 配置的 FIFO 深度，默认 FIFO 深�
 | `ICR` | full register write | 清中断状态 |
 | `ISR` | `DONES` | SSI 总线传输完毕 |
 
-本模板的 transfer operation 通过 top interface 等待 `intr`，寄存器配置仍保留 `IMR/ICR` 的初始化入口。
+默认 transfer completion 优先等待 top interface 的 `intr`，并在中断后检查 `ISR.DONES`；如果 `intr` 未连接才退回轮询 `SR.TFE && !SR.BUSY`。`TXEIM/RXFIM` 等 FIFO 中断不能当作 transfer done 使用；详细边界见 [interrupts.md](../interrupts.md)。
 
 ## SR
 
@@ -170,6 +170,8 @@ threshold 必须小于 Python settings 配置的 FIFO 深度，默认 FIFO 深�
 | `BUSY` | 总线忙碌 |
 
 PIO 真实搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR`，读传输等待 `RFNE` 后读 `DR`。scoreboard 只接收最终写入的 expected data 或读回的 actual data，不替代 DUT 读路径。
+
+PIO/DMA 的最终完成默认由 `SR.TFE && !SR.BUSY` 判断。`SR.TFNF` 只表示 TX FIFO 不满，不能代表 transmit complete。
 
 ## DMACR / DMATDLR / DMARDLR
 

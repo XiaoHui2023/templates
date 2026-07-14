@@ -201,3 +201,28 @@ sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 s
 interface 会同时使用 `min_ssi_clk_hz` 和 `clock_check_tolerance_ppm` 推导一个仿真时间兜底超时。这样既能覆盖正常慢响应，也能覆盖 `ssi_clk` 停住导致周期计数不前进的情况。
 
 PIO 路径等待 `SR.TFNF` / `SR.RFNE` 使用 `fifo_status_timeout_ssi_clk_cycles`，不要复用完整 transfer 的中断 timeout。
+## Completion Mode Fields
+
+`spec.sv` 定义 `completion_mode_e`：
+
+| Value | 用途 |
+| --- | --- |
+| `POLLING_COMPLETION` | 默认模式。transfer 完成时轮询 `SR.TFE && !SR.BUSY`。 |
+| `INTERRUPT_COMPLETION` | 可选模式。先等待 top `intr`，再读取 `ISR.DONES` 确认完成。 |
+
+`settings.default_completion_mode` 是全局默认值，默认 `POLLING_COMPLETION`。
+
+`configuration.completion_mode` 是单次寄存器配置包里的完成等待策略，由 `register_config_builder` 从 settings 传播。`configuration.interrupt_timeout_ssi_clk_cycles` 在两种模式下都作为本次 transfer completion 的等待上限。
+
+`txeim/txoim/rxuim/rxoim/rxfim/mstim` 只配置 `IMR` FIFO/error mask，默认全部为 0。`TXEIM` 和 `RXFIM` 不能代表 transfer done；完整边界见 [interrupts.md](interrupts.md)。
+### Current Completion Rule
+
+当前代码以这里为准：`settings.default_completion_mode` 默认是 `PREFER_INTERRUPT_COMPLETION`。
+
+| Value | 用途 |
+| --- | --- |
+| `PREFER_INTERRUPT_COMPLETION` | 默认模式。`intr` 已连接时等待 top `intr` 并检查 `ISR.DONES`；未连接时退回轮询 `SR.TFE && !SR.BUSY`。 |
+| `INTERRUPT_COMPLETION` | 强制中断模式。必须等待 top `intr`，再读取 `ISR.DONES` 确认完成。 |
+| `POLLING_COMPLETION` | 强制轮询模式。只在中断不可用或专项对比时使用。 |
+
+`configuration.interrupt_timeout_ssi_clk_cycles` 在中断路径下作为 `intr` 等待上限，在轮询路径下作为 `SR.TFE && !SR.BUSY` 等待上限。

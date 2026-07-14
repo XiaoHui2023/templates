@@ -64,6 +64,14 @@ class Models(BaseModel):
         "HARDWARE_CS",
         description="Default chip-select control mode used by per-transfer configuration constraints.",
     )
+    default_completion_mode: Literal[
+        "PREFER_INTERRUPT_COMPLETION",
+        "INTERRUPT_COMPLETION",
+        "POLLING_COMPLETION",
+    ] = Field(
+        "PREFER_INTERRUPT_COMPLETION",
+        description="Default transfer completion policy. Prefer interrupt uses top intr and ISR.DONES when connected, otherwise falls back to SR.TFE && !SR.BUSY polling.",
+    )
     default_addr_bytes: Literal[3, 4] = Field(
         3,
         description="Default flash address phase width in bytes.",

@@ -33,15 +33,15 @@
 2. 生成并应用本次寄存器 `configuration`，其中 `register_access` 由 sequence 注入 `p_sequencer` 作为 report context。
 3. 按 `cs_control_mode` 处理片选：`HARDWARE_CS` 只使用 `SER`，`SOFTWARE_CS` 调用 `p_sequencer.activate_chip_select(cs_id)`。
 4. 内部 DMA 且 `use_dma == 1` 的写传输，在寄存器配置/启动前通过 callback `cpu_write()` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
-5. 等待 top interface 的 `intr` 断言，超时使用本次 `configuration.interrupt_timeout_ssi_clk_cycles`。
-6. `use_dma == 0` 时，PIO 路径先构造 DR byte stream：flash 协议包含 opcode、big-endian 地址字节；写传输再追加 payload byte。然后等待 `SR.TFNF` 并逐 byte 写入 `DR`。
-7. 等待 `intr` 后，PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内部 DMA 读传输通过 callback `cpu_read()` 从 `axi_addr` 读回 actual byte；写传输只把 payload 数据记录为 scoreboard 期望值，不把 opcode/address 当成 flash 内容。
+5. `use_dma == 0` 时，PIO 路径先构造 DR byte stream：flash 协议包含 opcode、big-endian 地址字节；写传输再追加 payload byte。然后等待 `SR.TFNF` 并逐 byte 写入 `DR`。
+6. PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内部 DMA 读传输在 completion 后通过 callback `cpu_read()` 从 `axi_addr` 读回 actual byte；写传输只把 payload 数据记录为 scoreboard 期望值，不把 opcode/address 当成 flash 内容。
+7. 按 `configuration.completion_mode` 等待 transfer completion：默认 `PREFER_INTERRUPT_COMPLETION` 优先等待 top `intr` 后检查 `ISR.DONES`，`intr` 未连接时退回轮询 `SR.TFE && !SR.BUSY`；`INTERRUPT_COMPLETION` 强制中断；`POLLING_COMPLETION` 强制轮询。
 8. `SOFTWARE_CS` 调用 `p_sequencer.release_chip_select(cs_id)`；`HARDWARE_CS` 不调用片选 callback。
 9. 写入 rsp，包括 `ok` 和从 `DR` 读回的数据。
 
 callback 注入 chip-select 行为和 CPU 32-bit 读写。寄存器配置、scoreboard 比较和协议编排不放进 callback。
 
-`transfer_seq` 使用 `UVM_LOW` 打印 primitive transfer 的开始、配置、CS、PIO/DMA 路径、等待中断、释放 CS 和结束摘要。`UVM_DEBUG` 打印 CPU DMA buffer word、DR byte、FIFO 状态轮询和寄存器字段细节。
+`transfer_seq` 使用 `UVM_LOW` 打印 primitive transfer 的开始、配置、CS、PIO/DMA 路径、completion 等待方式、释放 CS 和结束摘要。`UVM_DEBUG` 打印 CPU DMA buffer word、DR byte、FIFO 状态轮询和寄存器字段细节。
 
 ## Flash Read
 
@@ -107,8 +107,8 @@ DMA 是单次传输模式，不是 sequencer 快捷函数。
 
 ## Interrupt Timeout
 
-`transfer_seq` 等待 `intr` 时必须有超时保护。
+`transfer_seq` 等待 completion 时必须有超时保护。
 
-- 正常路径按 `configuration.interrupt_timeout_ssi_clk_cycles` 统计 `ssi_clk` 周期。这个值由 `register_config_builder` 根据 instruction/address/dummy/data 阶段、`BAUDR`、`fifo_depth_bytes` 和 settings 中的余量参数推导。
+- 正常路径按 `configuration.interrupt_timeout_ssi_clk_cycles` 统计 `ssi_clk` 周期。这个值由 `register_config_builder` 根据 instruction/address/dummy/data 阶段、`BAUDR`、`fifo_depth_bytes` 和 settings 中的余量参数推导。`PREFER_INTERRUPT_COMPLETION` 和 `INTERRUPT_COMPLETION` 用它限制 `intr` 等待；退回或强制轮询时用它限制 `SR.TFE && !SR.BUSY` 轮询。
 - 防卡死路径按 `settings.min_ssi_clk_hz` 和 `settings.clock_check_tolerance_ppm` 推导仿真时间上限。即使 `ssi_clk` 停住，等待也会返回超时并 `uvm_fatal`。
 - PIO 等待 `SR.TFNF` / `SR.RFNE` 使用 `settings.fifo_status_timeout_ssi_clk_cycles`，不要复用完整 transfer 的中断等待上限。

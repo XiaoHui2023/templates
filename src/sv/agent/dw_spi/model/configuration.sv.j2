@@ -5,6 +5,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     `uvm_object_utils_begin({{ class_prefix }}configuration)
         `uvm_field_enum(host_mode_e, host_mode, UVM_ALL_ON)
         `uvm_field_enum(transfer_mode_e, transfer_mode, UVM_ALL_ON)
+        `uvm_field_enum(completion_mode_e, completion_mode, UVM_ALL_ON)
         `uvm_field_int(spi_frf, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_ctrlr0_en, UVM_ALL_ON)
         `uvm_field_int(wait_cycles, UVM_ALL_ON | UVM_DEC)
@@ -50,6 +51,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
 
     rand host_mode_e host_mode;
     rand transfer_mode_e transfer_mode;
+    rand completion_mode_e completion_mode;
     rand int spi_frf;
     rand bit spi_ctrlr0_en;
     rand int wait_cycles;
@@ -96,6 +98,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
 
     constraint cst {
         spi_frf inside {0, 1, 2};
+        soft completion_mode == {{ default_completion_mode }};
         soft spi_ctrlr0_en == 1'b0;
         wait_cycles inside {[0:31]};
         inst_l inside {[0:3]};
@@ -104,12 +107,12 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
         ssi_en == 1'b1;
-        txeim == 1'b0;
-        txoim == 1'b0;
-        rxuim == 1'b0;
-        rxoim == 1'b0;
-        rxfim == 1'b0;
-        mstim == 1'b0;
+        soft txeim == 1'b0;
+        soft txoim == 1'b0;
+        soft rxuim == 1'b0;
+        soft rxoim == 1'b0;
+        soft rxfim == 1'b0;
+        soft mstim == 1'b0;
 {% if external_dma %}
         soft rdmae == 1'b0;
         soft tdmae == 1'b0;

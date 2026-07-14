@@ -24,7 +24,9 @@
 10. 按 `write_rx_sample_delay` 决定是否配置 `RX_SAMPLE_DELAY.RSD`。
 11. 写 `SER.SER` 和 `SSIENR.SSIC_EN`，完成本次配置。
 
-`IMR/ICR` 阶段只设置中断 mask 并清理旧中断状态，不等待 `intr`，也不轮询 `ISR.DONES`。真正等待 transfer 完成中断的动作在 `sequence/operation/transfer` 中，发生在本函数完成寄存器配置、片选激活、PIO/DMA 启动之后。
+`IMR/ICR` 阶段只设置中断 mask 并清理旧中断状态，不等待 `intr`，也不轮询 `ISR.DONES`。真正的 transfer 完成等待在 `sequence/operation/transfer` 中，发生在本函数完成寄存器配置、片选激活、PIO/DMA 启动之后。
+
+core 提供 `wait_idle()` 和 `check_dones()` 两个窄工具。默认 completion mode 在 sequence 中优先等待 top `intr`，再调用 `check_dones()` 读取 `ISR.DONES`；只有 `intr` 不可用或显式选择 `POLLING_COMPLETION` 时才调用 `wait_idle()` 轮询 `SR.TFE && !SR.BUSY`。core 仍然不认识 sequence req/rsp，也不决定使用哪种 completion mode。
 
 PIO 写 DR 时使用 `write_bytes_to_dr()`。flash 协议的 operation sequence 会先把 opcode、地址字节和写 payload 组合成 DR byte stream，再交给 core 写 `DR`；core 不理解 opcode/address 语义，只负责等待 `SR.TFNF` 并逐 byte 写 `DR`。
 

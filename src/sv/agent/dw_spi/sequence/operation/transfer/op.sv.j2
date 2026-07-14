@@ -20,6 +20,11 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
     extern protected task wait_transfer_interrupt(
         {{ class_prefix }}transfer_req rq,
         {{ class_prefix }}configuration cfg);
+    extern protected task wait_transfer_completion(
+        {{ class_prefix }}transfer_req rq,
+        {{ class_prefix }}configuration cfg,
+        {{ class_prefix }}register_access register_access,
+        output bit ok);
 {% if internal_dma %}
     extern protected task cpu_write_payload_to_axi(
         bit [31:0] axi_addr,
@@ -42,6 +47,7 @@ task {{ class_prefix }}transfer_seq::body();
     uvm_tlm_command_e command;
     bit pio_ok;
     bit dma_ok;
+    bit completion_ok;
     bit [7:0] write_data[$];
     bit [7:0] pio_dr_bytes[$];
     byte unsigned gp_data[];
@@ -105,7 +111,7 @@ task {{ class_prefix }}transfer_seq::body();
 {% if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
-        `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; waiting for interrupt", UVM_LOW)
+        `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; waiting for configured completion", UVM_LOW)
     end
     else begin
         pio_ok = 1'b1;
@@ -131,10 +137,12 @@ task {{ class_prefix }}transfer_seq::body();
             pio_dr_bytes, "pio_command_address_data", pio_ok);
     end
 {% endif %}
-    `uvm_info("DW_SPI_XFER", "waiting for transfer completion interrupt", UVM_LOW)
-    wait_transfer_interrupt(rq, cfg);
 {% if internal_dma %}
     if (rq.use_dma) begin
+        if (dma_ok) begin
+            wait_transfer_completion(rq, cfg, register_access, completion_ok);
+            dma_ok = dma_ok && completion_ok;
+        end
         if (dma_ok && command == UVM_TLM_READ_COMMAND) begin
             `uvm_info("DW_SPI_XFER", "internal DMA read path: reading destination buffer through CPU callback", UVM_LOW)
             cpu_read_payload_from_axi(
@@ -155,6 +163,10 @@ task {{ class_prefix }}transfer_seq::body();
             `uvm_info("DW_SPI_XFER", "PIO read path: reading payload from DR", UVM_LOW)
             register_access.read_dr_to_payload(rq.payload, rs.read_data, pio_ok);
         end
+        if (pio_ok) begin
+            wait_transfer_completion(rq, cfg, register_access, completion_ok);
+            pio_ok = pio_ok && completion_ok;
+        end
         if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
             `uvm_info("DW_SPI_XFER", "PIO write path: recording expected payload in scoreboard", UVM_LOW)
             rq.payload.get_data(gp_data);
@@ -169,6 +181,10 @@ task {{ class_prefix }}transfer_seq::body();
     if (pio_ok && command == UVM_TLM_READ_COMMAND) begin
         `uvm_info("DW_SPI_XFER", "PIO read path: reading payload from DR", UVM_LOW)
         register_access.read_dr_to_payload(rq.payload, rs.read_data, pio_ok);
+    end
+    if (pio_ok) begin
+        wait_transfer_completion(rq, cfg, register_access, completion_ok);
+        pio_ok = pio_ok && completion_ok;
     end
     if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
         `uvm_info("DW_SPI_XFER", "PIO write path: recording expected payload in scoreboard", UVM_LOW)
@@ -196,6 +212,56 @@ task {{ class_prefix }}transfer_seq::body();
         rq.payload.get_data_length(),
         rs.read_data.size()), UVM_LOW)
     rsp = rs;
+endtask
+
+task {{ class_prefix }}transfer_seq::wait_transfer_completion(
+        {{ class_prefix }}transfer_req rq,
+        {{ class_prefix }}configuration cfg,
+        {{ class_prefix }}register_access register_access,
+        output bit ok);
+    completion_mode_e completion_mode;
+
+    if (cfg == null)
+        `uvm_fatal("DW_SPI", "transfer: configuration is null")
+    if (register_access == null)
+        `uvm_fatal("DW_SPI", "transfer: register_access is null")
+    if (!$cast(completion_mode, cfg.completion_mode))
+        `uvm_fatal("DW_SPI", "transfer: failed to cast completion_mode")
+
+    ok = 1'b0;
+    case (completion_mode)
+        PREFER_INTERRUPT_COMPLETION: begin
+            if (p_sequencer.settings == null)
+                `uvm_fatal("DW_SPI", "transfer: settings is null")
+            if (p_sequencer.settings.vif != null && p_sequencer.settings.vif.has_irq()) begin
+                `uvm_info("DW_SPI_XFER", "waiting transfer completion by preferred interrupt path, then checking ISR.DONES", UVM_LOW)
+                wait_transfer_interrupt(rq, cfg);
+                register_access.check_dones(ok);
+            end else begin
+                `uvm_info("DW_SPI_XFER", $sformatf(
+                    "interrupt path unavailable; falling back to polling SR.TFE && !SR.BUSY: timeout_cycles=%0d",
+                    cfg.interrupt_timeout_ssi_clk_cycles), UVM_LOW)
+                register_access.wait_idle(cfg.interrupt_timeout_ssi_clk_cycles, ok);
+            end
+        end
+        POLLING_COMPLETION: begin
+            `uvm_info("DW_SPI_XFER", $sformatf(
+                "waiting transfer completion by polling SR.TFE && !SR.BUSY: timeout_cycles=%0d",
+                cfg.interrupt_timeout_ssi_clk_cycles), UVM_LOW)
+            register_access.wait_idle(cfg.interrupt_timeout_ssi_clk_cycles, ok);
+        end
+        INTERRUPT_COMPLETION: begin
+            `uvm_info("DW_SPI_XFER", "waiting transfer completion interrupt, then checking ISR.DONES", UVM_LOW)
+            wait_transfer_interrupt(rq, cfg);
+            register_access.check_dones(ok);
+        end
+        default: begin
+            `uvm_fatal("DW_SPI", "transfer: unsupported completion_mode")
+        end
+    endcase
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "transfer completion wait done: mode=%s ok=%0b",
+        completion_mode.name(), ok), UVM_LOW)
 endtask
 
 function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
