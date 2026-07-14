@@ -22,7 +22,7 @@ settings:
   class_prefix: chip_clk_
 ```
 
-纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk`，以及 `disable: true` 的 `clk`；`source`、`pll` 和其它中间节点不支持 `path`，不会出现在生成的 `tree_interface.sv` 中。
+纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk`，以及 `disable: true` 的 `clk`；`source`、`pll` 和中间节点不会出现在生成的 `tree_interface.sv` 中。
 
 ```yaml
 nodes:
@@ -36,7 +36,7 @@ settings:
   probe_mode: true
 ```
 
-纯 SV 直接检查可使用 `settings.direct_check: true`。该模式生成 `top/top.f` 与 `top/direct_check.sv`，`all.f` 只通过 `-F top/top.f` 引用 `tree_interface`、测量 interface 和 direct 检查 task，不编译 UVM tree、component、sequence。用户在顶层例化 `tree_interface` 后调用 `<class_prefix>direct_check(tree_if)` 即可完成所有 `clk` 检查。
+纯 SV 直接检查可使用 `settings.direct_check: true`。该模式生成 `top/top.f` 与 `top/direct_check.sv`，`all.f` 只通过 `-F top/top.f` 引用 `tree_interface`、测量 interface 和 direct 检查 task，不编译 UVM tree、component、sequence。用户在顶层例化 `tree_interface` 后调用 `<class_prefix>direct_check(tree_if)` 即可完成 `clk/cell` 检查。
 
 纯 model 寄存器配置可使用 `settings.direct_config: true`。该模式生成 `model/model.f`，`all.f` 只通过 `-F model/model.f` 引用 model 目录内文件；配置入口为 `<class_prefix>config_reg(tree)`，用于不接 agent、只用 model 完成寄存器配置的场景。
 
@@ -44,7 +44,7 @@ settings:
 
 ## Agent 使用
 
-完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；如果配置中有 `clk.path`，还要在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree, tree_if)` 连接测量接口。
+完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；如果配置中有 `clk.path` 或 `cell.path`，还要在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree, tree_if)` 连接测量接口。
 
 ```systemverilog
 <class_prefix>agent clk_agt;
@@ -217,7 +217,7 @@ endfunction
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `stable` | `bool` | `false` | 锚定时钟：结构探测与低功耗下不得关断或改频。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。**low_power** 不关断该 **clk**。**test_route** 跳过该节点及其当前选通路径上的 **gate**、**mux**、**div**、**pll** 探测，并固定路径控制量；路径上 **pll** 不参与改频策略。**check_measure** 期望为锁定后的 **_resolved_freq**。 |
 
-| `volatile` | `bool` | `false` | 独立测量时钟；tree 例化时不连接 `source`，只参与 `check_measure` 和 `direct_check`，不参与 `test_route`、`test_flip`、`low_power` 或 stable 路径锚定。 |
+| `volatile` | `bool` | `false` | 独立测量时钟；source 正常连接并参与频率推算，只参与 `check_measure` 和 `direct_check`，不参与 `test_route`、`test_flip`、`low_power` 或 stable 路径锚定；`check_measure` 中只检查频率。 |
 
 ### Node - gate
 
@@ -230,11 +230,12 @@ endfunction
 
 ### Node - cell
 
-直通单元，输出频率与活动状态与前级相同；各 **cell_kind** 共用同一仿真类。
+直通单元，输出频率与活动状态与前级相同；各 **cell_kind** 共用同一仿真类。`check_measure` 和 `direct_check` 只检查频率。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `cell` | |
+| `path` | `str` | | RTL 层次路径，按 `.` 分隔；必填。 |
 | `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 

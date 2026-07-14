@@ -10,6 +10,10 @@ nodes:
       kind: clk
       path: dut.clk_cpu
       freq: 1000000000
+    cell_cpu:
+      kind: cell
+      path: dut.cell_cpu
+      source: clk_cpu
     clk_disabled:
       kind: clk
       path: dut.clk_disabled

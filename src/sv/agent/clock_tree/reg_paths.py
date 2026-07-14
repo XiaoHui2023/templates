@@ -430,7 +430,7 @@ def any_reg_configured(tree: Tree) -> bool:
 
 def node_path_connectable(tree: Tree, node: object) -> bool:
     """clk 节点 RTL path 非空时为真。"""
-    if getattr(node, "kind", "") != "clk":
+    if getattr(node, "kind", "") not in ("clk", "cell"):
         return False
     path = getattr(node, "path", "")
     return bool(path)

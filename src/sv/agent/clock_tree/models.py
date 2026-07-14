@@ -250,12 +250,9 @@ class Models(BaseModel):
         elif not self.settings.direct_check or self.settings.direct_config:
             validate_nodes_graph(self.nodes)
         if self.settings.direct_check:
-            if not any(
-                self._node_direct_check_enabled(node)
-                for node in self.tree.nodes_ordered
-            ):
+            if not self.tree.direct_check_slots:
                 raise ValueError(
-                    "direct_check 为真时须至少包含一个 freq 为正数或 disable 为真的 clk 节点"
+                    "direct_check 为真时须至少包含一个可检查的 clk 或 cell"
                 )
         if self.settings.direct_config and not self.any_regs_configured:
             raise ValueError("direct_config 为真时须至少配置一个 reg 或 regs")
@@ -287,6 +284,8 @@ class Models(BaseModel):
     def _node_probe_enabled(self, node: Node) -> bool:
         if not getattr(node, "path", ""):
             return False
+        if node.kind == "cell":
+            return True
         if node.kind == "clk":
             return node.disable or (node.freq is not None and node.freq > 0)
         return False

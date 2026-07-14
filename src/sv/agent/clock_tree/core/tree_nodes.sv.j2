@@ -190,7 +190,7 @@ function automatic void {{ settings.class_prefix }}get_nodes_after(
     {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
 endfunction
 
-// Control nodes are useful only when they can reach at least one connected clk.
+// Control nodes are useful only when they can reach at least one non-volatile clk.
 function automatic bit {{ settings.class_prefix }}node_has_downstream_clk(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd);
@@ -200,12 +200,12 @@ function automatic bit {{ settings.class_prefix }}node_has_downstream_clk(
         return 1'b0;
     {{ settings.class_prefix }}get_nodes_after(tree, nd, downstream);
     foreach (downstream[i])
-        if ($cast(clk_nd, downstream[i]))
+        if ($cast(clk_nd, downstream[i]) && !clk_nd.volatile)
             return 1'b1;
     return 1'b0;
 endfunction
 
-// gate/mux/div without connected downstream clk is ignored by config and tests.
+// gate/mux/div without connected downstream non-volatile clk is ignored.
 function automatic bit {{ settings.class_prefix }}control_node_is_valid(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd);

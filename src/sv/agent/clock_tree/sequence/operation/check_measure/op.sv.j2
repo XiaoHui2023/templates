@@ -180,10 +180,13 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
         return 1'b0;
     if ($cast(clk_nd, nd) && clk_nd.volatile)
         return check_freq;
+    if (nd.kind == "cell")
+        return check_freq;
     if (!nd._resolved_active || nd._resolved_freq <= 0)
-        return nd.kind == "clk" && (check_freq || check_duty);
+        return (nd.kind == "clk" || nd.kind == "cell")
+            && (check_freq || check_duty);
     if (check_duty)
-        return 1'b1;
+        return nd.kind == "clk" || nd.kind == "cell";
     if (!check_freq)
         return 1'b0;
     return nd.kind == "clk";
@@ -196,8 +199,8 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check
     if (nd == null || !check_freq)
         return 1'b0;
     if (!nd._resolved_active || nd._resolved_freq <= 0)
-        return nd.kind == "clk";
-    return nd.kind == "clk";
+        return nd.kind == "clk" || nd.kind == "cell";
+    return nd.kind == "clk" || nd.kind == "cell";
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check(
@@ -209,7 +212,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check
         return 1'b0;
     if ($cast(clk_nd, nd) && clk_nd.volatile)
         return 1'b0;
-    return 1'b1;
+    return nd.kind == "clk";
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_activity_ready(

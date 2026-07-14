@@ -12,13 +12,12 @@ task automatic {{ settings.class_prefix }}direct_check(
     if (tree_if == null)
         $fatal(1, "CLK_TREE: direct_check tree_if is null");
 
-{%- for slot in tree.connectable_slots %}
-{%- set node = tree.nodes[slot.node_key] %}
+{%- for slot in tree.direct_check_slots %}
 {%- set vif_name = slot.node_key ~ ("_" ~ slot.group_id if slot.group_id else "") ~ "_if" %}
-{%- if node.kind == "clk" and node.disable %}
+{%- if not slot.active %}
     {{ settings.class_prefix }}direct_check_inactive("{{ slot.access }}", tree_if.{{ vif_name }}, ok);
-{%- elif node.kind == "clk" and node.freq is not none and node.freq > 0 %}
-    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if node.freq > 2147483647 %}64'd{{ node.freq }}{% else %}{{ node.freq }}{% endif %}, ok);
+{%- elif slot.freq > 0 %}
+    {{ settings.class_prefix }}direct_check_freq("{{ slot.access }}", tree_if.{{ vif_name }}, {% if slot.freq > 2147483647 %}64'd{{ slot.freq }}{% else %}{{ slot.freq }}{% endif %}, ok);
 {%- endif %}
 {%- endfor %}
 

@@ -110,7 +110,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
 {%- for src in node.sources %}
-{%- if not settings.probe_mode and not (node.kind == "clk" and node.volatile) %}
+{%- if not settings.probe_mode %}
 {%- set peer = tree.nodes[src.name] %}
 {%- if peer.output_groups %}
 {%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' %}

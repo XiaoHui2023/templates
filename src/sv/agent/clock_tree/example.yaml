@@ -99,6 +99,7 @@ nodes:
     cell_buf:
       kind: cell
       cell_kind: buf
+      path: dut.clk_buf
       source: gate0
 
     div_r_0:
