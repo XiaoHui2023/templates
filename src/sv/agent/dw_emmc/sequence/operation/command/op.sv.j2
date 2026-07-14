@@ -86,11 +86,13 @@ task {{ class_prefix }}command_operation_seq::read(ref bit [7:0] data[$]);
         read_memory(data);
     end
     else begin
-        if (cmd_request.rd_blocking)
+        if (cmd_request.rd_blocking) begin
             read_buffer_blocked(data);
-        else
+        end
+        else begin
             read_buffer(data);
-        wait_xfer_complete();
+            wait_xfer_complete();
+        end
     end
 endtask
 
@@ -154,10 +156,7 @@ task {{ class_prefix }}command_operation_seq::read_buffer(ref bit [7:0] data[$])
 endtask
 
 task {{ class_prefix }}command_operation_seq::read_buffer_blocked(ref bit [7:0] data[$]);
-    for (int j = 0; j < cmd_request.block_count; j++) begin
-        $cast(wait_intr_seq, create_wait_intr_seq());
-        `uvm_rand_send_with(wait_intr_seq, {wait_intr_request.buf_rd_ready;})
-    end
+    wait_xfer_complete();
     repeat (cmd_request.block_count)
         read_buffer_one_block(data);
     `uvm_info("", "read buffer blocked done", UVM_LOW)

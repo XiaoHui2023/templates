@@ -16,14 +16,16 @@
 1. 未初始化时运行 `initial_seq`。
 2. 调用 `switch_bus_seq` 切到 `bus_speed_mode` 和 `data_width`；默认是最高速和最大位宽。
 3. 正常写入 `sram_size + block_size` 字节，更新 scoreboard expected memory。
-4. blocked read `sram_size` 字节；等全部 buffer ready 后再读寄存器，结果按 scoreboard 正常比较。
-5. blocked read `sram_size + block_size` 字节；等全部 buffer ready 后再读寄存器。
+4. blocked read `sram_size` 字节；先等 `XFER_COMPLETE`，再连续读取控制器 buffer，结果按 scoreboard 正常比较。
+5. blocked read `sram_size + block_size` 字节；先等 `XFER_COMPLETE`，再连续读取控制器 buffer。
 6. 第二遍不按普通 memory 比较；检查第一块等于溢出的最后一块，说明 SRAM 中原第一块已被覆盖。
 
 ## 关键点
 
 - 该测试验证控制器 SRAM 暂存和覆盖行为，不是普通 card memory 读写一致性测试。
 - 测试自身负责切换到最高速和最大位宽；调用前不需要额外 `switch_bus`。
+- 普通 read 是每个 block 等 `BUF_RD_READY` 后立即读走；SRAM test 使用 blocked read，不能反复等待 `BUF_RD_READY`。
+- blocked read 只等 `XFER_COMPLETE`，再一次性读 buffer；否则第一段 ready 后不取走数据，后续 `BUF_RD_READY` 可能不会再产生并导致超时。
 - 第一遍读满 `sram_size`，数据仍按地址与 scoreboard expected memory 比较。
 - 第二遍多读一个 block，只检查 SRAM 覆盖特征，不调用普通 scoreboard 比较。
 - `sram_size` 是必填 test 输入参数；不要放回 `boot_cfg`。
