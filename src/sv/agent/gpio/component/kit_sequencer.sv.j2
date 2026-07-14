@@ -72,8 +72,13 @@ task {{ class_prefix }}kit_sequencer::set_rise_intr(bit[31:0] data);
 {% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::wait_intr(int timeout);
+    int wait_timeout;
+
     check_ready();
-{% for group in groups %}    sqr_{{ group.name }}.wait_intr(timeout);
+    wait_timeout = timeout;
+    if (wait_timeout <= 0)
+        wait_timeout = 1000;
+{% for group in groups %}    sqr_{{ group.name }}.wait_intr(wait_timeout);
 {% endfor %}endtask
 
 task {{ class_prefix }}kit_sequencer::get_intr_status(output bit intr[string]);

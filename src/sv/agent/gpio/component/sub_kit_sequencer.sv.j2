@@ -131,9 +131,13 @@ task {{ class_prefix }}sub_kit_sequencer::wait_intr(int timeout);
     {{ class_prefix }}wait_intr_req req;
     {{ class_prefix }}wait_intr_rsp seq_rsp;
     {{ class_prefix }}wait_intr_seq seq;
+    int wait_timeout;
 
+    wait_timeout = timeout;
+    if (wait_timeout <= 0)
+        wait_timeout = 1000;
     req = {{ class_prefix }}wait_intr_req::type_id::create("req");
-    req.timeout = timeout;
+    req.timeout = wait_timeout;
     seq = {{ class_prefix }}wait_intr_seq::type_id::create("wait_intr");
     seq.req = req;
     seq.start(this);

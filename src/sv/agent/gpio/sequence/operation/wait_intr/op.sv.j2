@@ -8,6 +8,7 @@ class {{ class_prefix }}wait_intr_seq extends uvm_sequence #(
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
     localparam realtime GPIO_24M_PERIOD_NS = 1.0e9 / 24_000_000.0;
+    localparam int DEFAULT_TIMEOUT = 1000;
 
     function new(string name="{{ class_prefix }}wait_intr_seq");
         super.new(name);
@@ -18,16 +19,20 @@ endclass
 
 task {{ class_prefix }}wait_intr_seq::body();
     {{ class_prefix }}wait_intr_rsp rs;
+    int timeout;
 
     if (req == null)
         `uvm_fatal("", "wait_intr req is null")
     rs = {{ class_prefix }}wait_intr_rsp::type_id::create("rsp");
     rs.ok = 1'b0;
+    timeout = req.timeout;
+    if (timeout <= 0)
+        timeout = DEFAULT_TIMEOUT;
 
     fork begin
         fork
             begin
-                #(req.timeout * GPIO_24M_PERIOD_NS * 1ns);
+                #(timeout * GPIO_24M_PERIOD_NS * 1ns);
             end
             begin
                 wait(p_sequencer.vif.intr);

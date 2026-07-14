@@ -49,8 +49,12 @@ task {{ class_prefix }}intr_test_seq::body();
     bit[31:0] pin;
     bit wait_ok;
     bit op_ok;
+    int wait_timeout;
 
     ok = 1'b1;
+    wait_timeout = timeout;
+    if (wait_timeout <= 0)
+        wait_timeout = DEFAULT_TIMEOUT;
 
     for (int i = 0; i < cfg.num; i++) begin
         if (!cfg.mask[i]) begin
@@ -79,11 +83,11 @@ task {{ class_prefix }}intr_test_seq::body();
 
     op_drive_input(pin, pin, op_ok);
     ok &= op_ok;
-    op_wait_intr(wait_ok, timeout, op_ok);
+    op_wait_intr(wait_ok, wait_timeout, op_ok);
     ok &= op_ok;
     if (!wait_ok) begin
         ok = 1'b0;
-        `uvm_error("", $sformatf("interrupt timeout after rising edge: group=%s timeout=%0d", cfg.group_name, timeout))
+        `uvm_error("", $sformatf("interrupt timeout after rising edge: group=%s timeout=%0d", cfg.group_name, wait_timeout))
     end
 
     op_clear_intr_status(op_ok);
@@ -193,11 +197,15 @@ task {{ class_prefix }}intr_test_seq::op_wait_intr(output bit intr_ok, int timeo
     {{ class_prefix }}wait_intr_req req;
     {{ class_prefix }}wait_intr_rsp seq_rsp;
     {{ class_prefix }}wait_intr_seq seq;
+    int wait_timeout;
 
     intr_ok = 1'b0;
     op_ok = 1'b1;
+    wait_timeout = timeout;
+    if (wait_timeout <= 0)
+        wait_timeout = DEFAULT_TIMEOUT;
     req = {{ class_prefix }}wait_intr_req::type_id::create("req");
-    req.timeout = timeout;
+    req.timeout = wait_timeout;
     seq = {{ class_prefix }}wait_intr_seq::type_id::create("wait_intr");
     seq.req = req;
     seq.start(p_sequencer);
