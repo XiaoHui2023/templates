@@ -393,6 +393,7 @@ task {{ settings.class_prefix }}test_flip_seq::body();
     tree = rq.tree;
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_flip: tree is null")
+    tree.require_built("test_flip");
 
     if (!rq.quiet || rq.debug)
         `uvm_info("CLK_TREE", $sformatf(

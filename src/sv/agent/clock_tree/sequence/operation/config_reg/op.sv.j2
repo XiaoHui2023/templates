@@ -656,6 +656,7 @@ task {{ settings.class_prefix }}config_reg_seq::body();
     tree = rq.tree;
     if (tree == null)
         `uvm_fatal("CLK_TREE", "config_reg: req.tree is null")
+    tree.require_built("config_reg");
     if (!tree.randomize())
         `uvm_fatal("CLK_TREE", "config_reg: tree randomize failed")
 

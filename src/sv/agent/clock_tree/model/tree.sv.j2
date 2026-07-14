@@ -236,6 +236,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 endclass
 
 function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
+    built = 1'b0;
 {%- if regs_enabled %}
     if (regmodel != null) begin
 {%- for sv_access, member, path, offset, width in reg_bindings %}
@@ -254,5 +255,6 @@ function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ set
     if (!randomize())
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
 {%- endif %}
+    built = 1'b1;
 endfunction
 `endif

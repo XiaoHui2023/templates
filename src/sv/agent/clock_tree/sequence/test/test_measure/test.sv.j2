@@ -81,6 +81,7 @@ task {{ settings.class_prefix }}test_measure_seq::body();
     tree = rq.tree;
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null")
+    tree.require_built("test_measure");
     if (!rq.check_freq && !rq.check_duty)
         `uvm_fatal("CLK_TREE", "test_measure: check_freq and check_duty both disabled")
 

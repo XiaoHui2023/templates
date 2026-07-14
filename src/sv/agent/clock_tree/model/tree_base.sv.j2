@@ -5,10 +5,12 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
     `uvm_object_utils_begin({{ settings.class_prefix }}tree_base)
         `uvm_field_queue_object(nodes, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_queue_object(clock_nodes, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(built, UVM_DEFAULT | UVM_NOPRINT)
     `uvm_object_utils_end
 
     {{ settings.class_prefix }}node_base nodes[$];
     {{ settings.class_prefix }}clk clock_nodes[$];
+    bit built;
     bit _print_mux;
     bit _print_div;
     bit _print_dto;
@@ -16,12 +18,15 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
 
     function new(string name = "{{ settings.class_prefix }}tree_base");
         super.new(name);
+        built = 1'b0;
         _print_mux = 0;
         _print_div = 0;
         _print_dto = 0;
         _print_gate = 0;
     endfunction
 
+    // 确认 tree.build 已执行
+    extern function void require_built(string ctx);
     // 将全部非 stable 的 clock_nodes 的 enabled 置 0
     extern function void low_power();
     // 收集 stable 为真的 clk 节点
@@ -30,6 +35,12 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
     // 是否存在 stable 为真的 clk 节点
     extern function bit has_stable_clk();
 endclass
+
+function void {{ settings.class_prefix }}tree_base::require_built(string ctx);
+    if (!built)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "%s: tree is not built; call tree.build() before use", ctx))
+endfunction
 
 function void {{ settings.class_prefix }}tree_base::low_power();
     foreach (clock_nodes[i]) begin
