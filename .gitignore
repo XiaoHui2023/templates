@@ -5,7 +5,8 @@ src/c/pll_mini/bin/**
 *.pyc
 .cursor/
 **/.jinja-build-out*/
-**/.jinja-build-*-out*/
+**/.jinja-build-probe-out*/
+**/.jinja-build-direct-config-out*/
 **/.jinja-build-*.yaml
 .tmp_aliyun_ocr/
 .tmp_*_render/
