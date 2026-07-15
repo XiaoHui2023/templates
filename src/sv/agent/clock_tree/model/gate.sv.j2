@@ -33,18 +33,14 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
 
     constraint cst_resolve_active_from_src {
         !_resolved_open -> !_resolved_active;
-        _resolved_open -> {
-            source -> _resolved_active == source._resolved_active;
-            !source -> !_resolved_active;
-        }
+        (_resolved_open && source != null)
+            -> _resolved_active == source._resolved_active;
     }
 
     constraint cst_resolve_freq_from_src {
         !_resolved_open -> _resolved_freq == 0;
-        _resolved_open -> {
-            source -> _resolved_freq == source._resolved_freq;
-            !source -> _resolved_freq == 0;
-        }
+        (_resolved_open && source != null)
+            -> _resolved_freq == source._resolved_freq;
     }
 {%- if enable_node_fix %}
 

@@ -31,7 +31,6 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     }
 
     constraint cst_resolve_active_from_src {
-        to_source[_resolved_sel] == null -> _resolved_active == 0;
         to_source[_resolved_sel] != null -> _resolved_active == to_source[_resolved_sel]._resolved_active;
     }
 

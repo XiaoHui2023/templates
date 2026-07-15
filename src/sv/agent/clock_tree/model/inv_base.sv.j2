@@ -19,13 +19,11 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
 {% endif %}
 
     constraint cst_resolve_active_from_src {
-        source -> _resolved_active == source._resolved_active;
-        !source -> !_resolved_active;
+        source != null -> _resolved_active == source._resolved_active;
     }
 
     constraint cst_resolve_freq_from_src {
-        source -> _resolved_freq == source._resolved_freq;
-        !source -> _resolved_freq == 0;
+        source != null -> _resolved_freq == source._resolved_freq;
     }
 {%- if enable_node_fix %}
 
