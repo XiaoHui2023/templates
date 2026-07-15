@@ -28,9 +28,9 @@
 1. `transfer_seq` 检查 req、payload、scoreboard。
 2. 生成并应用本次寄存器 `configuration`。
 3. 按 `cs_control_mode` 处理片选：`HARDWARE_CS` 使用 `SER`，`SOFTWARE_CS` 调用 `p_sequencer.activate_chip_select(cs_id)`。
-4. 内置 DMA 写 transfer 在启动前通过 callback `cpu_write()` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
+4. 内置 DMA 写 transfer 在启动前通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 5. 非 DMA PIO 构造 DR byte stream：flash 协议包含 opcode、big-endian 地址字节；写传输追加 payload。随后等待 `SR.TFNF` 并逐 byte 写 `DR`。
-6. PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内置 DMA 读传输在 completion 后通过 callback `cpu_read()` 从 `axi_addr` 读回 actual byte。
+6. PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内置 DMA 读传输在 completion 后通过 callback `cpu_read(addr, word, UVM_BACKDOOR)` 从 `axi_addr` 读回 actual byte。
 7. 按 `configuration.completion_mode` 等待 completion。
 8. `SOFTWARE_CS` 调用 `p_sequencer.release_chip_select(cs_id)`；`HARDWARE_CS` 不调用片选 callback。
 9. 写入 rsp，包括 `ok` 和实际读回数据。

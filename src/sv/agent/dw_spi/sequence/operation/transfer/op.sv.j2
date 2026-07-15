@@ -349,7 +349,7 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
         `uvm_info("DW_SPI_DMA", $sformatf(
             "CPU write DMA source word: addr=0x%0h word=0x%08h byte_index=%0d",
             {32'h0, axi_addr + index}, word, index), UVM_DEBUG)
-        p_sequencer.cpu_write({32'h0, axi_addr + index}, word);
+        p_sequencer.cpu_write({32'h0, axi_addr + index}, word, UVM_BACKDOOR);
         index += 4;
     end
     `uvm_info("DW_SPI_DMA", $sformatf(
@@ -372,7 +372,7 @@ task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
         `uvm_info("DW_SPI_DMA", $sformatf(
             "CPU read DMA destination word: addr=0x%0h byte_index=%0d",
             {32'h0, axi_addr + index}, index), UVM_DEBUG)
-        p_sequencer.cpu_read({32'h0, axi_addr + index}, word);
+        p_sequencer.cpu_read({32'h0, axi_addr + index}, word, UVM_BACKDOOR);
         `uvm_info("DW_SPI_DMA", $sformatf(
             "CPU read DMA destination word done: addr=0x%0h word=0x%08h",
             {32'h0, axi_addr + index}, word), UVM_DEBUG)

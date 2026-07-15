@@ -33,7 +33,7 @@ PIO 读必须先 drain RX FIFO，再等待最终 idle，避免 RX FIFO 因等待
 
 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的路径。
 
-1. 内置 DMA 写 transfer 启动前，通过 callback `cpu_write()` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
+1. 内置 DMA 写 transfer 启动前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 2. 配置 `DMACR.IDMAE/AINC`、方向握手位、`AXIAWLEN/AXIARLEN/SPIDR/SPIAR/AXIAR0`。
 3. 若 `completion_mode` 是 `PREFER_INTERRUPT_COMPLETION` 且 `intr` 已连接，等待 top `intr`，再读取 `ISR.DONES`。
 4. 若 `intr` 未连接，退回轮询 `SR.TFE && !SR.BUSY`。
