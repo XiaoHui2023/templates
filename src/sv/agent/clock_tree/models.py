@@ -128,7 +128,7 @@ class Settings(BaseModel):
         "测量值在 [duty_min − duty_tolerance_pct, duty_max + duty_tolerance_pct] 内视为合格。",
     )
     pll_lock_timeout_us: int = Field(
-        1_000,
+        100,
         ge=1,
         description="PLL lock 等待上限，微秒。",
     )
