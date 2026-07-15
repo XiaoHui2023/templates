@@ -71,7 +71,15 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 return;
             end
         end
-        report_error("DW_SPI_REG", "timeout waiting SR.TFNF before DR write");
+        report_error("DW_SPI_REG", $sformatf(
+            "timeout waiting SR.TFNF before DR write: waiting_for=SR.TFNF==1 timeout_cycles=%0d last_SR=0x%0h last_TFNF=%0b last_RFNE=%0b last_TFE=%0b last_RFF=%0b last_BUSY=%0b",
+            settings.fifo_status_timeout_ssi_clk_cycles,
+            reg_data,
+            rm.SR.TFNF.get(),
+            rm.SR.RFNE.get(),
+            rm.SR.TFE.get(),
+            rm.SR.RFF.get(),
+            rm.SR.BUSY.get()));
     endtask
 
     task wait_rfne(output bit ok);
@@ -102,7 +110,15 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 return;
             end
         end
-        report_error("DW_SPI_REG", "timeout waiting SR.RFNE before DR read");
+        report_error("DW_SPI_REG", $sformatf(
+            "timeout waiting SR.RFNE before DR read: waiting_for=SR.RFNE==1 timeout_cycles=%0d last_SR=0x%0h last_TFNF=%0b last_RFNE=%0b last_TFE=%0b last_RFF=%0b last_BUSY=%0b",
+            settings.fifo_status_timeout_ssi_clk_cycles,
+            reg_data,
+            rm.SR.TFNF.get(),
+            rm.SR.RFNE.get(),
+            rm.SR.TFE.get(),
+            rm.SR.RFF.get(),
+            rm.SR.BUSY.get()));
     endtask
 
     task write_bytes_to_dr(
@@ -222,11 +238,17 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             end
         end
         report_error("DW_SPI_REG", $sformatf(
-            "timeout waiting transfer idle: timeout_cycles=%0d",
-            timeout_cycles));
+            "timeout waiting transfer idle: waiting_for=SR.TFE==1 && SR.BUSY==0 timeout_cycles=%0d last_SR=0x%0h last_TFNF=%0b last_RFNE=%0b last_TFE=%0b last_RFF=%0b last_BUSY=%0b",
+            timeout_cycles,
+            reg_data,
+            rm.SR.TFNF.get(),
+            rm.SR.RFNE.get(),
+            rm.SR.TFE.get(),
+            rm.SR.RFF.get(),
+            rm.SR.BUSY.get()));
     endtask
 
-    task check_dones(output bit ok);
+    task check_internal_dma_dones(output bit ok);
         uvm_status_e status;
         {{ regmodel_type }} rm;
         uvm_reg_data_t reg_data;
@@ -237,14 +259,14 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.ISR.read(status, reg_data);
         ok = rm.ISR.DONES.get();
         report_info("DW_SPI_REG", $sformatf(
-            "check ISR.DONES after interrupt: raw=0x%0h DONES=%0b",
+            "check ISR.DONES after internal DMA interrupt: raw=0x%0h DONES=%0b",
             reg_data, ok), UVM_DEBUG);
         if (ok)
-            report_info("DW_SPI_REG", "transfer completion confirmed by ISR.DONES", UVM_LOW);
+            report_info("DW_SPI_REG", "internal DMA completion confirmed by ISR.DONES", UVM_LOW);
         else
             report_error("DW_SPI_REG", $sformatf(
-                "top interrupt observed but ISR.DONES is not set: ISR=0x%0h",
-                reg_data));
+                "top interrupt observed but internal DMA done bit is not set: waiting_for=ISR.DONES==1 ISR=0x%0h DONES=%0b",
+                reg_data, ok));
     endtask
 
     task apply_configuration({{ class_prefix }}configuration cfg);

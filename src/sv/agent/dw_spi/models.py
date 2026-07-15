@@ -70,7 +70,7 @@ class Models(BaseModel):
         "POLLING_COMPLETION",
     ] = Field(
         "PREFER_INTERRUPT_COMPLETION",
-        description="Default transfer completion policy. Prefer interrupt uses top intr and ISR.DONES when connected, otherwise falls back to SR.TFE && !SR.BUSY polling.",
+        description="Default transfer completion policy. Internal DMA may use top intr plus ISR.DONES when connected; non-DMA PIO uses SR.TFE && !SR.BUSY polling unless a FIFO IRQ state machine is implemented.",
     )
     default_addr_bytes: Literal[3, 4] = Field(
         3,

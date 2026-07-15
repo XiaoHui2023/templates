@@ -17,9 +17,14 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
         {{ class_prefix }}transfer_req rq,
         bit include_payload,
         output bit [7:0] dr_bytes[$]);
+    // Reports whether this transfer may use the local internal-DMA done interrupt.
+    extern protected function bit can_use_internal_dma_done_interrupt(
+        {{ class_prefix }}transfer_req rq);
+    // Waits for the top interrupt associated with a known completion source.
     extern protected task wait_transfer_interrupt(
         {{ class_prefix }}transfer_req rq,
-        {{ class_prefix }}configuration cfg);
+        {{ class_prefix }}configuration cfg,
+        string expected_source);
     extern protected task wait_transfer_completion(
         {{ class_prefix }}transfer_req rq,
         {{ class_prefix }}configuration cfg,
@@ -214,12 +219,23 @@ task {{ class_prefix }}transfer_seq::body();
     rsp = rs;
 endtask
 
+// Reports whether this transfer may use the local internal-DMA done interrupt.
+function bit {{ class_prefix }}transfer_seq::can_use_internal_dma_done_interrupt(
+        {{ class_prefix }}transfer_req rq);
+{% if internal_dma %}
+    if (rq != null && rq.use_dma)
+        return 1'b1;
+{% endif %}
+    return 1'b0;
+endfunction
+
 task {{ class_prefix }}transfer_seq::wait_transfer_completion(
         {{ class_prefix }}transfer_req rq,
         {{ class_prefix }}configuration cfg,
         {{ class_prefix }}register_access register_access,
         output bit ok);
     completion_mode_e completion_mode;
+    bit dones_completion_available;
 
     if (cfg == null)
         `uvm_fatal("DW_SPI", "transfer: configuration is null")
@@ -229,17 +245,19 @@ task {{ class_prefix }}transfer_seq::wait_transfer_completion(
         `uvm_fatal("DW_SPI", "transfer: failed to cast completion_mode")
 
     ok = 1'b0;
+    dones_completion_available = can_use_internal_dma_done_interrupt(rq);
     case (completion_mode)
         PREFER_INTERRUPT_COMPLETION: begin
             if (p_sequencer.settings == null)
                 `uvm_fatal("DW_SPI", "transfer: settings is null")
-            if (p_sequencer.settings.vif != null && p_sequencer.settings.vif.has_irq()) begin
-                `uvm_info("DW_SPI_XFER", "waiting transfer completion by preferred interrupt path, then checking ISR.DONES", UVM_LOW)
-                wait_transfer_interrupt(rq, cfg);
-                register_access.check_dones(ok);
+            if (dones_completion_available && p_sequencer.settings.vif != null && p_sequencer.settings.vif.has_irq()) begin
+                `uvm_info("DW_SPI_XFER", "waiting internal DMA completion interrupt, then checking ISR.DONES", UVM_LOW)
+                wait_transfer_interrupt(rq, cfg, "ISR.DONES internal DMA completion");
+                register_access.check_internal_dma_dones(ok);
             end else begin
                 `uvm_info("DW_SPI_XFER", $sformatf(
-                    "interrupt path unavailable; falling back to polling SR.TFE && !SR.BUSY: timeout_cycles=%0d",
+                    "using SR polling for transfer completion: reason=%s timeout_cycles=%0d",
+                    dones_completion_available ? "intr_not_connected" : "ISR.DONES_not_valid_for_non_internal_dma",
                     cfg.interrupt_timeout_ssi_clk_cycles), UVM_LOW)
                 register_access.wait_idle(cfg.interrupt_timeout_ssi_clk_cycles, ok);
             end
@@ -251,9 +269,11 @@ task {{ class_prefix }}transfer_seq::wait_transfer_completion(
             register_access.wait_idle(cfg.interrupt_timeout_ssi_clk_cycles, ok);
         end
         INTERRUPT_COMPLETION: begin
-            `uvm_info("DW_SPI_XFER", "waiting transfer completion interrupt, then checking ISR.DONES", UVM_LOW)
-            wait_transfer_interrupt(rq, cfg);
-            register_access.check_dones(ok);
+            if (!dones_completion_available)
+                `uvm_fatal("DW_SPI_XFER", "INTERRUPT_COMPLETION uses ISR.DONES and is only valid for internal DMA transfers; non-DMA PIO must use SR polling or implement a FIFO IRQ state machine")
+            `uvm_info("DW_SPI_XFER", "waiting forced internal DMA completion interrupt, then checking ISR.DONES", UVM_LOW)
+            wait_transfer_interrupt(rq, cfg, "ISR.DONES internal DMA completion");
+            register_access.check_internal_dma_dones(ok);
         end
         default: begin
             `uvm_fatal("DW_SPI", "transfer: unsupported completion_mode")
@@ -370,7 +390,8 @@ endtask
 
 task {{ class_prefix }}transfer_seq::wait_transfer_interrupt(
         {{ class_prefix }}transfer_req rq,
-        {{ class_prefix }}configuration cfg);
+        {{ class_prefix }}configuration cfg,
+        string expected_source);
     bit timed_out;
     bit missing_signal;
 
@@ -382,7 +403,8 @@ task {{ class_prefix }}transfer_seq::wait_transfer_interrupt(
         `uvm_fatal("DW_SPI", "transfer: configuration is null")
 
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "waiting intr asserted: timeout_cycles=%0d min_ssi_clk_hz=%0d tolerance_ppm=%0d",
+        "waiting intr asserted: expected_source=%s timeout_cycles=%0d min_ssi_clk_hz=%0d tolerance_ppm=%0d",
+        expected_source,
         cfg.interrupt_timeout_ssi_clk_cycles,
         p_sequencer.settings.min_ssi_clk_hz,
         p_sequencer.settings.clock_check_tolerance_ppm), UVM_LOW)
@@ -393,16 +415,33 @@ task {{ class_prefix }}transfer_seq::wait_transfer_interrupt(
         timed_out,
         missing_signal);
     if (missing_signal)
-        `uvm_fatal("DW_SPI", "transfer: intr and ssi_clk must be connected when waiting for interrupt")
-    if (timed_out)
         `uvm_fatal("DW_SPI", $sformatf(
-            "transfer interrupt timeout after %0d ssi_clk cycles: cs_id=%0d transfer_mode=%s protocol=%s frame_mode=%s",
-            cfg.interrupt_timeout_ssi_clk_cycles,
+            "missing signal while waiting transfer completion interrupt: waiting_for=top intr asserted expected_source=%s required=intr_and_ssi_clk has_irq=%0b has_ssi_clk=%0b cs_id=%0d opcode=0x%02h address=0x%0h length=%0d transfer_mode=%s protocol=%s frame_mode=%s",
+            expected_source,
+            p_sequencer.settings.vif.has_irq(),
+            p_sequencer.settings.vif.has_ssi_clk(),
             rq.cs_id,
+            rq.opcode,
+            rq.payload.get_address(),
+            rq.payload.get_data_length(),
             rq.transfer_mode.name(),
             rq.protocol.name(),
             rq.frame_mode.name()))
-    `uvm_info("DW_SPI_XFER", "transfer completion interrupt observed", UVM_LOW)
+    if (timed_out)
+        `uvm_fatal("DW_SPI", $sformatf(
+            "transfer interrupt timeout: waiting_for=top intr asserted expected_source=%s timeout_cycles=%0d cs_id=%0d opcode=0x%02h address=0x%0h length=%0d transfer_mode=%s protocol=%s frame_mode=%s",
+            expected_source,
+            cfg.interrupt_timeout_ssi_clk_cycles,
+            rq.cs_id,
+            rq.opcode,
+            rq.payload.get_address(),
+            rq.payload.get_data_length(),
+            rq.transfer_mode.name(),
+            rq.protocol.name(),
+            rq.frame_mode.name()))
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "transfer completion interrupt observed: expected_source=%s",
+        expected_source), UVM_LOW)
 endtask
 
 `endif

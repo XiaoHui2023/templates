@@ -1,44 +1,42 @@
 # Register Access Flow
 
-`register_access` 是实例化工具类，由 operation sequence 创建并注入 `settings`。它只接收 model 层 `configuration`，不依赖任何 sequence req/rsp 类型。
-
-## 输入
-
-| 对象 | 来源 | 用途 |
-| --- | --- | --- |
-| `settings.regmodel` | sequencer settings | 提供大写 REG/FIELD 句柄；task 内先保存为局部 `rm` |
-| `report_context` | operation sequence 注入的 `p_sequencer` | 让 core 工具类的 `UVM_LOW` / `UVM_DEBUG` 跟随 sequencer/agent 的 report verbosity |
-| `configuration` | operation 层 builder | 承载本次要写入的字段值 |
+`register_access` 是实例化工具类，由 operation sequence 创建并注入 `settings` 与 `report_context`。它只接收 model 层 `configuration`，不依赖任何 sequence req/rsp 类型。
 
 ## Apply
 
 1. 检查 `configuration`、`settings`、`settings.regmodel` 非空。
 2. 用 `$cast()` 把 configuration 里的枚举值转换成本工具类的枚举类型。
 3. 写 `SSIENR.SSIC_EN = 0`，关闭控制器。
-4. 配置 `IMR` 并写 `ICR` 清中断。
+4. 配置 `IMR` 并写 `ICR` 清旧中断状态；这里不等待 `intr`，也不轮询 `ISR.DONES`。
 5. 写 `SER.SER = 0`，释放片选。
-6. 根据 `settings.ssi_variant` 选择 PSSI/HSSI 字段集合，配置 `CTRLR0`。
-7. 配置 `SPI_CTRLR0.WAIT_CYCLES/INST_L/ADDR_L/TRANS_TYPE`（仅增强模式）、`CTRLR1.NDF`、`BAUDR.SCKDV`、`TXFTLR.TFT`、`RXFTLR.RFT`。
-8. DMA 生成模式开启时配置 `DMACR` 和 DMA threshold；内部 DMA 写 `RDMAE/TDMAE/IDMAE/AINC`，外部 DMA 写 `RDMAE/TDMAE`。
-9. 内部 DMA 模式下配置 `AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`；外部 DMA 和无 DMA 模式不写这些寄存器。
-10. 按 `write_rx_sample_delay` 决定是否配置 `RX_SAMPLE_DELAY.RSD`。
-11. 写 `SER.SER` 和 `SSIENR.SSIC_EN`，完成本次配置。
+6. 通过大写 REG/FIELD 句柄配置 `CTRLR0`、`SPI_CTRLR0`、`CTRLR1`、`BAUDR`、FIFO threshold、DMA threshold、DMA 寄存器和 `RX_SAMPLE_DELAY`。
+7. 写 `SER.SER` 选择本次 chip select。
+8. 写 `SSIENR.SSIC_EN = 1` 使能控制器。
 
-`IMR/ICR` 阶段只设置中断 mask 并清理旧中断状态，不等待 `intr`，也不轮询 `ISR.DONES`。真正的 transfer 完成等待在 `sequence/operation/transfer` 中，发生在本函数完成寄存器配置、片选激活、PIO/DMA 启动之后。
+真正的 transfer completion 等待发生在 `sequence/operation/transfer`，位于寄存器配置、片选激活、PIO/DMA 启动之后。
 
-core 提供 `wait_idle()` 和 `check_dones()` 两个窄工具。默认 completion mode 在 sequence 中优先等待 top `intr`，再调用 `check_dones()` 读取 `ISR.DONES`；只有 `intr` 不可用或显式选择 `POLLING_COMPLETION` 时才调用 `wait_idle()` 轮询 `SR.TFE && !SR.BUSY`。core 仍然不认识 sequence req/rsp，也不决定使用哪种 completion mode。
+## Completion Helpers
 
-PIO 写 DR 时使用 `write_bytes_to_dr()`。flash 协议的 operation sequence 会先把 opcode、地址字节和写 payload 组合成 DR byte stream，再交给 core 写 `DR`；core 不理解 opcode/address 语义，只负责等待 `SR.TFNF` 并逐 byte 写 `DR`。
+core 提供两个窄工具：
 
-## 注意事项
+| Task | 用途 |
+| --- | --- |
+| `wait_idle()` | 轮询 `SR.TFE && !SR.BUSY`，用于 PIO、外部 DMA fallback、或无完成中断的内置 DMA fallback。 |
+| `check_internal_dma_dones()` | 读取 `ISR.DONES`，只用于内置 DMA top `intr` 触发后的完成确认。 |
 
-- 不保存寄存器地址，不维护字符串到寄存器的地址表。
-- 不拼接完整寄存器值；task 内先写 `rm = settings.regmodel`，再使用 `rm.<REG>.read(status, data)` 刷新镜像，`rm.<REG>.<FIELD>.set(...)` 修改字段，最后调用 `rm.<REG>.write(status, rm.<REG>.get())`。
-- RAL `read()` / `write()` 的 `status` 只作为 API 形参保留，不做 `UVM_IS_OK` 检查和逐次报错；寄存器模型正确性由环境和 regmodel 自身保证。
-- 不提供通用 `reg_write` / `reg_read` 包装。
-- 不声明静态函数集合；sequence 实例化工具对象并注入依赖。
-- 不从 core 反向引用 sequence 层类型。
-- core 工具类不是 `uvm_component` 时，不直接用 `` `uvm_info`` 承担可控调试打印；调用方注入 `uvm_report_object report_context`，工具类内部先调用 `report_context.uvm_report_enabled()`，再用短参数形式调用 `report_context.uvm_report_info(id, message, verbosity)`。这样把 agent/sequencer verbosity 调到 `UVM_DEBUG` 时，core 的 debug 明细也会打开。
-- DMA 寄存器也按明确 FIELD 写入，不使用完整寄存器拼值。
-- 不在 core 中封装 `set_field/get_field/update_reg` 这类寄存器访问二次 API；代码必须显式写出具体 REG/FIELD。
-- 不使用 `update()`；本模块寄存器总线访问只用 `read()` 和 `write()`。
+core 不决定 completion mode，也不判断本次是否 DMA；这些决策在 sequence 层完成。非 DMA PIO 不调用 `check_internal_dma_dones()`。
+
+## Register Access Rules
+
+- 不保存寄存器地址，不维护字符串到寄存器的映射。
+- task 内先写 `rm = settings.regmodel`，再使用 `rm.<REG>.read(status, data)`、`rm.<REG>.<FIELD>.set(...)`、`rm.<REG>.write(status, rm.<REG>.get())`。
+- RAL `read()` / `write()` 的 `status` 只作为 API 形参保留，不逐次检查 `UVM_IS_OK`。
+- 不使用 `update()`。
+- 不封装 `set_field/get_field/update_reg` 这类二次寄存器 API。
+- core 工具类不是 `uvm_component` 时，通过调用方注入 `uvm_report_object report_context`，并用它的 `uvm_report_enabled()` / `uvm_report_info()` 控制 `UVM_LOW` 与 `UVM_DEBUG` 打印。
+
+## DR Helpers
+
+PIO 写 DR 使用 `write_bytes_to_dr()`。flash operation sequence 先把 opcode、地址字节和可选 payload 组合成 DR byte stream，再交给 core。core 不理解 opcode/address 语义，只负责等待 `SR.TFNF` 并逐 byte 写 `DR`。
+
+PIO 读 payload 使用 `read_dr_to_payload()`。它按 payload length 等待 `SR.RFNE`，逐 byte 读 `DR`，并把实际读回数据写入 generic payload。
