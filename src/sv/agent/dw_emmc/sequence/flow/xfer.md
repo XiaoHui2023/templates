@@ -60,7 +60,7 @@ Blocked read：
 - `blocking == 1`。
 - 不逐块等待 `BUF_RD_READY`。
 - 先等 `XFER_COMPLETE`，再连续读取 `block_count` 个 block 的 `BUF_DATA_R`。
-- 用于 SRAM 暂存/覆盖行为测试，避免第一段 ready 后不取数导致后续 `BUF_RD_READY` 不再产生而超时。
+- 仅用于需要延迟取数的专门场景；普通读写测试不要默认使用。
 
 eMMC/SD read 不支持 abort，约束 `abort == 0`。
 

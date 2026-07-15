@@ -59,7 +59,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         bit enable_ddr50_4bit = 1
     );
 {% endif %}
-    extern task sram_test(int sram_size, int block_size = 0);
 {% if is_emmc %}
     extern task tune_test(int data_width = 0);
 {% endif %}
@@ -288,21 +287,6 @@ task {{ class_prefix }}kit_sequencer::speed_mode_test(
 endtask
 
 {% endif %}
-task {{ class_prefix }}kit_sequencer::sram_test(int sram_size, int block_size = 0);
-    {{ class_prefix }}sram_test_seq seq;
-
-    seq = {{ class_prefix }}sram_test_seq::type_id::create("sram_test_seq");
-    seq.set_item_context(null, this);
-    seq.has_sram_size = 1;
-    if(!seq.randomize() with {
-        sram_size == local::sram_size;
-        if(local::block_size != 0)
-            block_size == local::block_size;
-    })
-        `uvm_fatal("KIT", "sram_test_seq randomize failed")
-    seq.start(this);
-endtask
-
 {% if is_emmc %}
 task {{ class_prefix }}kit_sequencer::tune_test(int data_width = 0);
     {{ class_prefix }}tune_test_seq seq;

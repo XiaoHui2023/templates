@@ -100,10 +100,9 @@ task run_phase(uvm_phase phase);
     env.emmc_agent.sqr.rw_test(.addr('h0), .count(2), .use_dma(0));
     env.emmc_agent.sqr.rw_test(.addr('h1000), .count(2), .use_dma(1));
     env.emmc_agent.sqr.speed_mode_test(.enable_hs200_4bit(1), .enable_hs400_8bit(1));
-    env.emmc_agent.sqr.sram_test(.sram_size(4096), .block_size(512));
 
     phase.drop_objection(this);
 endtask
 ```
 
-`initial_card()` 完成初始化流程；`switch_bus()` 执行切总线 flow；`rw_test()` 按地址先写后读，`use_dma = 1` 时使用内置 DMA 搬运。kit sequencer 还提供 `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`reg_test()`、`speed_mode_test()`、`sram_test()`、`tune_test()`、`check_clock_frequence_test()`。
+`initial_card()` 完成初始化流程；`switch_bus()` 执行切总线 flow；`rw_test()` 按地址先写后读，`use_dma = 1` 时使用内置 DMA 搬运。kit sequencer 还提供 `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`reg_test()`、`speed_mode_test()`、`tune_test()`、`check_clock_frequence_test()`。
