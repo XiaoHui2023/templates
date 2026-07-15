@@ -110,7 +110,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
 {%- for src in node.sources %}
-{%- if not settings.probe_mode %}
+{%- if not settings.probe_mode and src.name in tree.nodes and tree.nodes[src.name].present %}
 {%- set peer = tree.nodes[src.name] %}
 {%- if peer.output_groups %}
 {%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' %}
@@ -137,7 +137,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if node.volatile %}
         {{ clk_acc }}.volatile = 1'b1;
 {%- endif %}
-{%- if (settings.probe_mode and not node.disable and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
+{%- if (settings.probe_mode and node.active and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
 {%- if settings.probe_mode %}
@@ -161,7 +161,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if node.volatile %}
         {{ node.name }}.volatile = 1'b1;
 {%- endif %}
-{%- if (settings.probe_mode and not node.disable and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
+{%- if (settings.probe_mode and node.active and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ node.name }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
 {%- if settings.probe_mode %}

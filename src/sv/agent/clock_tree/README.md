@@ -22,7 +22,7 @@ settings:
   class_prefix: chip_clk_
 ```
 
-纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk/cell`，以及 `disable: true` 的 `clk/cell`；`source`、`pll` 和中间节点不会出现在生成的 `tree_interface.sv` 中。
+纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk/cell`，以及 `active: false` 的 `clk`；`source`、`pll` 和中间节点不会出现在生成的 `tree_interface.sv` 中。
 
 ```yaml
 nodes:
@@ -76,7 +76,7 @@ endfunction
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk/cell**，以及 **disable** 的 **clk/cell**。 |
+| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk/cell**，以及 **active** 为假的 **clk**。 |
 | `direct_check` | `bool` | `false` | 为真时生成直接调用的纯 SV 检查入口，不依赖 UVM。 |
 | `direct_config` | `bool` | `false` | 为真时只生成 model 目录文件和直接寄存器配置入口。 |
 | `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
@@ -123,9 +123,9 @@ endfunction
 
 ### Nodes
 
-**nodes** 是顶层字段，键为节点名；某键值为 **null** 时跳过该节点，不生成 SV 对象；其它节点仍引用该名字时会 **model_validate** 失败。
+**nodes** 是顶层字段，键为节点名；节点值不可为 **null**。
 
-写 **nodes** 时可用 `节点名: ~` 表示跳过。
+所有节点都支持公共字段 **present**，默认 **true**。写 **present: false** 时，该节点不生成 SV 对象、不进入 tree；其它节点引用它作为 **source** 时不连接。
 
 ### Node - source
 
@@ -214,9 +214,9 @@ endfunction
 | `kind` | `str` | `clk` | |
 | `path` | `str` | | RTL 层次路径，按 `.` 分隔；必填。 |
 | `freq` | `int` | | 典型频率，单位 Hz；省略则频率与使能均不参与随机；正数同时指定频率与使能；负值仅放宽输出频率随机范围。 |
+| `active` | `bool` | `true` | 期望运行态是否有时钟；为假时仍生成 SV 对象并检查 inactive。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `stable` | `bool` | `false` | 锚定时钟：结构探测与低功耗下不得关断或改频。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。**low_power** 不关断该 **clk**。**test_route** 跳过该节点及其当前选通路径上的 **gate**、**mux**、**div**、**pll** 探测，并固定路径控制量；路径上 **pll** 不参与改频策略。**check_measure** 期望为锁定后的 **_resolved_freq**。 |
-
 | `volatile` | `bool` | `false` | 独立测量时钟；source 正常连接并参与频率推算，只参与 `check_measure` 和 `direct_check`，不参与 `test_route`、`test_flip`、`low_power` 或 stable 路径锚定；`check_measure` 中只检查频率。 |
 
 ### Node - gate

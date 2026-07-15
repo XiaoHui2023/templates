@@ -68,10 +68,6 @@ def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
     return item
 
 
-def _is_omitted_node(value: Any) -> bool:
-    return value is None
-
-
 def _coerce_required_freq(value: Any) -> int:
     if value is None or value == "":
         raise ValueError("须填写 freq")
@@ -163,6 +159,11 @@ class NodeBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     _name: str = PrivateAttr(default="")
+
+    present: bool = Field(
+        True,
+        description="为假时该节点不生成 SV 实例、不进入 tree；其它节点引用它时不连接。",
+    )
 
     @computed_field(  # type: ignore[prop-decorator]
         description="等于 Tree.nodes 字典键；YAML 体内与 model_validate 不可传入。",
@@ -524,9 +525,9 @@ class ClkNode(NodeBase):
         description="典型频率，单位 Hz；省略表示不指定频率；"
         "正数锁定 frequence；负数仅不约束 _resolved_freq。",
     )
-    disable: bool = Field(
-        default=False,
-        description="为真时 tree 构造将 enabled 置 0；省略或为假时 enabled 为 1。",
+    active: bool = Field(
+        default=True,
+        description="期望运行态是否有时钟；为假时仍生成并检查 inactive。",
     )
     source: OptionalUpstreamSource = Field(
         default=None,
@@ -539,6 +540,19 @@ class ClkNode(NodeBase):
     )
 
     volatile: bool = Field(default=False)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_active(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if "disable" not in data:
+            return data
+        if "active" in data:
+            raise ValueError("clk 节点 active 与旧字段 disable 不可同时填写")
+        body = {k: v for k, v in data.items() if k != "disable"}
+        body["active"] = not bool(data["disable"])
+        return body
 
     @field_validator("freq", mode="before")
     @classmethod
@@ -565,34 +579,34 @@ class ClkNode(NodeBase):
         return -1 if self.freq is None else self.freq
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="tree 构造写入 enabled；disable 为真时为 0，否则为 1；YAML 不可传入。",
+        description="tree 构造写入 enabled；active 为假时为 0，否则为 1；YAML 不可传入。",
     )
     @property
     def clk_init_enabled(self) -> int:
-        return 0 if self.disable else 1
+        return 1 if self.active else 0
 
     @computed_field(  # type: ignore[prop-decorator]
         description="frequence 非 clk::new 默认 -1 时为真；YAML 不可传入。",
     )
     @property
     def clk_tree_emit_frequence(self) -> bool:
-        if self.disable:
+        if not self.active:
             return False
         return self.freq is not None and self.freq != -1
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="disable 为真或 stable 为真时 tree 写入 enabled；YAML 不可传入。",
+        description="active 为假或 stable 为真时 tree 写入 enabled；YAML 不可传入。",
     )
     @property
     def clk_tree_emit_enabled(self) -> bool:
-        return self.disable or self.stable
+        return (not self.active) or self.stable
 
     @computed_field(  # type: ignore[prop-decorator]
         description="unfix_frequence 非 clk::new 默认 1 时为真；YAML 不可传入。",
     )
     @property
     def clk_tree_emit_unfix_frequence(self) -> bool:
-        if self.disable:
+        if not self.active:
             return False
         if self.stable:
             return True
@@ -601,11 +615,11 @@ class ClkNode(NodeBase):
         return True
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="disable 为真或 stable 为真时 tree 写入 unfix_enabled 为 0；YAML 不可传入。",
+        description="active 为假或 stable 为真时 tree 写入 unfix_enabled 为 0；YAML 不可传入。",
     )
     @property
     def clk_tree_emit_unfix_enabled(self) -> bool:
-        return self.disable or self.stable
+        return (not self.active) or self.stable
 
     @model_validator(mode="after")
     def _validate_clk_freq(self) -> ClkNode:
@@ -623,9 +637,9 @@ class ClkNode(NodeBase):
             raise ValueError(
                 f"clk 节点 {self.name!r} stable 为真时 freq 应为正整数"
             )
-        if self.disable and self.stable:
+        if (not self.active) and self.stable:
             raise ValueError(
-                f"clk 节点 {self.name!r} disable 与 stable 不可同时为真"
+                f"clk 节点 {self.name!r} active 为假时不可同时 stable"
             )
         if self.volatile and self.stable:
             raise ValueError(
@@ -752,7 +766,7 @@ class Tree(BaseModel):
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
-        description="节点表，键为节点名；值为 null 时跳过该键，不纳入树。",
+        description="节点表，键为节点名；值不可为 null。",
     )
 
     @model_validator(mode="before")
@@ -767,8 +781,8 @@ class Tree(BaseModel):
         if isinstance(nodes, list):
             as_dict: dict[str, Any] = {}
             for item in nodes:
-                if _is_omitted_node(item):
-                    continue
+                if item is None:
+                    raise ValueError("nodes 列表项不可为 null")
                 if not isinstance(item, dict):
                     as_dict[str(item)] = item
                     continue
@@ -791,8 +805,8 @@ class Tree(BaseModel):
                 raise ValueError(
                     f"nodes 键 {key!r} 须为合法 SystemVerilog 名字"
                 )
-            if _is_omitted_node(item):
-                continue
+            if item is None:
+                raise ValueError(f"nodes[{key!r}] 不可为 null")
             if isinstance(item, dict):
                 item = _normalize_node_item(item)
                 if "name" in item:
@@ -811,8 +825,8 @@ class Tree(BaseModel):
             return value
         built: Dict[str, Node] = {}
         for key, item in value.items():
-            if _is_omitted_node(item):
-                continue
+            if item is None:
+                raise ValueError(f"nodes[{key!r}] 不可为 null")
             if isinstance(item, NodeBase):
                 object.__setattr__(item, "_name", key)
                 built[key] = item
@@ -827,7 +841,7 @@ class Tree(BaseModel):
     )
     @property
     def nodes_ordered(self) -> List[Node]:
-        return list(self.nodes.values())
+        return [node for node in self.nodes.values() if node.present]
 
     @computed_field(  # type: ignore[prop-decorator]
         description="展开到 SV 的节点实例槽位；多路输出器件按路展开；YAML 不可传入。",
@@ -836,6 +850,8 @@ class Tree(BaseModel):
     def sv_slots(self) -> List[SvNodeSlot]:
         slots: List[SvNodeSlot] = []
         for key, node in self.nodes.items():
+            if not node.present:
+                continue
             groups = node_output_groups(node)
             if not groups:
                 slots.append(
@@ -891,7 +907,7 @@ class Tree(BaseModel):
                 if node.name not in expected:
                     raise ValueError(
                         f"direct_check cell {node.name!r} cannot get expected clock "
-                        "from any freq/disable clk before reaching a control node"
+                        "from any freq/active clk before reaching a control node"
                     )
                 active, freq = expected[node.name]
             else:
@@ -910,7 +926,7 @@ class Tree(BaseModel):
     def _direct_check_seed(self, node: Node) -> Optional[tuple[bool, int]]:
         if node.kind != "clk":
             return None
-        if node.disable:
+        if not node.active:
             return (False, 0)
         if node.freq is not None and node.freq > 0:
             return (True, node.freq)
@@ -942,7 +958,7 @@ class Tree(BaseModel):
         pass_kinds = {"cell", "clk", "inv"}
         for ref in node.sources:
             parent = self.nodes.get(ref.name)
-            if parent is not None and parent.kind in pass_kinds:
+            if parent is not None and parent.present and parent.kind in pass_kinds:
                 peers.append(parent.name)
         for child_name in self.children_by_node.get(node.name, []):
             child = self.nodes[child_name]
@@ -1000,10 +1016,16 @@ def upstream_peer_names(node: Node) -> List[str]:
 
 
 def build_children_map(nodes: Dict[str, Node]) -> Dict[str, List[str]]:
-    children: Dict[str, List[str]] = {key: [] for key in nodes}
+    children: Dict[str, List[str]] = {
+        key: [] for key, node in nodes.items() if node.present
+    }
     for child_name, node in nodes.items():
+        if not node.present:
+            continue
         for parent_name in upstream_peer_names(node):
-            children[parent_name].append(child_name)
+            parent = nodes.get(parent_name)
+            if parent is not None and parent.present:
+                children[parent_name].append(child_name)
     for key in children:
         children[key].sort()
     return children
@@ -1019,7 +1041,6 @@ def _validate_source_ref(
     if device not in nodes:
         raise ValueError(
             f"{ctx} 引用器件 {device!r} 不在 nodes 中"
-            f"（该键若为 null 则已跳过）"
         )
     peer = nodes[device]
     groups = node_output_groups(peer)
@@ -1047,6 +1068,8 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
         ValueError: 引用节点不存在或输出序号非法时。
     """
     for key, node in nodes.items():
+        if not node.present:
+            continue
         if node.name != key:
             raise ValueError(
                 f"nodes[{key!r}] 的 name 字段 {node.name!r} 须与字典键一致"

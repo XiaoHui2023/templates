@@ -220,7 +220,7 @@ end
 | 约束或回调 | 说明 |
 | --- | --- |
 | **cst_mux** | **sel** 只能取 0～**max_sel** 的整数 |
-| **cst_resolve_active_from_src** | **to_source[sel]** 未连接时 **_resolved_active** 为 0；已连接时等于 **to_source[sel]._resolved_active** |
+| **cst_resolve_active_from_src** | **to_source[sel]** 已连接时，**_resolved_active** 等于 **to_source[sel]._resolved_active** |
 | **cst_resolve_freq_from_src** | **to_source[sel]** 已连接时 **_resolved_freq** 等于 **to_source[sel]._resolved_freq** |
 | **post_randomize** | **randomize** 结束后将 **source** 设为 **to_source[sel]** |
 
@@ -291,8 +291,8 @@ end
 | 约束 | 说明 |
 | --- | --- |
 | **cst_open** | **open** 为 0 或 1 时等于 **_resolved_open** |
-| **cst_resolve_active_from_src** | **_resolved_open** 为 0 时 **_resolved_active** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_active**；为 1 且 **source** 未连接时为 0 |
-| **cst_resolve_freq_from_src** | **_resolved_open** 为 0 时 **_resolved_freq** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_freq**；为 1 且 **source** 未连接时为 0 |
+| **cst_resolve_active_from_src** | **_resolved_open** 为 0 时 **_resolved_active** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_active** |
+| **cst_resolve_freq_from_src** | **_resolved_open** 为 0 时 **_resolved_freq** 为 0；为 1 且 **source** 已连接时等于 **source._resolved_freq** |
 
 ### cell
 

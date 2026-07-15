@@ -17,7 +17,7 @@ nodes:
     clk_disabled:
       kind: clk
       path: dut.clk_disabled
-      disable: true
+      active: false
     clk_volatile:
       kind: clk
       volatile: true

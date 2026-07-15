@@ -152,7 +152,7 @@ nodes:
 
     clk_disabled:
       kind: clk
-      disable: true
+      active: false
       path: dut.clk_disabled
       source: gate0
 
@@ -220,7 +220,7 @@ nodes:
 
     clk_wide_disabled:
       kind: clk
-      disable: true
+      active: false
       path: dut.clk_wide_disabled
       source: mux_wide
 
