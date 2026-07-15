@@ -91,8 +91,10 @@ DMA 传输由读写命令触发，flow 只负责准备描述符和 request 字�
 | --- | --- |
 | `dma_enable == 0` | 不写 ADMA 描述符 |
 | `dma_sel` 不是 ADMA2/ADMA2_3 | 不写 ADMA 描述符 |
-| `dma_enable == 1` 且 ADMA2/ADMA2_3 | 通过后门写描述符，命令 request 携带 `dma_enable`、`dma_sel` |
+| `dma_enable == 1` 且 ADMA2/ADMA2_3 | 用 `cpu_config_operation_seq` 后门写描述符，命令 request 携带 `dma_enable`、`dma_sel` |
 
 ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA 模式下，命令寄存器使用数据地址 `addr`。
+
+DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写默认前门访问。
 
 读写流程不自己搬 DUT 侧数据。DUT 侧数据搬运由 CPU 访问或 DMA 决定，scoreboard 只接收最终期望和实际数据。

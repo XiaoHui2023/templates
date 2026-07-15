@@ -121,6 +121,7 @@ task {{ class_prefix }}command_operation_seq::write_memory(bit [7:0] data[$]);
             cpu_cfg_request.wdata[j] == local::data[j];
         cpu_cfg_request.len == local::cmd_request.len;
         cpu_cfg_request.access == UVM_WRITE;
+        cpu_cfg_request.path == UVM_BACKDOOR;
     })
 endtask
 
@@ -129,6 +130,7 @@ task {{ class_prefix }}command_operation_seq::read_memory(ref bit [7:0] data[$])
         cpu_cfg_request.addr == local::cmd_request.addr;
         cpu_cfg_request.len == local::cmd_request.len;
         cpu_cfg_request.access == UVM_READ;
+        cpu_cfg_request.path == UVM_BACKDOOR;
     })
     foreach (cpu_cfg_seq.rsp.rdata[j])
         data.push_back(cpu_cfg_seq.rsp.rdata[j]);

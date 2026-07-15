@@ -47,9 +47,11 @@ sequence 从 `p_sequencer.scoreboard` 发送 `uvm_tlm_generic_payload`。scorebo
 | callback task | 用途 |
 | --- | --- |
 | `set_frequence(frequence)` | 调用 testbench/时钟环境设置输入时钟 |
-| `cpu_read(addr, data)` | 按地址读取 32-bit word |
-| `cpu_write(addr, data)` | 按地址写入 32-bit word |
+| `cpu_read(addr, data, path)` | 按 `path` 读取 32-bit word |
+| `cpu_write(addr, data, path)` | 按 `path` 写入 32-bit word |
 
-callback 只接收必要数据，不传 sequencer 句柄、path 或 handled 标记。
+`path` 使用 `UVM_FRONTDOOR` 或 `UVM_BACKDOOR`。kit 手动 CPU 访问默认前门；DMA buffer 和 ADMA descriptor 访问使用后门以提高效率。
+
+callback 只接收必要数据，不传 sequencer 句柄或 handled 标记。
 
 `frequence_set_operation_seq` 和 `cpu_config_operation_seq` 只负责收集参数、拆装 byte/word、触发 callback。它们不是外部依赖注入点。

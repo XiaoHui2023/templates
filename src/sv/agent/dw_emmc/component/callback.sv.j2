@@ -11,17 +11,17 @@ class {{ class_prefix }}callback extends uvm_callback;
     endfunction
 
     extern virtual task set_frequence(int frequence);
-    extern virtual task cpu_read(bit[63:0] addr, output bit[31:0] data);
-    extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data);
+    extern virtual task cpu_read(bit[63:0] addr, output bit[31:0] data, uvm_path_e path);
+    extern virtual task cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
 endclass
 
 task {{ class_prefix }}callback::set_frequence(int frequence);
 endtask
 
-task {{ class_prefix }}callback::cpu_read(bit[63:0] addr, output bit[31:0] data);
+task {{ class_prefix }}callback::cpu_read(bit[63:0] addr, output bit[31:0] data, uvm_path_e path);
 endtask
 
-task {{ class_prefix }}callback::cpu_write(bit[63:0] addr, bit[31:0] data);
+task {{ class_prefix }}callback::cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
 endtask
 
 `endif

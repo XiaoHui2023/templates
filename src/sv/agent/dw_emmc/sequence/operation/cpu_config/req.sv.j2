@@ -6,6 +6,7 @@ class {{ class_prefix }}cpu_config_request extends {{ class_prefix }}base_reques
         `uvm_field_int(addr, UVM_ALL_ON)
         `uvm_field_int(len, UVM_ALL_ON)
         `uvm_field_enum(uvm_access_e, access, UVM_ALL_ON)
+        `uvm_field_enum(uvm_path_e, path, UVM_ALL_ON)
         if(access == UVM_WRITE)
             `uvm_field_queue_int(wdata, UVM_ALL_ON)
     `uvm_object_utils_end
@@ -13,6 +14,7 @@ class {{ class_prefix }}cpu_config_request extends {{ class_prefix }}base_reques
     rand bit[63:0] addr;
     rand int len;
     rand uvm_access_e access;
+    rand uvm_path_e path;
     rand bit[7:0] wdata[$];
 
     function new(string name = "{{ class_prefix }}cpu_config_request");
@@ -21,6 +23,8 @@ class {{ class_prefix }}cpu_config_request extends {{ class_prefix }}base_reques
 
     constraint cst_cpu_config_request {
         access inside {UVM_READ, UVM_WRITE};
+        path inside {UVM_FRONTDOOR, UVM_BACKDOOR};
+        soft path == UVM_FRONTDOOR;
         len > 0;
         if(access == UVM_READ) {
             wdata.size == 0;

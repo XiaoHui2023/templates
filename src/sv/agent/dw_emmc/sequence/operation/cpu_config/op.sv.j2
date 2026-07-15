@@ -15,8 +15,8 @@ class {{ class_prefix }}cpu_config_operation_seq extends {{ class_prefix }}base_
     extern function void pre_randomize();
     extern task body();
     extern task post_start();
-    extern task cpu_read(input bit[63:0] addr, output bit[31:0] data);
-    extern task cpu_write(bit[63:0] addr, bit[31:0] data);
+    extern task cpu_read(input bit[63:0] addr, output bit[31:0] data, uvm_path_e path);
+    extern task cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
 endclass
 
 function void {{ class_prefix }}cpu_config_operation_seq::pre_randomize();
@@ -38,7 +38,7 @@ task {{ class_prefix }}cpu_config_operation_seq::body();
             count = cpu_cfg_request.len;
 
             repeat($ceil(1.0 * count / 4)) begin
-                cpu_read(adr, word);
+                cpu_read(adr, word, cpu_cfg_request.path);
                 { << 8 {q} } = { << 32 {word} };
                 repeat(4)
                     if(count > 0) begin
@@ -66,7 +66,7 @@ task {{ class_prefix }}cpu_config_operation_seq::body();
                     q.push_back(buff.pop_front());
                 {{ "word = {<<32{{<<8{q}}}};" }}
 
-                cpu_write(adr, word);
+                cpu_write(adr, word, cpu_cfg_request.path);
                 adr += 4;
             end
         end
@@ -81,12 +81,12 @@ task {{ class_prefix }}cpu_config_operation_seq::post_start();
             `uvm_fatal("", $psprintf("require %0d rdata, but %0d", cpu_cfg_request.len, rsp.rdata.size))
 endtask
 
-task {{ class_prefix }}cpu_config_operation_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data);
-    p_sequencer.cpu_read(addr, data);
+task {{ class_prefix }}cpu_config_operation_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data, uvm_path_e path);
+    p_sequencer.cpu_read(addr, data, path);
 endtask
 
-task {{ class_prefix }}cpu_config_operation_seq::cpu_write(bit[63:0] addr, bit[31:0] data);
-    p_sequencer.cpu_write(addr, data);
+task {{ class_prefix }}cpu_config_operation_seq::cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
+    p_sequencer.cpu_write(addr, data, path);
 endtask
 
 `endif

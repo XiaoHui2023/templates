@@ -57,16 +57,24 @@ class tb_emmc_callback extends Emmc_ctrl_callback;
 
     task cpu_read(
         bit[63:0] addr,
-        output bit[31:0] data
+        output bit[31:0] data,
+        uvm_path_e path
     );
-        cpu_bus.read32(addr, data);
+        if(path == UVM_BACKDOOR)
+            mem_backdoor.read32(addr, data);
+        else
+            cpu_bus.read32(addr, data);
     endtask
 
     task cpu_write(
         bit[63:0] addr,
-        bit[31:0] data
+        bit[31:0] data,
+        uvm_path_e path
     );
-        cpu_bus.write32(addr, data);
+        if(path == UVM_BACKDOOR)
+            mem_backdoor.write32(addr, data);
+        else
+            cpu_bus.write32(addr, data);
     endtask
 endclass
 ```
@@ -78,7 +86,7 @@ cb = tb_emmc_callback::type_id::create("cb");
 uvm_callbacks#(Emmc_ctrl_sequencer, Emmc_ctrl_callback)::add(env.emmc_agent.sqr, cb);
 ```
 
-调频、CPU 读、CPU 写都通过 callback。callback 只传必要数据：频率、地址和 32-bit word。
+调频、CPU 读、CPU 写都通过 callback。CPU callback 传地址、32-bit word 和 `path`；`UVM_FRONTDOOR` 用于普通 CPU 访问，`UVM_BACKDOOR` 用于 DMA buffer 和 ADMA descriptor 准备/回读。
 
 ## Scoreboard
 

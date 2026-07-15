@@ -110,6 +110,7 @@ task {{ class_prefix }}kit_sequencer::cpu_read_bytes(bit[63:0] addr, int len, re
     seq.set_item_context(null, this);
     if(!seq.randomize() with {
         cpu_cfg_request.access == UVM_READ;
+        cpu_cfg_request.path == UVM_FRONTDOOR;
         cpu_cfg_request.addr == local::addr;
         cpu_cfg_request.len == local::len;
     })
@@ -127,6 +128,7 @@ task {{ class_prefix }}kit_sequencer::cpu_write_bytes(bit[63:0] addr, const ref 
     seq.set_item_context(null, this);
     if(!seq.randomize() with {
         cpu_cfg_request.access == UVM_WRITE;
+        cpu_cfg_request.path == UVM_FRONTDOOR;
         cpu_cfg_request.addr == local::addr;
         cpu_cfg_request.len == local::write_len;
     })
