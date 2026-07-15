@@ -9,7 +9,6 @@ src/c/pll_mini/bin/**
 **/.jinja-build-direct-config-out*/
 **/.jinja-build-*.yaml
 .tmp_aliyun_ocr/
-.tmp_*_render/
 # C 模板单元 Agent 专档，仅本机维护，不提交远程
 src/c/*/SKILL.md
 src/c/pll_mini/example/*.bat
