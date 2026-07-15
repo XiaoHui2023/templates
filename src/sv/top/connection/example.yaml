@@ -1,4 +1,4 @@
-class_prefix: connection_
+class_prefix: Connection
 default_data_width: 1
 default_latency: 5
 time_unit: 1ns

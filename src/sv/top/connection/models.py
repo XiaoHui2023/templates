@@ -3,9 +3,9 @@ from pydantic import BaseModel, Field
 
 class Models(BaseModel):
     class_prefix: str = Field(
-        "connection_",
+        "Connection",
         min_length=1,
-        description="Prefix for generated symbols. The interface name is '<class_prefix>interface'.",
+        description="PascalCase prefix for generated symbols. The interface name is '<class_prefix>Interface'.",
     )
     default_data_width: int = Field(
         1,

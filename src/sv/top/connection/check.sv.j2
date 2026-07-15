@@ -1,0 +1,44 @@
+`ifndef {{ (class_prefix ~ 'Check') | upper }}
+`define {{ (class_prefix ~ 'Check') | upper }}
+
+`define _{{ class_prefix }}CheckImpl(SRC, DST, DELAY) \
+begin \
+    logic [$bits(SRC)-1:0] __connection_src_value; \
+    logic [$bits(SRC)-1:0] __connection_force_value; \
+    \
+    __connection_src_value = SRC; \
+    if ((DST) !== (SRC)) begin \
+        `uvm_error( \
+            "{{ class_prefix }}Connection", \
+            $sformatf( \
+                "%m connection mismatch before force: source=0x%0h target=0x%0h", \
+                SRC, \
+                DST \
+            ) \
+        ) \
+    end \
+    \
+    __connection_force_value = ~__connection_src_value; \
+    force SRC = __connection_force_value; \
+    #(DELAY); \
+    if ((DST) !== __connection_force_value) begin \
+        `uvm_error( \
+            "{{ class_prefix }}Connection", \
+            $sformatf( \
+                "%m connection mismatch after force: source=0x%0h target=0x%0h expected=0x%0h", \
+                SRC, \
+                DST, \
+                __connection_force_value \
+            ) \
+        ) \
+    end \
+    release SRC; \
+end
+
+`define {{ class_prefix }}Check(SRC, DST) \
+`_{{ class_prefix }}CheckImpl(SRC, DST, 0ns)
+
+`define {{ class_prefix }}CheckDelay(SRC, DST, DELAY) \
+`_{{ class_prefix }}CheckImpl(SRC, DST, DELAY)
+
+`endif

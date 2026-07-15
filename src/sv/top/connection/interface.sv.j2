@@ -1,7 +1,7 @@
-`ifndef {{ (class_prefix ~ 'interface') | upper }}
-`define {{ (class_prefix ~ 'interface') | upper }}
+`ifndef {{ (class_prefix ~ 'Interface') | upper }}
+`define {{ (class_prefix ~ 'Interface') | upper }}
 
-interface {{ class_prefix }}interface #(
+interface {{ class_prefix }}Interface #(
     parameter int DW = {{ default_data_width }},
     parameter real LATENCY = {{ default_latency }},
     parameter bit CHECK_ENABLE_DEFAULT = {{ 1 if check_enable_default else 0 }}
@@ -147,7 +147,7 @@ interface {{ class_prefix }}interface #(
         input realtime output_time
     );
         `uvm_error(
-            "{{ class_prefix }}connection",
+            "{{ class_prefix }}Connection",
             $sformatf(
                 "%s: path=%s expected=0x%h actual=0x%h input_time=%0.3f output_time=%0.3f latency=%0.3f",
                 reason,
@@ -171,7 +171,7 @@ interface {{ class_prefix }}interface #(
         input realtime check_time
     );
         `uvm_error(
-            "{{ class_prefix }}connection",
+            "{{ class_prefix }}Connection",
             $sformatf(
                 "%s: path=%s expected=0x%h actual=0x%h check_time=%0.3f",
                 reason,
