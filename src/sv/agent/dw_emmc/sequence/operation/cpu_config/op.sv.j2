@@ -15,8 +15,8 @@ class {{ class_prefix }}cpu_config_operation_seq extends {{ class_prefix }}base_
     extern function void pre_randomize();
     extern task body();
     extern task post_start();
-    extern task cpu_read(input bit[63:0] addr, output bit[31:0] data, uvm_path_e path);
-    extern task cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
+    extern task cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
+    extern task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
 endclass
 
 function void {{ class_prefix }}cpu_config_operation_seq::pre_randomize();
@@ -81,11 +81,11 @@ task {{ class_prefix }}cpu_config_operation_seq::post_start();
             `uvm_fatal("", $psprintf("require %0d rdata, but %0d", cpu_cfg_request.len, rsp.rdata.size))
 endtask
 
-task {{ class_prefix }}cpu_config_operation_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data, uvm_path_e path);
+task {{ class_prefix }}cpu_config_operation_seq::cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
     p_sequencer.cpu_read(addr, data, path);
 endtask
 
-task {{ class_prefix }}cpu_config_operation_seq::cpu_write(bit[63:0] addr, bit[31:0] data, uvm_path_e path);
+task {{ class_prefix }}cpu_config_operation_seq::cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
     p_sequencer.cpu_write(addr, data, path);
 endtask
 

@@ -56,9 +56,9 @@ class tb_emmc_callback extends Emmc_ctrl_callback;
     endtask
 
     task cpu_read(
-        bit[63:0] addr,
+        input bit[63:0] addr,
         output bit[31:0] data,
-        uvm_path_e path
+        input uvm_path_e path
     );
         if(path == UVM_BACKDOOR)
             mem_backdoor.read32(addr, data);
@@ -67,9 +67,9 @@ class tb_emmc_callback extends Emmc_ctrl_callback;
     endtask
 
     task cpu_write(
-        bit[63:0] addr,
-        bit[31:0] data,
-        uvm_path_e path
+        input bit[63:0] addr,
+        input bit[31:0] data,
+        input uvm_path_e path
     );
         if(path == UVM_BACKDOOR)
             mem_backdoor.write32(addr, data);

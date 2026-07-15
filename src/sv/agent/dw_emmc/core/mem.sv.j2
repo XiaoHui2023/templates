@@ -12,13 +12,13 @@ class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
 
     extern function void clear();
     extern function void ensure_size(longint unsigned size);
-    extern function void write(longint unsigned addr, const ref bit[7:0] bytes[$]);
-    extern function bit read(longint unsigned addr, int len, ref bit[7:0] bytes[$], output string message);
-    extern function bit compare(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
+    extern function void write(input longint unsigned addr, ref bit[7:0] bytes[$]);
+    extern function bit read(input longint unsigned addr, input int len, ref bit[7:0] bytes[$], output string message);
+    extern function bit compare(input longint unsigned addr, ref bit[7:0] actual[$], input string label = "");
     extern function bit load_hex(string filename, longint unsigned base_addr = 0);
     extern function bit load_memh(string filename, longint unsigned base_addr = 0);
-    extern function bit hex_digit(byte unsigned ch, output bit[3:0] value);
-    extern function bit append_hex_token(string token, ref bit[7:0] bytes[$], output string message);
+    extern function bit hex_digit(input byte unsigned ch, output bit[3:0] value);
+    extern function bit append_hex_token(input string token, ref bit[7:0] bytes[$], output string message);
 endclass
 
 function void {{ class_prefix }}mem::clear();
@@ -30,13 +30,13 @@ function void {{ class_prefix }}mem::ensure_size(longint unsigned size);
         data.push_back('0);
 endfunction
 
-function void {{ class_prefix }}mem::write(longint unsigned addr, const ref bit[7:0] bytes[$]);
+function void {{ class_prefix }}mem::write(input longint unsigned addr, ref bit[7:0] bytes[$]);
     ensure_size(addr + bytes.size());
     foreach(bytes[j])
         data[addr + j] = bytes[j];
 endfunction
 
-function bit {{ class_prefix }}mem::read(longint unsigned addr, int len, ref bit[7:0] bytes[$], output string message);
+function bit {{ class_prefix }}mem::read(input longint unsigned addr, input int len, ref bit[7:0] bytes[$], output string message);
     bytes.delete();
     if(addr + len > data.size()) begin
         message = $psprintf("read [0x%0h:+%0d] exceeds memory size %0d", addr, len, data.size());
@@ -48,7 +48,7 @@ function bit {{ class_prefix }}mem::read(longint unsigned addr, int len, ref bit
     return 1;
 endfunction
 
-function bit {{ class_prefix }}mem::compare(longint unsigned addr, const ref bit[7:0] actual[$], string label = "");
+function bit {{ class_prefix }}mem::compare(input longint unsigned addr, ref bit[7:0] actual[$], input string label = "");
     bit[7:0] expected[$];
     string message;
 
@@ -138,7 +138,7 @@ function bit {{ class_prefix }}mem::load_memh(string filename, longint unsigned 
     return 1;
 endfunction
 
-function bit {{ class_prefix }}mem::hex_digit(byte unsigned ch, output bit[3:0] value);
+function bit {{ class_prefix }}mem::hex_digit(input byte unsigned ch, output bit[3:0] value);
     if(ch >= 8'h30 && ch <= 8'h39) begin
         value = ch - 8'h30;
         return 1;
@@ -154,7 +154,7 @@ function bit {{ class_prefix }}mem::hex_digit(byte unsigned ch, output bit[3:0] 
     return 0;
 endfunction
 
-function bit {{ class_prefix }}mem::append_hex_token(string token, ref bit[7:0] bytes[$], output string message);
+function bit {{ class_prefix }}mem::append_hex_token(input string token, ref bit[7:0] bytes[$], output string message);
     bit[3:0] nibbles[$];
     bit[3:0] value;
 
