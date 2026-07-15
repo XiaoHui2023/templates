@@ -30,6 +30,22 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
         {{ class_prefix }}configuration cfg,
         {{ class_prefix }}register_access register_access,
         output bit ok);
+    extern protected task activate_transfer_cs(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
+        output bit cs_started);
+    extern protected task release_transfer_cs(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}register_access register_access,
+        input bit cs_started);
+    extern protected task write_pio_stream_under_cs(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
+        input bit [7:0] dr_bytes[$],
+        output bit cs_started,
+        output bit ok);
 {% if internal_dma %}
     extern protected task cpu_write_payload_to_axi(
         bit [31:0] axi_addr,
@@ -53,8 +69,11 @@ task {{ class_prefix }}transfer_seq::body();
     bit pio_ok;
     bit dma_ok;
     bit completion_ok;
+    bit cs_started;
+    bit record_write_expected;
     bit [7:0] write_data[$];
     bit [7:0] pio_dr_bytes[$];
+    string write_reason;
     byte unsigned gp_data[];
 
     if (req == null)
@@ -65,6 +84,9 @@ task {{ class_prefix }}transfer_seq::body();
         `uvm_fatal("DW_SPI", "transfer: sequencer scoreboard is null")
     rq = req;
     command = rq.payload.get_command();
+    cs_started = 1'b0;
+    record_write_expected = 1'b0;
+    write_reason = "";
     rs = {{ class_prefix }}transfer_rsp::type_id::create("rsp");
     `uvm_info("DW_SPI_XFER", $sformatf(
         "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h length=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
@@ -103,20 +125,12 @@ task {{ class_prefix }}transfer_seq::body();
     register_access.report_context = p_sequencer;
     `uvm_info("DW_SPI_XFER", "applying controller register configuration", UVM_LOW)
     register_access.apply_configuration(cfg);
-    if (rq.cs_control_mode == SOFTWARE_CS) begin
-        `uvm_info("DW_SPI_XFER", $sformatf(
-            "activating software chip select through callback: cs=%0d",
-            rq.cs_id), UVM_LOW)
-        p_sequencer.activate_chip_select(rq.cs_id);
-    end else begin
-        `uvm_info("DW_SPI_XFER", $sformatf(
-            "using hardware chip select through SER: cs=%0d",
-            rq.cs_id), UVM_LOW)
-    end
+    `uvm_info("DW_SPI_XFER", "controller configured with SER released; transfer sequence will select CS at the transaction boundary", UVM_LOW)
 {% if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
-        `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; waiting for configured completion", UVM_LOW)
+        `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; selecting CS before waiting for configured completion", UVM_LOW)
+        activate_transfer_cs(rq, cfg, register_access, cs_started);
     end
     else begin
         pio_ok = 1'b1;
@@ -126,8 +140,8 @@ task {{ class_prefix }}transfer_seq::body();
             `uvm_info("DW_SPI_XFER", $sformatf(
                 "PIO path: writing command/address/data stream to DR: bytes=%0d",
                 pio_dr_bytes.size()), UVM_LOW)
-            register_access.write_bytes_to_dr(
-                pio_dr_bytes, "pio_command_address_data", pio_ok);
+            write_pio_stream_under_cs(
+                rq, cfg, register_access, pio_dr_bytes, cs_started, pio_ok);
         end
     end
 {% else %}
@@ -138,8 +152,8 @@ task {{ class_prefix }}transfer_seq::body();
         `uvm_info("DW_SPI_XFER", $sformatf(
             "PIO path: writing command/address/data stream to DR: bytes=%0d",
             pio_dr_bytes.size()), UVM_LOW)
-        register_access.write_bytes_to_dr(
-            pio_dr_bytes, "pio_command_address_data", pio_ok);
+        write_pio_stream_under_cs(
+            rq, cfg, register_access, pio_dr_bytes, cs_started, pio_ok);
     end
 {% endif %}
 {% if internal_dma %}
@@ -148,18 +162,19 @@ task {{ class_prefix }}transfer_seq::body();
             wait_transfer_completion(rq, cfg, register_access, completion_ok);
             dma_ok = dma_ok && completion_ok;
         end
+        release_transfer_cs(rq, register_access, cs_started);
         if (dma_ok && command == UVM_TLM_READ_COMMAND) begin
             `uvm_info("DW_SPI_XFER", "internal DMA read path: reading destination buffer through CPU callback", UVM_LOW)
             cpu_read_payload_from_axi(
                 rq.axi_addr, rq.payload.get_data_length(), rs.read_data, dma_ok);
         end
         if (dma_ok && command == UVM_TLM_WRITE_COMMAND) begin
-            `uvm_info("DW_SPI_XFER", "internal DMA write path: recording expected payload in scoreboard", UVM_LOW)
+            `uvm_info("DW_SPI_XFER", "internal DMA write path: staging expected payload for scoreboard", UVM_LOW)
             rq.payload.get_data(gp_data);
             foreach (gp_data[i])
                 write_data.push_back(gp_data[i]);
-            dma_ok = p_sequencer.scoreboard.record_expected_write(
-                rq.payload.get_address(), write_data, "internal_dma_write");
+            record_write_expected = 1'b1;
+            write_reason = "internal_dma_write";
         end
         rs.ok = dma_ok;
     end
@@ -172,13 +187,14 @@ task {{ class_prefix }}transfer_seq::body();
             wait_transfer_completion(rq, cfg, register_access, completion_ok);
             pio_ok = pio_ok && completion_ok;
         end
+        release_transfer_cs(rq, register_access, cs_started);
         if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
-            `uvm_info("DW_SPI_XFER", "PIO write path: recording expected payload in scoreboard", UVM_LOW)
+            `uvm_info("DW_SPI_XFER", "PIO write path: staging expected payload for scoreboard", UVM_LOW)
             rq.payload.get_data(gp_data);
             foreach (gp_data[i])
                 write_data.push_back(gp_data[i]);
-            pio_ok = p_sequencer.scoreboard.record_expected_write(
-                rq.payload.get_address(), write_data, "pio_write");
+            record_write_expected = 1'b1;
+            write_reason = "pio_write";
         end
         rs.ok = pio_ok;
     end
@@ -191,21 +207,23 @@ task {{ class_prefix }}transfer_seq::body();
         wait_transfer_completion(rq, cfg, register_access, completion_ok);
         pio_ok = pio_ok && completion_ok;
     end
+    release_transfer_cs(rq, register_access, cs_started);
     if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
-        `uvm_info("DW_SPI_XFER", "PIO write path: recording expected payload in scoreboard", UVM_LOW)
+        `uvm_info("DW_SPI_XFER", "PIO write path: staging expected payload for scoreboard", UVM_LOW)
         rq.payload.get_data(gp_data);
         foreach (gp_data[i])
             write_data.push_back(gp_data[i]);
-        pio_ok = p_sequencer.scoreboard.record_expected_write(
-            rq.payload.get_address(), write_data, "pio_write");
+        record_write_expected = 1'b1;
+        write_reason = "pio_write";
     end
     rs.ok = pio_ok;
 {% endif %}
-    if (rq.cs_control_mode == SOFTWARE_CS) begin
+    if (rs.ok && record_write_expected) begin
         `uvm_info("DW_SPI_XFER", $sformatf(
-            "releasing software chip select through callback: cs=%0d",
-            rq.cs_id), UVM_LOW)
-        p_sequencer.release_chip_select(rq.cs_id);
+            "recording expected payload in scoreboard after CS release: reason=%s bytes=%0d",
+            write_reason, write_data.size()), UVM_LOW)
+        rs.ok = p_sequencer.scoreboard.record_expected_write(
+            rq.payload.get_address(), write_data, write_reason);
     end
     `uvm_info("DW_SPI_XFER", $sformatf(
         "transfer done: ok=%0b protocol=%s mode=%s cs_mode=%s address=0x%0h length=%0d read_bytes=%0d",
@@ -217,6 +235,112 @@ task {{ class_prefix }}transfer_seq::body();
         rq.payload.get_data_length(),
         rs.read_data.size()), UVM_LOW)
     rsp = rs;
+endtask
+
+task {{ class_prefix }}transfer_seq::activate_transfer_cs(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
+        output bit cs_started);
+    cs_started = 1'b0;
+    if (rq == null)
+        `uvm_fatal("DW_SPI", "transfer: req is null")
+    if (cfg == null)
+        `uvm_fatal("DW_SPI", "transfer: configuration is null")
+    if (register_access == null)
+        `uvm_fatal("DW_SPI", "transfer: register_access is null")
+
+    if (rq.cs_control_mode == SOFTWARE_CS) begin
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "activating software chip select through callback: cs=%0d",
+            rq.cs_id), UVM_LOW)
+        p_sequencer.activate_chip_select(rq.cs_id);
+    end
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "selecting hardware chip through SER at transaction boundary: cs=%0d ser=0x%0h",
+        rq.cs_id, cfg.ser), UVM_LOW)
+    register_access.select_hardware_chip(cfg.ser);
+    cs_started = 1'b1;
+endtask
+
+task {{ class_prefix }}transfer_seq::release_transfer_cs(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}register_access register_access,
+        input bit cs_started);
+    if (!cs_started)
+        return;
+    if (rq == null)
+        `uvm_fatal("DW_SPI", "transfer: req is null")
+    if (register_access == null)
+        `uvm_fatal("DW_SPI", "transfer: register_access is null")
+
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "releasing hardware chip select after transaction: cs=%0d",
+        rq.cs_id), UVM_LOW)
+    register_access.release_hardware_chip_selects();
+    if (rq.cs_control_mode == SOFTWARE_CS) begin
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "releasing software chip select through callback: cs=%0d",
+            rq.cs_id), UVM_LOW)
+        p_sequencer.release_chip_select(rq.cs_id);
+    end
+endtask
+
+task {{ class_prefix }}transfer_seq::write_pio_stream_under_cs(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
+        input bit [7:0] dr_bytes[$],
+        output bit cs_started,
+        output bit ok);
+    bit [7:0] prefill_bytes[$];
+    bit [7:0] remaining_bytes[$];
+    int prefill_count;
+
+    ok = 1'b1;
+    cs_started = 1'b0;
+    if (rq == null)
+        `uvm_fatal("DW_SPI", "transfer: req is null")
+    if (cfg == null)
+        `uvm_fatal("DW_SPI", "transfer: configuration is null")
+    if (register_access == null)
+        `uvm_fatal("DW_SPI", "transfer: register_access is null")
+    if (p_sequencer.settings == null)
+        `uvm_fatal("DW_SPI", "transfer: settings is null")
+
+    if (dr_bytes.size() == 0) begin
+        `uvm_info("DW_SPI_XFER", "PIO stream is empty; no CS transaction is started", UVM_LOW)
+        return;
+    end
+
+    prefill_count = dr_bytes.size();
+    if (prefill_count > p_sequencer.settings.fifo_depth_bytes)
+        prefill_count = p_sequencer.settings.fifo_depth_bytes;
+    foreach (dr_bytes[i]) begin
+        if (i < prefill_count)
+            prefill_bytes.push_back(dr_bytes[i]);
+        else
+            remaining_bytes.push_back(dr_bytes[i]);
+    end
+
+    `uvm_info("DW_SPI_XFER", $sformatf(
+        "PIO CS-atomic stream: prefill_before_cs=%0d remaining_under_cs=%0d fifo_depth_bytes=%0d",
+        prefill_bytes.size(),
+        remaining_bytes.size(),
+        p_sequencer.settings.fifo_depth_bytes), UVM_LOW)
+    register_access.write_bytes_to_dr(
+        prefill_bytes, "pio_prefill_before_cs", ok);
+    if (!ok)
+        return;
+
+    activate_transfer_cs(rq, cfg, register_access, cs_started);
+    if (remaining_bytes.size() != 0) begin
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "PIO path: feeding remaining DR bytes while CS is active: bytes=%0d",
+            remaining_bytes.size()), UVM_LOW)
+        register_access.write_bytes_to_dr(
+            remaining_bytes, "pio_remaining_under_cs", ok);
+    end
 endtask
 
 // Reports whether this transfer may use the local internal-DMA done interrupt.

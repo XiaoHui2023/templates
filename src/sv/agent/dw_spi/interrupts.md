@@ -23,9 +23,23 @@
 
 ## PIO Completion
 
-PIO 写流程写完 DR stream 后，等待 `SR.TFE && !SR.BUSY` 收尾，再把 payload 记录为 scoreboard expected data。
+PIO 写流程：
 
-PIO 读流程先写 read command/address 的 DR stream，再用 `SR.RFNE` 从 `DR` 读回 actual data，最后等待 `SR.TFE && !SR.BUSY` 收尾，并由 flow/test 把 actual read data 送入 scoreboard 比较。
+1. 在 `SER=0` 时预填部分 DR stream。
+2. 选中 CS。
+3. 在 CS 有效期间继续写剩余 DR stream。
+4. 等待 `SR.TFE && !SR.BUSY` 收尾。
+5. 释放 CS。
+6. 把 payload 记录为 scoreboard expected data。
+
+PIO 读流程：
+
+1. 在 `SER=0` 时预填 read command/address DR stream。
+2. 选中 CS。
+3. 用 `SR.RFNE` 从 `DR` 读回 actual data。
+4. 等待 `SR.TFE && !SR.BUSY` 收尾。
+5. 释放 CS。
+6. flow/test 把 actual read data 送入 scoreboard 比较。
 
 PIO 读必须先 drain RX FIFO，再等待最终 idle，避免 RX FIFO 因等待无关中断而溢出。
 
@@ -35,9 +49,11 @@ PIO 读必须先 drain RX FIFO，再等待最终 idle，避免 RX FIFO 因等待
 
 1. 内置 DMA 写 transfer 启动前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 2. 配置 `DMACR.IDMAE/AINC`、方向握手位、`AXIAWLEN/AXIARLEN/SPIDR/SPIAR/AXIAR0`。
-3. 若 `completion_mode` 是 `PREFER_INTERRUPT_COMPLETION` 且 `intr` 已连接，等待 top `intr`，再读取 `ISR.DONES`。
-4. 若 `intr` 未连接，退回轮询 `SR.TFE && !SR.BUSY`。
-5. `INTERRUPT_COMPLETION` 强制要求 top `intr` 和内置 DMA transfer。
+3. 选中 CS，启动控制器内部 DMA transfer。
+4. 若 `completion_mode` 是 `PREFER_INTERRUPT_COMPLETION` 且 `intr` 已连接，等待 top `intr`，再读取 `ISR.DONES`。
+5. 若 `intr` 未连接，退回轮询 `SR.TFE && !SR.BUSY`。
+6. 释放 CS。
+7. 内置 DMA 读 transfer 在释放 CS 后，通过 callback `cpu_read(addr, word, UVM_BACKDOOR)` 从 `axi_addr` 读回 actual data。
 
 外部 DMA 只生成 `DMACR.RDMAE/TDMAE` 和 threshold 配置；外部 DMA engine 的启动、完成与 buffer 管理由环境补齐。当前模板不把 `ISR.DONES` 用作外部 DMA 默认完成源。
 

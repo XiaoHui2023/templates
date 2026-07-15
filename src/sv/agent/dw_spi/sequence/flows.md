@@ -10,7 +10,7 @@
 4. 与各自最低频率比较，默认最低 24 MHz，默认容差 1%。
 5. 不检查 `sclk_out`，也不检查 `hclk` 与 `ssi_clk` 的频率关系。
 
-`ssi_clk` 是控制器输入参考时钟。`sclk_out` 由 register configuration 阶段按 `BAUDR` 公式推导。
+`ssi_clk` 是控制器输入参考时钟。`sclk_out = ssi_clk / BAUDR`，由 register configuration 阶段根据公式推导。
 
 ## Init Registers
 
@@ -26,14 +26,18 @@
 ## Primitive Transfer
 
 1. `transfer_seq` 检查 req、payload、scoreboard。
-2. 生成并应用本次寄存器 `configuration`。
-3. 按 `cs_control_mode` 处理片选：`HARDWARE_CS` 使用 `SER`，`SOFTWARE_CS` 调用 `p_sequencer.activate_chip_select(cs_id)`。
-4. 内置 DMA 写 transfer 在启动前通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
-5. 非 DMA PIO 构造 DR byte stream：flash 协议包含 opcode、big-endian 地址字节；写传输追加 payload。随后等待 `SR.TFNF` 并逐 byte 写 `DR`。
-6. PIO 读传输等待 `SR.RFNE` 并从 `DR` 读回 actual byte；内置 DMA 读传输在 completion 后通过 callback `cpu_read(addr, word, UVM_BACKDOOR)` 从 `axi_addr` 读回 actual byte。
-7. 按 `configuration.completion_mode` 等待 completion。
-8. `SOFTWARE_CS` 调用 `p_sequencer.release_chip_select(cs_id)`；`HARDWARE_CS` 不调用片选 callback。
-9. 写入 rsp，包括 `ok` 和实际读回数据。
+2. 生成本次寄存器 `configuration`。
+3. 内置 DMA 写 transfer 在启动控制器前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
+4. 调用 `register_access.apply_configuration()`。该阶段会关闭控制器、清中断、清 `SER`、配置寄存器、重新使能控制器，但不会选中片选。
+5. 非 DMA PIO 构造 DR byte stream。flash 协议包含 opcode、大端地址字节；写传输追加 payload。命令-only 传输 payload 长度为 0，但 DR stream 仍包含 opcode。
+6. PIO 在 `SER=0` 时先向 `DR` 预填不超过 `settings.fifo_depth_bytes` 的字节，降低硬件 CS 选中后 TX FIFO 立刻空掉的风险。
+7. 到 transaction 边界时选中 CS：`HARDWARE_CS` 写 `SER.SER = cfg.ser`；`SOFTWARE_CS` 先调用 `p_sequencer.activate_chip_select(cs_id)`，再写 `SER.SER = cfg.ser`。
+8. PIO 写 transfer 在 CS 有效期间继续等待 `SR.TFNF` 并写剩余 `DR` 字节。PIO 读 transfer 在 CS 有效期间等待 `SR.RFNE` 并从 `DR` 读回 actual byte。
+9. 按 `configuration.completion_mode` 等待 completion。内置 DMA 可用 top `intr` + `ISR.DONES`；非 DMA PIO 使用 `SR.TFE && !SR.BUSY`。
+10. 释放 CS：先写 `SER.SER = 0`，如果是 `SOFTWARE_CS` 再调用 `p_sequencer.release_chip_select(cs_id)`。
+11. 写传输在 CS 释放后更新 scoreboard expected data；读传输把从 `DR` 或 DMA buffer 得到的 actual data 放入 rsp。
+
+一个 primitive transfer 对应一个完整 SPI transaction 边界。需要连续的 opcode + address + dummy + data 必须放在同一个 primitive transfer 内，不能拆成多个 CS window。
 
 ## Completion Rule
 
@@ -50,9 +54,9 @@
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
 2. 创建 operation transfer req 和 `uvm_tlm_generic_payload`。
 3. payload command 设为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读取长度。
-4. 协议设为 `FLASH_SPI`，transfer mode 设为 `RX_ONLY`，让 enhanced 模式下 `SPI_CTRLR0.WAIT_CYCLES` 生效。
+4. 协议设为 `FLASH_SPI`，transfer mode 设为 `RX_ONLY`，让 enhanced 模式中 `SPI_CTRLR0.WAIT_CYCLES` 生效。
 5. opcode 映射：1x standard `8'h03`，1x enhanced `8'h0B`，2x `8'hBB`，4x `8'hEB`。
-6. 启动 `transfer_seq`。
+6. 同一个 primitive transfer 内完成 opcode + address + dummy + read data，CS 不能在中间断开。
 7. flow sequence 保存 transfer rsp 的 `read_data`，并调用 scoreboard 比较 actual read data。
 
 地址是 32 bit flash/model 地址，不是寄存器地址。
@@ -60,12 +64,12 @@
 ## Flash Write
 
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
-2. 启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。
-3. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。
+2. 先启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
+3. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。opcode + address + payload 必须在同一个 CS window 内连续发送。
 4. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为写入 byte 队列。
-5. flow sequence 记录 `ok` 和 `bytes_written`。
+5. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
 
-当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、QE/WRSR 和 256B 分页写限制。
+当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、QE/WRSR 和 256B 分页写限制；这些属于完整 SPI-NOR 行为建模，已作为后续扩展点记录。
 
 ## RW Test
 
@@ -75,15 +79,16 @@
 2. `write_data` 为空时随机生成一段数据，长度来自 Python `default_rw_data_bytes`，默认 256 byte。
 3. 启动 `flash_write`。
 4. 启动同地址同长度的 `flash_read`。
-5. 调用 `scoreboard.check_actual_read(address, read_data, "rw_readback_actual")`，比较对象是真实读传输从 `DR` 或 DMA buffer 读回的 actual data。
+5. 调用 `scoreboard.check_actual_read(address, read_data, "rw_readback_actual")`。比较对象是真实读传输从 `DR` 或 DMA buffer 读回的 actual data。
 
 ## DMA Transfer
 
 1. Python 通过 `internal_dma` / `external_dma` 选择生成内置 DMA、外部 DMA 或无 DMA，二者不能同时开启。
 2. 无 DMA 时不生成 `use_dma` 和 DMA 寄存器配置。
 3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；builder 转换成 `DMACR.RDMAE/TDMAE/IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`。
-4. 外部 DMA 时，只配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
-5. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
+4. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source buffer；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
+5. 外部 DMA 只配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
+6. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
 
 ## Log Verbosity
 

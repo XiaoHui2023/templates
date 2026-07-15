@@ -8,20 +8,27 @@
 2. 用 `$cast()` 把 configuration 里的枚举值转换成本工具类的枚举类型。
 3. 写 `SSIENR.SSIC_EN = 0`，关闭控制器。
 4. 配置 `IMR` 并写 `ICR` 清旧中断状态；这里不等待 `intr`，也不轮询 `ISR.DONES`。
-5. 写 `SER.SER = 0`，释放片选。
+5. 写 `SER.SER = 0`，释放所有片选。
 6. 通过大写 REG/FIELD 句柄配置 `CTRLR0`、`SPI_CTRLR0`、`CTRLR1`、`BAUDR`、FIFO threshold、DMA threshold、DMA 寄存器和 `RX_SAMPLE_DELAY`。
-7. 写 `SER.SER` 选择本次 chip select。
-8. 写 `SSIENR.SSIC_EN = 1` 使能控制器。
+7. 写 `SSIENR.SSIC_EN = 1` 使能控制器。
+8. 返回时仍保持 `SER.SER = 0`。真正选中片选由 `sequence/operation/transfer` 在 PIO 预填 FIFO 或 DMA 启动边界完成。
 
 真正的 transfer completion 等待发生在 `sequence/operation/transfer`，位于寄存器配置、片选激活、PIO/DMA 启动之后。
 
-## Completion Helpers
-
-core 提供两个窄工具：
+## Chip Select Helpers
 
 | Task | 用途 |
 | --- | --- |
-| `wait_idle()` | 轮询 `SR.TFE && !SR.BUSY`，用于 PIO、外部 DMA fallback、或无完成中断的内置 DMA fallback。 |
+| `select_hardware_chip()` | 写 `SER.SER = cfg.ser`，在 transaction 边界选中硬件片选。 |
+| `release_hardware_chip_selects()` | 写 `SER.SER = 0`，在 transaction 完成后释放所有硬件片选。 |
+
+core 只执行寄存器动作，不判断本次是硬件 CS 还是软件 CS。软件 CS callback 的调用顺序由 transfer sequence 编排。
+
+## Completion Helpers
+
+| Task | 用途 |
+| --- | --- |
+| `wait_idle()` | 轮询 `SR.TFE && !SR.BUSY`，用于 PIO、外部 DMA fallback，或无完成中断的内置 DMA fallback。 |
 | `check_internal_dma_dones()` | 读取 `ISR.DONES`，只用于内置 DMA top `intr` 触发后的完成确认。 |
 
 core 不决定 completion mode，也不判断本次是否 DMA；这些决策在 sequence 层完成。非 DMA PIO 不调用 `check_internal_dma_dones()`。

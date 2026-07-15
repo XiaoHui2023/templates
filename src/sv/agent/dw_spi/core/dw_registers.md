@@ -1,6 +1,6 @@
 # DesignWare SPI Registers
 
-代码访问 regmodel 时使用大写 REG/FIELD 句柄。大量访问同一 regmodel 时，task 内先保存 `rm = settings.regmodel`，后续写 `rm.CTRLR0`、`rm.BAUDR`、`rm.CTRLR0.SPI_FRF`。寄存器地址由 regmodel 托管，本文件只记录字段语义和配置顺序。
+代码访问 regmodel 时使用大写 REG/FIELD 句柄。大量访问同一个 regmodel 时，task 内先保存 `rm = settings.regmodel`，后续写 `rm.CTRLR0`、`rm.BAUDR`、`rm.CTRLR0.SPI_FRF`。寄存器地址由 regmodel 托管，本文件只记录字段语义和配置顺序。
 
 ## 配置顺序
 
@@ -8,8 +8,8 @@
 2. 写 `IMR` 配置 FIFO/error mask，写 `ICR` 清旧中断状态。
 3. 写 `SER.SER = 0` 释放片选。
 4. 写 `CTRLR0`、`SPI_CTRLR0`、`CTRLR1`、`BAUDR`、FIFO threshold、DMA threshold、DMA 地址寄存器、`RX_SAMPLE_DELAY`。
-5. 写 `SER.SER` 选择目标片选。
-6. 写 `SSIENR.SSIC_EN = 1` 打开控制器。
+5. 写 `SSIENR.SSIC_EN = 1` 打开控制器。
+6. 保持 `SER.SER = 0` 返回。`SER.SER = cfg.ser` 由 transfer sequence 在 PIO FIFO 预填或 DMA 启动边界执行；completion 后必须写回 0。
 
 字段配置时先用 REG `read()` 刷新镜像，再用 FIELD `set()`，最后对所属 REG 调 `write()`。`status` 只作为 RAL API 形参保留，不逐次检查 `UVM_IS_OK`。不要使用 `update()`，不要在 core 里拼接完整寄存器值，也不要在 `configuration` 里保存寄存器地址。
 
@@ -58,7 +58,7 @@ NDF = max(frames, 1) - 1
 | `SPI_RXDS_EN` | Read data strobe enable |
 | `INST_DDR_EN` | Instruction DDR enable |
 | `SPI_DDR_EN` | SPI DDR enable |
-| `WAIT_CYCLES` | dual/quad mode control frames 和 data reception 之间的 wait cycles |
+| `WAIT_CYCLES` | dual/quad mode control frames 与 data reception 之间的 wait cycles |
 | `INST_L` | 0=no instruction，1=4 bit，2=8 bit，3=16 bit |
 | `XIP_MD_BIT_EN` | XIP mode bits enable |
 | `ADDR_L` | address length：0=no address，1=4 bit，2=8 bit，递增到 f=60 bit |
@@ -114,10 +114,10 @@ PIO 搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR`，读�
 | `AXIAWLEN` | `AWLEN` | per-transfer `awlen << 8` |
 | `AXIARLEN` | `ARLEN` | per-transfer `arlen << 8` |
 | `SPIDR` | `SPI_INST` | 当前 transfer opcode |
-| `SPIAR` | `SDAR` | 当前 SPI device/flash address 低 32 bit |
+| `SPIAR` | `SDAR` | 当前 SPI device/flash address，32 bit |
 | `AXIAR0` | `AXIAR0` | per-transfer `axi_addr` |
 
-Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DMA 配置代码。内置 DMA 使用 CPU callback 准备或读取 AXI buffer；外部 DMA 不使用内置 CPU buffer mover。
+Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DMA 配置代码。内置 DMA 使用 CPU callback 准备或读回 AXI buffer；外部 DMA 不使用内置 CPU buffer mover。
 
 ## DR / RX_SAMPLE_DELAY
 

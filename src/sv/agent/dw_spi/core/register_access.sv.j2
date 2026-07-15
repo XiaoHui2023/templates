@@ -269,6 +269,37 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 reg_data, ok));
     endtask
 
+    task select_hardware_chip(input int ser_value);
+        uvm_status_e status;
+        {{ regmodel_type }} rm;
+        uvm_reg_data_t reg_data;
+
+        if (settings == null || settings.regmodel == null)
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
+        rm = settings.regmodel;
+        rm.SER.read(status, reg_data);
+        rm.SER.SER.set(ser_value);
+        report_info("DW_SPI_REG", $sformatf(
+            "select hardware chip select: SER=0x%0h raw=0x%0h",
+            ser_value, rm.SER.get()), UVM_LOW);
+        rm.SER.write(status, rm.SER.get());
+    endtask
+
+    task release_hardware_chip_selects();
+        uvm_status_e status;
+        {{ regmodel_type }} rm;
+        uvm_reg_data_t reg_data;
+
+        if (settings == null || settings.regmodel == null)
+            report_fatal("DW_SPI_REG", "settings.regmodel is null");
+        rm = settings.regmodel;
+        rm.SER.read(status, reg_data);
+        rm.SER.SER.set(0);
+        report_info("DW_SPI_REG", $sformatf(
+            "release hardware chip selects: raw=0x%0h", rm.SER.get()), UVM_LOW);
+        rm.SER.write(status, rm.SER.get());
+    endtask
+
     task apply_configuration({{ class_prefix }}configuration cfg);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -473,20 +504,13 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.RX_SAMPLE_DELAY.write(status, rm.RX_SAMPLE_DELAY.get());
         end
 
-        rm.SER.read(status, reg_data);
-        rm.SER.SER.set(cfg.ser);
-        report_info("DW_SPI_REG", $sformatf(
-            "select target chip select with SER: SER=0x%0h raw=0x%0h",
-            cfg.ser, rm.SER.get()), UVM_DEBUG);
-        rm.SER.write(status, rm.SER.get());
-
         rm.SSIENR.read(status, reg_data);
         rm.SSIENR.SSIC_EN.set(cfg.ssi_en);
         report_info("DW_SPI_REG", $sformatf(
             "enable controller with SSIENR: SSIC_EN=%0b raw=0x%0h",
             cfg.ssi_en, rm.SSIENR.get()), UVM_DEBUG);
         rm.SSIENR.write(status, rm.SSIENR.get());
-        report_info("DW_SPI_REG", "controller register configuration applied", UVM_LOW);
+        report_info("DW_SPI_REG", "controller register configuration applied with SER released; transfer sequence selects CS after any PIO FIFO prefill", UVM_LOW);
     endtask
 endclass
 
