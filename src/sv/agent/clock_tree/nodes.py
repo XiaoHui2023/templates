@@ -480,10 +480,10 @@ class PllNode(NodeBase):
 
 class CellNode(NodeBase):
     kind: Literal["cell"] = "cell"
-    path: str = Field(
-        ...,
+    path: Optional[str] = Field(
+        None,
         min_length=1,
-        description="RTL 层次路径，按 `.` 分隔。",
+        description="RTL 层次路径，按 `.` 分隔；present 为真时必填。",
     )
     cell_kind: str = Field(
         "cell",
@@ -502,9 +502,9 @@ class CellNode(NodeBase):
 
     @field_validator("path")
     @classmethod
-    def _validate_path(cls, value: str) -> str:
-        if not value:
-            raise ValueError("cell 节点 path 必须填写")
+    def _validate_path(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
         for seg in value.split("."):
             if not _SV_ID.match(seg):
                 raise ValueError(
@@ -512,13 +512,19 @@ class CellNode(NodeBase):
                 )
         return value
 
+    @model_validator(mode="after")
+    def _validate_cell_path(self) -> CellNode:
+        if self.present and not self.path:
+            raise ValueError(f"cell 节点 {self.name!r} path 必须填写")
+        return self
+
 
 class ClkNode(NodeBase):
     kind: Literal["clk"] = "clk"
-    path: str = Field(
-        ...,
+    path: Optional[str] = Field(
+        None,
         min_length=1,
-        description="RTL 层次路径，按 `.` 分隔。",
+        description="RTL 层次路径，按 `.` 分隔；present 为真时必填。",
     )
     freq: Optional[int] = Field(
         default=None,
@@ -561,9 +567,9 @@ class ClkNode(NodeBase):
 
     @field_validator("path")
     @classmethod
-    def _validate_path(cls, value: str) -> str:
-        if not value:
-            raise ValueError("clk 节点 path 必须填写")
+    def _validate_path(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
         for seg in value.split("."):
             if not _SV_ID.match(seg):
                 raise ValueError(
@@ -623,6 +629,8 @@ class ClkNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_clk_freq(self) -> ClkNode:
+        if self.present and not self.path:
+            raise ValueError(f"clk 节点 {self.name!r} path 必须填写")
         if self.freq is not None and self.freq == 0:
             raise ValueError(
                 f"clk 节点 {self.name!r} freq 为 0 非法；"
