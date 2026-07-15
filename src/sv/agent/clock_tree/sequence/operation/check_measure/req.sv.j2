@@ -7,6 +7,8 @@ class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
         `uvm_field_object(tree, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(quiet, UVM_ALL_ON)
         `uvm_field_int(debug, UVM_ALL_ON)
+        `uvm_field_int(check_clk, UVM_ALL_ON)
+        `uvm_field_int(check_cell, UVM_ALL_ON)
         `uvm_field_int(check_freq, UVM_ALL_ON)
         `uvm_field_int(check_duty, UVM_ALL_ON)
         `uvm_field_int(include_volatile, UVM_ALL_ON)
@@ -17,6 +19,8 @@ class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
     {{ settings.class_prefix }}tree_base tree;
     bit quiet;
     bit debug;
+    bit check_clk;
+    bit check_cell;
     bit check_freq;
     bit check_duty;
     bit include_volatile;
@@ -25,6 +29,8 @@ class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
 
     function new(string name = "{{ settings.class_prefix }}check_measure_req");
         super.new(name);
+        check_clk = 1'b1;
+        check_cell = 1'b1;
         check_freq = 1'b1;
         check_duty = 1'b1;
         include_volatile = 1'b1;

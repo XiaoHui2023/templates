@@ -16,6 +16,8 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     extern virtual task body();
     extern function bit node_needs_measure(
         {{ settings.class_prefix }}node_base nd,
+        bit check_clk,
+        bit check_cell,
         bit check_freq,
         bit check_duty,
         bit include_volatile
@@ -30,6 +32,8 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     // check_freq — 为真时按 kind 过滤
     extern function bit node_needs_freq_check(
         {{ settings.class_prefix }}node_base nd,
+        bit check_clk,
+        bit check_cell,
         bit check_freq
     );
     // 该节点是否参与占空比比对
@@ -37,6 +41,7 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     // check_duty - 为真时检查非 volatile 节点占空比
     extern function bit node_needs_duty_check(
         {{ settings.class_prefix }}node_base nd,
+        bit check_clk,
         bit check_duty
     );
     // 活动阶段是否已结束
@@ -49,6 +54,8 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     // check_freq — 为真时等待 activity_ok 或 inactive，再等待 freq_stable 或 timed_out
     extern function bit node_freq_measure_ready(
         {{ settings.class_prefix }}node_base nd,
+        bit check_clk,
+        bit check_cell,
         bit check_freq
     );
     // 占空比测量是否可进入比对
@@ -56,6 +63,7 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     // check_duty — 为真时等待 activity_ok 后再等 duty_stable 或 timed_out
     extern function bit node_duty_measure_ready(
         {{ settings.class_prefix }}node_base nd,
+        bit check_clk,
         bit check_duty
     );
     // 比对单节点频率并在通过时打印
@@ -131,6 +139,8 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
         bit activity_done,
         bit freq_done,
         bit duty_done,
+        bit check_clk,
+        bit check_cell,
         bit check_freq,
         bit check_duty
     );
@@ -169,12 +179,18 @@ endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
     {{ settings.class_prefix }}node_base nd,
+    bit check_clk,
+    bit check_cell,
     bit check_freq,
     bit check_duty,
     bit include_volatile
 );
     {{ settings.class_prefix }}clk clk_nd;
     if (nd == null || nd.vif == null)
+        return 1'b0;
+    if (nd.kind == "clk" && !check_clk)
+        return 1'b0;
+    if (nd.kind == "cell" && !check_cell)
         return 1'b0;
     if (!include_volatile && $cast(clk_nd, nd) && clk_nd.volatile)
         return 1'b0;
@@ -194,9 +210,15 @@ endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check(
     {{ settings.class_prefix }}node_base nd,
+    bit check_clk,
+    bit check_cell,
     bit check_freq
 );
     if (nd == null || !check_freq)
+        return 1'b0;
+    if (nd.kind == "clk" && !check_clk)
+        return 1'b0;
+    if (nd.kind == "cell" && !check_cell)
         return 1'b0;
     if (!nd._resolved_active || nd._resolved_freq <= 0)
         return nd.kind == "clk" || nd.kind == "cell";
@@ -205,10 +227,13 @@ endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check(
     {{ settings.class_prefix }}node_base nd,
+    bit check_clk,
     bit check_duty
 );
     {{ settings.class_prefix }}clk clk_nd;
     if (nd == null || !check_duty)
+        return 1'b0;
+    if (!check_clk)
         return 1'b0;
     if ($cast(clk_nd, nd) && clk_nd.volatile)
         return 1'b0;
@@ -229,9 +254,11 @@ endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_freq_measure_ready(
     {{ settings.class_prefix }}node_base nd,
+    bit check_clk,
+    bit check_cell,
     bit check_freq
 );
-    if (!node_needs_freq_check(nd, check_freq))
+    if (!node_needs_freq_check(nd, check_clk, check_cell, check_freq))
         return 1'b1;
     if (nd.vif.meas.inactive)
         return 1'b1;
@@ -248,9 +275,10 @@ endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_duty_measure_ready(
     {{ settings.class_prefix }}node_base nd,
+    bit check_clk,
     bit check_duty
 );
-    if (!node_needs_duty_check(nd, check_duty))
+    if (!node_needs_duty_check(nd, check_clk, check_duty))
         return 1'b1;
     if (nd.vif.meas.inactive)
         return 1'b1;
@@ -276,7 +304,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
     real measured_hz;
     real rel_diff;
 
-    if (!node_needs_freq_check(nd, rq.check_freq))
+    if (!node_needs_freq_check(nd, rq.check_clk, rq.check_cell, rq.check_freq))
         return;
 
     expect_active = nd._resolved_active;
@@ -354,7 +382,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
     {{ settings.class_prefix }}check_measure_req rq,
     {{ settings.class_prefix }}check_measure_rsp rs
 );
-    if (!node_needs_duty_check(nd, rq.check_duty))
+    if (!node_needs_duty_check(nd, rq.check_clk, rq.check_duty))
         return;
 
     if (nd.vif.meas.inactive) begin
@@ -445,8 +473,7 @@ function void {{ settings.class_prefix }}check_measure_seq::start_measure_if_new
         if (nodes[j].vif == nd.vif)
             return;
     end
-    if (rq.check_freq
-            && nd.kind == "clk")
+    if (node_needs_freq_check(nd, rq.check_clk, rq.check_cell, rq.check_freq))
         nd.vif.set_min_freq_hz(meas_min_freq_hz);
     nd.vif.start_measure();
 endfunction
@@ -456,8 +483,7 @@ function void {{ settings.class_prefix }}check_measure_seq::restart_measure_on_v
     {{ settings.class_prefix }}check_measure_req rq,
     int meas_min_freq_hz
 );
-    if (rq.check_freq
-            && nd.kind == "clk")
+    if (node_needs_freq_check(nd, rq.check_clk, rq.check_cell, rq.check_freq))
         nd.vif.set_min_freq_hz(meas_min_freq_hz);
     nd.vif.start_measure();
 endfunction
@@ -478,14 +504,16 @@ function string {{ settings.class_prefix }}check_measure_seq::node_measure_stage
     bit activity_done,
     bit freq_done,
     bit duty_done,
+    bit check_clk,
+    bit check_cell,
     bit check_freq,
     bit check_duty
 );
     if (!activity_done)
         return "activity";
-    if (!freq_done && node_needs_freq_check(nd, check_freq))
+    if (!freq_done && node_needs_freq_check(nd, check_clk, check_cell, check_freq))
         return "freq";
-    if (!duty_done && node_needs_duty_check(nd, check_duty))
+    if (!duty_done && node_needs_duty_check(nd, check_clk, check_duty))
         return "duty";
     return "done";
 endfunction
@@ -514,7 +542,8 @@ function void {{ settings.class_prefix }}check_measure_seq::log_measure_progress
             "check_measure progress: node %s stage %s meas_en %0b activity_ok %0b inactive %0b freq_stable %0b duty_stable %0b timed_out %0b",
             nd.get_name(),
             node_measure_stage_label(nd, activity_done[i], freq_done[i],
-                duty_done[i], rq.check_freq, rq.check_duty),
+                duty_done[i], rq.check_clk, rq.check_cell,
+                rq.check_freq, rq.check_duty),
             nd.vif.meas.meas_en, nd.vif.meas.activity_ok, nd.vif.meas.inactive,
             nd.vif.meas.freq_stable, nd.vif.meas.duty_stable, nd.vif.meas.timed_out),
             UVM_LOW)
@@ -550,8 +579,9 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     if (rq.tree == null)
         `uvm_fatal("CLK_TREE", "check_measure: tree is null")
     rq.tree.require_built("check_measure");
-    if (!rq.check_freq && !rq.check_duty)
-        `uvm_fatal("CLK_TREE", "check_measure: check_freq and check_duty both disabled")
+    if (!(rq.check_clk && (rq.check_freq || rq.check_duty))
+            && !(rq.check_cell && rq.check_freq))
+        `uvm_fatal("CLK_TREE", "check_measure: no enabled check target")
 
     meas_min_freq_hz = rq.min_freq_hz > 0 ? rq.min_freq_hz : {{ settings.min_freq_hz }};
     meas_period_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz;
@@ -566,7 +596,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
         nd = rq.tree.nodes[i];
         if (node_skipped(nd, rq.skip_nodes))
             continue;
-        if (!node_needs_measure(nd, rq.check_freq, rq.check_duty, rq.include_volatile))
+        if (!node_needs_measure(nd, rq.check_clk, rq.check_cell,
+                rq.check_freq, rq.check_duty, rq.include_volatile))
             continue;
         nodes_to_check.push_back(nd);
     end
@@ -597,15 +628,16 @@ task {{ settings.class_prefix }}check_measure_seq::body();
 
     foreach (nodes_to_check[i]) begin
         nd = nodes_to_check[i];
-        if (!node_needs_freq_check(nd, rq.check_freq))
+        if (!node_needs_freq_check(nd, rq.check_clk, rq.check_cell, rq.check_freq))
             freq_done[i] = 1'b1;
-        if (!node_needs_duty_check(nd, rq.check_duty))
+        if (!node_needs_duty_check(nd, rq.check_clk, rq.check_duty))
             duty_done[i] = 1'b1;
         if (!rq.quiet || rq.debug)
             `uvm_info("CLK_TREE", $sformatf(
-                "check_measure: node %s kind %s freq %0b duty %0b expected %0d Hz active %0b",
-                nd.get_name(), nd.kind, rq.check_freq,
-                node_needs_duty_check(nd, rq.check_duty),
+                "check_measure: node %s kind %s clk %0b cell %0b freq %0b duty %0b expected %0d Hz active %0b",
+                nd.get_name(), nd.kind, rq.check_clk, rq.check_cell,
+                rq.check_freq,
+                node_needs_duty_check(nd, rq.check_clk, rq.check_duty),
                 nd._resolved_freq, nd._resolved_active), UVM_MEDIUM)
         start_measure_if_new_vif(nd, i, nodes_arr, rq, meas_min_freq_hz);
     end
@@ -624,7 +656,7 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             if (!meas_restart_done[i] && !nd.vif.meas.meas_en
                     && !nd.vif.meas.timed_out && !nd.vif.meas.inactive
                     && (nd.vif.meas.activity_ok || nd.vif.meas.freq_stable
-                        || (node_needs_duty_check(nd, rq.check_duty)
+                        || (node_needs_duty_check(nd, rq.check_clk, rq.check_duty)
                             && nd.vif.meas.duty_stable))
                     && (!freq_done[i] || !duty_done[i])) begin
                 meas_restart_done[i] = 1'b1;
@@ -638,26 +670,29 @@ task {{ settings.class_prefix }}check_measure_seq::body();
                 activity_done[i] = 1'b1;
                 if (nd.vif.meas.inactive) begin
                     if (!freq_done[i]
-                            && node_needs_freq_check(nd, rq.check_freq)) begin
+                            && node_needs_freq_check(nd, rq.check_clk,
+                                rq.check_cell, rq.check_freq)) begin
                         evaluate_node_freq(nd, rq, rs);
                         freq_done[i] = 1'b1;
                     end
                     if (!duty_done[i]
-                            && node_needs_duty_check(nd, rq.check_duty)) begin
+                            && node_needs_duty_check(nd, rq.check_clk,
+                                rq.check_duty)) begin
                         evaluate_node_duty(nd, rq, rs);
                         duty_done[i] = 1'b1;
                     end
                 end
                 else if (nd.vif.meas.activity_ok) begin
                     if (!freq_done[i]
-                            && node_needs_freq_check(nd, rq.check_freq)
+                            && node_needs_freq_check(nd, rq.check_clk,
+                                rq.check_cell, rq.check_freq)
                             && (!nd._resolved_active
                                 || nd._resolved_freq <= 0.0)) begin
                         evaluate_node_freq(nd, rq, rs);
                         freq_done[i] = 1'b1;
                     end
                     if (!duty_done[i]
-                            && node_needs_duty_check(nd, rq.check_duty)
+                            && node_needs_duty_check(nd, rq.check_clk, rq.check_duty)
                             && !nd._resolved_active) begin
                         evaluate_node_duty(nd, rq, rs);
                         duty_done[i] = 1'b1;
@@ -667,12 +702,13 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             if (!activity_done[i])
                 continue;
             if (!freq_done[i]
-                    && node_freq_measure_ready(nd, rq.check_freq)) begin
+                    && node_freq_measure_ready(nd, rq.check_clk,
+                        rq.check_cell, rq.check_freq)) begin
                 evaluate_node_freq(nd, rq, rs);
                 freq_done[i] = 1'b1;
             end
             if (!duty_done[i]
-                    && node_duty_measure_ready(nd, rq.check_duty)) begin
+                    && node_duty_measure_ready(nd, rq.check_clk, rq.check_duty)) begin
                 evaluate_node_duty(nd, rq, rs);
                 duty_done[i] = 1'b1;
             end
@@ -706,7 +742,7 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             freq_done[i] = 1'b1;
         end
         if (!duty_done[i]
-                && node_needs_duty_check(nd, rq.check_duty)) begin
+                && node_needs_duty_check(nd, rq.check_clk, rq.check_duty)) begin
             evaluate_node_duty(nd, rq, rs);
             duty_done[i] = 1'b1;
         end

@@ -25,8 +25,10 @@
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
-| **check_freq** | **bit** | `1` | 为真时检查 **source**、**clk**、**pll** 频率 |
-| **check_duty** | **bit** | `1` | 为真时检查全部带 **vif** 节点占空比 |
+| **check_clk** | **bit** | `1` | 为真时检查 **clk** |
+| **check_cell** | **bit** | `1` | 为真时检查 **cell** |
+| **check_freq** | **bit** | `1` | 为真时检查 **clk/cell** 频率 |
+| **check_duty** | **bit** | `1` | 为真时检查 **clk** 占空比；**cell** 不检查占空比 |
 | **debug** | **bit** | `0` | 为真时 **check_measure** 打印等待进度 |
 
 ### test_measure
@@ -36,8 +38,10 @@
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | **tree** | **tree_base** | 空 | 默认空则用 **sqr.tree** |
-| **check_freq** | **bit** | `1` | 为真时检查 **source**、**clk**、**pll** 频率 |
-| **check_duty** | **bit** | `1` | 为真时检查全部带 **vif** 节点占空比 |
+| **check_clk** | **bit** | `1` | 为真时检查 **clk** |
+| **check_cell** | **bit** | `1` | 为真时检查 **cell** |
+| **check_freq** | **bit** | `1` | 为真时检查 **clk/cell** 频率 |
+| **check_duty** | **bit** | `1` | 为真时检查 **clk** 占空比；**cell** 不检查占空比 |
 | **debug** | **bit** | `0` | 为真时 **check_measure** 打印等待进度 |
 
 ### test_flip

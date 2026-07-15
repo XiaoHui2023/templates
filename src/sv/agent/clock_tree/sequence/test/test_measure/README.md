@@ -9,8 +9,10 @@
 | **tree** | **tree_base** | 时钟树 |
 | **quiet** | **bit** | 静默打印 |
 | **debug** | **bit** | 为真时 **check_measure** 打印等待进度 |
-| **check_freq** | **bit** | 为真时检查 **clk** 频率 |
-| **check_duty** | **bit** | 为真时检查全部带 **vif** 节点占空比 |
+| **check_clk** | **bit** | 为真时检查 **clk** |
+| **check_cell** | **bit** | 为真时检查 **cell** |
+| **check_freq** | **bit** | 为真时检查 **clk/cell** 频率 |
+| **check_duty** | **bit** | 为真时检查 **clk** 占空比；**cell** 不检查占空比 |
 
 ## 流程
 

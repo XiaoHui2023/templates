@@ -18,6 +18,8 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     // 校验频率与占空比
     extern task check_measure(
         {{ settings.class_prefix }}tree_base tree = null,
+        bit check_clk = 1'b1,
+        bit check_cell = 1'b1,
         bit check_freq = 1'b1,
         bit check_duty = 1'b1,
         bit debug = 1'b0);
@@ -26,6 +28,8 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     // 写寄存器后校验频率与占空比
     extern task test_measure(
         {{ settings.class_prefix }}tree_base tree = null,
+        bit check_clk = 1'b1,
+        bit check_cell = 1'b1,
         bit check_freq = 1'b1,
         bit check_duty = 1'b1,
         bit debug = 1'b0);
@@ -70,6 +74,8 @@ endtask
 {% if any_node_path %}
 task {{ settings.class_prefix }}kit_sequencer::check_measure(
         {{ settings.class_prefix }}tree_base tree,
+        bit check_clk,
+        bit check_cell,
         bit check_freq,
         bit check_duty,
         bit debug);
@@ -84,6 +90,8 @@ task {{ settings.class_prefix }}kit_sequencer::check_measure(
 
     req = {{ settings.class_prefix }}check_measure_req::type_id::create("req");
     req.tree = tree;
+    req.check_clk = check_clk;
+    req.check_cell = check_cell;
     req.check_freq = check_freq;
     req.check_duty = check_duty;
     req.debug = debug;
@@ -100,6 +108,8 @@ endtask
 {% if any_node_path and regs_enabled %}
 task {{ settings.class_prefix }}kit_sequencer::test_measure(
         {{ settings.class_prefix }}tree_base tree,
+        bit check_clk,
+        bit check_cell,
         bit check_freq,
         bit check_duty,
         bit debug);
@@ -114,6 +124,8 @@ task {{ settings.class_prefix }}kit_sequencer::test_measure(
 
     req = {{ settings.class_prefix }}test_measure_req::type_id::create("req");
     req.tree = tree;
+    req.check_clk = check_clk;
+    req.check_cell = check_cell;
     req.check_freq = check_freq;
     req.check_duty = check_duty;
     req.debug = debug;

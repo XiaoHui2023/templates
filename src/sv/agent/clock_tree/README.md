@@ -22,7 +22,7 @@ settings:
   class_prefix: chip_clk_
 ```
 
-纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk`，以及 `disable: true` 的 `clk`；`source`、`pll` 和中间节点不会出现在生成的 `tree_interface.sv` 中。
+纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk/cell`，以及 `disable: true` 的 `clk/cell`；`source`、`pll` 和中间节点不会出现在生成的 `tree_interface.sv` 中。
 
 ```yaml
 nodes:
@@ -76,7 +76,7 @@ endfunction
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk**，以及 **disable** 的 **clk**。 |
+| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk/cell**，以及 **disable** 的 **clk/cell**。 |
 | `direct_check` | `bool` | `false` | 为真时生成直接调用的纯 SV 检查入口，不依赖 UVM。 |
 | `direct_config` | `bool` | `false` | 为真时只生成 model 目录文件和直接寄存器配置入口。 |
 | `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
