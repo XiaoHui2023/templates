@@ -33,7 +33,9 @@ SPI flash 的 CS window 由协议操作决定：
 - read/program 这类多阶段操作必须把 opcode、address、dummy、data 放在同一个 CS window 内。
 - `WREN 0x06` 与后续 page program 必须是两个 CS window：先发 `0x06` 并释放 CS，再发 program opcode + address + data。
 
-DW SPI 的 native CS 有一个关键行为：`SER` 置位后传输可以自动开始；如果 TX FIFO 在一个 memory operation 中途变空，硬件 CS 可能提前释放，导致 flash 操作被截断。因此 PIO flow 会在 `SER=0` 时先预填不超过 FIFO 深度的 DR byte，再选中 `SER`，并在 CS 有效期间继续喂剩余字节。
+DW SPI 的 native CS 有一个关键行为：`SER` 置位后传输可以自动开始；如果 TX FIFO 在一个 memory operation 中途变空，硬件 CS 可能提前释放，导致 flash 操作被截断。因此硬件 CS + PIO 要求整个 DR stream 能在 `SER=0` 时完整预填。超过 FIFO 深度的硬件 CS PIO transfer 会报错，不能假装连续。
+
+flash write 的非 DMA PIO flow 会按 `fifo_depth_bytes - 1 - addr_bytes` 自动拆成多个 program chunk。每个 chunk 都是独立的 `WREN -> program(opcode + address + chunk)`，从而保证单个硬件 CS window 内的数据不会超过 FIFO 可预填能力。需要更大连续 window 时，应使用 DMA 或实现 FIFO interrupt/refill 状态机。
 
 ## SER 与 Callback
 
@@ -42,7 +44,7 @@ DW SPI 的 native CS 有一个关键行为：`SER` 置位后传输可以自动�
 顺序：
 
 1. 配置寄存器并保持 `SER.SER = 0`。
-2. PIO 预填 DR 或 DMA 准备完成。
+2. PIO 完整预填 DR 或 DMA 准备完成。
 3. `SOFTWARE_CS` 时先调用 `activate_chip_select(cs_id)`。
 4. 写 `SER.SER = cfg.ser` 启动/选择控制器内部传输。
 5. 完成传输并等待 idle 或 DMA done。

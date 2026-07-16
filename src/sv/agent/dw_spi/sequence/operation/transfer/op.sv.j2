@@ -322,6 +322,15 @@ task {{ class_prefix }}transfer_seq::write_pio_stream_under_cs(
         else
             remaining_bytes.push_back(dr_bytes[i]);
     end
+    if (rq.cs_control_mode == HARDWARE_CS && remaining_bytes.size() != 0) begin
+        `uvm_error("DW_SPI_XFER", $sformatf(
+            "hardware-CS PIO stream exceeds FIFO depth and cannot guarantee continuous opcode/address/data: dr_bytes=%0d fifo_depth_bytes=%0d remaining=%0d. Use DMA or split the flash operation into smaller legal transactions.",
+            dr_bytes.size(),
+            p_sequencer.settings.fifo_depth_bytes,
+            remaining_bytes.size()))
+        ok = 1'b0;
+        return;
+    end
 
     `uvm_info("DW_SPI_XFER", $sformatf(
         "PIO CS-atomic stream: prefill_before_cs=%0d remaining_under_cs=%0d fifo_depth_bytes=%0d",

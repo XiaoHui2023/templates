@@ -26,6 +26,7 @@ class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequ
     extern task run_write_enable(output bit ok);
     extern task run_chunk(bit [31:0] addr, bit [7:0] chunk[$], output bit ok);
     extern function bit [7:0] page_program_opcode(int speed_multiplier);
+    extern function int max_program_payload_bytes();
 endclass
 
 function bit [7:0] {{ class_prefix }}flash_write_seq::page_program_opcode(
@@ -41,6 +42,28 @@ function bit [7:0] {{ class_prefix }}flash_write_seq::page_program_opcode(
             return 8'h02;
         end
     endcase
+endfunction
+
+function int {{ class_prefix }}flash_write_seq::max_program_payload_bytes();
+    {{ class_prefix }}transfer_configuration cfg;
+    int max_bytes;
+
+    cfg = configuration;
+    if (cfg == null)
+        `uvm_fatal("DW_SPI", "flash_write: configuration is null")
+{% if internal_dma or external_dma %}
+    if (cfg.use_dma)
+        return data.size();
+{% endif %}
+    if (p_sequencer.settings == null)
+        `uvm_fatal("DW_SPI", "flash_write: settings is null")
+    max_bytes = p_sequencer.settings.fifo_depth_bytes - 1 - cfg.addr_bytes;
+    if (max_bytes <= 0)
+        `uvm_fatal("DW_SPI", $sformatf(
+            "flash_write: fifo_depth_bytes=%0d is too small for opcode+address bytes=%0d",
+            p_sequencer.settings.fifo_depth_bytes,
+            1 + cfg.addr_bytes))
+    return max_bytes;
 endfunction
 
 task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
@@ -182,6 +205,10 @@ endtask
 
 task {{ class_prefix }}flash_write_seq::body();
     bit chunk_ok;
+    bit [7:0] chunk[$];
+    int offset;
+    int chunk_len;
+    int max_payload_bytes;
 
     if (configuration == null) begin
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
@@ -201,16 +228,47 @@ task {{ class_prefix }}flash_write_seq::body();
         configuration.frame_mode.name(),
         configuration.cs_control_mode.name(){% if internal_dma or external_dma %},
         configuration.use_dma{% endif %}), UVM_LOW)
-    `uvm_info("DW_SPI_FLASH", "flash_write flow will issue write-enable then program transfer", UVM_LOW)
-    run_write_enable(chunk_ok);
-    if (!chunk_ok) begin
-        ok = 1'b0;
+    max_payload_bytes = max_program_payload_bytes();
+    `uvm_info("DW_SPI_FLASH", $sformatf(
+        "flash_write flow will issue write-enable before each program chunk: max_payload_bytes_per_chunk=%0d",
+        max_payload_bytes), UVM_LOW)
+    if (data.size() == 0) begin
+        run_write_enable(chunk_ok);
+        if (!chunk_ok) begin
+            ok = 1'b0;
+        end else begin
+            `uvm_info("DW_SPI_FLASH", "write-enable succeeded; starting zero-length program command", UVM_LOW)
+            run_chunk(address, data, chunk_ok);
+            ok = chunk_ok;
+        end
     end else begin
-        `uvm_info("DW_SPI_FLASH", "write-enable succeeded; starting program chunk", UVM_LOW)
-        run_chunk(address, data, chunk_ok);
-        ok = chunk_ok;
-        if (chunk_ok)
-            bytes_written = data.size();
+        offset = 0;
+        while (offset < data.size() && ok) begin
+            chunk.delete();
+            chunk_len = data.size() - offset;
+            if (chunk_len > max_payload_bytes)
+                chunk_len = max_payload_bytes;
+            for (int i = 0; i < chunk_len; i++)
+                chunk.push_back(data[offset + i]);
+            `uvm_info("DW_SPI_FLASH", $sformatf(
+                "starting flash program chunk: offset=%0d address=0x%08h bytes=%0d max_payload_bytes=%0d",
+                offset,
+                address + offset,
+                chunk.size(),
+                max_payload_bytes), UVM_LOW)
+            run_write_enable(chunk_ok);
+            if (!chunk_ok) begin
+                ok = 1'b0;
+            end else begin
+                `uvm_info("DW_SPI_FLASH", "write-enable succeeded; starting program chunk", UVM_LOW)
+                run_chunk(address + offset, chunk, chunk_ok);
+                ok = chunk_ok;
+                if (chunk_ok) begin
+                    bytes_written += chunk.size();
+                    offset += chunk.size();
+                end
+            end
+        end
     end
     `uvm_info("DW_SPI_FLASH", $sformatf(
         "flash_write done: ok=%0b address=0x%08h bytes_written=%0d",
