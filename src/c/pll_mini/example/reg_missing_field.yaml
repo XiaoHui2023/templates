@@ -3,27 +3,25 @@
 
 ralf: example/normal.ralf
 
-tree:
-  name: reg_missing_field
-  nodes:
-    xtal:
-      kind: source
-      source_kind: source
-      freq: 24000000
+nodes:
+  xtal:
+    kind: source
+    source_kind: source
+    freq: 24000000
 
-    div_bad_reg:
-      kind: div
-      div_kind: div
-      source: xtal
-      regs:
-        rst: blk_div0.ctrl.rst
-        load: blk_div0.ctrl.load
-        div: blk_div0.ctrl.no_such_field
+  div_bad_reg:
+    kind: div
+    div_kind: div
+    source: xtal
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.no_such_field
 
-    clk_out:
-      kind: clk
-      source: div_bad_reg
-      freq: 12000000
+  clk_out:
+    kind: clk
+    source: div_bad_reg
+    freq: 12000000
 
 settings:
   main_fn: chip_pll_config_reg_missing_field

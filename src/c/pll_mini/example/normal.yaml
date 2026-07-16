@@ -14,346 +14,344 @@
 
 ralf: example/normal.ralf
 
-tree:
-  name: normal
-  nodes:
-    xtal:
-      kind: source
-      source_kind: source
-      freq: 24000000
+nodes:
+  xtal:
+    kind: source
+    source_kind: source
+    freq: 24000000
 
-    pad_xtal:
-      kind: source
-      source_kind: pad
-      freq: 24000000
+  pad_xtal:
+    kind: source
+    source_kind: pad
+    freq: 24000000
 
-    pll_sc:
-      kind: pll
-      source: xtal
-      pll_kind: sc
-      freq: 60000000
-      regs:
-        lock: blk_pll_sc.stat.lock
-        vocpd: blk_pll_sc.pd.vocpd
-        postdivpd: blk_pll_sc.pd.postdivpd
-        dsmpd: blk_pll_sc.pd.dsmpd
-        pd: blk_pll_sc.pd.pd
-        bypass: blk_pll_sc.pd.bypass
-        refdiv: blk_pll_sc.div.refdiv
-        postdiv2: blk_pll_sc.div.postdiv2
-        postdiv1: blk_pll_sc.div.postdiv1
-        fbdiv: blk_pll_sc.div.fbdiv
+  pll_sc:
+    kind: pll
+    source: xtal
+    pll_kind: sc
+    freq: 60000000
+    regs:
+      lock: blk_pll_sc.stat.lock
+      vocpd: blk_pll_sc.pd.vocpd
+      postdivpd: blk_pll_sc.pd.postdivpd
+      dsmpd: blk_pll_sc.pd.dsmpd
+      pd: blk_pll_sc.pd.pd
+      bypass: blk_pll_sc.pd.bypass
+      refdiv: blk_pll_sc.div.refdiv
+      postdiv2: blk_pll_sc.div.postdiv2
+      postdiv1: blk_pll_sc.div.postdiv1
+      fbdiv: blk_pll_sc.div.fbdiv
 
-    pll_tci:
-      kind: pll
-      source: xtal
-      pll_kind: tci
-      freq: 48000000
-      regs:
-        lock: blk_pll_tci.lock.lock
-        bypass: blk_pll_tci.bypass.bypass
-        pwrdn: blk_pll_tci.pwrdn.pwrdn
-        reset: blk_pll_tci.reset.reset
-        clkod: blk_pll_tci.clkod.clkod
-        clkf: blk_pll_tci.clkf.clkf
-        clkr: blk_pll_tci.clkr.clkr
-        bwadj: blk_pll_tci.bwadj.bwadj
+  pll_tci:
+    kind: pll
+    source: xtal
+    pll_kind: tci
+    freq: 48000000
+    regs:
+      lock: blk_pll_tci.lock.lock
+      bypass: blk_pll_tci.bypass.bypass
+      pwrdn: blk_pll_tci.pwrdn.pwrdn
+      reset: blk_pll_tci.reset.reset
+      clkod: blk_pll_tci.clkod.clkod
+      clkf: blk_pll_tci.clkf.clkf
+      clkr: blk_pll_tci.clkr.clkr
+      bwadj: blk_pll_tci.bwadj.bwadj
 
-    pll_dw:
-      kind: pll
-      source: xtal
-      pll_kind: dw
-      freq: 96000000
-      regs:
-        lock: blk_pll_dw.lock.lock
-        fbdiv: blk_pll_dw.fbdiv.fbdiv
-        prediv: blk_pll_dw.prediv.prediv
-        reset: blk_pll_dw.reset.reset
-        pwron: blk_pll_dw.pwron.pwron
-        shift: blk_pll_dw.shift.shift
-        bypass: blk_pll_dw.bypass.bypass
-        divvcor: blk_pll_dw.divvcor.divvcor
-        r: blk_pll_dw.r.r
-        p: blk_pll_dw.p.p
-        divvcop: blk_pll_dw.divvcop.divvcop
-        enr: blk_pll_dw.enr.enr
-        enp: blk_pll_dw.enp.enp
+  pll_dw:
+    kind: pll
+    source: xtal
+    pll_kind: dw
+    freq: 96000000
+    regs:
+      lock: blk_pll_dw.lock.lock
+      fbdiv: blk_pll_dw.fbdiv.fbdiv
+      prediv: blk_pll_dw.prediv.prediv
+      reset: blk_pll_dw.reset.reset
+      pwron: blk_pll_dw.pwron.pwron
+      shift: blk_pll_dw.shift.shift
+      bypass: blk_pll_dw.bypass.bypass
+      divvcor: blk_pll_dw.divvcor.divvcor
+      r: blk_pll_dw.r.r
+      p: blk_pll_dw.p.p
+      divvcop: blk_pll_dw.divvcop.divvcop
+      enr: blk_pll_dw.enr.enr
+      enp: blk_pll_dw.enp.enp
 
-    pll_inno:
-      kind: pll
-      source: xtal
-      pll_kind: inno
-      freq: 48000000
-      regs:
-        lock: blk_pll_inno.lock.lock
-        pd: blk_pll_inno.pd.pd
-        refdiv: blk_pll_inno.refdiv.refdiv
-        fbdiv: blk_pll_inno.fbdiv.fbdiv
-        postdiv1[0]: blk_pll_inno.postdiv1_0.postdiv1_0
-        postdiv2[0]: blk_pll_inno.postdiv2_0.postdiv2_0
-        postdiv1[1]: blk_pll_inno.postdiv1_1.postdiv1_1
-        postdiv2[1]: blk_pll_inno.postdiv2_1.postdiv2_1
+  pll_inno:
+    kind: pll
+    source: xtal
+    pll_kind: inno
+    freq: 48000000
+    regs:
+      lock: blk_pll_inno.lock.lock
+      pd: blk_pll_inno.pd.pd
+      refdiv: blk_pll_inno.refdiv.refdiv
+      fbdiv: blk_pll_inno.fbdiv.fbdiv
+      postdiv1[0]: blk_pll_inno.postdiv1_0.postdiv1_0
+      postdiv2[0]: blk_pll_inno.postdiv2_0.postdiv2_0
+      postdiv1[1]: blk_pll_inno.postdiv1_1.postdiv1_1
+      postdiv2[1]: blk_pll_inno.postdiv2_1.postdiv2_1
 
-    mux_pll_hub:
-      kind: mux
-      source:
-        "0": pll_tci
-        "1": pll_sc
-      sel: 0
+  mux_pll_hub:
+    kind: mux
+    source:
+      "0": pll_tci
+      "1": pll_sc
+    sel: 0
 
-    div0:
-      kind: div
-      div_kind: div
-      source: pll_sc
-      regs:
-        rst: blk_div0.ctrl.rst
-        load: blk_div0.ctrl.load
-        div: blk_div0.ctrl.div
+  div0:
+    kind: div
+    div_kind: div
+    source: pll_sc
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.div
 
-    div_n0:
-      kind: div
-      div_kind: div_n
-      source: mux_pll_hub
-      regs:
-        rst: blk_div_n0.ctrl.rst
-        load: blk_div_n0.ctrl.load
-        div: blk_div_n0.ctrl.div
+  div_n0:
+    kind: div
+    div_kind: div_n
+    source: mux_pll_hub
+    regs:
+      rst: blk_div_n0.ctrl.rst
+      load: blk_div_n0.ctrl.load
+      div: blk_div_n0.ctrl.div
 
-    div_tci:
-      kind: div
-      div_kind: div
-      source: mux_pll_hub
-      regs:
-        rst: blk_div_tci.ctrl.rst
-        load: blk_div_tci.ctrl.load
-        div: blk_div_tci.ctrl.div
+  div_tci:
+    kind: div
+    div_kind: div
+    source: mux_pll_hub
+    regs:
+      rst: blk_div_tci.ctrl.rst
+      load: blk_div_tci.ctrl.load
+      div: blk_div_tci.ctrl.div
 
-    src_dto_in:
-      kind: source
-      source_kind: source
-      freq: 12000
+  src_dto_in:
+    kind: source
+    source_kind: source
+    freq: 12000
 
-    src_dto_n_in:
-      kind: source
-      source_kind: source
-      freq: 8000
+  src_dto_n_in:
+    kind: source
+    source_kind: source
+    freq: 8000
 
-    dto0:
-      kind: div
-      div_kind: dto
-      source: src_dto_in
-      regs:
-        rst: blk_dto0.ctrl.rst
-        load: blk_dto0.ctrl.load
-        bypass: blk_dto0.ctrl.bypass
-        step: blk_dto0.ctrl.step
+  dto0:
+    kind: div
+    div_kind: dto
+    source: src_dto_in
+    regs:
+      rst: blk_dto0.ctrl.rst
+      load: blk_dto0.ctrl.load
+      bypass: blk_dto0.ctrl.bypass
+      step: blk_dto0.ctrl.step
 
-    dto_n0:
-      kind: div
-      div_kind: dto_n
-      source: src_dto_n_in
-      regs:
-        rst: blk_dto_n0.ctrl.rst
-        load: blk_dto_n0.ctrl.load
-        bypass: blk_dto_n0.ctrl.bypass
-        step: blk_dto_n0.ctrl.step
+  dto_n0:
+    kind: div
+    div_kind: dto_n
+    source: src_dto_n_in
+    regs:
+      rst: blk_dto_n0.ctrl.rst
+      load: blk_dto_n0.ctrl.load
+      bypass: blk_dto_n0.ctrl.bypass
+      step: blk_dto_n0.ctrl.step
 
-    div_hclk:
-      kind: div
-      div_kind: div
-      source: div0
-      regs:
-        rst: blk_div_hclk.ctrl.rst
-        load: blk_div_hclk.ctrl.load
-        div: blk_div_hclk.ctrl.div
+  div_hclk:
+    kind: div
+    div_kind: div
+    source: div0
+    regs:
+      rst: blk_div_hclk.ctrl.rst
+      load: blk_div_hclk.ctrl.load
+      div: blk_div_hclk.ctrl.div
 
-    mux_ref:
-      kind: mux
-      source:
-        "0": div0
-        "1": xtal
-      reg: blk_mux_ref.sel.sel
+  mux_ref:
+    kind: mux
+    source:
+      "0": div0
+      "1": xtal
+    reg: blk_mux_ref.sel.sel
 
-    mux_inno:
-      kind: mux
-      source:
-        "0": pll_inno[0]
-        "1": pll_inno[1]
-      sel: 0
+  mux_inno:
+    kind: mux
+    source:
+      "0": pll_inno[0]
+      "1": pll_inno[1]
+    sel: 0
 
-    mux_ref_src:
-      kind: mux
-      source:
-        "0": xtal
-        "1": pad_xtal
-      sel: 0
+  mux_ref_src:
+    kind: mux
+    source:
+      "0": xtal
+      "1": pad_xtal
+    sel: 0
 
-    div_ref:
-      kind: div
-      div_kind: div_r
-      source: mux_ref_src
-      ratio: 1
+  div_ref:
+    kind: div
+    div_kind: div_r
+    source: mux_ref_src
+    ratio: 1
 
-    gate0:
-      kind: gate
-      source: mux_ref
-      reg: blk_gate0.en.en
+  gate0:
+    kind: gate
+    source: mux_ref
+    reg: blk_gate0.en.en
 
-    gate_dw:
-      kind: gate
-      source: pll_dw
-      reg: blk_gate_dw.en.en
+  gate_dw:
+    kind: gate
+    source: pll_dw
+    reg: blk_gate_dw.en.en
 
-    gate_hclk:
-      kind: gate
-      source: div_hclk
+  gate_hclk:
+    kind: gate
+    source: div_hclk
 
-    gate_pad:
-      kind: gate
-      source: pad_xtal
-      reg: blk_gate_pad.en.en
+  gate_pad:
+    kind: gate
+    source: pad_xtal
+    reg: blk_gate_pad.en.en
 
-    gate_mbist:
-      kind: gate
-      source: div0
-      open: 0
+  gate_mbist:
+    kind: gate
+    source: div0
+    open: 0
 
-    div_r_dw:
-      kind: div
-      div_kind: div_r
-      source: gate_dw
-      ratio: 2
+  div_r_dw:
+    kind: div
+    div_kind: div_r
+    source: gate_dw
+    ratio: 2
 
-    cell_buf:
-      kind: cell
-      cell_kind: buf
-      source: mux_inno
+  cell_buf:
+    kind: cell
+    cell_kind: buf
+    source: mux_inno
 
-    gate_inno:
-      kind: gate
-      source: cell_buf
-      reg: blk_gate_inno.en.en
+  gate_inno:
+    kind: gate
+    source: cell_buf
+    reg: blk_gate_inno.en.en
 
-    inv0:
-      kind: inv
-      inv_kind: inv
-      source: div_tci
+  inv0:
+    kind: inv
+    inv_kind: inv
+    source: div_tci
 
-    inv_mux:
-      kind: inv
-      inv_kind: inv_mux
-      source: div_n0
+  inv_mux:
+    kind: inv
+    inv_kind: inv_mux
+    source: div_n0
 
-    inv_cell:
-      kind: inv
-      inv_kind: inv_cell
-      source: div_r_dw
+  inv_cell:
+    kind: inv
+    inv_kind: inv_cell
+    source: div_r_dw
 
-    mux_idle:
-      kind: mux
-      source:
-        "0": gate_pad
-        "1": pad_xtal
-      sel: 0
+  mux_idle:
+    kind: mux
+    source:
+      "0": gate_pad
+      "1": pad_xtal
+    sel: 0
 
-    clk_out:
-      kind: clk
-      source: gate0
-      freq: 30000000
+  clk_out:
+    kind: clk
+    source: gate0
+    freq: 30000000
 
-    clk_hclk:
-      kind: clk
-      source: gate_hclk
-      freq: 15000000
+  clk_hclk:
+    kind: clk
+    source: gate_hclk
+    freq: 15000000
 
-    clk_hclk_en:
-      kind: clk
-      source: div_hclk
+  clk_hclk_en:
+    kind: clk
+    source: div_hclk
 
-    clk_arm:
-      kind: clk
-      source: div0
-      freq: 30000000
+  clk_arm:
+    kind: clk
+    source: div0
+    freq: 30000000
 
-    clk_mbist:
-      kind: clk
-      source: gate_mbist
+  clk_mbist:
+    kind: clk
+    source: gate_mbist
 
-    clk_tci:
-      kind: clk
-      source: inv0
-      freq: 24000000
+  clk_tci:
+    kind: clk
+    source: inv0
+    freq: 24000000
 
-    clk_dto:
-      kind: clk
-      source: dto0
-      freq: 6000
+  clk_dto:
+    kind: clk
+    source: dto0
+    freq: 6000
 
-    clk_dto_n:
-      kind: clk
-      source: dto_n0
-      freq: 4000
+  clk_dto_n:
+    kind: clk
+    source: dto_n0
+    freq: 4000
 
-    clk_dw:
-      kind: clk
-      source: inv_cell
-      freq: 48000000
+  clk_dw:
+    kind: clk
+    source: inv_cell
+    freq: 48000000
 
-    clk_inno:
-      kind: clk
-      source: gate_inno
-      freq: 48000000
+  clk_inno:
+    kind: clk
+    source: gate_inno
+    freq: 48000000
 
-    clk_cross:
-      kind: clk
-      source: inv_mux
-      freq: 24000000
+  clk_cross:
+    kind: clk
+    source: inv_mux
+    freq: 24000000
 
-    clk_pad:
-      kind: clk
-      source: mux_idle
-      freq: 24000000
+  clk_pad:
+    kind: clk
+    source: mux_idle
+    freq: 24000000
 
-    clk_div_ref:
-      kind: clk
-      source: div_ref
-      freq: 24000000
+  clk_div_ref:
+    kind: clk
+    source: div_ref
+    freq: 24000000
 
-    div_dual_0:
-      kind: div
-      div_kind: div
-      source: pll_sc
-      regs:
-        rst: blk_div_dual_0.ctrl.rst
-        load: blk_div_dual_0.ctrl.load
-        div: blk_div_dual_0.ctrl.div
+  div_dual_0:
+    kind: div
+    div_kind: div
+    source: pll_sc
+    regs:
+      rst: blk_div_dual_0.ctrl.rst
+      load: blk_div_dual_0.ctrl.load
+      div: blk_div_dual_0.ctrl.div
 
-    gate_dual_pll_0:
-      kind: gate
-      source: div_dual_0
-      reg: blk_gate_dual_pll_0.en.en
+  gate_dual_pll_0:
+    kind: gate
+    source: div_dual_0
+    reg: blk_gate_dual_pll_0.en.en
 
-    gate_dual_xt_0:
-      kind: gate
-      source: xtal
-      reg: blk_gate_dual_xt_0.en.en
+  gate_dual_xt_0:
+    kind: gate
+    source: xtal
+    reg: blk_gate_dual_xt_0.en.en
 
-    mux_dual_0:
-      kind: mux
-      source:
-        "0": gate_dual_pll_0
-        "1": gate_dual_xt_0
-      reg: blk_mux_dual_0.sel.sel
+  mux_dual_0:
+    kind: mux
+    source:
+      "0": gate_dual_pll_0
+      "1": gate_dual_xt_0
+    reg: blk_mux_dual_0.sel.sel
 
-    gate_dual_out_0:
-      kind: gate
-      source: mux_dual_0
-      reg: blk_gate_dual_out_0.en.en
+  gate_dual_out_0:
+    kind: gate
+    source: mux_dual_0
+    reg: blk_gate_dual_out_0.en.en
 
-    clk_dual_0:
-      kind: clk
-      source: gate_dual_out_0
-      freq: 30000000
+  clk_dual_0:
+    kind: clk
+    source: gate_dual_out_0
+    freq: 30000000
 
 settings:
   main_fn: chip_pll_config

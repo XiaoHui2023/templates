@@ -3,27 +3,25 @@
 
 ralf: example/normal.ralf
 
-tree:
-  name: unsat
-  nodes:
-    xtal:
-      kind: source
-      source_kind: source
-      freq: 24000000
+nodes:
+  xtal:
+    kind: source
+    source_kind: source
+    freq: 24000000
 
-    div_impossible:
-      kind: div
-      div_kind: div
-      source: xtal
-      regs:
-        rst: blk_div0.ctrl.rst
-        load: blk_div0.ctrl.load
-        div: blk_div0.ctrl.div
+  div_impossible:
+    kind: div
+    div_kind: div
+    source: xtal
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.div
 
-    clk_impossible:
-      kind: clk
-      source: div_impossible
-      freq: 25000000
+  clk_impossible:
+    kind: clk
+    source: div_impossible
+    freq: 25000000
 
 settings:
   main_fn: chip_pll_config_unsat

@@ -16,7 +16,7 @@ from pydantic import (
 
 _C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-from model.nodes import Tree
+from model.nodes import ExtraRegEntry, Tree
 from model.consolver import build_tree_smt2
 from registers.plan import (
     ConfigPlan,
@@ -26,7 +26,6 @@ from registers.plan import (
     build_header_address_plan,
     collect_used_regs,
 )
-from registers.extra_regs import ExtraRegPlan, build_extra_reg_plan
 from load.ralf_load import load_regmodel_from_ralf
 from load.regmodel import Reg, RegModelIndex
 from registers.resolve import TreeResolve, resolve_tree
@@ -37,7 +36,6 @@ _CACHE_LOCK = threading.RLock()
 _TREE_RESOLVE_CACHE: dict[_ModelCacheKey, TreeResolve] = {}
 _TREE_RESOLVE_ERROR_CACHE: dict[_ModelCacheKey, str] = {}
 _CONFIG_PLAN_CACHE: dict[_ModelCacheKey, ConfigPlan] = {}
-_EXTRA_REG_PLAN_CACHE: dict[_ModelCacheKey, ExtraRegPlan | None] = {}
 _HEADER_REGS_CACHE: dict[_ModelCacheKey, List[Reg]] = {}
 _HEADER_ADDRESS_PLAN_CACHE: dict[_ModelCacheKey, HeaderAddressPlan] = {}
 _CONSOLVER_SMT_CACHE: dict[_ModelCacheKey, str] = {}
@@ -135,43 +133,48 @@ class Models(BaseModel):
         default_factory=list,
         description="RALF 引用其它文件时的额外搜索目录。",
     )
-    tree: Tree = Field(..., description="单棵时钟树。")
+    nodes: dict[str, Any] = Field(
+        ...,
+        min_length=1,
+        description="时钟节点表，键即节点名；节点体内不写 name。",
+    )
+    extra_regs: List[ExtraRegEntry] = Field(
+        default_factory=list,
+        description="PLL 锁定等待之后、普通器件 steps 之前写入的寄存器 field 列表。",
+    )
     settings: Settings = Field(
         default_factory=Settings,
         description="全局选项。",
     )
 
     _regmodel: List[Reg] = PrivateAttr(default_factory=list)
+    _tree: Tree | None = PrivateAttr(default=None)
     _tree_resolve: TreeResolve | None = PrivateAttr(default=None)
     _config_plan: ConfigPlan | None = PrivateAttr(default=None)
-    _extra_reg_plan: ExtraRegPlan | None = PrivateAttr(default=None)
     _header_regs: List[Reg] | None = PrivateAttr(default=None)
     _header_address_plan: HeaderAddressPlan | None = PrivateAttr(default=None)
     _yaml_dir: Path | None = PrivateAttr(default=None)
 
-    @model_validator(mode="before")
-    @classmethod
-    def _normalize_tree_input(cls, data: Any) -> Any:
-        if not isinstance(data, dict) or "tree" in data:
-            return data
+    @model_validator(mode="after")
+    def _build_tree(self) -> Models:
+        tree = Tree(nodes=self.nodes, extra_regs=self.extra_regs)
+        object.__setattr__(
+            self,
+            "_tree",
+            tree,
+        )
+        object.__setattr__(self, "nodes", tree.nodes)
+        return self
 
-        if "trees" in data:
-            trees = data["trees"]
-            if not isinstance(trees, list) or len(trees) != 1:
-                raise ValueError("pll_mini 只接受一棵 clock tree")
-            return {**data, "tree": trees[0]}
-
-        if "nodes" in data:
-            tree_name = data.get("name", "main")
-            return {
-                **data,
-                "tree": {
-                    "name": tree_name,
-                    "nodes": data["nodes"],
-                },
-            }
-
-        return data
+    @property
+    def tree(self) -> Tree:
+        if self._tree is None:
+            object.__setattr__(
+                self,
+                "_tree",
+                Tree(nodes=self.nodes, extra_regs=self.extra_regs),
+            )
+        return self._tree
 
     @model_validator(mode="after")
     def _load_regmodel(self, info: ValidationInfo) -> Models:
@@ -289,6 +292,7 @@ class Models(BaseModel):
                     dto_reg_high_means_reset=s.dto_reg_high_means_reset,
                 ),
                 self.tree_resolve,
+                self.extra_regs,
             )
             log_stage_done(
                 "models",
@@ -300,39 +304,6 @@ class Models(BaseModel):
             )
             _CONFIG_PLAN_CACHE[key] = result
             self._config_plan = result
-            return result
-
-    @property
-    def extra_reg_plan(self) -> ExtraRegPlan | None:
-        if not self.tree.extra_regs:
-            return None
-        with _CACHE_LOCK:
-            if self._extra_reg_plan is not None:
-                return self._extra_reg_plan
-            key = self._cache_key()
-            cached = _EXTRA_REG_PLAN_CACHE.get(key)
-            if cached is not None:
-                self._extra_reg_plan = cached
-                return cached
-            started_at = log_stage_start(
-                "models",
-                "compute",
-                "extra_reg_plan",
-                entries=len(self.tree.extra_regs),
-            )
-            result = build_extra_reg_plan(
-                self.tree.extra_regs,
-                RegModelIndex(self.regmodel),
-            )
-            log_stage_done(
-                "models",
-                "compute",
-                "extra_reg_plan",
-                started_at,
-                writes=len(result.writes) if result else 0,
-            )
-            _EXTRA_REG_PLAN_CACHE[key] = result
-            self._extra_reg_plan = result
             return result
 
     @property
@@ -351,18 +322,10 @@ class Models(BaseModel):
                 "header_regs",
                 regs=len(self._regmodel),
             )
-            index = RegModelIndex(self.regmodel)
-            extra_plan = self.extra_reg_plan
-            extra_regs = (
-                [write.reg for write in extra_plan.writes]
-                if extra_plan is not None
-                else []
-            )
             result = list(
                 collect_used_regs(
-                    index,
+                    RegModelIndex(self.regmodel),
                     self.config_plan,
-                    extra_regs=extra_regs,
                 )
             )
             log_stage_done(

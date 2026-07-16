@@ -2,7 +2,7 @@
 
 ## 节点输入
 
-`pll_mini` 复用 clock tree 的 node 输入。节点名来自 `tree.nodes` 的 key，节点体内不写 `name`。
+`pll_mini` 复用 clock tree 的 node 输入。节点名来自顶层 `nodes` 的 key，节点体内不写 `name`。
 
 所有节点都允许 `freq`。省略表示该节点不主动约束频率；填写正整数表示该节点输出频率已确定，可用于传播和约束求解。
 

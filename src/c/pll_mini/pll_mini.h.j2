@@ -20,9 +20,6 @@ typedef struct {
 extern void cpu_config_read(unsigned int *data, unsigned long addr);
 extern void cpu_config_write(unsigned long addr, unsigned int data);
 
-{% if extra_reg_plan -%}
-extern void {{ extra_reg_plan.fn_name }}(void);
-{% endif -%}
 extern void {{ settings.main_fn }}(void);
 
 #endif

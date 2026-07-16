@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Sequence
 
 from .formulas import dto_ratio_to_step
-from model.nodes import DivNode, GateNode, MuxNode, PllNode, Tree
+from model.nodes import DivNode, ExtraRegEntry, GateNode, MuxNode, PllNode, Tree
 from .resolve import ResolvedNode, TreeResolve
 from load.regmodel import (
     FieldRef,
@@ -213,6 +213,27 @@ def _patch(
     )
 
 
+def _extra_reg_patch(
+    index: RegModelIndex,
+    entry: ExtraRegEntry,
+    *,
+    idx: int,
+) -> _FieldPatch:
+    ref = index.resolve(entry.path, ctx=f"extra_regs[{idx}].path")
+    max_val = (1 << ref.effective_width) - 1
+    if entry.value < 0 or entry.value > max_val:
+        raise ValueError(
+            f"extra_regs[{idx}].value {entry.value} 超出路径 {entry.path!r} "
+            f"可写范围 0..{max_val}"
+        )
+    return _FieldPatch(
+        node_name="extra_regs",
+        field_ref=ref,
+        value=entry.value,
+        note=f"{entry.path}={entry.value}",
+    )
+
+
 def _patch_to_part_view(patch: _FieldPatch) -> FieldPartView:
     ref = patch.field_ref
     label = field_part_label(ref.field, ref.offset, ref.width)
@@ -234,8 +255,8 @@ def _patch_to_part_view(patch: _FieldPatch) -> FieldPartView:
 def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
     """把 field 赋值合并为按 32 位寄存器的一次写。
 
-    同一寄存器、同一轮写序 epoch 内的多个 field，即使中间夹了其它寄存器，
-    也合并到该 epoch 首次出现的位置。同一 field 再次赋值则开启新 epoch。
+    同一寄存器的多个 field 即使中间夹了其它寄存器，也合并到首次出现的位置。
+    同一 field 再次赋值时，后写值覆盖前写值。
     """
     if not patches:
         return []
@@ -250,10 +271,6 @@ def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
 
         if reg_path not in reg_epochs:
             reg_epochs[reg_path] = [[]]
-            reg_part_keys[reg_path] = set()
-
-        if part_key in reg_part_keys[reg_path]:
-            reg_epochs[reg_path].append([])
             reg_part_keys[reg_path] = set()
 
         reg_epochs[reg_path][-1].append((idx, patch))
@@ -746,6 +763,7 @@ def build_config_plan(
     index: RegModelIndex,
     settings: SettingsView,
     resolved: TreeResolve,
+    extra_regs: Sequence[ExtraRegEntry] = (),
 ) -> ConfigPlan:
     """Build PLL kind plans, instances, and non-PLL register write steps."""
     from .pll_kind_plan import build_pll_plan
@@ -776,8 +794,20 @@ def build_config_plan(
             state = resolved.by_name[node.name]
             dev_patches.append(expand_mux_patch(index, node, state))
 
+    dev_reg_paths = {patch.field_ref.reg.path for patch in dev_patches}
+    extra_only_patches: List[_FieldPatch] = []
+    extra_shared_patches: List[_FieldPatch] = []
+    for idx, entry in enumerate(extra_regs):
+        patch = _extra_reg_patch(index, entry, idx=idx)
+        if patch.field_ref.reg.path in dev_reg_paths:
+            extra_shared_patches.append(patch)
+        else:
+            extra_only_patches.append(patch)
+
+    patches = [*extra_only_patches, *dev_patches, *extra_shared_patches]
+
     return ConfigPlan(
         pll_kind_plans=pll_bundle.kind_plans,
         pll_instances=pll_bundle.instances,
-        dev_steps=_with_step_indexes(merge_field_patches(dev_patches)),
+        dev_steps=_with_step_indexes(merge_field_patches(patches)),
     )

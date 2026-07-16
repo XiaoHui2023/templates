@@ -587,14 +587,13 @@ class ExtraRegEntry(BaseModel):
     @field_validator("path")
     @classmethod
     def _validate_path_syntax(cls, value: str) -> str:
-        validate_reg_path(value, ctx="tree.extra_regs.path")
+        validate_reg_path(value, ctx="extra_regs.path")
         return value
 
 
 class Tree(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., min_length=1, description="时钟树名。")
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
@@ -668,14 +667,6 @@ class Tree(BaseModel):
             object.__setattr__(node, "_name", key)
             built[key] = node
         return built
-
-    @model_validator(mode="after")
-    def _validate_name(self) -> Tree:
-        if not _SV_ID.match(self.name):
-            raise ValueError(
-                f"tree.name {self.name!r} 须为合法 SystemVerilog 名字"
-            )
-        return self
 
     @computed_field(  # type: ignore[prop-decorator]
         description="nodes 值的有序列表；YAML 与 model_validate 不可传入。",

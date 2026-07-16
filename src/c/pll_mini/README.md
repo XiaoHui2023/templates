@@ -6,24 +6,22 @@
 
 ```yaml
 ralf: example/normal.ralf
-tree:
-  name: main
-  nodes:
-    xtal:
-      kind: source
-      freq: 24000000
-    pll_sc:
-      kind: pll
-      source: xtal
-      pll_kind: sc
-      freq: 60000000
-      regs:
-        lock: blk_pll_sc.stat.lock
-        fbdiv: blk_pll_sc.div.fbdiv
-    clk_out:
-      kind: clk
-      source: pll_sc
-      freq: 60000000
+nodes:
+  xtal:
+    kind: source
+    freq: 24000000
+  pll_sc:
+    kind: pll
+    source: xtal
+    pll_kind: sc
+    freq: 60000000
+    regs:
+      lock: blk_pll_sc.stat.lock
+      fbdiv: blk_pll_sc.div.fbdiv
+  clk_out:
+    kind: clk
+    source: pll_sc
+    freq: 60000000
 settings:
   main_fn: chip_pll_config
 ```
@@ -34,7 +32,8 @@ settings:
 | --- | --- | --- | --- |
 | `ralf` | `str` | | RALF 文件路径。 |
 | `ralf_include_dirs` | `list[str]` | `[]` | RALF 引用其它文件时的额外搜索目录。 |
-| `tree` | `Tree` | | 单棵时钟树。 |
+| `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
+| `extra_regs` | `list[ExtraRegEntry]` | `[]` | PLL 锁定等待之后、普通器件 steps 之前写入的寄存器 field。 |
 | `settings` | `Settings` | 见下表 | 全局选项。 |
 
 ### Settings
@@ -74,16 +73,13 @@ settings:
 | `pll0` | 单路输出前级 |
 | `pll_inno[0]` | 多路输出前级，输出名为 `0` |
 
-### Tree
+### Nodes
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `name` | `str` | | 时钟树名。 |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名；某键值为 **null** 时跳过该节点，不参与约束求解与寄存器回填；其它节点仍引用该名字时会 **model_validate** 失败。 |
 
 写 **nodes** 时可用 `节点名: ~` 表示跳过。
-
-| `extra_regs` | `list[ExtraRegEntry]` | `[]` | PLL 锁定等待之后、普通器件 steps 之前写入的寄存器 field。 |
 
 ### ExtraRegEntry
 
