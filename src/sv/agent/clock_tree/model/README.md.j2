@@ -34,4 +34,15 @@ tree.{{ first_clk_name }}.frequence = 123456000;
 tree.build();
 {% endif %}
 ```
+{% set configurable_clks = tree.nodes_ordered | selectattr("kind", "equalto", "clk") | rejectattr("stable") | list %}
+{% if configurable_clks %}
+
+## 可配置时钟
+
+| 时钟 | 频率 |
+| --- | --- |
+{% for clk in configurable_clks %}
+| `{{ clk.name }}` | {% if not clk.active %}✗{% elif clk.freq is none %}-{% else %}{{ clk.freq }} Hz{% endif %} |
+{% endfor %}
+{% endif %}
 {% endif %}
