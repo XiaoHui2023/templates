@@ -16,7 +16,9 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
 {%- endif %}
     {{ settings.class_prefix }}node_base source;
 {% if any_node_path %}
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     virtual {{ settings.class_prefix }}interface vif;
+`endif
 {% endif %}
 
     constraint cst_node_base {
