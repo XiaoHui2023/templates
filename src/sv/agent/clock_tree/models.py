@@ -380,3 +380,19 @@ class Models(BaseModel):
             if node.kind == "clk":
                 return node.name
         return None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def configurable_clks(self) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        for node in self.tree.nodes_ordered:
+            if node.kind != "clk" or node.stable:
+                continue
+            rows.append(
+                {
+                    "name": node.name,
+                    "active": node.active,
+                    "freq": node.freq,
+                }
+            )
+        return rows

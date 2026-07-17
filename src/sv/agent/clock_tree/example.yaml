@@ -225,6 +225,7 @@ nodes:
       source: mux_wide
 
 settings:
+  direct_config: true
   class_regmodel: regmodel_t
   min_freq_hz: 15000
   div_freq_tolerance: 0.01
