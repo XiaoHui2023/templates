@@ -369,6 +369,9 @@ task {{ settings.class_prefix }}direct_configurator::configure_gate(
         bit open);
     if (gate_nd == null || !gate_nd.f_reg.is_bound())
         return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: gate %s open %0b", gate_nd.get_name(), open), UVM_MEDIUM)
 {%- if settings.gate_reg_high_means_open %}
     set_write(gate_nd.f_reg, open);
 {%- else %}
@@ -380,6 +383,9 @@ task {{ settings.class_prefix }}direct_configurator::configure_mux(
         {{ settings.class_prefix }}mux mux_nd);
     if (mux_nd == null || !mux_nd.f_reg.is_bound())
         return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: mux %s sel %0d", mux_nd.get_name(), mux_nd._resolved_sel), UVM_MEDIUM)
     set_write(mux_nd.f_reg, mux_nd._resolved_sel);
 endtask
 
@@ -387,6 +393,10 @@ task {{ settings.class_prefix }}direct_configurator::configure_inv(
         {{ settings.class_prefix }}inv_base inv_nd);
     if (inv_nd == null || !inv_nd.f_reg.is_bound())
         return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: inv %s inverted %0b", inv_nd.get_name(), inv_nd.inverted),
+            UVM_MEDIUM)
 {%- if settings.inv_reg_high_means_inverted %}
     set_write(inv_nd.f_reg, inv_nd.inverted);
 {%- else %}
@@ -404,6 +414,10 @@ task {{ settings.class_prefix }}direct_configurator::configure_div(
         return;
     n = div_ratio_to_n(div_nd._resolved_ratio);
 {%- if settings.should_reset_div %}
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: div %s ratio %0d reset pulse",
+            div_nd.get_name(), div_nd._resolved_ratio), UVM_MEDIUM)
 {%- if settings.div_reg_high_means_reset %}
     set_write(div_nd.f_rst, 1);
     binds = '{div_nd.f_rst, div_nd.f_div, div_nd.f_load};
@@ -416,6 +430,10 @@ task {{ settings.class_prefix }}direct_configurator::configure_div(
     apply(binds, vals);
     set_write(div_nd.f_load, 1);
 {%- else %}
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: div %s ratio %0d",
+            div_nd.get_name(), div_nd._resolved_ratio), UVM_MEDIUM)
 {%- if settings.div_reg_high_means_reset %}
     set_write(div_nd.f_rst, 0);
 {%- else %}
@@ -436,6 +454,10 @@ task {{ settings.class_prefix }}direct_configurator::configure_dto(
             || !dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
             || !dto_nd.f_step.is_bound())
         return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: dto %s ratio %0d",
+            dto_nd.get_name(), dto_nd._resolved_ratio), UVM_MEDIUM)
     set_write(dto_nd.f_load, 0);
     if (dto_ratio_is_bypass(dto_nd._resolved_ratio)) begin
         binds = '{dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step};
@@ -679,8 +701,14 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
     {{ settings.class_prefix }}pll_inno pll_inno_nd;
 
     configured = 1'b0;
-    if (pll_nd == null || !pll_nd._resolved_active)
+    if (pll_nd == null)
         return;
+    if (!pll_nd._resolved_active) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s skip not valid", pll_nd.get_name()), UVM_MEDIUM)
+        return;
+    end
     if (pll_nd.source == null || pll_nd.source._resolved_freq <= 0)
         `uvm_fatal("CLK_TREE", $sformatf(
             "direct_config: pll %s has no positive source frequency", pll_nd.get_name()))
@@ -697,6 +725,11 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_tci_nd.f_bwadj.is_bound())
             return;
         tci_divisors(pll_tci_nd.frequence, ref_hz, clkr, clkf, clkod, bwadj);
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_tci %s out %0d Hz ref %s %0d Hz clkr %0d clkf %0d clkod %0d bwadj %0d",
+                pll_tci_nd.get_name(), pll_tci_nd.frequence, pll_nd.source.get_name(), ref_hz,
+                clkr, clkf, clkod, bwadj), UVM_MEDIUM)
         set_write(pll_tci_nd.f_reset, 1);
         binds = '{pll_tci_nd.f_bypass, pll_tci_nd.f_pwrdn, pll_tci_nd.f_clkod,
             pll_tci_nd.f_clkf, pll_tci_nd.f_clkr, pll_tci_nd.f_bwadj};
@@ -718,6 +751,11 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_sc_nd.f_fbdiv.is_bound())
             return;
         sc_divisors(pll_sc_nd.frequence, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_sc %s out %0d Hz ref %s %0d Hz",
+                pll_sc_nd.get_name(), pll_sc_nd.frequence, pll_sc_nd.source.get_name(), ref_hz),
+                UVM_MEDIUM)
         binds = '{pll_sc_nd.f_vocpd, pll_sc_nd.f_postdivpd, pll_sc_nd.f_dsmpd,
             pll_sc_nd.f_pd, pll_sc_nd.f_bypass};
         vals = '{1, 1, 1, 1, 1};
@@ -743,6 +781,11 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_dw_nd.f_enr.is_bound() || !pll_dw_nd.f_enp.is_bound())
             return;
         dw_divisors(pll_dw_nd.frequence, ref_hz, fbdiv, prediv, divvcop, p, divvcor, r);
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_dw %s out %0d Hz ref %s %0d Hz",
+                pll_dw_nd.get_name(), pll_dw_nd.frequence, pll_dw_nd.source.get_name(), ref_hz),
+                UVM_MEDIUM)
         binds = '{pll_dw_nd.f_fbdiv, pll_dw_nd.f_prediv};
         vals = '{fbdiv, prediv};
         apply(binds, vals);
@@ -781,6 +824,11 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
             read(pll_inno_nd.f_refdiv, refdiv);
         end
         inno_postdivisors(pll_inno_nd.frequence, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_inno %s out %0d Hz ref %s %0d Hz group %0d",
+                pll_inno_nd.get_name(), pll_inno_nd.frequence, pll_inno_nd.source.get_name(),
+                ref_hz, pll_inno_nd.group_id), UVM_MEDIUM)
         if (write_shared) begin
             set_write(pll_inno_nd.f_pd, 1);
             binds = '{pll_inno_nd.f_pd, pll_inno_nd.f_refdiv, pll_inno_nd.f_fbdiv};
@@ -818,6 +866,9 @@ task {{ settings.class_prefix }}direct_configurator::wait_pll(
     if (f_lock == null || !f_lock.is_bound())
         return;
 
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
     elapsed = 0;
     while (elapsed < {{ settings.pll_lock_timeout_us }}us) begin
         read(f_lock, lock_val);
