@@ -44,10 +44,6 @@ class Settings(BaseModel):
         False,
         description="为真时启用纯路径探针模式：不连接前级，只检查带 path 且有正数 freq 的 clk/cell，以及 active 为假的 clk。",
     )
-    direct_check: bool = Field(
-        False,
-        description="为真时生成直接调用的纯 SystemVerilog 检查入口，不依赖 UVM tree、component 或 sequence。",
-    )
     direct_config: bool = Field(
         False,
         description="为真时只生成 model 目录文件和直接寄存器配置入口，不生成 UVM agent。",
@@ -247,18 +243,12 @@ class Models(BaseModel):
                 raise ValueError(
                     "probe_mode 为真时须至少包含一个 freq 为正数或 active 为假的 clk/cell 节点"
                 )
-        elif not self.settings.direct_check or self.settings.direct_config:
+        else:
             validate_nodes_graph(self.nodes)
-        if self.settings.direct_check:
-            if not self.tree.direct_check_slots:
-                raise ValueError(
-                    "direct_check 为真时须至少包含一个可检查的 clk 或 cell"
-                )
         if self.settings.direct_config and not self.any_regs_configured:
             raise ValueError("direct_config 为真时须至少配置一个 reg 或 regs")
         if (
             self.any_regs_configured
-            and (not self.settings.direct_check or self.settings.direct_config)
             and not self.settings.class_regmodel
         ):
             raise ValueError(
@@ -291,19 +281,6 @@ class Models(BaseModel):
         if node.kind == "clk":
             return (not node.active) or (node.freq is not None and node.freq > 0)
         return False
-
-    def _node_direct_check_enabled(self, node: Node) -> bool:
-        if not node.present:
-            return False
-        if not getattr(node, "path", ""):
-            return False
-        if node.kind == "clk" and not node.active:
-            return True
-        return (
-            node.kind == "clk"
-            and node.freq is not None
-            and node.freq > 0
-        )
 
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 PLL 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",

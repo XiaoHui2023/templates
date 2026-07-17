@@ -1,6 +1,8 @@
 {% if settings.direct_config %}
 # model
 
+`settings.direct_config: true` 时额外生成 `model/model.f` 与 `model/direct_config.sv`。`all.f` 仍为正常 agent filelist；`model.f` 是轻量导入入口。
+
 输入 `class_regmodel` 寄存器。
 
 {% if first_clk_name %}

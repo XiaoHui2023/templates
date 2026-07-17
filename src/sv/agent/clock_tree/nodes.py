@@ -128,15 +128,6 @@ class SvNodeSlot:
     access: str
 
 
-@dataclass(frozen=True)
-class DirectCheckSlot:
-    node_key: str
-    group_id: str
-    access: str
-    active: bool
-    freq: int
-
-
 class SourceRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -890,107 +881,6 @@ class Tree(BaseModel):
             for slot in self.sv_slots
             if node_path_connectable(self, self.nodes[slot.node_key])
         ]
-
-    @computed_field(  # type: ignore[prop-decorator]
-        description="direct_check 需要检查的 clk/cell 节点。",
-    )
-    @property
-    def direct_check_slots(self) -> List[DirectCheckSlot]:
-        expected: Dict[str, tuple[bool, int]] = {}
-        for node in self.nodes_ordered:
-            seed = self._direct_check_seed(node)
-            if seed is None:
-                continue
-            self._spread_direct_check_from_clk(node, seed[0], seed[1], expected)
-
-        slots: List[DirectCheckSlot] = []
-        for slot in self.connectable_slots:
-            node = self.nodes[slot.node_key]
-            if node.kind == "clk":
-                seed = self._direct_check_seed(node)
-                if seed is None:
-                    continue
-                active, freq = seed
-            elif node.kind == "cell":
-                if node.name not in expected:
-                    raise ValueError(
-                        f"direct_check cell {node.name!r} cannot get expected clock "
-                        "from any freq/active clk before reaching a control node"
-                    )
-                active, freq = expected[node.name]
-            else:
-                continue
-            slots.append(
-                DirectCheckSlot(
-                    node_key=slot.node_key,
-                    group_id=slot.group_id,
-                    access=slot.access,
-                    active=active,
-                    freq=freq,
-                )
-            )
-        return slots
-
-    def _direct_check_seed(self, node: Node) -> Optional[tuple[bool, int]]:
-        if node.kind != "clk":
-            return None
-        if not node.active:
-            return (False, 0)
-        if node.freq is not None and node.freq > 0:
-            return (True, node.freq)
-        return None
-
-    def _spread_direct_check_from_clk(
-        self,
-        node: Node,
-        active: bool,
-        freq: int,
-        expected: Dict[str, tuple[bool, int]],
-    ) -> None:
-        queue = [node.name]
-        visited: set[str] = set()
-        while queue:
-            cur_name = queue.pop(0)
-            if cur_name in visited:
-                continue
-            visited.add(cur_name)
-            cur = self.nodes[cur_name]
-            if cur.kind == "cell":
-                self._set_direct_check_expected(cur.name, active, freq, expected)
-            for peer_name in self._direct_check_peers(cur):
-                if peer_name not in visited:
-                    queue.append(peer_name)
-
-    def _direct_check_peers(self, node: Node) -> List[str]:
-        peers: List[str] = []
-        pass_kinds = {"cell", "clk", "inv"}
-        for ref in node.sources:
-            parent = self.nodes.get(ref.name)
-            if parent is not None and parent.present and parent.kind in pass_kinds:
-                peers.append(parent.name)
-        for child_name in self.children_by_node.get(node.name, []):
-            child = self.nodes[child_name]
-            if child.kind in pass_kinds:
-                peers.append(child.name)
-        return peers
-
-    def _set_direct_check_expected(
-        self,
-        name: str,
-        active: bool,
-        freq: int,
-        expected: Dict[str, tuple[bool, int]],
-    ) -> None:
-        value = (active, freq)
-        old = expected.get(name)
-        if old is None:
-            expected[name] = value
-            return
-        if old != value:
-            raise ValueError(
-                f"direct_check cell {name!r} gets conflicting expected clocks: "
-                f"{old!r} and {value!r}"
-            )
 
     def source_sv_access(self, ref: SourceRef) -> str:
         peer = self.nodes[ref.name]

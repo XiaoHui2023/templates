@@ -1,4 +1,4 @@
-{% if any_node_path and not settings.direct_config %}
+{% if any_node_path %}
 `ifndef {{ (settings.class_prefix ~ "connect") | upper }}
 `define {{ (settings.class_prefix ~ "connect") | upper }}
 

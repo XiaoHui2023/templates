@@ -18,7 +18,7 @@
 
 ## direct_config
 
-`settings.direct_config: true` 时只生成 model 目录相关文件，`all.f` 通过 `-F model/model.f` 引用该目录下的 filelist。该模式用于不接 agent、component、sequence、top，只用 model 完成寄存器配置。
+`settings.direct_config: true` 时额外生成 `model/model.f` 与 `model/direct_config.sv`。`all.f` 仍为正常 agent filelist；`model.f` 是轻量导入入口，用于不接 agent、component、sequence、top，只用 model 完成寄存器配置。
 
 配置入口 task 为 `{class_prefix}config_reg(tree)`。它会例化 direct configurator，并按当前 tree 配置写 PLL、div、dto、inv、gate、mux 等寄存器；调用前应先执行 `tree.build(regmodel)` 绑定寄存器并随机化。
 
