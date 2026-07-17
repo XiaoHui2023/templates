@@ -16,6 +16,8 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- elif node.kind == "gate" %}
 {%- set field_flags = "UVM_ALL_ON | (_print_gate ? 0 : UVM_NOPRINT)" %}
+{%- elif node.kind == "cell" %}
+{%- set field_flags = "UVM_ALL_ON | (_print_cell ? 0 : UVM_NOPRINT)" %}
 {%- else %}
 {%- set field_flags = "UVM_ALL_ON | UVM_NOPRINT" %}
 {%- endif %}
