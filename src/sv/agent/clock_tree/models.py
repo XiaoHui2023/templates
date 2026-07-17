@@ -386,7 +386,9 @@ class Models(BaseModel):
     def configurable_clks(self) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
         for node in self.tree.nodes_ordered:
-            if node.kind != "clk" or node.stable:
+            if node.kind != "clk" or node.stable or node.volatile:
+                continue
+            if node.active and node.freq is None:
                 continue
             rows.append(
                 {

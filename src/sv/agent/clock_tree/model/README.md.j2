@@ -40,8 +40,8 @@ tree.build();
 
 | 时钟 | 频率 |
 | --- | --- |
-{% for clk in configurable_clks %}
+{% for clk in configurable_clks -%}
 | `{{ clk.name }}` | {% if not clk.active %}✗{% elif clk.freq is none %}-{% else %}{{ clk.freq }} Hz{% endif %} |
-{% endfor %}
-{% endif %}
-{% endif %}
+{% endfor -%}
+{% endif -%}
+{% endif -%}
