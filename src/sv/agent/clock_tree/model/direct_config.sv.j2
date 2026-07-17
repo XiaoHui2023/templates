@@ -73,6 +73,17 @@ class {{ settings.class_prefix }}direct_configurator;
         int fbdiv_max, output int fbdiv, output int refdiv);
     extern function void inno_postdivisors(longint out_hz, longint ref_hz,
         int fbdiv, int refdiv, output int postdiv1, output int postdiv2);
+    extern task tci_regs_match_target(
+        {{ settings.class_prefix }}pll_tci pll_nd, longint ref_hz, output bit match);
+    extern task sc_regs_match_target(
+        {{ settings.class_prefix }}pll_sc pll_nd, longint ref_hz, output bit match);
+    extern task dw_regs_match_target(
+        {{ settings.class_prefix }}pll_dw pll_nd, longint ref_hz, output bit match);
+    extern task inno_regs_match_target(
+        {{ settings.class_prefix }}pll_inno pll_nd,
+        longint ref_hz,
+        bit write_shared,
+        output bit match);
 
     extern task configure_all({{ settings.class_prefix }}tree tree);
 endclass
@@ -689,6 +700,180 @@ function void {{ settings.class_prefix }}direct_configurator::inno_postdivisors(
         end
 endfunction
 
+task {{ settings.class_prefix }}direct_configurator::tci_regs_match_target(
+        {{ settings.class_prefix }}pll_tci pll_nd,
+        longint ref_hz,
+        output bit match);
+    int exp_clkr;
+    int exp_clkf;
+    int exp_clkod;
+    int exp_bwadj;
+    int act;
+
+    tci_divisors(pll_nd.frequence, ref_hz, exp_clkr, exp_clkf, exp_clkod, exp_bwadj);
+    match = 1'b1;
+    read(pll_nd.f_bypass, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_pwrdn, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_reset, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_clkod, act);
+    if (act != exp_clkod)
+        match = 1'b0;
+    read(pll_nd.f_clkf, act);
+    if (act != exp_clkf)
+        match = 1'b0;
+    read(pll_nd.f_clkr, act);
+    if (act != exp_clkr)
+        match = 1'b0;
+    read(pll_nd.f_bwadj, act);
+    if (act != exp_bwadj)
+        match = 1'b0;
+endtask
+
+task {{ settings.class_prefix }}direct_configurator::sc_regs_match_target(
+        {{ settings.class_prefix }}pll_sc pll_nd,
+        longint ref_hz,
+        output bit match);
+    int exp_fbdiv;
+    int exp_refdiv;
+    int exp_postdiv1;
+    int exp_postdiv2;
+    int act;
+
+    sc_divisors(pll_nd.frequence, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
+    match = 1'b1;
+    read(pll_nd.f_vocpd, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_postdivpd, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_dsmpd, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_pd, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_bypass, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_refdiv, act);
+    if (act != exp_refdiv)
+        match = 1'b0;
+    read(pll_nd.f_postdiv2, act);
+    if (act != exp_postdiv2)
+        match = 1'b0;
+    read(pll_nd.f_postdiv1, act);
+    if (act != exp_postdiv1)
+        match = 1'b0;
+    read(pll_nd.f_fbdiv, act);
+    if (act != exp_fbdiv)
+        match = 1'b0;
+endtask
+
+task {{ settings.class_prefix }}direct_configurator::dw_regs_match_target(
+        {{ settings.class_prefix }}pll_dw pll_nd,
+        longint ref_hz,
+        output bit match);
+    int exp_fbdiv;
+    int exp_prediv;
+    int exp_divvcop;
+    int exp_p;
+    int exp_divvcor;
+    int exp_r;
+    int act;
+
+    dw_divisors(
+        pll_nd.frequence, ref_hz, exp_fbdiv, exp_prediv,
+        exp_divvcop, exp_p, exp_divvcor, exp_r);
+    match = 1'b1;
+    read(pll_nd.f_fbdiv, act);
+    if (act != exp_fbdiv)
+        match = 1'b0;
+    read(pll_nd.f_prediv, act);
+    if (act != exp_prediv)
+        match = 1'b0;
+    read(pll_nd.f_reset, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_pwron, act);
+    if (act != 1)
+        match = 1'b0;
+    read(pll_nd.f_shift, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_bypass, act);
+    if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_divvcor, act);
+    if (act != exp_divvcor)
+        match = 1'b0;
+    read(pll_nd.f_r, act);
+    if (act != exp_r)
+        match = 1'b0;
+    read(pll_nd.f_p, act);
+    if (act != exp_p)
+        match = 1'b0;
+    read(pll_nd.f_divvcop, act);
+    if (act != exp_divvcop)
+        match = 1'b0;
+    read(pll_nd.f_enr, act);
+    if (act != 1)
+        match = 1'b0;
+    read(pll_nd.f_enp, act);
+    if (act != 1)
+        match = 1'b0;
+endtask
+
+task {{ settings.class_prefix }}direct_configurator::inno_regs_match_target(
+        {{ settings.class_prefix }}pll_inno pll_nd,
+        longint ref_hz,
+        bit write_shared,
+        output bit match);
+    int fbdiv;
+    int refdiv;
+    int exp_fbdiv;
+    int exp_refdiv;
+    int exp_postdiv1;
+    int exp_postdiv2;
+    int act;
+
+    if (write_shared)
+        inno_shared_divisors(
+            pll_nd.frequence, ref_hz, reg_max(pll_nd.f_fbdiv), exp_fbdiv, exp_refdiv);
+    else begin
+        read(pll_nd.f_fbdiv, fbdiv);
+        read(pll_nd.f_refdiv, refdiv);
+        exp_fbdiv = fbdiv;
+        exp_refdiv = refdiv;
+    end
+    inno_postdivisors(
+        pll_nd.frequence, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
+    match = 1'b1;
+    read(pll_nd.f_pd, act);
+    if (act != 0)
+        match = 1'b0;
+    if (write_shared) begin
+        read(pll_nd.f_refdiv, act);
+        if (act != exp_refdiv)
+            match = 1'b0;
+        read(pll_nd.f_fbdiv, act);
+        if (act != exp_fbdiv)
+            match = 1'b0;
+    end
+    read(pll_nd.f_postdiv1, act);
+    if (act != exp_postdiv1 - 1)
+        match = 1'b0;
+    read(pll_nd.f_postdiv2, act);
+    if (act != exp_postdiv2 - 1)
+        match = 1'b0;
+endtask
+
 task {{ settings.class_prefix }}direct_configurator::configure_pll(
         {{ settings.class_prefix }}pll_base pll_nd,
         output bit configured);
@@ -699,6 +884,7 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
     {{ settings.class_prefix }}pll_sc pll_sc_nd;
     {{ settings.class_prefix }}pll_dw pll_dw_nd;
     {{ settings.class_prefix }}pll_inno pll_inno_nd;
+    bit reg_match;
 
     configured = 1'b0;
     if (pll_nd == null)
@@ -725,6 +911,14 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_tci_nd.f_bwadj.is_bound())
             return;
         tci_divisors(pll_tci_nd.frequence, ref_hz, clkr, clkf, clkod, bwadj);
+        tci_regs_match_target(pll_tci_nd, ref_hz, reg_match);
+        if (reg_match) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_tci %s skip reg match out %0d Hz ref %0d Hz",
+                    pll_tci_nd.get_name(), pll_tci_nd.frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll_tci %s out %0d Hz ref %s %0d Hz clkr %0d clkf %0d clkod %0d bwadj %0d",
@@ -751,6 +945,14 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_sc_nd.f_fbdiv.is_bound())
             return;
         sc_divisors(pll_sc_nd.frequence, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
+        sc_regs_match_target(pll_sc_nd, ref_hz, reg_match);
+        if (reg_match) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_sc %s skip reg match out %0d Hz ref %0d Hz",
+                    pll_sc_nd.get_name(), pll_sc_nd.frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll_sc %s out %0d Hz ref %s %0d Hz",
@@ -781,6 +983,14 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_dw_nd.f_enr.is_bound() || !pll_dw_nd.f_enp.is_bound())
             return;
         dw_divisors(pll_dw_nd.frequence, ref_hz, fbdiv, prediv, divvcop, p, divvcor, r);
+        dw_regs_match_target(pll_dw_nd, ref_hz, reg_match);
+        if (reg_match) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_dw %s skip reg match out %0d Hz ref %0d Hz",
+                    pll_dw_nd.get_name(), pll_dw_nd.frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll_dw %s out %0d Hz ref %s %0d Hz",
@@ -816,6 +1026,14 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_inno_nd.f_postdiv1.is_bound() || !pll_inno_nd.f_postdiv2.is_bound())
             return;
         write_shared = pll_inno_nd.group_id == "{{ inno_pll_primary_group }}";
+        inno_regs_match_target(pll_inno_nd, ref_hz, write_shared, reg_match);
+        if (reg_match) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_inno %s skip reg match out %0d Hz ref %0d Hz",
+                    pll_inno_nd.get_name(), pll_inno_nd.frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
         if (write_shared)
             inno_shared_divisors(
                 pll_inno_nd.frequence, ref_hz, reg_max(pll_inno_nd.f_fbdiv), fbdiv, refdiv);
