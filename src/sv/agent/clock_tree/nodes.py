@@ -496,16 +496,12 @@ class CellNode(NodeBase):
 
     @model_validator(mode="before")
     @classmethod
-    def _normalize_active(cls, data: Any) -> Any:
+    def _reject_disable(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
-        if "disable" not in data:
-            return data
-        if "active" in data:
-            raise ValueError("cell 节点 active 与旧字段 disable 不可同时填写")
-        body = {k: v for k, v in data.items() if k != "disable"}
-        body["active"] = not bool(data["disable"])
-        return body
+        if "disable" in data:
+            raise ValueError("cell 节点不支持 disable 字段，请使用 active: false")
+        return data
 
     @field_validator("cell_kind", mode="before")
     @classmethod
@@ -600,16 +596,12 @@ class ClkNode(NodeBase):
 
     @model_validator(mode="before")
     @classmethod
-    def _normalize_active(cls, data: Any) -> Any:
+    def _reject_disable(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
-        if "disable" not in data:
-            return data
-        if "active" in data:
-            raise ValueError("clk 节点 active 与旧字段 disable 不可同时填写")
-        body = {k: v for k, v in data.items() if k != "disable"}
-        body["active"] = not bool(data["disable"])
-        return body
+        if "disable" in data:
+            raise ValueError("clk 节点不支持 disable 字段，请使用 active: false")
+        return data
 
     @field_validator("freq", mode="before")
     @classmethod

@@ -119,7 +119,7 @@ nodes:
       cell_kind: buf
       path: dut.cell_disabled
       source: gate_cell_off
-      disable: true
+      active: false
 
     div_r_0:
       kind: div_r

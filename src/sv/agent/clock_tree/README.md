@@ -233,7 +233,7 @@ endfunction
 | `path` | `str` | | RTL 层次路径，按 `.` 分隔；**present** 为真时必填。 |
 | `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
 | `freq` | `int` | | 典型频率，单位 Hz；省略则不指定频率。 |
-| `active` | `bool` | | 期望运行态是否有时钟；省略则不指定活动状态。也可用旧字段 `disable: true` 表示关闭。 |
+| `active` | `bool` | | 期望运行态是否有时钟；省略则不指定活动状态；为 `false` 时表示关闭。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 
 ### Node - div
