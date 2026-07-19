@@ -102,6 +102,25 @@ nodes:
       path: dut.clk_buf
       source: gate0
 
+    cell_freq:
+      kind: cell
+      cell_kind: buf
+      path: dut.cell_freq
+      source: xtal
+      freq: 24000000
+
+    gate_cell_off:
+      kind: gate
+      source: xtal
+      open: 0
+
+    cell_disabled:
+      kind: cell
+      cell_kind: buf
+      path: dut.cell_disabled
+      source: gate_cell_off
+      disable: true
+
     div_r_0:
       kind: div_r
       ratio: 99

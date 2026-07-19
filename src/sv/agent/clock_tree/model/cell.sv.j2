@@ -1,16 +1,33 @@
 `ifndef {{ (settings.class_prefix ~ "cell") | upper }}
 `define {{ (settings.class_prefix ~ "cell") | upper }}
 
+{% set _sv_int_max = 2147483647 -%}
+{% set _min_freq_hz_lit = ("64'd" ~ settings.min_freq_hz) if settings.min_freq_hz > _sv_int_max else settings.min_freq_hz -%}
+{% set _max_freq_hz_lit = ("64'd" ~ settings.max_freq_hz) if settings.max_freq_hz > _sv_int_max else settings.max_freq_hz -%}
+
 class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}cell)
         `uvm_field_string(cell_kind, UVM_DEFAULT)
+        `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC | (frequence >= 0 ? 0 : UVM_NOPRINT))
+        `uvm_field_int(enabled, UVM_ALL_ON | (enabled >= 0 ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     string cell_kind;
+    longint frequence;
+    int enabled;
+
+    constraint cst_cell {
+        frequence >= 0 -> frequence == _resolved_freq;
+        enabled >= 0 -> (enabled != 0) == _resolved_active;
+        !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
+        !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};
+    }
 
     function new(string name = "");
         super.new(name);
         cell_kind = "cell";
+        frequence = -1;
+        enabled = -1;
         kind = "cell";
     endfunction
 endclass

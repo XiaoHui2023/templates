@@ -183,6 +183,13 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endif %}
 {%- endif %}
+{%- elif node.kind == "cell" %}
+{%- if node.cell_tree_emit_frequence %}
+        {{ node.name }}.frequence = {{ node.cell_init_frequence }};
+{%- endif %}
+{%- if node.cell_tree_emit_enabled %}
+        {{ node.name }}.enabled = {{ node.cell_init_enabled }};
+{%- endif %}
 {%- elif node.kind == "pll" %}
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}

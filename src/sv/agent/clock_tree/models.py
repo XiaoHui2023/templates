@@ -277,7 +277,7 @@ class Models(BaseModel):
         if not getattr(node, "path", ""):
             return False
         if node.kind == "cell":
-            return True
+            return (node.active is False) or (node.freq is not None and node.freq > 0)
         if node.kind == "clk":
             return (not node.active) or (node.freq is not None and node.freq > 0)
         return False

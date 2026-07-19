@@ -22,7 +22,7 @@ settings:
   class_prefix: chip_clk_
 ```
 
-纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk/cell`，以及 `active: false` 的 `clk`；`source`、`pll` 和中间节点不会出现在生成的 `tree_interface.sv` 中。
+纯路径探针可使用 `settings.probe_mode: true`。该模式不表达树状连接关系，只检查带 `path` 且有正数 `freq` 的 `clk/cell`，以及 `active: false` 的 `clk/cell`；`source`、`pll` 和中间节点不会出现在生成的 `tree_interface.sv` 中。
 
 ```yaml
 nodes:
@@ -72,10 +72,10 @@ endfunction
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk/cell**，以及 **active** 为假的 **clk**。 |
+| `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk/cell**，以及 **active** 为假的 **clk/cell**。 |
 | `direct_config` | `bool` | `false` | 为真时只生成 model 目录文件和直接寄存器配置入口。 |
 | `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
-| `max_freq_hz` | `int` | `5000000000` | **clk** 节点 randomize 后允许的最高频率，单位 Hz。 |
+| `max_freq_hz` | `int` | `5000000000` | **clk/cell** 节点 randomize 后允许的最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 判定时钟有活动所需连续上升沿个数；超过一个最低频率周期仍无边沿则 inactive。 |
 | `stable_cycles` | `int` | `3` | 活动确认后频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。 |
 | `mux_switch_wait_cycles` | `int` | `3` | **config_reg** 写 **mux** 选择前，按待切换 **mux** 最慢直接前级时钟等待的周期数。 |
@@ -225,13 +225,15 @@ endfunction
 
 ### Node - cell
 
-直通单元，输出频率与活动状态与前级相同；各 **cell_kind** 共用同一仿真类。`check_measure` 只检查频率。
+直通单元，未指定时输出频率与活动状态与前级相同；各 **cell_kind** 共用同一仿真类。`check_measure` 只检查频率。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `cell` | |
 | `path` | `str` | | RTL 层次路径，按 `.` 分隔；**present** 为真时必填。 |
 | `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
+| `freq` | `int` | | 典型频率，单位 Hz；省略则不指定频率。 |
+| `active` | `bool` | | 期望运行态是否有时钟；省略则不指定活动状态。也可用旧字段 `disable: true` 表示关闭。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 
 ### Node - div

@@ -481,15 +481,41 @@ class CellNode(NodeBase):
         min_length=1,
         description="配置型号，任意非空字符串；仅作记录，仿真行为相同。",
     )
+    freq: Optional[int] = Field(
+        default=None,
+        description="典型频率，单位 Hz；省略表示不指定频率。",
+    )
+    active: Optional[bool] = Field(
+        default=None,
+        description="期望运行态是否有时钟；省略表示不指定活动状态。",
+    )
     source: OptionalUpstreamSource = Field(
         default=None,
         description="前级引用；省略或空表示无前级。",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_active(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if "disable" not in data:
+            return data
+        if "active" in data:
+            raise ValueError("cell 节点 active 与旧字段 disable 不可同时填写")
+        body = {k: v for k, v in data.items() if k != "disable"}
+        body["active"] = not bool(data["disable"])
+        return body
+
     @field_validator("cell_kind", mode="before")
     @classmethod
     def _normalize_cell_kind(cls, value: object) -> str:
         return normalize_cell_kind(value)
+
+    @field_validator("freq", mode="before")
+    @classmethod
+    def _coerce_optional_freq(cls, value: Any) -> Any:
+        return _coerce_optional_int(value)
 
     @field_validator("path")
     @classmethod
@@ -507,7 +533,41 @@ class CellNode(NodeBase):
     def _validate_cell_path(self) -> CellNode:
         if self.present and not self.path:
             raise ValueError(f"cell 节点 {self.name!r} path 必须填写")
+        if self.freq is not None and self.freq == 0:
+            raise ValueError(
+                f"cell 节点 {self.name!r} freq 为 0 非法；"
+                f"正频率应大于等于 1，不约束请省略或填负数"
+            )
+        if self.freq is not None and self.freq > _FREQ_HZ_U32_MAX:
+            raise ValueError(
+                f"cell 节点 {self.name!r} freq {self.freq} "
+                f"超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}"
+            )
         return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cell_init_frequence(self) -> int:
+        return -1 if self.freq is None else self.freq
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cell_init_enabled(self) -> int:
+        if self.active is None:
+            return -1
+        return 1 if self.active else 0
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cell_tree_emit_frequence(self) -> bool:
+        if self.active is False:
+            return False
+        return self.freq is not None and self.freq != -1
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cell_tree_emit_enabled(self) -> bool:
+        return self.active is not None
 
 
 class ClkNode(NodeBase):
