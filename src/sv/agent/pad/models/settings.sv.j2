@@ -1,0 +1,30 @@
+`ifndef {{ class_settings | upper }}
+`define {{ class_settings | upper }}
+
+class {{ class_settings }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_settings }})
+        `uvm_field_object(regmodel,UVM_ALL_ON|UVM_NOPRINT|UVM_NOCOPY)
+        `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    virtual {{ class_interface }} vif;
+    {{ class_regmodel }} regmodel;
+    {{ class_pad_data }} pads[$];
+    rand bit has_randomized;
+
+    function new(string name="{{ class_settings }}");
+        super.new(name);
+    endfunction
+
+    constraint cst {
+        has_randomized == 1;
+    }
+
+    extern function void build();
+endclass
+
+function void {{ class_settings }}::build();
+    {{ class_prefix }}build(vif, regmodel, pads);
+endfunction
+
+`endif

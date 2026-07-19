@@ -4,30 +4,134 @@
 class {{ class_sequencer }} extends uvm_sequencer;
     `uvm_component_utils({{ class_sequencer }})
 
-    {{ class_configuration }} cfg; // 配置包
+    {{ class_settings }} settings;
+    {{ class_reg_rw }} rw;
 
-    function new(string name,uvm_component parent);
-        super.new(name,parent);
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+        rw = new();
     endfunction
 
     extern task reset_phase(uvm_phase phase);
-    extern function void start_of_simulation();
+    extern function void start_of_simulation_phase(uvm_phase phase);
+    extern function void check_ready();
+    extern task write_signal({{ class_reg_binding }} rb, logic[31:0] value);
+    extern task read_signal({{ class_reg_binding }} rb, output uvm_reg_data_t value);
+    extern function logic[31:0] get_output_value({{ class_pad_data }} pad);
+    extern function logic[31:0] get_pull_up({{ class_pad_data }} pad);
+    extern function logic[31:0] get_pull_down({{ class_pad_data }} pad);
+    extern function logic[31:0] get_drive_strength({{ class_pad_data }} pad);
+    extern function logic[31:0] get_pad_value({{ class_pad_data }} pad);
+    extern task config_pad({{ class_pad_data }} pad, logic[31:0] output_value, logic[31:0] pull_up, logic[31:0] pull_down, logic[31:0] drive_strength);
+    extern task connection_test();
+    extern task pull_test();
 endclass
 
 task {{ class_sequencer }}::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
-
-    stop_sequences(); // 结束当前活跃的sequence,清空仲裁队列
+    stop_sequences();
     start_phase_sequence(phase);
 endtask
 
-function void {{ class_sequencer }}::start_of_simulation();
-    super.start_of_simulation();
+function void {{ class_sequencer }}::start_of_simulation_phase(uvm_phase phase);
+    super.start_of_simulation_phase(phase);
 
-    if(!cfg.has_randomized)
-        assert(cfg.randomize()) else `uvm_fatal("", "randomize failed")
-    cfg.build();
-    `uvm_info("",$spsrintf("config:\n%s",cfg.sprint()),UVM_LOW)
+    if (settings == null)
+        `uvm_fatal("PAD", "require settings")
+    if (!settings.has_randomized)
+        assert(settings.randomize()) else `uvm_fatal("PAD", "settings randomize failed")
+    settings.build();
+    `uvm_info("PAD", $sformatf("built %0d pad data objects", settings.pads.size()), UVM_LOW)
 endfunction
+
+function void {{ class_sequencer }}::check_ready();
+    if (settings == null)
+        `uvm_fatal("PAD", "require settings")
+    if (settings.vif == null)
+        `uvm_fatal("PAD", "require settings.vif")
+    if (settings.regmodel == null)
+        `uvm_fatal("PAD", "require settings.regmodel")
+    if (settings.pads.size() == 0)
+        `uvm_fatal("PAD", "settings.pads is empty; call settings.build() first")
+endfunction
+
+task {{ class_sequencer }}::write_signal({{ class_reg_binding }} rb, logic[31:0] value);
+    check_ready();
+    rw.set_write(rb, value);
+endtask
+
+task {{ class_sequencer }}::read_signal({{ class_reg_binding }} rb, output uvm_reg_data_t value);
+    check_ready();
+    rw.read(rb, value);
+endtask
+
+function logic[31:0] {{ class_sequencer }}::get_output_value({{ class_pad_data }} pad);
+    if (pad == null || pad.vif == null)
+        `uvm_fatal("PAD", "get_output_value: pad vif is null")
+    return pad.vif.output_value;
+endfunction
+
+function logic[31:0] {{ class_sequencer }}::get_pull_up({{ class_pad_data }} pad);
+    if (pad == null || pad.vif == null)
+        `uvm_fatal("PAD", "get_pull_up: pad vif is null")
+    return pad.vif.pull_up;
+endfunction
+
+function logic[31:0] {{ class_sequencer }}::get_pull_down({{ class_pad_data }} pad);
+    if (pad == null || pad.vif == null)
+        `uvm_fatal("PAD", "get_pull_down: pad vif is null")
+    return pad.vif.pull_down;
+endfunction
+
+function logic[31:0] {{ class_sequencer }}::get_drive_strength({{ class_pad_data }} pad);
+    if (pad == null || pad.vif == null)
+        `uvm_fatal("PAD", "get_drive_strength: pad vif is null")
+    return pad.vif.drive_strength;
+endfunction
+
+function logic[31:0] {{ class_sequencer }}::get_pad_value({{ class_pad_data }} pad);
+    if (pad == null || pad.vif == null)
+        `uvm_fatal("PAD", "get_pad_value: pad vif is null")
+    return pad.vif.pad_value;
+endfunction
+
+task {{ class_sequencer }}::config_pad(
+        {{ class_pad_data }} pad,
+        logic[31:0] output_value,
+        logic[31:0] pull_up,
+        logic[31:0] pull_down,
+        logic[31:0] drive_strength);
+    {{ class_reg_binding }} binds[$];
+    uvm_reg_data_t vals[$];
+
+    check_ready();
+    if (pad == null)
+        `uvm_fatal("PAD", "config_pad: pad is null")
+    binds.push_back(pad.output_reg);
+    vals.push_back(output_value);
+    binds.push_back(pad.pull_up_reg);
+    vals.push_back(pull_up);
+    binds.push_back(pad.pull_down_reg);
+    vals.push_back(pull_down);
+    binds.push_back(pad.drive_strength_reg);
+    vals.push_back(drive_strength);
+    rw.apply(binds, vals);
+endtask
+
+task {{ class_sequencer }}::connection_test();
+    {{ class_connection_test_seq }} seq;
+
+    check_ready();
+    seq = {{ class_connection_test_seq }}::type_id::create("connection_test");
+    seq.start(this);
+endtask
+
+task {{ class_sequencer }}::pull_test();
+    {{ class_pull_test_seq }} seq;
+
+    check_ready();
+    seq = {{ class_pull_test_seq }}::type_id::create("pull_test");
+    seq.start(this);
+endtask
 
 `endif

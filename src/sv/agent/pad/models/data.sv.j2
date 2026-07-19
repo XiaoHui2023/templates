@@ -1,0 +1,24 @@
+`ifndef {{ class_pad_data | upper }}
+`define {{ class_pad_data | upper }}
+
+class {{ class_pad_data }};
+    string name;
+    virtual {{ class_sub_interface }} vif;
+    {{ class_reg_binding }} output_reg;
+    {{ class_reg_binding }} pull_up_reg;
+    {{ class_reg_binding }} pull_down_reg;
+    {{ class_reg_binding }} drive_strength_reg;
+    int output_width;
+    int pull_up_width;
+    int pull_down_width;
+    int drive_strength_width;
+    int pad_value_width;
+    bit fixed_pull_up;
+    bit fixed_pull_down;
+
+    function new(string name="");
+        this.name = name;
+    endfunction
+endclass
+
+`endif

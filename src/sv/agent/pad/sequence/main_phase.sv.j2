@@ -16,22 +16,20 @@ endclass
 task {{ class_main_phase_seq }}::pre_start();
     super.pre_start();
 
-    if(starting_phase)
+    if (starting_phase)
         starting_phase.raise_objection(this);
-
-    `uvm_info("","Enter",UVM_LOW)
+    `uvm_info("PAD", "Enter", UVM_LOW)
 endtask
 
 task {{ class_main_phase_seq }}::body();
-    `uvm_info("","require override",UVM_LOW)
+    `uvm_info("PAD", "override or call p_sequencer.connection_test()/pull_test()", UVM_LOW)
 endtask
 
 task {{ class_main_phase_seq }}::post_start();
     super.post_start();
 
-    `uvm_info("","Exit",UVM_LOW)
-
-    if(starting_phase)
+    `uvm_info("PAD", "Exit", UVM_LOW)
+    if (starting_phase)
         starting_phase.drop_objection(this);
 endtask
 

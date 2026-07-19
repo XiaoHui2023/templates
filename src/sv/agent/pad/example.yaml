@@ -1,0 +1,24 @@
+class_regmodel: pad_regmodel
+pads:
+  - name: gpio0
+    signals:
+      output:
+        reg: pad0_ctrl.output
+        path: dut.pad0_output
+      pull_up:
+        reg: pad0_ctrl.pull_up
+        path: dut.pad0_pull_up
+      pull_down:
+        reg: pad0_ctrl.pull_down
+        path: dut.pad0_pull_down
+      drive_strength:
+        reg:
+          path: pad0_ctrl.drive_strength
+          lsb: 0
+          width: 3
+        path: dut.pad0_drive_strength
+        width: 3
+      pad_value:
+        path: dut.pad0
+    fixed_pull_up: false
+    fixed_pull_down: false

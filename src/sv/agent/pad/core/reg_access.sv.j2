@@ -1,0 +1,156 @@
+`ifndef {{ class_reg_rw | upper }}
+`define {{ class_reg_rw | upper }}
+
+function automatic uvm_reg_data_t {{ class_prefix }}reg_mask(int width);
+    if (width <= 0)
+        return '0;
+    if (width >= 32)
+        return 32'hffff_ffff;
+    return 32'hffff_ffff >> (32 - width);
+endfunction
+
+class {{ class_reg_rw }};
+    extern function uvm_reg parent_reg({{ class_reg_binding }} rb);
+    extern function uvm_reg_data_t get({{ class_reg_binding }} rb);
+    extern function void set({{ class_reg_binding }} rb, uvm_reg_data_t value);
+    extern task read_reg(uvm_reg r, output uvm_reg_data_t rdata);
+    extern task read({{ class_reg_binding }} rb, output uvm_reg_data_t value);
+    extern task write_reg(uvm_reg r);
+    extern task ensure_read({{ class_reg_binding }} rb);
+    extern task set_write({{ class_reg_binding }} rb, uvm_reg_data_t value);
+    extern task apply(input {{ class_reg_binding }} binds[$], input uvm_reg_data_t vals[$]);
+endclass
+
+function uvm_reg {{ class_reg_rw }}::parent_reg({{ class_reg_binding }} rb);
+    if (rb == null || rb.field == null)
+        `uvm_fatal("PAD", "parent_reg: binding field is null")
+    return rb.field.get_register();
+endfunction
+
+function uvm_reg_data_t {{ class_reg_rw }}::get({{ class_reg_binding }} rb);
+    uvm_reg_data_t full;
+    uvm_reg_data_t mask;
+    int w;
+
+    if (rb == null || rb.field == null)
+        `uvm_fatal("PAD", "get: binding field is null")
+    full = rb.field.get();
+    w = rb.bound_width();
+    if (rb.lsb == 0 && w == rb.field.get_n_bits())
+        return full;
+    mask = {{ class_prefix }}reg_mask(w);
+    return (full >> rb.lsb) & mask;
+endfunction
+
+function void {{ class_reg_rw }}::set({{ class_reg_binding }} rb, uvm_reg_data_t value);
+    uvm_reg_data_t cur;
+    uvm_reg_data_t mask;
+    uvm_reg_data_t slice_mask;
+    uvm_reg_data_t newval;
+    int w;
+
+    if (rb == null || rb.field == null)
+        `uvm_fatal("PAD", "set: binding field is null")
+    w = rb.bound_width();
+    slice_mask = {{ class_prefix }}reg_mask(w);
+    if (rb.lsb == 0 && w == rb.field.get_n_bits()) begin
+        rb.field.set(value);
+    end else begin
+        cur = rb.field.get();
+        mask = slice_mask << rb.lsb;
+        newval = (cur & ~mask) | ((value & slice_mask) << rb.lsb);
+        rb.field.set(newval);
+    end
+endfunction
+
+task {{ class_reg_rw }}::read_reg(uvm_reg r, output uvm_reg_data_t rdata);
+    uvm_status_e status;
+
+    if (r == null)
+        `uvm_fatal("PAD", "read_reg: reg is null")
+    r.read(status, rdata);
+    if (status != UVM_IS_OK)
+        `uvm_fatal("PAD", $sformatf("read %s failed", r.get_full_name()))
+endtask
+
+task {{ class_reg_rw }}::read({{ class_reg_binding }} rb, output uvm_reg_data_t value);
+    uvm_reg_data_t dummy;
+
+    read_reg(parent_reg(rb), dummy);
+    rb.has_read = 1'b1;
+    value = get(rb);
+endtask
+
+task {{ class_reg_rw }}::write_reg(uvm_reg r);
+    uvm_status_e status;
+    uvm_reg_data_t wdata;
+
+    if (r == null)
+        `uvm_fatal("PAD", "write_reg: reg is null")
+    wdata = r.get();
+    r.write(status, wdata);
+    if (status != UVM_IS_OK)
+        `uvm_fatal("PAD", $sformatf("write %s failed", r.get_full_name()))
+endtask
+
+task {{ class_reg_rw }}::ensure_read({{ class_reg_binding }} rb);
+    uvm_reg_data_t dummy;
+
+    if (!rb.has_read)
+        read(rb, dummy);
+endtask
+
+task {{ class_reg_rw }}::set_write({{ class_reg_binding }} rb, uvm_reg_data_t value);
+    uvm_reg_data_t cur;
+
+    ensure_read(rb);
+    cur = get(rb);
+    if (cur == value)
+        return;
+    set(rb, value);
+    write_reg(parent_reg(rb));
+endtask
+
+task {{ class_reg_rw }}::apply(
+        input {{ class_reg_binding }} binds[$],
+        input uvm_reg_data_t vals[$]);
+    uvm_reg write_regs[$];
+    uvm_reg read_regs[$];
+
+    if (binds.size() != vals.size())
+        `uvm_fatal("PAD", "apply: binds and vals size mismatch")
+    for (int i = 0; i < binds.size(); i++) begin
+        uvm_reg r;
+        bit read_seen;
+        bit write_seen;
+        uvm_reg_data_t cur;
+
+        r = parent_reg(binds[i]);
+        read_seen = 1'b0;
+        foreach (read_regs[j])
+            if (read_regs[j] == r)
+                read_seen = 1'b1;
+        if (!read_seen) begin
+            uvm_reg_data_t dummy;
+            read_reg(r, dummy);
+            read_regs.push_back(r);
+        end
+
+        binds[i].has_read = 1'b1;
+        cur = get(binds[i]);
+        if (cur == vals[i])
+            continue;
+        set(binds[i], vals[i]);
+
+        write_seen = 1'b0;
+        foreach (write_regs[j])
+            if (write_regs[j] == r)
+                write_seen = 1'b1;
+        if (!write_seen)
+            write_regs.push_back(r);
+    end
+    foreach (write_regs[i])
+        write_reg(write_regs[i]);
+endtask
+
+`endif

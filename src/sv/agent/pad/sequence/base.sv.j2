@@ -5,19 +5,21 @@ class {{ class_base_seq }} extends uvm_sequence;
     `uvm_object_utils({{ class_base_seq }})
     `uvm_declare_p_sequencer({{ class_sequencer }})
 
-    {{ class_configuration }} cfg;
+    {{ class_settings }} settings;
 
     function new(string name = "{{ class_base_seq }}");
         super.new(name);
     endfunction
 
-    extern function void pre_randomize();
+    extern task pre_start();
 endclass
 
-function void {{ class_base_seq }}::pre_randomize();
-    super.pre_randomize();
+task {{ class_base_seq }}::pre_start();
+    super.pre_start();
 
-    $cast(cfg,p_sequencer.cfg);
-endfunction
+    settings = p_sequencer.settings;
+    if (settings == null)
+        `uvm_fatal("PAD", "require settings")
+endtask
 
 `endif

@@ -4,35 +4,34 @@
 class {{ class_agent }} extends uvm_agent;
     `uvm_component_utils({{ class_agent }})
 
+    {{ class_settings }} settings;
     {{ class_sequencer }} sqr;
-    {{ class_configuration }} cfg;
 
-    function new(string name,uvm_component parent);
-        super.new(name,parent);
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
 
-        cfg = {{ class_configuration }}::type_id::create({get_full_name(),".cfg"});
-        sqr = {{ class_sequencer }}::type_id::create("sqr",this);
+        settings = {{ class_settings }}::type_id::create({get_full_name(), ".settings"});
+        sqr = {{ class_sequencer }}::type_id::create("sqr", this);
     endfunction
 
-    extern function void build();
-    extern function void connect();
+    extern function void build_phase(uvm_phase phase);
+    extern function void connect_phase(uvm_phase phase);
 endclass
 
-function void {{ class_agent }}::build();
-    super.build();
+function void {{ class_agent }}::build_phase(uvm_phase phase);
+    super.build_phase(phase);
 
-    uvm_config_db#({{ class_configuration }})::set(this,"sqr","cfg",cfg);
-
-    uvm_config_db#(uvm_object_wrapper)::set(sqr,
+    uvm_config_db#(uvm_object_wrapper)::set(
+        sqr,
         "main_phase",
         "default_sequence",
         {{ class_main_phase_seq }}::type_id::get());
 endfunction
 
-function void {{ class_agent }}::connect();
-    super.connect();
+function void {{ class_agent }}::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
 
-    $cast(sqr.cfg,cfg);
+    sqr.settings = settings;
 endfunction
 
 `endif

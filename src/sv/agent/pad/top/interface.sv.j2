@@ -1,0 +1,18 @@
+`ifndef {{ class_interface | upper }}
+`define {{ class_interface | upper }}
+
+interface {{ class_interface }};
+{% for pad in pads %}
+    {{ class_sub_interface }} {{ pad.name }}();
+{% endfor %}
+
+{% for pad in pads %}
+    assign {{ pad.name }}.output_value = {{ pad.signals.output.path }};
+    assign {{ pad.name }}.pull_up = {{ pad.signals.pull_up.path }};
+    assign {{ pad.name }}.pull_down = {{ pad.signals.pull_down.path }};
+    assign {{ pad.name }}.drive_strength = {{ pad.signals.drive_strength.path }};
+    assign {{ pad.name }}.pad_value = {{ pad.signals.pad_value.path }};
+{% endfor %}
+endinterface
+
+`endif

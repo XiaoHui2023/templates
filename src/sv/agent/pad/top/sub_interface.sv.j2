@@ -1,0 +1,12 @@
+`ifndef {{ class_sub_interface | upper }}
+`define {{ class_sub_interface | upper }}
+
+interface {{ class_sub_interface }};
+    logic[31:0] output_value;
+    logic[31:0] pull_up;
+    logic[31:0] pull_down;
+    logic[31:0] drive_strength;
+    logic[31:0] pad_value;
+endinterface
+
+`endif
