@@ -1,14 +1,17 @@
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field
 
 
 class MonitoredClock(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(...)
-    should_check: bool = Field(True)
-    volatile: bool = Field(False)
+    enable: bool = Field(
+        False,
+        validation_alias=AliasChoices("enable", "should_check"),
+        description="是否生成该时钟的接口和检查代码",
+    )
     frequence: int = Field(0)
     tolerance: int = Field(5)
 
@@ -29,6 +32,7 @@ class Models(BaseModel):
     )
     data_width: Optional[int] = None
     monitored_clocks: Optional[List[MonitoredClock]] = None
+    enable_dma: bool = Field(False, description="是否生成内置 DMA 搬运相关代码")
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由 card_type 推导；配置不可传入。",
@@ -131,38 +135,43 @@ class Models(BaseModel):
 
     def _create_monitored_clocks(self):
         """创建需要监控的时钟"""
-        if self.monitored_clocks is None:
-            self.monitored_clocks = []
-        datas = [
-            {
-                "name": "aclk",
-                "frequence": int(297e6),
-            },
-            {
-                "name": "hclk",
-                "frequence": int(198e6),
-            },
-            {
-                "name": "cclk_tx",
-                "volatile": True,
-            },
-            {
-                "name": "cclk_rx",
-                "volatile": True,
-            },
-            {
-                "name": "tmclk",
-                "should_check": True if self.is_emmc else False if self.is_sd else False,
-                "frequence": int(1e6),
-            },
-        ]
-        if self.is_emmc:
-            datas.append(
+        clocks = self.monitored_clocks
+        if clocks is None:
+            clocks = []
+            datas = [
                 {
-                    "name": "cqetmclk",
+                    "name": "aclk",
+                    "enable": False,
+                    "frequence": int(297e6),
+                },
+                {
+                    "name": "hclk",
+                    "enable": True,
+                    "frequence": int(198e6),
+                },
+                {
+                    "name": "cclk_tx",
+                    "enable": False,
+                },
+                {
+                    "name": "cclk_rx",
+                    "enable": False,
+                },
+                {
+                    "name": "tmclk",
+                    "enable": False,
                     "frequence": int(1e6),
-                }
-            )
-        for data in datas:
-            self.monitored_clocks.append(MonitoredClock(**data))
+                },
+            ]
+            if self.is_emmc:
+                datas.append(
+                    {
+                        "name": "cqetmclk",
+                        "enable": False,
+                        "frequence": int(1e6),
+                    }
+                )
+            for data in datas:
+                clocks.append(MonitoredClock(**data))
+        self.monitored_clocks = [clk for clk in clocks if clk.enable]
 

@@ -32,10 +32,9 @@ task {{ class_prefix }}initial_seq::body();
 
     freq = 400000; // 4K
 
-    // 分频至初始频率, 不检查
+    // 分频至初始频率
     `uvm_do_with(freq_set_seq, {
         freq_set_request.frequence == local::freq;
-        freq_set_request.should_check_clock_frequence == 0;
     })
 
     // 上电 (先产生时钟)

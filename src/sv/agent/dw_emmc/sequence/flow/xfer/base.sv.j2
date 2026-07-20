@@ -7,11 +7,13 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
         `uvm_field_int(count,UVM_ALL_ON)
         `uvm_field_int(size,UVM_ALL_ON)
         `uvm_field_int(len,UVM_ALL_ON)
+{%- if enable_dma %}
         `uvm_field_int(dma_enable,UVM_ALL_ON)
         if(dma_enable) begin
             `uvm_field_enum(dma_sel_e,dma_sel,UVM_ALL_ON)
             `uvm_field_object(adma_des,UVM_ALL_ON)
         end
+{%- endif %}
                 {%- if is_sdio %}
         `uvm_field_int(function_number,UVM_ALL_ON)
                 {%- elif is_emmc or is_sdcard %}
@@ -25,9 +27,11 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
     rand int count; // 读/写块
     rand int size; // 每块读/写多少字节
     rand int len; // 总共多少字节
+{%- if enable_dma %}
     rand bit dma_enable; // DMA使能
     rand dma_sel_e dma_sel; // DMA种类选择
     rand {{ class_prefix }}adma_des_data adma_des; // adma描述
+{%- endif %}
 
         {%- if is_sdio %}
     rand int function_number; // 选择功能IO
@@ -42,7 +46,9 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
         super.new(name);
     endfunction
 
+{%- if enable_dma %}
     {{ class_prefix }}cpu_config_operation_seq cpu_cfg_seq;
+{%- endif %}
 
         {%- if is_sdio %}
     {{ class_prefix }}io_rw_extended_command_seq io_rw_extended_seq;
@@ -67,10 +73,13 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
                 {%- endif %}
 
         soft abort == 0;
+{%- if enable_dma %}
         soft dma_enable == 0;
         soft dma_sel == ADMA2;
+{%- endif %}
         soft addr == 0;
 
+{%- if enable_dma %}
         if(dma_enable) {
             (longint'(adma_des.cmd_addr) >= adma_des.real_addr + len) || (longint'(adma_des.real_addr) >= adma_des.cmd_addr + adma_des.sizeof); // 命令和数据不重叠
             adma_des.real_addr == addr;
@@ -85,6 +94,7 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
                 adma_des.len_upper == len[25:16];
             }
         }
+{%- endif %}
                 {%- if is_sd %}
         // SDSC不支持设置块数
         (settings.boot_cfg.sd_capacity_type == SDSC) -> count == 1;
@@ -94,8 +104,10 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
     extern function void pre_randomize();
     extern task body();
 
+{%- if enable_dma %}
     // 写adma的描述数据
     extern virtual task write_adma_des();
+{%- endif %}
 
         {%- if is_emmc or is_sdcard %}
     // 设置块个数
@@ -120,16 +132,21 @@ endclass
 function void {{ class_prefix }}xfer_base_seq::pre_randomize();
     super.pre_randomize();
 
+{%- if enable_dma %}
     `uvm_create(adma_des)
+{%- endif %}
 endfunction
 
 task {{ class_prefix }}xfer_base_seq::body();
+{%- if enable_dma %}
     write_adma_des();
+{%- endif %}
     set_block_length();
     execute_command();
     do_abort();
 endtask
 
+{%- if enable_dma %}
 task {{ class_prefix }}xfer_base_seq::write_adma_des();
     bit[7:0] d[$];
 
@@ -157,6 +174,7 @@ task {{ class_prefix }}xfer_base_seq::write_adma_des();
         cpu_cfg_request.path == UVM_BACKDOOR;
     })
 endtask
+{%- endif %}
 
 task {{ class_prefix }}xfer_base_seq::execute_command();
     `uvm_fatal("", "NotImplemented")
@@ -183,12 +201,14 @@ task {{ class_prefix }}xfer_base_seq::execute_sdio(bit[7:0] wdata[$]);
         cmd_request.block_size == local::size;
         cmd_request.block_count == local::count;
         cmd_request.addr == local::addr;
+{%- if enable_dma %}
         cmd_request.dma_enable == local::dma_enable;
         cmd_request.dma_sel == local::dma_sel;
         if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
             cmd_request.dma_addr == local::adma_des.cmd_addr;
         else
             cmd_request.dma_addr == local::addr;
+{%- endif %}
 
         cmd_request.wdata.size == local::wdata.size;
         foreach(local::wdata[j])

@@ -65,7 +65,9 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.HOST_CTRL1_R.LED_CTRL.set(0);
     rm.HOST_CTRL1_R.DAT_XFER_WIDTH.set(access_request.dat_xfer_width);
     rm.HOST_CTRL1_R.HIGH_SPEED_EN.set(access_request.high_speed_en);
+{%- if enable_dma %}
     rm.HOST_CTRL1_R.DMA_SEL.set(access_request.dma_sel);
+{%- endif %}
     rm.HOST_CTRL1_R.EXT_DAT_XFER.set(access_request.ext_dat_xfer);
     rm.HOST_CTRL1_R.CARD_DETECT_TEST_LVL.set(0);
     rm.HOST_CTRL1_R.CARD_DETECT_SIG_SEL.set(0);
@@ -88,17 +90,23 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 
     // [0x04] 设置buffer型号
     rm.BLOCKSIZE_R.XFER_BLOCK_SIZE.set(access_request.xfer_block_size); // 1 byte
+{%- if enable_dma %}
     rm.BLOCKSIZE_R.SDMA_BUF_BDARY.set(access_request.sdma_buf_bdary); // DMA用
+{%- endif %}
     rm.BLOCKSIZE_R.write(status, rm.BLOCKSIZE_R.get());
 
+{%- if enable_dma %}
     // DMA
     if(access_request.dma_enable) begin
         rm.ADMA_SA_LOW_R.write(status, access_request.dma_addr);
         // rm.ADMA_SA_HIGH_R.write(status, 0);
     end
+{%- endif %}
 
     // [0x0c] 设置数据传输选项
+{%- if enable_dma %}
     rm.XFER_MODE_R.DMA_ENABLE.set(access_request.dma_enable);
+{%- endif %}
     rm.XFER_MODE_R.BLOCK_COUNT_ENABLE.set(1);
     rm.XFER_MODE_R.AUTO_CMD_ENABLE.set(access_request.auto_cmd_enable);
     rm.XFER_MODE_R.DATA_XFER_DIR.set(access_request.data_xfer_dir);

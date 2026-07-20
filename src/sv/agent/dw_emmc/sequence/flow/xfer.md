@@ -8,8 +8,8 @@
 | `count` | block 数 |
 | `size` | 每个 block 的字节数 |
 | `len` | 总字节数，约束为 `count * size` |
-| `dma_enable` / `dma_sel` | DMA 使能和类型 |
-| `adma_des` | ADMA 描述符数据 |
+| `dma_enable` / `dma_sel` | DMA 使能和类型；仅 `enable_dma: true` 时生成 |
+| `adma_des` | ADMA 描述符数据；仅 `enable_dma: true` 时生成 |
 | `abort` | 是否走 abort 场景 |
 | `data_xfer_dir` | `XFER_READ` 或 `XFER_WRITE` |
 | `function_number` | SDIO function number，默认 1 |
@@ -17,7 +17,7 @@
 
 公共流程：
 
-1. DMA 启用且类型为 ADMA2/ADMA2_3 时，先通过 `cpu_config_operation_seq` 写入 ADMA 描述符。
+1. `enable_dma: true`、DMA 启用且类型为 ADMA2/ADMA2_3 时，先通过 `cpu_config_operation_seq` 写入 ADMA 描述符。
 2. 设置 block length。
 3. 执行具体读写命令。
 4. 按 `abort` 条件执行停止动作。
@@ -84,6 +84,8 @@ SDIO 流程：
 2. `wdata` 传入 CMD53 request。
 
 ## DMA
+
+Python 配置 `enable_dma` 默认关闭。关闭时不生成 DMA enum、DMA request 字段、ADMA descriptor、DMA interrupt/error 处理和 kit `use_dma` 参数。
 
 DMA 传输由读写命令触发，flow 只负责准备描述符和 request 字段。
 

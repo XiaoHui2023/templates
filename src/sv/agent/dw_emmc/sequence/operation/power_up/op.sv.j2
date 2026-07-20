@@ -101,7 +101,9 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
     rm.HOST_CTRL2_R.EXEC_TUNING.set(0);
     rm.HOST_CTRL2_R.SAMPLE_CLK_SEL.set(0);
     rm.HOST_CTRL2_R.UHS2_IF_ENABLE.set(0);
+{%- if enable_dma %}
     rm.HOST_CTRL2_R.ADMA2_LEN_MODE.set(1);
+{%- endif %}
     rm.HOST_CTRL2_R.CMD23_ENABLE.set(1);
     rm.HOST_CTRL2_R.HOST_VER4_ENABLE.set(1);
     rm.HOST_CTRL2_R.ADDRESSING.set(0);

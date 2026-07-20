@@ -46,6 +46,7 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
         RESP_LEN_48B // 响应后检查是否忙碌
     } resp_type_select_e;
 
+{%- if enable_dma %}
     typedef enum {
         BYTES_4K,
         BYTES_8K,
@@ -56,6 +57,7 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
         BYTES_256K,
         BYTES_512K
     } sdma_buf_bdary_e;
+{%- endif %}
 
     typedef enum {
         XFER_WRITE, // Host Master to Card Slave
@@ -74,11 +76,13 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
         AUTO_CMD_AUTO_SEL
     } auto_cmd_enable_e;
 
+{%- if enable_dma %}
     typedef enum {
         SDMA = 0,
         ADMA2 = 2,
         ADMA2_3 = 3
     } dma_sel_e;
+{%- endif %}
 
     typedef enum {
         {{ UHS_MODE_SEL_SDR12_LEGACY }} = 0,

@@ -12,7 +12,9 @@ class {{ class_prefix }}command_operation_seq #(
     {{ class_prefix }}access_operation_seq access_seq;
     {{ class_prefix }}wait_interrupt_operation_seq wait_intr_seq;
     {{ class_prefix }}wait_field_operation_seq wait_field_seq;
+{%- if enable_dma %}
     {{ class_prefix }}cpu_config_operation_seq cpu_cfg_seq;
+{%- endif %}
 
     function new(string name = "{{ class_prefix }}command_operation_seq");
         super.new(name);
@@ -25,12 +27,16 @@ class {{ class_prefix }}command_operation_seq #(
     extern task read_resp();
     extern task read(ref bit [7:0] data[$]);
     extern task write(bit [7:0] data[$]);
+{%- if enable_dma %}
     extern task init_memory();
     extern protected task write_memory(bit [7:0] data[$]);
+{%- endif %}
     extern task write_buffer(bit [7:0] data[$]);
     extern protected task read_buffer(ref bit [7:0] data[$]);
     extern protected task read_buffer_blocked(ref bit [7:0] data[$]);
+{%- if enable_dma %}
     extern protected task read_memory(ref bit [7:0] data[$]);
+{%- endif %}
     extern protected task write_buffer_one_block(ref bit [7:0] data[$]);
     extern protected task read_buffer_one_block(ref bit [7:0] data[$]);
     extern protected task abort();
@@ -59,7 +65,9 @@ task {{ class_prefix }}command_operation_seq::pre_start();
 endtask
 
 task {{ class_prefix }}command_operation_seq::body();
+{%- if enable_dma %}
     init_memory(); // 初始化内存
+{%- endif %}
     `uvm_rand_send(access_seq)
     wait_cmd_complete(); // 等中断
     // 读写数据
@@ -81,11 +89,13 @@ task {{ class_prefix }}command_operation_seq::post_start();
 endtask
 
 task {{ class_prefix }}command_operation_seq::read(ref bit [7:0] data[$]);
+{%- if enable_dma %}
     if (cmd_request.dma_enable) begin
         wait_xfer_complete();
         read_memory(data);
     end
     else begin
+{%- endif %}
         if (cmd_request.rd_blocking) begin
             read_buffer_blocked(data);
         end
@@ -93,18 +103,25 @@ task {{ class_prefix }}command_operation_seq::read(ref bit [7:0] data[$]);
             read_buffer(data);
             wait_xfer_complete();
         end
+{%- if enable_dma %}
     end
+{%- endif %}
 endtask
 
 task {{ class_prefix }}command_operation_seq::write(bit [7:0] data[$]);
+{%- if enable_dma %}
     if (cmd_request.dma_enable) begin
     end
     else begin
+{%- endif %}
         write_buffer(data);
+{%- if enable_dma %}
     end
+{%- endif %}
     wait_xfer_complete();
 endtask
 
+{%- if enable_dma %}
 task {{ class_prefix }}command_operation_seq::init_memory();
     if (!cmd_request.dma_enable)
         return;
@@ -135,6 +152,7 @@ task {{ class_prefix }}command_operation_seq::read_memory(ref bit [7:0] data[$])
     foreach (cpu_cfg_seq.rsp.rdata[j])
         data.push_back(cpu_cfg_seq.rsp.rdata[j]);
 endtask
+{%- endif %}
 
 task {{ class_prefix }}command_operation_seq::write_buffer(bit [7:0] data[$]);
     repeat (cmd_request.block_count) begin

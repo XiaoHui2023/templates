@@ -49,9 +49,9 @@
 
 | 字段 | 说明 |
 | --- | --- |
-| `should` | 总开关，默认 `0` |
-| `should_<clk>` | 单个非 volatile clock 检查开关 |
 | `frequence_<clk>` | 期望频率，单位 Hz |
 | `tolerance_<clk>` | 容差，百分比 |
 
-volatile clock 不生成 `should_<clk>`、`frequence_<clk>`、`tolerance_<clk>` 字段。
+字段只对 `models.py` 中 `monitored_clocks[].enable == true` 的 clock 生成。
+
+默认只生成 `hclk`。SV 里没有 clock 检查开关；clock 端口未连接或为 X/Z 时跳过，已连接时按频率和容差检查。

@@ -10,6 +10,8 @@
 
 ## adma_des_data
 
+仅 `enable_dma: true` 时生成。
+
 | 字段 | 说明 |
 | --- | --- |
 | `cmd_addr` | ADMA 描述符写入地址 |

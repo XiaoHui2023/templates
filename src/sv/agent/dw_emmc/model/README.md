@@ -5,7 +5,7 @@
 | 成员 | 说明 |
 | --- | --- |
 | `boot_cfg` | 启动、电压、默认速度、默认位宽、频率配置 |
-| `chk_clk_cfg` | clock 检查开关、期望频率、容差 |
+| `chk_clk_cfg` | 已生成 clock 的期望频率、容差 |
 | `vif` | `top/interface.sv` 生成的顶层 virtual interface |
 | `regmodel` | RAL 顶层寄存器模型 |
 | `has_randomized` | 随机化完成标志 |
@@ -32,7 +32,7 @@
 | `resp_type_select_e` | `NO_RESP`、`RESP_LEN_136`、`RESP_LEN_48`、`RESP_LEN_48B` |
 | `multi_blk_sel_e` | `SINGLE`、`MULTI` |
 | `auto_cmd_enable_e` | `AUTO_CMD_DISABLED`、`AUTO_CMD12_ENABLED`、`AUTO_CMD23_ENABLED`、`AUTO_CMD_AUTO_SEL` |
-| `dma_sel_e` | `SDMA`、`ADMA2`、`ADMA2_3` |
+| `dma_sel_e` | `SDMA`、`ADMA2`、`ADMA2_3`；仅 `enable_dma: true` 时生成 |
 | `uhs_mode_sel_e` | `SDR12/LEGACY`、`SDR25/HIGH_SPEED_SDR`、`SDR50`、`SDR104/HS200`、`DDR50/HIGH_SPEED_DDR`、`UHS2/HS400` |
 | `boot_partition_enable_e` | `NO`、`1`、`2`、`USER_AREA` |
 | `boot_partition_access_e` | `NO`、`1`、`2`、`RPMB`、`GP1`、`GP2`、`GP3`、`GP4` |

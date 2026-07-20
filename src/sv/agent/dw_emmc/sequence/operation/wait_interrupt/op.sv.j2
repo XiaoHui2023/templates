@@ -49,7 +49,9 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
     rm.NORMAL_INT_SIGNAL_EN_R.CMD_COMPLETE_SIGNAL_EN.set(wait_intr_request.cmd_complete);
     rm.NORMAL_INT_SIGNAL_EN_R.XFER_COMPLETE_SIGNAL_EN.set(wait_intr_request.xfer_complete);
     rm.NORMAL_INT_SIGNAL_EN_R.BGAP_EVENT_SIGNAL_EN.set(wait_intr_request.bgap_event);
+{%- if enable_dma %}
     rm.NORMAL_INT_SIGNAL_EN_R.DMA_INTERRUPT_SIGNAL_EN.set(wait_intr_request.dma_interrupt);
+{%- endif %}
     rm.NORMAL_INT_SIGNAL_EN_R.BUF_WR_READY_SIGNAL_EN.set(wait_intr_request.buf_wr_ready);
     rm.NORMAL_INT_SIGNAL_EN_R.BUF_RD_READY_SIGNAL_EN.set(wait_intr_request.buf_rd_ready);
     rm.NORMAL_INT_SIGNAL_EN_R.CARD_INSERTION_SIGNAL_EN.set(wait_intr_request.card_insertion);
@@ -71,8 +73,10 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
             rm.NORMAL_INT_SIGNAL_EN_R.XFER_COMPLETE_SIGNAL_EN);
         clear_interrupt_status(rm.NORMAL_INT_STAT_R.BGAP_EVENT, rm.NORMAL_INT_STAT_EN_R.BGAP_EVENT_STAT_EN,
             rm.NORMAL_INT_SIGNAL_EN_R.BGAP_EVENT_SIGNAL_EN);
+{%- if enable_dma %}
         clear_interrupt_status(rm.NORMAL_INT_STAT_R.DMA_INTERRUPT, rm.NORMAL_INT_STAT_EN_R.DMA_INTERRUPT_STAT_EN,
             rm.NORMAL_INT_SIGNAL_EN_R.DMA_INTERRUPT_SIGNAL_EN);
+{%- endif %}
         clear_interrupt_status(rm.NORMAL_INT_STAT_R.BUF_WR_READY, rm.NORMAL_INT_STAT_EN_R.BUF_WR_READY_STAT_EN,
             rm.NORMAL_INT_SIGNAL_EN_R.BUF_WR_READY_SIGNAL_EN);
         clear_interrupt_status(rm.NORMAL_INT_STAT_R.BUF_RD_READY, rm.NORMAL_INT_STAT_EN_R.BUF_RD_READY_STAT_EN,

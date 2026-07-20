@@ -45,6 +45,7 @@ task {{ class_prefix }}check_error_operation_seq::body();
         rm.ERROR_INT_STAT_R.write(status,rdata);
     end
 
+{%- if enable_dma %}
     // ADMA_ERR
     if(rm.ERROR_INT_STAT_R.ADMA_ERR.get()) begin
         rm.ADMA_ERR_STAT_R.read(status,rdata);
@@ -52,6 +53,7 @@ task {{ class_prefix }}check_error_operation_seq::body();
         if(rdata)
             rm.ADMA_ERR_STAT_R.write(status,rdata);
     end
+{%- endif %}
 
     rsp.randomize();
     if(rsp.is_error) begin

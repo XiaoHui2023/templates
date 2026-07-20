@@ -1,3 +1,4 @@
+{%- if enable_dma %}
 `ifndef {{ class_prefix | upper }}ADMA_DES_DATA
 `define {{ class_prefix | upper }}ADMA_DES_DATA
 
@@ -56,3 +57,4 @@ class {{ class_prefix }}adma_des_data extends {{ class_prefix }}base_data;
 endclass
 
 `endif
+{%- endif %}

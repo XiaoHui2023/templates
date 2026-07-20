@@ -29,15 +29,19 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
             `uvm_field_int(block_count, UVM_ALL_ON)
             `uvm_field_int(block_size, UVM_ALL_ON)
             `uvm_field_int(len, UVM_ALL_ON)
+{%- if enable_dma %}
             `uvm_field_int(dma_enable, UVM_ALL_ON)
             if(dma_enable) begin
                 `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
                 `uvm_field_int(dma_addr, UVM_ALL_ON)
             end
             else begin
+{%- endif %}
                 `uvm_field_queue_int(wdata, UVM_ALL_ON)
                 `uvm_field_int(rd_blocking, UVM_ALL_ON)
+{%- if enable_dma %}
             end
+{%- endif %}
         end
         `uvm_field_object(access_request, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_object(chk_err_request, UVM_ALL_ON | UVM_NOPRINT)
@@ -56,9 +60,11 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
     rand int len; // 数据长度（字节）
     rand bit cmd_crc_chk_enable; // 是否检查命令CRC
     rand bit cmd_idx_chk_enable; // 是否检查命令索引
+{%- if enable_dma %}
     rand bit dma_enable; // DMA使能
     rand dma_sel_e dma_sel; // DMA传输模式
     rand bit[63:0] dma_addr; // DMA 起始地址；ADMA 为描述符地址，SDMA 为数据地址
+{%- endif %}
     rand bit rd_blocking; // 是否读取阻塞（若不读，最后一个请求返回）
     rand bit[63:0] addr; // 传输数据地址
     rand bit[7:0] wdata[$]; // 写数据
@@ -71,7 +77,9 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         soft rd_blocking == 0;
         soft wdata.size == 0;
         soft addr == 0;
+{%- if enable_dma %}
         soft dma_addr == addr;
+{%- endif %}
 
         len == block_size * block_count;
 
@@ -81,7 +89,9 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
             wdata.size == block_size * block_count;
         }
 
+{%- if enable_dma %}
         (dma_enable) -> data_present_sel == 1;
+{%- endif %}
 
         // crc chk
         (resp == R3) -> cmd_crc_chk_enable == 0;
@@ -107,10 +117,12 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         access_request.sdmasa == block_count;
         access_request.cmd_crc_chk_enable == cmd_crc_chk_enable;
         access_request.cmd_idx_chk_enable == cmd_idx_chk_enable;
+{%- if enable_dma %}
         access_request.dma_enable == dma_enable;
         access_request.dma_sel == dma_sel;
 
         (dma_enable) -> access_request.dma_addr == dma_addr[31:0];
+{%- endif %}
 
         // resp type select
         (resp == NR)  -> access_request.resp_type_select == access_request.NO_RESP;

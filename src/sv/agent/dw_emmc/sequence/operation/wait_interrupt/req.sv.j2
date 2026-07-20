@@ -6,7 +6,9 @@ class {{ class_prefix }}wait_interrupt_request extends {{ class_prefix }}base_re
         `uvm_field_int(cmd_complete, UVM_ALL_ON|(cmd_complete?0:UVM_NOPRINT))
         `uvm_field_int(xfer_complete, UVM_ALL_ON|(xfer_complete?0:UVM_NOPRINT))
         `uvm_field_int(bgap_event, UVM_ALL_ON|(bgap_event?0:UVM_NOPRINT))
+{%- if enable_dma %}
         `uvm_field_int(dma_interrupt, UVM_ALL_ON|(dma_interrupt?0:UVM_NOPRINT))
+{%- endif %}
         `uvm_field_int(buf_wr_ready, UVM_ALL_ON|(buf_wr_ready?0:UVM_NOPRINT))
         `uvm_field_int(buf_rd_ready, UVM_ALL_ON|(buf_rd_ready?0:UVM_NOPRINT))
         `uvm_field_int(card_insertion, UVM_ALL_ON|(card_insertion?0:UVM_NOPRINT))
@@ -24,7 +26,9 @@ class {{ class_prefix }}wait_interrupt_request extends {{ class_prefix }}base_re
     rand bit cmd_complete;
     rand bit xfer_complete;
     rand bit bgap_event;
+{%- if enable_dma %}
     rand bit dma_interrupt;
+{%- endif %}
     rand bit buf_wr_ready;
     rand bit buf_rd_ready;
     rand bit card_insertion;
@@ -42,7 +46,9 @@ class {{ class_prefix }}wait_interrupt_request extends {{ class_prefix }}base_re
         soft cmd_complete == 0;
         soft xfer_complete == 0;
         soft bgap_event == 0;
+{%- if enable_dma %}
         soft dma_interrupt == 0;
+{%- endif %}
         soft buf_wr_ready == 0;
         soft buf_rd_ready == 0;
         soft card_insertion == 0;

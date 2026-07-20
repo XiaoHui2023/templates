@@ -10,7 +10,7 @@
 | `wr_single` / `wr_multi` | 单块写或多块写 |
 | `rd_multi_block_count` / `wr_multi_block_count` | 多块读写块数，默认 2 |
 | `data_width` / `bus_speed_mode` | 传输前切换的总线位宽和速度 |
-| `dma_enable` / `dma_sel` | 数据搬运方式 |
+| `dma_enable` / `dma_sel` | 数据搬运方式；仅 `enable_dma: true` 时生成 |
 | `should_compare` | 读数据是否与 scoreboard 比较 |
 | `wp` | 写保护场景；写命令不更新 scoreboard expected memory |
 

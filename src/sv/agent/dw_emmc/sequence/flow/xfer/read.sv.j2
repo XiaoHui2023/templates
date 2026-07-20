@@ -43,13 +43,17 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
             `uvm_do_with(read_multiple_block_seq, {
                 cmd_request.block_count == local::count;
                 cmd_request.block_size == local::size;
+{%- if enable_dma %}
                 cmd_request.dma_enable == local::dma_enable;
+{%- endif %}
                 cmd_request.addr == local::addr;
+{%- if enable_dma %}
                 cmd_request.dma_sel == local::dma_sel;
                 if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                     cmd_request.dma_addr == local::adma_des.cmd_addr;
                 else
                     cmd_request.dma_addr == local::addr;
+{%- endif %}
                 cmd_request.rd_blocking == local::blocking;
             })
 
@@ -59,13 +63,17 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
             `uvm_do_with(read_single_block_seq, {
                 cmd_request.block_count == local::count;
                 cmd_request.block_size == local::size;
+{%- if enable_dma %}
                 cmd_request.dma_enable == local::dma_enable;
+{%- endif %}
                 cmd_request.addr == local::addr;
+{%- if enable_dma %}
                 cmd_request.dma_sel == local::dma_sel;
                 if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                     cmd_request.dma_addr == local::adma_des.cmd_addr;
                 else
                     cmd_request.dma_addr == local::addr;
+{%- endif %}
                 cmd_request.rd_blocking == local::blocking;
             })
 
@@ -91,12 +99,14 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
             cmd_request.block_size == local::size;
             cmd_request.block_count == local::count;
             cmd_request.addr == local::addr;
+{%- if enable_dma %}
             cmd_request.dma_enable == local::dma_enable;
             cmd_request.dma_sel == local::dma_sel;
             if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                 cmd_request.dma_addr == local::adma_des.cmd_addr;
             else
                 cmd_request.dma_addr == local::addr;
+{%- endif %}
             cmd_request.rd_blocking == local::blocking;
         })
 

@@ -17,7 +17,9 @@ model/configuration/check_clock.sv
 model/settings.sv
 
 model/data/base.sv
+                                        {%- if enable_dma %}
 model/data/adma_des.sv
+                                        {%- endif %}
 
 sequence/operation/base/req.sv
 sequence/operation/check_error/req.sv

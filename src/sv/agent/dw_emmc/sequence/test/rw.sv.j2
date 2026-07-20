@@ -10,8 +10,10 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
         `uvm_field_int(wr_block_size, UVM_ALL_ON)
         `uvm_field_int(data_width, UVM_ALL_ON)
         `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+{%- if enable_dma %}
         `uvm_field_int(dma_enable, UVM_ALL_ON)
         `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+{%- endif %}
         `uvm_field_int(rd_blocking, UVM_ALL_ON)
         `uvm_field_int(rd, UVM_ALL_ON)
         `uvm_field_int(wr, UVM_ALL_ON)
@@ -21,7 +23,9 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
         `uvm_field_int(wr_multi, UVM_ALL_ON)
         `uvm_field_int(abort, UVM_ALL_ON)
         `uvm_field_int(wp, UVM_ALL_ON)
+{%- if enable_dma %}
         `uvm_field_int(adma_des_addr, UVM_ALL_ON)
+{%- endif %}
         `uvm_field_int(should_compare, UVM_ALL_ON)
 {%- if is_emmc %}
         `uvm_field_enum(boot_partition_enable_e, boot_partition_enable, UVM_ALL_ON)
@@ -35,8 +39,10 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
     rand int rd_block_size;
     rand int wr_block_size;
     rand int data_width;
+{%- if enable_dma %}
     rand int dma_enable;
     rand dma_sel_e dma_sel;
+{%- endif %}
     rand bit rd_blocking;
     rand bit rd;
     rand bit wr;
@@ -46,7 +52,9 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
     rand bit wr_multi;
     rand bit abort;
     rand bit wp;
+{%- if enable_dma %}
     rand bit[31:0] adma_des_addr;
+{%- endif %}
     rand bus_speed_mode_e bus_speed_mode;
     rand bit should_compare;
 {%- if is_emmc %}
@@ -81,7 +89,9 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
         soft rd_block_size == 512;
         soft wr_block_size == 512;
         soft addr == 0;
+{%- if enable_dma %}
         soft dma_enable == 0;
+{%- endif %}
         soft rd_blocking == 0;
         soft rd == 1;
         soft wr == 1;
@@ -90,7 +100,9 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}default_seq#({{ cl
         soft rd_multi == 1;
         soft wr_multi == 1;
         soft abort == 0;
+{%- if enable_dma %}
         soft adma_des_addr == 'h1000_0000;
+{%- endif %}
         soft wp == 0;
         soft bus_speed_mode == settings.boot_cfg.default_bus_speed_mode;
         soft data_width == settings.boot_cfg.default_data_width;
@@ -179,9 +191,11 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == 1;
             size == local::wr_block_size;
+{%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
             write_protected == local::wp;
         })
         if(!wp)
@@ -194,9 +208,11 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == local::wr_multi_block_count;
             size == local::wr_block_size;
+{%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
             write_protected == local::wp;
         })
         if(!wp)
@@ -209,9 +225,11 @@ task {{ class_prefix }}rw_test_seq::body();
             count == 2;
             size == local::wr_block_size;
             abort == 1;
+{%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
             write_protected == local::wp;
         })
         if(!wp)
@@ -223,9 +241,11 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == 1;
             size == local::rd_block_size;
+{%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
         })
         compare_result(read_seq.rdata);
         -> e_rd_single_done;
@@ -236,9 +256,11 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == local::rd_multi_block_count;
             size == local::rd_block_size;
+{%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
             blocking == local::rd_blocking;
         })
         compare_result(read_seq.rdata);
@@ -251,9 +273,11 @@ task {{ class_prefix }}rw_test_seq::body();
             count == 2;
             size == local::rd_block_size;
             abort == 1;
+{%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
         })
         compare_result(read_seq.rdata);
     end

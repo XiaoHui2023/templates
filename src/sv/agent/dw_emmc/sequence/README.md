@@ -6,7 +6,7 @@ sequence 使用 operation、flow、test 三层命名。operation 按子目录聚
 
 eMMC 初始化：
 
-1. `frequence_set_operation_seq`，目标 400000Hz，不检查频率
+1. `frequence_set_operation_seq`，目标 400000Hz
 2. `power_up_operation_seq`
 3. `check_clock_frequence_test_seq`
 4. CMD0 `go_idle_state`
@@ -82,13 +82,13 @@ rd_multi_block_count == 2;
 
 `xfer_read_seq` 的多块路径：
 
-1. `xfer_base_seq.body` 写 ADMA 描述符
+1. `enable_dma: true` 且使用 ADMA 时，`xfer_base_seq.body` 写 ADMA 描述符
 2. `xfer_base_seq.body` 设置 block length；DDR/HS400 模式跳过 CMD16
 3. `xfer_read_seq.execute_command`
 4. CMD23 `set_block_count`
 5. CMD18 `read_multiple_block`
 6. 等待传输完成
-7. 读取 buffer 或 DMA memory
+7. PIO 从 buffer 读取；DMA 从 memory 读取
 
 CMD23 只由读/写派生序列在需要多块时发送。基类 body 不发送 CMD23。
 
@@ -103,7 +103,7 @@ HS400 多块读已测试通过的关键结果：
 
 `xfer_write_seq` 的多块路径：
 
-1. `xfer_base_seq.body` 写 ADMA 描述符
+1. `enable_dma: true` 且使用 ADMA 时，`xfer_base_seq.body` 写 ADMA 描述符
 2. `xfer_base_seq.body` 设置 block length；DDR/HS400 模式跳过 CMD16
 3. `xfer_write_seq.execute_command`
 4. 非 abort 时 CMD23 `set_block_count`
@@ -132,10 +132,12 @@ PIO write：
 
 ## DMA 数据搬运
 
+仅 `enable_dma: true` 时生成。
+
 DMA write：
 
 1. `init_memory()` 在命令前把 `cmd_request.wdata` 写入 memory
-2. `ADMA_SA_LOW_R` 使用 `cmd_request.addr[31:0]`
+2. SDMA 使用数据 buffer 地址；ADMA 使用描述符地址 `cmd_request.dma_addr[31:0]`
 3. 命令发出后只等 `xfer_complete`
 
 DMA read：
@@ -159,9 +161,9 @@ ADMA 描述符只在 `dma_sel inside {ADMA2, ADMA2_3}` 时写入。描述符地�
 
 ## clock 检查
 
-`models.py` 中 `cclk_tx`、`cclk_rx` 标为 volatile。`check_clock_configuration` 和 `check_clock_frequence_test_seq` 不生成这些 clock 的 `frequence_*` 字段。
+Python 输入 `monitored_clocks[].enable == true` 的 clock 才生成端口、`frequence_*`、`tolerance_*` 和检查调用。默认只生成 `hclk`。
 
-调用方不能约束 volatile clock 字段。`frequence_set_operation_seq` 只触发通用 clock check，不硬编码 `frequence_cclk_*`。
+SV 不生成 clock 检查开关。monitor interface 对每个已生成 clock 先用 `$isunknown(clk)` 判断是否连接；未连接或 X/Z 时跳过，已连接时测频，timeout 或超差时报 `uvm_fatal`。
 
 ## 关键检查
 
@@ -169,6 +171,6 @@ ADMA 描述符只在 `dma_sel inside {ADMA2, ADMA2_3}` 时写入。描述符地�
 - `switch_partition_config` 默认 NO 时不能上总线。
 - `set_block_count()` 只能有一个流程 owner。
 - `resp_type_select` 从 `cmd_request.access_request` 访问。
-- volatile clock 不生成 `frequence_*` 字段，调用方不能硬编码这些字段。
+- clock 字段只来自 Python 启用生成的 `monitored_clocks`，调用方不能硬编码未生成字段。
 - `uvm_do_with` 必须带内嵌约束；无约束调用用 `uvm_do`。
 - 内嵌约束用 `==`，不能写赋值 `=`。

@@ -8,14 +8,18 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
         `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
         `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON)
         `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON)
+{%- if enable_dma %}
         `uvm_field_enum(sdma_buf_bdary_e, sdma_buf_bdary, UVM_ALL_ON)
+{%- endif %}
         `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
         `uvm_field_int(data_width, UVM_ALL_ON)
         `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
         `uvm_field_int(resp_type, UVM_ALL_ON)
+{%- if enable_dma %}
         `uvm_field_int(dma_enable, UVM_ALL_ON)
         `uvm_field_int(dma_addr, UVM_ALL_ON)
         `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+{%- endif %}
         `uvm_field_int(uhs_mode_sel, UVM_ALL_ON)
         `uvm_field_int(data_present_sel, UVM_ALL_ON)
         `uvm_field_int(dat_xfer_width, UVM_ALL_ON)
@@ -34,14 +38,18 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
     rand data_xfer_dir_e data_xfer_dir; // 传输方向
     rand bit cmd_crc_chk_enable; // 是否检查命令CRC
     rand bit cmd_idx_chk_enable; // 是否检查命令索引
+{%- if enable_dma %}
     rand sdma_buf_bdary_e sdma_buf_bdary; // SDMA边界大小
+{%- endif %}
     rand auto_cmd_enable_e auto_cmd_enable; // 自动命令
     rand int data_width; // 数据宽度
     rand multi_blk_sel_e multi_blk_sel; // 是否传输多块
     rand bit resp_type; // 应答类型
+{%- if enable_dma %}
     rand bit dma_enable; // DMA使能
     rand bit[31:0] dma_addr; // DMA起始地址
     rand dma_sel_e dma_sel; // DMA种类选择
+{%- endif %}
     rand int uhs_mode_sel; // 速度模式选择
     rand bit data_present_sel; // 是否有数据
     rand bit dat_xfer_width; // 影响数据位宽是否为 4bit (取决于 data_width)
@@ -58,10 +66,14 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
         // default
         foreach (argument[i])
             soft argument[i] == 0;
+{%- if enable_dma %}
         soft sdma_buf_bdary == BYTES_4K;
+{%- endif %}
         soft auto_cmd_enable == AUTO_CMD_DISABLED;
+{%- if enable_dma %}
         soft dma_enable == 0;
         soft dma_addr == 'h0;
+{%- endif %}
         soft data_present_sel == 0;
         soft multi_blk_sel == 0;
         soft sdmasa == 0;

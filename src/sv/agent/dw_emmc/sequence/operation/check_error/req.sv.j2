@@ -13,7 +13,9 @@ class {{ class_prefix }}check_error_request extends {{ class_prefix }}base_reque
         `uvm_field_int(data_end_bit_err_en,UVM_ALL_ON)
         `uvm_field_int(cur_lmt_err_en,UVM_ALL_ON)
         `uvm_field_int(auto_cmd_err_en,UVM_ALL_ON)
+{%- if enable_dma %}
         `uvm_field_int(adma_err_en,UVM_ALL_ON)
+{%- endif %}
         `uvm_field_int(tuning_err_en,UVM_ALL_ON)
         `uvm_field_int(resp_err_en,UVM_ALL_ON)
         `uvm_field_int(boot_ack_err_en,UVM_ALL_ON)
@@ -30,7 +32,9 @@ class {{ class_prefix }}check_error_request extends {{ class_prefix }}base_reque
     rand bit data_end_bit_err_en; // 数据末位错误使能
     rand bit cur_lmt_err_en; // Current Limit错误使能
     rand bit auto_cmd_err_en; // 自动命令错误使能
+{%- if enable_dma %}
     rand bit adma_err_en; // ADMA错误使能
+{%- endif %}
     rand bit tuning_err_en; // 调谐错误使能
     rand bit resp_err_en; // 应答错误使能
     rand bit boot_ack_err_en; // BOOT应答错误使能
@@ -46,7 +50,9 @@ class {{ class_prefix }}check_error_request extends {{ class_prefix }}base_reque
         soft data_end_bit_err_en == 1;
         soft cur_lmt_err_en == 1;
         soft auto_cmd_err_en == 1;
+{%- if enable_dma %}
         soft adma_err_en == 1;
+{%- endif %}
         soft tuning_err_en == 1;
         soft resp_err_en == 1;
         soft boot_ack_err_en == 1;
@@ -61,7 +67,11 @@ class {{ class_prefix }}check_error_request extends {{ class_prefix }}base_reque
         all_err_en[6] == data_end_bit_err_en;
         all_err_en[7] == cur_lmt_err_en;
         all_err_en[8] == auto_cmd_err_en;
+{%- if enable_dma %}
         all_err_en[9] == adma_err_en;
+{%- else %}
+        all_err_en[9] == 0;
+{%- endif %}
         all_err_en[10] == tuning_err_en;
         all_err_en[11] == resp_err_en;
         all_err_en[12] == boot_ack_err_en;

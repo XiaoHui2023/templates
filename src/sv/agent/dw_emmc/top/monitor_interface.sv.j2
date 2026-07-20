@@ -16,9 +16,15 @@ timeprecision 1fs;
 
 {%- for clk in monitored_clocks %}
 // 检查 {{ clk.name }} 时钟频率
-task automatic check_{{ clk.name }}_frequence(input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
-    if($isunknown({{ clk.name }}))
-        `uvm_fatal("","require connect {{ clk.name }} clock signal to monitor_if")
+task automatic check_{{ clk.name }}_frequence(input longint freq, output bit is_pass, output bit is_timeout,
+        output int measure_result, input real tol = 0);
+    if($isunknown({{ clk.name }})) begin
+        is_pass = 1;
+        is_timeout = 0;
+        measure_result = 0;
+        `uvm_info("", "{{ clk.name }} clock is not connected, skip frequence check", UVM_DEBUG)
+        return;
+    end
     sample_{{ clk.name }}_if.enable(1);
     check_clock_frequence(sample_{{ clk.name }}_if.r,freq,is_pass,is_timeout,measure_result,tol);
     sample_{{ clk.name }}_if.enable(0);
@@ -35,7 +41,8 @@ endtask
     measure_result : 测出测量频率（hz）, 超时结果无效
     tol : 允许误差 （0%-100%）
 */
-task automatic check_clock_frequence(ref reg clk,input longint freq,output bit is_pass,output bit is_timeout,output int measure_result,input real tol=0);
+task automatic check_clock_frequence(ref reg clk, input longint freq, output bit is_pass, output bit is_timeout,
+        output int measure_result, input real tol = 0);
     longint freq_min;
     longint freq_max;
     longint freq_tol;

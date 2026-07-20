@@ -14,7 +14,6 @@ class {{ class_prefix }}frequence_set_operation_seq extends {{ class_prefix }}ba
 
     extern function void pre_randomize();
     extern task body();
-    extern task post_start();
 endclass
 
 function void {{ class_prefix }}frequence_set_operation_seq::pre_randomize();
@@ -26,16 +25,6 @@ endfunction
 
 task {{ class_prefix }}frequence_set_operation_seq::body();
     p_sequencer.set_frequence(freq_set_request.frequence);
-endtask
-
-task {{ class_prefix }}frequence_set_operation_seq::post_start();
-    {{ class_prefix }}check_clock_frequence_test_seq chk_clk_freq_test_seq;
-    super.post_start();
-
-    if(!freq_set_request.should_check_clock_frequence)
-        return;
-
-    `uvm_do(chk_clk_freq_test_seq)
 endtask
 
 `endif

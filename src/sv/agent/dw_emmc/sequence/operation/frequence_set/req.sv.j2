@@ -4,18 +4,15 @@
 class {{ class_prefix }}frequence_set_request extends {{ class_prefix }}base_request;
     `uvm_object_utils_begin({{ class_prefix }}frequence_set_request)
         `uvm_field_int(frequence, UVM_ALL_ON)
-        `uvm_field_int(should_check_clock_frequence, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand int frequence;
-    rand bit should_check_clock_frequence;
 
     function new(string name = "{{ class_prefix }}frequence_set_request");
         super.new(name);
     endfunction
 
     constraint cst_frequence_set_request {
-        soft should_check_clock_frequence == 1;
                                                                                             {%- if is_emmc %}
 
         (ctx.bus_speed_mode_cur == LEGACY)         -> soft frequence == settings.boot_cfg.frequence_legacy;
