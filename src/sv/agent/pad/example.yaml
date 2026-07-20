@@ -1,24 +1,39 @@
 class_regmodel: pad_regmodel
+signals:
+  - name: pad_value
+  - name: pull_up
+  - name: pull_down
+  - name: output
+  - name: drive_strength
+    width: 3
 pads:
-  - name: gpio0
-    signals:
-      output:
-        reg: pad0_ctrl.output
-        path: dut.pad0_output
-      pull_up:
-        reg: pad0_ctrl.pull_up
-        path: dut.pad0_pull_up
-      pull_down:
-        reg: pad0_ctrl.pull_down
-        path: dut.pad0_pull_down
-      drive_strength:
-        reg:
-          path: pad0_ctrl.drive_strength
-          lsb: 0
-          width: 3
-        path: dut.pad0_drive_strength
-        width: 3
-      pad_value:
-        path: dut.pad0
-    fixed_pull_up: false
-    fixed_pull_down: false
+  gpio0:
+    pad_value:
+      path: dut.pad0
+    pull_up:
+      reg: pad0_ctrl.pull_up
+      path: dut.pad0_pull_up
+    pull_down:
+      reg: pad0_ctrl.pull_down
+      path: dut.pad0_pull_down
+    output:
+      reg: pad0_ctrl.output
+      path: dut.pad0_output
+    drive_strength:
+      reg: pad0_ctrl.drive_strength[2:0]
+      path: dut.pad0_drive_strength
+  gpio1:
+    pad_value:
+      path: dut.pad1
+    pull_up:
+      fix: 1
+      path: dut.pad1_pull_up
+    pull_down:
+      reg: pad1_ctrl.pull_down
+      path: dut.pad1_pull_down
+    output:
+      fix: 0
+      path: dut.pad1_output
+    drive_strength:
+      fix: 3
+      path: dut.pad1_drive_strength

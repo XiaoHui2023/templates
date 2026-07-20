@@ -15,8 +15,9 @@ class {{ class_pull_test_seq }} extends {{ class_base_seq }};
     extern function logic[31:0] bit_mask(int width);
     extern task body();
     extern task test_one_bit({{ class_pad_data }} pad, int bit_index, bit target_pull_up);
-    extern task test_pull({{ class_pad_data }} pad, logic[31:0] pull_up, logic[31:0] pull_down, logic[31:0] expect);
-    extern function logic[31:0] expected_value({{ class_pad_data }} pad, logic[31:0] pull_up, logic[31:0] pull_down);
+    extern task test_pull({{ class_pad_data }} pad, {{ class_signal_data }} pad_value_signal, {{ class_signal_data }} pull_up_signal, {{ class_signal_data }} pull_down_signal, logic[31:0] pull_up, logic[31:0] pull_down);
+    extern function logic[31:0] effective_value({{ class_signal_data }} signal, logic[31:0] configured_value);
+    extern function logic[31:0] expected_value({{ class_pad_data }} pad, {{ class_signal_data }} pull_up_signal, {{ class_signal_data }} pull_down_signal, logic[31:0] pull_up, logic[31:0] pull_down);
 endclass
 
 function logic[31:0] {{ class_pull_test_seq }}::bit_mask(int width);
@@ -28,25 +29,38 @@ function logic[31:0] {{ class_pull_test_seq }}::bit_mask(int width);
 endfunction
 
 task {{ class_pull_test_seq }}::body();
+    {{ class_signal_data }} pad_value_signal;
+
     ok = 1'b1;
     p_sequencer.check_ready();
-    foreach (settings.pads[i])
-        for (int bit_index = 0; bit_index < settings.pads[i].pad_value_width; bit_index++) begin
+    foreach (settings.pads[i]) begin
+        pad_value_signal = settings.pads[i].find_signal("pad_value");
+        if (pad_value_signal == null)
+            `uvm_fatal("PAD", "pull test requires pad_value signal")
+        for (int bit_index = 0; bit_index < pad_value_signal.width; bit_index++) begin
             test_one_bit(settings.pads[i], bit_index, 1'b1);
             test_one_bit(settings.pads[i], bit_index, 1'b0);
         end
+    end
 endtask
 
 task {{ class_pull_test_seq }}::test_one_bit({{ class_pad_data }} pad, int bit_index, bit target_pull_up);
+    {{ class_signal_data }} pad_value_signal;
+    {{ class_signal_data }} pull_up_signal;
+    {{ class_signal_data }} pull_down_signal;
     logic[31:0] mask;
     logic[31:0] bit_value;
     logic[31:0] pull_up;
     logic[31:0] pull_down;
-    logic[31:0] expect;
 
     if (pad == null)
         `uvm_fatal("PAD", "test_one_bit: pad is null")
-    mask = bit_mask(pad.pad_value_width);
+    pad_value_signal = pad.find_signal("pad_value");
+    pull_up_signal = pad.find_signal("pull_up");
+    pull_down_signal = pad.find_signal("pull_down");
+    if (pad_value_signal == null || pull_up_signal == null || pull_down_signal == null)
+        `uvm_fatal("PAD", "pull test requires pad_value, pull_up and pull_down signals")
+    mask = bit_mask(pad_value_signal.width);
     bit_value = 32'h1 << bit_index;
     if (target_pull_up) begin
         pull_up = bit_value;
@@ -55,49 +69,62 @@ task {{ class_pull_test_seq }}::test_one_bit({{ class_pad_data }} pad, int bit_i
         pull_up = mask & ~bit_value;
         pull_down = bit_value;
     end
-    expect = expected_value(pad, pull_up, pull_down);
-    test_pull(pad, pull_up, pull_down, expect);
+    test_pull(pad, pad_value_signal, pull_up_signal, pull_down_signal, pull_up, pull_down);
 endtask
 
 task {{ class_pull_test_seq }}::test_pull(
         {{ class_pad_data }} pad,
+        {{ class_signal_data }} pad_value_signal,
+        {{ class_signal_data }} pull_up_signal,
+        {{ class_signal_data }} pull_down_signal,
         logic[31:0] pull_up,
-        logic[31:0] pull_down,
-        logic[31:0] expect);
+        logic[31:0] pull_down);
     logic[31:0] mask;
+    logic[31:0] expect;
     logic[31:0] actual;
 
     if (pad == null)
         `uvm_fatal("PAD", "test_pull: pad is null")
-    p_sequencer.config_pad(
-        pad,
-        0,
-        pull_up,
-        pull_down,
-        0);
+    p_sequencer.config_signal(pull_up_signal, pull_up);
+    p_sequencer.config_signal(pull_down_signal, pull_down);
     #1ns;
-    mask = bit_mask(pad.pad_value_width);
-    actual = p_sequencer.get_pad_value(pad);
+    mask = bit_mask(pad_value_signal.width);
+    expect = expected_value(pad, pull_up_signal, pull_down_signal, pull_up, pull_down);
+    actual = p_sequencer.get_signal(pad, pad_value_signal.name);
     if ((actual & mask) !== (expect & mask)) begin
         ok = 1'b0;
         `uvm_error("PAD", $sformatf(
-            "%s pull mismatch: pull_up=0x%0h pull_down=0x%0h fixed_up=%0b fixed_down=%0b expect=0x%0h actual=0x%0h",
-            pad.name, pull_up, pull_down, pad.fixed_pull_up, pad.fixed_pull_down, expect & mask, actual & mask))
+            "%s pull mismatch: pull_up=0x%0h pull_down=0x%0h expect=0x%0h actual=0x%0h",
+            pad.name, pull_up, pull_down, expect & mask, actual & mask))
     end
 endtask
 
+function logic[31:0] {{ class_pull_test_seq }}::effective_value(
+        {{ class_signal_data }} signal,
+        logic[31:0] configured_value);
+    if (signal.has_fix)
+        return signal.fix_value;
+    return configured_value;
+endfunction
+
 function logic[31:0] {{ class_pull_test_seq }}::expected_value(
         {{ class_pad_data }} pad,
+        {{ class_signal_data }} pull_up_signal,
+        {{ class_signal_data }} pull_down_signal,
         logic[31:0] pull_up,
         logic[31:0] pull_down);
     logic[31:0] mask;
+    logic[31:0] effective_pull_up;
+    logic[31:0] effective_pull_down;
+    {{ class_signal_data }} pad_value_signal;
 
-    mask = bit_mask(pad.pad_value_width);
-    if (pad.fixed_pull_up)
-        return mask;
-    if (pad.fixed_pull_down)
-        return '0;
-    return pull_up & ~pull_down & mask;
+    pad_value_signal = pad.find_signal("pad_value");
+    if (pad_value_signal == null)
+        `uvm_fatal("PAD", "expected_value requires pad_value signal")
+    mask = bit_mask(pad_value_signal.width);
+    effective_pull_up = effective_value(pull_up_signal, pull_up);
+    effective_pull_down = effective_value(pull_down_signal, pull_down);
+    return effective_pull_up & ~effective_pull_down & mask;
 endfunction
 
 `endif

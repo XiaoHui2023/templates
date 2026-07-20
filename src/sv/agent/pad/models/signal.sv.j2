@@ -1,0 +1,21 @@
+`ifndef {{ class_signal_data | upper }}
+`define {{ class_signal_data | upper }}
+
+class {{ class_signal_data }};
+    string name;
+    int width;
+    bit has_reg;
+    bit has_fix;
+    logic[31:0] fix_value;
+    {{ class_reg_binding }} reg_bind;
+
+    function new(string name="", int width=1);
+        this.name = name;
+        this.width = width;
+        this.has_reg = 1'b0;
+        this.has_fix = 1'b0;
+        this.fix_value = '0;
+    endfunction
+endclass
+
+`endif

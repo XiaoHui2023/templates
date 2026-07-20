@@ -4,21 +4,20 @@
 class {{ class_pad_data }};
     string name;
     virtual {{ class_sub_interface }} vif;
-    {{ class_reg_binding }} output_reg;
-    {{ class_reg_binding }} pull_up_reg;
-    {{ class_reg_binding }} pull_down_reg;
-    {{ class_reg_binding }} drive_strength_reg;
-    int output_width;
-    int pull_up_width;
-    int pull_down_width;
-    int drive_strength_width;
-    int pad_value_width;
-    bit fixed_pull_up;
-    bit fixed_pull_down;
+    {{ class_signal_data }} signals[$];
 
     function new(string name="");
         this.name = name;
     endfunction
+
+    extern function {{ class_signal_data }} find_signal(string signal_name);
 endclass
+
+function {{ class_signal_data }} {{ class_pad_data }}::find_signal(string signal_name);
+    foreach (signals[i])
+        if (signals[i].name == signal_name)
+            return signals[i];
+    return null;
+endfunction
 
 `endif

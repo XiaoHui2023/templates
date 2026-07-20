@@ -2,11 +2,9 @@
 `define {{ class_sub_interface | upper }}
 
 interface {{ class_sub_interface }};
-    logic[31:0] output_value;
-    logic[31:0] pull_up;
-    logic[31:0] pull_down;
-    logic[31:0] drive_strength;
-    logic[31:0] pad_value;
+{% for signal in signal_keys %}
+    logic[31:0] {{ signal.sv_name }};
+{% endfor %}
 endinterface
 
 `endif

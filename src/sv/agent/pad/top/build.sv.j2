@@ -6,6 +6,7 @@ function automatic void {{ class_prefix }}build(
         {{ class_regmodel }} regmodel,
         ref {{ class_pad_data }} pads[$]);
     {{ class_pad_data }} data;
+    {{ class_signal_data }} sig;
 
     if (vif == null)
         `uvm_fatal("PAD", "build: vif is null")
@@ -13,20 +14,19 @@ function automatic void {{ class_prefix }}build(
         `uvm_fatal("PAD", "build: regmodel is null")
 
     pads.delete();
-{% for pad in pads %}
+{% for pad in pad_items %}
     data = new("{{ pad.name }}");
     data.vif = vif.{{ pad.name }};
-    data.output_reg = new(regmodel.{{ pad.signals.output.reg_path }}, {{ pad.signals.output.reg_lsb if pad.signals.output.reg_lsb is not none else 0 }}, {{ pad.signals.output.reg_width if pad.signals.output.reg_width is not none else pad.signals.output.width }});
-    data.pull_up_reg = new(regmodel.{{ pad.signals.pull_up.reg_path }}, {{ pad.signals.pull_up.reg_lsb if pad.signals.pull_up.reg_lsb is not none else 0 }}, {{ pad.signals.pull_up.reg_width if pad.signals.pull_up.reg_width is not none else pad.signals.pull_up.width }});
-    data.pull_down_reg = new(regmodel.{{ pad.signals.pull_down.reg_path }}, {{ pad.signals.pull_down.reg_lsb if pad.signals.pull_down.reg_lsb is not none else 0 }}, {{ pad.signals.pull_down.reg_width if pad.signals.pull_down.reg_width is not none else pad.signals.pull_down.width }});
-    data.drive_strength_reg = new(regmodel.{{ pad.signals.drive_strength.reg_path }}, {{ pad.signals.drive_strength.reg_lsb if pad.signals.drive_strength.reg_lsb is not none else 0 }}, {{ pad.signals.drive_strength.reg_width if pad.signals.drive_strength.reg_width is not none else pad.signals.drive_strength.width }});
-    data.output_width = {{ pad.signals.output.width }};
-    data.pull_up_width = {{ pad.signals.pull_up.width }};
-    data.pull_down_width = {{ pad.signals.pull_down.width }};
-    data.drive_strength_width = {{ pad.signals.drive_strength.width }};
-    data.pad_value_width = {{ pad.signals.pad_value.width }};
-    data.fixed_pull_up = {{ "1'b1" if pad.fixed_pull_up else "1'b0" }};
-    data.fixed_pull_down = {{ "1'b1" if pad.fixed_pull_down else "1'b0" }};
+{% for signal_name, signal in pad.signals.items() %}
+    sig = new("{{ signal_name }}", {{ signal.width }});
+    sig.has_fix = {{ "1'b1" if signal.has_fix else "1'b0" }};
+    sig.fix_value = 32'h{{ "%08x" % signal.fix_value }};
+{% if signal.has_reg %}
+    sig.has_reg = 1'b1;
+    sig.reg_bind = new(regmodel.{{ signal.reg_path }}, {{ signal.reg_lsb }}, {{ signal.reg_width }});
+{% endif %}
+    data.signals.push_back(sig);
+{% endfor %}
     pads.push_back(data);
 {% endfor %}
 endfunction

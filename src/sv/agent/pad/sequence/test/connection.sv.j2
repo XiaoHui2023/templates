@@ -15,7 +15,7 @@ class {{ class_connection_test_seq }} extends {{ class_base_seq }};
     extern function logic[31:0] bit_mask(int width);
     extern task body();
     extern task check_one({{ class_pad_data }} pad);
-    extern task check_signal({{ class_pad_data }} pad, string signal_name, {{ class_reg_binding }} rb, logic[31:0] value);
+    extern task check_signal({{ class_pad_data }} pad, {{ class_signal_data }} signal, logic[31:0] value);
 endclass
 
 function logic[31:0] {{ class_connection_test_seq }}::bit_mask(int width);
@@ -37,44 +37,36 @@ task {{ class_connection_test_seq }}::check_one({{ class_pad_data }} pad);
     if (pad == null)
         `uvm_fatal("PAD", "check_one: pad is null")
 
-    check_signal(pad, "output", pad.output_reg, 0);
-    check_signal(pad, "output", pad.output_reg, bit_mask(pad.output_reg.bound_width()));
-    check_signal(pad, "pull_up", pad.pull_up_reg, 0);
-    check_signal(pad, "pull_up", pad.pull_up_reg, bit_mask(pad.pull_up_reg.bound_width()));
-    check_signal(pad, "pull_down", pad.pull_down_reg, 0);
-    check_signal(pad, "pull_down", pad.pull_down_reg, bit_mask(pad.pull_down_reg.bound_width()));
-    check_signal(pad, "drive_strength", pad.drive_strength_reg, 0);
-    check_signal(pad, "drive_strength", pad.drive_strength_reg, bit_mask(pad.drive_strength_reg.bound_width()));
+    foreach (pad.signals[i]) begin
+        if (pad.signals[i].has_fix) begin
+            check_signal(pad, pad.signals[i], pad.signals[i].fix_value);
+        end else if (pad.signals[i].has_reg) begin
+            check_signal(pad, pad.signals[i], 0);
+            check_signal(pad, pad.signals[i], bit_mask(pad.signals[i].width));
+        end
+    end
 endtask
 
 task {{ class_connection_test_seq }}::check_signal(
         {{ class_pad_data }} pad,
-        string signal_name,
-        {{ class_reg_binding }} rb,
+        {{ class_signal_data }} signal,
         logic[31:0] value);
     logic[31:0] mask;
     logic[31:0] expect;
     logic[31:0] actual;
 
-    mask = bit_mask(rb.bound_width());
+    if (signal == null)
+        `uvm_fatal("PAD", "check_signal: signal is null")
+    mask = bit_mask(signal.width);
     expect = value & mask;
-    p_sequencer.write_signal(rb, expect);
+    p_sequencer.config_signal(signal, expect);
     #1ns;
-    if (signal_name == "output")
-        actual = p_sequencer.get_output_value(pad);
-    else if (signal_name == "pull_up")
-        actual = p_sequencer.get_pull_up(pad);
-    else if (signal_name == "pull_down")
-        actual = p_sequencer.get_pull_down(pad);
-    else if (signal_name == "drive_strength")
-        actual = p_sequencer.get_drive_strength(pad);
-    else
-        `uvm_fatal("PAD", $sformatf("unknown signal %s", signal_name))
+    actual = p_sequencer.get_signal(pad, signal.name);
     if ((actual & mask) !== expect) begin
         ok = 1'b0;
         `uvm_error("PAD", $sformatf(
             "%s.%s connection mismatch: expect 0x%0h actual 0x%0h",
-            pad.name, signal_name, expect, actual & mask))
+            pad.name, signal.name, expect, actual & mask))
     end
 endtask
 

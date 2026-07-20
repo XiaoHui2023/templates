@@ -15,14 +15,8 @@ class {{ class_sequencer }} extends uvm_sequencer;
     extern task reset_phase(uvm_phase phase);
     extern function void start_of_simulation_phase(uvm_phase phase);
     extern function void check_ready();
-    extern task write_signal({{ class_reg_binding }} rb, logic[31:0] value);
-    extern task read_signal({{ class_reg_binding }} rb, output uvm_reg_data_t value);
-    extern function logic[31:0] get_output_value({{ class_pad_data }} pad);
-    extern function logic[31:0] get_pull_up({{ class_pad_data }} pad);
-    extern function logic[31:0] get_pull_down({{ class_pad_data }} pad);
-    extern function logic[31:0] get_drive_strength({{ class_pad_data }} pad);
-    extern function logic[31:0] get_pad_value({{ class_pad_data }} pad);
-    extern task config_pad({{ class_pad_data }} pad, logic[31:0] output_value, logic[31:0] pull_up, logic[31:0] pull_down, logic[31:0] drive_strength);
+    extern task config_signal({{ class_signal_data }} signal, logic[31:0] value);
+    extern function logic[31:0] get_signal({{ class_pad_data }} pad, string signal_name);
     extern task connection_test();
     extern task pull_test();
 endclass
@@ -55,68 +49,27 @@ function void {{ class_sequencer }}::check_ready();
         `uvm_fatal("PAD", "settings.pads is empty; call settings.build() first")
 endfunction
 
-task {{ class_sequencer }}::write_signal({{ class_reg_binding }} rb, logic[31:0] value);
+task {{ class_sequencer }}::config_signal({{ class_signal_data }} signal, logic[31:0] value);
     check_ready();
-    rw.set_write(rb, value);
+    if (signal == null)
+        `uvm_fatal("PAD", "config_signal: signal is null")
+    if (signal.has_fix)
+        return;
+    if (!signal.has_reg || signal.reg_bind == null)
+        `uvm_fatal("PAD", $sformatf("config_signal: %s reg_bind is null", signal.name))
+    rw.set_write(signal.reg_bind, value);
 endtask
 
-task {{ class_sequencer }}::read_signal({{ class_reg_binding }} rb, output uvm_reg_data_t value);
-    check_ready();
-    rw.read(rb, value);
-endtask
-
-function logic[31:0] {{ class_sequencer }}::get_output_value({{ class_pad_data }} pad);
+function logic[31:0] {{ class_sequencer }}::get_signal({{ class_pad_data }} pad, string signal_name);
     if (pad == null || pad.vif == null)
-        `uvm_fatal("PAD", "get_output_value: pad vif is null")
-    return pad.vif.output_value;
+        `uvm_fatal("PAD", "get_signal: pad vif is null")
+{% for signal in signal_keys %}
+    if (signal_name == "{{ signal.name }}")
+        return pad.vif.{{ signal.sv_name }};
+{% endfor %}
+    `uvm_fatal("PAD", $sformatf("get_signal: unknown signal %s", signal_name))
+    return '0;
 endfunction
-
-function logic[31:0] {{ class_sequencer }}::get_pull_up({{ class_pad_data }} pad);
-    if (pad == null || pad.vif == null)
-        `uvm_fatal("PAD", "get_pull_up: pad vif is null")
-    return pad.vif.pull_up;
-endfunction
-
-function logic[31:0] {{ class_sequencer }}::get_pull_down({{ class_pad_data }} pad);
-    if (pad == null || pad.vif == null)
-        `uvm_fatal("PAD", "get_pull_down: pad vif is null")
-    return pad.vif.pull_down;
-endfunction
-
-function logic[31:0] {{ class_sequencer }}::get_drive_strength({{ class_pad_data }} pad);
-    if (pad == null || pad.vif == null)
-        `uvm_fatal("PAD", "get_drive_strength: pad vif is null")
-    return pad.vif.drive_strength;
-endfunction
-
-function logic[31:0] {{ class_sequencer }}::get_pad_value({{ class_pad_data }} pad);
-    if (pad == null || pad.vif == null)
-        `uvm_fatal("PAD", "get_pad_value: pad vif is null")
-    return pad.vif.pad_value;
-endfunction
-
-task {{ class_sequencer }}::config_pad(
-        {{ class_pad_data }} pad,
-        logic[31:0] output_value,
-        logic[31:0] pull_up,
-        logic[31:0] pull_down,
-        logic[31:0] drive_strength);
-    {{ class_reg_binding }} binds[$];
-    uvm_reg_data_t vals[$];
-
-    check_ready();
-    if (pad == null)
-        `uvm_fatal("PAD", "config_pad: pad is null")
-    binds.push_back(pad.output_reg);
-    vals.push_back(output_value);
-    binds.push_back(pad.pull_up_reg);
-    vals.push_back(pull_up);
-    binds.push_back(pad.pull_down_reg);
-    vals.push_back(pull_down);
-    binds.push_back(pad.drive_strength_reg);
-    vals.push_back(drive_strength);
-    rw.apply(binds, vals);
-endtask
 
 task {{ class_sequencer }}::connection_test();
     {{ class_connection_test_seq }} seq;
