@@ -38,6 +38,7 @@ from reg_paths import (
     validate_pll_regs_exact,
     validate_regs_exact,
 )
+from schema_error import ERR
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _SOURCE_ENDPOINT = re.compile(
@@ -70,7 +71,7 @@ def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
 
 def _coerce_required_freq(value: Any) -> int:
     if value is None or value == "":
-        raise ValueError("须填写 freq")
+        raise ValueError(ERR.missing_field("freq"))
     return int(value)
 
 
@@ -82,7 +83,7 @@ def _coerce_optional_int(value: Any) -> Optional[int]:
 
 def _coerce_required_freq_or_map(value: Any) -> Union[int, Dict[str, int]]:
     if value is None or value == "":
-        raise ValueError("必须填写 freq")
+        raise ValueError(ERR.missing_field("freq"))
     if isinstance(value, dict):
         return {str(key): int(freq) for key, freq in value.items()}
     return int(value)
@@ -287,23 +288,25 @@ class DivNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_div_regs(self, info: ValidationInfo) -> DivNode:
+        node_name = _validation_node_name(self, info)
         if self.div_kind == "div_r":
             if self.ratio is None:
                 raise ValueError(
-                    f"div 节点 {_validation_node_name(self, info)!r} "
-                    f"div_kind 为 div_r 时须填写 ratio"
+                    f"{ERR.node('div', node_name)} "
+                    f"{ERR.field('div_kind')} 为 'div_r' 时须填写 {ERR.field('ratio')}"
                 )
         elif self.ratio is not None:
             if self.ratio > 64:
                 raise ValueError(
-                    f"div 节点 {_validation_node_name(self, info)!r} "
-                    f"div_kind 为 {self.div_kind!r} 时 ratio 须不大于 64，"
+                    f"{ERR.node('div', node_name)} "
+                    f"{ERR.field('div_kind')} 为 {self.div_kind!r} 时 "
+                    f"{ERR.field('ratio')} 须不大于 64，"
                     f"得到 {self.ratio}"
                 )
         validate_regs_exact(
             self.regs,
             div_reg_keys_for_kind(self.div_kind),
-            node_name=_validation_node_name(self, info),
+            node_name=node_name,
             kind=f"div({self.div_kind})",
         )
         return self
@@ -434,22 +437,26 @@ class PllNode(NodeBase):
         if isinstance(self.freq, dict):
             if self.pll_kind != "inno":
                 raise ValueError(
-                    f"pll 节点 {node_name!r} freq 为 dict 时 pll_kind 必须为 inno"
+                    f"{ERR.node('pll', node_name)} {ERR.field('freq')} 为 dict 时 "
+                    f"{ERR.field('pll_kind')} 必须为 'inno'"
                 )
             expected = set(self.output_groups)
             actual = set(self.freq)
             if actual != expected:
                 raise ValueError(
-                    f"pll 节点 {node_name!r} pll_kind 为 inno 时 freq dict 键必须为 {sorted(expected)!r}"
+                    f"{ERR.node('pll', node_name)} {ERR.field('pll_kind')} 为 'inno' 时 "
+                    f"{ERR.field('freq')} dict 键必须为 {sorted(expected)!r}"
                 )
             for group, freq in self.freq.items():
                 if freq < 1 or freq > _FREQ_HZ_U32_MAX:
                     raise ValueError(
-                        f"pll 节点 {node_name!r} freq[{group!r}] 必须在 1～{_FREQ_HZ_U32_MAX}"
+                        f"{ERR.node('pll', node_name)} {ERR.field('freq')}[{group!r}] "
+                        f"必须在 1～{_FREQ_HZ_U32_MAX}"
                     )
         elif self.freq < 1 or self.freq > _FREQ_HZ_U32_MAX:
             raise ValueError(
-                f"pll 节点 {node_name!r} freq 必须在 1～{_FREQ_HZ_U32_MAX}"
+                f"{ERR.node('pll', node_name)} {ERR.field('freq')} "
+                f"必须在 1～{_FREQ_HZ_U32_MAX}"
             )
         return self
 
@@ -500,7 +507,7 @@ class CellNode(NodeBase):
         if not isinstance(data, dict):
             return data
         if "disable" in data:
-            raise ValueError("cell 节点不支持 disable 字段，请使用 active: false")
+            raise ValueError(ERR.unsupported_field("cell", "disable", "active: false"))
         return data
 
     @field_validator("cell_kind", mode="before")
@@ -521,22 +528,24 @@ class CellNode(NodeBase):
         for seg in value.split("."):
             if not _SV_ID.match(seg):
                 raise ValueError(
-                    f"path 段 {seg!r} 须为合法 SystemVerilog 名字，完整 path: {value!r}"
+                    f"{ERR.field('path')} 段 {seg!r} 须为合法 SystemVerilog 名字，"
+                    f"完整 {ERR.field('path')}: {value!r}"
                 )
         return value
 
     @model_validator(mode="after")
-    def _validate_cell_path(self) -> CellNode:
+    def _validate_cell_path(self, info: ValidationInfo) -> CellNode:
+        node_name = _validation_node_name(self, info)
         if self.present and not self.path:
-            raise ValueError(f"cell 节点 {self.name!r} path 必须填写")
+            raise ValueError(f"{ERR.node('cell', node_name)} {ERR.field('path')} 必须填写")
         if self.freq is not None and self.freq == 0:
             raise ValueError(
-                f"cell 节点 {self.name!r} freq 为 0 非法；"
+                f"{ERR.node('cell', node_name)} {ERR.field('freq')} 为 0 非法；"
                 f"正频率应大于等于 1，不约束请省略或填负数"
             )
         if self.freq is not None and self.freq > _FREQ_HZ_U32_MAX:
             raise ValueError(
-                f"cell 节点 {self.name!r} freq {self.freq} "
+                f"{ERR.node('cell', node_name)} {ERR.field('freq')} {self.freq} "
                 f"超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}"
             )
         return self
@@ -600,7 +609,7 @@ class ClkNode(NodeBase):
         if not isinstance(data, dict):
             return data
         if "disable" in data:
-            raise ValueError("clk 节点不支持 disable 字段，请使用 active: false")
+            raise ValueError(ERR.unsupported_field("clk", "disable", "active: false"))
         return data
 
     @field_validator("freq", mode="before")
@@ -616,7 +625,8 @@ class ClkNode(NodeBase):
         for seg in value.split("."):
             if not _SV_ID.match(seg):
                 raise ValueError(
-                    f"path 段 {seg!r} 须为合法 SystemVerilog 名字，完整 path: {value!r}"
+                    f"{ERR.field('path')} 段 {seg!r} 须为合法 SystemVerilog 名字，"
+                    f"完整 {ERR.field('path')}: {value!r}"
                 )
         return value
 
@@ -671,30 +681,34 @@ class ClkNode(NodeBase):
         return (not self.active) or self.stable
 
     @model_validator(mode="after")
-    def _validate_clk_freq(self) -> ClkNode:
+    def _validate_clk_freq(self, info: ValidationInfo) -> ClkNode:
+        node_name = _validation_node_name(self, info)
         if self.present and not self.path:
-            raise ValueError(f"clk 节点 {self.name!r} path 必须填写")
+            raise ValueError(f"{ERR.node('clk', node_name)} {ERR.field('path')} 必须填写")
         if self.freq is not None and self.freq == 0:
             raise ValueError(
-                f"clk 节点 {self.name!r} freq 为 0 非法；"
+                f"{ERR.node('clk', node_name)} {ERR.field('freq')} 为 0 非法；"
                 f"正频率应大于等于 1，不约束请省略或填负数"
             )
         if self.freq is not None and self.freq > _FREQ_HZ_U32_MAX:
             raise ValueError(
-                f"clk 节点 {self.name!r} freq {self.freq} "
+                f"{ERR.node('clk', node_name)} {ERR.field('freq')} {self.freq} "
                 f"超过 32 位无符号整数上限 {_FREQ_HZ_U32_MAX}"
             )
         if self.stable and (self.freq is None or self.freq <= 0):
             raise ValueError(
-                f"clk 节点 {self.name!r} stable 为真时 freq 应为正整数"
+                f"{ERR.node('clk', node_name)} {ERR.field('stable')} 为真时 "
+                f"{ERR.field('freq')} 应为正整数"
             )
         if (not self.active) and self.stable:
             raise ValueError(
-                f"clk 节点 {self.name!r} active 为假时不可同时 stable"
+                f"{ERR.node('clk', node_name)} {ERR.field('active')} 为假时"
+                f"不可同时 {ERR.field('stable')}"
             )
         if self.volatile and self.stable:
             raise ValueError(
-                f"clk node {self.name!r} volatile and stable cannot both be true"
+                f"{ERR.node('clk', node_name)} {ERR.field('volatile')} 和 "
+                f"{ERR.field('stable')} 不可同时为真"
             )
         return self
 
@@ -731,13 +745,15 @@ class MuxNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_mux(self, info: ValidationInfo) -> MuxNode:
+        node_name = _validation_node_name(self, info)
         validate_optional_reg(
-            self.reg, node_name=_validation_node_name(self, info), kind="mux"
+            self.reg, node_name=node_name, kind="mux"
         )
         if self.sel is not None and self.sel > self.mux_max_sel:
             raise ValueError(
-                f"mux 节点 {_validation_node_name(self, info)!r} "
-                f"sel 为 {self.sel} 超出 source 键范围 0～{self.mux_max_sel}"
+                f"{ERR.node('mux', node_name)} "
+                f"{ERR.field('sel')} 为 {self.sel} 超出 "
+                f"{ERR.field('source')} 键范围 0～{self.mux_max_sel}"
             )
         return self
 
@@ -766,10 +782,10 @@ def _node_kind_diagnosis(item: Any) -> str:
         return f"应为对象，得到 {type(item).__name__}"
     kind = item.get("kind")
     if kind is None:
-        return "缺少 kind 字段"
+        return f"缺少 {ERR.field('kind')} 字段"
     return (
-        f"kind 为 {kind!r} 无法识别，应为 {_NODE_KINDS_TEXT} 之一；"
-        f"分频旧写法可用 div、div_n、dto、dto_n、div_r 作为 kind"
+        f"{ERR.field('kind')} 为 {kind!r} 无法识别，应为 {_NODE_KINDS_TEXT} 之一；"
+        f"分频旧写法可用 div、div_n、dto、dto_n、div_r 作为 {ERR.field('kind')}"
     )
 
 
@@ -808,7 +824,7 @@ def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
         return key
     if node._name:
         return node._name
-    raise ValueError("节点须在 Tree.nodes 字典键上下文内校验")
+    raise ValueError(f"节点须在 {ERR.field('Tree.nodes')} 字典键上下文内校验")
 
 
 class Tree(BaseModel):
@@ -833,7 +849,7 @@ class Tree(BaseModel):
             as_dict: dict[str, Any] = {}
             for item in nodes:
                 if item is None:
-                    raise ValueError("nodes 列表项不可为 null")
+                    raise ValueError(f"{ERR.field('nodes')} 列表项不可为 null")
                 if not isinstance(item, dict):
                     as_dict[str(item)] = item
                     continue
@@ -841,7 +857,8 @@ class Tree(BaseModel):
                 node_name = item.get("name")
                 if not node_name:
                     raise ValueError(
-                        "nodes 为列表时每项须含 name；请改用 dict，以键为 name"
+                        f"{ERR.field('nodes')} 为列表时每项须含 {ERR.field('name')}；"
+                        f"请改用 dict，以键为 {ERR.field('name')}"
                     )
                 body = {k: v for k, v in item.items() if k != "name"}
                 as_dict[str(node_name)] = body
@@ -854,15 +871,16 @@ class Tree(BaseModel):
         for key, item in nodes.items():
             if not _SV_ID.match(key):
                 raise ValueError(
-                    f"nodes 键 {key!r} 须为合法 SystemVerilog 名字"
+                    f"{ERR.field('nodes')} 键 {key!r} 须为合法 SystemVerilog 名字"
                 )
             if item is None:
-                raise ValueError(f"nodes[{key!r}] 不可为 null")
+                raise ValueError(f"{ERR.nodes_key(key)} 不可为 null")
             if isinstance(item, dict):
                 item = _normalize_node_item(item)
                 if "name" in item:
                     raise ValueError(
-                        f"nodes[{key!r}] 体内不可含 name，以字典键 {key!r} 为准"
+                        f"{ERR.nodes_key(key)} 体内不可含 {ERR.field('name')}，"
+                        f"以字典键 {key!r} 为准"
                     )
                 normalized[key] = item
             else:
@@ -877,7 +895,7 @@ class Tree(BaseModel):
         built: Dict[str, Node] = {}
         for key, item in value.items():
             if item is None:
-                raise ValueError(f"nodes[{key!r}] 不可为 null")
+                raise ValueError(f"{ERR.nodes_key(key)} 不可为 null")
             if isinstance(item, NodeBase):
                 object.__setattr__(item, "_name", key)
                 built[key] = item
@@ -1022,25 +1040,27 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
             continue
         if node.name != key:
             raise ValueError(
-                f"nodes[{key!r}] 的 name 字段 {node.name!r} 须与字典键一致"
+                f"{ERR.nodes_key(key)} 的 {ERR.field('name')} 字段 {node.name!r} "
+                f"须与字典键一致"
             )
         if node.kind == "source" and (
             node.freq is None or node.freq < 1 or node.freq > _FREQ_HZ_U32_MAX
         ):
             raise ValueError(
-                f"source 节点 {node.name!r} 在非 probe_mode 下须填写 1～{_FREQ_HZ_U32_MAX} 的 freq"
+                f"{ERR.node('source', key)} 在非 {ERR.field('probe_mode')} 下"
+                f"须填写 1～{_FREQ_HZ_U32_MAX} 的 {ERR.field('freq')}"
             )
         if node.kind == "mux":
             for mux_key, peer in node.source.items():
                 _validate_source_ref(
                     peer,
                     nodes,
-                    ctx=f"节点 {node.name!r} mux.source[{mux_key!r}]",
+                    ctx=f"节点 {key!r} {ERR.field('mux.source')}[{mux_key!r}]",
                 )
         elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
             if node.source is not None:
                 _validate_source_ref(
                     node.source,
                     nodes,
-                    ctx=f"节点 {node.name!r} source",
+                    ctx=f"节点 {key!r} {ERR.field('source')}",
                 )

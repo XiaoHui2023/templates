@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 if TYPE_CHECKING:
     from nodes import Tree
 
+from schema_error import ERR
+
 
 def node_output_groups(node: object) -> List[str]:
     kind = getattr(node, "kind", None)
@@ -91,11 +93,11 @@ INV_KIND_TO_SV_ENUM: dict[str, str] = {
 
 def normalize_div_kind(value: object) -> str:
     if not isinstance(value, str):
-        raise TypeError(f"div_kind 须为字符串，得到 {type(value).__name__}")
+        raise TypeError(f"{ERR.field('div_kind')} 须为字符串，得到 {type(value).__name__}")
     canon = value.strip().lower()
     if canon not in _DIV_KIND_CANON:
         raise ValueError(
-            f"div_kind 须为 div、div_n、dto、dto_n、div_r 之一，"
+            f"{ERR.field('div_kind')} 须为 div、div_n、dto、dto_n、div_r 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -103,31 +105,32 @@ def normalize_div_kind(value: object) -> str:
 
 def normalize_inv_kind(value: object) -> str:
     if not isinstance(value, str):
-        raise TypeError(f"inv_kind 须为字符串，得到 {type(value).__name__}")
+        raise TypeError(f"{ERR.field('inv_kind')} 须为字符串，得到 {type(value).__name__}")
     canon = value.strip().lower()
     if canon not in _INV_KIND_CANON:
         raise ValueError(
-            f"inv_kind 须为 inv、inv_mux、inv_cell 之一，大小写不限，得到 {value!r}"
+            f"{ERR.field('inv_kind')} 须为 inv、inv_mux、inv_cell 之一，"
+            f"大小写不限，得到 {value!r}"
         )
     return canon
 
 
 def normalize_cell_kind(value: object) -> str:
     if not isinstance(value, str):
-        raise TypeError(f"cell_kind 应为字符串，得到 {type(value).__name__}")
+        raise TypeError(f"{ERR.field('cell_kind')} 应为字符串，得到 {type(value).__name__}")
     text = value.strip()
     if not text:
-        raise ValueError(f"cell_kind 应为非空字符串，得到 {value!r}")
+        raise ValueError(f"{ERR.field('cell_kind')} 应为非空字符串，得到 {value!r}")
     return text
 
 
 def normalize_source_kind(value: object) -> str:
     if not isinstance(value, str):
-        raise TypeError(f"source_kind 须为字符串，得到 {type(value).__name__}")
+        raise TypeError(f"{ERR.field('source_kind')} 须为字符串，得到 {type(value).__name__}")
     canon = value.strip().lower()
     if canon not in _SOURCE_KIND_CANON:
         raise ValueError(
-            f"source_kind 须为 source、pad 之一，"
+            f"{ERR.field('source_kind')} 须为 source、pad 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -220,11 +223,12 @@ def inno_postdiv_reg_keys(group_id: str) -> tuple[str, str]:
 
 def normalize_pll_kind(value: object) -> str:
     if not isinstance(value, str):
-        raise TypeError(f"pll_kind 须为字符串，得到 {type(value).__name__}")
+        raise TypeError(f"{ERR.field('pll_kind')} 须为字符串，得到 {type(value).__name__}")
     canon = value.strip().lower()
     if canon not in _PLL_KIND_CANON:
         raise ValueError(
-            f"pll_kind 须为 tci、sc、dw、inno 之一，大小写不限，得到 {value!r}"
+            f"{ERR.field('pll_kind')} 须为 tci、sc、dw、inno 之一，"
+            f"大小写不限，得到 {value!r}"
         )
     return canon
 
@@ -303,25 +307,26 @@ def validate_reg_path(path: str, *, ctx: str) -> None:
 
 def validate_optional_reg(path: str, *, node_name: str, kind: str) -> None:
     if path:
-        validate_reg_path(path, ctx=f"{kind} 节点 {node_name!r} reg")
+        validate_reg_path(path, ctx=f"{ERR.node(kind, node_name)} {ERR.field('reg')}")
 
 
 def flatten_regs(regs: RegsMap) -> dict[str, str]:
     flat: dict[str, str] = {}
     for blk, val in regs.items():
         if not _SV_ID.match(blk):
-            raise ValueError(f"regs 键 {blk!r} 须为合法 SystemVerilog 名字")
+            raise ValueError(f"{ERR.field('regs')} 键 {blk!r} 须为合法 SystemVerilog 名字")
         if isinstance(val, str):
-            validate_reg_path(val, ctx=f"regs[{blk!r}]")
+            validate_reg_path(val, ctx=f"{ERR.field('regs')}[{blk!r}]")
             flat[blk] = val
         else:
             for field, tail in val.items():
                 if not _SV_ID.match(field):
                     raise ValueError(
-                        f"regs[{blk!r}] 内键 {field!r} 须为合法 SystemVerilog 名字"
+                        f"{ERR.field('regs')}[{blk!r}] 内键 {field!r} "
+                        f"须为合法 SystemVerilog 名字"
                     )
                 full = f"{blk}.{tail}"
-                validate_reg_path(full, ctx=f"regs[{blk!r}][{field!r}]")
+                validate_reg_path(full, ctx=f"{ERR.field('regs')}[{blk!r}][{field!r}]")
                 flat[field] = full
     return flat
 
@@ -345,11 +350,14 @@ def validate_regs_exact(
         if extra:
             parts.append(f"多余 {extra}")
         raise ValueError(
-            f"{kind} 节点 {node_name!r} 的 regs 键须与允许集合完全一致"
+            f"{ERR.node(kind, node_name)} 的 {ERR.field('regs')} 键须与允许集合完全一致"
             f"（{'; '.join(parts)}）；允许 {sorted(allowed)}"
         )
     for key, path in regs.items():
-        validate_reg_path(path, ctx=f"{kind} 节点 {node_name!r} regs[{key!r}]")
+        validate_reg_path(
+            path,
+            ctx=f"{ERR.node(kind, node_name)} {ERR.field('regs')}[{key!r}]",
+        )
 
 
 def validate_pll_regs_exact(
@@ -366,10 +374,13 @@ def validate_pll_regs_exact(
         allowed = PLL_REG_KEYS.get(pll_kind)
         if groups:
             raise ValueError(
-                f"pll 节点 {node_name!r} 配置了多路输出时 pll_kind 须为 inno"
+                f"{ERR.node('pll', node_name)} 配置了多路输出时 "
+                f"{ERR.field('pll_kind')} 须为 'inno'"
             )
     if allowed is None:
-        raise ValueError(f"pll 节点 {node_name!r} 未知 pll_kind {pll_kind!r}")
+        raise ValueError(
+            f"{ERR.node('pll', node_name)} 未知 {ERR.field('pll_kind')} {pll_kind!r}"
+        )
     validate_regs_exact(regs, allowed, node_name=node_name, kind=f"pll({pll_kind})")
 
 

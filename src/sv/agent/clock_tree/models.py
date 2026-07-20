@@ -24,6 +24,7 @@ from reg_paths import (
     collect_source_sv_classes,
     iter_reg_bindings,
 )
+from schema_error import ERR
 
 _MAX_FREQ_HZ = 5_000_000_000
 
@@ -184,8 +185,8 @@ class Settings(BaseModel):
     def _validate_freq_range(self) -> Settings:
         if self.min_freq_hz > self.max_freq_hz:
             raise ValueError(
-                f"min_freq_hz ({self.min_freq_hz}) 须不大于 "
-                f"max_freq_hz ({self.max_freq_hz})"
+                f"{ERR.field('min_freq_hz')} ({self.min_freq_hz}) 须不大于 "
+                f"{ERR.field('max_freq_hz')} ({self.max_freq_hz})"
             )
         return self
 
@@ -193,7 +194,8 @@ class Settings(BaseModel):
     def _validate_duty_range(self) -> Settings:
         if self.duty_min > self.duty_max:
             raise ValueError(
-                f"duty_min ({self.duty_min}) 须不大于 duty_max ({self.duty_max})"
+                f"{ERR.field('duty_min')} ({self.duty_min}) 须不大于 "
+                f"{ERR.field('duty_max')} ({self.duty_max})"
             )
         return self
 
@@ -201,8 +203,9 @@ class Settings(BaseModel):
     def _validate_pll_sc_fbdiv_range(self) -> Settings:
         if self.pll_sc_fbdiv_min > self.pll_sc_fbdiv_max:
             raise ValueError(
-                f"pll_sc_fbdiv_min ({self.pll_sc_fbdiv_min}) 须不大于 "
-                f"pll_sc_fbdiv_max ({self.pll_sc_fbdiv_max})"
+                f"{ERR.field('pll_sc_fbdiv_min')} ({self.pll_sc_fbdiv_min}) "
+                f"须不大于 {ERR.field('pll_sc_fbdiv_max')} "
+                f"({self.pll_sc_fbdiv_max})"
             )
         return self
 
@@ -213,7 +216,7 @@ class Settings(BaseModel):
             return value
         if not _SV_TYPE.match(value):
             raise ValueError(
-                f"class_regmodel {value!r} 须为合法 SystemVerilog 类型名"
+                f"{ERR.field('class_regmodel')} {value!r} 须为合法 SystemVerilog 类型名"
             )
         return value
 
@@ -241,18 +244,24 @@ class Models(BaseModel):
         if self.settings.probe_mode:
             if not self.tree.nodes_ordered:
                 raise ValueError(
-                    "probe_mode 为真时须至少包含一个 freq 为正数或 active 为假的 clk/cell 节点"
+                    f"{ERR.field('probe_mode')} 为真时须至少包含一个 "
+                    f"{ERR.field('freq')} 为正数或 {ERR.field('active')} "
+                    f"为假的 clk/cell 节点"
                 )
         else:
             validate_nodes_graph(self.nodes)
         if self.settings.direct_config and not self.any_regs_configured:
-            raise ValueError("direct_config 为真时须至少配置一个 reg 或 regs")
+            raise ValueError(
+                f"{ERR.field('direct_config')} 为真时须至少配置一个 "
+                f"{ERR.fields('reg', 'regs')}"
+            )
         if (
             self.any_regs_configured
             and not self.settings.class_regmodel
         ):
             raise ValueError(
-                "任意节点配置了 reg 或 regs 时须在 settings 中填写 class_regmodel"
+                f"任意节点配置了 {ERR.fields('reg', 'regs')} 时须在 "
+                f"{ERR.field('settings')} 中填写 {ERR.field('class_regmodel')}"
             )
         return self
 
