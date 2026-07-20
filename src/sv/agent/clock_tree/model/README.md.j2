@@ -1,12 +1,10 @@
-{% if settings.direct_config %}
-# model
+{% if settings.direct_config -%}
+# 时钟树
 
-输入 `class_regmodel` 寄存器。
+## 部署
 
-{% if first_clk_name %}
-以 {{ first_clk_name }} 为例。
+输入 `{{ settings.class_regmodel }}` 寄存器为 `your-regmodel`。
 
-{% endif %}
 ```systemverilog
 {{ settings.class_prefix }}tree tree;
 
@@ -14,31 +12,48 @@
 tree = {{ settings.class_prefix }}tree::type_id::create("tree");
 {% if regs_enabled %}
 // 绑定寄存器
-tree.build(your_regmodel);
-
-// 尽可能关闭全部时钟
-tree.low_power();
-{% if first_clk_name %}
-
-// 使能目标时钟
-tree.{{ first_clk_name }}.enabled = 1;
-
-// 设置目标频率
-tree.{{ first_clk_name }}.frequence = 123456000;
-{% endif %}
-
-// 写入寄存器配置
-{{ settings.class_prefix }}config_reg(tree);
+tree.build(your-regmodel);
 {% else %}
 // 随机化
 tree.build();
-{% endif %}
+{% endif -%}
 ```
-{% if configurable_clks %}
 
+{% if regs_enabled -%}
+## 低功耗
+
+关闭全部时钟以加速仿真，同时也会关闭你可能需要的时钟。
+
+```systemverilog
+// 尽可能关闭全部时钟
+tree.low_power();
+```
+
+## 配置
+
+灵活地开启时钟，或者修改频率。
+{%- if first_clk_name %}
+
+以 {{ first_clk_name }} 为例。
+{% endif %}
+```systemverilog
+{% if first_clk_name -%}
+// 使能目标时钟
+tree.{{ first_clk_name }}.enabled = 1;
+
+// 设置目标频率 123.456MHz
+tree.{{ first_clk_name }}.frequence = 123456000;
+
+{% endif -%}
+
+// 应用配置
+{{ settings.class_prefix }}config_reg(tree);
+```
+{% endif %}
+{% if configurable_clks -%}
 ## 可配置时钟
 
-| 时钟 | 频率 |
+| 时钟 | 推荐频率 |
 | --- | --- |
 {% for clk in configurable_clks -%}
 | `{{ clk.name }}` | {% if not clk.active %}✗{% elif clk.freq is none %}-{% else %}{{ clk.freq }} Hz{% endif %} |
