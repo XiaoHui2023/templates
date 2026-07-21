@@ -5,7 +5,7 @@ class Models(BaseModel):
     class_prefix: str = Field(
         "Connection",
         min_length=1,
-        description="PascalCase prefix for generated symbols. The interface name is '<class_prefix>Interface'.",
+        description="PascalCase prefix for generated symbols. The interface name is '<class_prefix>interface'.",
     )
     default_data_width: int = Field(
         1,

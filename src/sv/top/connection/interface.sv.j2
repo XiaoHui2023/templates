@@ -1,7 +1,7 @@
-`ifndef {{ (class_prefix ~ 'Interface') | upper }}
-`define {{ (class_prefix ~ 'Interface') | upper }}
+`ifndef {{ (class_prefix ~ 'interface') | upper }}
+`define {{ (class_prefix ~ 'interface') | upper }}
 
-interface {{ class_prefix }}Interface #(
+interface {{ class_prefix }}interface #(
     parameter int DW = {{ default_data_width }},
     parameter real LATENCY = {{ default_latency }},
     parameter bit CHECK_ENABLE_DEFAULT = {{ 1 if check_enable_default else 0 }}

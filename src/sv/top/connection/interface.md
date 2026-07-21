@@ -1,9 +1,9 @@
-# ConnectionInterface
+# Connectioninterface
 
-`ConnectionInterface` 接在源信号和目标信号之间，`check_enable` 为 `1` 后开始监听。输入变化会进入队列，输出变化时按顺序比对，并检查响应延迟是否超过 `LATENCY`。
+`Connectioninterface` 接在源信号和目标信号之间，`check_enable` 为 `1` 后开始监听。输入变化会进入队列，输出变化时按顺序比对，并检查响应延迟是否超过 `LATENCY`。
 
 ```systemverilog
-ConnectionInterface #(
+Connectioninterface #(
     .DW(8),
     .LATENCY(5.0),
     .CHECK_ENABLE_DEFAULT(1'b0)
