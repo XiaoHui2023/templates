@@ -18,6 +18,7 @@ function automatic void {{ class_prefix }}build(
     data = new("{{ pad.name }}");
     data.vif = vif.{{ pad.name }};
 {% for signal_name, signal in pad.signals.items() %}
+{% if signal.present %}
     sig = new("{{ signal_name }}", {{ signal.width }});
     sig.has_fix = {{ "1'b1" if signal.has_fix else "1'b0" }};
     sig.fix_value = 32'h{{ "%08x" % signal.fix_value }};
@@ -26,6 +27,7 @@ function automatic void {{ class_prefix }}build(
     sig.reg_bind = new(regmodel.{{ signal.reg_path }}, {{ signal.reg_lsb }}, {{ signal.reg_width }});
 {% endif %}
     data.signals.push_back(sig);
+{% endif %}
 {% endfor %}
     pads.push_back(data);
 {% endfor %}

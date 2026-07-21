@@ -35,5 +35,4 @@ pads:
       fix: 0
       path: dut.pad1_output
     drive_strength:
-      fix: 3
-      path: dut.pad1_drive_strength
+      present: false

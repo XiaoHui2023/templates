@@ -35,8 +35,10 @@ task {{ class_pull_test_seq }}::body();
     p_sequencer.check_ready();
     foreach (settings.pads[i]) begin
         pad_value_signal = settings.pads[i].find_signal("pad_value");
-        if (pad_value_signal == null)
-            `uvm_fatal("PAD", "pull test requires pad_value signal")
+        if (pad_value_signal == null) begin
+            `uvm_info("PAD", $sformatf("omit pull test for %s: no pad_value signal", settings.pads[i].name), UVM_LOW)
+            continue;
+        end
         for (int bit_index = 0; bit_index < pad_value_signal.width; bit_index++) begin
             test_one_bit(settings.pads[i], bit_index, 1'b1);
             test_one_bit(settings.pads[i], bit_index, 1'b0);
@@ -58,8 +60,11 @@ task {{ class_pull_test_seq }}::test_one_bit({{ class_pad_data }} pad, int bit_i
     pad_value_signal = pad.find_signal("pad_value");
     pull_up_signal = pad.find_signal("pull_up");
     pull_down_signal = pad.find_signal("pull_down");
-    if (pad_value_signal == null || pull_up_signal == null || pull_down_signal == null)
-        `uvm_fatal("PAD", "pull test requires pad_value, pull_up and pull_down signals")
+    if (pad_value_signal == null || pull_up_signal == null || pull_down_signal == null) begin
+        `uvm_info("PAD", $sformatf(
+            "omit pull test for %s: no pad_value, pull_up, or pull_down signal", pad.name), UVM_LOW)
+        return;
+    end
     mask = bit_mask(pad_value_signal.width);
     bit_value = 32'h1 << bit_index;
     if (target_pull_up) begin

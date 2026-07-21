@@ -78,13 +78,18 @@ class SignalDecl(BaseModel):
 class SignalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    path: str = Field(..., description="SystemVerilog expression sampled by the generated interface")
+    present: bool = Field(True, description="False when this pad instance does not have this signal")
+    path: Optional[str] = Field(None, description="SystemVerilog expression sampled by the generated interface")
     reg: Optional[str] = Field(None, description="RAL field path string, optionally with [bit] or [msb:lsb]")
     fix: Optional[int] = Field(None, ge=0, description="Fixed signal value; fixed signals are not register-configured")
 
     @model_validator(mode="after")
     def validate_signal(self) -> "SignalConfig":
-        if not self.path.strip():
+        if not self.present:
+            if self.path or self.reg or self.fix is not None:
+                raise ValueError("absent pad signal must not configure path, reg, or fix")
+            return self
+        if not self.path or not self.path.strip():
             raise ValueError("pad signal path must not be empty")
         if self.reg:
             parse_reg_path(self.reg, ctx="pad signal reg")
@@ -100,6 +105,7 @@ class ResolvedSignal(BaseModel):
     path: str
     reg: Optional[str] = None
     fix: Optional[int] = None
+    present: bool = True
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -181,6 +187,8 @@ class Models(BaseModel):
                 )
             for signal_name, cfg in pad_signals.items():
                 width = decls[signal_name].width
+                if not cfg.present:
+                    continue
                 if cfg.fix is not None:
                     if cfg.reg:
                         raise ValueError(f"fixed signal {pad_name}.{signal_name} must not configure reg")
@@ -210,9 +218,10 @@ class Models(BaseModel):
                     name=signal.name,
                     sv_name=signal.sv_name,
                     width=decls[signal.name].width,
-                    path=cfg.path,
+                    path="" if cfg.path is None else cfg.path,
                     reg=cfg.reg,
                     fix=cfg.fix,
+                    present=cfg.present,
                 )
             items.append(PadItem(name=pad_name, signals=resolved))
         return items
