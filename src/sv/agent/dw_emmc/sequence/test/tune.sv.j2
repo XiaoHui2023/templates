@@ -1,7 +1,7 @@
 `ifndef {{ class_prefix | upper }}TUNE_TEST_SEQ
 `define {{ class_prefix | upper }}TUNE_TEST_SEQ
 
-class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
+class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}tune_test_seq)
         `uvm_field_int(data_width, UVM_ALL_ON)
     `uvm_object_utils_end

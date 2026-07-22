@@ -2,7 +2,7 @@
 `ifndef {{ class_prefix | upper }}REG_TEST_SEQ
 `define {{ class_prefix | upper }}REG_TEST_SEQ
 
-class {{ class_prefix }}reg_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
+class {{ class_prefix }}reg_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}base_item);
     `uvm_object_utils({{ class_prefix }}reg_test_seq)
 
     function new(string name = "{{ class_prefix }}reg_test_seq");

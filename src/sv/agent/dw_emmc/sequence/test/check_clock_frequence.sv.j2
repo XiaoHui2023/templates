@@ -1,7 +1,7 @@
 `ifndef {{ class_prefix | upper }}CHECK_CLOCK_FREQUENCE_TEST_SEQ
 `define {{ class_prefix | upper }}CHECK_CLOCK_FREQUENCE_TEST_SEQ
 
-class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
+class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}check_clock_frequence_test_seq)
 {% for clk in monitored_clocks %}
 {% if clk.check_type == "presence" %}
