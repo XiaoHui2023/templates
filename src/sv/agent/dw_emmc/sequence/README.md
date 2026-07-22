@@ -161,9 +161,9 @@ ADMA 描述符只在 `dma_sel inside {ADMA2, ADMA2_3}` 时写入。描述符地�
 
 ## clock 检查
 
-Python 输入 `monitored_clocks[].enable == true` 的 clock 才生成端口、`frequence_*`、`tolerance_*` 和检查调用。默认只生成 `hclk`。
+Python 输入 `monitored_clocks[].enable == true` 的 clock 才生成端口、配置字段和检查调用。默认只生成 `hclk`，按 `presence` 检查。
 
-SV 不生成 clock 检查开关。monitor interface 对每个已生成 clock 先用 `$isunknown(clk)` 判断是否连接；未连接或 X/Z 时跳过，已连接时测频，timeout 或超差时报 `uvm_fatal`。
+SV 不生成 clock 检查开关。monitor interface 对每个已生成 clock 先用 `$isunknown(clk)` 判断是否连接；未连接或 X/Z 时跳过，已连接时按 `presence`、`relation` 或 `frequency` 类型检查，失败时报 `uvm_fatal`。
 
 ## 关键检查
 

@@ -15,48 +15,34 @@ timeprecision 1fs;
 {%- endfor %}
 
 {%- for clk in monitored_clocks %}
-// 检查 {{ clk.name }} 时钟频率
-task automatic check_{{ clk.name }}_frequence(input longint freq, output bit is_pass, output bit is_timeout,
-        output int measure_result, input real tol = 0);
+// Measure {{ clk.name }} clock. X/Z means unconnected and is skipped by the caller.
+task automatic measure_{{ clk.name }}_frequence(output bit is_connected, output bit is_timeout,
+        output longint measure_result, input longint min_freq = 1);
     if($isunknown({{ clk.name }})) begin
-        is_pass = 1;
+        is_connected = 0;
         is_timeout = 0;
         measure_result = 0;
-        `uvm_info("", "{{ clk.name }} clock is not connected, skip frequence check", UVM_DEBUG)
+        `uvm_info("", "{{ clk.name }} clock is not connected, skip clock check", UVM_DEBUG)
         return;
     end
+
+    is_connected = 1;
     sample_{{ clk.name }}_if.enable(1);
-    check_clock_frequence(sample_{{ clk.name }}_if.r,freq,is_pass,is_timeout,measure_result,tol);
+    measure_clock_frequence(sample_{{ clk.name }}_if.r, min_freq, is_timeout, measure_result);
     sample_{{ clk.name }}_if.enable(0);
 endtask
 {%- endfor %}
 
-/*
-    检查时钟频率 （需要开启采样使能）
-
-    clk : reg类型时钟信号
-    freq : 要求的时钟频率(Hz)
-    is_pass : 输出结果是否成功
-    is_timeout : 输出是否超时
-    measure_result : 测出测量频率（hz）, 超时结果无效
-    tol : 允许误差 （0%-100%）
-*/
-task automatic check_clock_frequence(ref reg clk, input longint freq, output bit is_pass, output bit is_timeout,
-        output int measure_result, input real tol = 0);
-    longint freq_min;
-    longint freq_max;
-    longint freq_tol;
+task automatic measure_clock_frequence(ref reg clk, input longint min_freq, output bit is_timeout,
+        output longint measure_result);
     longint timeout;
 
-    if(tol < 0 || tol > 1)
-        `uvm_fatal("",$psprintf("Invalid tol=%0f",tol))
-    if(freq <= 0)
-        `uvm_fatal("",$psprintf("Invalid freq=%0d",freq))
+    if(min_freq <= 0)
+        `uvm_fatal("", $psprintf("Invalid min_freq=%0d", min_freq))
 
-    freq_tol = tol * freq;
-    freq_min = freq - freq_tol;
-    freq_max = freq + freq_tol;
-    timeout = (1e15 / freq_min + 1) * 100;
+    is_timeout = 0;
+    measure_result = 0;
+    timeout = (1e15 / min_freq + 1) * 100;
 
     fork begin
         fork
@@ -74,16 +60,13 @@ task automatic check_clock_frequence(ref reg clk, input longint freq, output bit
                 @(clk);
                 end_time = $realtime;
                 period = (end_time - start_time) * 2;
+                if(period <= 0)
+                    `uvm_fatal("", "Invalid clock period")
                 measure_result = 1e15 / period;
             end
         join_any
         disable fork;
     end join
-
-    if(is_timeout)
-        return;
-
-    is_pass = measure_result >= freq_min && measure_result <= freq_max;
 endtask
 endinterface
 

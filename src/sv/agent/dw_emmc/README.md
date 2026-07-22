@@ -12,7 +12,7 @@ Emmc_ctrl_interface emmc_if(
 );
 ```
 
-默认只生成 `hclk` 时钟端口。需要检查其它 clock 时，在 Python 输入 `monitored_clocks` 中把对应 clock 设为 `enable: true`，端口和检查代码才会生成。
+默认只生成 `hclk` 时钟端口。需要检查其它 clock 时，在 Python 输入 `monitored_clocks` 中把对应 clock 设为 `enable: true`，端口和检查代码才会生成。内置 clock 默认值通过 Python 输入 `clock_defaults` 配置。
 
 ```systemverilog
 class env extends uvm_env;
@@ -35,8 +35,7 @@ endclass
 ```systemverilog
 env.emmc_agent.settings.boot_cfg.default_data_width = DATA_WIDTH_8;
 env.emmc_agent.settings.boot_cfg.default_bus_speed_mode = HS400;
-env.emmc_agent.settings.chk_clk_cfg.frequence_hclk = 198000000;
-env.emmc_agent.settings.chk_clk_cfg.tolerance_hclk = 5;
+env.emmc_agent.settings.chk_clk_cfg.min_frequence_hclk = 24000000;
 ```
 
 ## Callback

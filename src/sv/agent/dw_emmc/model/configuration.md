@@ -49,9 +49,23 @@
 
 | 字段 | 说明 |
 | --- | --- |
-| `frequence_<clk>` | 期望频率，单位 Hz |
-| `tolerance_<clk>` | 容差，百分比 |
+| `min_frequence_<clk>` | `presence` / `relation` 检查使用的最小频率，单位 Hz |
+| `frequence_<clk>` | `frequency` 检查使用的期望频率，单位 Hz |
+| `tolerance_<clk>` | `frequency` 检查使用的容差，百分比 |
+| `relation_tolerance_<clk>` | `relation` 中 `==` 比较使用的容差，百分比 |
 
 字段只对 `models.py` 中 `monitored_clocks[].enable == true` 的 clock 生成。
 
-默认只生成 `hclk`。SV 里没有 clock 检查开关；clock 端口未连接或为 X/Z 时跳过，已连接时按频率和容差检查。
+默认只生成 `hclk`，并按 `presence` 检查。SV 里没有 clock 检查开关；clock 端口未连接或为 X/Z 时跳过，已连接时按该 clock 的类型检查。
+
+## clock_defaults
+
+| 字段 | 默认值 |
+| --- | --- |
+| `crystal_frequence` | `24000000` |
+| `tmclk_frequence` | `1000000` |
+| `cqetmclk_frequence` | `1000000` |
+| `tolerance` | `5` |
+| `cclk_rx_relation_operator` | `==` |
+
+生成时先创建内置 clock 默认表，再用 `monitored_clocks` 中的同名字段覆盖。单个 clock 的 `enable`、`min_frequence`、`frequence`、`tolerance`、`relation_operator` 可在 `monitored_clocks` 中覆盖。

@@ -4,14 +4,28 @@
 class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }}default_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}check_clock_frequence_test_seq)
 {% for clk in monitored_clocks %}
+{% if clk.check_type == "presence" %}
+        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
+{% elif clk.check_type == "frequency" %}
         `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
         `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
+{% elif clk.check_type == "relation" %}
+        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
+        `uvm_field_int(relation_tolerance_{{ clk.name }}, UVM_ALL_ON)
+{% endif %}
 {% endfor %}
     `uvm_object_utils_end
 
 {% for clk in monitored_clocks %}
+{% if clk.check_type == "presence" %}
+    rand int min_frequence_{{ clk.name }};
+{% elif clk.check_type == "frequency" %}
     rand int frequence_{{ clk.name }};
     rand int tolerance_{{ clk.name }};
+{% elif clk.check_type == "relation" %}
+    rand int min_frequence_{{ clk.name }};
+    rand int relation_tolerance_{{ clk.name }};
+{% endif %}
 {% endfor %}
 
     function new(string name = "{{ class_prefix }}check_clock_frequence_test_seq");
@@ -20,51 +34,150 @@ class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }
 
     constraint cst_test {
 {% for clk in monitored_clocks %}
+{% if clk.check_type == "presence" %}
+        soft min_frequence_{{ clk.name }} == settings.chk_clk_cfg.min_frequence_{{ clk.name }};
+{% elif clk.check_type == "frequency" %}
         soft frequence_{{ clk.name }} == settings.chk_clk_cfg.frequence_{{ clk.name }};
         soft tolerance_{{ clk.name }} == settings.chk_clk_cfg.tolerance_{{ clk.name }};
+{% elif clk.check_type == "relation" %}
+        soft min_frequence_{{ clk.name }} == settings.chk_clk_cfg.min_frequence_{{ clk.name }};
+        soft relation_tolerance_{{ clk.name }} == settings.chk_clk_cfg.relation_tolerance_{{ clk.name }};
+{% endif %}
 {% endfor %}
     }
 
     extern task body();
-    extern task check_single_clock(input string name, input int frequence, input int tolerance);
+    extern task measure_single_clock(input string name, input longint min_frequence, output bit is_connected,
+        output bit is_timeout, output longint measure_result);
+    extern task check_presence_clock(input string name, input longint min_frequence);
+    extern task check_frequency_clock(input string name, input longint frequence, input int tolerance);
+    extern task check_relation_clock(input string name_a, input string name_b, input string op, input longint min_frequence,
+        input int tolerance);
 endclass
 
 task {{ class_prefix }}check_clock_frequence_test_seq::body();
     `uvm_info("", $psprintf("check:\n%s", sprint()), UVM_DEBUG)
 
 {% for clk in monitored_clocks %}
-    check_single_clock("{{ clk.name }}", frequence_{{ clk.name }}, tolerance_{{ clk.name }});
+{% if clk.check_type == "presence" %}
+    check_presence_clock("{{ clk.name }}", min_frequence_{{ clk.name }});
+{% elif clk.check_type == "frequency" %}
+    check_frequency_clock("{{ clk.name }}", frequence_{{ clk.name }}, tolerance_{{ clk.name }});
+{% elif clk.check_type == "relation" %}
+    check_relation_clock("{{ clk.name }}", "{{ clk.relation_clock }}", "{{ clk.relation_operator }}",
+        min_frequence_{{ clk.name }}, relation_tolerance_{{ clk.name }});
+{% endif %}
 {% endfor %}
 
     `uvm_info("", "done", UVM_DEBUG)
 endtask
 
-task {{ class_prefix }}check_clock_frequence_test_seq::check_single_clock(input string name, input int frequence,
-        input int tolerance);
-    bit is_pass;
-    bit is_timeout;
-    int measure_result;
-    real tol_percent;
-
-    `uvm_info("", $psprintf("check %s = %0d HZ ±%0d%%", name, frequence, tolerance), UVM_DEBUG)
-    tol_percent = 1.0 * tolerance / 100;
-
+task {{ class_prefix }}check_clock_frequence_test_seq::measure_single_clock(input string name, input longint min_frequence,
+        output bit is_connected, output bit is_timeout, output longint measure_result);
     case (name)
 {% for clk in monitored_clocks %}
         "{{ clk.name }}" :
-            settings.vif.monitor_if.check_{{ clk.name }}_frequence(frequence, is_pass, is_timeout, measure_result, tol_percent);
+            settings.vif.monitor_if.measure_{{ clk.name }}_frequence(is_connected, is_timeout, measure_result,
+                min_frequence);
 {% endfor %}
         default:
-            `uvm_fatal("", "NotImplemented")
+            `uvm_fatal("", $psprintf("Unknown clock %s", name))
+    endcase
+endtask
+
+task {{ class_prefix }}check_clock_frequence_test_seq::check_presence_clock(input string name,
+        input longint min_frequence);
+    bit is_connected;
+    bit is_timeout;
+    longint measure_result;
+
+    `uvm_info("", $psprintf("check %s presence, min %0d HZ", name, min_frequence), UVM_DEBUG)
+    measure_single_clock(name, min_frequence, is_connected, is_timeout, measure_result);
+    if(!is_connected)
+        return;
+    if(is_timeout)
+        `uvm_fatal("", $psprintf("check %s timeout", name))
+    if(measure_result < min_frequence)
+        `uvm_fatal("", $psprintf("check %s require >= %0d HZ, but %0d HZ", name, min_frequence, measure_result))
+    `uvm_info("", $psprintf("check %s successful: %0d HZ", name, measure_result), UVM_DEBUG)
+endtask
+
+task {{ class_prefix }}check_clock_frequence_test_seq::check_frequency_clock(input string name, input longint frequence,
+        input int tolerance);
+    bit is_connected;
+    bit is_timeout;
+    longint measure_result;
+    longint freq_min;
+    longint freq_max;
+    longint freq_tol;
+    longint timeout_min;
+
+    if(tolerance < 0 || tolerance > 100)
+        `uvm_fatal("", $psprintf("Invalid tolerance=%0d", tolerance))
+    if(frequence <= 0)
+        `uvm_fatal("", $psprintf("Invalid frequence=%0d", frequence))
+
+    freq_tol = frequence * tolerance / 100;
+    freq_min = frequence - freq_tol;
+    freq_max = frequence + freq_tol;
+    timeout_min = freq_min > 0 ? freq_min : 1;
+
+    `uvm_info("", $psprintf("check %s = %0d HZ +/- %0d%%", name, frequence, tolerance), UVM_DEBUG)
+    measure_single_clock(name, timeout_min, is_connected, is_timeout, measure_result);
+    if(!is_connected)
+        return;
+    if(is_timeout)
+        `uvm_fatal("", $psprintf("check %s timeout", name))
+    if(measure_result < freq_min || measure_result > freq_max)
+        `uvm_fatal("", $psprintf("check %s require %0d HZ +/- %0d%%, but %0d HZ", name, frequence, tolerance,
+            measure_result))
+    `uvm_info("", $psprintf("check %s successful: %0d HZ", name, measure_result), UVM_DEBUG)
+endtask
+
+task {{ class_prefix }}check_clock_frequence_test_seq::check_relation_clock(input string name_a, input string name_b,
+        input string op, input longint min_frequence, input int tolerance);
+    bit is_connected_a;
+    bit is_connected_b;
+    bit is_timeout_a;
+    bit is_timeout_b;
+    bit is_pass;
+    longint measure_a;
+    longint measure_b;
+    longint diff;
+    longint allowed_diff;
+
+    if(tolerance < 0 || tolerance > 100)
+        `uvm_fatal("", $psprintf("Invalid tolerance=%0d", tolerance))
+
+    measure_single_clock(name_a, min_frequence, is_connected_a, is_timeout_a, measure_a);
+    measure_single_clock(name_b, min_frequence, is_connected_b, is_timeout_b, measure_b);
+    if(!is_connected_a || !is_connected_b)
+        return;
+    if(is_timeout_a)
+        `uvm_fatal("", $psprintf("check %s timeout", name_a))
+    if(is_timeout_b)
+        `uvm_fatal("", $psprintf("check %s timeout", name_b))
+
+    diff = measure_a - measure_b;
+    if(diff < 0)
+        diff = -diff;
+    allowed_diff = measure_b * tolerance / 100;
+
+    case (op)
+        ">"  : is_pass = measure_a > measure_b;
+        ">=" : is_pass = measure_a >= measure_b;
+        "<"  : is_pass = measure_a < measure_b;
+        "<=" : is_pass = measure_a <= measure_b;
+        "==" : is_pass = diff <= allowed_diff;
+        default:
+            `uvm_fatal("", $psprintf("Invalid relation operator %s", op))
     endcase
 
-    if (is_timeout)
-        `uvm_fatal("", $psprintf("check %s timeout", name))
-    else if (!is_pass)
-        `uvm_fatal("", $psprintf("check %s require %0d HZ ±%0d%%, but %0d HZ", name, frequence, tolerance,
-                measure_result))
-    else
-        `uvm_info("", $psprintf("check %s successful", name), UVM_DEBUG)
+    if(!is_pass)
+        `uvm_fatal("", $psprintf("check relation failed: %s(%0d HZ) %s %s(%0d HZ), tolerance=%0d%%",
+            name_a, measure_a, op, name_b, measure_b, tolerance))
+    `uvm_info("", $psprintf("check relation successful: %s(%0d HZ) %s %s(%0d HZ)",
+        name_a, measure_a, op, name_b, measure_b), UVM_DEBUG)
 endtask
 
 `endif

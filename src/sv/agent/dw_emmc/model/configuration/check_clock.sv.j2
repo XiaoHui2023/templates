@@ -4,19 +4,29 @@
 class {{ class_prefix }}check_clock_configuration extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}check_clock_configuration)
                                             {%- for clk in monitored_clocks %}
+                                            {%- if clk.check_type == "presence" %}
+        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- elif clk.check_type == "frequency" %}
         `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
-                                            {%- endfor %}
-                                            {%- for clk in monitored_clocks %}
         `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- elif clk.check_type == "relation" %}
+        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
+        `uvm_field_int(relation_tolerance_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- endif %}
                                             {%- endfor %}
     `uvm_object_utils_end
 
-    {%- for clk in monitored_clocks %}
+                                            {%- for clk in monitored_clocks %}
+                                            {%- if clk.check_type == "presence" %}
+    rand int min_frequence_{{ clk.name }}; // {{ clk.name }}最小频率 (Hz)
+                                            {%- elif clk.check_type == "frequency" %}
     rand int frequence_{{ clk.name }}; // {{ clk.name }}频率 (Hz)
-    {%- endfor %}
-    {%- for clk in monitored_clocks %}
     rand int tolerance_{{ clk.name }}; // {{ clk.name }}允许误差范围 (百分点)
-    {%- endfor %}
+                                            {%- elif clk.check_type == "relation" %}
+    rand int min_frequence_{{ clk.name }}; // {{ clk.name }}关系检查最小频率 (Hz)
+    rand int relation_tolerance_{{ clk.name }}; // {{ clk.name }}关系检查容差 (百分点)
+                                            {%- endif %}
+                                            {%- endfor %}
 
     function new(string name = "{{ class_prefix }}check_clock_configuration");
         super.new(name);
@@ -24,10 +34,15 @@ class {{ class_prefix }}check_clock_configuration extends {{ class_prefix }}base
 
     constraint cst_chk_clk_cfg {
                                             {%- for clk in monitored_clocks %}
+                                            {%- if clk.check_type == "presence" %}
+        soft min_frequence_{{ clk.name }} == {{ clk.min_frequence }};
+                                            {%- elif clk.check_type == "frequency" %}
         soft frequence_{{ clk.name }} == {{ clk.frequence }};
-                                            {%- endfor %}
-                                            {%- for clk in monitored_clocks %}
         soft tolerance_{{ clk.name }} == {{ clk.tolerance }};
+                                            {%- elif clk.check_type == "relation" %}
+        soft min_frequence_{{ clk.name }} == {{ clk.min_frequence }};
+        soft relation_tolerance_{{ clk.name }} == {{ clk.tolerance }};
+                                            {%- endif %}
                                             {%- endfor %}
     }
 endclass
