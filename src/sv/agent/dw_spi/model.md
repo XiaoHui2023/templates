@@ -92,7 +92,9 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不�
 | `spi_frf` | 配置 `CTRLR0.SPI_FRF` |
 | `spi_ctrlr0_en` | enhanced 模式下写 `SPI_CTRLR0` |
 | `wait_cycles` / `inst_l` / `addr_l` / `trans_type` | 配置 `SPI_CTRLR0` |
+| `spi_clk_stretch_en` | enhanced 模式下配置 `SPI_CTRLR0.SPI_CLK_STRETCH_EN`，保护 RX/DMA/FIFO 数据流 |
 | `spi_mode` / `data_frame_bits` | 配置 `CTRLR0` CPOL/CPHA/DFS |
+| `sste` | 配置 `CTRLR0.SSTE`，当前约束为 0，避免帧间自动 toggle 破坏收发连续性 |
 | `ndf` | 配置 `CTRLR1.NDF`，单位是 DFS frame |
 | `ssi_en` / `ser` / `baudr` | 配置 `SSIENR`、`SER`、`BAUDR` |
 | `txftlr` / `rxftlr` | 配置 FIFO threshold |

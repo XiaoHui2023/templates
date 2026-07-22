@@ -148,6 +148,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         int trans_type;
         int cfg_ndf;
         bit spi_ctrlr0_en;
+        bit spi_clk_stretch_en;
         int wait_cycles;
         int interrupt_timeout_cycles;
         longint ssi_clk_hz;
@@ -210,12 +211,13 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         addr_l = addr_l_from_bytes(rq.addr_bytes);
         trans_type = frame_mode == ENHANCED ? 1 : 0;
         spi_ctrlr0_en = frame_mode == ENHANCED;
+        spi_clk_stretch_en = spi_ctrlr0_en;
         wait_cycles = spi_ctrlr0_en ? rq.dummy_cycles : 0;
         cfg_ndf = (transfer_mode inside {RX_ONLY, EEPROM_READ}) ? ndf : 0;
         interrupt_timeout_cycles = transfer_timeout_cycles(
             rq, baudr, length, frame_mode);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "derived transfer fields: length=%0d payload_bits=%0d data_frame_bits=%0d ndf=%0d cfg_ndf=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
+            "derived transfer fields: length=%0d payload_bits=%0d data_frame_bits=%0d ndf=%0d cfg_ndf=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
             length,
             length * 8,
             rq.data_frame_bits,
@@ -226,6 +228,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             addr_l,
             trans_type,
             spi_ctrlr0_en,
+            spi_clk_stretch_en,
             wait_cycles,
             interrupt_timeout_cycles), UVM_DEBUG)
 {% if internal_dma %}
@@ -262,6 +265,8 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         if (!cfg.randomize() with {
                 spi_frf == local::spi_frf;
                 spi_ctrlr0_en == local::spi_ctrlr0_en;
+                spi_clk_stretch_en == local::spi_clk_stretch_en;
+                sste == 1'b0;
                 wait_cycles == local::wait_cycles;
                 inst_l == local::inst_l;
                 addr_l == local::addr_l;

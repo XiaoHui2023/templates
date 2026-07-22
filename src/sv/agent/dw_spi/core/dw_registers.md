@@ -24,22 +24,26 @@
 | `SPI_FRF` | `2` | 4 倍速 enhanced 模式 |
 | `SCPH` | `spi_mode[0]` | SPI phase |
 | `SCPOL` | `spi_mode[1]` | SPI polarity |
+| `SSTE` | bit `[14]` | 标准 SPI 帧间片选 toggle enable |
 | `TMOD` | `0` | TX and RX |
 | `TMOD` | `1` | TX only |
 | `TMOD` | `2` | RX only |
 | `TMOD` | `3` | EEPROM read |
 | `DFS` | `data_frame_bits - 1` | 数据帧位宽 |
 
+`SSTE` 只描述标准 SPI 帧间分割行为。`SCPH=0` 且 `SSTE=1` 时，每帧数据之间 `ss_*_n` 会拉高再拉低，`SCLK` 停在默认电平；`SSTE=0` 时 `ss_n` 全程保持有效，`SCLK` 连续运行。该行为本质上是 frame 间分割，不等同于完整 SPI memory operation 的 CS window。当前模板每次 transfer 显式写 `CTRLR0.SSTE = 0`，避免收发数据时帧间片选 toggle 破坏连续性。
+
 PSSI/HSSI 的 bit layout 可能不同，代码必须通过 FIELD 名访问，不依赖固定 bit slice。本模板 regmodel 只有 `DFS`，没有 `DFS_32`。
 
 ## CTRLR1
 
-`NDF` 是 receive-only 或 EEPROM-read 类传输的数据帧数量配置，单位是 DFS frame，不是 byte。
+`NDF` 指定 master 一次接收的数据帧数，实际帧数为 `CTRLR1.NDF + 1`。它只对接收类 master 传输模式有效：按本文 TMOD 表，`2'b10` 是 `RX_ONLY`，`2'b11` 是 `EEPROM_READ`。`NDF` 的单位是 DFS frame，不是 byte。
 
 ```text
 payload_bits = payload_bytes * 8
 frames = ceil(payload_bits / data_frame_bits)
 NDF = max(frames, 1) - 1
+actual_receive_frames = NDF + 1
 ```
 
 ## SPI_CTRLR0
@@ -48,7 +52,7 @@ NDF = max(frames, 1) - 1
 
 | Field | Effect |
 | --- | --- |
-| `CLK_STRETCH_EN` | 使能 SPI transfer 的 clock stretching |
+| `SPI_CLK_STRETCH_EN` / `CLK_STRETCH_EN` | enhanced transfer 的 SCLK stall 能力。尤其在 `RX_ONLY` / DMA 传输中，当 RX FIFO 将满或数据未就绪时，master 可主动 stall SCLK，避免 FIFO 溢出或数据 underrun。当前模板在 enhanced transfer 中写 1。 |
 | `XIP_PREFETCH_EN` | 使能 DWC_ssi XIP pre-fetch |
 | `XIP_MBL` | XIP mode bits length：0=2 bit，1=4 bit，2=8 bit，3=16 bit |
 | `SPI_RXDS_SIG_EN` | HyperBus address/command phase 使能 RXDS signaling |

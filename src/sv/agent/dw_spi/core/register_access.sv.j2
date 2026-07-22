@@ -320,17 +320,19 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
 
         report_info("DW_SPI_REG", "applying controller register configuration", UVM_LOW);
         report_info("DW_SPI_REG", $sformatf(
-            "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d data_frame_bits=%0d ndf=%0d ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
+            "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d sste=%0b data_frame_bits=%0d ndf=%0d ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
             host_mode.name(),
             transfer_mode.name(),
             cfg.completion_mode.name(),
             cfg.spi_frf,
             cfg.spi_ctrlr0_en,
+            cfg.spi_clk_stretch_en,
             cfg.wait_cycles,
             cfg.inst_l,
             cfg.addr_l,
             cfg.trans_type,
             cfg.spi_mode,
+            cfg.sste,
             cfg.data_frame_bits,
             cfg.ndf,
             cfg.ser,
@@ -374,11 +376,13 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.CTRLR0.SPI_FRF.set(cfg.spi_frf);
         rm.CTRLR0.SCPH.set(cfg.spi_mode[0]);
         rm.CTRLR0.SCPOL.set(cfg.spi_mode[1]);
+        rm.CTRLR0.SSTE.set(cfg.sste);
         rm.CTRLR0.TMOD.set(transfer_mode_bits(transfer_mode));
         rm.CTRLR0.SSI_IS_MST.set(host_mode == MASTER);
         report_info("DW_SPI_REG", $sformatf(
-            "write CTRLR0: DFS=%0d SPI_FRF=%0d SCPH=%0b SCPOL=%0b TMOD=%0d SSI_IS_MST=%0b raw=0x%0h",
+            "write CTRLR0: DFS=%0d SPI_FRF=%0d SCPH=%0b SCPOL=%0b SSTE=%0b TMOD=%0d SSI_IS_MST=%0b raw=0x%0h",
             dfs, cfg.spi_frf, cfg.spi_mode[0], cfg.spi_mode[1],
+            cfg.sste,
             transfer_mode_bits(transfer_mode), host_mode == MASTER,
             rm.CTRLR0.get()), UVM_DEBUG);
         rm.CTRLR0.write(status, rm.CTRLR0.get());
@@ -389,9 +393,11 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SPI_CTRLR0.INST_L.set(cfg.inst_l);
             rm.SPI_CTRLR0.ADDR_L.set(cfg.addr_l);
             rm.SPI_CTRLR0.TRANS_TYPE.set(cfg.trans_type);
+            rm.SPI_CTRLR0.SPI_CLK_STRETCH_EN.set(cfg.spi_clk_stretch_en);
             report_info("DW_SPI_REG", $sformatf(
-                "write SPI_CTRLR0: WAIT_CYCLES=%0d INST_L=%0d ADDR_L=%0d TRANS_TYPE=%0d raw=0x%0h",
+                "write SPI_CTRLR0: WAIT_CYCLES=%0d INST_L=%0d ADDR_L=%0d TRANS_TYPE=%0d SPI_CLK_STRETCH_EN=%0b raw=0x%0h",
                 cfg.wait_cycles, cfg.inst_l, cfg.addr_l, cfg.trans_type,
+                cfg.spi_clk_stretch_en,
                 rm.SPI_CTRLR0.get()), UVM_DEBUG);
             rm.SPI_CTRLR0.write(status, rm.SPI_CTRLR0.get());
         end

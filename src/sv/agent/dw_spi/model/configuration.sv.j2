@@ -13,6 +13,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         `uvm_field_int(addr_l, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(trans_type, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(sste, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(spi_clk_stretch_en, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ndf, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ssi_en, UVM_ALL_ON | UVM_DEC)
@@ -59,6 +61,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     rand int addr_l;
     rand int trans_type;
     rand int spi_mode;
+    rand bit sste;
+    rand bit spi_clk_stretch_en;
     rand int data_frame_bits;
     rand int ndf;
     rand bit ssi_en;
@@ -105,6 +109,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         addr_l inside {[0:15]};
         trans_type inside {[0:2]};
         spi_mode inside {[0:3]};
+        sste == 1'b0;
+        soft spi_clk_stretch_en == spi_ctrlr0_en;
         data_frame_bits inside {[4:32]};
         ssi_en == 1'b1;
         soft txeim == 1'b0;
