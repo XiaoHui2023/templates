@@ -17,9 +17,10 @@ function automatic void {{ class_prefix }}build(
 {% for pad in pad_items %}
     data = new("{{ pad.name }}");
     data.vif = vif.{{ pad.name }};
-{% for signal_name, signal in pad.signals.items() %}
+{% for signal_key in signal_keys %}
+{% set signal = pad.signals[signal_key.name] %}
 {% if signal.present %}
-    sig = new("{{ signal_name }}", {{ signal.width }});
+    sig = new("{{ signal.name }}", {{ signal.width }});
     sig.has_fix = {{ "1'b1" if signal.has_fix else "1'b0" }};
     sig.fix_value = 32'h{{ "%08x" % signal.fix_value }};
 {% if signal.has_reg %}

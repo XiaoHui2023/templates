@@ -1,11 +1,10 @@
 class_regmodel: pad_regmodel
-signals:
-  - name: pad_value
-  - name: pull_up
-  - name: pull_down
+drive_strength_width: &drive_strength_width 3
+pad0_drive_strength_reg: &pad0_drive_strength_reg pad0_ctrl.drive_strength[2:0]
+extra_signals:
   - name: output
   - name: drive_strength
-    width: 3
+    width: *drive_strength_width
 pads:
   gpio0:
     pad_value:
@@ -20,7 +19,7 @@ pads:
       reg: pad0_ctrl.output
       path: dut.pad0_output
     drive_strength:
-      reg: pad0_ctrl.drive_strength[2:0]
+      reg: *pad0_drive_strength_reg
       path: dut.pad0_drive_strength
   gpio1:
     pad_value:

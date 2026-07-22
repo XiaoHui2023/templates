@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _REG_BIT_SUFFIX = re.compile(r"\[(?P<body>[^\]]+)\]$")
-_REQUIRED_SIGNALS = ("pad_value", "pull_up", "pull_down")
+_BUILTIN_SIGNALS = ("pad_value", "pull_up", "pull_down")
 
 
 class RegPathSpec(BaseModel):
@@ -154,11 +154,14 @@ class PadItem(BaseModel):
 
 
 class Models(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     class_prefix: str = Field("pad_", description="Default generated class name prefix")
     class_regmodel: str = Field(..., description="Register model class name")
-    signals: list[SignalDecl] = Field(..., min_length=3, description="Top-level pad signal declarations")
+    extra_signals: list[SignalDecl] = Field(
+        default_factory=list,
+        description="Extra pad signal declarations in addition to built-in pad_value, pull_up, and pull_down",
+    )
     pads: dict[str, dict[str, SignalConfig]] = Field(..., min_length=1, description="Pad instance map")
 
     @model_validator(mode="after")
@@ -166,14 +169,14 @@ class Models(BaseModel):
         if not _SV_ID.match(f"{self.class_prefix}agent"):
             raise ValueError("class_prefix must form valid SystemVerilog identifiers")
 
-        names = [signal.name for signal in self.signals]
+        names = [signal.name for signal in self.extra_signals]
         if len(names) != len(set(names)):
-            raise ValueError("top-level signal names must be unique")
-        for name in _REQUIRED_SIGNALS:
-            if name not in names:
-                raise ValueError(f"top-level signals must contain {name!r}")
+            raise ValueError("extra signal names must be unique")
+        for name in names:
+            if name in _BUILTIN_SIGNALS:
+                raise ValueError(f"extra_signals must not redeclare built-in signal {name!r}")
 
-        decls = {signal.name: signal for signal in self.signals}
+        decls = {signal.name: signal for signal in self.signal_keys}
         for pad_name, pad_signals in self.pads.items():
             _check_sv_id(pad_name, ctx="pad instance name")
             got = set(pad_signals)
@@ -182,7 +185,7 @@ class Models(BaseModel):
                 missing = sorted(expected - got)
                 extra = sorted(got - expected)
                 raise ValueError(
-                    f"pad {pad_name!r} signals must match top-level signals; "
+                    f"pad {pad_name!r} signals must match built-in signals plus extra_signals; "
                     f"missing={missing}, extra={extra}"
                 )
             for signal_name, cfg in pad_signals.items():
@@ -203,16 +206,17 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def signal_keys(self) -> list[SignalDecl]:
-        return self.signals
+        builtins = [SignalDecl(name=name) for name in _BUILTIN_SIGNALS]
+        return builtins + self.extra_signals
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def pad_items(self) -> list[PadItem]:
-        decls = {signal.name: signal for signal in self.signals}
+        decls = {signal.name: signal for signal in self.signal_keys}
         items: list[PadItem] = []
         for pad_name, pad_signals in self.pads.items():
             resolved: dict[str, ResolvedSignal] = {}
-            for signal in self.signals:
+            for signal in self.signal_keys:
                 cfg = pad_signals[signal.name]
                 resolved[signal.name] = ResolvedSignal(
                     name=signal.name,
