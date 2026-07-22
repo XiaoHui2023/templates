@@ -1,5 +1,5 @@
-`ifndef {{ class_prefix }}BASE_SEQ
-`define {{ class_prefix }}BASE_SEQ
+`ifndef {{ class_prefix | upper }}BASE_SEQ
+`define {{ class_prefix | upper }}BASE_SEQ
 
 class {{ class_prefix }}base_seq#(type RSP={{ class_prefix }}base_item) extends {{ class_prefix }}spec#(uvm_sequence#(RSP));
     `uvm_object_param_utils({{ class_prefix }}base_seq)
