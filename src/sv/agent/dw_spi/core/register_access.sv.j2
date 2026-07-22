@@ -393,9 +393,9 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SPI_CTRLR0.INST_L.set(cfg.inst_l);
             rm.SPI_CTRLR0.ADDR_L.set(cfg.addr_l);
             rm.SPI_CTRLR0.TRANS_TYPE.set(cfg.trans_type);
-            rm.SPI_CTRLR0.SPI_CLK_STRETCH_EN.set(cfg.spi_clk_stretch_en);
+            rm.SPI_CTRLR0.CLK_STRETCH_EN.set(cfg.spi_clk_stretch_en);
             report_info("DW_SPI_REG", $sformatf(
-                "write SPI_CTRLR0: WAIT_CYCLES=%0d INST_L=%0d ADDR_L=%0d TRANS_TYPE=%0d SPI_CLK_STRETCH_EN=%0b raw=0x%0h",
+                "write SPI_CTRLR0: WAIT_CYCLES=%0d INST_L=%0d ADDR_L=%0d TRANS_TYPE=%0d CLK_STRETCH_EN=%0b raw=0x%0h",
                 cfg.wait_cycles, cfg.inst_l, cfg.addr_l, cfg.trans_type,
                 cfg.spi_clk_stretch_en,
                 rm.SPI_CTRLR0.get()), UVM_DEBUG);

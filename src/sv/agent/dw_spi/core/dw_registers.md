@@ -52,7 +52,7 @@ actual_receive_frames = NDF + 1
 
 | Field | Effect |
 | --- | --- |
-| `SPI_CLK_STRETCH_EN` / `CLK_STRETCH_EN` | enhanced transfer 的 SCLK stall 能力。尤其在 `RX_ONLY` / DMA 传输中，当 RX FIFO 将满或数据未就绪时，master 可主动 stall SCLK，避免 FIFO 溢出或数据 underrun。当前模板在 enhanced transfer 中写 1。 |
+| `CLK_STRETCH_EN` | enhanced transfer 的 SCLK stall 能力。尤其在 `RX_ONLY` / DMA 传输中，当 RX FIFO 将满或数据未就绪时，master 可主动 stall SCLK，避免 FIFO 溢出或数据 underrun。当前模板在 enhanced transfer 中写 1。 |
 | `XIP_PREFETCH_EN` | 使能 DWC_ssi XIP pre-fetch |
 | `XIP_MBL` | XIP mode bits length：0=2 bit，1=4 bit，2=8 bit，3=16 bit |
 | `SPI_RXDS_SIG_EN` | HyperBus address/command phase 使能 RXDS signaling |
