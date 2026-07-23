@@ -90,7 +90,7 @@ end
 | **frequence** | **longint** | 频率 |
 | **enabled** | **bit**，**rand** | 使能 |
 | **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
-| **volatile** | **bit** | 独立测量时钟；不参与 route/flip/low_power/stable 锚定 |
+| **volatile** | **bit** | 独立测量时钟；不参与 route/flip/stable 锚定 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 
