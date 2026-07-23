@@ -1,7 +1,7 @@
-`ifndef {{ (class_prefix ~ 'Check') | upper }}
-`define {{ (class_prefix ~ 'Check') | upper }}
+`ifndef {{ (class_prefix ~ 'check') | upper }}
+`define {{ (class_prefix ~ 'check') | upper }}
 
-`define _{{ class_prefix }}CheckImpl(SRC, DST, DELAY) \
+`define _{{ class_prefix }}check_impl(SRC, DST, DELAY) \
 begin \
     logic [$bits(SRC)-1:0] __connection_src_value; \
     logic [$bits(SRC)-1:0] __connection_force_value; \
@@ -35,10 +35,10 @@ begin \
     release SRC; \
 end
 
-`define {{ class_prefix }}Check(SRC, DST) \
-`_{{ class_prefix }}CheckImpl(SRC, DST, 0ns)
+`define {{ class_prefix }}check(SRC, DST) \
+`_{{ class_prefix }}check_impl(SRC, DST, 0ns)
 
-`define {{ class_prefix }}CheckDelay(SRC, DST, DELAY) \
-`_{{ class_prefix }}CheckImpl(SRC, DST, DELAY)
+`define {{ class_prefix }}check_delay(SRC, DST, DELAY) \
+`_{{ class_prefix }}check_impl(SRC, DST, DELAY)
 
 `endif
