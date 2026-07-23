@@ -1203,13 +1203,5 @@ task {{ settings.class_prefix }}direct_configurator::configure_all(
             configure_gate(gate_nd, 1'b0);
 endtask
 
-task automatic {{ settings.class_prefix }}direct_config(
-        {{ settings.class_prefix }}tree tree,
-        bit quiet = 1'b0);
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "direct_config: tree is null")
-    {{ settings.class_prefix }}config_reg(tree, quiet);
-endtask
-
 `endif
 {% endif %}
