@@ -2,17 +2,17 @@
 `define {{ class_interface | upper }}
 
 interface {{ class_interface }};
-{% for pad in pad_items %}
+{%- for pad in pad_items %}
     {{ class_sub_interface }} {{ pad.name }}();
-{% endfor %}
+{%- endfor %}
 
-{% for pad in pad_items %}
-{% for signal in signal_keys %}
-{% if pad.signals[signal.name].present %}
+{%- for pad in pad_items %}
+{%- for signal in signal_keys %}
+{%- if pad.signals[signal.name].present %}
     assign {{ pad.name }}.{{ signal.sv_name }} = {{ pad.signals[signal.name].path }};
-{% endif %}
-{% endfor %}
-{% endfor %}
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
 endinterface
 
 `endif
