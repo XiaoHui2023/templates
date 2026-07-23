@@ -172,6 +172,7 @@ nodes:
     clk_disabled:
       kind: clk
       active: false
+      freq: 25000000
       path: dut.clk_disabled
       source: gate0
 

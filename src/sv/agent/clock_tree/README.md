@@ -208,7 +208,7 @@ endfunction
 | --- | --- | --- | --- |
 | `kind` | `str` | `clk` | |
 | `path` | `str` | | RTL 层次路径，按 `.` 分隔；**present** 为真时必填。 |
-| `freq` | `int` | | 典型频率，单位 Hz；省略则频率与使能均不参与随机；正数同时指定频率与使能；负值仅放宽输出频率随机范围。 |
+| `freq` | `int` | | 典型频率，单位 Hz；省略则不指定频率；正数指定打开时的目标频率，`active: false` 时可保留该目标值但不约束当前解析频率；负值仅放宽输出频率随机范围。 |
 | `active` | `bool` | `true` | 期望运行态是否有时钟；为假时仍生成 SV 对象并检查 inactive。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `stable` | `bool` | `false` | 锚定时钟：结构探测与低功耗下不得关断或改频。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。**low_power** 不关断该 **clk**。**test_route** 跳过该节点及其当前选通路径上的 **gate**、**mux**、**div**、**pll** 探测，并固定路径控制量；路径上 **pll** 不参与改频策略。**check_measure** 期望为锁定后的 **_resolved_freq**。 |

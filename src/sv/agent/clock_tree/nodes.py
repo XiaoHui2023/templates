@@ -652,8 +652,6 @@ class ClkNode(NodeBase):
     )
     @property
     def clk_tree_emit_frequence(self) -> bool:
-        if not self.active:
-            return False
         return self.freq is not None and self.freq != -1
 
     @computed_field(  # type: ignore[prop-decorator]
