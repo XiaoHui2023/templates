@@ -36,7 +36,7 @@ settings:
   probe_mode: true
 ```
 
-纯 model 寄存器配置可使用 `settings.direct_config: true`。该模式额外生成 `model/model.f` 与 `model/direct_config.sv`；`all.f` 仍为正常 agent filelist。配置入口为 `<class_prefix>config_reg(tree)`，用于不接 agent、只用 model 完成寄存器配置的场景。
+纯寄存器配置可使用 `settings.direct_config: true`。该模式额外生成 `config.f` 与 `config.md`；`all.f` 仍为正常 agent filelist。配置入口为 `<class_prefix>config_reg(tree)`，用于不接 agent、只用 model 和必要 core 文件完成寄存器配置的场景。
 
 ## Agent 使用
 
@@ -73,7 +73,7 @@ endfunction
 | `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
 | `probe_mode` | `bool` | `false` | 为真时启用纯路径探针模式：不连接前级，只检查带 **path** 且有正数 **freq** 的 **clk/cell**，以及 **active** 为假的 **clk/cell**。 |
-| `direct_config` | `bool` | `false` | 为真时只生成 model 目录文件和直接寄存器配置入口。 |
+| `direct_config` | `bool` | `false` | 为真时额外生成轻量配置 filelist 和直接寄存器配置入口。 |
 | `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
 | `max_freq_hz` | `int` | `5000000000` | **clk/cell** 节点 randomize 后允许的最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 判定时钟有活动所需连续上升沿个数；超过一个最低频率周期仍无边沿则 inactive。 |

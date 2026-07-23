@@ -61,7 +61,7 @@ class Settings(BaseModel):
     )
     direct_config: bool = Field(
         False,
-        description="为真时只生成 model 目录文件和直接寄存器配置入口，不生成 UVM agent。",
+        description="为真时额外生成轻量配置 filelist 和直接寄存器配置入口。",
     )
     min_freq_hz: int = Field(
         15000,
@@ -422,14 +422,13 @@ class Models(BaseModel):
         for node in self.tree.nodes_ordered:
             if node.kind != "clk" or node.stable or node.volatile:
                 continue
-            if node.active and node.freq is None:
+            if not node.active or node.freq is None:
                 continue
             rows.append(
                 {
                     "name": node.name,
-                    "active": node.active,
                     "freq": node.freq,
-                    "freq_label": "" if node.freq is None else _format_freq_hz(node.freq),
+                    "freq_label": _format_freq_hz(node.freq),
                 }
             )
         return rows

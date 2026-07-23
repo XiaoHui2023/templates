@@ -148,12 +148,6 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if node.clk_tree_emit_enabled %}
         {{ clk_acc }}.enabled = {{ node.clk_init_enabled }};
 {%- endif %}
-{%- if enable_node_fix and node.clk_tree_emit_unfix_frequence %}
-        {{ clk_acc }}.unfix_frequence = 1'b0;
-{%- endif %}
-{%- if enable_node_fix and node.clk_tree_emit_unfix_enabled %}
-        {{ clk_acc }}.unfix_enabled = 1'b0;
-{%- endif %}
 {%- if node.stable %}
         {{ clk_acc }}.stable = 1;
 {%- endif %}
@@ -171,12 +165,6 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- else %}
 {%- if node.clk_tree_emit_enabled %}
         {{ node.name }}.enabled = {{ node.clk_init_enabled }};
-{%- endif %}
-{%- if enable_node_fix and node.clk_tree_emit_unfix_frequence %}
-        {{ node.name }}.unfix_frequence = 1'b0;
-{%- endif %}
-{%- if enable_node_fix and node.clk_tree_emit_unfix_enabled %}
-        {{ node.name }}.unfix_enabled = 1'b0;
 {%- endif %}
 {%- if node.stable %}
         {{ node.name }}.stable = 1;

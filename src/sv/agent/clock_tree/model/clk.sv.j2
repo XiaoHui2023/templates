@@ -26,7 +26,11 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 {%- endif %}
 
     constraint cst_clk {
+{%- if enable_node_fix %}
+        !unfix_enabled -> enabled == _resolved_active;
+{%- else %}
         enabled == _resolved_active;
+{%- endif %}
         (_resolved_freq > 0) == _resolved_active;
 {%- if enable_node_fix %}
         !(unfix_frequence || frequence < 0) -> frequence == _resolved_freq;
@@ -46,8 +50,8 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         stable = 1'b0;
         volatile = 1'b0;
 {%- if enable_node_fix %}
-        unfix_frequence = 1'b1;
-        unfix_enabled = 1'b1;
+        unfix_frequence = 1'b0;
+        unfix_enabled = 1'b0;
 {%- endif %}
         kind = "clk";
     endfunction

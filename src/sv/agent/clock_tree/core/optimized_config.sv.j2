@@ -140,23 +140,15 @@ function automatic void {{ settings.class_prefix }}optimized_config_collect_scop
 
     {{ settings.class_prefix }}append_unique_node(connected, subject);
     {{ settings.class_prefix }}get_nodes_before(tree, subject, upstream_nodes);
-    foreach (upstream_nodes[i]) begin
-        if ({{ settings.class_prefix }}control_node_is_valid(tree, upstream_nodes[i]))
-            {{ settings.class_prefix }}append_unique_node(connected, upstream_nodes[i]);
-    end
+    foreach (upstream_nodes[i])
+        {{ settings.class_prefix }}append_unique_node(connected, upstream_nodes[i]);
     {{ settings.class_prefix }}get_nodes_after(tree, subject, downstream_nodes);
-    foreach (downstream_nodes[i]) begin
-        if ({{ settings.class_prefix }}control_node_is_valid(tree, downstream_nodes[i]))
-            {{ settings.class_prefix }}append_unique_node(connected, downstream_nodes[i]);
-    end
-    foreach (keep_nodes[i]) begin
-        if ({{ settings.class_prefix }}control_node_is_valid(tree, keep_nodes[i]))
-            {{ settings.class_prefix }}append_unique_node(connected, keep_nodes[i]);
-    end
+    foreach (downstream_nodes[i])
+        {{ settings.class_prefix }}append_unique_node(connected, downstream_nodes[i]);
+    foreach (keep_nodes[i])
+        {{ settings.class_prefix }}append_unique_node(connected, keep_nodes[i]);
 
     foreach (tree.nodes[i]) begin
-        if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
-            continue;
         if (!{{ settings.class_prefix }}node_in_queue(tree.nodes[i], connected))
             {{ settings.class_prefix }}append_unique_node(disconnected, tree.nodes[i]);
     end
@@ -170,6 +162,62 @@ function automatic void {{ settings.class_prefix }}optimized_config_close_discon
         if ($cast(gate_nd, disconnected[i])
                 && {{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
             {{ settings.class_prefix }}route_structure_set_gate_open(gate_nd, 1'b0, 1'b1);
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}optimized_config_apply_disconnected_inactive(
+        {{ settings.class_prefix }}node_base disconnected[$],
+        output {{ settings.class_prefix }}route_activity_snap snaps[$]);
+    {{ settings.class_prefix }}clk clk_nd;
+    {{ settings.class_prefix }}cell cell_nd;
+    {{ settings.class_prefix }}route_activity_snap snap;
+
+    snaps.delete();
+    foreach (disconnected[i]) begin
+        if ($cast(clk_nd, disconnected[i])) begin
+            snap = new;
+            snap.node = clk_nd;
+            snap.is_clk = 1'b1;
+            snap.clk_enabled = clk_nd.enabled;
+{%- if enable_node_fix %}
+            snap.clk_unfix_enabled = clk_nd.unfix_enabled;
+{%- endif %}
+            snaps.push_back(snap);
+            clk_nd.enabled = 1'b0;
+{%- if enable_node_fix %}
+            clk_nd.unfix_enabled = 1'b0;
+{%- endif %}
+        end else if ($cast(cell_nd, disconnected[i])) begin
+            snap = new;
+            snap.node = cell_nd;
+            snap.is_clk = 1'b0;
+            snap.cell_enabled = cell_nd.enabled;
+            snaps.push_back(snap);
+            cell_nd.enabled = 0;
+        end
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}optimized_config_restore_activity(
+        {{ settings.class_prefix }}route_activity_snap snaps[$]);
+    {{ settings.class_prefix }}clk clk_nd;
+    {{ settings.class_prefix }}cell cell_nd;
+
+    foreach (snaps[i]) begin
+        if (snaps[i] == null || snaps[i].node == null)
+            continue;
+        if (snaps[i].is_clk) begin
+            if (!$cast(clk_nd, snaps[i].node))
+                continue;
+            clk_nd.enabled = snaps[i].clk_enabled;
+{%- if enable_node_fix %}
+            clk_nd.unfix_enabled = snaps[i].clk_unfix_enabled;
+{%- endif %}
+        end else begin
+            if (!$cast(cell_nd, snaps[i].node))
+                continue;
+            cell_nd.enabled = snaps[i].cell_enabled;
+        end
     end
 endfunction
 

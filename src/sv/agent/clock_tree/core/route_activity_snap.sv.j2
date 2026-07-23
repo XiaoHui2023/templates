@@ -1,0 +1,26 @@
+{% if route_test_enabled %}
+`ifndef {{ (settings.class_prefix ~ "route_activity_snap") | upper }}
+`define {{ (settings.class_prefix ~ "route_activity_snap") | upper }}
+
+class {{ settings.class_prefix }}route_activity_snap;
+    {{ settings.class_prefix }}node_base node;
+    bit is_clk;
+    bit clk_enabled;
+{%- if enable_node_fix %}
+    bit clk_unfix_enabled;
+{%- endif %}
+    int cell_enabled;
+
+    function new();
+        node = null;
+        is_clk = 1'b0;
+        clk_enabled = 1'b0;
+{%- if enable_node_fix %}
+        clk_unfix_enabled = 1'b1;
+{%- endif %}
+        cell_enabled = -1;
+    endfunction
+endclass
+
+`endif
+{% endif %}

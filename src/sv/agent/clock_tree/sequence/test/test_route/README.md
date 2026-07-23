@@ -16,7 +16,7 @@
 2. 收集 stable **clk** 上游路径，路径上的 **gate**、**mux**、**div**、**pll** 固定，不作为 subject。
 3. 进入 **optimized_config**，优化 **PLL** 频率，固定非 stable 路径上的 **div** / **dto** 为 1。
 4. 对每个 subject 枚举自身取值，再枚举上下游 line 组合。
-5. 每轮只测 subject 上下游相通支路，关闭反选支路 **gate**，反选节点写入 **check_measure.skip_nodes**。
+5. 每轮只测 subject 上下游相通支路，关闭反选支路 **gate**，无关 **clk** / **cell** 写入 **check_measure.skip_nodes** 并临时约束为 inactive。
 6. stable **clk** 失效时跳过该组合。
 
 ## rsp

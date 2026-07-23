@@ -16,20 +16,6 @@
 | **collect_stable_clk_nodes** | 收集 **stable** 为真的 **clk** |
 | **has_stable_clk** | 是否存在 **stable** 为真的 **clk** |
 
-## direct_config
-
-配置入口 task 为 `{class_prefix}config_reg(tree)`；调用前先执行 `tree.build(regmodel)`。
-
-```systemverilog
-{class_prefix}tree tree;
-
-initial begin
-    tree = {class_prefix}tree::type_id::create("tree");
-    tree.build(your_regmodel);
-    {class_prefix}config_reg(tree);
-end
-```
-
 ## reg
 
 | 成员 | 类型 | 说明 |
@@ -98,7 +84,7 @@ end
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
-| **cst_clk** | **randomize** 后 **frequence** 等于 **_resolved_freq**，**enabled** 等于 **_resolved_active**；**stable** 为真时 **enabled** 与 **_resolved_active** 必须为 1；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
+| **cst_clk** | **enabled** 等于 **_resolved_active**；**randomize** 后 **frequence** 等于 **_resolved_freq**；**stable** 为真时 **enabled** 与 **_resolved_active** 必须为 1；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
 
 ### pll_tci
 

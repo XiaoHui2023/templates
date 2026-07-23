@@ -24,6 +24,11 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
     // 按当前树状态写寄存器
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
+    // 尝试解析当前控制组合；失败时返回 0 让调用方跳过该组合
+    extern function bit try_randomize_tree(
+        {{ settings.class_prefix }}tree_base tree,
+        string label,
+        bit quiet);
     // 保存节点控制字段快照
     extern task save_ctrl_snap(
         {{ settings.class_prefix }}node_base nodes[$],
@@ -91,6 +96,28 @@ task {{ settings.class_prefix }}test_route_seq::run_config_reg(
         `uvm_fatal("CLK_TREE", "test_route: config_reg failed")
 endtask
 
+function bit {{ settings.class_prefix }}test_route_seq::try_randomize_tree(
+        {{ settings.class_prefix }}tree_base tree,
+        string label,
+        bit quiet);
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "test_route: tree is null for randomize")
+    if (!tree.randomize()) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_route: skip %s, tree randomize failed", label), UVM_MEDIUM)
+        return 1'b0;
+    end
+    if (tree.has_stable_clk()
+            && !{{ settings.class_prefix }}route_structure_stable_clocks_valid(tree)) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_route: skip %s, stable clk invalid", label), UVM_MEDIUM)
+        return 1'b0;
+    end
+    return 1'b1;
+endfunction
+
 task {{ settings.class_prefix }}test_route_seq::save_ctrl_snap(
         {{ settings.class_prefix }}node_base nodes[$],
         output {{ settings.class_prefix }}route_ctrl_snap snaps[$]);
@@ -135,6 +162,7 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     string combo_summary;
     {{ settings.class_prefix }}node_base connected[$];
     {{ settings.class_prefix }}node_base disconnected[$];
+    {{ settings.class_prefix }}route_activity_snap activity_snaps[$];
 
     n_run = 0;
     n_skip_sub = 0;
@@ -178,6 +206,10 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                 dir_label, sv + 1, n_sub, subject.get_name(),
                 {{ settings.class_prefix }}route_structure_variant_label(subject, sv)),
                 UVM_MEDIUM)
+        if (!try_randomize_tree(tree, "self variant", quiet)) begin
+            n_skip_sub++;
+            continue;
+        end
         run_config_reg(tree, 1'b1);
         if (tree.has_stable_clk()
                 && !{{ settings.class_prefix }}route_structure_stable_clocks_valid(
@@ -201,6 +233,8 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                 line, c);
             {{ settings.class_prefix }}optimized_config_scope_for_subject(
                 tree, subject, pinned_path, connected, disconnected);
+            {{ settings.class_prefix }}optimized_config_apply_disconnected_inactive(
+                disconnected, activity_snaps);
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "test_route:     %s line [%0d/%0d] %s, check %s, skip %s, config_reg",
@@ -208,6 +242,11 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                     {{ settings.class_prefix }}route_structure_format_node_names(connected),
                     {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
                     UVM_MEDIUM)
+            if (!try_randomize_tree(tree, "line combo", quiet)) begin
+                {{ settings.class_prefix }}optimized_config_restore_activity(activity_snaps);
+                n_skip_combo++;
+                continue;
+            end
             run_config_reg(tree, 1'b1);
             if (tree.has_stable_clk()
                     && !{{ settings.class_prefix }}route_structure_stable_clocks_valid(
@@ -217,12 +256,14 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                     `uvm_info("CLK_TREE", $sformatf(
                         "test_route:       skip line combo, stable clk invalid"),
                         UVM_MEDIUM)
+                {{ settings.class_prefix }}optimized_config_restore_activity(activity_snaps);
                 continue;
             end
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "test_route:       check_measure"), UVM_MEDIUM)
             run_check_measure_quiet(tree, debug, disconnected);
+            {{ settings.class_prefix }}optimized_config_restore_activity(activity_snaps);
             n_run++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(

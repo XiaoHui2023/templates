@@ -658,26 +658,6 @@ class ClkNode(NodeBase):
     def clk_tree_emit_enabled(self) -> bool:
         return (not self.active) or self.stable
 
-    @computed_field(  # type: ignore[prop-decorator]
-        description="unfix_frequence 非 clk::new 默认 1 时为真；YAML 不可传入。",
-    )
-    @property
-    def clk_tree_emit_unfix_frequence(self) -> bool:
-        if not self.active:
-            return False
-        if self.stable:
-            return True
-        if self.freq is None or self.freq <= 0:
-            return False
-        return True
-
-    @computed_field(  # type: ignore[prop-decorator]
-        description="active 为假或 stable 为真时 tree 写入 unfix_enabled 为 0；YAML 不可传入。",
-    )
-    @property
-    def clk_tree_emit_unfix_enabled(self) -> bool:
-        return (not self.active) or self.stable
-
     @model_validator(mode="after")
     def _validate_clk_freq(self, info: ValidationInfo) -> ClkNode:
         node_name = _validation_node_name(self, info)
