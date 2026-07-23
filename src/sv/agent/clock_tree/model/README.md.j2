@@ -22,7 +22,7 @@ tree.build();
 {% if regs_enabled -%}
 ## 低功耗
 
-关闭全部时钟以加速仿真，同时也会关闭你可能需要的时钟。
+关闭全部时钟以加速仿真，同时也会关闭你可能需要的时钟，不会关闭 PLL。
 
 ```systemverilog
 // 尽可能关闭全部时钟
@@ -31,7 +31,7 @@ tree.low_power();
 
 ## 配置
 
-灵活地开启时钟，或者修改频率。
+灵活地开关时钟，或者修改频率。
 {%- if first_clk_name %}
 
 以 {{ first_clk_name }} 为例。
@@ -45,6 +45,11 @@ tree.{{ first_clk_name }}.enabled = 1;
 tree.{{ first_clk_name }}.frequence = 123456000;
 
 {% endif -%}
+{% if first_pll_access -%}
+// 关闭 PLL
+tree.{{ first_pll_access }}.enabled = 0;
+
+{% endif -%}
 
 // 应用配置
 {{ settings.class_prefix }}config_reg(tree);
@@ -56,7 +61,16 @@ tree.{{ first_clk_name }}.frequence = 123456000;
 | 时钟 | 推荐频率 |
 | --- | --- |
 {% for clk in configurable_clks -%}
-| `{{ clk.name }}` | {% if not clk.active %}✗{% elif clk.freq is none %}-{% else %}{{ clk.freq }} Hz{% endif %} |
+| `{{ clk.name }}` | {% if not clk.active %}✗{% elif clk.freq is none %}-{% else %}{{ clk.freq_label }}{% endif %} |
+{% endfor -%}
+{% endif -%}
+{% if configurable_plls -%}
+## 可配置 PLL
+
+| PLL | 推荐频率 |
+| --- | --- |
+{% for pll in configurable_plls -%}
+| `{{ pll.name }}` | {{ pll.freq_label }} |
 {% endfor -%}
 {% endif -%}
 {% endif -%}

@@ -709,18 +709,22 @@ task {{ settings.class_prefix }}direct_configurator::tci_regs_match_target(
     int exp_clkod;
     int exp_bwadj;
     int act;
+    bit active;
 
-    tci_divisors(pll_nd.frequence, ref_hz, exp_clkr, exp_clkf, exp_clkod, exp_bwadj);
+    active = pll_nd._resolved_active;
     match = 1'b1;
     read(pll_nd.f_bypass, act);
     if (act != 0)
         match = 1'b0;
     read(pll_nd.f_pwrdn, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     read(pll_nd.f_reset, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
+    if (!active)
+        return;
+    tci_divisors(pll_nd.frequence, ref_hz, exp_clkr, exp_clkf, exp_clkod, exp_bwadj);
     read(pll_nd.f_clkod, act);
     if (act != exp_clkod)
         match = 1'b0;
@@ -744,24 +748,28 @@ task {{ settings.class_prefix }}direct_configurator::sc_regs_match_target(
     int exp_postdiv1;
     int exp_postdiv2;
     int act;
+    bit active;
 
-    sc_divisors(pll_nd.frequence, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
+    active = pll_nd._resolved_active;
     match = 1'b1;
     read(pll_nd.f_vocpd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     read(pll_nd.f_postdivpd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     read(pll_nd.f_dsmpd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     read(pll_nd.f_pd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     read(pll_nd.f_bypass, act);
     if (act != 0)
         match = 1'b0;
+    if (!active)
+        return;
+    sc_divisors(pll_nd.frequence, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
     read(pll_nd.f_refdiv, act);
     if (act != exp_refdiv)
         match = 1'b0;
@@ -787,28 +795,38 @@ task {{ settings.class_prefix }}direct_configurator::dw_regs_match_target(
     int exp_divvcor;
     int exp_r;
     int act;
+    bit active;
 
-    dw_divisors(
-        pll_nd.frequence, ref_hz, exp_fbdiv, exp_prediv,
-        exp_divvcop, exp_p, exp_divvcor, exp_r);
+    active = pll_nd._resolved_active;
     match = 1'b1;
-    read(pll_nd.f_fbdiv, act);
-    if (act != exp_fbdiv)
-        match = 1'b0;
-    read(pll_nd.f_prediv, act);
-    if (act != exp_prediv)
-        match = 1'b0;
     read(pll_nd.f_reset, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     read(pll_nd.f_pwron, act);
-    if (act != 1)
+    if (act != active)
         match = 1'b0;
     read(pll_nd.f_shift, act);
     if (act != 0)
         match = 1'b0;
     read(pll_nd.f_bypass, act);
     if (act != 0)
+        match = 1'b0;
+    read(pll_nd.f_enr, act);
+    if (act != active)
+        match = 1'b0;
+    read(pll_nd.f_enp, act);
+    if (act != active)
+        match = 1'b0;
+    if (!active)
+        return;
+    dw_divisors(
+        pll_nd.frequence, ref_hz, exp_fbdiv, exp_prediv,
+        exp_divvcop, exp_p, exp_divvcor, exp_r);
+    read(pll_nd.f_fbdiv, act);
+    if (act != exp_fbdiv)
+        match = 1'b0;
+    read(pll_nd.f_prediv, act);
+    if (act != exp_prediv)
         match = 1'b0;
     read(pll_nd.f_divvcor, act);
     if (act != exp_divvcor)
@@ -821,12 +839,6 @@ task {{ settings.class_prefix }}direct_configurator::dw_regs_match_target(
         match = 1'b0;
     read(pll_nd.f_divvcop, act);
     if (act != exp_divvcop)
-        match = 1'b0;
-    read(pll_nd.f_enr, act);
-    if (act != 1)
-        match = 1'b0;
-    read(pll_nd.f_enp, act);
-    if (act != 1)
         match = 1'b0;
 endtask
 
@@ -842,7 +854,15 @@ task {{ settings.class_prefix }}direct_configurator::inno_regs_match_target(
     int exp_postdiv1;
     int exp_postdiv2;
     int act;
+    bit active;
 
+    active = pll_nd._resolved_active;
+    match = 1'b1;
+    read(pll_nd.f_pd, act);
+    if (act != !active)
+        match = 1'b0;
+    if (!active)
+        return;
     if (write_shared)
         inno_shared_divisors(
             pll_nd.frequence, ref_hz, reg_max(pll_nd.f_fbdiv), exp_fbdiv, exp_refdiv);
@@ -854,10 +874,6 @@ task {{ settings.class_prefix }}direct_configurator::inno_regs_match_target(
     end
     inno_postdivisors(
         pll_nd.frequence, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
-    match = 1'b1;
-    read(pll_nd.f_pd, act);
-    if (act != 0)
-        match = 1'b0;
     if (write_shared) begin
         read(pll_nd.f_refdiv, act);
         if (act != exp_refdiv)
@@ -889,16 +905,16 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
     configured = 1'b0;
     if (pll_nd == null)
         return;
-    if (!pll_nd._resolved_active) begin
+    if (!pll_nd._resolved_active && pll_nd.enabled != 0) begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll %s skip not valid", pll_nd.get_name()), UVM_MEDIUM)
         return;
     end
-    if (pll_nd.source == null || pll_nd.source._resolved_freq <= 0)
+    if (pll_nd._resolved_active && (pll_nd.source == null || pll_nd.source._resolved_freq <= 0))
         `uvm_fatal("CLK_TREE", $sformatf(
             "direct_config: pll %s has no positive source frequency", pll_nd.get_name()))
-    ref_hz = pll_nd.source._resolved_freq;
+    ref_hz = pll_nd._resolved_active ? pll_nd.source._resolved_freq : 0;
 
     if ($cast(pll_tci_nd, pll_nd)) begin
         int clkr;
@@ -910,7 +926,6 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_tci_nd.f_clkf.is_bound() || !pll_tci_nd.f_clkr.is_bound()
                 || !pll_tci_nd.f_bwadj.is_bound())
             return;
-        tci_divisors(pll_tci_nd.frequence, ref_hz, clkr, clkf, clkod, bwadj);
         tci_regs_match_target(pll_tci_nd, ref_hz, reg_match);
         if (reg_match) begin
             if (!quiet)
@@ -919,6 +934,16 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                     pll_tci_nd.get_name(), pll_tci_nd.frequence, ref_hz), UVM_MEDIUM)
             return;
         end
+        if (!pll_tci_nd._resolved_active) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_tci %s active 0", pll_tci_nd.get_name()), UVM_MEDIUM)
+            binds = '{pll_tci_nd.f_bypass, pll_tci_nd.f_pwrdn, pll_tci_nd.f_reset};
+            vals = '{0, 1, 1};
+            apply(binds, vals);
+            return;
+        end
+        tci_divisors(pll_tci_nd.frequence, ref_hz, clkr, clkf, clkod, bwadj);
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll_tci %s out %0d Hz ref %s %0d Hz clkr %0d clkf %0d clkod %0d bwadj %0d",
@@ -944,7 +969,6 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_sc_nd.f_postdiv2.is_bound() || !pll_sc_nd.f_postdiv1.is_bound()
                 || !pll_sc_nd.f_fbdiv.is_bound())
             return;
-        sc_divisors(pll_sc_nd.frequence, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
         sc_regs_match_target(pll_sc_nd, ref_hz, reg_match);
         if (reg_match) begin
             if (!quiet)
@@ -953,6 +977,17 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                     pll_sc_nd.get_name(), pll_sc_nd.frequence, ref_hz), UVM_MEDIUM)
             return;
         end
+        if (!pll_sc_nd._resolved_active) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_sc %s active 0", pll_sc_nd.get_name()), UVM_MEDIUM)
+            binds = '{pll_sc_nd.f_vocpd, pll_sc_nd.f_postdivpd, pll_sc_nd.f_dsmpd,
+                pll_sc_nd.f_pd, pll_sc_nd.f_bypass};
+            vals = '{1, 1, 1, 1, 0};
+            apply(binds, vals);
+            return;
+        end
+        sc_divisors(pll_sc_nd.frequence, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll_sc %s out %0d Hz ref %s %0d Hz",
@@ -982,7 +1017,6 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 || !pll_dw_nd.f_p.is_bound() || !pll_dw_nd.f_divvcop.is_bound()
                 || !pll_dw_nd.f_enr.is_bound() || !pll_dw_nd.f_enp.is_bound())
             return;
-        dw_divisors(pll_dw_nd.frequence, ref_hz, fbdiv, prediv, divvcop, p, divvcor, r);
         dw_regs_match_target(pll_dw_nd, ref_hz, reg_match);
         if (reg_match) begin
             if (!quiet)
@@ -991,6 +1025,17 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                     pll_dw_nd.get_name(), pll_dw_nd.frequence, ref_hz), UVM_MEDIUM)
             return;
         end
+        if (!pll_dw_nd._resolved_active) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_dw %s active 0", pll_dw_nd.get_name()), UVM_MEDIUM)
+            binds = '{pll_dw_nd.f_reset, pll_dw_nd.f_pwron, pll_dw_nd.f_shift,
+                pll_dw_nd.f_bypass, pll_dw_nd.f_enr, pll_dw_nd.f_enp};
+            vals = '{1, 0, 0, 0, 0, 0};
+            apply(binds, vals);
+            return;
+        end
+        dw_divisors(pll_dw_nd.frequence, ref_hz, fbdiv, prediv, divvcop, p, divvcor, r);
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: pll_dw %s out %0d Hz ref %s %0d Hz",
@@ -1032,6 +1077,14 @@ task {{ settings.class_prefix }}direct_configurator::configure_pll(
                 `uvm_info("CLK_TREE", $sformatf(
                     "config_reg: pll_inno %s skip reg match out %0d Hz ref %0d Hz",
                     pll_inno_nd.get_name(), pll_inno_nd.frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
+        if (!pll_inno_nd._resolved_active) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_inno %s active 0", pll_inno_nd.get_name()), UVM_MEDIUM)
+            if (write_shared)
+                set_write(pll_inno_nd.f_pd, 1);
             return;
         end
         if (write_shared)

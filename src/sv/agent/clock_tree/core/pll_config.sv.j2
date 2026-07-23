@@ -76,6 +76,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_clkf,
         {{ settings.class_prefix }}reg f_clkr,
         {{ settings.class_prefix }}reg f_bwadj,
+        bit active,
         int clkr,
         int clkf,
         int clkod,
@@ -91,6 +92,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_postdiv2,
         {{ settings.class_prefix }}reg f_postdiv1,
         {{ settings.class_prefix }}reg f_fbdiv,
+        bit active,
         int fbdiv,
         int refdiv,
         int postdiv1,
@@ -109,6 +111,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_divvcop,
         {{ settings.class_prefix }}reg f_enr,
         {{ settings.class_prefix }}reg f_enp,
+        bit active,
         int fbdiv,
         int prediv,
         int divvcop,
@@ -126,6 +129,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_postdiv2,
         {{ settings.class_prefix }}reg f_postdiv1,
         {{ settings.class_prefix }}reg f_fbdiv,
+        bit active,
         longint out_hz,
         longint ref_hz);
     // 由 Hz 算 DW 系数并 configure_dw
@@ -142,6 +146,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_divvcop,
         {{ settings.class_prefix }}reg f_enr,
         {{ settings.class_prefix }}reg f_enp,
+        bit active,
         longint out_hz,
         longint ref_hz);
     // 写 Inno 组内共用 pd、refdiv、fbdiv
@@ -149,6 +154,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_pd,
         {{ settings.class_prefix }}reg f_refdiv,
         {{ settings.class_prefix }}reg f_fbdiv,
+        bit active,
         int fbdiv,
         int refdiv);
     // 写 Inno postdiv1、postdiv2
@@ -164,6 +170,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_fbdiv,
         {{ settings.class_prefix }}reg f_postdiv1,
         {{ settings.class_prefix }}reg f_postdiv2,
+        bit active,
         longint out_hz,
         longint ref_hz,
         bit write_shared);
@@ -180,6 +187,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_bwadj,
         longint out_hz,
         longint ref_hz,
+        bit active,
         output bit match);
     // out_hz、ref_hz — 读回 SC 系数与运行态是否与目标一致
     extern task sc_regs_match_target(
@@ -194,6 +202,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_fbdiv,
         longint out_hz,
         longint ref_hz,
+        bit active,
         output bit match);
     // out_hz、ref_hz — 读回 DW 系数与运行态是否与目标一致
     extern task dw_regs_match_target(
@@ -211,6 +220,7 @@ class {{ settings.class_prefix }}pll_cfg;
         {{ settings.class_prefix }}reg f_enp,
         longint out_hz,
         longint ref_hz,
+        bit active,
         output bit match);
     // write_shared — 为真时一并比对组内共用 pd、refdiv、fbdiv
     extern task inno_regs_match_target(
@@ -222,6 +232,7 @@ class {{ settings.class_prefix }}pll_cfg;
         longint out_hz,
         longint ref_hz,
         bit write_shared,
+        bit active,
         output bit match);
 endclass
 
@@ -383,12 +394,20 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc_from_hz(
         {{ settings.class_prefix }}reg f_postdiv2,
         {{ settings.class_prefix }}reg f_postdiv1,
         {{ settings.class_prefix }}reg f_fbdiv,
+        bit active,
         longint out_hz,
         longint ref_hz);
     int fbdiv;
     int refdiv;
     int postdiv1;
     int postdiv2;
+    if (!active) begin
+        configure_sc(
+            f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
+            f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv,
+            active, 1, 1, 1, 1);
+        return;
+    end
     sc_divisors(out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
     if (fbdiv < SC_FBDIV_PREF_MIN || fbdiv > SC_FBDIV_PREF_MAX)
         `uvm_error("CLK_TREE", $sformatf(
@@ -397,7 +416,7 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc_from_hz(
     configure_sc(
         f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
         f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv,
-        fbdiv, refdiv, postdiv1, postdiv2);
+        active, fbdiv, refdiv, postdiv1, postdiv2);
 endtask
 
 function void {{ settings.class_prefix }}pll_cfg::inno_shared_divisors(
@@ -488,13 +507,18 @@ task {{ settings.class_prefix }}pll_cfg::configure_inno_shared(
         {{ settings.class_prefix }}reg f_pd,
         {{ settings.class_prefix }}reg f_refdiv,
         {{ settings.class_prefix }}reg f_fbdiv,
+        bit active,
         int fbdiv,
         int refdiv);
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
 
-    rw.set_write(f_pd, 1);
+    if (!active) begin
+        rw.set_write(f_pd, 1);
+        return;
+    end
 
+    rw.set_write(f_pd, 1);
     binds = '{f_pd, f_refdiv, f_fbdiv};
     vals = '{0, refdiv, fbdiv};
     rw.apply(binds, vals);
@@ -519,6 +543,7 @@ task {{ settings.class_prefix }}pll_cfg::configure_inno_from_hz(
         {{ settings.class_prefix }}reg f_fbdiv,
         {{ settings.class_prefix }}reg f_postdiv1,
         {{ settings.class_prefix }}reg f_postdiv2,
+        bit active,
         longint out_hz,
         longint ref_hz,
         bit write_shared);
@@ -526,6 +551,11 @@ task {{ settings.class_prefix }}pll_cfg::configure_inno_from_hz(
     int refdiv;
     int postdiv1;
     int postdiv2;
+    if (!active) begin
+        if (write_shared)
+            configure_inno_shared(f_pd, f_refdiv, f_fbdiv, active, 1, 1);
+        return;
+    end
     if (write_shared)
         inno_shared_divisors(
             out_hz, ref_hz, {{ settings.class_prefix }}reg_bound_max(f_fbdiv), fbdiv, refdiv);
@@ -535,7 +565,7 @@ task {{ settings.class_prefix }}pll_cfg::configure_inno_from_hz(
     end
     inno_postdivisors(out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
     if (write_shared)
-        configure_inno_shared(f_pd, f_refdiv, f_fbdiv, fbdiv, refdiv);
+        configure_inno_shared(f_pd, f_refdiv, f_fbdiv, active, fbdiv, refdiv);
     configure_inno_postdiv(f_postdiv1, f_postdiv2, postdiv1, postdiv2);
 endtask
 
@@ -552,6 +582,7 @@ task {{ settings.class_prefix }}pll_cfg::configure_dw_from_hz(
         {{ settings.class_prefix }}reg f_divvcop,
         {{ settings.class_prefix }}reg f_enr,
         {{ settings.class_prefix }}reg f_enp,
+        bit active,
         longint out_hz,
         longint ref_hz);
     int fbdiv;
@@ -560,11 +591,18 @@ task {{ settings.class_prefix }}pll_cfg::configure_dw_from_hz(
     int p;
     int divvcor;
     int r;
+    if (!active) begin
+        configure_dw(
+            f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
+            f_divvcor, f_r, f_p, f_divvcop, f_enr, f_enp,
+            active, 1, 0, 0, 0, 0, 4);
+        return;
+    end
     dw_divisors(out_hz, ref_hz, fbdiv, prediv, divvcop, p, divvcor, r);
     configure_dw(
         f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
         f_divvcor, f_r, f_p, f_divvcop, f_enr, f_enp,
-        fbdiv, prediv, divvcop, p, divvcor, r);
+        active, fbdiv, prediv, divvcop, p, divvcor, r);
 endtask
 
 task {{ settings.class_prefix }}pll_cfg::configure_tci(
@@ -575,12 +613,20 @@ task {{ settings.class_prefix }}pll_cfg::configure_tci(
         {{ settings.class_prefix }}reg f_clkf,
         {{ settings.class_prefix }}reg f_clkr,
         {{ settings.class_prefix }}reg f_bwadj,
+        bit active,
         int clkr,
         int clkf,
         int clkod,
         int bwadj);
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
+
+    if (!active) begin
+        binds = '{f_bypass, f_pwrdn, f_reset};
+        vals = '{0, 1, 1};
+        rw.apply(binds, vals);
+        return;
+    end
 
     rw.set_write(f_reset, 1);
 
@@ -603,12 +649,20 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc(
         {{ settings.class_prefix }}reg f_postdiv2,
         {{ settings.class_prefix }}reg f_postdiv1,
         {{ settings.class_prefix }}reg f_fbdiv,
+        bit active,
         int fbdiv,
         int refdiv,
         int postdiv1,
         int postdiv2);
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
+
+    if (!active) begin
+        binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
+        vals = '{1, 1, 1, 1, 0};
+        rw.apply(binds, vals);
+        return;
+    end
 
     binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
     vals = '{1, 1, 1, 1, 1};
@@ -633,6 +687,7 @@ task {{ settings.class_prefix }}pll_cfg::configure_dw(
         {{ settings.class_prefix }}reg f_divvcop,
         {{ settings.class_prefix }}reg f_enr,
         {{ settings.class_prefix }}reg f_enp,
+        bit active,
         int fbdiv,
         int prediv,
         int divvcop,
@@ -641,6 +696,13 @@ task {{ settings.class_prefix }}pll_cfg::configure_dw(
         int r);
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
+
+    if (!active) begin
+        binds = '{f_reset, f_pwron, f_shift, f_bypass, f_enr, f_enp};
+        vals = '{1, 0, 0, 0, 0, 0};
+        rw.apply(binds, vals);
+        return;
+    end
 
     binds = '{f_fbdiv, f_prediv};
     vals = '{fbdiv, prediv};
@@ -677,23 +739,26 @@ task {{ settings.class_prefix }}pll_cfg::tci_regs_match_target(
         {{ settings.class_prefix }}reg f_bwadj,
         longint out_hz,
         longint ref_hz,
+        bit active,
         output bit match);
     int exp_clkr;
     int exp_clkf;
     int exp_clkod;
     int exp_bwadj;
     int act;
-    tci_divisors(out_hz, ref_hz, exp_clkr, exp_clkf, exp_clkod, exp_bwadj);
     match = 1'b1;
     rw.read(f_bypass, act);
     if (act != 0)
         match = 1'b0;
     rw.read(f_pwrdn, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     rw.read(f_reset, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
+    if (!active)
+        return;
+    tci_divisors(out_hz, ref_hz, exp_clkr, exp_clkf, exp_clkod, exp_bwadj);
     rw.read(f_clkod, act);
     if (act != exp_clkod)
         match = 1'b0;
@@ -720,29 +785,32 @@ task {{ settings.class_prefix }}pll_cfg::sc_regs_match_target(
         {{ settings.class_prefix }}reg f_fbdiv,
         longint out_hz,
         longint ref_hz,
+        bit active,
         output bit match);
     int exp_fbdiv;
     int exp_refdiv;
     int exp_postdiv1;
     int exp_postdiv2;
     int act;
-    sc_divisors(out_hz, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
     match = 1'b1;
     rw.read(f_vocpd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     rw.read(f_postdivpd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     rw.read(f_dsmpd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     rw.read(f_pd, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     rw.read(f_bypass, act);
     if (act != 0)
         match = 1'b0;
+    if (!active)
+        return;
+    sc_divisors(out_hz, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
     rw.read(f_refdiv, act);
     if (act != exp_refdiv)
         match = 1'b0;
@@ -772,6 +840,7 @@ task {{ settings.class_prefix }}pll_cfg::dw_regs_match_target(
         {{ settings.class_prefix }}reg f_enp,
         longint out_hz,
         longint ref_hz,
+        bit active,
         output bit match);
     int exp_fbdiv;
     int exp_prediv;
@@ -780,26 +849,34 @@ task {{ settings.class_prefix }}pll_cfg::dw_regs_match_target(
     int exp_divvcor;
     int exp_r;
     int act;
-    dw_divisors(
-        out_hz, ref_hz, exp_fbdiv, exp_prediv, exp_divvcop, exp_p, exp_divvcor, exp_r);
     match = 1'b1;
-    rw.read(f_fbdiv, act);
-    if (act != exp_fbdiv)
-        match = 1'b0;
-    rw.read(f_prediv, act);
-    if (act != exp_prediv)
-        match = 1'b0;
     rw.read(f_reset, act);
-    if (act != 0)
+    if (act != !active)
         match = 1'b0;
     rw.read(f_pwron, act);
-    if (act != 1)
+    if (act != active)
         match = 1'b0;
     rw.read(f_shift, act);
     if (act != 0)
         match = 1'b0;
     rw.read(f_bypass, act);
     if (act != 0)
+        match = 1'b0;
+    rw.read(f_enr, act);
+    if (act != active)
+        match = 1'b0;
+    rw.read(f_enp, act);
+    if (act != active)
+        match = 1'b0;
+    if (!active)
+        return;
+    dw_divisors(
+        out_hz, ref_hz, exp_fbdiv, exp_prediv, exp_divvcop, exp_p, exp_divvcor, exp_r);
+    rw.read(f_fbdiv, act);
+    if (act != exp_fbdiv)
+        match = 1'b0;
+    rw.read(f_prediv, act);
+    if (act != exp_prediv)
         match = 1'b0;
     rw.read(f_divvcor, act);
     if (act != exp_divvcor)
@@ -813,12 +890,6 @@ task {{ settings.class_prefix }}pll_cfg::dw_regs_match_target(
     rw.read(f_divvcop, act);
     if (act != exp_divvcop)
         match = 1'b0;
-    rw.read(f_enr, act);
-    if (act != 1)
-        match = 1'b0;
-    rw.read(f_enp, act);
-    if (act != 1)
-        match = 1'b0;
 endtask
 
 task {{ settings.class_prefix }}pll_cfg::inno_regs_match_target(
@@ -830,6 +901,7 @@ task {{ settings.class_prefix }}pll_cfg::inno_regs_match_target(
         longint out_hz,
         longint ref_hz,
         bit write_shared,
+        bit active,
         output bit match);
     int fbdiv;
     int refdiv;
@@ -838,6 +910,12 @@ task {{ settings.class_prefix }}pll_cfg::inno_regs_match_target(
     int exp_postdiv1;
     int exp_postdiv2;
     int act;
+    match = 1'b1;
+    rw.read(f_pd, act);
+    if (act != !active)
+        match = 1'b0;
+    if (!active)
+        return;
     if (write_shared)
         inno_shared_divisors(
             out_hz, ref_hz, {{ settings.class_prefix }}reg_bound_max(f_fbdiv),
@@ -849,10 +927,6 @@ task {{ settings.class_prefix }}pll_cfg::inno_regs_match_target(
         exp_refdiv = refdiv;
     end
     inno_postdivisors(out_hz, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
-    match = 1'b1;
-    rw.read(f_pd, act);
-    if (act != 0)
-        match = 1'b0;
     if (write_shared) begin
         rw.read(f_refdiv, act);
         if (act != exp_refdiv)

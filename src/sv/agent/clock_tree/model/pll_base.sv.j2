@@ -4,22 +4,34 @@
 class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}pll_base)
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(enabled, UVM_ALL_ON | (enabled >= 0 ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     longint frequence;
+    int enabled;
     pll_kind_e pll_kind;
     bit locked;
 
     constraint cst_pll {
-        _resolved_freq == frequence;
+        enabled == 0 -> !_resolved_active;
+        enabled > 0 && source == null -> _resolved_active;
+        enabled > 0 && source != null -> _resolved_active == source._resolved_active;
+        enabled < 0 && source == null -> _resolved_active;
+        enabled < 0 && source != null -> _resolved_active == source._resolved_active;
+        _resolved_active -> _resolved_freq == frequence;
+        !_resolved_active -> _resolved_freq == 0;
     }
 
     constraint cst_resolve_freq_from_src {
     }
 
+    constraint cst_resolve_active_from_src {
+    }
+
     function new(string name = "");
         super.new(name);
         frequence = 0;
+        enabled = -1;
         kind = "pll";
     endfunction
 endclass

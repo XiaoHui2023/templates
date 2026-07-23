@@ -29,6 +29,20 @@ from schema_error import ERR
 _MAX_FREQ_HZ = 5_000_000_000
 
 
+def _format_freq_hz(freq_hz: int) -> str:
+    for scale, unit in (
+        (1_000_000_000, "GHz"),
+        (1_000_000, "MHz"),
+        (1_000, "kHz"),
+        (1, "Hz"),
+    ):
+        if abs(freq_hz) >= scale or scale == 1:
+            if scale == 1:
+                return f"{freq_hz}Hz"
+            return f"{freq_hz / scale:.3f}".rstrip("0").rstrip(".") + unit
+    return f"{freq_hz}Hz"
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -392,6 +406,17 @@ class Models(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    def first_pll_access(self) -> Optional[str]:
+        for node in self.tree.nodes_ordered:
+            if node.kind != "pll":
+                continue
+            if node.output_groups:
+                return f'{node.name}["{self.inno_pll_primary_group}"]'
+            return node.name
+        return None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
     def configurable_clks(self) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
         for node in self.tree.nodes_ordered:
@@ -404,6 +429,33 @@ class Models(BaseModel):
                     "name": node.name,
                     "active": node.active,
                     "freq": node.freq,
+                    "freq_label": "" if node.freq is None else _format_freq_hz(node.freq),
                 }
             )
+        return rows
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def configurable_plls(self) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        for node in self.tree.nodes_ordered:
+            if node.kind != "pll":
+                continue
+            if node.output_groups:
+                for group in node.output_groups:
+                    rows.append(
+                        {
+                            "name": f'{node.name}["{group}"]',
+                            "freq": node.freq_for_group(group),
+                            "freq_label": _format_freq_hz(node.freq_for_group(group)),
+                        }
+                    )
+            else:
+                rows.append(
+                    {
+                        "name": node.name,
+                        "freq": node.freq,
+                        "freq_label": _format_freq_hz(node.freq),
+                    }
+                )
         return rows

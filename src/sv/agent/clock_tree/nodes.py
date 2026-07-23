@@ -395,7 +395,6 @@ class PllNode(NodeBase):
         ...,
         description="典型频率，单位 Hz；pll_kind 为 inno 时可写各输出端口频率 dict。",
     )
-
     @field_validator("freq", mode="before")
     @classmethod
     def _coerce_freq(cls, value: Any) -> Any:
@@ -474,7 +473,6 @@ class PllNode(NodeBase):
         if isinstance(self.freq, dict):
             return self.freq[group]
         return self.freq
-
 
 class CellNode(NodeBase):
     kind: Literal["cell"] = "cell"
