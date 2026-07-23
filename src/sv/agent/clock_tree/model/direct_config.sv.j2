@@ -1205,19 +1205,9 @@ endtask
 
 task automatic {{ settings.class_prefix }}direct_config(
         {{ settings.class_prefix }}tree tree,
-        {{ settings.class_regmodel }} regmodel = null,
         bit quiet = 1'b0);
-    {{ settings.class_prefix }}direct_configurator cfg;
     if (tree == null)
         `uvm_fatal("CLK_TREE", "direct_config: tree is null")
-    if (regmodel != null)
-        tree.build(regmodel);
-    else begin
-        tree.built = 1'b0;
-        if (!tree.randomize())
-            `uvm_fatal("CLK_TREE", "direct_config: tree randomize failed")
-        tree.built = 1'b1;
-    end
     {{ settings.class_prefix }}config_reg(tree, quiet);
 endtask
 
