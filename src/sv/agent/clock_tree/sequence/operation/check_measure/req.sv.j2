@@ -11,7 +11,6 @@ class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
         `uvm_field_int(check_cell, UVM_ALL_ON)
         `uvm_field_int(check_freq, UVM_ALL_ON)
         `uvm_field_int(check_duty, UVM_ALL_ON)
-        `uvm_field_int(include_volatile, UVM_ALL_ON)
         `uvm_field_int(min_freq_hz, UVM_ALL_ON | UVM_DEC)
         `uvm_field_queue_object(skip_nodes, UVM_ALL_ON | UVM_NOPRINT)
     `uvm_object_utils_end
@@ -23,7 +22,6 @@ class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
     bit check_cell;
     bit check_freq;
     bit check_duty;
-    bit include_volatile;
     int min_freq_hz;
     {{ settings.class_prefix }}node_base skip_nodes[$];
 
@@ -33,7 +31,6 @@ class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
         check_cell = 1'b1;
         check_freq = 1'b1;
         check_duty = 1'b1;
-        include_volatile = 1'b1;
         min_freq_hz = 0;
     endfunction
 endclass

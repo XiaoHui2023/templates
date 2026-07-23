@@ -136,8 +136,8 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
 {%- set clk_acc = node.name ~ '["' ~ g ~ '"]' %}
-{%- if node.volatile %}
-        {{ clk_acc }}.volatile = 1'b1;
+{%- if not node.check_duty %}
+        {{ clk_acc }}.check_duty = 1'b0;
 {%- endif %}
 {%- if (settings.probe_mode and node.active and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
@@ -154,8 +154,8 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endfor %}
 {%- else %}
-{%- if node.volatile %}
-        {{ node.name }}.volatile = 1'b1;
+{%- if not node.check_duty %}
+        {{ node.name }}.check_duty = 1'b0;
 {%- endif %}
 {%- if (settings.probe_mode and node.active and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ node.name }}.frequence = {{ node.clk_init_frequence }};

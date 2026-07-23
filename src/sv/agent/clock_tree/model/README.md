@@ -76,7 +76,7 @@
 | **frequence** | **longint** | 频率 |
 | **enabled** | **bit**，**rand** | 使能 |
 | **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
-| **volatile** | **bit** | 独立测量时钟；不参与 route/flip/stable 锚定 |
+| **check_duty** | **bit** | 为真时 **check_measure** 检查占空比 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 

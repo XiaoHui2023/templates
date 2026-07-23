@@ -46,7 +46,7 @@ class {{ settings.class_prefix }}config_reg_core;
         output {{ settings.class_prefix }}pll_base plls[$]);
     // Wait for configured PLL nodes.
     extern task wait_pll_nodes({{ settings.class_prefix }}pll_base plls[$]);
-    // Report control nodes with no downstream non-volatile clk.
+    // Report control nodes with no downstream clk.
     extern task report_invalid_control_nodes({{ settings.class_prefix }}tree_base tree);
     // Configure div and dto nodes.
     extern task config_div_dto_nodes({{ settings.class_prefix }}tree_base tree);

@@ -83,7 +83,6 @@ task {{ settings.class_prefix }}test_flip_seq::run_check_measure_quiet(
     meas_req.debug = debug;
     meas_req.check_freq = 1'b1;
     meas_req.check_duty = 1'b0;
-    meas_req.include_volatile = 1'b0;
     meas_req.skip_nodes = skip_nodes;
     meas_seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
     meas_seq.req = meas_req;

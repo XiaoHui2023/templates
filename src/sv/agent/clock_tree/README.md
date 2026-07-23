@@ -212,7 +212,7 @@ endfunction
 | `active` | `bool` | `true` | 期望运行态是否有时钟；为假时仍生成 SV 对象并检查 inactive。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `stable` | `bool` | `false` | 锚定时钟：结构探测与低功耗下不得关断或改频。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。**low_power** 不关断该 **clk**。**test_route** 跳过该节点及其当前选通路径上的 **gate**、**mux**、**div**、**pll** 探测，并固定路径控制量；路径上 **pll** 不参与改频策略。**check_measure** 期望为锁定后的 **_resolved_freq**。 |
-| `volatile` | `bool` | `false` | 独立测量时钟；source 正常连接并参与频率推算，只参与 `check_measure`，不参与 `test_route`、`test_flip` 或 stable 路径锚定；`low_power` 会关闭该时钟；`check_measure` 中只检查频率。 |
+| `check_duty` | `bool` | `true` | 为真时 `check_measure` 检查占空比；为假时只检查频率。 |
 
 ### Node - gate
 

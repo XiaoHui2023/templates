@@ -93,8 +93,6 @@ function automatic void {{ settings.class_prefix }}optimized_config_apply_clk_un
     foreach (tree.nodes[i]) begin
         if (!$cast(clk_nd, tree.nodes[i]))
             continue;
-        if (clk_nd.volatile)
-            continue;
         if (clk_nd.stable) begin
             clk_nd.unfix_frequence = 1'b0;
             clk_nd.unfix_enabled = 1'b0;
@@ -112,7 +110,7 @@ function automatic void {{ settings.class_prefix }}optimized_config_set_all_clk_
     if (tree == null)
         return;
     foreach (tree.nodes[i])
-        if ($cast(clk_nd, tree.nodes[i]) && !clk_nd.volatile)
+        if ($cast(clk_nd, tree.nodes[i]))
             clk_nd.unfix_frequence = unfix_val;
 endfunction
 

@@ -19,8 +19,7 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
         bit check_clk,
         bit check_cell,
         bit check_freq,
-        bit check_duty,
-        bit include_volatile
+        bit check_duty
     );
     // 该节点是否被本次测量黑名单跳过
     extern function bit node_skipped(
@@ -38,7 +37,7 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
     );
     // 该节点是否参与占空比比对
     // nd - 节点
-    // check_duty - 为真时检查非 volatile 节点占空比
+    // check_duty - 为真时检查节点 check_duty 打开的 clk 占空比
     extern function bit node_needs_duty_check(
         {{ settings.class_prefix }}node_base nd,
         bit check_clk,
@@ -182,8 +181,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
     bit check_clk,
     bit check_cell,
     bit check_freq,
-    bit check_duty,
-    bit include_volatile
+    bit check_duty
 );
     {{ settings.class_prefix }}clk clk_nd;
     if (nd == null || nd.vif == null)
@@ -192,9 +190,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
         return 1'b0;
     if (nd.kind == "cell" && !check_cell)
         return 1'b0;
-    if (!include_volatile && $cast(clk_nd, nd) && clk_nd.volatile)
-        return 1'b0;
-    if ($cast(clk_nd, nd) && clk_nd.volatile)
+    if ($cast(clk_nd, nd) && !clk_nd.check_duty)
         return check_freq;
     if (nd.kind == "cell")
         return check_freq;
@@ -235,7 +231,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check
         return 1'b0;
     if (!check_clk)
         return 1'b0;
-    if ($cast(clk_nd, nd) && clk_nd.volatile)
+    if ($cast(clk_nd, nd) && !clk_nd.check_duty)
         return 1'b0;
     return nd.kind == "clk";
 endfunction
@@ -597,7 +593,7 @@ task {{ settings.class_prefix }}check_measure_seq::body();
         if (node_skipped(nd, rq.skip_nodes))
             continue;
         if (!node_needs_measure(nd, rq.check_clk, rq.check_cell,
-                rq.check_freq, rq.check_duty, rq.include_volatile))
+                rq.check_freq, rq.check_duty))
             continue;
         nodes_to_check.push_back(nd);
     end

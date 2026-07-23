@@ -12,8 +12,7 @@
 | **check_clk** | **bit** | 为真时检查 **clk** |
 | **check_cell** | **bit** | 为真时检查 **cell** |
 | **check_freq** | **bit** | 为真时检查 **clk/cell** 频率 |
-| **check_duty** | **bit** | 为真时检查带 **vif** 的 **clk** 占空比；**cell** 不检查占空比 |
-| **include_volatile** | **bit** | 默认 1；为 0 时跳过 **volatile** 的 **clk** |
+| **check_duty** | **bit** | 为真时检查带 **vif** 且节点 **check_duty** 为真的 **clk** 占空比；**cell** 不检查占空比 |
 | **min_freq_hz** | **int** | 允许最低时钟频率；0 则用 **settings.min_freq_hz** |
 | **skip_nodes** | **node_base** 队列 | 不参与本次测量的节点 |
 

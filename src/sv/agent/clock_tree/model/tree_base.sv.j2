@@ -55,14 +55,14 @@ function void {{ settings.class_prefix }}tree_base::collect_stable_clk_nodes(
         output {{ settings.class_prefix }}node_base collected[$]);
     collected.delete();
     foreach (clock_nodes[i]) begin
-        if (clock_nodes[i].stable && !clock_nodes[i].volatile)
+        if (clock_nodes[i].stable)
             collected.push_back(clock_nodes[i]);
     end
 endfunction
 
 function bit {{ settings.class_prefix }}tree_base::has_stable_clk();
     foreach (clock_nodes[i]) begin
-        if (clock_nodes[i].stable && !clock_nodes[i].volatile)
+        if (clock_nodes[i].stable)
             return 1'b1;
     end
     return 1'b0;

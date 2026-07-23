@@ -162,10 +162,10 @@ nodes:
       path: dut.clk_aux
       source: gate0
 
-    clk_volatile:
+    clk_no_duty:
       kind: clk
-      volatile: true
-      path: dut.clk_volatile
+      check_duty: false
+      path: dut.clk_no_duty
       freq: 50000000
       source: gate0
 

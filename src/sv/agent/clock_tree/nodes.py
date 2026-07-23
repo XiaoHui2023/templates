@@ -599,7 +599,10 @@ class ClkNode(NodeBase):
         "应配合正整数 freq，tree 锁定 frequence 并将 enabled 置 1。",
     )
 
-    volatile: bool = Field(default=False)
+    check_duty: bool = Field(
+        default=True,
+        description="为真时 check_measure 检查占空比；为假时只检查频率。",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -608,6 +611,8 @@ class ClkNode(NodeBase):
             return data
         if "disable" in data:
             raise ValueError(ERR.unsupported_field("clk", "disable", "active: false"))
+        if "volatile" in data:
+            raise ValueError(ERR.unsupported_field("clk", "volatile", "check_duty: false"))
         return data
 
     @field_validator("freq", mode="before")
@@ -682,11 +687,6 @@ class ClkNode(NodeBase):
             raise ValueError(
                 f"{ERR.node('clk', node_name)} {ERR.field('active')} 为假时"
                 f"不可同时 {ERR.field('stable')}"
-            )
-        if self.volatile and self.stable:
-            raise ValueError(
-                f"{ERR.node('clk', node_name)} {ERR.field('volatile')} 和 "
-                f"{ERR.field('stable')} 不可同时为真"
             )
         return self
 
