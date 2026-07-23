@@ -252,6 +252,7 @@ function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ set
     if (!randomize())
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
 {%- endif %}
+    {{ settings.class_prefix }}tree_mark_always_on_clks(this);
     built = 1'b1;
 endfunction
 `endif

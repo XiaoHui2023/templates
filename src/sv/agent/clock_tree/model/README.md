@@ -12,7 +12,7 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| **low_power** | 将非 **stable** 的 **clk** **enabled** 置 0 |
+| **low_power** | 将非 **stable**、非 **_always_on** 的 **clk** **enabled** 置 0 |
 | **collect_stable_clk_nodes** | 收集 **stable** 为真的 **clk** |
 | **has_stable_clk** | 是否存在 **stable** 为真的 **clk** |
 
@@ -77,6 +77,7 @@
 | **enabled** | **bit**，**rand** | 使能 |
 | **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
 | **check_duty** | **bit** | 为真时 **check_measure** 检查占空比 |
+| **_always_on** | **bit** | build 时计算；全部上游路径都能到达 **source/pll** 且不经过 **gate** 时为真，表示结构上不可关断 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 

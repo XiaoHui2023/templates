@@ -216,6 +216,52 @@ function automatic bit {{ settings.class_prefix }}control_node_is_valid(
     return 1'b1;
 endfunction
 
+function automatic bit {{ settings.class_prefix }}node_all_upstream_paths_have_source_no_gate(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}node_base nd,
+        ref {{ settings.class_prefix }}node_base seen[$]);
+    {{ settings.class_prefix }}node_base peers[$];
+    {{ settings.class_prefix }}node_base branch_seen[$];
+
+    if (tree == null || nd == null)
+        return 1'b0;
+    if (!{{ settings.class_prefix }}node_in_tree(tree, nd))
+        return 1'b0;
+    if (nd.kind == "gate")
+        return 1'b0;
+    if (nd.kind == "source" || nd.kind == "pll")
+        return 1'b1;
+    if ({{ settings.class_prefix }}node_in_queue(nd, seen))
+        return 1'b0;
+
+    {{ settings.class_prefix }}append_unique_node(seen, nd);
+    {{ settings.class_prefix }}tree_upstream_peers(nd, peers);
+    if (peers.size() == 0)
+        return 1'b0;
+
+    foreach (peers[i]) begin
+        branch_seen = seen;
+        if (!{{ settings.class_prefix }}node_all_upstream_paths_have_source_no_gate(
+                tree, peers[i], branch_seen))
+            return 1'b0;
+    end
+    return 1'b1;
+endfunction
+
+function automatic void {{ settings.class_prefix }}tree_mark_always_on_clks(
+        {{ settings.class_prefix }}tree_base tree);
+    {{ settings.class_prefix }}node_base seen[$];
+
+    if (tree == null)
+        return;
+    foreach (tree.clock_nodes[i]) begin
+        seen.delete();
+        tree.clock_nodes[i]._always_on =
+            {{ settings.class_prefix }}node_all_upstream_paths_have_source_no_gate(
+                tree, tree.clock_nodes[i], seen);
+    end
+endfunction
+
 // scope 内是否存在 nd 的直接前级
 function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
         {{ settings.class_prefix }}node_base nd,

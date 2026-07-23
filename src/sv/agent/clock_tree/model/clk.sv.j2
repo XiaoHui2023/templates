@@ -10,6 +10,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(enabled, UVM_ALL_ON)
         `uvm_field_int(check_duty, UVM_ALL_ON | (check_duty ? UVM_NOPRINT : 0))
+        `uvm_field_int(_always_on, UVM_DEFAULT | (_always_on ? 0 : UVM_NOPRINT))
 {%- if enable_node_fix %}
         `uvm_field_int(unfix_frequence, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
         `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
@@ -20,6 +21,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     bit enabled;
     bit stable;
     bit check_duty;
+    bit _always_on;
 {%- if enable_node_fix %}
     bit unfix_frequence;
     bit unfix_enabled;
@@ -49,6 +51,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         enabled = 1'b1;
         stable = 1'b0;
         check_duty = 1'b1;
+        _always_on = 1'b0;
 {%- if enable_node_fix %}
         unfix_frequence = 1'b0;
         unfix_enabled = 1'b0;

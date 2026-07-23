@@ -162,6 +162,12 @@ nodes:
       path: dut.clk_aux
       source: gate0
 
+    clk_always_on:
+      kind: clk
+      path: dut.clk_always_on
+      source: xtal
+      freq: 24000000
+
     clk_no_duty:
       kind: clk
       check_duty: false
