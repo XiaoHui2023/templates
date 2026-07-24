@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
+from typing import Annotated, Any, Callable, Dict, List, Literal, Optional, Union
 
 from pydantic import (
     BaseModel,
@@ -585,9 +585,9 @@ class ClkNode(NodeBase):
         description="典型频率，单位 Hz；省略表示不指定频率；"
         "正数锁定 frequence；负数仅不约束 _resolved_freq。",
     )
-    active: bool = Field(
-        default=True,
-        description="期望运行态是否有时钟；为假时仍生成并检查 inactive。",
+    active: Optional[bool] = Field(
+        default=None,
+        description="期望运行态是否有时钟；省略表示不主动控制，为假时仍生成并检查 inactive。",
     )
     source: OptionalUpstreamSource = Field(
         default=None,
@@ -641,11 +641,17 @@ class ClkNode(NodeBase):
         return -1 if self.freq is None else self.freq
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="tree 构造写入 enabled；active 为假时为 0，否则为 1；YAML 不可传入。",
+        description="tree 构造写入 enabled；未显式配置时为 -1；YAML 不可传入。",
     )
     @property
     def clk_init_enabled(self) -> int:
-        return 1 if self.active else 0
+        if self.active is False:
+            return 0
+        if self.active is True or self.stable or (
+            self.freq is not None and self.freq > 0
+        ):
+            return 1
+        return -1
 
     @computed_field(  # type: ignore[prop-decorator]
         description="frequence 非 clk::new 默认 -1 时为真；YAML 不可传入。",
@@ -655,11 +661,13 @@ class ClkNode(NodeBase):
         return self.freq is not None and self.freq != -1
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="active 为假或 stable 为真时 tree 写入 enabled；YAML 不可传入。",
+        description="active、freq 或 stable 显式要求初始 enabled 时为真；YAML 不可传入。",
     )
     @property
     def clk_tree_emit_enabled(self) -> bool:
-        return (not self.active) or self.stable
+        return self.active is not None or self.stable or (
+            self.freq is not None and self.freq > 0
+        )
 
     @model_validator(mode="after")
     def _validate_clk_freq(self, info: ValidationInfo) -> ClkNode:
@@ -681,7 +689,7 @@ class ClkNode(NodeBase):
                 f"{ERR.node('clk', node_name)} {ERR.field('stable')} 为真时 "
                 f"{ERR.field('freq')} 应为正整数"
             )
-        if (not self.active) and self.stable:
+        if self.active is False and self.stable:
             raise ValueError(
                 f"{ERR.node('clk', node_name)} {ERR.field('active')} 为假时"
                 f"不可同时 {ERR.field('stable')}"
@@ -806,11 +814,18 @@ def _validation_node_name(node: NodeBase, info: ValidationInfo) -> str:
 class Tree(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    _cache: Dict[str, Any] = PrivateAttr(default_factory=dict)
+
     nodes: Dict[str, Node] = Field(
         ...,
         min_length=1,
         description="节点表，键为节点名；值不可为 null。",
     )
+
+    def _cached(self, key: str, factory: Callable[[], Any]) -> Any:
+        if key not in self._cache:
+            self._cache[key] = factory()
+        return self._cache[key]
 
     @model_validator(mode="before")
     @classmethod
@@ -886,13 +901,19 @@ class Tree(BaseModel):
     )
     @property
     def nodes_ordered(self) -> List[Node]:
-        return [node for node in self.nodes.values() if node.present]
+        return self._cached(
+            "nodes_ordered",
+            lambda: [node for node in self.nodes.values() if node.present],
+        )
 
     @computed_field(  # type: ignore[prop-decorator]
         description="展开到 SV 的节点实例槽位；多路输出器件按路展开；YAML 不可传入。",
     )
     @property
     def sv_slots(self) -> List[SvNodeSlot]:
+        return self._cached("sv_slots", self._sv_slots)
+
+    def _sv_slots(self) -> List[SvNodeSlot]:
         slots: List[SvNodeSlot] = []
         for key, node in self.nodes.items():
             if not node.present:
@@ -922,11 +943,14 @@ class Tree(BaseModel):
     )
     @property
     def connectable_slots(self) -> List[SvNodeSlot]:
-        return [
-            slot
-            for slot in self.sv_slots
-            if node_path_connectable(self, self.nodes[slot.node_key])
-        ]
+        return self._cached(
+            "connectable_slots",
+            lambda: [
+                slot
+                for slot in self.sv_slots
+                if node_path_connectable(self, self.nodes[slot.node_key])
+            ],
+        )
 
     def source_sv_access(self, ref: SourceRef) -> str:
         peer = self.nodes[ref.name]
@@ -938,7 +962,10 @@ class Tree(BaseModel):
     )
     @property
     def children_by_node(self) -> Dict[str, List[str]]:
-        return build_children_map(self.nodes)
+        return self._cached(
+            "children_by_node",
+            lambda: build_children_map(self.nodes),
+        )
 
     @model_validator(mode="after")
     def _validate_nodes_graph(self) -> Tree:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import (
     BaseModel,
@@ -51,54 +51,8 @@ def _format_freq_hz(freq_hz: int) -> str:
     return f"{freq_hz}Hz"
 
 
-def _node_all_upstream_paths_have_source_no_gate(
-    tree: Tree,
-    node: Node,
-    seen: Optional[set[str]] = None,
-    memo: Optional[Dict[str, bool]] = None,
-) -> bool:
-    if seen is None:
-        seen = set()
-    if memo is None:
-        memo = {}
-    if node.name in memo:
-        return memo[node.name]
-    result = False
-    if node.kind == "gate":
-        result = False
-    elif node.kind in {"source", "pll"}:
-        result = True
-    elif node.name in seen:
-        result = False
-    elif not node.sources:
-        result = False
-    else:
-        result = True
-        seen.add(node.name)
-        for src in node.sources:
-            peer = tree.nodes.get(src.name)
-            if peer is None or not peer.present:
-                result = False
-                break
-            if not _node_all_upstream_paths_have_source_no_gate(
-                tree, peer, set(seen), memo
-            ):
-                result = False
-                break
-    memo[node.name] = result
-    return result
-
-
-def _clk_low_power_closed(
-    tree: Tree,
-    node: Node,
-    always_on_memo: Dict[str, bool],
-) -> bool:
-    if node.kind != "clk" or node.stable or not node.active:
-        return False
-    return not _node_all_upstream_paths_have_source_no_gate(
-        tree, node, memo=always_on_memo
-    )
+def _clk_low_power_closed(node: Node) -> bool:
+    return node.kind == "clk" and not node.stable and node.active is not False
 
 
 class Settings(BaseModel):
@@ -296,14 +250,7 @@ class Settings(BaseModel):
 class Models(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    _first_clk_name_cached: bool = PrivateAttr(default=False)
-    _first_clk_name_cache: Optional[str] = PrivateAttr(default=None)
-    _first_pll_access_cached: bool = PrivateAttr(default=False)
-    _first_pll_access_cache: Optional[str] = PrivateAttr(default=None)
-    _configurable_clks_cached: bool = PrivateAttr(default=False)
-    _configurable_clks_cache: List[Dict[str, Any]] = PrivateAttr(default_factory=list)
-    _configurable_plls_cached: bool = PrivateAttr(default=False)
-    _configurable_plls_cache: List[Dict[str, Any]] = PrivateAttr(default_factory=list)
+    _cache: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
     nodes: Dict[str, Node] = Field(
         ...,
@@ -314,6 +261,11 @@ class Models(BaseModel):
         default_factory=Settings,
         description="全局选项。",
     )
+
+    def _cached(self, key: str, factory: Callable[[], Any]) -> Any:
+        if key not in self._cache:
+            self._cache[key] = factory()
+        return self._cache[key]
 
     @field_validator("nodes", mode="before")
     @classmethod
@@ -351,15 +303,17 @@ class Models(BaseModel):
     )
     @property
     def tree(self) -> Tree:
+        return self._cached("tree", self._build_tree)
+
+    def _build_tree(self) -> Tree:
         if not self.settings.probe_mode:
             return Tree(nodes=self.nodes)
-        return Tree(
-            nodes={
-                key: node
-                for key, node in self.nodes.items()
-                if self._node_probe_enabled(node)
-            }
-        )
+        nodes = {
+            key: node
+            for key, node in self.nodes.items()
+            if self._node_probe_enabled(node)
+        }
+        return Tree(nodes=nodes)
 
     def _node_probe_enabled(self, node: Node) -> bool:
         if not node.present:
@@ -369,7 +323,7 @@ class Models(BaseModel):
         if node.kind == "cell":
             return (node.active is False) or (node.freq is not None and node.freq > 0)
         if node.kind == "clk":
-            return (not node.active) or (node.freq is not None and node.freq > 0)
+            return (node.active is False) or (node.freq is not None and node.freq > 0)
         return False
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -456,7 +410,10 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def reg_bindings(self) -> List[RegBindingRow]:
-        return iter_reg_bindings(self.tree)
+        return self._cached(
+            "reg_bindings",
+            lambda: iter_reg_bindings(self.tree),
+        )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -466,47 +423,31 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_name(self) -> Optional[str]:
-        if self._first_clk_name_cached:
-            return self._first_clk_name_cache
-        for node in self.tree.nodes_ordered:
-            if node.kind == "clk":
-                self._first_clk_name_cache = node.name
-                self._first_clk_name_cached = True
-                return node.name
-        self._first_clk_name_cache = None
-        self._first_clk_name_cached = True
-        return None
+        return next(
+            (node.name for node in self.tree.nodes_ordered if node.kind == "clk"),
+            None,
+        )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_pll_access(self) -> Optional[str]:
-        if self._first_pll_access_cached:
-            return self._first_pll_access_cache
         for node in self.tree.nodes_ordered:
             if node.kind != "pll":
                 continue
             if node.output_groups:
-                self._first_pll_access_cache = (
-                    f'{node.name}["{self.inno_pll_primary_group}"]'
-                )
-                self._first_pll_access_cached = True
-                return self._first_pll_access_cache
-            self._first_pll_access_cache = node.name
-            self._first_pll_access_cached = True
-            return self._first_pll_access_cache
-        self._first_pll_access_cache = None
-        self._first_pll_access_cached = True
+                return f'{node.name}["{self.inno_pll_primary_group}"]'
+            return node.name
         return None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def configurable_clks(self) -> List[Dict[str, Any]]:
-        if self._configurable_clks_cached:
-            return self._configurable_clks_cache
+        return self._cached("configurable_clks", self._configurable_clks)
+
+    def _configurable_clks(self) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
-        always_on_memo: Dict[str, bool] = {}
         for node in self.tree.nodes_ordered:
-            if not _clk_low_power_closed(self.tree, node, always_on_memo):
+            if not _clk_low_power_closed(node):
                 continue
             rows.append(
                 {
@@ -517,15 +458,11 @@ class Models(BaseModel):
                     else "",
                 }
             )
-        self._configurable_clks_cache = rows
-        self._configurable_clks_cached = True
         return rows
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def configurable_plls(self) -> List[Dict[str, Any]]:
-        if self._configurable_plls_cached:
-            return self._configurable_plls_cache
         rows: List[Dict[str, Any]] = []
         for node in self.tree.nodes_ordered:
             if node.kind != "pll":
@@ -547,6 +484,4 @@ class Models(BaseModel):
                         "freq_label": _format_freq_hz(node.freq),
                     }
                 )
-        self._configurable_plls_cache = rows
-        self._configurable_plls_cached = True
         return rows

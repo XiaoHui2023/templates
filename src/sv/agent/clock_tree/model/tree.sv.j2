@@ -139,7 +139,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if not node.check_duty %}
         {{ clk_acc }}.check_duty = 1'b0;
 {%- endif %}
-{%- if (settings.probe_mode and node.active and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
+{%- if (settings.probe_mode and node.active is not false and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
 {%- if settings.probe_mode %}
@@ -157,7 +157,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if not node.check_duty %}
         {{ node.name }}.check_duty = 1'b0;
 {%- endif %}
-{%- if (settings.probe_mode and node.active and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
+{%- if (settings.probe_mode and node.active is not false and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
         {{ node.name }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
 {%- if settings.probe_mode %}
@@ -252,7 +252,6 @@ function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ set
     if (!randomize())
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
 {%- endif %}
-    {{ settings.class_prefix }}tree_mark_always_on_clks(this);
     built = 1'b1;
 endfunction
 `endif

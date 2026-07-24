@@ -8,9 +8,8 @@
 class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}clk)
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(enabled, UVM_ALL_ON)
+        `uvm_field_int(enabled, UVM_ALL_ON | (enabled >= 0 ? 0 : UVM_NOPRINT))
         `uvm_field_int(check_duty, UVM_ALL_ON | (check_duty ? UVM_NOPRINT : 0))
-        `uvm_field_int(_always_on, UVM_DEFAULT | (_always_on ? 0 : UVM_NOPRINT))
 {%- if enable_node_fix %}
         `uvm_field_int(unfix_frequence, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
         `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
@@ -18,10 +17,9 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     `uvm_object_utils_end
 
     longint frequence;
-    bit enabled;
+    int enabled;
     bit stable;
     bit check_duty;
-    bit _always_on;
 {%- if enable_node_fix %}
     bit unfix_frequence;
     bit unfix_enabled;
@@ -29,17 +27,17 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 
     constraint cst_clk {
 {%- if enable_node_fix %}
-        !unfix_enabled -> enabled == _resolved_active;
+        !(unfix_enabled || enabled < 0) -> (enabled != 0) == _resolved_active;
 {%- else %}
-        enabled == _resolved_active;
+        enabled >= 0 -> (enabled != 0) == _resolved_active;
 {%- endif %}
         (_resolved_freq > 0) == _resolved_active;
 {%- if enable_node_fix %}
-        !(unfix_frequence || frequence < 0 || !enabled) -> frequence == _resolved_freq;
+        !(unfix_frequence || frequence < 0 || enabled <= 0) -> frequence == _resolved_freq;
 {%- else %}
-        (frequence >= 0 && enabled) -> frequence == _resolved_freq;
+        (frequence >= 0 && enabled > 0) -> frequence == _resolved_freq;
 {%- endif %}
-        stable -> enabled == 1;
+        stable -> enabled > 0;
         stable -> _resolved_active;
         !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
         !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};
@@ -48,10 +46,9 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     function new(string name = "");
         super.new(name);
         frequence = -1;
-        enabled = 1'b1;
+        enabled = -1;
         stable = 1'b0;
         check_duty = 1'b1;
-        _always_on = 1'b0;
 {%- if enable_node_fix %}
         unfix_frequence = 1'b0;
         unfix_enabled = 1'b0;

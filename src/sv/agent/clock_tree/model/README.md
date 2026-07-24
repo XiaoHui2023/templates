@@ -12,7 +12,7 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| **low_power** | 将非 **stable**、非 **_always_on** 的 **clk** **enabled** 置 0 |
+| **low_power** | 将非 **stable** 且显式打开的 **clk** **enabled** 置 -1 |
 | **collect_stable_clk_nodes** | 收集 **stable** 为真的 **clk** |
 | **has_stable_clk** | 是否存在 **stable** 为真的 **clk** |
 
@@ -74,10 +74,9 @@
 | **source** | **node_base** | 前级节点 |
 | **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
-| **enabled** | **bit**，**rand** | 使能 |
+| **enabled** | **int**，**rand** | 三态使能；负数表示不主动控制 |
 | **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
 | **check_duty** | **bit** | 为真时 **check_measure** 检查占空比 |
-| **_always_on** | **bit** | build 时计算；全部上游路径都能到达 **source/pll** 且不经过 **gate** 时为真，表示结构上不可关断 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |
 
@@ -85,7 +84,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
-| **cst_clk** | **enabled** 等于 **_resolved_active**；**enabled** 为 1 且 **frequence** 非负时 **frequence** 等于 **_resolved_freq**；**enabled** 为 0 时可保留 **frequence** 目标值但不约束当前解析频率；**stable** 为真时 **enabled** 与 **_resolved_active** 必须为 1；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
+| **cst_clk** | **enabled** 非负时约束 **_resolved_active**；**enabled** 大于 0 且 **frequence** 非负时 **frequence** 等于 **_resolved_freq**；**stable** 为真时 **enabled** 大于 0 且 **_resolved_active** 为真；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
 
 ### pll_tci
 

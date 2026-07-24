@@ -5,7 +5,7 @@
 class {{ settings.class_prefix }}route_activity_snap;
     {{ settings.class_prefix }}node_base node;
     bit is_clk;
-    bit clk_enabled;
+    int clk_enabled;
 {%- if enable_node_fix %}
     bit clk_unfix_enabled;
 {%- endif %}
@@ -14,7 +14,7 @@ class {{ settings.class_prefix }}route_activity_snap;
     function new();
         node = null;
         is_clk = 1'b0;
-        clk_enabled = 1'b0;
+        clk_enabled = -1;
 {%- if enable_node_fix %}
         clk_unfix_enabled = 1'b1;
 {%- endif %}
