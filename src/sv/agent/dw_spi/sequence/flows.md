@@ -17,7 +17,7 @@
 1. `init_registers_seq` 接收一个 `transfer_req`。
 2. `register_config_builder` 根据 transfer req 和 settings 生成 `configuration`。
 3. builder 测量 `ssi_clk`，根据 `target_sclk_hz` 计算偶数 `BAUDR`。
-4. builder 根据 `payload_bytes * 8 / data_frame_bits` 向上取整计算实际 NDF，也就是数据阶段要传输的数据个数；接收类传输写入 `CTRLR1.NDF = actual_ndf - 1`。
+4. builder 根据 `opcode/address/payload` 的 byte phase 和 `dummy_cycles` 计算实际 NDF；除 `0x06` 这类单 opcode 命令外，连续命令写入 `CTRLR1.NDF = actual_ndf - 1`。
 5. `register_access` 实例化后注入 settings 和 `report_context = p_sequencer`。
 6. `register_access.apply_configuration()` 按 FIELD 写 regmodel。
 

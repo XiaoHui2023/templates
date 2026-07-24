@@ -307,6 +307,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         transfer_mode_e transfer_mode;
         uvm_reg_data_t dfs;
         uvm_reg_data_t reg_data;
+        string ndf_detail;
 
         if (cfg == null)
             report_fatal("DW_SPI_REG", "configuration is null");
@@ -317,10 +318,14 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             report_fatal("DW_SPI_REG", "failed to cast configuration host_mode");
         if (!$cast(transfer_mode, cfg.transfer_mode))
             report_fatal("DW_SPI_REG", "failed to cast configuration transfer_mode");
+        if (cfg.ndf != 0)
+            ndf_detail = $sformatf("CTRLR1.NDF register=%0d actual_ndf=%0d", cfg.ndf, cfg.ndf + 1);
+        else
+            ndf_detail = $sformatf("CTRLR1.NDF register=0 actual_ndf=0_or_1_command_only");
 
         report_info("DW_SPI_REG", "applying controller register configuration", UVM_LOW);
         report_info("DW_SPI_REG", $sformatf(
-            "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d sste=%0b data_frame_bits=%0d ndf=%0d ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
+            "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d sste=%0b data_frame_bits=%0d %s ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
             host_mode.name(),
             transfer_mode.name(),
             cfg.completion_mode.name(),
@@ -334,7 +339,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             cfg.spi_mode,
             cfg.sste,
             cfg.data_frame_bits,
-            cfg.ndf,
+            ndf_detail,
             cfg.ser,
             cfg.baudr,
             cfg.txftlr,
@@ -405,7 +410,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.CTRLR1.read(status, reg_data);
         rm.CTRLR1.NDF.set(cfg.ndf);
         report_info("DW_SPI_REG", $sformatf(
-            "write CTRLR1: NDF=%0d raw=0x%0h", cfg.ndf, rm.CTRLR1.get()), UVM_DEBUG);
+            "write CTRLR1: %s raw=0x%0h", ndf_detail, rm.CTRLR1.get()), UVM_DEBUG);
         rm.CTRLR1.write(status, rm.CTRLR1.get());
 
         rm.BAUDR.read(status, reg_data);

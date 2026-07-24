@@ -37,13 +37,14 @@ PSSI/HSSI 的 bit layout 可能不同，代码必须通过 FIELD 名访问，不
 
 ## CTRLR1
 
-实际 NDF 表示数据阶段要传输的数据个数，不包含 opcode、address 和 dummy。寄存器字段 `CTRLR1.NDF` 是实际 NDF 减 1 后的编码值。它只对接收类 master 传输模式有效：按本文 TMOD 表，`2'b10` 是 `RX_ONLY`，`2'b11` 是 `EEPROM_READ`。
+实际 NDF 表示一个连续 CS window 内要传输的项数。除 `WREN 0x06` 这类单 opcode 命令外，flash read/program 这种连续命令必须把 opcode、address、dummy 和 data 都计入实际 NDF。寄存器字段 `CTRLR1.NDF` 是实际 NDF 减 1 后的编码值。
 
-当前 byte payload API 会先按 `data_frame_bits` 把 payload byte 数换算为数据个数。8 bit DFS 时，实际 NDF 等于要读的数据 byte 数；DFS 大于 8 时，实际 NDF 等于按 DFS 分组后的数据项数。
+当前 byte payload API 会先按 `data_frame_bits` 把 opcode/address/data byte 数换算为 frame 数；dummy 使用 `dummy_cycles` 计入。8 bit DFS 时，byte phase 的 frame 数等于 byte 数；DFS 大于 8 时，byte phase 按 DFS 分组。
 
 ```text
-payload_bits = payload_bytes * 8
-actual_ndf = ceil(payload_bits / data_frame_bits)
+byte_phase_bits = (inst_bytes + addr_bytes + payload_bytes) * 8
+byte_phase_frames = ceil(byte_phase_bits / data_frame_bits)
+actual_ndf = byte_phase_frames + dummy_cycles
 CTRLR1.NDF = actual_ndf - 1
 ```
 

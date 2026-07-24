@@ -59,19 +59,34 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(div);
     endfunction
 
-    function int data_count_from_payload_bytes(
-            int payload_bytes,
+    function int frame_count_from_bytes(
+            int byte_count,
             int data_frame_bits);
-        longint payload_bits;
-        longint data_count;
+        longint bits;
+        longint frame_count;
 
-        if (payload_bytes == 0)
+        if (byte_count == 0)
             return 0;
         if (data_frame_bits == 0)
-            `uvm_fatal("DW_SPI_CFG", "data_frame_bits must be non-zero to derive data count for CTRLR1.NDF")
-        payload_bits = longint'(payload_bytes) * 8;
-        data_count = ceil_div(payload_bits, data_frame_bits);
-        return int'(data_count);
+            `uvm_fatal("DW_SPI_CFG", "data_frame_bits must be non-zero to derive frame count for CTRLR1.NDF")
+        bits = longint'(byte_count) * 8;
+        frame_count = ceil_div(bits, data_frame_bits);
+        return int'(frame_count);
+    endfunction
+
+    function int actual_ndf_from_transfer(
+            {{ class_prefix }}transfer_req rq,
+            int payload_bytes);
+        int byte_phase_frames;
+        int actual_ndf;
+
+        if (rq.inst_bytes == 1 && rq.addr_bytes == 0 && rq.dummy_cycles == 0 && payload_bytes == 0)
+            return 0;
+        byte_phase_frames = frame_count_from_bytes(
+            rq.inst_bytes + rq.addr_bytes + payload_bytes,
+            rq.data_frame_bits);
+        actual_ndf = byte_phase_frames + rq.dummy_cycles;
+        return actual_ndf;
     endfunction
 
     function int phase_sclk_cycles(
@@ -138,7 +153,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             {{ class_prefix }}transfer_req rq,
             output {{ class_prefix }}configuration cfg);
         int length;
-        int actual_data_count;
+        int actual_ndf;
         int spi_frf;
         int baudr;
         int inst_l;
@@ -203,7 +218,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 ssi_clk_hz,
                 settings.target_sclk_hz))
         length = rq.payload.get_data_length();
-        actual_data_count = data_count_from_payload_bytes(length, rq.data_frame_bits);
+        actual_ndf = actual_ndf_from_transfer(rq, length);
         spi_frf = spi_frf_from_speed(rq.speed_multiplier);
         inst_l = inst_l_from_bytes(rq.inst_bytes);
         addr_l = addr_l_from_bytes(rq.addr_bytes);
@@ -211,18 +226,17 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         spi_ctrlr0_en = frame_mode == ENHANCED;
         spi_clk_stretch_en = spi_ctrlr0_en;
         wait_cycles = spi_ctrlr0_en ? rq.dummy_cycles : 0;
-        if (transfer_mode inside {RX_ONLY, EEPROM_READ})
-            ndf_reg_value = actual_data_count == 0 ? 0 : actual_data_count - 1;
-        else
-            ndf_reg_value = 0;
+        ndf_reg_value = actual_ndf == 0 ? 0 : actual_ndf - 1;
         interrupt_timeout_cycles = transfer_timeout_cycles(
             rq, baudr, length, frame_mode);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "derived transfer fields: length=%0d payload_bits=%0d data_frame_bits=%0d actual_data_count=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
+            "derived transfer fields: inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d payload_bytes=%0d data_frame_bits=%0d actual_ndf=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
+            rq.inst_bytes,
+            rq.addr_bytes,
+            rq.dummy_cycles,
             length,
-            length * 8,
             rq.data_frame_bits,
-            actual_data_count,
+            actual_ndf,
             ndf_reg_value,
             spi_frf,
             inst_l,
@@ -300,13 +314,13 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "register configuration derived: ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_data_count=%0d spi_frf=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
+            "register configuration derived: ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_ndf=%0d spi_frf=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
             ssi_clk_hz,
             settings.target_sclk_hz,
             cfg.baudr,
             cfg.data_frame_bits,
             cfg.ndf,
-            actual_data_count,
+            actual_ndf,
             cfg.spi_frf,
             cfg.completion_mode.name(),
             cfg.interrupt_timeout_ssi_clk_cycles,
