@@ -43,6 +43,39 @@ def _format_freq_hz(freq_hz: int) -> str:
     return f"{freq_hz}Hz"
 
 
+def _node_all_upstream_paths_have_source_no_gate(
+    tree: Tree,
+    node: Node,
+    seen: Optional[set[str]] = None,
+) -> bool:
+    if seen is None:
+        seen = set()
+    if node.kind == "gate":
+        return False
+    if node.kind in {"source", "pll"}:
+        return True
+    if node.name in seen:
+        return False
+    seen.add(node.name)
+    if not node.sources:
+        return False
+    for src in node.sources:
+        peer = tree.nodes.get(src.name)
+        if peer is None or not peer.present:
+            return False
+        if not _node_all_upstream_paths_have_source_no_gate(
+            tree, peer, set(seen)
+        ):
+            return False
+    return True
+
+
+def _clk_low_power_closed(tree: Tree, node: Node) -> bool:
+    if node.kind != "clk" or node.stable or not node.active:
+        return False
+    return not _node_all_upstream_paths_have_source_no_gate(tree, node)
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -420,15 +453,15 @@ class Models(BaseModel):
     def configurable_clks(self) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
         for node in self.tree.nodes_ordered:
-            if node.kind != "clk" or node.stable:
-                continue
-            if not node.active or node.freq is None:
+            if not _clk_low_power_closed(self.tree, node):
                 continue
             rows.append(
                 {
                     "name": node.name,
                     "freq": node.freq,
-                    "freq_label": _format_freq_hz(node.freq),
+                    "freq_label": _format_freq_hz(node.freq)
+                    if node.freq is not None and node.freq > 0
+                    else "",
                 }
             )
         return rows
