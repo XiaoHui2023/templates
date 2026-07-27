@@ -17,7 +17,7 @@
 1. `init_registers_seq` 接收一个 `transfer_req`。
 2. `register_config_builder` 根据 transfer req 和 settings 生成 `configuration`。
 3. builder 测量 `ssi_clk`，根据 `target_sclk_hz` 计算偶数 `BAUDR`。
-4. builder 根据 `opcode/address/payload` 的 byte phase 和 `dummy_cycles` 计算实际 NDF；除 `0x06` 这类单 opcode 命令外，连续命令写入 `CTRLR1.NDF = actual_ndf - 1`。
+4. builder 根据 `opcode/address/dummy/payload` 的总 byte 数计算实际 NDF；除 `0x06` 这类单 opcode 命令外，连续命令写入 `CTRLR1.NDF = actual_ndf - 1`。
 5. `register_access` 实例化后注入 settings 和 `report_context = p_sequencer`。
 6. `register_access.apply_configuration()` 按 FIELD 写 regmodel。
 
@@ -93,6 +93,6 @@
 
 ## Log Verbosity
 
-- `UVM_LOW` 说明流程正在做什么、正在等待什么、完成了什么。
-- `UVM_DEBUG` 打印寄存器字段值、推导中间值、FIFO 状态轮询、DR byte、CPU DMA buffer word、scoreboard byte 比较。
+- `UVM_LOW` 说明流程正在做什么、正在等待什么、完成了什么；日常观察必须能看到 WREN/program/read 请求详情、opcode、address、addr_bytes、dummy_cycles、payload length、DR stream byte 数、实际 NDF/寄存器 NDF、发送/接收数据的十六进制预览和 completion。大块 payload 只打印前若干字节和总长度，不在 INFO 全量 dump。
+- `UVM_DEBUG` 打印排障细节：寄存器 raw 值、推导中间值、FIFO 状态轮询、逐 byte DR 写读、CPU DMA buffer word、scoreboard byte 比较。
 - timeout 报错必须包含 `waiting_for`。中断等待写明 top `intr` 和预期来源；`SR` 轮询写明目标条件和最后一次 `SR` 原始值及字段。

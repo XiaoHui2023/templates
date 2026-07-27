@@ -13,6 +13,9 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
     endfunction
 
     extern virtual task body();
+    extern protected function string byte_queue_preview(
+        bit [7:0] data[$],
+        int max_bytes);
     extern protected function void build_pio_dr_write_bytes(
         {{ class_prefix }}transfer_req rq,
         bit include_payload,
@@ -89,7 +92,7 @@ task {{ class_prefix }}transfer_seq::body();
     write_reason = "";
     rs = {{ class_prefix }}transfer_rsp::type_id::create("rsp");
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h length=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         rq.protocol.name(),
         rq.transfer_mode.name(),
         rq.frame_mode.name(),
@@ -97,6 +100,9 @@ task {{ class_prefix }}transfer_seq::body();
         rq.opcode,
         rq.payload.get_address(),
         rq.payload.get_data_length(),
+        rq.inst_bytes,
+        rq.addr_bytes,
+        rq.dummy_cycles,
         rq.cs_id,
         rq.io_lanes,
         rq.speed_multiplier,
@@ -138,8 +144,10 @@ task {{ class_prefix }}transfer_seq::body();
             build_pio_dr_write_bytes(
                 rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_bytes);
             `uvm_info("DW_SPI_XFER", $sformatf(
-                "PIO path: writing command/address/data stream to DR: bytes=%0d",
-                pio_dr_bytes.size()), UVM_LOW)
+                "PIO path: writing command/address/dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_bytes=%0d dr_preview=%s",
+                rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
+                rq.dummy_cycles, pio_dr_bytes.size(),
+                byte_queue_preview(pio_dr_bytes, 16)), UVM_LOW)
             write_pio_stream_under_cs(
                 rq, cfg, register_access, pio_dr_bytes, cs_started, pio_ok);
         end
@@ -150,8 +158,10 @@ task {{ class_prefix }}transfer_seq::body();
         build_pio_dr_write_bytes(
             rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_bytes);
         `uvm_info("DW_SPI_XFER", $sformatf(
-            "PIO path: writing command/address/data stream to DR: bytes=%0d",
-            pio_dr_bytes.size()), UVM_LOW)
+            "PIO path: writing command/address/dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_bytes=%0d dr_preview=%s",
+            rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
+            rq.dummy_cycles, pio_dr_bytes.size(),
+            byte_queue_preview(pio_dr_bytes, 16)), UVM_LOW)
         write_pio_stream_under_cs(
             rq, cfg, register_access, pio_dr_bytes, cs_started, pio_ok);
     end
@@ -180,8 +190,13 @@ task {{ class_prefix }}transfer_seq::body();
     end
     else begin
         if (pio_ok && command == UVM_TLM_READ_COMMAND) begin
-            `uvm_info("DW_SPI_XFER", "PIO read path: reading payload from DR", UVM_LOW)
+            `uvm_info("DW_SPI_XFER", $sformatf(
+                "PIO read path: reading payload from DR: expected_bytes=%0d",
+                rq.payload.get_data_length()), UVM_LOW)
             register_access.read_dr_to_payload(rq.payload, rs.read_data, pio_ok);
+            `uvm_info("DW_SPI_XFER", $sformatf(
+                "PIO read path received data: bytes=%0d data_preview=%s",
+                rs.read_data.size(), byte_queue_preview(rs.read_data, 16)), UVM_LOW)
         end
         if (pio_ok) begin
             wait_transfer_completion(rq, cfg, register_access, completion_ok);
@@ -200,8 +215,13 @@ task {{ class_prefix }}transfer_seq::body();
     end
 {% else %}
     if (pio_ok && command == UVM_TLM_READ_COMMAND) begin
-        `uvm_info("DW_SPI_XFER", "PIO read path: reading payload from DR", UVM_LOW)
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "PIO read path: reading payload from DR: expected_bytes=%0d",
+            rq.payload.get_data_length()), UVM_LOW)
         register_access.read_dr_to_payload(rq.payload, rs.read_data, pio_ok);
+        `uvm_info("DW_SPI_XFER", $sformatf(
+            "PIO read path received data: bytes=%0d data_preview=%s",
+            rs.read_data.size(), byte_queue_preview(rs.read_data, 16)), UVM_LOW)
     end
     if (pio_ok) begin
         wait_transfer_completion(rq, cfg, register_access, completion_ok);
@@ -220,8 +240,8 @@ task {{ class_prefix }}transfer_seq::body();
 {% endif %}
     if (rs.ok && record_write_expected) begin
         `uvm_info("DW_SPI_XFER", $sformatf(
-            "recording expected payload in scoreboard after CS release: reason=%s bytes=%0d",
-            write_reason, write_data.size()), UVM_LOW)
+            "recording expected payload in scoreboard after CS release: reason=%s bytes=%0d data_preview=%s",
+            write_reason, write_data.size(), byte_queue_preview(write_data, 16)), UVM_LOW)
         rs.ok = p_sequencer.scoreboard.record_expected_write(
             rq.payload.get_address(), write_data, write_reason);
     end
@@ -236,6 +256,28 @@ task {{ class_prefix }}transfer_seq::body();
         rs.read_data.size()), UVM_LOW)
     rsp = rs;
 endtask
+
+function string {{ class_prefix }}transfer_seq::byte_queue_preview(
+        bit [7:0] data[$],
+        int max_bytes);
+    string preview;
+    int limit;
+
+    preview = "";
+    limit = data.size();
+    if (max_bytes > 0 && limit > max_bytes)
+        limit = max_bytes;
+    for (int i = 0; i < limit; i++) begin
+        if (i != 0)
+            preview = {preview, " "};
+        preview = {preview, $sformatf("%02h", data[i])};
+    end
+    if (data.size() > limit)
+        preview = {preview, $sformatf(" ... (%0d bytes total)", data.size())};
+    if (data.size() == 0)
+        preview = "<empty>";
+    return preview;
+endfunction
 
 task {{ class_prefix }}transfer_seq::activate_transfer_cs(
         input {{ class_prefix }}transfer_req rq,
@@ -422,8 +464,10 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
         bit include_payload,
         output bit [7:0] dr_bytes[$]);
     protocol_e protocol;
+    frame_mode_e frame_mode;
     byte unsigned gp_data[];
     bit [63:0] address;
+    int dummy_bytes;
 
     dr_bytes.delete();
     if (rq == null)
@@ -432,6 +476,8 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
         `uvm_fatal("DW_SPI", "transfer: req.payload is null")
     if (!$cast(protocol, rq.protocol))
         `uvm_fatal("DW_SPI", "transfer: failed to cast protocol")
+    if (!$cast(frame_mode, rq.frame_mode))
+        `uvm_fatal("DW_SPI", "transfer: failed to cast frame_mode")
 
     if (protocol == FLASH_SPI) begin
         if (rq.inst_bytes != 0)
@@ -439,6 +485,11 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
         address = rq.payload.get_address();
         for (int i = rq.addr_bytes; i > 0; i--)
             dr_bytes.push_back(address[(i - 1) * 8 +: 8]);
+        if (frame_mode == STANDARD) begin
+            dummy_bytes = rq.dummy_cycles <= 0 ? 0 : (rq.dummy_cycles + 7) / 8;
+            for (int i = 0; i < dummy_bytes; i++)
+                dr_bytes.push_back(8'h00);
+        end
     end
 
     if (include_payload) begin
@@ -448,12 +499,14 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
     end
 
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "PIO DR stream built: protocol=%s opcode=0x%02h address=0x%0h inst_bytes=%0d addr_bytes=%0d include_payload=%0b payload_bytes=%0d dr_bytes=%0d",
+        "PIO DR stream built: protocol=%s frame=%s opcode=0x%02h address=0x%0h inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d include_payload=%0b payload_bytes=%0d dr_bytes=%0d",
         protocol.name(),
+        frame_mode.name(),
         rq.opcode,
         rq.payload.get_address(),
         rq.inst_bytes,
         rq.addr_bytes,
+        rq.dummy_cycles,
         include_payload,
         rq.payload.get_data_length(),
         dr_bytes.size()), UVM_DEBUG)
@@ -465,6 +518,7 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
         uvm_tlm_generic_payload payload,
         output bit ok);
     byte unsigned gp_data[];
+    bit [7:0] preview_data[$];
     bit [31:0] word;
     int index;
 
@@ -472,6 +526,12 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
     if (payload == null)
         `uvm_fatal("DW_SPI_DMA", "payload is null")
     payload.get_data(gp_data);
+    preview_data.delete();
+    foreach (gp_data[i])
+        preview_data.push_back(gp_data[i]);
+    `uvm_info("DW_SPI_DMA", $sformatf(
+        "cpu writing DMA source buffer: axi_addr=0x%08h bytes=%0d data_preview=%s",
+        axi_addr, gp_data.size(), byte_queue_preview(preview_data, 16)), UVM_LOW)
     index = 0;
     while (index < gp_data.size()) begin
         word = '0;
@@ -516,8 +576,8 @@ task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
         index += 4;
     end
     `uvm_info("DW_SPI_DMA", $sformatf(
-        "cpu read DMA destination buffer: axi_addr=0x%08h bytes=%0d",
-        axi_addr, read_data.size()), UVM_LOW)
+        "cpu read DMA destination buffer: axi_addr=0x%08h bytes=%0d data_preview=%s",
+        axi_addr, read_data.size(), byte_queue_preview(read_data, 16)), UVM_LOW)
 endtask
 {% endif %}
 

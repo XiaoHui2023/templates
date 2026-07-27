@@ -39,12 +39,12 @@ PSSI/HSSI 的 bit layout 可能不同，代码必须通过 FIELD 名访问，不
 
 实际 NDF 表示一个连续 CS window 内要传输的项数。除 `WREN 0x06` 这类单 opcode 命令外，flash read/program 这种连续命令必须把 opcode、address、dummy 和 data 都计入实际 NDF。寄存器字段 `CTRLR1.NDF` 是实际 NDF 减 1 后的编码值。
 
-当前 byte payload API 会先按 `data_frame_bits` 把 opcode/address/data byte 数换算为 frame 数；dummy 使用 `dummy_cycles` 计入。8 bit DFS 时，byte phase 的 frame 数等于 byte 数；DFS 大于 8 时，byte phase 按 DFS 分组。
+当前 byte payload API 会先把 `dummy_cycles` 换算为 dummy byte，再按 `data_frame_bits` 把 opcode/address/dummy/data 总 byte 数换算为 frame 数。默认 1 个 dummy byte，即 8 个 dummy cycle。8 bit DFS 时，byte phase 的 frame 数等于 byte 数；DFS 大于 8 时，byte phase 按 DFS 分组。
 
 ```text
-byte_phase_bits = (inst_bytes + addr_bytes + payload_bytes) * 8
-byte_phase_frames = ceil(byte_phase_bits / data_frame_bits)
-actual_ndf = byte_phase_frames + dummy_cycles
+dummy_bytes = ceil(dummy_cycles / 8)
+total_bytes = inst_bytes + addr_bytes + dummy_bytes + payload_bytes
+actual_ndf = ceil(total_bytes * 8 / data_frame_bits)
 CTRLR1.NDF = actual_ndf - 1
 ```
 

@@ -60,9 +60,11 @@ task {{ class_prefix }}flash_read_seq::body();
     configuration.settings = p_sequencer.settings;
     cfg = configuration;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_read start: address=0x%08h length=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_read start: address=0x%08h length=%0d addr_bytes=%0d dummy_cycles=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         length,
+        cfg.addr_bytes,
+        cfg.dummy_cycles,
         cfg.io_lanes,
         cfg.speed_multiplier,
         cfg.frame_mode.name(),
@@ -118,7 +120,7 @@ task {{ class_prefix }}flash_read_seq::body();
         op_req.io_lanes,
         op_req.speed_multiplier,
         op_req.data_frame_bits{% if internal_dma or external_dma %},
-        op_req.use_dma{% endif %}), UVM_DEBUG)
+        op_req.use_dma{% endif %}), UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);

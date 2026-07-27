@@ -60,7 +60,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
         soft data_frame_bits == {{ default_data_frame_bits }};
         soft cs_id == {{ default_cs }};
         soft addr_bytes == {{ default_addr_bytes }};
-        soft dummy_cycles == (frame_mode == ENHANCED ? 8 : 0);
+        soft dummy_cycles == 8;
 {% if internal_dma or external_dma %}
         soft use_dma == 1'b0;
 {% endif %}

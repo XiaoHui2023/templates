@@ -26,6 +26,7 @@ class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequ
     extern task run_write_enable(output bit ok);
     extern task run_chunk(bit [31:0] addr, bit [7:0] chunk[$], output bit ok);
     extern function bit [7:0] page_program_opcode(int speed_multiplier);
+    extern function int dummy_bytes_from_cycles(int dummy_cycles);
     extern function int max_program_payload_bytes();
 endclass
 
@@ -44,9 +45,16 @@ function bit [7:0] {{ class_prefix }}flash_write_seq::page_program_opcode(
     endcase
 endfunction
 
+function int {{ class_prefix }}flash_write_seq::dummy_bytes_from_cycles(int dummy_cycles);
+    if (dummy_cycles <= 0)
+        return 0;
+    return (dummy_cycles + 7) / 8;
+endfunction
+
 function int {{ class_prefix }}flash_write_seq::max_program_payload_bytes();
     {{ class_prefix }}transfer_configuration cfg;
     int max_bytes;
+    int dummy_bytes;
 
     cfg = configuration;
     if (cfg == null)
@@ -57,12 +65,13 @@ function int {{ class_prefix }}flash_write_seq::max_program_payload_bytes();
 {% endif %}
     if (p_sequencer.settings == null)
         `uvm_fatal("DW_SPI", "flash_write: settings is null")
-    max_bytes = p_sequencer.settings.fifo_depth_bytes - 1 - cfg.addr_bytes;
+    dummy_bytes = cfg.frame_mode == STANDARD ? dummy_bytes_from_cycles(cfg.dummy_cycles) : 0;
+    max_bytes = p_sequencer.settings.fifo_depth_bytes - 1 - cfg.addr_bytes - dummy_bytes;
     if (max_bytes <= 0)
         `uvm_fatal("DW_SPI", $sformatf(
-            "flash_write: fifo_depth_bytes=%0d is too small for opcode+address bytes=%0d",
+            "flash_write: fifo_depth_bytes=%0d is too small for opcode+address+dummy bytes=%0d",
             p_sequencer.settings.fifo_depth_bytes,
-            1 + cfg.addr_bytes))
+            1 + cfg.addr_bytes + dummy_bytes))
     return max_bytes;
 endfunction
 
@@ -114,7 +123,7 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
         op_req.cs_id,
         op_req.io_lanes,
         op_req.speed_multiplier,
-        op_req.data_frame_bits), UVM_DEBUG)
+        op_req.data_frame_bits), UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("write_enable");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
@@ -162,6 +171,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     op_req.cs_id = cfg.cs_id;
     op_req.inst_bytes = 1;
     op_req.addr_bytes = cfg.addr_bytes;
+    op_req.dummy_cycles = cfg.dummy_cycles;
 {% if internal_dma or external_dma %}
     op_req.use_dma = cfg.use_dma;
 {% endif %}
@@ -172,7 +182,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
 {% endif %}
     `uvm_info("DW_SPI_FLASH", "starting flash program data transfer", UVM_LOW)
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash program request detail: opcode=0x%02h mode=%s frame=%s cs_mode=%s addr=0x%08h bytes=%0d inst_bytes=%0d addr_bytes=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}{% if internal_dma %} axi_addr=0x%08h awlen=%0d arlen=%0d{% endif %}",
+        "flash program request detail: opcode=0x%02h mode=%s frame=%s cs_mode=%s addr=0x%08h bytes=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}{% if internal_dma %} axi_addr=0x%08h awlen=%0d arlen=%0d{% endif %}",
         op_req.opcode,
         op_req.transfer_mode.name(),
         op_req.frame_mode.name(),
@@ -181,6 +191,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
         chunk.size(),
         op_req.inst_bytes,
         op_req.addr_bytes,
+        op_req.dummy_cycles,
         op_req.cs_id,
         op_req.io_lanes,
         op_req.speed_multiplier,
@@ -188,7 +199,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
         op_req.use_dma{% endif %}{% if internal_dma %},
         op_req.axi_addr,
         op_req.awlen,
-        op_req.arlen{% endif %}), UVM_DEBUG)
+        op_req.arlen{% endif %}), UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
@@ -220,9 +231,11 @@ task {{ class_prefix }}flash_write_seq::body();
     ok = 1'b1;
     bytes_written = 0;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_write start: address=0x%08h bytes=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_write start: address=0x%08h bytes=%0d addr_bytes=%0d dummy_cycles=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         data.size(),
+        configuration.addr_bytes,
+        configuration.dummy_cycles,
         configuration.io_lanes,
         configuration.speed_multiplier,
         configuration.frame_mode.name(),
