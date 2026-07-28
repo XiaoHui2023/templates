@@ -356,7 +356,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
             pinned_names = {{ settings.class_prefix }}route_structure_format_node_names(
                 pinned_path);
             `uvm_info("CLK_TREE", $sformatf(
-                "test_route: init, pin path gate/mux/div/pll (%0d): %s",
+                "test_route: init, pin stable path (%0d): %s",
                 pinned_path.size(), pinned_names), UVM_LOW)
         end
     end

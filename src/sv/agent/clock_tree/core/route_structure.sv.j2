@@ -427,7 +427,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_clk_is_stable(
     return clk_nd.stable;
 endfunction
 
-// config_reg 之后：自 stable clk 沿已配置的 source 选通链向上，收集 gate/mux/div/pll
+// config_reg 之后：收集 stable clk 及其已配置 source 选通链上的 gate/mux/div/pll
 function automatic void {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
         {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base collected[$]);
@@ -441,6 +441,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_stabl
         clk_nd = tree.clock_nodes[i];
         if (clk_nd == null || !clk_nd.stable)
             continue;
+        {{ settings.class_prefix }}append_unique_node(collected, clk_nd);
         cur = clk_nd.source;
         while (cur != null) begin
             if (cur.kind == "gate" || cur.kind == "mux" || cur.kind == "div"

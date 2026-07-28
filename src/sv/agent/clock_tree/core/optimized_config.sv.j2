@@ -173,6 +173,8 @@ function automatic void {{ settings.class_prefix }}optimized_config_apply_discon
     snaps.delete();
     foreach (disconnected[i]) begin
         if ($cast(clk_nd, disconnected[i])) begin
+            if (clk_nd.stable)
+                continue;
             snap = new;
             snap.node = clk_nd;
             snap.is_clk = 1'b1;

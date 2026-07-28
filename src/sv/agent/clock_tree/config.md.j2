@@ -1,9 +1,17 @@
 {% if settings.direct_config -%}
 # 时钟树
 
+## 导入
+
+使用 `-F` 添加 `config.f`
+
+```
+-F path-to-dir/config.f
+```
+
 ## 部署
 
-输入 `{{ settings.class_regmodel }}` 寄存器为 `your-regmodel`。
+传入 `{{ settings.class_regmodel }}` 寄存器对象: `path-to-your-regmodel`
 
 ```systemverilog
 {{ settings.class_prefix }}tree tree;
@@ -12,7 +20,7 @@
 tree = {{ settings.class_prefix }}tree::type_id::create("tree");
 {% if regs_enabled %}
 // 绑定寄存器
-tree.build(your-regmodel);
+tree.build(path-to-your-regmodel`);
 {% else %}
 // 随机化
 tree.build();
