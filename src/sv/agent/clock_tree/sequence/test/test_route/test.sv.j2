@@ -31,7 +31,7 @@ class {{ settings.class_prefix }}test_route_seq extends uvm_sequence #(
         bit quiet);
     // 保存节点控制字段快照
     extern task save_ctrl_snap(
-        {{ settings.class_prefix }}node_base nodes[$],
+        input {{ settings.class_prefix }}node_base nodes[$],
         output {{ settings.class_prefix }}route_ctrl_snap snaps[$]);
     // 按快照恢复节点控制字段
     extern task restore_ctrl_snap(
@@ -118,7 +118,7 @@ function bit {{ settings.class_prefix }}test_route_seq::try_randomize_tree(
 endfunction
 
 task {{ settings.class_prefix }}test_route_seq::save_ctrl_snap(
-        {{ settings.class_prefix }}node_base nodes[$],
+        input {{ settings.class_prefix }}node_base nodes[$],
         output {{ settings.class_prefix }}route_ctrl_snap snaps[$]);
     {{ settings.class_prefix }}route_ctrl_snap one_snap;
     snaps.delete();

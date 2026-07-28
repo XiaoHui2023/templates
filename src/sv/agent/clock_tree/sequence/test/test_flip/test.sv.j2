@@ -26,7 +26,7 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
     // 等待频率稳定并读出 last_phase_frac
     extern task measure_node_phase(
-        {{ settings.class_prefix }}node_base nd,
+        input {{ settings.class_prefix }}node_base nd,
         output real phase_frac,
         output bit ok);
     // 按 MSB 或 LSB 单比特 pattern 写 div 分频比后校验
@@ -110,7 +110,7 @@ task {{ settings.class_prefix }}test_flip_seq::run_config_reg(
 endtask
 
 task {{ settings.class_prefix }}test_flip_seq::measure_node_phase(
-        {{ settings.class_prefix }}node_base nd,
+        input {{ settings.class_prefix }}node_base nd,
         output real phase_frac,
         output bit ok);
     int meas_period_ns;
