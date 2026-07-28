@@ -65,9 +65,9 @@
 
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
 2. 先启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
-3. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。opcode + address + payload 必须在同一个 CS window 内连续发送。
-4. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为写入 byte 队列。
-5. 非 DMA PIO 会按 `fifo_depth_bytes - 1 - addr_bytes` 自动拆成多个 program chunk，每个 chunk 都重新执行 `WREN -> program`，保证硬件 CS 下 opcode + address + chunk 可以在选中 CS 前完整预填。
+3. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。
+4. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
+5. 非 DMA PIO 会按 `fifo_depth_bytes - 1 - addr_bytes - dummy_bytes` 自动拆成多个 program chunk，每个 chunk 都重新执行 `WREN -> program`，保证硬件 CS 下 opcode + address + dummy + chunk 可以在选中 CS 前完整预填。
 6. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
 
 当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、QE/WRSR 和 256B 分页写限制；这些属于完整 SPI-NOR 行为建模，已作为后续扩展点记录。

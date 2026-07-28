@@ -245,41 +245,33 @@ task {{ class_prefix }}flash_write_seq::body();
     `uvm_info("DW_SPI_FLASH", $sformatf(
         "flash_write flow will issue write-enable before each program chunk: max_payload_bytes_per_chunk=%0d",
         max_payload_bytes), UVM_LOW)
-    if (data.size() == 0) begin
+    if (data.size() == 0)
+        `uvm_fatal("DW_SPI", "flash_write requires non-empty data; use rw_test empty write_data only for random default data")
+
+    offset = 0;
+    while (offset < data.size() && ok) begin
+        chunk.delete();
+        chunk_len = data.size() - offset;
+        if (chunk_len > max_payload_bytes)
+            chunk_len = max_payload_bytes;
+        for (int i = 0; i < chunk_len; i++)
+            chunk.push_back(data[offset + i]);
+        `uvm_info("DW_SPI_FLASH", $sformatf(
+            "starting flash program chunk: offset=%0d address=0x%08h bytes=%0d max_payload_bytes=%0d",
+            offset,
+            address + offset,
+            chunk.size(),
+            max_payload_bytes), UVM_LOW)
         run_write_enable(chunk_ok);
         if (!chunk_ok) begin
             ok = 1'b0;
         end else begin
-            `uvm_info("DW_SPI_FLASH", "write-enable succeeded; starting zero-length program command", UVM_LOW)
-            run_chunk(address, data, chunk_ok);
+            `uvm_info("DW_SPI_FLASH", "write-enable succeeded; starting program chunk", UVM_LOW)
+            run_chunk(address + offset, chunk, chunk_ok);
             ok = chunk_ok;
-        end
-    end else begin
-        offset = 0;
-        while (offset < data.size() && ok) begin
-            chunk.delete();
-            chunk_len = data.size() - offset;
-            if (chunk_len > max_payload_bytes)
-                chunk_len = max_payload_bytes;
-            for (int i = 0; i < chunk_len; i++)
-                chunk.push_back(data[offset + i]);
-            `uvm_info("DW_SPI_FLASH", $sformatf(
-                "starting flash program chunk: offset=%0d address=0x%08h bytes=%0d max_payload_bytes=%0d",
-                offset,
-                address + offset,
-                chunk.size(),
-                max_payload_bytes), UVM_LOW)
-            run_write_enable(chunk_ok);
-            if (!chunk_ok) begin
-                ok = 1'b0;
-            end else begin
-                `uvm_info("DW_SPI_FLASH", "write-enable succeeded; starting program chunk", UVM_LOW)
-                run_chunk(address + offset, chunk, chunk_ok);
-                ok = chunk_ok;
-                if (chunk_ok) begin
-                    bytes_written += chunk.size();
-                    offset += chunk.size();
-                end
+            if (chunk_ok) begin
+                bytes_written += chunk.size();
+                offset += chunk.size();
             end
         end
     end

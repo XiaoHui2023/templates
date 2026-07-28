@@ -44,6 +44,6 @@ core 不决定 completion mode，也不判断本次是否 DMA；这些决策在 
 
 ## DR Helpers
 
-PIO 写 DR 使用 `write_bytes_to_dr()`。flash operation sequence 先把 opcode、地址字节和可选 payload 组合成 DR byte stream，再交给 core。core 不理解 opcode/address 语义，只负责等待 `SR.TFNF` 并逐 byte 写 `DR`。
+PIO 写 DR 使用 `write_bytes_to_dr()`。flash operation sequence 先把 opcode、地址字节、dummy 字节和可选 payload 组合成 DR byte stream，再交给 core。core 不理解 opcode/address/dummy 语义，只负责等待 `SR.TFNF` 并逐 byte 写 `DR`。
 
 PIO 读 payload 使用 `read_dr_to_payload()`。它按 payload length 等待 `SR.RFNE`，逐 byte 读 `DR`，并把实际读回数据写入 generic payload。

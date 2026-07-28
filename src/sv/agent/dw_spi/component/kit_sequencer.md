@@ -37,12 +37,12 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 
 ### `flash_write`
 
-启动 flash 写 flow。地址是 flash/model 地址，不是寄存器地址。
+启动 flash 写 flow。地址是 flash/model 地址，不是寄存器地址。`data` 必须非空；空队列不是合法 program 数据。
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
 | `address` | `bit [31:0]` | flash 起始地址 |
-| `data` | `bit [7:0] $` | 写入数据 |
+| `data` | `bit [7:0] $` | 非空写入数据 |
 | `io_lanes` | `int` | 可选传输配置 |
 | `speed_multiplier` | `int` | 可选传输配置 |
 | `spi_mode` | `int` | 可选传输配置 |
