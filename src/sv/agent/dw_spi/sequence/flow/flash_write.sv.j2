@@ -24,10 +24,8 @@ class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequ
 
     extern virtual task body();
     extern task run_write_enable(output bit ok);
-    extern task run_chunk(bit [31:0] addr, bit [7:0] chunk[$], output bit ok);
+    extern task run_program(bit [31:0] addr, bit [7:0] program_data[$], output bit ok);
     extern function bit [7:0] page_program_opcode(int speed_multiplier);
-    extern function int dummy_bytes_from_cycles(int dummy_cycles);
-    extern function int max_program_payload_bytes();
 endclass
 
 function bit [7:0] {{ class_prefix }}flash_write_seq::page_program_opcode(
@@ -43,36 +41,6 @@ function bit [7:0] {{ class_prefix }}flash_write_seq::page_program_opcode(
             return 8'h02;
         end
     endcase
-endfunction
-
-function int {{ class_prefix }}flash_write_seq::dummy_bytes_from_cycles(int dummy_cycles);
-    if (dummy_cycles <= 0)
-        return 0;
-    return (dummy_cycles + 7) / 8;
-endfunction
-
-function int {{ class_prefix }}flash_write_seq::max_program_payload_bytes();
-    {{ class_prefix }}transfer_configuration cfg;
-    int max_bytes;
-    int dummy_bytes;
-
-    cfg = configuration;
-    if (cfg == null)
-        `uvm_fatal("DW_SPI", "flash_write: configuration is null")
-{% if internal_dma or external_dma %}
-    if (cfg.use_dma)
-        return data.size();
-{% endif %}
-    if (p_sequencer.settings == null)
-        `uvm_fatal("DW_SPI", "flash_write: settings is null")
-    dummy_bytes = cfg.frame_mode == STANDARD ? dummy_bytes_from_cycles(cfg.dummy_cycles) : 0;
-    max_bytes = p_sequencer.settings.fifo_depth_bytes - 1 - cfg.addr_bytes - dummy_bytes;
-    if (max_bytes <= 0)
-        `uvm_fatal("DW_SPI", $sformatf(
-            "flash_write: fifo_depth_bytes=%0d is too small for opcode+address+dummy bytes=%0d",
-            p_sequencer.settings.fifo_depth_bytes,
-            1 + cfg.addr_bytes + dummy_bytes))
-    return max_bytes;
 endfunction
 
 task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
@@ -134,9 +102,9 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
         ok, cfg.cs_id), UVM_LOW)
 endtask
 
-task {{ class_prefix }}flash_write_seq::run_chunk(
+task {{ class_prefix }}flash_write_seq::run_program(
         bit [31:0] addr,
-        bit [7:0] chunk[$],
+        bit [7:0] program_data[$],
         output bit ok);
     {{ class_prefix }}transfer_req op_req;
     {{ class_prefix }}transfer_rsp op_rsp;
@@ -149,9 +117,9 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_WRITE_COMMAND);
     op_req.payload.set_address(addr);
-    payload_data = new[chunk.size()];
-    foreach (chunk[i])
-        payload_data[i] = chunk[i];
+    payload_data = new[program_data.size()];
+    foreach (program_data[i])
+        payload_data[i] = program_data[i];
     op_req.payload.set_data(payload_data);
     if (!$cast(op_req.host_mode, cfg.host_mode))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast host_mode")
@@ -188,7 +156,7 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
         op_req.frame_mode.name(),
         op_req.cs_control_mode.name(),
         addr,
-        chunk.size(),
+        program_data.size(),
         op_req.inst_bytes,
         op_req.addr_bytes,
         op_req.dummy_cycles,
@@ -206,20 +174,16 @@ task {{ class_prefix }}flash_write_seq::run_chunk(
     op_rsp = op_seq.rsp;
     ok = op_rsp != null && op_rsp.ok;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_write chunk done: ok=%0b address=0x%08h bytes=%0d opcode=0x%02h{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_write program transfer done: ok=%0b address=0x%08h bytes=%0d opcode=0x%02h{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         ok,
         addr,
-        chunk.size(),
+        program_data.size(),
         op_req.opcode{% if internal_dma or external_dma %},
         op_req.use_dma{% endif %}), UVM_LOW)
 endtask
 
 task {{ class_prefix }}flash_write_seq::body();
     bit chunk_ok;
-    bit [7:0] chunk[$];
-    int offset;
-    int chunk_len;
-    int max_payload_bytes;
 
     if (configuration == null) begin
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
@@ -241,39 +205,21 @@ task {{ class_prefix }}flash_write_seq::body();
         configuration.frame_mode.name(),
         configuration.cs_control_mode.name(){% if internal_dma or external_dma %},
         configuration.use_dma{% endif %}), UVM_LOW)
-    max_payload_bytes = max_program_payload_bytes();
-    `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_write flow will issue write-enable before each program chunk: max_payload_bytes_per_chunk=%0d",
-        max_payload_bytes), UVM_LOW)
     if (data.size() == 0)
         `uvm_fatal("DW_SPI", "flash_write requires non-empty data; use rw_test empty write_data only for random default data")
 
-    offset = 0;
-    while (offset < data.size() && ok) begin
-        chunk.delete();
-        chunk_len = data.size() - offset;
-        if (chunk_len > max_payload_bytes)
-            chunk_len = max_payload_bytes;
-        for (int i = 0; i < chunk_len; i++)
-            chunk.push_back(data[offset + i]);
-        `uvm_info("DW_SPI_FLASH", $sformatf(
-            "starting flash program chunk: offset=%0d address=0x%08h bytes=%0d max_payload_bytes=%0d",
-            offset,
-            address + offset,
-            chunk.size(),
-            max_payload_bytes), UVM_LOW)
-        run_write_enable(chunk_ok);
-        if (!chunk_ok) begin
-            ok = 1'b0;
-        end else begin
-            `uvm_info("DW_SPI_FLASH", "write-enable succeeded; starting program chunk", UVM_LOW)
-            run_chunk(address + offset, chunk, chunk_ok);
-            ok = chunk_ok;
-            if (chunk_ok) begin
-                bytes_written += chunk.size();
-                offset += chunk.size();
-            end
-        end
+    `uvm_info("DW_SPI_FLASH",
+        "flash_write flow will issue one write-enable followed by one continuous program transaction", UVM_LOW)
+    run_write_enable(chunk_ok);
+    if (!chunk_ok) begin
+        ok = 1'b0;
+    end else begin
+        `uvm_info("DW_SPI_FLASH",
+            "write-enable succeeded; starting one continuous program transaction", UVM_LOW)
+        run_program(address, data, chunk_ok);
+        ok = chunk_ok;
+        if (chunk_ok)
+            bytes_written = data.size();
     end
     `uvm_info("DW_SPI_FLASH", $sformatf(
         "flash_write done: ok=%0b address=0x%08h bytes_written=%0d",

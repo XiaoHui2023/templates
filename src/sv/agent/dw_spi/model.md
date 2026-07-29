@@ -51,6 +51,7 @@
 | `interrupt_timeout_margin_percent` | 单次 transfer 理论耗时的百分比余量 |
 | `interrupt_timeout_extra_ssi_clk_cycles` | 单次 transfer 理论耗时的固定余量 |
 | `fifo_status_timeout_ssi_clk_cycles` | 单次等待 `SR.TFNF` 或 `SR.RFNE` 的短轮询上限 |
+| `ctrlr1_ndf_max` | `CTRLR1.NDF` 编码值上限，默认 `65535`，对应实际最多 `65536` 个 frame |
 | `default_tx_fifo_threshold` / `default_rx_fifo_threshold` | 默认 FIFO threshold |
 | `default_rx_sample_delay_ns` | 默认 `RX_SAMPLE_DELAY` |
 | `regmodel` | UVM RAL 句柄，使用大写 REG/FIELD |

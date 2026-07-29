@@ -14,6 +14,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
         `uvm_field_int(interrupt_timeout_margin_percent, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(interrupt_timeout_extra_ssi_clk_cycles, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(fifo_status_timeout_ssi_clk_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(ctrlr1_ndf_max, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(default_tx_fifo_threshold, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(default_rx_fifo_threshold, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(default_rx_sample_delay_ns, UVM_ALL_ON | UVM_DEC)
@@ -30,6 +31,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
     rand int interrupt_timeout_margin_percent;
     rand int interrupt_timeout_extra_ssi_clk_cycles;
     rand int fifo_status_timeout_ssi_clk_cycles;
+    rand int ctrlr1_ndf_max;
     rand int default_tx_fifo_threshold;
     rand int default_rx_fifo_threshold;
     rand int default_rx_sample_delay_ns;
@@ -49,6 +51,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
         interrupt_timeout_margin_percent = {{ interrupt_timeout_margin_percent }};
         interrupt_timeout_extra_ssi_clk_cycles = {{ interrupt_timeout_extra_ssi_clk_cycles }};
         fifo_status_timeout_ssi_clk_cycles = {{ fifo_status_timeout_ssi_clk_cycles }};
+        ctrlr1_ndf_max = {{ ctrlr1_ndf_max }};
         default_tx_fifo_threshold = {{ default_tx_fifo_threshold }};
         default_rx_fifo_threshold = {{ default_rx_fifo_threshold }};
         default_rx_sample_delay_ns = {{ default_rx_sample_delay_ns }};
@@ -66,6 +69,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
         soft interrupt_timeout_margin_percent == {{ interrupt_timeout_margin_percent }};
         soft interrupt_timeout_extra_ssi_clk_cycles == {{ interrupt_timeout_extra_ssi_clk_cycles }};
         soft fifo_status_timeout_ssi_clk_cycles == {{ fifo_status_timeout_ssi_clk_cycles }};
+        soft ctrlr1_ndf_max == {{ ctrlr1_ndf_max }};
         soft default_tx_fifo_threshold == {{ default_tx_fifo_threshold }};
         soft default_rx_fifo_threshold == {{ default_rx_fifo_threshold }};
         soft default_rx_sample_delay_ns == {{ default_rx_sample_delay_ns }};
@@ -79,6 +83,7 @@ class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
         interrupt_timeout_margin_percent <= 1000;
         interrupt_timeout_extra_ssi_clk_cycles > 0;
         fifo_status_timeout_ssi_clk_cycles > 0;
+        ctrlr1_ndf_max >= 0;
 {% if not support_rx_sample_delay %}
         default_rx_sample_delay_ns == 0;
 {% endif %}

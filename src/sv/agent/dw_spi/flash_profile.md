@@ -29,7 +29,7 @@ Write:
 
 ```text
 CS low -> 0x06 -> CS high
-CS low -> program opcode -> address -> dummy byte -> data chunk -> CS high
+CS low -> program opcode -> address -> dummy byte -> data -> CS high
 ```
 
 Read:
@@ -38,11 +38,7 @@ Read:
 CS low -> read opcode -> address -> dummy byte -> data -> CS high
 ```
 
-Non-DMA PIO with hardware CS pre-fills the whole DR stream before selecting CS. Therefore it chunks program data by FIFO capacity:
-
-```text
-max_chunk = fifo_depth_bytes - 1 opcode - addr_bytes - dummy_bytes
-```
+Non-DMA PIO does not split one flash program operation because the data is larger than the FIFO. It pre-fills up to the FIFO depth before selecting CS, then keeps the same CS window active while it waits for `SR.TFNF` and writes the remaining `DR` bytes. `CTRLR1.NDF` is derived from the full program stream, not from each FIFO refill. If the full stream exceeds `settings.ctrlr1_ndf_max`, the transfer is illegal for this IP configuration and the builder reports a fatal error.
 
 Internal DMA uses the controller DMA registers and CPU callback staging path instead of PIO DR stream refilling.
 

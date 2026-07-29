@@ -125,6 +125,12 @@ class Models(BaseModel):
         ge=1,
         description="Maximum ssi_clk cycles to poll a single FIFO status condition before reporting timeout.",
     )
+    ctrlr1_ndf_max: int = Field(
+        65_535,
+        ge=0,
+        le=1_048_575,
+        description="Maximum encoded CTRLR1.NDF value accepted by this IP variant. Default assumes a 16-bit NDF field.",
+    )
     default_tx_fifo_threshold: int = Field(
         0,
         ge=0,

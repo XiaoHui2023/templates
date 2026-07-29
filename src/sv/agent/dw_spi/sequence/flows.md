@@ -17,7 +17,7 @@
 1. `init_registers_seq` 接收一个 `transfer_req`。
 2. `register_config_builder` 根据 transfer req 和 settings 生成 `configuration`。
 3. builder 测量 `ssi_clk`，根据 `target_sclk_hz` 计算偶数 `BAUDR`。
-4. builder 根据 `opcode/address/dummy/payload` 的总 byte 数计算实际 NDF；除 `0x06` 这类单 opcode 命令外，连续命令写入 `CTRLR1.NDF = actual_ndf - 1`。
+4. builder 根据 `opcode/address/dummy/payload` 的总 byte 数计算实际 NDF；除 `0x06` 这类单 opcode 命令外，连续命令写入 `CTRLR1.NDF = actual_ndf - 1`。如果该编码值超过 `settings.ctrlr1_ndf_max`，立即 fatal。
 5. `register_access` 实例化后注入 settings 和 `report_context = p_sequencer`。
 6. `register_access.apply_configuration()` 按 FIELD 写 regmodel。
 
@@ -30,9 +30,9 @@
 3. 内置 DMA 写 transfer 在启动控制器前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 4. 调用 `register_access.apply_configuration()`。该阶段会关闭控制器、清中断、清 `SER`、配置寄存器、重新使能控制器，但不会选中片选。
 5. 非 DMA PIO 构造 DR byte stream。flash 协议包含 opcode、大端地址字节；写传输追加 payload。命令-only 传输 payload 长度为 0，但 DR stream 仍包含 opcode。
-6. PIO 在 `SER=0` 时先向 `DR` 预填不超过 `settings.fifo_depth_bytes` 的字节。硬件 CS 模式要求整个 DR stream 都能在 CS 选中前预填；如果还有 remaining byte，transfer 直接报错，避免 CS 因 TX FIFO 空而中途断开。
+6. PIO 在 `SER=0` 时先向 `DR` 预填不超过 `settings.fifo_depth_bytes` 的字节。
 7. 到 transaction 边界时选中 CS：`HARDWARE_CS` 写 `SER.SER = cfg.ser`；`SOFTWARE_CS` 先调用 `p_sequencer.activate_chip_select(cs_id)`，再写 `SER.SER = cfg.ser`。
-8. PIO 写 transfer 在硬件 CS 下不允许 CS 有效期间补 FIFO；软件 CS 可在外部 CS 保持时补剩余字节。PIO 读 transfer 在 CS 有效期间等待 `SR.RFNE` 并从 `DR` 读回 actual byte。
+8. PIO 写 transfer 如果还有 remaining byte，会在同一个 CS window 内继续等待 `SR.TFNF` 并补写 `DR`。`TXFTLR` 是硬件 FIFO 阈值配置；当前 sequence 用 `SR.TFNF` 轮询驱动补 FIFO，不把 FIFO interrupt 当 completion。
 9. 按 `configuration.completion_mode` 等待 completion。内置 DMA 可用 top `intr` + `ISR.DONES`；非 DMA PIO 使用 `SR.TFE && !SR.BUSY`。
 10. 释放 CS：先写 `SER.SER = 0`，如果是 `SOFTWARE_CS` 再调用 `p_sequencer.release_chip_select(cs_id)`。
 11. 写传输在 CS 释放后更新 scoreboard expected data；读传输把从 `DR` 或 DMA buffer 得到的 actual data 放入 rsp。
@@ -67,7 +67,7 @@
 2. 先启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
 3. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。
 4. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
-5. 非 DMA PIO 会按 `fifo_depth_bytes - 1 - addr_bytes - dummy_bytes` 自动拆成多个 program chunk，每个 chunk 都重新执行 `WREN -> program`，保证硬件 CS 下 opcode + address + dummy + chunk 可以在选中 CS 前完整预填。
+5. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + dummy + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
 6. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
 
 当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、QE/WRSR 和 256B 分页写限制；这些属于完整 SPI-NOR 行为建模，已作为后续扩展点记录。

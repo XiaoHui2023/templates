@@ -229,6 +229,17 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         spi_clk_stretch_en = spi_ctrlr0_en;
         wait_cycles = spi_ctrlr0_en ? rq.dummy_cycles : 0;
         ndf_reg_value = actual_ndf == 0 ? 0 : actual_ndf - 1;
+        if (ndf_reg_value > settings.ctrlr1_ndf_max)
+            `uvm_fatal("DW_SPI_CFG", $sformatf(
+                "CTRLR1.NDF exceeds configured register limit: ndf_reg_value=%0d actual_ndf=%0d ctrlr1_ndf_max=%0d payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d data_frame_bits=%0d",
+                ndf_reg_value,
+                actual_ndf,
+                settings.ctrlr1_ndf_max,
+                length,
+                rq.inst_bytes,
+                rq.addr_bytes,
+                rq.dummy_cycles,
+                rq.data_frame_bits))
         interrupt_timeout_cycles = transfer_timeout_cycles(
             rq, baudr, length, frame_mode);
         `uvm_info("DW_SPI_CFG", $sformatf(

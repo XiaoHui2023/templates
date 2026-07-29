@@ -48,6 +48,8 @@ actual_ndf = ceil(total_bytes * 8 / data_frame_bits)
 CTRLR1.NDF = actual_ndf - 1
 ```
 
+模板通过 `settings.ctrlr1_ndf_max` 记录本 IP 变体允许写入的最大 NDF 编码值，默认 `65535`。如果推导出的 `CTRLR1.NDF` 超过该上限，`register_config_builder` 必须直接 fatal。FIFO refill 只解决 CPU 如何持续喂 `DR`，不能突破一次 SPI transaction 的 NDF 寄存器上限。
+
 ## SPI_CTRLR0
 
 `SPI_CTRLR0` 用于 DWC_ssi enhanced SPI、XIP、DDR、HyperBus 等扩展传输控制。当前 flash enhanced flow 配置 `WAIT_CYCLES`、`INST_L`、`ADDR_L` 和 `TRANS_TYPE`；XIP、DDR、HyperBus、mode bits 和 data mask 字段只记录语义，等具体 flow 消费时再加入代码。
