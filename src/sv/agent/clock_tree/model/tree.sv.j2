@@ -9,7 +9,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- elif node.kind == "mux" %}
 {%- set field_flags = "UVM_ALL_ON | (_print_mux ? 0 : UVM_NOPRINT)" %}
 {%- elif node.kind == "div" %}
-{%- if node.div_kind in ["div", "div_pow", "div_r"] %}
+{%- if node.div_kind in ["div", "div_r"] %}
 {%- set field_flags = "UVM_ALL_ON | (_print_div ? 0 : UVM_NOPRINT)" %}
 {%- else %}
 {%- set field_flags = "UVM_ALL_ON | (_print_dto ? 0 : UVM_NOPRINT)" %}
@@ -70,9 +70,6 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- if node.kind == "div" %}
         {{ node.name }}["{{ g }}"].div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
-{%- if node.div_kind in ["div", "div_pow"] %}
-        {{ node.name }}["{{ g }}"].max_ratio = {{ node.div_max_ratio }};
-{%- endif %}
 {%- if node.div_tree_emit_unfix_ratio %}
         {{ node.name }}["{{ g }}"].ratio = {{ node.div_init_ratio }};
 {%- if enable_node_fix %}
@@ -95,9 +92,6 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- elif node.kind == "div" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_div_class }}::type_id::create("{{ node.name }}");
         {{ node.name }}.div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
-{%- if node.div_kind in ["div", "div_pow"] %}
-        {{ node.name }}.max_ratio = {{ node.div_max_ratio }};
-{%- endif %}
 {%- if node.div_tree_emit_unfix_ratio %}
         {{ node.name }}.ratio = {{ node.div_init_ratio }};
 {%- if enable_node_fix %}
@@ -251,6 +245,19 @@ function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ set
 {%- endif %}
 {%- endfor %}
     end
+{%- for node in tree.nodes_ordered %}
+{%- if node.kind == "div" and node.div_kind == "div" and node.regs.get("div") %}
+{%- if node.output_groups %}
+{%- for g in node.output_groups %}
+    if ({{ node.name }}["{{ g }}"].f_div.is_bound())
+        {{ node.name }}["{{ g }}"].max_ratio = {{ settings.class_prefix }}div_max_ratio_for_width({{ node.name }}["{{ g }}"].f_div.width);
+{%- endfor %}
+{%- else %}
+    if ({{ node.name }}.f_div.is_bound())
+        {{ node.name }}.max_ratio = {{ settings.class_prefix }}div_max_ratio_for_width({{ node.name }}.f_div.width);
+{%- endif %}
+{%- endif %}
+{%- endfor %}
     if (!randomize())
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
 {%- else %}

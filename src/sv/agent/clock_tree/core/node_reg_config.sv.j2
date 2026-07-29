@@ -104,7 +104,7 @@ task {{ settings.class_prefix }}node_cfg::configure_div(
     int n;
     {{ settings.class_prefix }}reg binds[$];
     int vals[$];
-    n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+    n = {{ settings.class_prefix }}div_ratio_to_n(f_div, ratio);
 {%- if settings.div_reg_high_means_reset %}
     rw.set_write(f_rst, 1);
     binds = '{f_rst, f_div, f_load};
@@ -124,7 +124,7 @@ task {{ settings.class_prefix }}node_cfg::configure_div_direct(
         {{ settings.class_prefix }}reg f_div,
         int ratio);
     int n;
-    n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+    n = {{ settings.class_prefix }}div_ratio_to_n(f_div, ratio);
 {%- if settings.div_reg_high_means_reset %}
     rw.set_write(f_rst, 0);
 {%- else %}
@@ -140,7 +140,7 @@ task {{ settings.class_prefix }}node_cfg::configure_div_ratio(
         {{ settings.class_prefix }}reg f_div,
         int ratio);
     int n;
-    n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+    n = {{ settings.class_prefix }}div_ratio_to_n(f_div, ratio);
     rw.set_write(f_div, n);
     rw.set_write(f_load, 0);
     rw.set_write(f_load, 1);
@@ -269,7 +269,7 @@ task {{ settings.class_prefix }}node_cfg::div_regs_match_ratio(
     int rst_val;
     int div_val;
     int exp_n;
-    exp_n = {{ settings.class_prefix }}div_ratio_to_n(ratio);
+    exp_n = {{ settings.class_prefix }}div_ratio_to_n(f_div, ratio);
     rw.read(f_rst, rst_val);
     rw.read(f_div, div_val);
     match = div_rst_released_val(rst_val) && div_val == exp_n;

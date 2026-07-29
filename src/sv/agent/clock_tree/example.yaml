@@ -129,7 +129,6 @@ nodes:
     div0:
       kind: div
       div_kind: div
-      width: 6
       source: div_r_0
       regs:
         rst: blk_div0.rst

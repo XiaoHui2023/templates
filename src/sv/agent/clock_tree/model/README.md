@@ -214,7 +214,7 @@
 | --- | --- | --- |
 | **source** | **node_base** | 前级节点 |
 | **ratio** | **int**，**rand** | 分频比 |
-| **max_ratio** | **int** | 最大分频比，由 Python **width** 推导 |
+| **max_ratio** | **int** | 最大分频比；绑定寄存器后由 **f_div.width** 推导 |
 | **f_rst** | **reg** | |
 | **f_load** | **reg** | |
 | **f_div** | **reg** | |
