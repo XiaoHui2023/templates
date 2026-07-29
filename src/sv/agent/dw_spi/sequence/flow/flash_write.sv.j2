@@ -82,16 +82,7 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
     op_req.axi_addr = cfg.axi_addr;
 {% endif %}
     `uvm_info("DW_SPI_FLASH", "starting write-enable command before flash program", UVM_LOW)
-    `uvm_info("DW_SPI_FLASH", $sformatf(
-        "write-enable request detail: opcode=0x%02h mode=%s frame=%s cs_mode=%s cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d",
-        op_req.opcode,
-        op_req.transfer_mode.name(),
-        op_req.frame_mode.name(),
-        op_req.cs_control_mode.name(),
-        op_req.cs_id,
-        op_req.io_lanes,
-        op_req.speed_multiplier,
-        op_req.data_frame_bits), UVM_LOW)
+    `uvm_info("DW_SPI_FLASH", {"write-enable transfer req:\n", op_req.sprint()}, UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("write_enable");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);
@@ -121,6 +112,7 @@ task {{ class_prefix }}flash_write_seq::run_program(
     foreach (program_data[i])
         payload_data[i] = program_data[i];
     op_req.payload.set_data(payload_data);
+    op_req.payload.set_data_length(program_data.size());
     if (!$cast(op_req.host_mode, cfg.host_mode))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast host_mode")
     if (!$cast(op_req.protocol, FLASH_SPI))
@@ -149,25 +141,7 @@ task {{ class_prefix }}flash_write_seq::run_program(
     op_req.axi_addr = cfg.axi_addr;
 {% endif %}
     `uvm_info("DW_SPI_FLASH", "starting flash program data transfer", UVM_LOW)
-    `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash program request detail: opcode=0x%02h mode=%s frame=%s cs_mode=%s addr=0x%08h bytes=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}{% if internal_dma %} axi_addr=0x%08h awlen=%0d arlen=%0d{% endif %}",
-        op_req.opcode,
-        op_req.transfer_mode.name(),
-        op_req.frame_mode.name(),
-        op_req.cs_control_mode.name(),
-        addr,
-        program_data.size(),
-        op_req.inst_bytes,
-        op_req.addr_bytes,
-        op_req.dummy_cycles,
-        op_req.cs_id,
-        op_req.io_lanes,
-        op_req.speed_multiplier,
-        op_req.data_frame_bits{% if internal_dma or external_dma %},
-        op_req.use_dma{% endif %}{% if internal_dma %},
-        op_req.axi_addr,
-        op_req.awlen,
-        op_req.arlen{% endif %}), UVM_LOW)
+    `uvm_info("DW_SPI_FLASH", {"flash program transfer req:\n", op_req.sprint()}, UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);

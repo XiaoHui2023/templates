@@ -93,6 +93,6 @@
 
 ## Log Verbosity
 
-- `UVM_LOW` 说明流程正在做什么、正在等待什么、完成了什么；日常观察必须能看到 WREN/program/read 请求详情、opcode、address、addr_bytes、dummy_cycles、payload length、DR stream byte 数、实际 NDF/寄存器 NDF、发送/接收数据的十六进制预览和 completion。大块 payload 只打印前若干字节和总长度，不在 INFO 全量 dump。
-- `UVM_DEBUG` 打印排障细节：寄存器 raw 值、推导中间值、FIFO 状态轮询、逐 byte DR 写读、CPU DMA buffer word、scoreboard byte 比较。
+- `UVM_LOW` 说明流程正在做什么、正在等待什么、完成了什么；WREN/program/read 这类完整 flash interaction 的请求详情优先打印 `transfer_req.sprint()`，不要手工重复拼字段。DR stream byte 数和十六进制预览可单独打印，因为它是实际拼出的总线流。
+- `UVM_DEBUG` 打印排障细节：寄存器 raw 值、NDF/BAUDR 推导中间值、寄存器配置步骤、FIFO 状态轮询、逐 byte DR 写读、CPU DMA buffer word、scoreboard byte 比较。
 - timeout 报错必须包含 `waiting_for`。中断等待写明 top `intr` 和预期来源；`SR` 轮询写明目标条件和最后一次 `SR` 原始值及字段。

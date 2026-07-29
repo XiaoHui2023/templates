@@ -323,7 +323,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         else
             ndf_detail = $sformatf("CTRLR1.NDF register=0 actual_ndf=0_or_1_command_only");
 
-        report_info("DW_SPI_REG", "applying controller register configuration", UVM_LOW);
+        report_info("DW_SPI_REG", "applying controller register configuration", UVM_DEBUG);
         report_info("DW_SPI_REG", $sformatf(
             "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d sste=%0b data_frame_bits=%0d %s ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
             host_mode.name(),
@@ -346,7 +346,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             cfg.rxftlr,
             cfg.interrupt_timeout_ssi_clk_cycles), UVM_DEBUG);
 
-        report_info("DW_SPI_REG", "disabling controller before register programming", UVM_LOW);
+        report_info("DW_SPI_REG", "disabling controller before register programming", UVM_DEBUG);
         rm.SSIENR.read(status, reg_data);
         rm.SSIENR.SSIC_EN.set(0);
         report_info("DW_SPI_REG", $sformatf(
@@ -521,7 +521,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             "enable controller with SSIENR: SSIC_EN=%0b raw=0x%0h",
             cfg.ssi_en, rm.SSIENR.get()), UVM_DEBUG);
         rm.SSIENR.write(status, rm.SSIENR.get());
-        report_info("DW_SPI_REG", "controller register configuration applied with SER released; transfer sequence selects CS after any PIO FIFO prefill", UVM_LOW);
+        report_info("DW_SPI_REG", "controller register configuration applied with SER released; transfer sequence selects CS after any PIO FIFO prefill", UVM_DEBUG);
     endtask
 endclass
 

@@ -202,7 +202,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         if (!settings.vif.has_ssi_clk())
             `uvm_fatal("DW_SPI_CFG", "ssi_clk must be connected to derive BAUDR")
 
-        `uvm_info("DW_SPI_CFG", "measuring ssi_clk before deriving BAUDR", UVM_LOW)
+        `uvm_info("DW_SPI_CFG", "measuring ssi_clk before deriving BAUDR", UVM_DEBUG)
         settings.vif.ssi_clk_if.measure_frequency_hz(
             ssi_clk_hz,
             settings.min_ssi_clk_hz,
@@ -289,7 +289,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             `uvm_fatal("DW_SPI_CFG", "failed to cast configuration transfer_mode")
         cfg.host_mode.rand_mode(0);
         cfg.transfer_mode.rand_mode(0);
-        `uvm_info("DW_SPI_CFG", "randomizing one-shot register configuration", UVM_LOW)
+        `uvm_info("DW_SPI_CFG", "randomizing one-shot register configuration", UVM_DEBUG)
         if (!cfg.randomize() with {
                 spi_frf == local::spi_frf;
                 spi_ctrlr0_en == local::spi_ctrlr0_en;

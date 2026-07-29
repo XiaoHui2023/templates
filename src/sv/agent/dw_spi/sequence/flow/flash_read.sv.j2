@@ -105,22 +105,7 @@ task {{ class_prefix }}flash_read_seq::body();
     op_req.axi_addr = cfg.axi_addr;
 {% endif %}
     `uvm_info("DW_SPI_FLASH", "starting primitive transfer for flash read", UVM_LOW)
-    `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_read request detail: opcode=0x%02h mode=%s frame=%s cs_mode=%s addr=0x%08h length=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
-        op_req.opcode,
-        op_req.transfer_mode.name(),
-        op_req.frame_mode.name(),
-        op_req.cs_control_mode.name(),
-        address,
-        length,
-        op_req.inst_bytes,
-        op_req.addr_bytes,
-        op_req.dummy_cycles,
-        op_req.cs_id,
-        op_req.io_lanes,
-        op_req.speed_multiplier,
-        op_req.data_frame_bits{% if internal_dma or external_dma %},
-        op_req.use_dma{% endif %}), UVM_LOW)
+    `uvm_info("DW_SPI_FLASH", {"flash read transfer req:\n", op_req.sprint()}, UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
     op_seq.start(p_sequencer);

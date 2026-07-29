@@ -107,10 +107,10 @@ task {{ class_prefix }}transfer_seq::body();
         rq.io_lanes,
         rq.speed_multiplier,
         rq.data_frame_bits{% if internal_dma or external_dma %},
-        rq.use_dma{% endif %}), UVM_LOW)
+        rq.use_dma{% endif %}), UVM_DEBUG)
     config_builder = {{ class_prefix }}register_config_builder::type_id::create("config_builder");
     config_builder.settings = p_sequencer.settings;
-    `uvm_info("DW_SPI_XFER", "building register configuration for transfer", UVM_LOW)
+    `uvm_info("DW_SPI_XFER", "building register configuration for transfer", UVM_DEBUG)
     config_builder.build(rq, cfg);
 {% if internal_dma %}
     if (rq.use_dma && command == UVM_TLM_WRITE_COMMAND) begin
@@ -129,9 +129,9 @@ task {{ class_prefix }}transfer_seq::body();
     register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
     register_access.report_context = p_sequencer;
-    `uvm_info("DW_SPI_XFER", "applying controller register configuration", UVM_LOW)
+    `uvm_info("DW_SPI_XFER", "applying controller register configuration", UVM_DEBUG)
     register_access.apply_configuration(cfg);
-    `uvm_info("DW_SPI_XFER", "controller configured with SER released; transfer sequence will select CS at the transaction boundary", UVM_LOW)
+    `uvm_info("DW_SPI_XFER", "controller configured with SER released; transfer sequence will select CS at the transaction boundary", UVM_DEBUG)
 {% if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
@@ -204,7 +204,7 @@ task {{ class_prefix }}transfer_seq::body();
         end
         release_transfer_cs(rq, register_access, cs_started);
         if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
-            `uvm_info("DW_SPI_XFER", "PIO write path: staging expected payload for scoreboard", UVM_LOW)
+            `uvm_info("DW_SPI_XFER", "PIO write path: staging expected payload for scoreboard", UVM_DEBUG)
             rq.payload.get_data(gp_data);
             foreach (gp_data[i])
                 write_data.push_back(gp_data[i]);
@@ -229,7 +229,7 @@ task {{ class_prefix }}transfer_seq::body();
     end
     release_transfer_cs(rq, register_access, cs_started);
     if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
-        `uvm_info("DW_SPI_XFER", "PIO write path: staging expected payload for scoreboard", UVM_LOW)
+        `uvm_info("DW_SPI_XFER", "PIO write path: staging expected payload for scoreboard", UVM_DEBUG)
         rq.payload.get_data(gp_data);
         foreach (gp_data[i])
             write_data.push_back(gp_data[i]);
