@@ -4,7 +4,7 @@
 
 // gate/mux/div/dto 所需 field 均已绑定
 function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
-        {{ settings.class_prefix }}node_base nd);
+        input {{ settings.class_prefix }}node_base nd);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}div_div div_div_nd;
@@ -27,7 +27,7 @@ endfunction
 
 // kind 是否为 gate、mux、div、dto
 function automatic bit {{ settings.class_prefix }}route_structure_is_probe_kind(
-        {{ settings.class_prefix }}node_base nd);
+        input {{ settings.class_prefix }}node_base nd);
     if (nd == null)
         return 1'b0;
     return nd.kind == "gate" || nd.kind == "mux" || nd.kind == "div";
@@ -35,7 +35,7 @@ endfunction
 
 // 读出节点当前 open/sel/ratio 等到 snap
 function automatic void {{ settings.class_prefix }}route_structure_save_ctrl(
-        {{ settings.class_prefix }}node_base nd,
+        input {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}route_ctrl_snap snap);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
@@ -64,9 +64,9 @@ endfunction
 
 // clear_fix — 为真时清除 fix 约束字段
 function automatic void {{ settings.class_prefix }}route_structure_apply_ctrl(
-        {{ settings.class_prefix }}node_base nd,
-        {{ settings.class_prefix }}route_ctrl_snap snap,
-        bit clear_fix);
+        input {{ settings.class_prefix }}node_base nd,
+        input {{ settings.class_prefix }}route_ctrl_snap snap,
+        input bit clear_fix);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}div_base div_nd;
@@ -111,7 +111,9 @@ endfunction
 
 // 设 gate open 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_gate_open(
-        {{ settings.class_prefix }}gate gate_nd, bit open_val, bit clear_fix);
+        input {{ settings.class_prefix }}gate gate_nd,
+        input bit open_val,
+        input bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap snap;
     if (gate_nd == null)
         return;
@@ -122,7 +124,9 @@ endfunction
 
 // 设 mux sel 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_mux_sel(
-        {{ settings.class_prefix }}mux mux_nd, int sel_val, bit clear_fix);
+        input {{ settings.class_prefix }}mux mux_nd,
+        input int sel_val,
+        input bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap snap;
     if (mux_nd == null)
         return;
@@ -133,7 +137,9 @@ endfunction
 
 // 设 div/dto ratio 并 post_randomize
 function automatic void {{ settings.class_prefix }}route_structure_set_ratio(
-        {{ settings.class_prefix }}node_base nd, int ratio_val, bit clear_fix);
+        input {{ settings.class_prefix }}node_base nd,
+        input int ratio_val,
+        input bit clear_fix);
     {{ settings.class_prefix }}route_ctrl_snap snap;
     {{ settings.class_prefix }}div_div_r div_r_nd;
     if (nd == null)
@@ -147,8 +153,8 @@ endfunction
 
 // 沿 source 链判断 ancestor 是否为 desc 前级
 function automatic bit {{ settings.class_prefix }}route_structure_is_ancestor_of(
-        {{ settings.class_prefix }}node_base ancestor,
-        {{ settings.class_prefix }}node_base desc);
+        input {{ settings.class_prefix }}node_base ancestor,
+        input {{ settings.class_prefix }}node_base desc);
     {{ settings.class_prefix }}node_base cur;
 
     if (ancestor == null || desc == null)
@@ -164,7 +170,7 @@ endfunction
 
 // 仅保留寄存器已绑定的 line 节点
 function automatic void {{ settings.class_prefix }}route_structure_filter_line_regs(
-        {{ settings.class_prefix }}node_base line[$],
+        input {{ settings.class_prefix }}node_base line[$],
         output {{ settings.class_prefix }}node_base filtered[$]);
     filtered.delete();
     foreach (line[i])
@@ -174,8 +180,8 @@ endfunction
 
 // subject 上游 gate/mux/div/dto，仅保留寄存器已绑定
 function automatic void {{ settings.class_prefix }}route_structure_collect_upstream_line(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base subject,
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base subject,
         output {{ settings.class_prefix }}node_base line[$]);
     {{ settings.class_prefix }}node_base raw[$];
     line.delete();
@@ -198,8 +204,8 @@ endfunction
 
 // subject 下游 gate/mux/div/dto，仅保留寄存器已绑定
 function automatic void {{ settings.class_prefix }}route_structure_collect_downstream_line(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base subject,
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base subject,
         output {{ settings.class_prefix }}node_base line[$]);
     {{ settings.class_prefix }}node_base raw[$];
     line.delete();
@@ -222,7 +228,7 @@ endfunction
 
 // 全树寄存器就绪的 gate/mux/div/dto
 function automatic void {{ settings.class_prefix }}route_structure_collect_probe_subjects(
-        {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base subjects[$]);
     subjects.delete();
     if (tree == null)
@@ -240,8 +246,8 @@ endfunction
 
 // filter 非空时从中取 div/dto，否则扫全树
 function automatic void {{ settings.class_prefix }}route_structure_collect_flip_subjects(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base filter[$],
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base filter[$],
         output {{ settings.class_prefix }}node_base subjects[$]);
     subjects.delete();
     if (filter.size() > 0) begin
@@ -275,7 +281,8 @@ endfunction
 
 // 取值下标对应 gate/mux/div/dto 控制量摘要
 function automatic string {{ settings.class_prefix }}route_structure_variant_label(
-        {{ settings.class_prefix }}node_base nd, int idx);
+        input {{ settings.class_prefix }}node_base nd,
+        input int idx);
     {{ settings.class_prefix }}mux mux_nd;
     int keys[$];
     if (nd == null)
@@ -297,7 +304,8 @@ endfunction
 
 // line 组合下标对应的各节点控制量摘要
 function automatic string {{ settings.class_prefix }}route_structure_line_combo_summary(
-        {{ settings.class_prefix }}node_base line[$], int combo_idx);
+        input {{ settings.class_prefix }}node_base line[$],
+        input int combo_idx);
     int n;
     int pick;
     int rem;
@@ -322,7 +330,7 @@ endfunction
 
 // 节点队列名字与 kind，逗号分隔
 function automatic string {{ settings.class_prefix }}route_structure_format_node_names(
-        {{ settings.class_prefix }}node_base nodes[$]);
+        input {{ settings.class_prefix }}node_base nodes[$]);
     string s;
     s = "";
     foreach (nodes[i]) begin
@@ -339,7 +347,7 @@ endfunction
 
 // 单节点路由取值数：gate/div/dto 为 2，mux 为输入数
 function automatic int {{ settings.class_prefix }}route_structure_variant_count(
-        {{ settings.class_prefix }}node_base nd);
+        input {{ settings.class_prefix }}node_base nd);
     {{ settings.class_prefix }}mux mux_nd;
     int n;
     int keys[$];
@@ -359,7 +367,9 @@ endfunction
 
 // 按 idx 应用 gate/mux/div/dto 取值
 function automatic void {{ settings.class_prefix }}route_structure_apply_variant_index(
-        {{ settings.class_prefix }}node_base nd, int idx, bit clear_fix);
+        input {{ settings.class_prefix }}node_base nd,
+        input int idx,
+        input bit clear_fix);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
     int keys[$];
@@ -386,7 +396,7 @@ endfunction
 
 // line 上各节点取值数的乘积
 function automatic int {{ settings.class_prefix }}route_structure_line_combo_count(
-        {{ settings.class_prefix }}node_base line[$]);
+        input {{ settings.class_prefix }}node_base line[$]);
     int total;
     int n;
     total = 1;
@@ -401,9 +411,9 @@ endfunction
 
 // combo_idx — line 组合取值的线性下标
 function automatic void {{ settings.class_prefix }}route_structure_apply_line_combo_index(
-        {{ settings.class_prefix }}node_base line[$],
-        int combo_idx,
-        bit clear_fix);
+        input {{ settings.class_prefix }}node_base line[$],
+        input int combo_idx,
+        input bit clear_fix);
     int n;
     int pick;
     int rem;
@@ -421,15 +431,15 @@ endfunction
 
 // clk 节点是否标记为 stable
 function automatic bit {{ settings.class_prefix }}route_structure_clk_is_stable(
-        {{ settings.class_prefix }}clk clk_nd);
+        input {{ settings.class_prefix }}clk clk_nd);
     if (clk_nd == null)
         return 1'b0;
     return clk_nd.stable;
 endfunction
 
 // config_reg 之后：收集 stable clk 及其已配置 source 链上的全部节点
-function automatic void {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
-        {{ settings.class_prefix }}tree_base tree,
+function automatic void {{ settings.class_prefix }}route_structure_collect_stable_source_path(
+        input {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base collected[$]);
     {{ settings.class_prefix }}clk clk_nd;
     {{ settings.class_prefix }}node_base cur;
@@ -450,10 +460,78 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_stabl
     end
 endfunction
 
+// 当前 source 为 src 的下游节点；非 stable 路径上的 gate 可关闭隔离，不进入 active domain
+function automatic void {{ settings.class_prefix }}route_structure_collect_active_downstream_peers(
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base src,
+        input {{ settings.class_prefix }}node_base stable_source_path[$],
+        output {{ settings.class_prefix }}node_base peers[$]);
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+
+    peers.delete();
+    if (tree == null || src == null)
+        return;
+    foreach (tree.nodes[i]) begin
+        if (tree.nodes[i] == null)
+            continue;
+        if ($cast(mux_nd, tree.nodes[i])) begin
+            if (mux_nd.source == src)
+                {{ settings.class_prefix }}append_unique_node(peers, mux_nd);
+        end else if (tree.nodes[i].source == src) begin
+            if ($cast(gate_nd, tree.nodes[i])
+                    && !{{ settings.class_prefix }}node_in_queue(
+                        gate_nd, stable_source_path))
+                continue;
+            {{ settings.class_prefix }}append_unique_node(peers, tree.nodes[i]);
+        end
+    end
+endfunction
+
+// stable clk 的 active 保护域：包含完整 source 链，以及共享该 active 链且不能被 gate 隔离的节点
+function automatic void {{ settings.class_prefix }}route_structure_collect_stable_active_domain(
+        input {{ settings.class_prefix }}tree_base tree,
+        output {{ settings.class_prefix }}node_base collected[$]);
+    {{ settings.class_prefix }}node_base stable_source_path[$];
+    {{ settings.class_prefix }}node_base wave[$];
+    {{ settings.class_prefix }}node_base peers[$];
+    int w;
+
+    collected.delete();
+    {{ settings.class_prefix }}route_structure_collect_stable_source_path(
+        tree, stable_source_path);
+    foreach (stable_source_path[i]) begin
+        {{ settings.class_prefix }}append_unique_node(collected, stable_source_path[i]);
+        {{ settings.class_prefix }}append_unique_node(wave, stable_source_path[i]);
+    end
+
+    w = 0;
+    while (w < wave.size()) begin
+        {{ settings.class_prefix }}node_base cur;
+        cur = wave[w];
+        w++;
+        {{ settings.class_prefix }}route_structure_collect_active_downstream_peers(
+            tree, cur, stable_source_path, peers);
+        foreach (peers[i]) begin
+            if (!{{ settings.class_prefix }}node_in_queue(peers[i], collected)) begin
+                {{ settings.class_prefix }}append_unique_node(collected, peers[i]);
+                {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
+            end
+        end
+    end
+endfunction
+
+function automatic void {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
+        input {{ settings.class_prefix }}tree_base tree,
+        output {{ settings.class_prefix }}node_base collected[$]);
+    {{ settings.class_prefix }}route_structure_collect_stable_active_domain(
+        tree, collected);
+endfunction
+
 // gate 固定打开、mux 以当前 _resolved_sel 设 sel、div 固定当前 _resolved_ratio
 function automatic void {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base gate_mux[$]);
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base gate_mux[$]);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
@@ -494,8 +572,8 @@ endfunction
 
 // 全部 clk 设同一 unfix_frequence 值
 function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_unfix_frequence(
-        {{ settings.class_prefix }}tree_base tree,
-        bit unfix_val);
+        input {{ settings.class_prefix }}tree_base tree,
+        input bit unfix_val);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
     if (tree == null)
@@ -509,8 +587,8 @@ endfunction
 
 // 全部 clk 设同一 unfix_enabled 值
 function automatic void {{ settings.class_prefix }}route_structure_set_all_clk_unfix_enabled(
-        {{ settings.class_prefix }}tree_base tree,
-        bit unfix_val);
+        input {{ settings.class_prefix }}tree_base tree,
+        input bit unfix_val);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}clk clk_nd;
     if (tree == null)
@@ -524,26 +602,26 @@ endfunction
 
 // 全部 clk 清除 unfix_frequence
 function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unfix_frequence(
-        {{ settings.class_prefix }}tree_base tree);
+        input {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}route_structure_set_all_clk_unfix_frequence(tree, 1'b0);
 endfunction
 
 // 全部 clk 清除 unfix_enabled
 function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unfix_enabled(
-        {{ settings.class_prefix }}tree_base tree);
+        input {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}route_structure_set_all_clk_unfix_enabled(tree, 1'b0);
 endfunction
 
 // 全部 clk 清除 unfix_frequence 与 unfix_enabled
 function automatic void {{ settings.class_prefix }}route_structure_clear_clk_unfix(
-        {{ settings.class_prefix }}tree_base tree);
+        input {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}route_structure_clear_clk_unfix_frequence(tree);
     {{ settings.class_prefix }}route_structure_clear_clk_unfix_enabled(tree);
 endfunction
 
 // 按当前 open、sel 锁定整树 gate 与 mux
 function automatic void {{ settings.class_prefix }}route_structure_fix_all_gate_mux(
-        {{ settings.class_prefix }}tree_base tree);
+        input {{ settings.class_prefix }}tree_base tree);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
@@ -569,7 +647,7 @@ endfunction
 
 // 清除整树 fix_* 与 clk unfix_*，恢复自然约束求解
 function automatic void {{ settings.class_prefix }}route_structure_clear_all_fix(
-        {{ settings.class_prefix }}tree_base tree);
+        input {{ settings.class_prefix }}tree_base tree);
 {%- if enable_node_fix %}
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}mux mux_nd;
@@ -603,8 +681,8 @@ endfunction
 
 // test_route 路由取值下可出现的最低输出频率：最慢 source 除以最大分频比 2
 function automatic int {{ settings.class_prefix }}route_structure_theoretical_min_freq_hz(
-        {{ settings.class_prefix }}tree_base tree,
-        int default_hz);
+        input {{ settings.class_prefix }}tree_base tree,
+        input int default_hz);
     {{ settings.class_prefix }}source src_nd;
     longint min_src_hz;
     min_src_hz = 0;
@@ -625,7 +703,7 @@ endfunction
 
 // 树内 stable clk 节点 _resolved_active 均为真
 function automatic bit {{ settings.class_prefix }}route_structure_stable_clocks_valid(
-        {{ settings.class_prefix }}tree_base tree);
+        input {{ settings.class_prefix }}tree_base tree);
     if (tree == null)
         return 1'b1;
     foreach (tree.clock_nodes[i]) begin

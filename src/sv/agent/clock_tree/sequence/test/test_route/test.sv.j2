@@ -333,7 +333,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
             "test_route: init, plain config_reg", UVM_LOW)
     run_config_reg(tree, rq.quiet);
 
-    {{ settings.class_prefix }}route_structure_collect_stable_upstream_gate_mux(
+    {{ settings.class_prefix }}route_structure_collect_stable_active_domain(
         tree, pinned_path);
 
     probe_subjects.delete();

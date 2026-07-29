@@ -46,23 +46,21 @@ DIV_REG_KEYS = frozenset({"rst", "load", "div"})
 
 DTO_REG_KEYS = frozenset({"rst", "load", "bypass", "step"})
 
-_DIV_KIND_CANON = frozenset({"div", "div_n", "dto", "dto_n", "div_r"})
+_DIV_KIND_CANON = frozenset({"div", "div_pow", "dto", "div_r"})
 
 _INV_KIND_CANON = frozenset({"inv", "inv_mux", "inv_cell"})
 
 DIV_KIND_TO_SV: dict[str, str] = {
     "div": "div_div",
-    "div_n": "div_div",
+    "div_pow": "div_div",
     "dto": "div_dto",
-    "dto_n": "div_dto",
     "div_r": "div_div_r",
 }
 
 DIV_KIND_TO_SV_ENUM: dict[str, str] = {
     "div": "DIV",
-    "div_n": "DIV_N",
+    "div_pow": "DIV_POW",
     "dto": "DTO",
-    "dto_n": "DTO_N",
     "div_r": "DIV_R",
 }
 
@@ -97,7 +95,7 @@ def normalize_div_kind(value: object) -> str:
     canon = value.strip().lower()
     if canon not in _DIV_KIND_CANON:
         raise ValueError(
-            f"{ERR.field('div_kind')} 须为 div、div_n、dto、dto_n、div_r 之一，"
+            f"{ERR.field('div_kind')} 须为 div、div_pow、dto、div_r 之一，"
             f"大小写不限，得到 {value!r}"
         )
     return canon
@@ -137,7 +135,7 @@ def normalize_source_kind(value: object) -> str:
 
 
 def div_reg_keys_for_kind(div_kind: str) -> frozenset[str]:
-    if div_kind in ("div", "div_n"):
+    if div_kind in ("div", "div_pow"):
         return DIV_REG_KEYS
     if div_kind == "div_r":
         return frozenset()
@@ -145,7 +143,7 @@ def div_reg_keys_for_kind(div_kind: str) -> frozenset[str]:
 
 
 def div_kind_uses_div_regs(div_kind: str) -> bool:
-    return div_kind in ("div", "div_n")
+    return div_kind in ("div", "div_pow")
 
 _PLL_KIND_CANON = frozenset({"tci", "sc", "dw", "inno"})
 

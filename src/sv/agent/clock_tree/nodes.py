@@ -49,12 +49,12 @@ _NODE_KIND_ALIASES: dict[str, str] = {
     "clock": "clk",
 }
 
-_LEGACY_DIV_KINDS = frozenset({"div", "div_n", "dto", "dto_n", "div_r"})
+_LEGACY_DIV_KINDS = frozenset({"div", "div_pow", "dto", "div_r"})
 
 _FREQ_HZ_U32_MAX = 2**32 - 1
 
 PllKind = Literal["tci", "sc", "dw", "inno"]
-DivKind = Literal["div", "div_n", "dto", "dto_n", "div_r"]
+DivKind = Literal["div", "div_pow", "dto", "div_r"]
 InvKind = Literal["inv", "inv_mux", "inv_cell"]
 SourceKind = Literal["source", "pad"]
 def _normalize_node_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -255,7 +255,13 @@ class DivNode(NodeBase):
     kind: Literal["div"] = "div"
     div_kind: DivKind = Field(
         "div",
-        description="分频器型号：div、div_n、dto、dto_n、div_r，大小写不限。",
+        description="分频器型号：div、div_pow、dto、div_r，大小写不限。",
+    )
+    width: int = Field(
+        6,
+        ge=1,
+        le=30,
+        description="div/div_pow 分频寄存器位宽；最大分频比为 2**width。dto/div_r 不使用。",
     )
     source: OptionalUpstreamSource = Field(
         default=None,
@@ -269,15 +275,36 @@ class DivNode(NodeBase):
     )
     regs: Dict[str, str] = Field(
         default_factory=dict,
-        description="非空时键由 div_kind 决定：div/div_n 为 rst、load、div；"
-        "dto/dto_n 为 rst、load、bypass、step；"
+        description="非空时键由 div_kind 决定：div/div_pow 为 rst、load、div；"
+        "dto 为 rst、load、bypass、step；"
         "div_r 不可配置寄存器，须为空。",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_width_input(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if "width" not in data:
+            return data
+        div_kind = normalize_div_kind(data.get("div_kind", "div"))
+        if div_kind not in ("div", "div_pow"):
+            raise ValueError(
+                f"{ERR.field('width')} 只支持 div/div_pow，不支持 {div_kind!r}"
+            )
+        return data
 
     @field_validator("div_kind", mode="before")
     @classmethod
     def _normalize_div_kind(cls, value: object) -> str:
         return normalize_div_kind(value)
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="div/div_pow 最大分频比，由 width 推导；YAML 不可传入。",
+    )
+    @property
+    def div_max_ratio(self) -> int:
+        return 1 << self.width
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由 div_kind 映射的 SV 模型类名片段；YAML 与 model_validate 不可传入。",
@@ -296,11 +323,15 @@ class DivNode(NodeBase):
                     f"{ERR.field('div_kind')} 为 'div_r' 时须填写 {ERR.field('ratio')}"
                 )
         elif self.ratio is not None:
-            if self.ratio > 64:
+            if self.div_kind in ("div", "div_pow"):
+                max_ratio = self.div_max_ratio
+            else:
+                max_ratio = 64
+            if self.ratio > max_ratio:
                 raise ValueError(
                     f"{ERR.node('div', node_name)} "
                     f"{ERR.field('div_kind')} 为 {self.div_kind!r} 时 "
-                    f"{ERR.field('ratio')} 须不大于 64，"
+                    f"{ERR.field('ratio')} 须不大于 {max_ratio}，"
                     f"得到 {self.ratio}"
                 )
         validate_regs_exact(
@@ -769,7 +800,7 @@ def _node_kind_diagnosis(item: Any) -> str:
         return f"缺少 {ERR.field('kind')} 字段"
     return (
         f"{ERR.field('kind')} 为 {kind!r} 无法识别，应为 {_NODE_KINDS_TEXT} 之一；"
-        f"分频旧写法可用 div、div_n、dto、dto_n、div_r 作为 {ERR.field('kind')}"
+        f"分频旧写法可用 div、div_pow、dto、div_r 作为 {ERR.field('kind')}"
     )
 
 

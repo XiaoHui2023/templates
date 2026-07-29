@@ -2,20 +2,25 @@
 `define {{ (settings.class_prefix ~ "div_div") | upper }}
 
 class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_base;
-    `uvm_object_utils({{ settings.class_prefix }}div_div)
+    `uvm_object_utils_begin({{ settings.class_prefix }}div_div)
+        `uvm_field_int(max_ratio, UVM_ALL_ON | UVM_DEC)
+    `uvm_object_utils_end
 {% if regs_enabled %}
     {{ settings.class_prefix }}reg f_rst;
     {{ settings.class_prefix }}reg f_load;
     {{ settings.class_prefix }}reg f_div;
 {% endif %}
+    int max_ratio;
 
     constraint cst_div {
+        max_ratio > 0;
         _resolved_ratio > 0;
-        _resolved_ratio <= 64;
+        _resolved_ratio <= max_ratio;
     }
 
     function new(string name = "");
         super.new(name);
+        max_ratio = 64;
 {% if regs_enabled %}
         f_rst = new();
         f_load = new();

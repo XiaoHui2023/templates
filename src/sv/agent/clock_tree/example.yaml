@@ -129,6 +129,7 @@ nodes:
     div0:
       kind: div
       div_kind: div
+      width: 6
       source: div_r_0
       regs:
         rst: blk_div0.rst
@@ -208,7 +209,7 @@ nodes:
 
     div_fixed:
       kind: div
-      div_kind: div_n
+      div_kind: div
       ratio: 6
       source: gate_fixed
       regs:
@@ -218,7 +219,7 @@ nodes:
 
     dto_rand:
       kind: div
-      div_kind: dto_n
+      div_kind: dto
       source: div_fixed
       regs:
         rst: blk_dto_rand.ctrl[0]

@@ -13,7 +13,7 @@
 ## 流程
 
 1. 先执行一次 **config_reg**。
-2. 收集 stable **clk** 的完整上游 **source** 链，并固定链上的控制节点。
+2. 收集 stable **clk** 的 **active domain**，并固定其中的控制节点。
 3. 进入 **optimized_config**，优化 **PLL** 频率并放开非 stable **clk** 频率。
 4. 对每个 **div** / **dto** 写入翻转 pattern。
 5. 只测被测节点上下游相通支路，关闭反选支路 **gate**，无关 **clk** / **cell** 临时约束为 inactive。
@@ -23,7 +23,7 @@
 
 每个 **div** / **dto** 单独计算相关支路。反选支路上的 **gate** 会关闭，无关 **clk** / **cell** 不参与本轮测量，也不会反向撑开上游路径。
 
-stable **clk** 上游可能经过 **cell** / **inv**。这些节点会随 stable 上游链保留，避免 stable **clk** 仍要求 active 时，上游 **cell** 被反选支路处理临时关掉。
+stable **clk** 上游可能经过 **cell** / **inv**，也可能和其它 **clk** / **cell** 共享当前 **source**。这些节点会随 stable **active domain** 保留，避免 stable **clk** 仍要求 active 时，同源 **cell** 被反选支路处理临时关掉。
 
 ### div / dto
 

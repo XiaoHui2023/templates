@@ -241,7 +241,10 @@ endfunction
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `div` | |
+| `div_kind` | `str` | `div` | 可填 `div` 或 `div_pow`；`div_pow` 与 `div` 使用同一套模型和寄存器。 |
+| `width` | `int` | `6` | 分频寄存器位宽；最大分频比为 `2**width`。仅 `div` / `div_pow` 支持。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
+| `ratio` | `int` | | 固定分频比；填写时不大于 `2**width`。 |
 | `regs.rst` | `str` | | 复位位。 |
 | `regs.load` | `str` | | 加载位。 |
 | `regs.div` | `str` | | 分频系数。 |
@@ -254,7 +257,7 @@ endfunction
 | --- | --- | --- | --- |
 | `kind` | `str` | `div_r` | 等价于 `kind: div` 且 `div_kind: div_r`。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `ratio` | `int` | | 固定分频比，大于 0；不受可配置 **div** 的 64 上限。 |
+| `ratio` | `int` | | 固定分频比，大于 0；不受可配置 **div** 的 **width** 上限。 |
 
 ### Node - dto
 

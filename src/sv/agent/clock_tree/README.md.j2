@@ -1,6 +1,6 @@
 # 说明
+{%- if any_node_path %}
 
-{% if any_node_path %}
 ## 例化接口
 
 ```systemverilog
@@ -10,8 +10,8 @@ module your_top_module;
     ...
 endmodule
 ```
+{%- endif %}
 
-{% endif %}
 ## 搭建
 
 ```systemverilog

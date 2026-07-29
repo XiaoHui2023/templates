@@ -214,6 +214,7 @@
 | --- | --- | --- |
 | **source** | **node_base** | 前级节点 |
 | **ratio** | **int**，**rand** | 分频比 |
+| **max_ratio** | **int** | 最大分频比，由 Python **width** 推导 |
 | **f_rst** | **reg** | |
 | **f_load** | **reg** | |
 | **f_div** | **reg** | |
@@ -223,7 +224,7 @@
 | 约束 | 说明 |
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
-| **cst_div** | **ratio** 只能取 1～64 的整数 |
+| **cst_div** | **ratio** 只能取 1～**max_ratio** 的整数 |
 | **cst_resolve_freq_from_src** | **source** 已连接且 **ratio** 大于 0 时，**_resolved_freq** 按 **settings.div_freq_tolerance** 落在前级频率整除 **ratio** 的结果附近 |
 
 ### div_div_r
