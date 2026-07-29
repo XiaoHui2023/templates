@@ -161,7 +161,6 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
     string combo_summary;
     {{ settings.class_prefix }}node_base connected[$];
     {{ settings.class_prefix }}node_base disconnected[$];
-    {{ settings.class_prefix }}route_activity_snap activity_snaps[$];
 
     n_run = 0;
     n_skip_sub = 0;
@@ -232,8 +231,6 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                 line, c);
             {{ settings.class_prefix }}optimized_config_scope_for_subject(
                 tree, subject, pinned_path, connected, disconnected);
-            {{ settings.class_prefix }}optimized_config_apply_disconnected_inactive(
-                disconnected, activity_snaps);
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "test_route:     %s line [%0d/%0d] %s, check %s, skip %s, config_reg",
@@ -242,7 +239,6 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                     {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
                     UVM_MEDIUM)
             if (!try_randomize_tree(tree, "line combo", quiet)) begin
-                {{ settings.class_prefix }}optimized_config_restore_activity(activity_snaps);
                 n_skip_combo++;
                 continue;
             end
@@ -255,14 +251,12 @@ task {{ settings.class_prefix }}test_route_seq::verify_one_direction(
                     `uvm_info("CLK_TREE", $sformatf(
                         "test_route:       skip line combo, stable clk invalid"),
                         UVM_MEDIUM)
-                {{ settings.class_prefix }}optimized_config_restore_activity(activity_snaps);
                 continue;
             end
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "test_route:       check_measure"), UVM_MEDIUM)
             run_check_measure_quiet(tree, debug, disconnected);
-            {{ settings.class_prefix }}optimized_config_restore_activity(activity_snaps);
             n_run++;
             if (!quiet)
                 `uvm_info("CLK_TREE", $sformatf(

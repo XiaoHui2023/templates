@@ -123,9 +123,9 @@ function automatic void {{ settings.class_prefix }}optimized_config_apply_tree(
 endfunction
 
 function automatic void {{ settings.class_prefix }}optimized_config_collect_scope(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base subject,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base subject,
+        input {{ settings.class_prefix }}node_base keep_nodes[$],
         output {{ settings.class_prefix }}node_base connected[$],
         output {{ settings.class_prefix }}node_base disconnected[$]);
     {{ settings.class_prefix }}node_base upstream_nodes[$];
@@ -152,77 +152,8 @@ function automatic void {{ settings.class_prefix }}optimized_config_collect_scop
     end
 endfunction
 
-function automatic void {{ settings.class_prefix }}optimized_config_close_disconnected_gates(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base disconnected[$]);
-    {{ settings.class_prefix }}gate gate_nd;
-    foreach (disconnected[i]) begin
-        if ($cast(gate_nd, disconnected[i])
-                && {{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
-            {{ settings.class_prefix }}route_structure_set_gate_open(gate_nd, 1'b0, 1'b1);
-    end
-endfunction
-
-function automatic void {{ settings.class_prefix }}optimized_config_apply_disconnected_inactive(
-        {{ settings.class_prefix }}node_base disconnected[$],
-        output {{ settings.class_prefix }}route_activity_snap snaps[$]);
-    {{ settings.class_prefix }}clk clk_nd;
-    {{ settings.class_prefix }}cell cell_nd;
-    {{ settings.class_prefix }}route_activity_snap snap;
-
-    snaps.delete();
-    foreach (disconnected[i]) begin
-        if ($cast(clk_nd, disconnected[i])) begin
-            if (clk_nd.stable)
-                continue;
-            snap = new;
-            snap.node = clk_nd;
-            snap.is_clk = 1'b1;
-            snap.clk_enabled = clk_nd.enabled;
-{%- if enable_node_fix %}
-            snap.clk_unfix_enabled = clk_nd.unfix_enabled;
-{%- endif %}
-            snaps.push_back(snap);
-            clk_nd.enabled = 1'b0;
-{%- if enable_node_fix %}
-            clk_nd.unfix_enabled = 1'b0;
-{%- endif %}
-        end else if ($cast(cell_nd, disconnected[i])) begin
-            snap = new;
-            snap.node = cell_nd;
-            snap.is_clk = 1'b0;
-            snap.cell_enabled = cell_nd.enabled;
-            snaps.push_back(snap);
-            cell_nd.enabled = 0;
-        end
-    end
-endfunction
-
-function automatic void {{ settings.class_prefix }}optimized_config_restore_activity(
-        {{ settings.class_prefix }}route_activity_snap snaps[$]);
-    {{ settings.class_prefix }}clk clk_nd;
-    {{ settings.class_prefix }}cell cell_nd;
-
-    foreach (snaps[i]) begin
-        if (snaps[i] == null || snaps[i].node == null)
-            continue;
-        if (snaps[i].is_clk) begin
-            if (!$cast(clk_nd, snaps[i].node))
-                continue;
-            clk_nd.enabled = snaps[i].clk_enabled;
-{%- if enable_node_fix %}
-            clk_nd.unfix_enabled = snaps[i].clk_unfix_enabled;
-{%- endif %}
-        end else begin
-            if (!$cast(cell_nd, snaps[i].node))
-                continue;
-            cell_nd.enabled = snaps[i].cell_enabled;
-        end
-    end
-endfunction
-
 function automatic void {{ settings.class_prefix }}optimized_config_save_tree_ctrl(
-        {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base nodes[$],
         output {{ settings.class_prefix }}route_ctrl_snap snaps[$]);
     {{ settings.class_prefix }}route_ctrl_snap one_snap;
@@ -247,14 +178,13 @@ function automatic void {{ settings.class_prefix }}optimized_config_restore_tree
 endfunction
 
 function automatic void {{ settings.class_prefix }}optimized_config_scope_for_subject(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base subject,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base subject,
+        input {{ settings.class_prefix }}node_base keep_nodes[$],
         output {{ settings.class_prefix }}node_base connected[$],
         output {{ settings.class_prefix }}node_base disconnected[$]);
     {{ settings.class_prefix }}optimized_config_collect_scope(
         tree, subject, keep_nodes, connected, disconnected);
-    {{ settings.class_prefix }}optimized_config_close_disconnected_gates(tree, disconnected);
 endfunction
 
 `endif
