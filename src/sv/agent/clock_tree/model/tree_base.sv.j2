@@ -45,9 +45,18 @@ function void {{ settings.class_prefix }}tree_base::require_built(string ctx);
 endfunction
 
 function void {{ settings.class_prefix }}tree_base::low_power();
+    {{ settings.class_prefix }}gate gate_nd;
     foreach (clock_nodes[i]) begin
         if (!clock_nodes[i].stable && clock_nodes[i].enabled > 0)
             clock_nodes[i].enabled = -1;
+    end
+    foreach (nodes[i]) begin
+        if ($cast(gate_nd, nodes[i])) begin
+            gate_nd.open = 0;
+{%- if enable_node_fix %}
+            gate_nd.unfix_open = 1'b0;
+{%- endif %}
+        end
     end
 endfunction
 

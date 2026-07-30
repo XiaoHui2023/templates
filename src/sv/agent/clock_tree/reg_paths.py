@@ -436,15 +436,20 @@ def any_reg_configured(tree: Tree) -> bool:
 
 
 def node_path_connectable(tree: Tree, node: object) -> bool:
-    """clk 节点 RTL path 非空时为真。"""
-    if getattr(node, "kind", "") not in ("clk", "cell"):
-        return False
-    path = getattr(node, "path", "")
-    return bool(path)
+    """节点有任一 RTL probe path 时为真。"""
+    if getattr(node, "kind", "") in ("clk", "cell"):
+        return bool(getattr(node, "path", ""))
+    if getattr(node, "in_path", "") or getattr(node, "out_path", ""):
+        return True
+    in_paths = getattr(node, "in_paths", None)
+    if in_paths:
+        return True
+    out_paths = getattr(node, "out_paths", None)
+    return bool(out_paths)
 
 
 def any_node_path(tree: Tree) -> bool:
-    """任一 clk 节点有可连接 RTL path 时为真，用于决定是否展开测量 interface。"""
+    """任一节点有可连接 RTL probe path 时为真，用于决定是否展开 interface。"""
     for node in tree.nodes_ordered:
         if node_path_connectable(tree, node):
             return True

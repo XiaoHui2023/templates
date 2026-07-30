@@ -18,6 +18,10 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
 {% if any_node_path %}
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     virtual {{ settings.class_prefix }}interface vif;
+    virtual {{ settings.class_prefix }}interface in_vif;
+    virtual {{ settings.class_prefix }}interface out_vif;
+    virtual {{ settings.class_prefix }}interface in_vifs[string];
+    virtual {{ settings.class_prefix }}interface out_vifs[string];
 `endif
 {% endif %}
 
@@ -42,6 +46,37 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         _print_fix = 0;
 {%- endif %}
     endfunction
+{% if any_node_path %}
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    function bit has_in_vif(string key = "");
+        if (key == "")
+            return in_vif != null;
+        return in_vifs.exists(key) && in_vifs[key] != null;
+    endfunction
+
+    function bit has_out_vif(string key = "");
+        if (key == "")
+            return out_vif != null;
+        return out_vifs.exists(key) && out_vifs[key] != null;
+    endfunction
+
+    function virtual {{ settings.class_prefix }}interface get_in_vif(string key = "");
+        if (key == "")
+            return in_vif;
+        if (!in_vifs.exists(key))
+            return null;
+        return in_vifs[key];
+    endfunction
+
+    function virtual {{ settings.class_prefix }}interface get_out_vif(string key = "");
+        if (key == "")
+            return out_vif;
+        if (!out_vifs.exists(key))
+            return null;
+        return out_vifs[key];
+    endfunction
+`endif
+{% endif %}
 endclass
 
 `endif

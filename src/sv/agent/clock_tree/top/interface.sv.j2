@@ -16,6 +16,11 @@ interface {{ settings.class_prefix }}interface #(
     timeunit 1ns;
     timeprecision 1fs;
 
+    bit drive_en;
+    bit drive_value;
+    bit clock_drive_en;
+    int clock_freq_hz;
+
     {{ settings.class_prefix }}measure_interface #(
         .MIN_FREQ_HZ(MIN_FREQ_HZ),
         .ACTIVE_CYCLES(ACTIVE_CYCLES),
@@ -25,6 +30,35 @@ interface {{ settings.class_prefix }}interface #(
         .DUTY_MAX_PCT(DUTY_MAX_PCT),
         .DUTY_TOL_PCT(DUTY_TOL_PCT)
     ) meas(.in(in));
+
+    // 静态驱动当前 probe 端口，具体 force 由 tree_interface 生成
+    // value — 驱动值
+    task automatic drive_static(bit value);
+        clock_drive_en = 1'b0;
+        drive_value = value;
+        drive_en = 1'b1;
+    endtask
+
+    // 在当前 probe 端口制造时钟激励，具体 force 由 tree_interface 生成
+    // freq_hz — 激励频率，Hz
+    task automatic start_clock(int freq_hz);
+        if (freq_hz <= 0)
+            return;
+        clock_freq_hz = freq_hz;
+        drive_value = 1'b0;
+        clock_drive_en = 1'b1;
+        drive_en = 1'b1;
+    endtask
+
+    // 停止当前 probe 端口驱动
+    task automatic release_drive();
+        clock_drive_en = 1'b0;
+        drive_en = 1'b0;
+    endtask
+
+    task automatic stop_clock();
+        release_drive();
+    endtask
 
     // 写测量开关；关时写入 last_* 并清零测量结果
     // en — 测量开关

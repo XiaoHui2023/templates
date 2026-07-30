@@ -9,88 +9,46 @@ class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
     `uvm_object_utils({{ settings.class_prefix }}test_flip_seq)
     `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
-    // 构造 div/dto 翻转测试序列
+    // 构造端口功能测试序列
     function new(string name = "{{ settings.class_prefix }}test_flip_seq");
         super.new(name);
     endfunction
 
-    // 验证 div/dto 控制位翻转后 clk 仍可测
+    // 执行端口功能测试并写回结果
     extern virtual task body();
-    // 校验当前树频率，默认静默打印
-    extern task run_check_measure_quiet(
-        {{ settings.class_prefix }}tree_base tree,
-        bit debug = 1'b0,
-        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
     // 按当前树状态写寄存器
     extern task run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
-    // 等待频率稳定并读出 last_phase_frac
-    extern task measure_node_phase(
-        input {{ settings.class_prefix }}node_base nd,
-        output real phase_frac,
-        output bit ok);
-    // 按 MSB 或 LSB 单比特 pattern 写 div 分频比后校验
-    extern task verify_div_flip_pattern(
+    // 测量一个端口频率
+    extern task measure_port_freq(
+        input virtual {{ settings.class_prefix }}interface vif,
+        input string label,
+        output real freq_hz);
+    // 确认一个端口不活跃
+    extern task check_port_inactive(
+        input virtual {{ settings.class_prefix }}interface vif,
+        input string label);
+    // 验证 gate 开关功能
+    extern task verify_gate(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_div div_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit msb_one_lsb_zero,
-        bit quiet,
-        bit debug);
-    // div 两种 field 单比特 pattern 各测一轮
-    extern task verify_div_flip(
+        {{ settings.class_prefix }}gate gate_nd,
+        bit quiet);
+    // 验证 div 功能
+    extern task verify_div(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_div div_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit quiet,
-        bit debug);
-    // 按 MSB 或 LSB 单比特 pattern 写 dto 分频比后校验
-    extern task verify_dto_flip_pattern(
+        {{ settings.class_prefix }}div_base div_nd,
+        bit quiet);
+    // 验证 mux 选择功能
+    extern task verify_mux(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_dto dto_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit msb_one_lsb_zero,
-        bit quiet,
-        bit debug);
-    // dto 两种 field 单比特 pattern 各测一轮
-    extern task verify_dto_flip(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_dto dto_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit quiet,
-        bit debug);
-    // 翻转 inv 控制并检查相位差约半周期
-    extern task verify_inv_flip(
+        {{ settings.class_prefix }}mux mux_nd,
+        bit quiet);
+    // 验证 inv 频率透传功能
+    extern task verify_inv(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}inv inv_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet);
 endclass
-
-task {{ settings.class_prefix }}test_flip_seq::run_check_measure_quiet(
-        {{ settings.class_prefix }}tree_base tree,
-        bit debug = 1'b0,
-        {{ settings.class_prefix }}node_base skip_nodes[$] = {});
-    {{ settings.class_prefix }}check_measure_req meas_req;
-    {{ settings.class_prefix }}check_measure_rsp meas_rsp;
-    {{ settings.class_prefix }}check_measure_seq meas_seq;
-
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "test_flip: tree is null for check_measure")
-    meas_req = {{ settings.class_prefix }}check_measure_req::type_id::create("meas_req");
-    meas_req.tree = tree;
-    meas_req.quiet = 1'b1;
-    meas_req.debug = debug;
-    meas_req.check_freq = 1'b1;
-    meas_req.check_duty = 1'b0;
-    meas_req.skip_nodes = skip_nodes;
-    meas_seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
-    meas_seq.req = meas_req;
-    meas_seq.start(p_sequencer);
-    meas_rsp = meas_seq.rsp;
-    if (meas_rsp == null || !meas_rsp.ok)
-        `uvm_fatal("CLK_TREE", "test_flip: check_measure failed")
-endtask
 
 task {{ settings.class_prefix }}test_flip_seq::run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
@@ -109,282 +67,228 @@ task {{ settings.class_prefix }}test_flip_seq::run_config_reg(
         `uvm_fatal("CLK_TREE", "test_flip: config_reg failed")
 endtask
 
-task {{ settings.class_prefix }}test_flip_seq::measure_node_phase(
-        input {{ settings.class_prefix }}node_base nd,
-        output real phase_frac,
-        output bit ok);
-    int meas_period_ns;
-    int meas_active_timeout_ns;
-    int meas_stable_timeout_ns;
-    int meas_timeout_ns;
-    int elapsed_ns;
+task {{ settings.class_prefix }}test_flip_seq::measure_port_freq(
+        input virtual {{ settings.class_prefix }}interface vif,
+        input string label,
+        output real freq_hz);
+    bit ok;
 
-    phase_frac = 0.0;
-    ok = 1'b0;
-    if (nd == null || nd.vif == null)
-        return;
-
-    meas_period_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1)
-        / {{ settings.min_freq_hz }};
-    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }};
-    meas_stable_timeout_ns = meas_period_ns * {{ settings.stable_cycles }};
-    meas_timeout_ns = meas_active_timeout_ns + meas_stable_timeout_ns;
-    nd.vif.start_measure();
-    elapsed_ns = 0;
-    while (elapsed_ns < meas_active_timeout_ns) begin
-        if (nd.vif.meas.activity_ok || nd.vif.meas.inactive)
-            break;
-        if (!nd.vif.meas.meas_en)
-            break;
-        #1ns;
-        elapsed_ns++;
-    end
-    if (!nd.vif.meas.activity_ok) begin
-        nd.vif.stop_measure();
-        return;
-    end
-    elapsed_ns = 0;
-    while (elapsed_ns < meas_stable_timeout_ns) begin
-        if (nd.vif.meas.timed_out)
-            break;
-        if (!nd.vif.meas.meas_en)
-            break;
-        if (nd.vif.meas.freq_stable) begin
-            ok = 1'b1;
-            break;
-        end
-        #1ns;
-        elapsed_ns++;
-    end
-    nd.vif.stop_measure();
-    if (ok && nd.vif.meas.last_valid)
-        phase_frac = nd.vif.meas.last_phase_frac;
-    else
-        ok = 1'b0;
+    freq_hz = 0.0;
+    if (vif == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "test_flip: %s missing interface", label))
+    vif.start_measure();
+    vif.wait_measure_stable(1'b1, 1'b0, ok);
+    vif.stop_measure();
+    if (!ok || !vif.meas.last_valid)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "test_flip: %s frequency did not stabilize", label))
+    freq_hz = vif.meas.last_freq_hz;
 endtask
 
-task {{ settings.class_prefix }}test_flip_seq::verify_div_flip_pattern(
+task {{ settings.class_prefix }}test_flip_seq::check_port_inactive(
+        input virtual {{ settings.class_prefix }}interface vif,
+        input string label);
+    bit ok;
+
+    if (vif == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "test_flip: %s missing interface", label))
+    vif.start_measure();
+    vif.wait_measure_stable(1'b0, 1'b0, ok);
+    vif.stop_measure();
+    if (vif.meas.activity_ok)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "test_flip: %s expected inactive but active", label))
+endtask
+
+task {{ settings.class_prefix }}test_flip_seq::verify_gate(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_div div_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit msb_one_lsb_zero,
-        bit quiet,
-        bit debug);
-    {{ settings.class_prefix }}route_ctrl_snap snap;
-    {{ settings.class_prefix }}node_base saved_nodes[$];
-    {{ settings.class_prefix }}route_ctrl_snap saved_snaps[$];
-    {{ settings.class_prefix }}node_base connected[$];
-    {{ settings.class_prefix }}node_base disconnected[$];
-    int probe_ratio;
-    string pat_label;
+        {{ settings.class_prefix }}gate gate_nd,
+        bit quiet);
+    virtual {{ settings.class_prefix }}interface in_vif;
+    virtual {{ settings.class_prefix }}interface out_vif;
+    real freq_hz;
+
+    if (gate_nd == null)
+        return;
+    in_vif = gate_nd.get_in_vif();
+    out_vif = gate_nd.get_out_vif();
+    if (in_vif == null || out_vif == null || !gate_nd.f_reg.is_bound()) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip gate %s, missing interface or reg",
+                gate_nd.get_name()), UVM_LOW)
+        return;
+    end
+
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: gate %s", gate_nd.get_name()), UVM_LOW)
+
+    in_vif.start_clock(100_000_000);
+    gate_nd.open = 1;
+{%- if enable_node_fix %}
+    gate_nd.unfix_open = 1'b0;
+{%- endif %}
+    run_config_reg(tree, 1'b1);
+    measure_port_freq(out_vif, {gate_nd.get_name(), ".out open"}, freq_hz);
+
+    gate_nd.open = 0;
+    run_config_reg(tree, 1'b1);
+    check_port_inactive(out_vif, {gate_nd.get_name(), ".out close"});
+    in_vif.release_drive();
+endtask
+
+task {{ settings.class_prefix }}test_flip_seq::verify_div(
+        {{ settings.class_prefix }}tree_base tree,
+        {{ settings.class_prefix }}div_base div_nd,
+        bit quiet);
+    virtual {{ settings.class_prefix }}interface in_vif;
+    virtual {{ settings.class_prefix }}interface out_vif;
+    real out_freq_hz;
+    real expected_freq_hz;
+    real err_ratio;
+    int ratio;
 
     if (div_nd == null)
         return;
-    if (!div_nd.f_div.is_bound())
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: div %s f_div not bound", div_nd.get_name()))
+    in_vif = div_nd.get_in_vif();
+    out_vif = div_nd.get_out_vif();
+    if (in_vif == null || out_vif == null) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip div %s, missing in/out interface",
+                div_nd.get_name()), UVM_LOW)
+        return;
+    end
 
-    probe_ratio = {{ settings.class_prefix }}div_ratio_for_reg_flip(
-        div_nd.f_div, msb_one_lsb_zero);
-    pat_label = msb_one_lsb_zero ? "msb1_lsb0" : "msb0_lsb1";
+    ratio = 4;
+    if (div_nd.kind != "div")
+        return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: div %s ratio %0d",
+            div_nd.get_name(), ratio), UVM_LOW)
 
-    {{ settings.class_prefix }}optimized_config_save_tree_ctrl(tree, saved_nodes, saved_snaps);
-    {{ settings.class_prefix }}route_structure_save_ctrl(div_nd, snap);
-
-    div_nd.ratio = probe_ratio;
+    in_vif.start_clock(800_000_000);
+    div_nd.ratio = ratio;
+{%- if enable_node_fix %}
     div_nd.unfix_ratio = 1'b0;
-    {{ settings.class_prefix }}optimized_config_scope_for_subject(
-        tree, div_nd, keep_nodes, connected, disconnected);
+{%- endif %}
+    run_config_reg(tree, 1'b1);
+    measure_port_freq(out_vif, {div_nd.get_name(), ".out"}, out_freq_hz);
 
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: div %s %s ratio %0d, check %s, skip %s",
-            div_nd.get_name(), pat_label, probe_ratio,
-            {{ settings.class_prefix }}route_structure_format_node_names(connected),
-            {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
-            UVM_MEDIUM)
-    run_config_reg(tree, quiet);
-    run_check_measure_quiet(tree, debug, disconnected);
-
-    {{ settings.class_prefix }}route_structure_apply_ctrl(div_nd, snap, 1'b1);
-    {{ settings.class_prefix }}optimized_config_restore_tree_ctrl(saved_nodes, saved_snaps);
-    run_config_reg(tree, quiet);
-
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: div %s %s restored ratio %0d",
-            div_nd.get_name(), pat_label, snap.ratio), UVM_MEDIUM)
-endtask
-
-task {{ settings.class_prefix }}test_flip_seq::verify_div_flip(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_div div_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit quiet,
-        bit debug);
-    int width;
-
-    if (div_nd == null)
-        return;
-    width = {{ settings.class_prefix }}reg_field_width(div_nd.f_div);
-    verify_div_flip_pattern(tree, div_nd, keep_nodes, 1'b1, quiet, debug);
-    if (width > 1)
-        verify_div_flip_pattern(tree, div_nd, keep_nodes, 1'b0, quiet, debug);
-endtask
-
-task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip_pattern(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_dto dto_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit msb_one_lsb_zero,
-        bit quiet,
-        bit debug);
-    {{ settings.class_prefix }}route_ctrl_snap snap;
-    {{ settings.class_prefix }}node_base saved_nodes[$];
-    {{ settings.class_prefix }}route_ctrl_snap saved_snaps[$];
-    {{ settings.class_prefix }}node_base connected[$];
-    {{ settings.class_prefix }}node_base disconnected[$];
-    int probe_ratio;
-    string pat_label;
-
-    if (dto_nd == null)
-        return;
-    if (!dto_nd.f_step.is_bound())
+    expected_freq_hz = 800_000_000.0 / ratio;
+    err_ratio = (out_freq_hz > expected_freq_hz)
+        ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
+        : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
+    if (err_ratio > {{ settings.period_tolerance }}) begin
+        in_vif.release_drive();
         `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: dto %s f_step not bound", dto_nd.get_name()))
-
-    probe_ratio = {{ settings.class_prefix }}dto_ratio_for_reg_flip(
-        dto_nd.f_step, msb_one_lsb_zero);
-    pat_label = msb_one_lsb_zero ? "msb1_lsb0" : "msb0_lsb1";
-
-    {{ settings.class_prefix }}optimized_config_save_tree_ctrl(tree, saved_nodes, saved_snaps);
-    {{ settings.class_prefix }}route_structure_save_ctrl(dto_nd, snap);
-
-    dto_nd.ratio = probe_ratio;
-    dto_nd.unfix_ratio = 1'b0;
-    {{ settings.class_prefix }}optimized_config_scope_for_subject(
-        tree, dto_nd, keep_nodes, connected, disconnected);
-
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: dto %s %s ratio %0d, check %s, skip %s",
-            dto_nd.get_name(), pat_label, probe_ratio,
-            {{ settings.class_prefix }}route_structure_format_node_names(connected),
-            {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
-            UVM_MEDIUM)
-    run_config_reg(tree, quiet);
-    run_check_measure_quiet(tree, debug, disconnected);
-
-    {{ settings.class_prefix }}route_structure_apply_ctrl(dto_nd, snap, 1'b1);
-    {{ settings.class_prefix }}optimized_config_restore_tree_ctrl(saved_nodes, saved_snaps);
-    run_config_reg(tree, quiet);
-
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: dto %s %s restored ratio %0d",
-            dto_nd.get_name(), pat_label, snap.ratio), UVM_MEDIUM)
+            "test_flip: div %s output %0.2f Hz expected %0.2f Hz",
+            div_nd.get_name(), out_freq_hz, expected_freq_hz))
+    end
+    in_vif.release_drive();
 endtask
 
-task {{ settings.class_prefix }}test_flip_seq::verify_dto_flip(
+task {{ settings.class_prefix }}test_flip_seq::verify_mux(
         {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}div_dto dto_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
-        bit quiet,
-        bit debug);
-    int width;
+        {{ settings.class_prefix }}mux mux_nd,
+        bit quiet);
+    virtual {{ settings.class_prefix }}interface in_vif;
+    virtual {{ settings.class_prefix }}interface out_vif;
+    real out_freq_hz;
+    real expected_freq_hz[int];
+    real err_ratio;
+    string in_key;
+    int stim_freq_hz;
 
-    if (dto_nd == null)
+    if (mux_nd == null)
         return;
-    width = {{ settings.class_prefix }}reg_field_width(dto_nd.f_step);
-    verify_dto_flip_pattern(tree, dto_nd, keep_nodes, 1'b1, quiet, debug);
-    if (width > 1)
-        verify_dto_flip_pattern(tree, dto_nd, keep_nodes, 1'b0, quiet, debug);
+    out_vif = mux_nd.get_out_vif();
+    if (out_vif == null || !mux_nd.f_reg.is_bound()) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip mux %s, missing out interface or reg",
+                mux_nd.get_name()), UVM_LOW)
+        return;
+    end
+
+    foreach (mux_nd.to_source[k]) begin
+        in_key = $sformatf("%0d", k);
+        in_vif = mux_nd.get_in_vif(in_key);
+        if (in_vif == null) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_flip: skip mux %s input %s, missing interface",
+                    mux_nd.get_name(), in_key), UVM_LOW)
+            return;
+        end
+        stim_freq_hz = 100_000_000 + k * 37_000_000;
+        expected_freq_hz[k] = stim_freq_hz;
+        in_vif.start_clock(stim_freq_hz);
+    end
+
+    foreach (mux_nd.to_source[k]) begin
+        mux_nd.sel = k;
+{%- if enable_node_fix %}
+        mux_nd.unfix_sel = 1'b0;
+{%- endif %}
+        run_config_reg(tree, 1'b1);
+        measure_port_freq(out_vif, {mux_nd.get_name(), ".out"}, out_freq_hz);
+        err_ratio = (out_freq_hz > expected_freq_hz[k])
+            ? ((out_freq_hz - expected_freq_hz[k]) / expected_freq_hz[k])
+            : ((expected_freq_hz[k] - out_freq_hz) / expected_freq_hz[k]);
+        if (err_ratio > {{ settings.period_tolerance }})
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_flip: mux %s sel %0d output %0.2f Hz expected %0.2f Hz",
+                mux_nd.get_name(), k, out_freq_hz, expected_freq_hz[k]))
+    end
+
+    foreach (mux_nd.to_source[k]) begin
+        in_key = $sformatf("%0d", k);
+        in_vif = mux_nd.get_in_vif(in_key);
+        if (in_vif != null)
+            in_vif.release_drive();
+    end
 endtask
 
-task {{ settings.class_prefix }}test_flip_seq::verify_inv_flip(
+task {{ settings.class_prefix }}test_flip_seq::verify_inv(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}inv inv_nd,
-        {{ settings.class_prefix }}node_base keep_nodes[$],
         bit quiet);
-    real phase_before;
-    real phase_after;
-    real phase_diff;
-    real phase_err;
-    bit ok;
-    bit saved_inverted;
-    {{ settings.class_prefix }}node_base saved_nodes[$];
-    {{ settings.class_prefix }}route_ctrl_snap saved_snaps[$];
-    {{ settings.class_prefix }}node_base connected[$];
-    {{ settings.class_prefix }}node_base disconnected[$];
+    virtual {{ settings.class_prefix }}interface in_vif;
+    virtual {{ settings.class_prefix }}interface out_vif;
+    real out_freq_hz;
 
     if (inv_nd == null)
         return;
-    if (inv_nd.vif == null)
+    in_vif = inv_nd.get_in_vif();
+    out_vif = inv_nd.get_out_vif();
+    if (in_vif == null || out_vif == null || !inv_nd.f_reg.is_bound()) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip inv %s, missing interface or reg",
+                inv_nd.get_name()), UVM_LOW)
         return;
-    if (!inv_nd.f_reg.is_bound())
-        return;
+    end
 
-    saved_inverted = inv_nd.inverted;
-    {{ settings.class_prefix }}optimized_config_save_tree_ctrl(tree, saved_nodes, saved_snaps);
-    {{ settings.class_prefix }}optimized_config_scope_for_subject(
-        tree, inv_nd, keep_nodes, connected, disconnected);
-    run_config_reg(tree, quiet);
-
-    measure_node_phase(inv_nd, phase_before, ok);
-    if (!ok)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: inv %s phase before flip did not stabilize",
-            inv_nd.get_name()))
-
-    inv_nd.inverted = !inv_nd.inverted;
-    inv_nd.fix_inverted = 1'b1;
-
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: inv %s toggle inverted to %0b, check %s, skip %s",
-            inv_nd.get_name(), inv_nd.inverted,
-            {{ settings.class_prefix }}route_structure_format_node_names(connected),
-            {{ settings.class_prefix }}route_structure_format_node_names(disconnected)),
-            UVM_MEDIUM)
-    run_config_reg(tree, quiet);
-
-    measure_node_phase(inv_nd, phase_after, ok);
-    if (!ok)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: inv %s phase after flip did not stabilize",
-            inv_nd.get_name()))
-
-    phase_diff = phase_after - phase_before;
-    if (phase_diff < 0.0)
-        phase_diff += 1.0;
-    phase_err = (phase_diff > 0.5) ? (phase_diff - 0.5) : (0.5 - phase_diff);
-    if (phase_err > {{ settings.period_tolerance }})
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: inv %s phase diff %0.4f expected ~0.5 before %0.4f after %0.4f",
-            inv_nd.get_name(), phase_diff, phase_before, phase_after))
-
-    inv_nd.inverted = saved_inverted;
-    inv_nd.fix_inverted = 1'b0;
-    {{ settings.class_prefix }}optimized_config_restore_tree_ctrl(saved_nodes, saved_snaps);
-    run_config_reg(tree, quiet);
-
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: inv %s phase flip OK diff %0.4f",
-            inv_nd.get_name(), phase_diff), UVM_MEDIUM)
+    in_vif.start_clock(200_000_000);
+    run_config_reg(tree, 1'b1);
+    measure_port_freq(out_vif, {inv_nd.get_name(), ".out"}, out_freq_hz);
+    in_vif.release_drive();
 endtask
 
 task {{ settings.class_prefix }}test_flip_seq::body();
     {{ settings.class_prefix }}test_flip_req rq;
     {{ settings.class_prefix }}test_flip_rsp rs;
     {{ settings.class_prefix }}tree_base tree;
-    {{ settings.class_prefix }}node_base subjects[$];
-    {{ settings.class_prefix }}node_base probe_subjects[$];
-    {{ settings.class_prefix }}div_div div_nd;
-    {{ settings.class_prefix }}div_dto dto_nd;
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}div_base div_nd;
+    {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}inv inv_nd;
-    {{ settings.class_prefix }}node_base stable_keep[$];
-    int i;
+    int checked;
 
     if (req == null)
         `uvm_fatal("CLK_TREE", "test_flip: req is null")
@@ -395,69 +299,40 @@ task {{ settings.class_prefix }}test_flip_seq::body();
         `uvm_fatal("CLK_TREE", "test_flip: tree is null")
     tree.require_built("test_flip");
 
-    if (!rq.quiet || rq.debug)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: begin tree %s debug %0b", tree.get_name(), rq.debug), UVM_LOW)
-
-    run_config_reg(tree, rq.quiet);
-
-    {{ settings.class_prefix }}route_structure_collect_stable_active_domain(
-        tree, stable_keep);
-
     rs = {{ settings.class_prefix }}test_flip_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
+    checked = 0;
 
-    {{ settings.class_prefix }}route_structure_collect_flip_subjects(
-        tree, {}, subjects);
-    if (subjects.size() == 0)
-        `uvm_fatal("CLK_TREE",
-            "test_flip: no div or dto node with bound regs in scope")
+    if (!rq.quiet || rq.debug)
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: begin tree %s", tree.get_name()), UVM_LOW)
 
-    probe_subjects.delete();
-    foreach (subjects[i]) begin
-        if ({{ settings.class_prefix }}node_in_queue(subjects[i], stable_keep)) begin
-            if (!rq.quiet)
-                `uvm_info("CLK_TREE", $sformatf(
-                    "test_flip: skip subject %s (%s), on selected path to stable clk",
-                    subjects[i].get_name(), subjects[i].kind), UVM_LOW)
-            continue;
-        end
-        probe_subjects.push_back(subjects[i]);
-    end
-    if (probe_subjects.size() == 0)
-        `uvm_fatal("CLK_TREE",
-            "test_flip: no div or dto subject after stable path filter")
-
-    {{ settings.class_prefix }}optimized_config_apply_tree(tree, stable_keep);
-    {{ settings.class_prefix }}route_structure_pin_gate_mux_fix(tree, stable_keep);
-
-    for (i = 0; i < probe_subjects.size(); i++) begin
-        if ($cast(div_nd, probe_subjects[i]))
-            verify_div_flip(tree, div_nd, stable_keep, rq.quiet, rq.debug);
-        else if ($cast(dto_nd, probe_subjects[i]))
-            verify_dto_flip(tree, dto_nd, stable_keep, rq.quiet, rq.debug);
-        else
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "test_flip: subject %s is not div or dto",
-                probe_subjects[i].get_name()))
-    end
-
-    for (i = 0; i < tree.nodes.size(); i++) begin
-        if (!$cast(inv_nd, tree.nodes[i]))
-            continue;
-        verify_inv_flip(tree, inv_nd, stable_keep, rq.quiet);
-    end
-
-    if (!rq.quiet)
-        `uvm_info("CLK_TREE",
-            "test_flip: clear fix/unfix + config_reg", UVM_LOW)
-    {{ settings.class_prefix }}route_structure_clear_all_fix(tree);
+    tree.low_power();
     run_config_reg(tree, rq.quiet);
+
+    foreach (tree.nodes[i]) begin
+        if ($cast(gate_nd, tree.nodes[i])) begin
+            verify_gate(tree, gate_nd, rq.quiet);
+            checked++;
+        end else if ($cast(div_nd, tree.nodes[i])) begin
+            verify_div(tree, div_nd, rq.quiet);
+            checked++;
+        end else if ($cast(mux_nd, tree.nodes[i])) begin
+            verify_mux(tree, mux_nd, rq.quiet);
+            checked++;
+        end else if ($cast(inv_nd, tree.nodes[i])) begin
+            verify_inv(tree, inv_nd, rq.quiet);
+            checked++;
+        end
+    end
+
+    if (checked == 0)
+        `uvm_fatal("CLK_TREE", "test_flip: no gate/div/mux/inv subject")
 
     if (!rq.quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: passed, %0d subject node(s)",
-            probe_subjects.size()), UVM_LOW)
+            "test_flip: passed, %0d subject(s), pll flip skipped",
+            checked), UVM_LOW)
 
     rsp = rs;
 endtask

@@ -4,17 +4,21 @@ nodes:
       kind: source
       source_kind: source
       freq: 24000000
+      out_path: dut.xtal_clk
 
     pad_xtal:
       kind: source
       source_kind: pad
       freq: 24000000
+      out_path: dut.pad_xtal_clk
 
     pll_tci:
       kind: pll
       source: xtal
       pll_kind: tci
       freq: 48000000
+      in_path: dut.pll_tci_ref
+      out_path: dut.pll_tci_clk
       regs:
         lock: blk_pll_tci.lock
         bypass: blk_pll_tci.bypass
@@ -30,6 +34,8 @@ nodes:
       source: xtal
       pll_kind: sc
       freq: 60000000
+      in_path: dut.pll_sc_ref
+      out_path: dut.pll_sc_clk
       regs:
         lock: blk_pll_sc.lock
         vocpd: blk_pll_sc.vocpd
@@ -47,6 +53,8 @@ nodes:
       source: xtal
       pll_kind: dw
       freq: 72000000
+      in_path: dut.pll_dw_ref
+      out_path: dut.pll_dw_clk
       regs:
         lock: blk_pll_dw.lock
         fbdiv: blk_pll_dw.fbdiv
@@ -67,6 +75,10 @@ nodes:
       source: xtal
       pll_kind: inno
       freq: 48000000
+      in_path: dut.pll_inno_ref
+      out_paths:
+        "0": dut.pll_inno_clk0
+        "1": dut.pll_inno_clk1
       regs:
         lock: blk_pll_inno.lock
         pd: blk_pll_inno.pd
@@ -82,6 +94,10 @@ nodes:
       source:
         "0": pll_inno[0]
         "1": pll_inno[1]
+      in_paths:
+        "0": dut.mux_pll_i0
+        "1": dut.mux_pll_i1
+      out_path: dut.mux_pll_o
       reg: blk_mux_pll.sel
 
     mux_ref:
@@ -89,11 +105,17 @@ nodes:
       source:
         "0": mux_pll
         "1": xtal
+      in_paths:
+        "0": dut.mux_ref_i0
+        "1": dut.mux_ref_i1
+      out_path: dut.mux_ref_o
       reg: blk_mux_ref.sel
 
     gate0:
       kind: gate
       source: mux_ref
+      in_path: dut.gate0_i
+      out_path: dut.gate0_o
       reg: blk_gate0.en
 
     cell_buf:
@@ -113,6 +135,8 @@ nodes:
       kind: gate
       source: xtal
       open: 0
+      in_path: dut.gate_cell_off_i
+      out_path: dut.gate_cell_off_o
 
     cell_disabled:
       kind: cell
@@ -130,6 +154,8 @@ nodes:
       kind: div
       div_kind: div
       source: div_r_0
+      in_path: dut.div0_i
+      out_path: dut.div0_o
       regs:
         rst: blk_div0.rst
         load: blk_div0.load
@@ -139,11 +165,15 @@ nodes:
       kind: inv
       inv_kind: inv
       source: div0
+      in_path: dut.inv0_i
+      out_path: dut.inv0_o
 
     dto0:
       kind: div
       div_kind: dto
       source: inv0
+      in_path: dut.dto0_i
+      out_path: dut.dto0_o
       regs:
         rst: blk_dto0.rst
         load: blk_dto0.load
@@ -189,6 +219,12 @@ nodes:
         "1": pll_sc
         "2": pll_dw
         "3": pll_inno[1]
+      in_paths:
+        "0": dut.mux_wide_i0
+        "1": dut.mux_wide_i1
+        "2": dut.mux_wide_i2
+        "3": dut.mux_wide_i3
+      out_path: dut.mux_wide_o
       reg: blk_mux_wide.sel[1:0]
 
     mux_fixed:
@@ -198,12 +234,19 @@ nodes:
         "0": mux_ref
         "1": mux_wide
         "2": pad_xtal
+      in_paths:
+        "0": dut.mux_fixed_i0
+        "1": dut.mux_fixed_i1
+        "2": dut.mux_fixed_i2
+      out_path: dut.mux_fixed_o
       reg: blk_mux_fixed.sel[1:0]
 
     gate_fixed:
       kind: gate
       open: 1
       source: mux_fixed
+      in_path: dut.gate_fixed_i
+      out_path: dut.gate_fixed_o
       reg: blk_gate_fixed.en
 
     div_fixed:
@@ -211,6 +254,8 @@ nodes:
       div_kind: div
       ratio: 6
       source: gate_fixed
+      in_path: dut.div_fixed_i
+      out_path: dut.div_fixed_o
       regs:
         rst: blk_div_fixed.ctrl[0]
         load: blk_div_fixed.ctrl[1]
@@ -220,6 +265,8 @@ nodes:
       kind: div
       div_kind: dto
       source: div_fixed
+      in_path: dut.dto_rand_i
+      out_path: dut.dto_rand_o
       regs:
         rst: blk_dto_rand.ctrl[0]
         load: blk_dto_rand.ctrl[1]
@@ -230,6 +277,8 @@ nodes:
       kind: inv
       inv_kind: inv_mux
       source: dto_rand
+      in_path: dut.inv_mux0_i
+      out_path: dut.inv_mux0_o
       reg: blk_inv_mux0.sel
 
     clk_wide_a:

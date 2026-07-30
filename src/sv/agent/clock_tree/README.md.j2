@@ -25,10 +25,10 @@ function void build_phase(uvm_phase phase);
     tree = {{ settings.class_prefix }}tree::type_id::create("tree");
 {% if any_node_path and regs_enabled %}
     tree.build(your_regmodel);
-    {{ settings.class_prefix }}connect(tree, your_top_module.clk_tree_if);
+    {{ settings.class_prefix }}connect(your_top_module.clk_tree_if, tree);
 {% elif any_node_path %}
     tree.build();
-    {{ settings.class_prefix }}connect(tree, your_top_module.clk_tree_if);
+    {{ settings.class_prefix }}connect(your_top_module.clk_tree_if, tree);
 {% elif regs_enabled %}
     tree.build(your_regmodel);
 {% else %}

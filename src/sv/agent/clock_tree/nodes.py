@@ -25,7 +25,6 @@ from reg_paths import (
     PLL_KIND_TO_SV,
     SOURCE_KIND_TO_SV,
     div_reg_keys_for_kind,
-    node_path_connectable,
     normalize_cell_kind,
     normalize_div_kind,
     normalize_inv_kind,
@@ -129,6 +128,57 @@ class SvNodeSlot:
     access: str
 
 
+@dataclass(frozen=True)
+class SvPortSlot:
+    """展开到 SV 的单个 RTL probe 端口。"""
+
+    node_key: str
+    group_id: str
+    access: str
+    role: str
+    port_key: str
+    path: str
+    instance_name: str
+    force_macro: str
+
+
+def _validate_sv_dot_path(value: Optional[str], *, field: str) -> Optional[str]:
+    if value is None:
+        return value
+    for seg in value.split("."):
+        if not _SV_ID.match(seg):
+            raise ValueError(
+                f"{ERR.field(field)} 段 {seg!r} 须为合法 SystemVerilog 名字，"
+                f"完整 {ERR.field(field)}: {value!r}"
+            )
+    return value
+
+
+def _validate_path_map(
+    value: Optional[Dict[str, str]],
+    *,
+    field: str,
+) -> Optional[Dict[str, str]]:
+    if value is None:
+        return value
+    for key, path in value.items():
+        if not _GROUP_KEY_RE.match(str(key)):
+            raise ValueError(
+                f"{ERR.field(field)} 键 {key!r} 须为合法 SystemVerilog 名字"
+            )
+        _validate_sv_dot_path(path, field=field)
+    return {str(key): path for key, path in value.items()}
+
+
+def _reject_fields(data: Any, *, kind: str, fields: Dict[str, str]) -> Any:
+    if not isinstance(data, dict):
+        return data
+    for field, replacement in fields.items():
+        if field in data:
+            raise ValueError(ERR.unsupported_field(kind, field, replacement))
+    return data
+
+
 class SourceRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -214,6 +264,16 @@ class NodeBase(BaseModel):
 
 class GateNode(NodeBase):
     kind: Literal["gate"] = "gate"
+    in_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输入端 RTL 层次路径；用于 route/flip probe，可省略。",
+    )
+    out_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+    )
     source: OptionalUpstreamSource = Field(
         default=None,
         description="前级引用；省略或空表示无前级。",
@@ -228,6 +288,20 @@ class GateNode(NodeBase):
         "",
         description="寄存器模型路径。",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_path_plural(cls, data: Any) -> Any:
+        return _reject_fields(
+            data,
+            kind="gate",
+            fields={"in_paths": "in_path", "out_paths": "out_path"},
+        )
+
+    @field_validator("in_path", "out_path")
+    @classmethod
+    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @computed_field(  # type: ignore[prop-decorator]
         description="tree 构造写入 open；省略时为 -1；YAML 不可传入。",
@@ -253,6 +327,16 @@ class GateNode(NodeBase):
 
 class DivNode(NodeBase):
     kind: Literal["div"] = "div"
+    in_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输入端 RTL 层次路径；用于 route/flip probe，可省略。",
+    )
+    out_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+    )
     div_kind: DivKind = Field(
         "div",
         description="分频器型号：div、dto、div_r，大小写不限。",
@@ -273,6 +357,20 @@ class DivNode(NodeBase):
         "dto 为 rst、load、bypass、step；"
         "div_r 不可配置寄存器，须为空。",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_path_plural(cls, data: Any) -> Any:
+        return _reject_fields(
+            data,
+            kind="div",
+            fields={"in_paths": "in_path", "out_paths": "out_path"},
+        )
+
+    @field_validator("in_path", "out_path")
+    @classmethod
+    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @field_validator("div_kind", mode="before")
     @classmethod
@@ -320,6 +418,16 @@ class DivNode(NodeBase):
 
 class InvNode(NodeBase):
     kind: Literal["inv"] = "inv"
+    in_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输入端 RTL 层次路径；用于 route/flip probe，可省略。",
+    )
+    out_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+    )
     inv_kind: InvKind = Field(
         "inv",
         description="反相器型号：inv、inv_mux、inv_cell，大小写不限。",
@@ -332,6 +440,20 @@ class InvNode(NodeBase):
         "",
         description="反相/直通控制寄存器模型路径。",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_path_plural(cls, data: Any) -> Any:
+        return _reject_fields(
+            data,
+            kind="inv",
+            fields={"in_paths": "in_path", "out_paths": "out_path"},
+        )
+
+    @field_validator("in_path", "out_path")
+    @classmethod
+    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @field_validator("inv_kind", mode="before")
     @classmethod
@@ -355,6 +477,11 @@ class InvNode(NodeBase):
 
 class ClockSourceNode(NodeBase):
     kind: Literal["source"] = "source"
+    out_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输出端 RTL 层次路径；用于 route probe，可省略。",
+    )
     source_kind: SourceKind = Field(
         "source",
         description="输入源型号：source、pad，大小写不限。",
@@ -368,6 +495,20 @@ class ClockSourceNode(NodeBase):
     @classmethod
     def _normalize_source_kind(cls, value: object) -> str:
         return normalize_source_kind(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_wrong_probe_paths(cls, data: Any) -> Any:
+        return _reject_fields(
+            data,
+            kind="source",
+            fields={"in_path": "out_path", "in_paths": "out_path", "out_paths": "out_path"},
+        )
+
+    @field_validator("out_path")
+    @classmethod
+    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由 source_kind 映射的 SV 模型类名片段；YAML 与 model_validate 不可传入。",
@@ -383,6 +524,20 @@ class ClockSourceNode(NodeBase):
 
 class PllNode(NodeBase):
     kind: Literal["pll"] = "pll"
+    in_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="参考输入端 RTL 层次路径；用于 route probe，可省略。",
+    )
+    out_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="单输出 PLL 的输出端 RTL 层次路径；用于 route probe，可省略。",
+    )
+    out_paths: Optional[Dict[str, str]] = Field(
+        None,
+        description="多输出 PLL 的输出端 RTL 层次路径；键为输出名，可省略。",
+    )
     freq: Union[int, Dict[str, int]] = Field(
         ...,
         description="典型频率，单位 Hz；pll_kind 为 inno 时可写各输出端口频率 dict。",
@@ -400,6 +555,27 @@ class PllNode(NodeBase):
         default_factory=dict,
         description="逻辑名到寄存器模型路径；非空时键须与 pll_kind 允许集合一致。",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_wrong_probe_paths(cls, data: Any) -> Any:
+        return _reject_fields(
+            data,
+            kind="pll",
+            fields={"in_paths": "in_path"},
+        )
+
+    @field_validator("in_path", "out_path")
+    @classmethod
+    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return _validate_sv_dot_path(value, field=info.field_name or "path")
+
+    @field_validator("out_paths")
+    @classmethod
+    def _validate_probe_path_map(
+            cls,
+            value: Optional[Dict[str, str]]) -> Optional[Dict[str, str]]:
+        return _validate_path_map(value, field="out_paths")
 
     @field_validator("pll_kind", mode="before")
     @classmethod
@@ -425,6 +601,27 @@ class PllNode(NodeBase):
     @model_validator(mode="after")
     def _validate_pll_freq(self, info: ValidationInfo) -> PllNode:
         node_name = _validation_node_name(self, info)
+        if self.output_groups:
+            if self.out_path is not None:
+                raise ValueError(
+                    f"{ERR.node('pll', node_name)} 多输出 PLL 请使用 "
+                    f"{ERR.field('out_paths')}，不要使用 {ERR.field('out_path')}"
+                )
+            if self.out_paths:
+                expected_paths = set(self.output_groups)
+                actual_paths = set(self.out_paths)
+                extra = sorted(actual_paths - expected_paths)
+                if extra:
+                    raise ValueError(
+                        f"{ERR.node('pll', node_name)} {ERR.field('out_paths')} "
+                        f"包含非法输出 {extra}；允许 {sorted(expected_paths)}"
+                    )
+        else:
+            if self.out_paths is not None:
+                raise ValueError(
+                    f"{ERR.node('pll', node_name)} 单输出 PLL 请使用 "
+                    f"{ERR.field('out_path')}，不要使用 {ERR.field('out_paths')}"
+                )
         if isinstance(self.freq, dict):
             if self.pll_kind != "inno":
                 raise ValueError(
@@ -498,6 +695,16 @@ class CellNode(NodeBase):
             return data
         if "disable" in data:
             raise ValueError(ERR.unsupported_field("cell", "disable", "active: false"))
+        data = _reject_fields(
+            data,
+            kind="cell",
+            fields={
+                "in_path": "path",
+                "in_paths": "path",
+                "out_path": "path",
+                "out_paths": "path",
+            },
+        )
         return data
 
     @field_validator("cell_kind", mode="before")
@@ -513,15 +720,7 @@ class CellNode(NodeBase):
     @field_validator("path")
     @classmethod
     def _validate_path(cls, value: Optional[str]) -> Optional[str]:
-        if value is None:
-            return value
-        for seg in value.split("."):
-            if not _SV_ID.match(seg):
-                raise ValueError(
-                    f"{ERR.field('path')} 段 {seg!r} 须为合法 SystemVerilog 名字，"
-                    f"完整 {ERR.field('path')}: {value!r}"
-                )
-        return value
+        return _validate_sv_dot_path(value, field="path")
 
     @model_validator(mode="after")
     def _validate_cell_path(self, info: ValidationInfo) -> CellNode:
@@ -605,6 +804,16 @@ class ClkNode(NodeBase):
             raise ValueError(ERR.unsupported_field("clk", "disable", "active: false"))
         if "volatile" in data:
             raise ValueError(ERR.unsupported_field("clk", "volatile", "check_duty: false"))
+        data = _reject_fields(
+            data,
+            kind="clk",
+            fields={
+                "in_path": "path",
+                "in_paths": "path",
+                "out_path": "path",
+                "out_paths": "path",
+            },
+        )
         return data
 
     @field_validator("freq", mode="before")
@@ -615,15 +824,7 @@ class ClkNode(NodeBase):
     @field_validator("path")
     @classmethod
     def _validate_path(cls, value: Optional[str]) -> Optional[str]:
-        if value is None:
-            return value
-        for seg in value.split("."):
-            if not _SV_ID.match(seg):
-                raise ValueError(
-                    f"{ERR.field('path')} 段 {seg!r} 须为合法 SystemVerilog 名字，"
-                    f"完整 {ERR.field('path')}: {value!r}"
-                )
-        return value
+        return _validate_sv_dot_path(value, field="path")
 
     @computed_field(  # type: ignore[prop-decorator]
         description="tree 构造写入 frequence；省略 freq 时为 -1；YAML 不可传入。",
@@ -691,6 +892,15 @@ class ClkNode(NodeBase):
 
 class MuxNode(NodeBase):
     kind: Literal["mux"] = "mux"
+    in_paths: Optional[Dict[str, str]] = Field(
+        None,
+        description="输入端 RTL 层次路径；键对应 source 选择值，用于 route/flip probe，可省略。",
+    )
+    out_path: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+    )
     source: Dict[str, str] = Field(
         default_factory=dict,
         description="输入标签到前级引用的映射。",
@@ -704,6 +914,27 @@ class MuxNode(NodeBase):
         "",
         description="寄存器模型路径。",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_wrong_probe_paths(cls, data: Any) -> Any:
+        return _reject_fields(
+            data,
+            kind="mux",
+            fields={"in_path": "in_paths", "out_paths": "out_path"},
+        )
+
+    @field_validator("out_path")
+    @classmethod
+    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return _validate_sv_dot_path(value, field=info.field_name or "path")
+
+    @field_validator("in_paths")
+    @classmethod
+    def _validate_probe_path_map(
+            cls,
+            value: Optional[Dict[str, str]]) -> Optional[Dict[str, str]]:
+        return _validate_path_map(value, field="in_paths")
 
     @computed_field(  # type: ignore[prop-decorator]
         description="tree 构造写入 sel；省略时为 -1；YAML 不可传入。",
@@ -725,6 +956,15 @@ class MuxNode(NodeBase):
         validate_optional_reg(
             self.reg, node_name=node_name, kind="mux"
         )
+        if self.in_paths:
+            source_keys = set(str(key) for key in self.source.keys())
+            path_keys = set(str(key) for key in self.in_paths.keys())
+            extra = sorted(path_keys - source_keys)
+            if extra:
+                raise ValueError(
+                    f"{ERR.node('mux', node_name)} {ERR.field('in_paths')} "
+                    f"包含未在 {ERR.field('source')} 中声明的输入 {extra}"
+                )
         if self.sel is not None and self.sel > self.mux_max_sel:
             raise ValueError(
                 f"{ERR.node('mux', node_name)} "
@@ -931,17 +1171,143 @@ class Tree(BaseModel):
         return slots
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="clk path 非空的 sv_slots；用于测量 interface 与 tree_interface；YAML 不可传入。",
+        description="RTL probe 端口槽位；用于 interface、tree_interface 与 connect；YAML 不可传入。",
     )
     @property
-    def connectable_slots(self) -> List[SvNodeSlot]:
+    def port_slots(self) -> List[SvPortSlot]:
+        return self._cached("port_slots", self._port_slots)
+
+    def _port_slots(self) -> List[SvPortSlot]:
+        slots: List[SvPortSlot] = []
+
+        def add_slot(
+                *,
+                node_key: str,
+                group_id: str,
+                access: str,
+                role: str,
+                port_key: str,
+                path: Optional[str]) -> None:
+            if not path:
+                return
+            suffix_parts = [node_key]
+            if group_id:
+                suffix_parts.append(group_id)
+            suffix_parts.append(role)
+            if port_key != "default":
+                suffix_parts.append(port_key)
+            instance_name = "_".join(suffix_parts) + "_if"
+            force_macro = (
+                f"{node_key}_{group_id + '_' if group_id else ''}"
+                f"{role}_{port_key}"
+            ).upper()
+            slots.append(
+                SvPortSlot(
+                    node_key=node_key,
+                    group_id=group_id,
+                    access=access,
+                    role=role,
+                    port_key=port_key,
+                    path=path,
+                    instance_name=instance_name,
+                    force_macro=force_macro,
+                )
+            )
+
+        for slot in self.sv_slots:
+            node = self.nodes[slot.node_key]
+            if node.kind in ("clk", "cell"):
+                add_slot(
+                    node_key=slot.node_key,
+                    group_id=slot.group_id,
+                    access=slot.access,
+                    role="in",
+                    port_key="default",
+                    path=getattr(node, "path", None),
+                )
+            elif node.kind == "source":
+                add_slot(
+                    node_key=slot.node_key,
+                    group_id=slot.group_id,
+                    access=slot.access,
+                    role="out",
+                    port_key="default",
+                    path=node.out_path,
+                )
+            elif node.kind == "mux":
+                if node.in_paths:
+                    for key, path in sorted(node.in_paths.items()):
+                        add_slot(
+                            node_key=slot.node_key,
+                            group_id=slot.group_id,
+                            access=slot.access,
+                            role="in",
+                            port_key=str(key),
+                            path=path,
+                        )
+                add_slot(
+                    node_key=slot.node_key,
+                    group_id=slot.group_id,
+                    access=slot.access,
+                    role="out",
+                    port_key="default",
+                    path=node.out_path,
+                )
+            elif node.kind == "pll":
+                add_slot(
+                    node_key=slot.node_key,
+                    group_id=slot.group_id,
+                    access=slot.access,
+                    role="in",
+                    port_key="default",
+                    path=node.in_path,
+                )
+                if node.output_groups:
+                    path = (node.out_paths or {}).get(slot.group_id)
+                    add_slot(
+                        node_key=slot.node_key,
+                        group_id=slot.group_id,
+                        access=slot.access,
+                        role="out",
+                        port_key="default",
+                        path=path,
+                    )
+                else:
+                    add_slot(
+                        node_key=slot.node_key,
+                        group_id=slot.group_id,
+                        access=slot.access,
+                        role="out",
+                        port_key="default",
+                        path=node.out_path,
+                    )
+            else:
+                add_slot(
+                    node_key=slot.node_key,
+                    group_id=slot.group_id,
+                    access=slot.access,
+                    role="in",
+                    port_key="default",
+                    path=getattr(node, "in_path", None),
+                )
+                add_slot(
+                    node_key=slot.node_key,
+                    group_id=slot.group_id,
+                    access=slot.access,
+                    role="out",
+                    port_key="default",
+                    path=getattr(node, "out_path", None),
+                )
+        return slots
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="RTL probe 端口槽位；用于测量 interface 与 tree_interface；YAML 不可传入。",
+    )
+    @property
+    def connectable_slots(self) -> List[SvPortSlot]:
         return self._cached(
             "connectable_slots",
-            lambda: [
-                slot
-                for slot in self.sv_slots
-                if node_path_connectable(self, self.nodes[slot.node_key])
-            ],
+            lambda: self.port_slots,
         )
 
     def source_sv_access(self, ref: SourceRef) -> str:

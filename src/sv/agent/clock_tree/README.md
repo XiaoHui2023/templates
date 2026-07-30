@@ -40,7 +40,7 @@ settings:
 
 ## Agent 使用
 
-完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；如果配置中有 `clk.path` 或 `cell.path`，还要在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree, tree_if)` 连接测量接口。
+完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；如果配置中有 RTL probe path，还要在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree_if, tree)` 连接接口。
 
 ```systemverilog
 <class_prefix>agent clk_agt;
@@ -51,13 +51,13 @@ function void build_phase(uvm_phase phase);
     clk_agt = <class_prefix>agent::type_id::create("clk_agt", this);
     tree = <class_prefix>tree::type_id::create("tree");
     tree.build(your_regmodel);
-    <class_prefix>connect(tree, your_top_module.clk_tree_if);
+    <class_prefix>connect(your_top_module.clk_tree_if, tree);
     $cast(clk_sqr, clk_agt.sqr);
     uvm_config_db#(<class_prefix>tree)::set(this, "clk_agt", "tree", tree);
 endfunction
 ```
 
-常用入口在 kit sequencer 上：只配置寄存器用 `clk_sqr.config_reg()`，只测量用 `clk_sqr.check_measure()`，配置后测量用 `clk_sqr.test_measure()`；低功耗或改频等配置先改 `tree` 中节点属性，再调用 `config_reg()` 应用。`low_power()` 会关闭可关断的非 stable 时钟；全部上游路径都能到达 **source/pll** 且不经过 **gate** 的时钟会自动保护，不会关闭。
+常用入口在 kit sequencer 上：只配置寄存器用 `clk_sqr.config_reg()`，只测量用 `clk_sqr.check_measure()`，配置后测量用 `clk_sqr.test_measure()`；低功耗或改频等配置先改 `tree` 中节点属性，再调用 `config_reg()` 应用。`low_power()` 会让非 stable 时钟尽量关闭，并关闭 gate。
 
 ## 数据结构
 
@@ -129,6 +129,7 @@ endfunction
 | `kind` | `str` | `source` | |
 | `source_kind` | `str` | `source` | 取 `source`、`pad`。 |
 | `freq` | `int` | | 典型频率，单位 Hz；非 `probe_mode` 必填，`probe_mode` 可省略且不参与检查。 |
+| `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
 
 **source_kind** 为 `pad` 时字段与上表相同，仅型号不同。
 
@@ -140,6 +141,9 @@ endfunction
 | `freq` | `int` | | 典型频率，单位 Hz。 |
 | `source` | `str` | | 参考时钟前级引用；省略或空表示无前级。 |
 | `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。`inno` 固定两路输出。 |
+| `in_path` | `str` | | 参考输入端 RTL probe path，可省略。 |
+| `out_path` | `str` | | 单输出 PLL 输出端 RTL probe path，可省略。 |
+| `out_paths` | `dict[str, str]` | | 多输出 PLL 输出端 RTL probe path，可省略。 |
 
 #### tci
 
@@ -211,7 +215,7 @@ endfunction
 | `freq` | `int` | | 典型频率，单位 Hz；省略则不指定频率；正数指定打开时的目标频率，`active: false` 时可保留该目标值但不约束当前解析频率；负值仅放宽输出频率随机范围。 |
 | `active` | `bool` | `true` | 期望运行态是否有时钟；为假时仍生成 SV 对象并检查 inactive。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `stable` | `bool` | `false` | 锚定时钟：结构探测与低功耗下不得关断或改频。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。**low_power** 不关断该 **clk**。**test_route** 跳过该节点及其当前选通路径上的 **gate**、**mux**、**div**、**pll** 探测，并固定路径控制量；路径上 **pll** 不参与改频策略。**check_measure** 期望为锁定后的 **_resolved_freq**。 |
+| `stable` | `bool` | `false` | 锚定时钟：低功耗下不关断。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。 |
 | `check_duty` | `bool` | `true` | 为真时 `check_measure` 检查占空比；为假时只检查频率。 |
 
 ### Node - gate
@@ -222,6 +226,8 @@ endfunction
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `open` | `int` | | 门控开关；0 关闭、1 打开；省略则参与随机化。 |
 | `reg` | `str` | `""` | 门控寄存器模型路径。 |
+| `in_path` | `str` | | 输入端 RTL probe path，可省略。 |
+| `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
 
 ### Node - cell
 
@@ -244,6 +250,8 @@ endfunction
 | `div_kind` | `str` | `div` | 可填 `div`。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `ratio` | `int` | | 固定分频比。 |
+| `in_path` | `str` | | 输入端 RTL probe path，可省略。 |
+| `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
 | `regs.rst` | `str` | | 复位位。 |
 | `regs.load` | `str` | | 加载位。 |
 | `regs.div` | `str` | | 分频系数。 |
@@ -257,6 +265,8 @@ endfunction
 | `kind` | `str` | `div_r` | 等价于 `kind: div` 且 `div_kind: div_r`。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `ratio` | `int` | | 固定分频比，大于 0。 |
+| `in_path` | `str` | | 输入端 RTL probe path，可省略。 |
+| `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
 
 ### Node - dto
 
@@ -264,6 +274,8 @@ endfunction
 | --- | --- | --- | --- |
 | `kind` | `str` | `dto` | |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
+| `in_path` | `str` | | 输入端 RTL probe path，可省略。 |
+| `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
 | `regs.rst` | `str` | | 复位位。 |
 | `regs.load` | `str` | | 加载位。 |
 | `regs.bypass` | `str` | | bypass 位。 |
@@ -277,6 +289,8 @@ endfunction
 | `inv_kind` | `str` | `inv` | 取 `inv`、`inv_mux`、`inv_cell`；`inv_cell` 与 `inv` 仿真行为相同。 |
 | `source` | `str` | | 前级引用；省略或空表示无前级。 |
 | `reg` | `str` | `""` | 反相/直通控制寄存器模型路径。 |
+| `in_path` | `str` | | 输入端 RTL probe path，可省略。 |
+| `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
 
 ### Node - mux
 
@@ -285,3 +299,5 @@ endfunction
 | `kind` | `str` | `mux` | |
 | `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
 | `reg` | `str` | `""` | 选择寄存器模型路径。 |
+| `in_paths` | `dict[str, str]` | | 输入端 RTL probe path，键对应 **source**，可省略。 |
+| `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
