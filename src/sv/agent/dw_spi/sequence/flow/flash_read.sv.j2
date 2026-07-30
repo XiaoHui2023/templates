@@ -69,7 +69,7 @@ task {{ class_prefix }}flash_read_seq::body();
         cfg.speed_multiplier,
         cfg.frame_mode.name(),
         cfg.cs_control_mode.name(){% if internal_dma or external_dma %},
-        cfg.use_dma{% endif %}), UVM_LOW)
+        cfg.use_dma{% endif %}), UVM_HIGH)
     op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
     op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
     op_req.payload.set_command(UVM_TLM_READ_COMMAND);
@@ -104,7 +104,8 @@ task {{ class_prefix }}flash_read_seq::body();
     op_req.arlen = cfg.arlen;
     op_req.axi_addr = cfg.axi_addr;
 {% endif %}
-    `uvm_info("DW_SPI_FLASH", "starting primitive transfer for flash read", UVM_LOW)
+    op_req.update_print_summary();
+    `uvm_info("DW_SPI_FLASH", "starting primitive transfer for flash read", UVM_HIGH)
     `uvm_info("DW_SPI_FLASH", {"flash read transfer req:\n", op_req.sprint()}, UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;
@@ -115,12 +116,12 @@ task {{ class_prefix }}flash_read_seq::body();
     if (op_rsp != null)
         data = op_rsp.read_data;
     if (ok) begin
-        `uvm_info("DW_SPI_FLASH", "checking flash read actual data against scoreboard", UVM_LOW)
+        `uvm_info("DW_SPI_FLASH", "checking flash read actual data against scoreboard", UVM_HIGH)
         ok = p_sequencer.scoreboard.check_actual_read(address, data, "flash_read_actual");
     end
     `uvm_info("DW_SPI_FLASH", $sformatf(
         "flash_read done: ok=%0b address=0x%08h requested=%0d received=%0d opcode=0x%02h",
-        ok, address, length, data.size(), op_req.opcode), UVM_LOW)
+        ok, address, length, data.size(), op_req.opcode), UVM_HIGH)
 endtask
 
 `endif

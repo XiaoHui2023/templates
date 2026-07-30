@@ -35,7 +35,7 @@
 8. PIO 写 transfer 如果还有 remaining byte，会在同一个 CS window 内继续等待 `SR.TFNF` 并补写 `DR`。`TXFTLR` 是硬件 FIFO 阈值配置；当前 sequence 用 `SR.TFNF` 轮询驱动补 FIFO，不把 FIFO interrupt 当 completion。
 9. 按 `configuration.completion_mode` 等待 completion。内置 DMA 可用 top `intr` + `ISR.DONES`；非 DMA PIO 使用 `SR.TFE && !SR.BUSY`。
 10. 释放 CS：先写 `SER.SER = 0`，如果是 `SOFTWARE_CS` 再调用 `p_sequencer.release_chip_select(cs_id)`。
-11. 写传输在 CS 释放后更新 scoreboard expected data；读传输把从 `DR` 或 DMA buffer 得到的 actual data 放入 rsp。
+11. 写传输在 CS 释放后仅对 flash memory program opcode（`0x02/0xA2/0x32`）更新 scoreboard expected data；`WREN/WRSR` 这类状态命令不更新 memory mirror。读传输把从 `DR` 或 DMA buffer 得到的 actual data 放入 rsp。
 
 一个 primitive transfer 对应一个完整 SPI transaction 边界。需要连续的 opcode + address + dummy + data 必须放在同一个 primitive transfer 内，不能拆成多个 CS window。
 
@@ -64,13 +64,15 @@
 ## Flash Write
 
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
-2. 先启动 write-enable transfer：opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
-3. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。
-4. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
-5. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + dummy + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
-6. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
+2. WREN/WRSR 配置命令使用标准单线 8-bit byte stream，不继承 4x program 的 lane/speed。
+3. 1x/2x program：先启动 write-enable transfer，opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
+4. 4x QPP：先 `WREN 0x06`，再 `WRSR 0x01 + 0x00 + 0x02` 写 16-bit status 值 `0x0200` 以设置 `status[9] / SREG_QE`，然后再次 `WREN 0x06`。WRSR 会清除 WEL，因此 QPP 前必须重新置位 WEL。
+5. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。
+6. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
+7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + dummy + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
+8. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
 
-当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、QE/WRSR 和 256B 分页写限制；这些属于完整 SPI-NOR 行为建模，已作为后续扩展点记录。
+当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、跳过已置位 QE 和 256B 分页写限制；这些属于完整 SPI-NOR 行为建模，已作为后续扩展点记录。
 
 ## RW Test
 
@@ -93,6 +95,7 @@
 
 ## Log Verbosity
 
-- `UVM_LOW` 说明流程正在做什么、正在等待什么、完成了什么；WREN/program/read 这类完整 flash interaction 的请求详情优先打印 `transfer_req.sprint()`，不要手工重复拼字段。DR stream byte 数和十六进制预览可单独打印，因为它是实际拼出的总线流。
+- `UVM_LOW` 只放日常必须看到的高层事件。对 WREN/program/read 这类完整 flash interaction，低冗余打印 `transfer_req.sprint()`，包内包含 opcode、payload command、address、data length、data preview、mode、CS、lane、speed、dummy 等字段；不要再用手写字符串重复打印同一组字段。
+- `UVM_HIGH` 放一次 transfer 内的执行摘要：PIO DR stream preview、CS 选择/释放、FIFO prefill/remaining、SR completion 等待、DMA buffer 汇总、scoreboard 记录摘要。
 - `UVM_DEBUG` 打印排障细节：寄存器 raw 值、NDF/BAUDR 推导中间值、寄存器配置步骤、FIFO 状态轮询、逐 byte DR 写读、CPU DMA buffer word、scoreboard byte 比较。
 - timeout 报错必须包含 `waiting_for`。中断等待写明 top `intr` 和预期来源；`SR` 轮询写明目标条件和最后一次 `SR` 原始值及字段。

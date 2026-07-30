@@ -4,6 +4,10 @@
 class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequence_item);
     `uvm_object_utils_begin({{ class_prefix }}transfer_req)
         `uvm_field_object(payload, UVM_ALL_ON)
+        `uvm_field_string(payload_command, UVM_ALL_ON)
+        `uvm_field_int(payload_address, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(payload_data_length, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_string(payload_data_preview, UVM_ALL_ON)
         `uvm_field_enum(host_mode_e, host_mode, UVM_ALL_ON)
         `uvm_field_enum(protocol_e, protocol, UVM_ALL_ON)
         `uvm_field_enum(frame_mode_e, frame_mode, UVM_ALL_ON)
@@ -29,6 +33,10 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
     `uvm_object_utils_end
 
     uvm_tlm_generic_payload payload;
+    string payload_command;
+    longint payload_address;
+    int payload_data_length;
+    string payload_data_preview;
     rand host_mode_e host_mode;
     rand protocol_e protocol;
     rand frame_mode_e frame_mode;
@@ -54,6 +62,51 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
 
     function new(string name="{{ class_prefix }}transfer_req");
         super.new(name);
+    endfunction
+
+    function void update_print_summary(int max_bytes = 16);
+        uvm_tlm_command_e command;
+        byte unsigned gp_data[];
+
+        if (payload == null) begin
+            payload_command = "NO_PAYLOAD";
+            payload_address = '0;
+            payload_data_length = 0;
+            payload_data_preview = "<null>";
+            return;
+        end
+
+        command = payload.get_command();
+        payload_command = command.name();
+        payload_address = payload.get_address();
+        payload_data_length = payload.get_data_length();
+        payload_data_preview = "";
+
+        if (command == UVM_TLM_WRITE_COMMAND) begin
+            payload.get_data(gp_data);
+            if (gp_data.size() == 0) begin
+                payload_data_preview = "<empty>";
+            end
+            else begin
+                foreach (gp_data[i]) begin
+                    if (i < max_bytes) begin
+                        if (payload_data_preview != "")
+                            payload_data_preview = {payload_data_preview, " "};
+                        payload_data_preview = {payload_data_preview, $sformatf("%02h", gp_data[i])};
+                    end
+                end
+                if (gp_data.size() > max_bytes)
+                    payload_data_preview = {payload_data_preview, $sformatf(" ... (%0d bytes)", gp_data.size())};
+                else
+                    payload_data_preview = {payload_data_preview, $sformatf(" (%0d bytes)", gp_data.size())};
+            end
+        end
+        else if (command == UVM_TLM_READ_COMMAND) begin
+            payload_data_preview = $sformatf("<read %0d bytes>", payload_data_length);
+        end
+        else begin
+            payload_data_preview = "<ignored>";
+        end
     endfunction
 
     constraint cst {

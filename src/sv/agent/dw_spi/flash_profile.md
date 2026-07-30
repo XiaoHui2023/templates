@@ -28,8 +28,15 @@ Other common P25Q21L commands recorded in the root skill include `RDID 0x9F`, `R
 Write:
 
 ```text
-CS low -> 0x06 -> CS high
-CS low -> program opcode -> address -> dummy byte -> data -> CS high
+1x/2x:
+  CS low -> 0x06 -> CS high
+  CS low -> program opcode -> address -> dummy byte -> data -> CS high
+
+4x QPP:
+  CS low -> 0x06 -> CS high
+  CS low -> 0x01 -> 0x00 -> 0x02 -> CS high
+  CS low -> 0x06 -> CS high
+  CS low -> 0x32 -> address -> dummy byte -> data -> CS high
 ```
 
 Read:
@@ -47,6 +54,7 @@ Internal DMA uses the controller DMA registers and CPU callback staging path ins
 Implemented:
 
 - WREN as a separate command-only transaction.
+- QPP setup for 4x program: `WREN 0x06` sets WEL, `WRSR 0x01 + 16-bit status value 0x0200` sets `status[9] / SREG_QE`, then another `WREN 0x06` because WRSR clears WEL before `QPP 0x32`.
 - Read/program opcode selection for 1x/2x/4x.
 - 3-byte or 4-byte address width by configuration, default 3.
 - One dummy byte by default for read/program data windows.
@@ -56,8 +64,9 @@ Implemented:
 Not yet implemented as full NOR behavior:
 
 - Erase command before program.
-- RDSR WIP polling and WEL checking after WREN/program/erase.
-- QE/WRSR flow before quad program/read when the flash model requires it.
+- RDSR WIP polling and WEL checking after WREN/WRSR/program/erase.
+- Skipping WRSR when QE is already set.
+- QE/WRSR flow before quad read when the flash model requires it.
 - 256-byte page boundary split/wrap/truncate behavior.
 - Program bit rule where NOR only changes `1 -> 0` without erase.
 - Unsupported command behavior per concrete model.

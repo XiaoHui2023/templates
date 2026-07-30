@@ -54,7 +54,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         ok = 1'b0;
         report_info("DW_SPI_REG", $sformatf(
             "waiting SR.TFNF before DR write: timeout_cycles=%0d",
-            settings.fifo_status_timeout_ssi_clk_cycles), UVM_LOW);
+            settings.fifo_status_timeout_ssi_clk_cycles), UVM_DEBUG);
         repeat (settings.fifo_status_timeout_ssi_clk_cycles) begin
             rm.SR.read(status, reg_data);
             report_info("DW_SPI_REG", $sformatf(
@@ -93,7 +93,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         ok = 1'b0;
         report_info("DW_SPI_REG", $sformatf(
             "waiting SR.RFNE before DR read: timeout_cycles=%0d",
-            settings.fifo_status_timeout_ssi_clk_cycles), UVM_LOW);
+            settings.fifo_status_timeout_ssi_clk_cycles), UVM_DEBUG);
         repeat (settings.fifo_status_timeout_ssi_clk_cycles) begin
             rm.SR.read(status, reg_data);
             report_info("DW_SPI_REG", $sformatf(
@@ -135,7 +135,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         ok = 1'b1;
         report_info("DW_SPI_REG", $sformatf(
             "writing bytes to DR: reason=%s bytes=%0d",
-            reason, data.size()), UVM_LOW);
+            reason, data.size()), UVM_HIGH);
         foreach (data[i]) begin
             report_info("DW_SPI_REG", $sformatf(
                 "DR write byte[%0d]=0x%02h: wait TX FIFO not full",
@@ -151,7 +151,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         end
         report_info("DW_SPI_REG", $sformatf(
             "wrote %0d byte(s) to DR: reason=%s",
-            data.size(), reason), UVM_LOW);
+            data.size(), reason), UVM_HIGH);
     endtask
 
     task write_payload_to_dr(uvm_tlm_generic_payload payload, output bit ok);
@@ -187,7 +187,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         length = payload.get_data_length();
         gp_data = new[length];
         report_info("DW_SPI_REG", $sformatf(
-            "reading payload from DR: bytes=%0d", length), UVM_LOW);
+            "reading payload from DR: bytes=%0d", length), UVM_HIGH);
         for (int i = 0; i < length; i++) begin
             report_info("DW_SPI_REG", $sformatf(
                 "DR read byte[%0d]: wait RX FIFO not empty", i), UVM_DEBUG);
@@ -204,7 +204,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             gp_data[i] = reg_data[7:0];
         end
         payload.set_data(gp_data);
-        report_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_LOW);
+        report_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_HIGH);
     endtask
 
     task wait_idle(
@@ -220,7 +220,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         ok = 1'b0;
         report_info("DW_SPI_REG", $sformatf(
             "waiting transfer idle by polling SR.TFE && !SR.BUSY: timeout_cycles=%0d",
-            timeout_cycles), UVM_LOW);
+            timeout_cycles), UVM_HIGH);
         repeat (timeout_cycles) begin
             rm.SR.read(status, reg_data);
             report_info("DW_SPI_REG", $sformatf(
@@ -233,7 +233,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 rm.SR.BUSY.get()), UVM_DEBUG);
             if (rm.SR.TFE.get() && !rm.SR.BUSY.get()) begin
                 ok = 1'b1;
-                report_info("DW_SPI_REG", "transfer idle observed: SR.TFE=1 SR.BUSY=0", UVM_LOW);
+                report_info("DW_SPI_REG", "transfer idle observed: SR.TFE=1 SR.BUSY=0", UVM_HIGH);
                 return;
             end
         end
@@ -262,7 +262,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             "check ISR.DONES after internal DMA interrupt: raw=0x%0h DONES=%0b",
             reg_data, ok), UVM_DEBUG);
         if (ok)
-            report_info("DW_SPI_REG", "internal DMA completion confirmed by ISR.DONES", UVM_LOW);
+            report_info("DW_SPI_REG", "internal DMA completion confirmed by ISR.DONES", UVM_HIGH);
         else
             report_error("DW_SPI_REG", $sformatf(
                 "top interrupt observed but internal DMA done bit is not set: waiting_for=ISR.DONES==1 ISR=0x%0h DONES=%0b",
@@ -281,7 +281,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.SER.SER.set(ser_value);
         report_info("DW_SPI_REG", $sformatf(
             "select hardware chip select: SER=0x%0h raw=0x%0h",
-            ser_value, rm.SER.get()), UVM_LOW);
+            ser_value, rm.SER.get()), UVM_HIGH);
         rm.SER.write(status, rm.SER.get());
     endtask
 
@@ -296,7 +296,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.SER.read(status, reg_data);
         rm.SER.SER.set(0);
         report_info("DW_SPI_REG", $sformatf(
-            "release hardware chip selects: raw=0x%0h", rm.SER.get()), UVM_LOW);
+            "release hardware chip selects: raw=0x%0h", rm.SER.get()), UVM_HIGH);
         rm.SER.write(status, rm.SER.get());
     endtask
 
