@@ -6,6 +6,8 @@
 
 | 节点 | 端口 |
 | --- | --- |
+| source | **out_path** |
+| pll | **in_path**、**out_path** / **out_paths** |
 | 单输出前级 | **out_path** |
 | mux 输入 | **in_paths** |
 | 单输入后级 | **in_path** |

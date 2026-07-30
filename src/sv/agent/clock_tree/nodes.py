@@ -140,6 +140,7 @@ class SvPortSlot:
     path: str
     instance_name: str
     force_macro: str
+    path_macro: str
 
 
 def _validate_sv_dot_path(value: Optional[str], *, field: str) -> Optional[str]:
@@ -1201,6 +1202,12 @@ class Tree(BaseModel):
                 f"{node_key}_{group_id + '_' if group_id else ''}"
                 f"{role}_{port_key}"
             ).upper()
+            macro_parts = [node_key]
+            if group_id:
+                macro_parts.append(group_id)
+            macro_parts.append(role)
+            if port_key != "default":
+                macro_parts.append(port_key)
             slots.append(
                 SvPortSlot(
                     node_key=node_key,
@@ -1211,6 +1218,7 @@ class Tree(BaseModel):
                     path=path,
                     instance_name=instance_name,
                     force_macro=force_macro,
+                    path_macro="_".join(macro_parts).upper(),
                 )
             )
 

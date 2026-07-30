@@ -301,3 +301,16 @@ endfunction
 | `reg` | `str` | `""` | 选择寄存器模型路径。 |
 | `in_paths` | `dict[str, str]` | | 输入端 RTL probe path，键对应 **source**，可省略。 |
 | `out_path` | `str` | | 输出端 RTL probe path，可省略。 |
+
+## Path 宏
+
+生成的 `top/path_macros.sv` 会为每个 RTL probe path 定义默认宏。用户可在编译 `top/path_macros.sv` 前提前定义同名宏覆盖路径。
+
+| 端口 | 宏名示例 |
+| --- | --- |
+| source 输出 | `CLK_TREE_PATH_XTAL_OUT` |
+| pll 输入 | `CLK_TREE_PATH_PLL0_IN` |
+| pll 输出 | `CLK_TREE_PATH_PLL0_OUT` |
+| inno pll 第 0 路输出 | `CLK_TREE_PATH_PLL_INNO_0_OUT` |
+| mux 第 1 路输入 | `CLK_TREE_PATH_MUX0_IN_1` |
+| clk / cell | `CLK_TREE_PATH_CLK_CPU_IN` |

@@ -4,10 +4,8 @@
 
 interface {{ settings.class_prefix }}tree_interface;
 {%- for slot in tree.connectable_slots %}
-    {{ settings.class_prefix }}interface {{ slot.instance_name }}(.in({{ slot.path }}));
-
-    `define {{ settings.class_prefix | upper }}FORCE_{{ slot.force_macro }}(value) force {{ slot.path }} = value
-    `define {{ settings.class_prefix | upper }}RELEASE_{{ slot.force_macro }} release {{ slot.path }}
+    {{ settings.class_prefix }}interface {{ slot.instance_name }}(
+        .in(`{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }}));
 
     initial begin
         realtime half_period_ns;
@@ -19,8 +17,8 @@ interface {{ settings.class_prefix }}tree_interface;
             if ({{ slot.instance_name }}.clock_drive_en) begin
                 while ({{ slot.instance_name }}.drive_en
                         && {{ slot.instance_name }}.clock_drive_en) begin
-                    `{{ settings.class_prefix | upper }}FORCE_{{ slot.force_macro }}(
-                        {{ slot.instance_name }}.drive_value);
+                    force `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }} =
+                        {{ slot.instance_name }}.drive_value;
                     if ({{ slot.instance_name }}.clock_freq_hz <= 0)
                         half_period_ns = 1.0;
                     else
@@ -31,19 +29,16 @@ interface {{ settings.class_prefix }}tree_interface;
                         !{{ slot.instance_name }}.drive_value;
                 end
             end else begin
-                `{{ settings.class_prefix | upper }}FORCE_{{ slot.force_macro }}(
-                    {{ slot.instance_name }}.drive_value);
+                force `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }} =
+                    {{ slot.instance_name }}.drive_value;
                 @({{ slot.instance_name }}.drive_en
                     or {{ slot.instance_name }}.drive_value
                     or {{ slot.instance_name }}.clock_drive_en);
             end
             if (!{{ slot.instance_name }}.drive_en)
-                `{{ settings.class_prefix | upper }}RELEASE_{{ slot.force_macro }};
+                release `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }};
         end
     end
-
-    `undef {{ settings.class_prefix | upper }}FORCE_{{ slot.force_macro }}
-    `undef {{ settings.class_prefix | upper }}RELEASE_{{ slot.force_macro }}
 {%- endfor %}
 endinterface
 
