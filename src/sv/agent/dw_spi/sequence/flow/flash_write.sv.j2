@@ -181,7 +181,7 @@ task {{ class_prefix }}flash_write_seq::run_program(
         `uvm_fatal("DW_SPI", "flash_write: failed to cast frame_mode")
     if (!$cast(op_req.cs_control_mode, cfg.cs_control_mode))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast cs_control_mode")
-    if (!$cast(op_req.transfer_mode, TX_AND_RX))
+    if (!$cast(op_req.transfer_mode, TX_ONLY))
         `uvm_fatal("DW_SPI", "flash_write: failed to cast transfer_mode")
     op_req.opcode = page_program_opcode(cfg.speed_multiplier);
     op_req.io_lanes = cfg.io_lanes;

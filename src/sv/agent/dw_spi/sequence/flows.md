@@ -67,7 +67,7 @@
 2. WREN/WRSR 配置命令使用标准单线 8-bit byte stream，不继承 4x program 的 lane/speed。
 3. 1x/2x program：先启动 write-enable transfer，opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
 4. 4x QPP：先 `WREN 0x06`，再 `WRSR 0x01 + 0x00 + 0x02` 写 16-bit status 值 `0x0200` 以设置 `status[9] / SREG_QE`，然后再次 `WREN 0x06`。WRSR 会清除 WEL，因此 QPP 前必须重新置位 WEL。
-5. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_AND_RX`。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。
+5. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_ONLY`。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。`TX_AND_RX` / `RX_ONLY` 是 enhanced read/EEPROM-read 类接收流程使用的模式，不能用于 page program。
 6. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
 7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + dummy + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
 8. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
