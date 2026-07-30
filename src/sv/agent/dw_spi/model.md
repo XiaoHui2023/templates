@@ -12,6 +12,7 @@
 | `host_configuration.sv` | `dw_spi_host_configuration` | 主机侧单次传输配置包 |
 | `slave_configuration.sv` | `dw_spi_slave_configuration` | 从机侧单次传输配置包 |
 | `configuration.sv` | `dw_spi_configuration` | 单次寄存器 FIELD 配置包 |
+| `flash_command/*.sv` | `dw_spi_*_flash_command` | SPI flash 指令配置包；具体 NOR/NAND/XIP/厂商 opcode 各自独立文件 |
 
 数据包统一继承 `dw_spi_spec#(uvm_sequence_item)`；settings 和 core tool 类继承 `dw_spi_spec#(uvm_object)`。需要在不同 spec 派生类型之间传枚举值时，用 `$cast()` 转换，不直接赋值。
 
@@ -80,7 +81,13 @@
 
 这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。`SOFTWARE_CS` 只支持主机 1x standard；enhanced、2x、4x 约束为硬件 CS。
 
+operation transfer req 还会携带 `address_lanes`，用于描述本次 opcode 的 address phase 线宽。该字段不是用户级默认配置，而是由 flash flow 按 opcode 填入：program 写命令固定单线地址；`READ2X 0xBB` 使用 2 线地址；`READ4X 0xEB` 使用 4 线地址；`READ1X/FASTREAD1X/DREAD/QREAD` 使用单线地址。`register_config_builder` 根据它推导 `SPI_CTRLR0.TRANS_TYPE` 和地址阶段 timeout。
+
 Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不生成 DMA 字段和 DMA 寄存器配置。
+
+## `flash_command/*.sv`
+
+flash 指令包见 [flash_command.md](model/flash_command.md)。每个指令包只写本 opcode 的协议形态约束；flow sequence 通过 `flash_command_adapter` 把指令包转换为通用 `transfer_req`，再交给 `transfer_seq` 执行。不要在 flow 里散写 opcode、address lane、dummy、TMOD、memory mirror 更新等规则。
 
 ## `configuration.sv`
 
@@ -122,3 +129,7 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不�
 scoreboard 的 `mem` 在 `core/mem.sv`，不是 model 类型。`mem` 使用动态 `bit [7:0]` queue：加载 memh 或 `.hex` 时按实际数据长度扩展，写入越界时自动扩展，读取或比较越过当前长度时报错。
 
 sequence 从真实读写路径拿到数据后，把地址和 byte queue 送入 scoreboard；scoreboard 用内部 mem mirror 做及时比较。
+
+## Flash Command Compatibility
+
+`flash_command/*.sv` 是 SPI flash 指令配置包体系，不是单一 SPI NOR 型号模型。基础层保持通用，只描述 opcode/address/dummy/data transaction；具体 NOR、NAND、XIP、厂商扩展命令分别放在独立指令包里。默认 `flash_read` / `flash_write` / `rw_test` 是 NOR-like 便捷 flow，默认 3-byte address，可配置为 4-byte address。控制器 agent 不推断挂载的 flash 类型，也不把所有 `FLASH_SPI` transfer 强制成 3/4-byte address。

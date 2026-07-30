@@ -1,0 +1,69 @@
+`ifndef {{ (class_prefix ~ "flash_command_adapter") | upper }}
+`define {{ (class_prefix ~ "flash_command_adapter") | upper }}
+
+class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}spec#(uvm_object);
+    `uvm_object_utils({{ class_prefix }}flash_command_adapter)
+
+    function new(string name="{{ class_prefix }}flash_command_adapter");
+        super.new(name);
+    endfunction
+
+    function {{ class_prefix }}transfer_req create_transfer_req(
+            {{ class_prefix }}flash_command command,
+            {{ class_prefix }}transfer_configuration cfg,
+            string req_name,
+            bit [31:0] addr,
+            uvm_tlm_command_e payload_command,
+            byte unsigned payload_data[],
+            int payload_length{% if internal_dma or external_dma %},
+            bit use_dma{% endif %});
+        {{ class_prefix }}transfer_req op_req;
+
+        if (command == null)
+            `uvm_fatal("DW_SPI_FLASH", "flash command is null")
+        if (cfg == null)
+            `uvm_fatal("DW_SPI_FLASH", "transfer configuration is null")
+
+        op_req = {{ class_prefix }}transfer_req::type_id::create(req_name);
+        op_req.payload = uvm_tlm_generic_payload::type_id::create({req_name, "_payload"});
+        op_req.payload.set_command(payload_command);
+        op_req.payload.set_address(addr);
+        if (payload_command == UVM_TLM_WRITE_COMMAND && payload_data.size() != 0)
+            op_req.payload.set_data(payload_data);
+        op_req.payload.set_data_length(payload_length);
+
+        if (!$cast(op_req.host_mode, cfg.host_mode))
+            `uvm_fatal("DW_SPI_FLASH", "failed to cast host_mode")
+        if (!$cast(op_req.protocol, FLASH_SPI))
+            `uvm_fatal("DW_SPI_FLASH", "failed to cast protocol")
+        if (!$cast(op_req.frame_mode, command.frame_mode))
+            `uvm_fatal("DW_SPI_FLASH", "failed to cast frame_mode")
+        if (!$cast(op_req.cs_control_mode, cfg.cs_control_mode))
+            `uvm_fatal("DW_SPI_FLASH", "failed to cast cs_control_mode")
+        if (!$cast(op_req.transfer_mode, command.transfer_mode))
+            `uvm_fatal("DW_SPI_FLASH", "failed to cast transfer_mode")
+        op_req.opcode = command.opcode;
+        op_req.io_lanes = command.io_lanes;
+        op_req.address_lanes = command.address_lanes;
+        op_req.speed_multiplier = command.speed_multiplier;
+        op_req.spi_mode = cfg.spi_mode;
+        op_req.data_frame_bits = command.data_frame_bits;
+        op_req.cs_id = cfg.cs_id;
+        op_req.inst_bytes = command.inst_bytes;
+        op_req.addr_bytes = command.addr_bytes;
+        op_req.dummy_cycles = command.dummy_cycles;
+        op_req.records_memory_write = command.records_memory_write;
+{% if internal_dma or external_dma %}
+        op_req.use_dma = use_dma;
+{% endif %}
+{% if internal_dma %}
+        op_req.awlen = cfg.awlen;
+        op_req.arlen = cfg.arlen;
+        op_req.axi_addr = cfg.axi_addr;
+{% endif %}
+        op_req.update_print_summary();
+        return op_req;
+    endfunction
+endclass
+
+`endif

@@ -82,7 +82,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
         cs_id < {{ num_cs }};
-        addr_bytes inside {3, 4};
+        addr_bytes inside {[0:4]};
 {% if not support_master %}
         host_mode != MASTER;
 {% endif %}

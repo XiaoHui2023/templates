@@ -105,3 +105,7 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 `kit_sequencer` 不提供通用 `reg_write` / `reg_read`。寄存器地址、通用读写策略、寄存器查找都由 regmodel 托管；DW SPI sequence/core 只在具体操作里设置明确的大写 REG/FIELD，并由所属 REG `read/write`。
 
 `kit_sequencer` 不输出 `actual_read_data` 或 result。测试 sequence 会把读写结果送到 scoreboard，scoreboard 用内部 mem mirror 自动校验。
+
+## Flash Defaults
+
+flash 便捷入口不要求用户声明挂载的 flash 类型。普通读写按默认 NOR-like 显式 transaction 执行，`address` 默认 0，`addr_bytes` 默认 3，可传入 4 支持 4-byte address。只有当某个操作确实依赖 NAND page/cache、XIP、厂商 feature 等专有语义时，才增加对应的专用快捷函数和指令包。

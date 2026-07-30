@@ -101,6 +101,25 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(ceil_div(bits, lanes));
     endfunction
 
+    function int trans_type_from_address_lanes(
+            frame_mode_e frame_mode,
+            int address_lanes,
+            int speed_multiplier,
+            int addr_bytes);
+        if (frame_mode == STANDARD || addr_bytes == 0)
+            return 0;
+        if (address_lanes == 1)
+            return 0;
+        if (address_lanes == speed_multiplier)
+            return 1;
+        `uvm_fatal("DW_SPI_CFG", $sformatf(
+            "unsupported enhanced address lanes: address_lanes=%0d speed_multiplier=%0d addr_bytes=%0d",
+            address_lanes,
+            speed_multiplier,
+            addr_bytes))
+        return 0;
+    endfunction
+
     function int transfer_timeout_cycles(
             {{ class_prefix }}transfer_req rq,
             int baudr,
@@ -119,7 +138,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         int addr_width;
 
         data_width = frame_mode == ENHANCED ? rq.speed_multiplier : 1;
-        addr_width = frame_mode == ENHANCED ? rq.speed_multiplier : 1;
+        addr_width = frame_mode == ENHANCED ? rq.address_lanes : 1;
         inst_cycles = phase_sclk_cycles(rq.inst_bytes * 8, 1);
         addr_cycles = phase_sclk_cycles(rq.addr_bytes * 8, addr_width);
         data_cycles = phase_sclk_cycles(data_bytes * 8, data_width);
@@ -224,10 +243,11 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         spi_frf = spi_frf_from_speed(rq.speed_multiplier);
         inst_l = inst_l_from_bytes(rq.inst_bytes);
         addr_l = addr_l_from_bytes(rq.addr_bytes);
-        trans_type = frame_mode == ENHANCED ? 1 : 0;
+        trans_type = trans_type_from_address_lanes(
+            frame_mode, rq.address_lanes, rq.speed_multiplier, rq.addr_bytes);
         spi_ctrlr0_en = frame_mode == ENHANCED;
         spi_clk_stretch_en = spi_ctrlr0_en;
-        wait_cycles = spi_ctrlr0_en ? rq.dummy_cycles : 0;
+        wait_cycles = (spi_ctrlr0_en && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX})) ? rq.dummy_cycles : 0;
         ndf_reg_value = actual_ndf == 0 ? 0 : actual_ndf - 1;
         if (ndf_reg_value > settings.ctrlr1_ndf_max)
             `uvm_fatal("DW_SPI_CFG", $sformatf(
@@ -243,9 +263,10 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         interrupt_timeout_cycles = transfer_timeout_cycles(
             rq, baudr, length, frame_mode);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "derived transfer fields: inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d payload_bytes=%0d data_frame_bits=%0d actual_ndf=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
+            "derived transfer fields: inst_bytes=%0d addr_bytes=%0d address_lanes=%0d dummy_cycles=%0d payload_bytes=%0d data_frame_bits=%0d actual_ndf=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
             rq.inst_bytes,
             rq.addr_bytes,
+            rq.address_lanes,
             rq.dummy_cycles,
             length,
             rq.data_frame_bits,
@@ -327,12 +348,13 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_ndf=%0d spi_frf=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
+            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d address_lanes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_ndf=%0d spi_frf=%0d trans_type=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
             rq.opcode,
             rq.payload.get_address(),
             length,
             rq.inst_bytes,
             rq.addr_bytes,
+            rq.address_lanes,
             rq.dummy_cycles,
             ssi_clk_hz,
             settings.target_sclk_hz,
@@ -341,6 +363,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             cfg.ndf,
             actual_ndf,
             cfg.spi_frf,
+            cfg.trans_type,
             cfg.completion_mode.name(),
             cfg.interrupt_timeout_ssi_clk_cycles,
             cfg.ser), UVM_DEBUG)

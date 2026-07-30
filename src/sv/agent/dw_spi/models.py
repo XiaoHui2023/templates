@@ -72,9 +72,11 @@ class Models(BaseModel):
         "PREFER_INTERRUPT_COMPLETION",
         description="Default transfer completion policy. Internal DMA may use top intr plus ISR.DONES when connected; non-DMA PIO uses SR.TFE && !SR.BUSY polling unless a FIFO IRQ state machine is implemented.",
     )
-    default_addr_bytes: Literal[3, 4] = Field(
+    default_addr_bytes: int = Field(
         3,
         description="Default flash address phase width in bytes.",
+        ge=0,
+        le=4,
     )
     default_rw_data_bytes: int = Field(
         256,

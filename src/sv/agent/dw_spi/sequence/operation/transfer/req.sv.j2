@@ -15,6 +15,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
         `uvm_field_enum(transfer_mode_e, transfer_mode, UVM_ALL_ON)
         `uvm_field_int(opcode, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(io_lanes, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(address_lanes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(speed_multiplier, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
@@ -22,6 +23,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
         `uvm_field_int(inst_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(records_memory_write, UVM_ALL_ON)
 {% if internal_dma or external_dma %}
         `uvm_field_int(use_dma, UVM_ALL_ON)
 {% endif %}
@@ -44,6 +46,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
     rand transfer_mode_e transfer_mode;
     rand bit [7:0] opcode;
     rand int io_lanes;
+    rand int address_lanes;
     rand int speed_multiplier;
     rand int spi_mode;
     rand int data_frame_bits;
@@ -51,6 +54,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
     rand int inst_bytes;
     rand int addr_bytes;
     rand int dummy_cycles;
+    rand bit records_memory_write;
 {% if internal_dma or external_dma %}
     rand bit use_dma;
 {% endif %}
@@ -111,13 +115,20 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
 
     constraint cst {
         io_lanes inside {1, 2, 4};
+        address_lanes inside {1, 2, 4};
         speed_multiplier inside {1, 2, 4};
+        soft address_lanes == 1;
+        soft records_memory_write == 1'b0;
         if (frame_mode == STANDARD) speed_multiplier == 1;
         if (speed_multiplier > 1) frame_mode == ENHANCED;
+        if (frame_mode == STANDARD) address_lanes == 1;
+        if (addr_bytes == 0) address_lanes == 1;
+        if (address_lanes != 1) address_lanes == speed_multiplier;
         if (cs_control_mode == SOFTWARE_CS) {
             host_mode == MASTER;
             frame_mode == STANDARD;
             speed_multiplier == 1;
+            address_lanes == 1;
         }
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
@@ -134,7 +145,6 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequenc
 {% endif %}
         if (protocol == FLASH_SPI) {
             inst_bytes == 1;
-            addr_bytes inside {3, 4};
         }
 {% if not support_master %}
         host_mode != MASTER;

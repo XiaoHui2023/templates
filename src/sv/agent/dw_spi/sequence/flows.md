@@ -30,6 +30,7 @@
 3. 内置 DMA 写 transfer 在启动控制器前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 4. 调用 `register_access.apply_configuration()`。该阶段会关闭控制器、清中断、清 `SER`、配置寄存器、重新使能控制器，但不会选中片选。
 5. 非 DMA PIO 构造 DR byte stream。flash 协议包含 opcode、大端地址字节；写传输追加 payload。命令-only 传输 payload 长度为 0，但 DR stream 仍包含 opcode。
+   `TX_ONLY` program 的 dummy byte 也是发送出去的 DR byte；enhanced read 的 dummy/wait 才通过 `SPI_CTRLR0.WAIT_CYCLES` 表达。
 6. PIO 在 `SER=0` 时先向 `DR` 预填不超过 `settings.fifo_depth_bytes` 的字节。
 7. 到 transaction 边界时选中 CS：`HARDWARE_CS` 写 `SER.SER = cfg.ser`；`SOFTWARE_CS` 先调用 `p_sequencer.activate_chip_select(cs_id)`，再写 `SER.SER = cfg.ser`。
 8. PIO 写 transfer 如果还有 remaining byte，会在同一个 CS window 内继续等待 `SR.TFNF` 并补写 `DR`。`TXFTLR` 是硬件 FIFO 阈值配置；当前 sequence 用 `SR.TFNF` 轮询驱动补 FIFO，不把 FIFO interrupt 当 completion。
@@ -52,10 +53,10 @@
 ## Flash Read
 
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
-2. 创建 operation transfer req 和 `uvm_tlm_generic_payload`。
-3. payload command 设为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读取长度。
-4. 协议设为 `FLASH_SPI`，transfer mode 设为 `RX_ONLY`，让 enhanced 模式中 `SPI_CTRLR0.WAIT_CYCLES` 生效。
-5. opcode 映射：1x standard `8'h03`，1x enhanced `8'h0B`，2x `8'hBB`，4x `8'hEB`。
+2. 根据本次 configuration 创建一个 `model/flash_command` 指令包：1x standard 为 `read1x_flash_command`，1x enhanced 为 `fast_read1x_flash_command`，2x 为 `read2x_flash_command`，4x 为 `read4x_flash_command`。
+3. 用 configuration 约束该指令包的 `addr_bytes`、`dummy_cycles`、`data_frame_bits`。
+4. 调用 `flash_command_adapter.create_transfer_req()` 生成通用 `transfer_req`，payload command 为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读取长度。
+5. 指令包负责 opcode、`RX_ONLY`、address phase 线宽和 data phase 线宽。`READ1X/FASTREAD1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
 6. 同一个 primitive transfer 内完成 opcode + address + dummy + read data，CS 不能在中间断开。
 7. flow sequence 保存 transfer rsp 的 `read_data`，并调用 scoreboard 比较 actual read data。
 
@@ -64,10 +65,10 @@
 ## Flash Write
 
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
-2. WREN/WRSR 配置命令使用标准单线 8-bit byte stream，不继承 4x program 的 lane/speed。
-3. 1x/2x program：先启动 write-enable transfer，opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
+2. WREN/WRSR/program 都先创建 `model/flash_command` 指令包，再由 `flash_command_adapter` 转成通用 `transfer_req`。
+3. 1x/2x program：先启动 `write_enable_flash_command`，opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
 4. 4x QPP：先 `WREN 0x06`，再 `WRSR 0x01 + 0x00 + 0x02` 写 16-bit status 值 `0x0200` 以设置 `status[9] / SREG_QE`，然后再次 `WREN 0x06`。WRSR 会清除 WEL，因此 QPP 前必须重新置位 WEL。
-5. write-enable 成功后启动 program transfer：1x `8'h02`，2x `8'hA2`，4x `8'h32`，`TX_ONLY`。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。`TX_AND_RX` / `RX_ONLY` 是 enhanced read/EEPROM-read 类接收流程使用的模式，不能用于 page program。
+5. write-enable 成功后启动 program transfer：1x 用 `page_program_flash_command`，2x 用 `dual_page_program_flash_command`，4x 用 `quad_page_program_flash_command`。所有 program 写命令的 opcode + address 都是单线；payload data phase 才按指令包使用 1/2/4 线。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。`TX_AND_RX` / `RX_ONLY` 是 enhanced read/EEPROM-read 类接收流程使用的模式，不能用于 page program。
 6. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
 7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + dummy + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
 8. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
@@ -99,3 +100,7 @@
 - `UVM_HIGH` 放一次 transfer 内的执行摘要：PIO DR stream preview、CS 选择/释放、FIFO prefill/remaining、SR completion 等待、DMA buffer 汇总、scoreboard 记录摘要。
 - `UVM_DEBUG` 打印排障细节：寄存器 raw 值、NDF/BAUDR 推导中间值、寄存器配置步骤、FIFO 状态轮询、逐 byte DR 写读、CPU DMA buffer word、scoreboard byte 比较。
 - timeout 报错必须包含 `waiting_for`。中断等待写明 top `intr` 和预期来源；`SR` 轮询写明目标条件和最后一次 `SR` 原始值及字段。
+
+## Flash Type Boundary
+
+默认 `flash_read` / `flash_write` 是 NOR-like 便捷 flow，不代表控制器 agent 固定绑定 NOR。NAND page/cache、XIP、厂商 feature、无地址或特殊地址形态命令应新增 `model/flash_command` 指令包，并按需要新增专用 flow/kit shortcut；基础 transfer 不应强制所有 `FLASH_SPI` 都有 3/4-byte address。

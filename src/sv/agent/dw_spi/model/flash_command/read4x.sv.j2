@@ -1,0 +1,25 @@
+`ifndef {{ (class_prefix ~ "read4x_flash_command") | upper }}
+`define {{ (class_prefix ~ "read4x_flash_command") | upper }}
+
+class {{ class_prefix }}read4x_flash_command extends {{ class_prefix }}flash_command;
+    `uvm_object_utils({{ class_prefix }}read4x_flash_command)
+
+    function new(string name="{{ class_prefix }}read4x_flash_command");
+        super.new(name);
+    endfunction
+
+    constraint cst_read4x {
+        opcode == 8'hEB;
+        frame_mode == ENHANCED;
+        transfer_mode == RX_ONLY;
+        io_lanes == 4;
+        address_lanes == 4;
+        speed_multiplier == 4;
+        inst_bytes == 1;
+        addr_bytes inside {3, 4};
+        payload_is_read == 1'b1;
+        payload_is_write == 1'b0;
+    }
+endclass
+
+`endif

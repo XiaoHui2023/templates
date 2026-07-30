@@ -1,18 +1,20 @@
 # Flash Profile
 
-`dw_spi` 默认按 SPI NOR 3-byte address profile 生成和验证 flash transaction。当前默认命令映射参考用户提供的 P25Q21L 命令表；完整命令表维护在用户根 skill `spi-flash-reference/references/commands/p25q21l.md`。
+`dw_spi` 是控制器 agent，不负责判断实际挂载的是哪一种 flash。代码尽量把 SPI flash interaction 表达成通用 opcode/address/dummy/data transaction；具体 NOR、NAND、3-byte/4-byte address、XIP 或厂商扩展能力由指令包、flow、flash model 和用户环境负责。
 
-## Default Type
+当前 `flash_read`、`flash_write`、`rw_test` 是默认便捷 flow，按常见 SPI NOR 显式读写方式生成 transaction。默认 address phase 是 3 bytes，可通过配置传入 4 bytes。P25Q21L 命令表维护在用户根 skill `spi-flash-reference/references/commands/p25q21l.md`。
+
+## Default Convenience Flow
 
 | Field | Default |
 | --- | --- |
-| Flash type | SPI NOR |
-| Address width | 3 bytes |
-| XIP | 不默认启用 |
+| Flash family assumption for built-in read/write shortcuts | NOR-like explicit read/program |
+| Address width | 3 bytes by default; 4 bytes may be passed by configuration |
+| XIP | Not enabled by default |
 | Read/write window | opcode + address + 1 dummy byte + data |
-| WREN | 单独 CS window |
+| WREN | Separate CS window |
 
-SPI NAND 不使用这套 flow。SPI NAND 需要 page/cache/ECC/bad-block 模型，不能直接复用 NOR 的 byte memory mirror。
+SPI NAND 不直接复用这个 NOR-like byte memory flow。NAND 通常需要 page read-to-cache、cache read、program load、program execute、block erase、ECC/bad-block/status feature 等指令包和单独 flow。
 
 ## Command Mapping
 
@@ -22,6 +24,12 @@ SPI NAND 不使用这套 flow。SPI NAND 需要 page/cache/ECC/bad-block 模型�
 | Program | `0x02` | `0x02` | `0xA2` | `0x32` |
 
 Other common P25Q21L commands recorded in the root skill include `RDID 0x9F`, `RDSR 0x05`, `RDSR2 0x35`, `WRSR 0x01`, `SE 0x20`, `BE32 0x52`, `BE64 0xD8`, `CE 0x60/0xC7`, `RSTEN 0x66`, and `RST 0x99`.
+
+Program commands use single-lane opcode and single-lane address for `PP 0x02`, `DPP 0xA2`, and `QPP 0x32`; only the payload data phase follows the selected 1/2/4-lane width. Read address width is opcode-specific: `READ1X 0x03`, `FASTREAD1X 0x0B`, `DREAD 0x3B`, and `QREAD 0x6B` are single-lane address; `READ2X 0xBB` is dual-lane address; `READ4X 0xEB` is quad-lane address.
+
+`STANDARD` / `ENHANCED` is the controller driving path, not always a flash opcode property. Compatible 1x commands such as `WREN 0x06`, `WRSR 0x01`, and `PP 0x02` may be executed through either standard or enhanced 1x controller setup. Opcodes that require dual/quad phases still force enhanced mode.
+
+Executable command shapes are documented in [model/flash_command.md](model/flash_command.md). New flash opcodes should first get command packets, then be composed in flow sequences.
 
 ## Implemented Flow
 
@@ -55,7 +63,7 @@ Implemented:
 
 - WREN as a separate command-only transaction.
 - QPP setup for 4x program: `WREN 0x06` sets WEL, `WRSR 0x01 + 16-bit status value 0x0200` sets `status[9] / SREG_QE`, then another `WREN 0x06` because WRSR clears WEL before `QPP 0x32`.
-- Read/program opcode selection for 1x/2x/4x.
+- Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
 - One dummy byte by default for read/program data windows.
 - NDF derived from the full continuous window: opcode + address + dummy + data.
@@ -71,4 +79,4 @@ Not yet implemented as full NOR behavior:
 - Program bit rule where NOR only changes `1 -> 0` without erase.
 - Unsupported command behavior per concrete model.
 
-For simple controller smoke tests, the current flow is usable. For flash-model-accurate P25Q21L tests, add erase/status/QE/page behavior before treating failures as protocol-complete.
+For simple controller smoke tests, the current default flow is usable. For flash-model-accurate P25Q21L tests, add erase/status/QE/page behavior before treating failures as protocol-complete.

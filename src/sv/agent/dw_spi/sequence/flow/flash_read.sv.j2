@@ -23,33 +23,50 @@ class {{ class_prefix }}flash_read_seq extends {{ class_prefix }}spec#(uvm_seque
     endfunction
 
     extern virtual task body();
-    extern function bit [7:0] read_opcode(
-        int speed_multiplier,
-        frame_mode_e frame_mode);
+    extern function {{ class_prefix }}flash_command create_read_command(
+        {{ class_prefix }}transfer_configuration cfg);
 endclass
 
-function bit [7:0] {{ class_prefix }}flash_read_seq::read_opcode(
-        int speed_multiplier,
-        frame_mode_e frame_mode);
-    case (speed_multiplier)
-        1: return frame_mode == ENHANCED ? 8'h0B : 8'h03;
-        2: return 8'hBB;
-        4: return 8'hEB;
+function {{ class_prefix }}flash_command {{ class_prefix }}flash_read_seq::create_read_command(
+        {{ class_prefix }}transfer_configuration cfg);
+    {{ class_prefix }}flash_command command;
+    frame_mode_e frame_mode;
+
+    if (cfg == null)
+        `uvm_fatal("DW_SPI", "flash_read: configuration is null")
+    if (!$cast(frame_mode, cfg.frame_mode))
+        `uvm_fatal("DW_SPI", "flash_read: failed to cast frame_mode")
+    case (cfg.speed_multiplier)
+        1: begin
+            if (frame_mode == ENHANCED)
+                command = {{ class_prefix }}fast_read1x_flash_command::type_id::create("fast_read1x_command");
+            else
+                command = {{ class_prefix }}read1x_flash_command::type_id::create("read1x_command");
+        end
+        2: command = {{ class_prefix }}read2x_flash_command::type_id::create("read2x_command");
+        4: command = {{ class_prefix }}read4x_flash_command::type_id::create("read4x_command");
         default: begin
             `uvm_fatal("DW_SPI", $sformatf(
                 "unsupported flash read speed_multiplier=%0d",
-                speed_multiplier))
-            return 8'h03;
+                cfg.speed_multiplier))
         end
     endcase
+    if (!command.randomize() with {
+            addr_bytes == local::cfg.addr_bytes;
+            dummy_cycles == local::cfg.dummy_cycles;
+            data_frame_bits == local::cfg.data_frame_bits;
+        })
+        `uvm_fatal("DW_SPI", "flash_read: failed to randomize read flash command")
+    return command;
 endfunction
 
 task {{ class_prefix }}flash_read_seq::body();
+    {{ class_prefix }}flash_command command;
+    {{ class_prefix }}flash_command_adapter adapter;
     {{ class_prefix }}transfer_req op_req;
     {{ class_prefix }}transfer_rsp op_rsp;
     {{ class_prefix }}transfer_seq op_seq;
     {{ class_prefix }}transfer_configuration cfg;
-    frame_mode_e frame_mode;
 
     if (configuration == null) begin
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
@@ -70,42 +87,16 @@ task {{ class_prefix }}flash_read_seq::body();
         cfg.frame_mode.name(),
         cfg.cs_control_mode.name(){% if internal_dma or external_dma %},
         cfg.use_dma{% endif %}), UVM_HIGH)
-    op_req = {{ class_prefix }}transfer_req::type_id::create("op_req");
-    op_req.payload = uvm_tlm_generic_payload::type_id::create("payload");
-    op_req.payload.set_command(UVM_TLM_READ_COMMAND);
-    op_req.payload.set_address(address);
-    op_req.payload.set_data_length(length);
-    if (!$cast(op_req.host_mode, cfg.host_mode))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast host_mode")
-    if (!$cast(op_req.protocol, FLASH_SPI))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast protocol")
-    if (!$cast(op_req.frame_mode, cfg.frame_mode))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast frame_mode")
-    if (!$cast(op_req.cs_control_mode, cfg.cs_control_mode))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast cs_control_mode")
-    if (!$cast(frame_mode, cfg.frame_mode))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast local frame_mode")
-    if (!$cast(op_req.transfer_mode, RX_ONLY))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast transfer_mode")
-    op_req.opcode = read_opcode(cfg.speed_multiplier, frame_mode);
-    op_req.io_lanes = cfg.io_lanes;
-    op_req.speed_multiplier = cfg.speed_multiplier;
-    op_req.spi_mode = cfg.spi_mode;
-    op_req.data_frame_bits = cfg.data_frame_bits;
-    op_req.cs_id = cfg.cs_id;
-    op_req.inst_bytes = 1;
-    op_req.addr_bytes = cfg.addr_bytes;
-    op_req.dummy_cycles = cfg.dummy_cycles;
-{% if internal_dma or external_dma %}
-    op_req.use_dma = cfg.use_dma;
-{% endif %}
-{% if internal_dma %}
-    op_req.awlen = cfg.awlen;
-    op_req.arlen = cfg.arlen;
-    op_req.axi_addr = cfg.axi_addr;
-{% endif %}
-    op_req.update_print_summary();
+    command = create_read_command(cfg);
+    adapter = {{ class_prefix }}flash_command_adapter::type_id::create("flash_command_adapter");
+    begin
+        byte unsigned empty_payload[];
+        empty_payload = new[0];
+        op_req = adapter.create_transfer_req(
+            command, cfg, "read_req", address, UVM_TLM_READ_COMMAND, empty_payload, length{% if internal_dma or external_dma %}, cfg.use_dma{% endif %});
+    end
     `uvm_info("DW_SPI_FLASH", "starting primitive transfer for flash read", UVM_HIGH)
+    `uvm_info("DW_SPI_FLASH", {"flash read command:\n", command.sprint()}, UVM_LOW)
     `uvm_info("DW_SPI_FLASH", {"flash read transfer req:\n", op_req.sprint()}, UVM_LOW)
     op_seq = {{ class_prefix }}transfer_seq::type_id::create("transfer");
     op_seq.req = op_req;

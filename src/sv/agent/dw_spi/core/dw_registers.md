@@ -54,7 +54,7 @@ CTRLR1.NDF = actual_ndf - 1
 
 ## SPI_CTRLR0
 
-`SPI_CTRLR0` 用于 DWC_ssi enhanced SPI、XIP、DDR、HyperBus 等扩展传输控制。当前 flash enhanced flow 配置 `WAIT_CYCLES`、`INST_L`、`ADDR_L` 和 `TRANS_TYPE`；XIP、DDR、HyperBus、mode bits 和 data mask 字段只记录语义，等具体 flow 消费时再加入代码。
+`SPI_CTRLR0` 用于 DWC_ssi enhanced SPI、XIP、DDR、HyperBus 等扩展传输控制。当前 flash enhanced flow 配置 `INST_L`、`ADDR_L` 和 `TRANS_TYPE`；接收类 transfer 还配置 `WAIT_CYCLES`。XIP、DDR、HyperBus、mode bits 和 data mask 字段只记录语义，等具体 flow 消费时再加入代码。
 
 | Field | Effect |
 | --- | --- |
@@ -73,6 +73,10 @@ CTRLR1.NDF = actual_ndf - 1
 | `XIP_MD_BIT_EN` | XIP mode bits enable |
 | `ADDR_L` | address length：0=no address，1=4 bit，2=8 bit，递增到 f=60 bit |
 | `TRANS_TYPE` | 0=instruction/address 都 standard，1=instruction standard/address 按 `SPI_FRF`，2=都按 `SPI_FRF` |
+
+当前 flash flow 的 `TRANS_TYPE` 由 `transfer_req.address_lanes` 推导，不直接等于 enhanced。`TRANS_TYPE=0` 表示 instruction/address 都走标准单线，data phase 仍可由 `CTRLR0.SPI_FRF` 使用 2/4 线；这适用于 DPP/QPP 这类写命令以及 `DREAD 0x3B`、`QREAD 0x6B` 这类 output-read。`TRANS_TYPE=1` 仅用于地址 phase 也按 `SPI_FRF` 的 I/O read，例如 `READ2X 0xBB` 和 `READ4X 0xEB`。当前不使用 `TRANS_TYPE=2`。
+
+`WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。`TX_ONLY` page-program 的 dummy byte 是 master 发送给 flash 的字节，应进入 `DR` byte stream，不写成 `SPI_CTRLR0.WAIT_CYCLES`。
 
 ## SSIENR / SER / BAUDR
 

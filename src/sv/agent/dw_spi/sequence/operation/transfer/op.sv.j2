@@ -96,7 +96,7 @@ task {{ class_prefix }}transfer_seq::body();
     write_reason = "";
     rs = {{ class_prefix }}transfer_rsp::type_id::create("rsp");
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d address_lanes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         rq.protocol.name(),
         rq.transfer_mode.name(),
         rq.frame_mode.name(),
@@ -106,6 +106,7 @@ task {{ class_prefix }}transfer_seq::body();
         rq.payload.get_data_length(),
         rq.inst_bytes,
         rq.addr_bytes,
+        rq.address_lanes,
         rq.dummy_cycles,
         rq.cs_id,
         rq.io_lanes,
@@ -317,7 +318,7 @@ function bit {{ class_prefix }}transfer_seq::should_record_expected_write(
         `uvm_fatal("DW_SPI", "transfer: failed to cast protocol")
 
     if (protocol == FLASH_SPI)
-        return rq.opcode inside {8'h02, 8'hA2, 8'h32};
+        return rq.records_memory_write;
     return 1'b0;
 endfunction
 
@@ -499,6 +500,7 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
         output bit [7:0] dr_bytes[$]);
     protocol_e protocol;
     frame_mode_e frame_mode;
+    transfer_mode_e transfer_mode;
     byte unsigned gp_data[];
     bit [63:0] address;
     int dummy_bytes;
@@ -512,6 +514,8 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
         `uvm_fatal("DW_SPI", "transfer: failed to cast protocol")
     if (!$cast(frame_mode, rq.frame_mode))
         `uvm_fatal("DW_SPI", "transfer: failed to cast frame_mode")
+    if (!$cast(transfer_mode, rq.transfer_mode))
+        `uvm_fatal("DW_SPI", "transfer: failed to cast transfer_mode")
 
     if (protocol == FLASH_SPI) begin
         if (rq.inst_bytes != 0)
@@ -519,7 +523,7 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
         address = rq.payload.get_address();
         for (int i = rq.addr_bytes; i > 0; i--)
             dr_bytes.push_back(address[(i - 1) * 8 +: 8]);
-        if (frame_mode == STANDARD) begin
+        if (frame_mode == STANDARD || transfer_mode == TX_ONLY) begin
             dummy_bytes = rq.dummy_cycles <= 0 ? 0 : (rq.dummy_cycles + 7) / 8;
             for (int i = 0; i < dummy_bytes; i++)
                 dr_bytes.push_back(8'h00);

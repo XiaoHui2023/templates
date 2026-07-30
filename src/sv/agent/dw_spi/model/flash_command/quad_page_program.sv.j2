@@ -1,0 +1,27 @@
+`ifndef {{ (class_prefix ~ "quad_page_program_flash_command") | upper }}
+`define {{ (class_prefix ~ "quad_page_program_flash_command") | upper }}
+
+class {{ class_prefix }}quad_page_program_flash_command extends {{ class_prefix }}flash_command;
+    `uvm_object_utils({{ class_prefix }}quad_page_program_flash_command)
+
+    function new(string name="{{ class_prefix }}quad_page_program_flash_command");
+        super.new(name);
+    endfunction
+
+    constraint cst_quad_page_program {
+        opcode == 8'h32;
+        frame_mode == ENHANCED;
+        transfer_mode == TX_ONLY;
+        io_lanes == 4;
+        address_lanes == 1;
+        speed_multiplier == 4;
+        inst_bytes == 1;
+        addr_bytes inside {3, 4};
+        payload_is_read == 1'b0;
+        payload_is_write == 1'b1;
+        records_memory_write == 1'b1;
+        requires_qe == 1'b1;
+    }
+endclass
+
+`endif
