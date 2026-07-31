@@ -242,6 +242,11 @@ class Models(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    def class_kit_sequencer(self) -> str:
+        return f"{self.class_prefix}kit_sequencer"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
     def class_interface(self) -> str:
         return f"{self.class_prefix}interface"
 

@@ -1,0 +1,41 @@
+`ifndef {{ class_kit_sequencer | upper }}
+`define {{ class_kit_sequencer | upper }}
+
+class {{ class_kit_sequencer }} extends uvm_component;
+    `uvm_component_utils({{ class_kit_sequencer }})
+
+    {{ class_settings }} settings;
+    {{ class_sequencer }} sequencer;
+
+    function new(string name="{{ class_kit_sequencer }}", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+
+    // Checks that the wrapped sequencer is connected before forwarding operations.
+    extern function void check_ready();
+
+    // Runs the pad register-to-interface connection test through the wrapped sequencer.
+    extern task connection_test();
+
+    // Runs the pad pull-up and pull-down test through the wrapped sequencer.
+    extern task pull_test();
+endclass
+
+function void {{ class_kit_sequencer }}::check_ready();
+    if (settings == null)
+        `uvm_fatal("PAD", "require settings")
+    if (sequencer == null)
+        `uvm_fatal("PAD", "require sequencer")
+endfunction
+
+task {{ class_kit_sequencer }}::connection_test();
+    check_ready();
+    sequencer.connection_test();
+endtask
+
+task {{ class_kit_sequencer }}::pull_test();
+    check_ready();
+    sequencer.pull_test();
+endtask
+
+`endif
