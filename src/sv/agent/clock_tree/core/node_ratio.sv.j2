@@ -59,7 +59,6 @@ function automatic int {{ settings.class_prefix }}dto_ratio_to_step(int ratio);
     return int'(step_i);
 endfunction
 
-{% if route_test_enabled -%}
 // MSB=1、LSB=0 单比特 pattern 下 div field 写入值 n
 function automatic int {{ settings.class_prefix }}div_reg_n_flip_msb(int width);
     if (width <= 0)
@@ -199,6 +198,5 @@ function automatic int {{ settings.class_prefix }}dto_ratio_for_reg_flip(
     ratio_l = max_step / step;
     return int'(ratio_l);
 endfunction
-{%- endif %}
 
 `endif

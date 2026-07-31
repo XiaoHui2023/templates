@@ -11,11 +11,8 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     rand longint _resolved_freq;
     rand bit _resolved_active;
     bit _print_resolve;
-{%- if enable_node_fix %}
     bit _print_fix;
-{%- endif %}
     {{ settings.class_prefix }}node_base source;
-{% if any_node_path %}
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     virtual {{ settings.class_prefix }}interface vif;
     virtual {{ settings.class_prefix }}interface in_vif;
@@ -23,7 +20,6 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     virtual {{ settings.class_prefix }}interface in_vifs[string];
     virtual {{ settings.class_prefix }}interface out_vifs[string];
 `endif
-{% endif %}
 
     constraint cst_node_base {
         soft _resolved_freq == 0;
@@ -42,11 +38,8 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     function new(string name = "");
         super.new(name);
         _print_resolve = 0;
-{%- if enable_node_fix %}
         _print_fix = 0;
-{%- endif %}
     endfunction
-{% if any_node_path %}
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     function bit has_in_vif(string key = "");
         if (key == "")
@@ -76,7 +69,6 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         return out_vifs[key];
     endfunction
 `endif
-{% endif %}
 endclass
 
 `endif

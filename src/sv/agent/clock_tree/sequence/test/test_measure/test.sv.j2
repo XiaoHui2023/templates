@@ -1,4 +1,3 @@
-{% if any_node_path %}
 `ifndef {{ (settings.class_prefix ~ "test_measure_seq") | upper }}
 `define {{ (settings.class_prefix ~ "test_measure_seq") | upper }}
 
@@ -113,4 +112,3 @@ task {{ settings.class_prefix }}test_measure_seq::body();
 endtask
 
 `endif
-{% endif %}

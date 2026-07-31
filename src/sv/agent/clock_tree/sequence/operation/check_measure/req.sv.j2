@@ -1,4 +1,3 @@
-{% if any_node_path %}
 `ifndef {{ (settings.class_prefix ~ "check_measure_req") | upper }}
 `define {{ (settings.class_prefix ~ "check_measure_req") | upper }}
 
@@ -36,4 +35,3 @@ class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
 endclass
 
 `endif
-{% endif %}

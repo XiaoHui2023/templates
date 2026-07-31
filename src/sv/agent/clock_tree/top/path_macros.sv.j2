@@ -1,4 +1,3 @@
-{% if any_node_path %}
 `ifndef {{ (settings.class_prefix ~ "path_macros") | upper }}
 `define {{ (settings.class_prefix ~ "path_macros") | upper }}
 {%- for slot in tree.connectable_slots %}
@@ -8,4 +7,3 @@
 {%- endfor %}
 
 `endif
-{% endif %}

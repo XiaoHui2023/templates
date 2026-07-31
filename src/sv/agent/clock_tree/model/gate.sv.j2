@@ -5,28 +5,20 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     `uvm_object_utils_begin({{ settings.class_prefix }}gate)
         `uvm_field_int(_resolved_open, UVM_ALL_ON)
         `uvm_field_int(open, UVM_ALL_ON)
-{%- if enable_node_fix %}
         `uvm_field_int(unfix_open, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
         `uvm_field_int(fix_open, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
         `uvm_field_int(fix_close, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
-{%- endif %}
     `uvm_object_utils_end
 
     rand bit _resolved_open;
     int open;
-{%- if enable_node_fix %}
     bit unfix_open;
     bit fix_open;
     bit fix_close;
-{%- endif %}
     {{ settings.class_prefix }}reg f_reg;
 
     constraint cst_open {
-{%- if enable_node_fix %}
         !(unfix_open || open < 0) -> open == _resolved_open;
-{%- else %}
-        open >= 0 -> open == _resolved_open;
-{%- endif %}
     }
 
     constraint cst_resolve_active_from_src {
@@ -40,22 +32,18 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         (_resolved_open && source != null)
             -> _resolved_freq == source._resolved_freq;
     }
-{%- if enable_node_fix %}
 
     constraint cst_gate {
         fix_open -> _resolved_open;
         fix_close -> !_resolved_open;
     }
-{%- endif %}
 
     function new(string name = "");
         super.new(name);
         open = -1;
-{%- if enable_node_fix %}
         unfix_open = 1'b1;
         fix_open = 0;
         fix_close = 0;
-{%- endif %}
         f_reg = new();
         kind = "gate";
     endfunction

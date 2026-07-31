@@ -72,9 +72,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         {{ node.name }}["{{ g }}"].div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
 {%- if node.div_tree_emit_unfix_ratio %}
         {{ node.name }}["{{ g }}"].ratio = {{ node.div_init_ratio }};
-{%- if enable_node_fix %}
         {{ node.name }}["{{ g }}"].unfix_ratio = 1'b0;
-{%- endif %}
 {%- endif %}
 {%- endif %}
 {%- endfor %}
@@ -94,9 +92,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         {{ node.name }}.div_kind = {{ div_kind_to_sv_enum[node.div_kind] }};
 {%- if node.div_tree_emit_unfix_ratio %}
         {{ node.name }}.ratio = {{ node.div_init_ratio }};
-{%- if enable_node_fix %}
         {{ node.name }}.unfix_ratio = 1'b0;
-{%- endif %}
 {%- endif %}
 {%- elif node.kind == "inv" %}
         {{ node.name }} = {{ settings.class_prefix }}{{ node.sv_inv_class }}::type_id::create("{{ node.name }}");
@@ -191,16 +187,12 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         {{ node.name }}.max_sel = {{ node.mux_max_sel }};
 {%- if node.mux_tree_emit_unfix_sel %}
         {{ node.name }}.sel = {{ node.mux_init_sel }};
-{%- if enable_node_fix %}
         {{ node.name }}.unfix_sel = 1'b0;
-{%- endif %}
 {%- endif %}
 {%- elif node.kind == "gate" %}
 {%- if node.gate_tree_emit_unfix_open %}
         {{ node.name }}.open = {{ node.gate_init_open }};
-{%- if enable_node_fix %}
         {{ node.name }}.unfix_open = 1'b0;
-{%- endif %}
 {%- endif %}
 {%- endif %}
 {%- endfor %}

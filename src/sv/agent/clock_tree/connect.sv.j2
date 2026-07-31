@@ -1,4 +1,3 @@
-{% if any_node_path %}
 `ifndef {{ (settings.class_prefix ~ "connect") | upper }}
 `define {{ (settings.class_prefix ~ "connect") | upper }}
 
@@ -26,4 +25,3 @@ function automatic void {{ settings.class_prefix }}connect(
 endfunction
 
 `endif
-{% endif %}

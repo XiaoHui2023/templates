@@ -448,14 +448,6 @@ def node_path_connectable(tree: Tree, node: object) -> bool:
     return bool(out_paths)
 
 
-def any_node_path(tree: Tree) -> bool:
-    """任一节点有可连接 RTL path 时为真，用于决定是否展开 interface。"""
-    for node in tree.nodes_ordered:
-        if node_path_connectable(tree, node):
-            return True
-    return False
-
-
 def _append_binding(
     out: List[RegBindingRow],
     sv_access: str,

@@ -12,7 +12,6 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
 
     // 按树节点写寄存器
     extern task config_reg({{ settings.class_prefix }}tree_base tree = null);
-{% if any_node_path %}
     // 校验频率与占空比
     extern task check_measure(
         {{ settings.class_prefix }}tree_base tree = null,
@@ -21,8 +20,6 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         bit check_freq = 1'b1,
         bit check_duty = 1'b1,
         bit debug = 1'b0);
-{% endif %}
-{% if any_node_path %}
     // 写寄存器后校验频率与占空比
     extern task test_measure(
         {{ settings.class_prefix }}tree_base tree = null,
@@ -31,8 +28,6 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         bit check_freq = 1'b1,
         bit check_duty = 1'b1,
         bit debug = 1'b0);
-{% endif %}
-{% if route_test_enabled %}
     // 写寄存器后校验 div/dto 复位翻转
     extern task test_flip(
         {{ settings.class_prefix }}tree_base tree = null,
@@ -42,7 +37,6 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
     extern task test_route(
         {{ settings.class_prefix }}tree_base tree = null,
         bit debug = 1'b0);
-{% endif %}
 endclass
 
 task {{ settings.class_prefix }}kit_sequencer::config_reg(
@@ -67,7 +61,6 @@ task {{ settings.class_prefix }}kit_sequencer::config_reg(
         `uvm_fatal("CLK_TREE", "config_reg: operation failed")
 endtask
 
-{% if any_node_path %}
 task {{ settings.class_prefix }}kit_sequencer::check_measure(
         {{ settings.class_prefix }}tree_base tree,
         bit check_clk,
@@ -99,9 +92,7 @@ task {{ settings.class_prefix }}kit_sequencer::check_measure(
     if (seq_rsp != null && !seq_rsp.ok)
         `uvm_fatal("CLK_TREE", "check_measure: operation failed")
 endtask
-{% endif %}
 
-{% if any_node_path %}
 task {{ settings.class_prefix }}kit_sequencer::test_measure(
         {{ settings.class_prefix }}tree_base tree,
         bit check_clk,
@@ -133,9 +124,7 @@ task {{ settings.class_prefix }}kit_sequencer::test_measure(
     if (seq_rsp != null && !seq_rsp.ok)
         `uvm_fatal("CLK_TREE", "test_measure: operation failed")
 endtask
-{% endif %}
 
-{% if route_test_enabled %}
 task {{ settings.class_prefix }}kit_sequencer::test_flip(
         {{ settings.class_prefix }}tree_base tree,
         bit debug);
@@ -183,6 +172,5 @@ task {{ settings.class_prefix }}kit_sequencer::test_route(
     if (seq_rsp != null && !seq_rsp.ok)
         `uvm_fatal("CLK_TREE", "test_route: operation failed")
 endtask
-{% endif %}
 
 `endif

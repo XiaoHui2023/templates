@@ -9,17 +9,18 @@ nodes:
   osc:
     kind: source
     freq: 24000000
-  pll0:
-    kind: pll
+  gate_cpu:
+    kind: gate
     source: osc
-    pll_kind: tci
-    freq: 1000000000
+    reg: clk_ctrl.cpu_gate
   clk_cpu:
     kind: clk
-    source: pll0
-    freq: 1000000000
+    source: gate_cpu
+    path: dut.clk_cpu
+    freq: 24000000
 settings:
   class_prefix: chip_clk_
+  class_regmodel: chip_regmodel
 ```
 
 
@@ -27,7 +28,7 @@ settings:
 
 ## Agent 使用
 
-完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；如果配置中有 RTL path，还要在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree_if, tree)` 连接接口。
+完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree_if, tree)` 连接接口。
 
 ```systemverilog
 <class_prefix>agent clk_agt;

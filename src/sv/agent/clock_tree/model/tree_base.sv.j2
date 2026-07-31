@@ -53,9 +53,7 @@ function void {{ settings.class_prefix }}tree_base::low_power();
     foreach (nodes[i]) begin
         if ($cast(gate_nd, nodes[i])) begin
             gate_nd.open = 0;
-{%- if enable_node_fix %}
             gate_nd.unfix_open = 1'b0;
-{%- endif %}
         end
     end
 endfunction

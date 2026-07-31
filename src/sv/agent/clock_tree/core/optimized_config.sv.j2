@@ -1,4 +1,3 @@
-{% if route_test_enabled %}
 `ifndef {{ (settings.class_prefix ~ "optimized_config") | upper }}
 `define {{ (settings.class_prefix ~ "optimized_config") | upper }}
 
@@ -188,4 +187,3 @@ function automatic void {{ settings.class_prefix }}optimized_config_scope_for_su
 endfunction
 
 `endif
-{% endif %}

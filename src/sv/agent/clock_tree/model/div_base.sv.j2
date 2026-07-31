@@ -9,24 +9,16 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
     `uvm_object_utils_begin({{ settings.class_prefix }}div_base)
         `uvm_field_int(_resolved_ratio, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ratio, UVM_ALL_ON | UVM_DEC)
-{%- if enable_node_fix %}
         `uvm_field_int(unfix_ratio, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
-{%- endif %}
     `uvm_object_utils_end
 
     div_kind_e div_kind;
     rand int _resolved_ratio;
     int ratio;
-{%- if enable_node_fix %}
     bit unfix_ratio;
-{%- endif %}
 
     constraint cst_ratio {
-{%- if enable_node_fix %}
         !(unfix_ratio || ratio < 0) -> ratio == _resolved_ratio;
-{%- else %}
-        ratio >= 0 -> ratio == _resolved_ratio;
-{%- endif %}
     }
 
     constraint cst_resolve_freq_from_src {
@@ -39,9 +31,7 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
     function new(string name = "");
         super.new(name);
         ratio = -1;
-{%- if enable_node_fix %}
         unfix_ratio = 1'b1;
-{%- endif %}
         kind = "div";
     endfunction
 endclass

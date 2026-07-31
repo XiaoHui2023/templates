@@ -1,46 +1,41 @@
-{% if any_node_path %}
 `ifndef {{ (settings.class_prefix ~ "tree_interface") | upper }}
 `define {{ (settings.class_prefix ~ "tree_interface") | upper }}
 
+`define _{{ (settings.class_prefix ~ "tree_interface_slot") | upper }}(IF_INST, PATH) \
+    {{ settings.class_prefix }}interface IF_INST(.in(PATH)); \
+    \
+    initial begin \
+        realtime half_period_ns; \
+        IF_INST.drive_en = 1'b0; \
+        IF_INST.clock_drive_en = 1'b0; \
+        IF_INST.drive_value = 1'b0; \
+        forever begin \
+            wait (IF_INST.drive_en); \
+            if (IF_INST.clock_drive_en) begin \
+                while (IF_INST.drive_en && IF_INST.clock_drive_en) begin \
+                    force PATH = IF_INST.drive_value; \
+                    if (IF_INST.clock_freq_hz <= 0) \
+                        half_period_ns = 1.0; \
+                    else \
+                        half_period_ns = 500000000.0 / IF_INST.clock_freq_hz; \
+                    #(half_period_ns * 1ns); \
+                    IF_INST.drive_value = !IF_INST.drive_value; \
+                end \
+            end else begin \
+                force PATH = IF_INST.drive_value; \
+                @(IF_INST.drive_en or IF_INST.drive_value or IF_INST.clock_drive_en); \
+            end \
+            if (!IF_INST.drive_en) \
+                release PATH; \
+        end \
+    end
+
 interface {{ settings.class_prefix }}tree_interface;
 {%- for slot in tree.connectable_slots %}
-    {{ settings.class_prefix }}interface {{ slot.instance_name }}(
-        .in(`{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }}));
-
-    initial begin
-        realtime half_period_ns;
-        {{ slot.instance_name }}.drive_en = 1'b0;
-        {{ slot.instance_name }}.clock_drive_en = 1'b0;
-        {{ slot.instance_name }}.drive_value = 1'b0;
-        forever begin
-            wait ({{ slot.instance_name }}.drive_en);
-            if ({{ slot.instance_name }}.clock_drive_en) begin
-                while ({{ slot.instance_name }}.drive_en
-                        && {{ slot.instance_name }}.clock_drive_en) begin
-                    force `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }} =
-                        {{ slot.instance_name }}.drive_value;
-                    if ({{ slot.instance_name }}.clock_freq_hz <= 0)
-                        half_period_ns = 1.0;
-                    else
-                        half_period_ns = 500000000.0
-                            / {{ slot.instance_name }}.clock_freq_hz;
-                    #(half_period_ns * 1ns);
-                    {{ slot.instance_name }}.drive_value =
-                        !{{ slot.instance_name }}.drive_value;
-                end
-            end else begin
-                force `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }} =
-                    {{ slot.instance_name }}.drive_value;
-                @({{ slot.instance_name }}.drive_en
-                    or {{ slot.instance_name }}.drive_value
-                    or {{ slot.instance_name }}.clock_drive_en);
-            end
-            if (!{{ slot.instance_name }}.drive_en)
-                release `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }};
-        end
-    end
+    `_{{ (settings.class_prefix ~ "tree_interface_slot") | upper }}({{ slot.instance_name }}, `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }})
 {%- endfor %}
 endinterface
 
+`undef _{{ (settings.class_prefix ~ "tree_interface_slot") | upper }}
+
 `endif
-{% endif %}

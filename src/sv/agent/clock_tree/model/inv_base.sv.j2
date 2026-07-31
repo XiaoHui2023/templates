@@ -4,16 +4,12 @@
 class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}inv_base)
         `uvm_field_int(inverted, UVM_ALL_ON)
-{%- if enable_node_fix %}
         `uvm_field_int(fix_inverted, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
-{%- endif %}
     `uvm_object_utils_end
 
     inv_kind_e inv_kind;
     rand bit inverted;
-{%- if enable_node_fix %}
     bit fix_inverted;
-{%- endif %}
     {{ settings.class_prefix }}reg f_reg;
 
     constraint cst_resolve_active_from_src {
@@ -23,19 +19,15 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
     constraint cst_resolve_freq_from_src {
         source != null -> _resolved_freq == source._resolved_freq;
     }
-{%- if enable_node_fix %}
 
     constraint cst_inv {
         fix_inverted -> inverted;
     }
-{%- endif %}
 
     function new(string name = "");
         super.new(name);
         inverted = 1'b1;
-{%- if enable_node_fix %}
         fix_inverted = 0;
-{%- endif %}
         f_reg = new();
         kind = "inv";
     endfunction

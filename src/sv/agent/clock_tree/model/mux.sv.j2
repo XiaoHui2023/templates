@@ -5,27 +5,19 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     `uvm_object_utils_begin({{ settings.class_prefix }}mux)
         `uvm_field_int(_resolved_sel, UVM_ALL_ON)
         `uvm_field_int(sel, UVM_ALL_ON)
-{%- if enable_node_fix %}
         `uvm_field_int(unfix_sel, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
-{%- endif %}
     `uvm_object_utils_end
 
     int max_sel;
     rand int _resolved_sel;
     int sel;
-{%- if enable_node_fix %}
     bit unfix_sel;
-{%- endif %}
     {{ settings.class_prefix }}node_base to_source[int];
     {{ settings.class_prefix }}reg f_reg;
 
     constraint cst_mux {
         _resolved_sel inside {[0:max_sel]};
-{%- if enable_node_fix %}
         !(unfix_sel || sel < 0) -> sel == _resolved_sel;
-{%- else %}
-        sel >= 0 -> sel == _resolved_sel;
-{%- endif %}
     }
 
     constraint cst_resolve_active_from_src {
@@ -39,9 +31,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     function new(string name = "");
         super.new(name);
         sel = -1;
-{%- if enable_node_fix %}
         unfix_sel = 1'b1;
-{%- endif %}
         f_reg = new();
         kind = "mux";
     endfunction

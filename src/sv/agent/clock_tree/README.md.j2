@@ -1,5 +1,4 @@
 # 说明
-{%- if any_node_path %}
 
 ## 例化接口
 
@@ -10,7 +9,6 @@ module your_top_module;
     ...
 endmodule
 ```
-{%- endif %}
 
 ## 搭建
 
@@ -24,9 +22,7 @@ function void build_phase(uvm_phase phase);
     clk_agt = {{ settings.class_prefix }}agent::type_id::create("clk_agt", this);
     tree = {{ settings.class_prefix }}tree::type_id::create("tree");
     tree.build(your_regmodel);
-{% if any_node_path %}
     {{ settings.class_prefix }}connect(your_top_module.clk_tree_if, tree);
-{% endif %}
     $cast(clk_sqr, clk_agt.sqr);
     uvm_config_db#({{ settings.class_prefix }}tree)::set(this, "clk_agt", "tree", tree);
 endfunction
@@ -38,11 +34,7 @@ endfunction
 task main_phase(uvm_phase phase);
     phase.raise_objection(this);
     ...
-{% if any_node_path %}
     clk_sqr.test_measure();
-{% else %}
-    clk_sqr.config_reg();
-{% endif %}
     ...
 endtask
 ```

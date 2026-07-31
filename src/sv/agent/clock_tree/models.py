@@ -23,7 +23,6 @@ from reg_paths import (
     PLL_REG_KEYS,
     SOURCE_KIND_TO_SV_ENUM,
     RegBindingRow,
-    any_node_path,
     any_reg_configured as tree_has_node_regs,
     collect_div_sv_classes,
     collect_inv_sv_classes,
@@ -336,23 +335,6 @@ class Models(BaseModel):
     def pll_reg_keys_by_kind(self) -> Dict[str, List[str]]:
         return {kind: sorted(keys) for kind, keys in PLL_REG_KEYS.items()}
 
-    @computed_field(  # type: ignore[prop-decorator]
-        description="存在可连接 RTL path 时为真；YAML 与 model_validate 不可传入。",
-    )
-    @property
-    def enable_node_fix(self) -> bool:
-        return any_node_path(self.tree)
-
-    @computed_field(  # type: ignore[prop-decorator]
-        description="enable_node_fix 与 any_node_path 均为真时生成 test_route；不可传入。",
-    )
-    @property
-    def route_test_enabled(self) -> bool:
-        return (
-            self.enable_node_fix
-            and self.any_node_path
-        )
-
     @computed_field  # type: ignore[prop-decorator]
     @property
     def inno_pll_primary_group(self) -> str:
@@ -365,12 +347,6 @@ class Models(BaseModel):
             "reg_bindings",
             lambda: iter_reg_bindings(self.tree),
         )
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def any_node_path(self) -> bool:
-        return any_node_path(self.tree)
-
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_name(self) -> Optional[str]:

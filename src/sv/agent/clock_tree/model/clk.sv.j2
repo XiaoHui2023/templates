@@ -10,33 +10,21 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(enabled, UVM_ALL_ON | (enabled >= 0 ? 0 : UVM_NOPRINT))
         `uvm_field_int(check_duty, UVM_ALL_ON | (check_duty ? UVM_NOPRINT : 0))
-{%- if enable_node_fix %}
         `uvm_field_int(unfix_frequence, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
         `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
-{%- endif %}
     `uvm_object_utils_end
 
     longint frequence;
     int enabled;
     bit stable;
     bit check_duty;
-{%- if enable_node_fix %}
     bit unfix_frequence;
     bit unfix_enabled;
-{%- endif %}
 
     constraint cst_clk {
-{%- if enable_node_fix %}
         !(unfix_enabled || enabled < 0) -> (enabled != 0) == _resolved_active;
-{%- else %}
-        enabled >= 0 -> (enabled != 0) == _resolved_active;
-{%- endif %}
         (_resolved_freq > 0) == _resolved_active;
-{%- if enable_node_fix %}
         !(unfix_frequence || frequence < 0 || enabled <= 0) -> frequence == _resolved_freq;
-{%- else %}
-        (frequence >= 0 && enabled > 0) -> frequence == _resolved_freq;
-{%- endif %}
         stable -> enabled > 0;
         stable -> _resolved_active;
         !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
@@ -49,10 +37,8 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         enabled = -1;
         stable = 1'b0;
         check_duty = 1'b1;
-{%- if enable_node_fix %}
         unfix_frequence = 1'b0;
         unfix_enabled = 1'b0;
-{%- endif %}
         kind = "clk";
     endfunction
 endclass
