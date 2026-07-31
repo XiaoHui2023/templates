@@ -66,6 +66,14 @@ initial begin
 end
 ```
 
+生成的总 interface 只给每个子 interface 传该信号自己的频率：
+
+```systemverilog
+probe_signal_if #(.FREQ(100000000)) cpu_clk (.sig(`PROBE_PATH_CPU_CLK));
+```
+
+`TOLERANCE_PPM`、`MIN_FREQ_HZ`、`STABLE_CYCLES` 是 `probe_signal_if` 内部统一默认参数，由 YAML 的 `settings` 渲染到子 interface 定义里，不在每个实例重复传入。
+
 ## 路径覆盖
 
 生成的路径宏格式如下：

@@ -2,7 +2,7 @@
 `define PROBE_SIGNAL_IF
 
 interface probe_signal_if #(
-    parameter longint EXPECT_FREQ_HZ = 0,
+    parameter longint FREQ = 0,
     parameter int TOLERANCE_PPM = {{ settings.tolerance_ppm }},
     parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},
     parameter int STABLE_CYCLES = {{ settings.stable_cycles }}
@@ -76,13 +76,13 @@ interface probe_signal_if #(
         last_edge_t = 0.0;
         measured_freq_hz = 0.0;
         measured_hz = 0;
-        min_hz = EXPECT_FREQ_HZ * (1_000_000 - TOLERANCE_PPM) / 1_000_000;
-        max_hz = EXPECT_FREQ_HZ * (1_000_000 + TOLERANCE_PPM) / 1_000_000;
+        min_hz = FREQ * (1_000_000 - TOLERANCE_PPM) / 1_000_000;
+        max_hz = FREQ * (1_000_000 + TOLERANCE_PPM) / 1_000_000;
 
         for (int i = 0; i <= STABLE_CYCLES; i++) begin
             wait_posedge_or_timeout(seen);
             if (!seen) begin
-                $display("probe: %s failed measured 0 Hz expected %0d Hz", name, EXPECT_FREQ_HZ);
+                $display("probe: %s failed measured 0 Hz expected %0d Hz", name, FREQ);
                 return;
             end
             if (i == 0)
@@ -98,9 +98,9 @@ interface probe_signal_if #(
 
         pass = (measured_hz >= min_hz) && (measured_hz <= max_hz);
         if (pass)
-            $display("probe: %s pass measured %0d Hz expected %0d Hz", name, measured_hz, EXPECT_FREQ_HZ);
+            $display("probe: %s pass measured %0d Hz expected %0d Hz", name, measured_hz, FREQ);
         else
-            $display("probe: %s failed measured %0d Hz expected %0d Hz", name, measured_hz, EXPECT_FREQ_HZ);
+            $display("probe: %s failed measured %0d Hz expected %0d Hz", name, measured_hz, FREQ);
     endtask
 
     task automatic check_inactive(input string name, output bit pass);
@@ -115,7 +115,7 @@ interface probe_signal_if #(
     endtask
 
     task automatic check(input string name, output bit pass);
-        if (EXPECT_FREQ_HZ > 0)
+        if (FREQ > 0)
             check_active(name, pass);
         else
             check_inactive(name, pass);

@@ -42,7 +42,10 @@ def test_example_renders() -> None:
         "probe_check.sv",
     ]
     assert "`define PROBE_PATH_CPU_CLK dut.u_top.cpu_clk" in rendered["path_macros.sv.j2"]
-    assert ".EXPECT_FREQ_HZ(100000000)" in rendered["probe_if.sv.j2"]
+    assert ".FREQ(100000000)" in rendered["probe_if.sv.j2"]
+    assert ".TOLERANCE_PPM" not in rendered["probe_if.sv.j2"]
+    assert ".MIN_FREQ_HZ" not in rendered["probe_if.sv.j2"]
+    assert ".STABLE_CYCLES" not in rendered["probe_if.sv.j2"]
 
 
 def test_omitted_freq_defaults_to_inactive() -> None:
@@ -58,7 +61,7 @@ def test_omitted_freq_defaults_to_inactive() -> None:
     rendered = render_templates(model)
 
     assert model.signals["sleep_clk"].freq == 0
-    assert ".EXPECT_FREQ_HZ(0)" in rendered["probe_if.sv.j2"]
+    assert ".FREQ(0)" in rendered["probe_if.sv.j2"]
     assert 'probe.sleep_clk.check("sleep_clk", ok);' in rendered["probe_check.sv.j2"]
 
 

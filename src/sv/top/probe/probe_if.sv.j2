@@ -3,14 +3,7 @@
 
 interface probe_if;
 {% for signal in signal_rows %}
-    probe_signal_if #(
-        .EXPECT_FREQ_HZ({{ signal.freq }}),
-        .TOLERANCE_PPM({{ settings.tolerance_ppm }}),
-        .MIN_FREQ_HZ({{ settings.min_freq_hz }}),
-        .STABLE_CYCLES({{ settings.stable_cycles }})
-    ) {{ signal.name }} (
-        .sig(`{{ signal.macro }})
-    );
+    probe_signal_if #(.FREQ({{ signal.freq }})) {{ signal.name }} (.sig(`{{ signal.macro }}));
 {% endfor %}
 endinterface
 
