@@ -1,4 +1,4 @@
-{% if settings.direct_config and regs_enabled %}
+{% if settings.direct_config %}
 `ifndef {{ (settings.class_prefix ~ "config_reg_entry") | upper }}
 `define {{ (settings.class_prefix ~ "config_reg_entry") | upper }}
 

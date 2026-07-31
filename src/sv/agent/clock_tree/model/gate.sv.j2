@@ -19,9 +19,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     bit fix_open;
     bit fix_close;
 {%- endif %}
-{% if regs_enabled %}
     {{ settings.class_prefix }}reg f_reg;
-{% endif %}
 
     constraint cst_open {
 {%- if enable_node_fix %}
@@ -58,9 +56,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         fix_open = 0;
         fix_close = 0;
 {%- endif %}
-{% if regs_enabled %}
         f_reg = new();
-{% endif %}
         kind = "gate";
     endfunction
 endclass

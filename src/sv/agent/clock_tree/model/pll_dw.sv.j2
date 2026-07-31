@@ -3,19 +3,15 @@
 
 class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}pll_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_dw)
-{%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['dw'] %}
     {{ settings.class_prefix }}reg f_{{ key }};
 {%- endfor %}
-{%- endif %}
 
     function new(string name = "");
         super.new(name);
-{%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['dw'] %}
         f_{{ key }} = new();
 {%- endfor %}
-{%- endif %}
         pll_kind = PLL_DW;
     endfunction
 endclass

@@ -10,10 +10,8 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         super.new(name, parent);
     endfunction
 
-{% if regs_enabled %}
     // 按树节点写寄存器
     extern task config_reg({{ settings.class_prefix }}tree_base tree = null);
-{% endif %}
 {% if any_node_path %}
     // 校验频率与占空比
     extern task check_measure(
@@ -24,7 +22,7 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         bit check_duty = 1'b1,
         bit debug = 1'b0);
 {% endif %}
-{% if any_node_path and regs_enabled %}
+{% if any_node_path %}
     // 写寄存器后校验频率与占空比
     extern task test_measure(
         {{ settings.class_prefix }}tree_base tree = null,
@@ -47,7 +45,6 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
 {% endif %}
 endclass
 
-{% if regs_enabled %}
 task {{ settings.class_prefix }}kit_sequencer::config_reg(
         {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}config_reg_req req;
@@ -69,7 +66,6 @@ task {{ settings.class_prefix }}kit_sequencer::config_reg(
     if (seq_rsp != null && !seq_rsp.ok)
         `uvm_fatal("CLK_TREE", "config_reg: operation failed")
 endtask
-{% endif %}
 
 {% if any_node_path %}
 task {{ settings.class_prefix }}kit_sequencer::check_measure(
@@ -105,7 +101,7 @@ task {{ settings.class_prefix }}kit_sequencer::check_measure(
 endtask
 {% endif %}
 
-{% if any_node_path and regs_enabled %}
+{% if any_node_path %}
 task {{ settings.class_prefix }}kit_sequencer::test_measure(
         {{ settings.class_prefix }}tree_base tree,
         bit check_clk,

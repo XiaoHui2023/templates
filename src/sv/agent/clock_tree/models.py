@@ -24,7 +24,6 @@ from reg_paths import (
     SOURCE_KIND_TO_SV_ENUM,
     RegBindingRow,
     any_node_path,
-    tree_has_path_and_reg,
     any_reg_configured as tree_has_node_regs,
     collect_div_sv_classes,
     collect_inv_sv_classes,
@@ -66,10 +65,6 @@ class Settings(BaseModel):
     class_regmodel: str = Field(
         "",
         description="寄存器模型类型名。",
-    )
-    probe_mode: bool = Field(
-        False,
-        description="为真时启用纯路径探针模式：不连接前级，只检查带 path 且有正数 freq 的 clk/cell，以及 active 为假的 clk。",
     )
     direct_config: bool = Field(
         False,
@@ -274,24 +269,12 @@ class Models(BaseModel):
 
     @model_validator(mode="after")
     def _validate_nodes_for_mode(self) -> Models:
-        if self.settings.probe_mode:
-            if not self.tree.nodes_ordered:
-                raise ValueError(
-                    f"{ERR.field('probe_mode')} 为真时须至少包含一个 "
-                    f"{ERR.field('freq')} 为正数或 {ERR.field('active')} "
-                    f"为假的 clk/cell 节点"
-                )
-        else:
-            validate_nodes_graph(self.nodes)
-        if self.settings.direct_config and not self.any_regs_configured:
+        validate_nodes_graph(self.nodes)
+        if not tree_has_node_regs(self.tree):
             raise ValueError(
-                f"{ERR.field('direct_config')} 为真时须至少配置一个 "
-                f"{ERR.fields('reg', 'regs')}"
+                f"至少须配置一个 {ERR.fields('reg', 'regs')}"
             )
-        if (
-            self.any_regs_configured
-            and not self.settings.class_regmodel
-        ):
+        if not self.settings.class_regmodel:
             raise ValueError(
                 f"任意节点配置了 {ERR.fields('reg', 'regs')} 时须在 "
                 f"{ERR.field('settings')} 中填写 {ERR.field('class_regmodel')}"
@@ -299,32 +282,11 @@ class Models(BaseModel):
         return self
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="模板内部使用的节点树；probe_mode 为真时只保留探针节点。",
+        description="模板内部使用的节点树。",
     )
     @property
     def tree(self) -> Tree:
-        return self._cached("tree", self._build_tree)
-
-    def _build_tree(self) -> Tree:
-        if not self.settings.probe_mode:
-            return Tree(nodes=self.nodes)
-        nodes = {
-            key: node
-            for key, node in self.nodes.items()
-            if self._node_probe_enabled(node)
-        }
-        return Tree(nodes=nodes)
-
-    def _node_probe_enabled(self, node: Node) -> bool:
-        if not node.present:
-            return False
-        if not getattr(node, "path", ""):
-            return False
-        if node.kind == "cell":
-            return (node.active is False) or (node.freq is not None and node.freq > 0)
-        if node.kind == "clk":
-            return (node.active is False) or (node.freq is not None and node.freq > 0)
-        return False
+        return self._cached("tree", lambda: Tree(nodes=self.nodes))
 
     @computed_field(  # type: ignore[prop-decorator]
         description="各 tree 所用 PLL 型号对应的 SV 类名列表；YAML 与 model_validate 不可传入。",
@@ -374,31 +336,20 @@ class Models(BaseModel):
     def pll_reg_keys_by_kind(self) -> Dict[str, List[str]]:
         return {kind: sorted(keys) for kind, keys in PLL_REG_KEYS.items()}
 
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def any_regs_configured(self) -> bool:
-        return tree_has_node_regs(self.tree)
-
     @computed_field(  # type: ignore[prop-decorator]
-        description="分别存在带 clk path 的节点与带 reg(regs) 的节点时为真；YAML 与 model_validate 不可传入。",
+        description="存在可连接 RTL path 时为真；YAML 与 model_validate 不可传入。",
     )
     @property
     def enable_node_fix(self) -> bool:
-        return tree_has_path_and_reg(self.tree)
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def regs_enabled(self) -> bool:
-        return bool(self.settings.class_regmodel) and self.any_regs_configured
+        return any_node_path(self.tree)
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="enable_node_fix、regs_enabled、any_node_path 均为真时生成 test_route；不可传入。",
+        description="enable_node_fix 与 any_node_path 均为真时生成 test_route；不可传入。",
     )
     @property
     def route_test_enabled(self) -> bool:
         return (
             self.enable_node_fix
-            and self.regs_enabled
             and self.any_node_path
         )
 

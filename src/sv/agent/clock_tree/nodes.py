@@ -130,7 +130,7 @@ class SvNodeSlot:
 
 @dataclass(frozen=True)
 class SvPortSlot:
-    """展开到 SV 的单个 RTL probe 端口。"""
+    """展开到 SV 的单个 RTL 端口。"""
 
     node_key: str
     group_id: str
@@ -268,12 +268,12 @@ class GateNode(NodeBase):
     in_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输入端 RTL 层次路径；用于 route/flip probe，可省略。",
+        description="输入端 RTL 层次路径；用于 route/flip 端口检查，可省略。",
     )
     out_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+        description="输出端 RTL 层次路径；用于 route/flip 端口检查，可省略。",
     )
     source: OptionalUpstreamSource = Field(
         default=None,
@@ -301,7 +301,7 @@ class GateNode(NodeBase):
 
     @field_validator("in_path", "out_path")
     @classmethod
-    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+    def _validate_rtl_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
         return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -331,12 +331,12 @@ class DivNode(NodeBase):
     in_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输入端 RTL 层次路径；用于 route/flip probe，可省略。",
+        description="输入端 RTL 层次路径；用于 route/flip 端口检查，可省略。",
     )
     out_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+        description="输出端 RTL 层次路径；用于 route/flip 端口检查，可省略。",
     )
     div_kind: DivKind = Field(
         "div",
@@ -370,7 +370,7 @@ class DivNode(NodeBase):
 
     @field_validator("in_path", "out_path")
     @classmethod
-    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+    def _validate_rtl_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
         return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @field_validator("div_kind", mode="before")
@@ -422,12 +422,12 @@ class InvNode(NodeBase):
     in_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输入端 RTL 层次路径；用于 route/flip probe，可省略。",
+        description="输入端 RTL 层次路径；用于 route/flip 端口检查，可省略。",
     )
     out_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+        description="输出端 RTL 层次路径；用于 route/flip 端口检查，可省略。",
     )
     inv_kind: InvKind = Field(
         "inv",
@@ -453,7 +453,7 @@ class InvNode(NodeBase):
 
     @field_validator("in_path", "out_path")
     @classmethod
-    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+    def _validate_rtl_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
         return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @field_validator("inv_kind", mode="before")
@@ -481,7 +481,7 @@ class ClockSourceNode(NodeBase):
     out_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输出端 RTL 层次路径；用于 route probe，可省略。",
+        description="输出端 RTL 层次路径；用于 route 端口检查，可省略。",
     )
     source_kind: SourceKind = Field(
         "source",
@@ -499,7 +499,7 @@ class ClockSourceNode(NodeBase):
 
     @model_validator(mode="before")
     @classmethod
-    def _reject_wrong_probe_paths(cls, data: Any) -> Any:
+    def _reject_wrong_rtl_paths(cls, data: Any) -> Any:
         return _reject_fields(
             data,
             kind="source",
@@ -508,7 +508,7 @@ class ClockSourceNode(NodeBase):
 
     @field_validator("out_path")
     @classmethod
-    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+    def _validate_rtl_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
         return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -528,12 +528,12 @@ class PllNode(NodeBase):
     in_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="参考输入端 RTL 层次路径；用于 route probe，可省略。",
+        description="参考输入端 RTL 层次路径；用于 route 端口检查，可省略。",
     )
     out_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="单输出 PLL 的输出端 RTL 层次路径；用于 route probe，可省略。",
+        description="单输出 PLL 的输出端 RTL 层次路径；用于 route 端口检查，可省略。",
     )
     out_paths: Optional[Dict[str, str]] = Field(
         None,
@@ -559,7 +559,7 @@ class PllNode(NodeBase):
 
     @model_validator(mode="before")
     @classmethod
-    def _reject_wrong_probe_paths(cls, data: Any) -> Any:
+    def _reject_wrong_rtl_paths(cls, data: Any) -> Any:
         return _reject_fields(
             data,
             kind="pll",
@@ -568,12 +568,12 @@ class PllNode(NodeBase):
 
     @field_validator("in_path", "out_path")
     @classmethod
-    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+    def _validate_rtl_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
         return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @field_validator("out_paths")
     @classmethod
-    def _validate_probe_path_map(
+    def _validate_rtl_path_map(
             cls,
             value: Optional[Dict[str, str]]) -> Optional[Dict[str, str]]:
         return _validate_path_map(value, field="out_paths")
@@ -895,12 +895,12 @@ class MuxNode(NodeBase):
     kind: Literal["mux"] = "mux"
     in_paths: Optional[Dict[str, str]] = Field(
         None,
-        description="输入端 RTL 层次路径；键对应 source 选择值，用于 route/flip probe，可省略。",
+        description="输入端 RTL 层次路径；键对应 source 选择值，用于 route/flip 端口检查，可省略。",
     )
     out_path: Optional[str] = Field(
         None,
         min_length=1,
-        description="输出端 RTL 层次路径；用于 route/flip probe，可省略。",
+        description="输出端 RTL 层次路径；用于 route/flip 端口检查，可省略。",
     )
     source: Dict[str, str] = Field(
         default_factory=dict,
@@ -918,7 +918,7 @@ class MuxNode(NodeBase):
 
     @model_validator(mode="before")
     @classmethod
-    def _reject_wrong_probe_paths(cls, data: Any) -> Any:
+    def _reject_wrong_rtl_paths(cls, data: Any) -> Any:
         return _reject_fields(
             data,
             kind="mux",
@@ -927,12 +927,12 @@ class MuxNode(NodeBase):
 
     @field_validator("out_path")
     @classmethod
-    def _validate_probe_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+    def _validate_rtl_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
         return _validate_sv_dot_path(value, field=info.field_name or "path")
 
     @field_validator("in_paths")
     @classmethod
-    def _validate_probe_path_map(
+    def _validate_rtl_path_map(
             cls,
             value: Optional[Dict[str, str]]) -> Optional[Dict[str, str]]:
         return _validate_path_map(value, field="in_paths")
@@ -1172,7 +1172,7 @@ class Tree(BaseModel):
         return slots
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="RTL probe 端口槽位；用于 interface、tree_interface 与 connect；YAML 不可传入。",
+        description="RTL 端口槽位；用于 interface、tree_interface 与 connect；YAML 不可传入。",
     )
     @property
     def port_slots(self) -> List[SvPortSlot]:
@@ -1309,7 +1309,7 @@ class Tree(BaseModel):
         return slots
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="RTL probe 端口槽位；用于测量 interface 与 tree_interface；YAML 不可传入。",
+        description="RTL 端口槽位；用于测量 interface 与 tree_interface；YAML 不可传入。",
     )
     @property
     def connectable_slots(self) -> List[SvPortSlot]:
@@ -1416,8 +1416,8 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
             node.freq is None or node.freq < 1 or node.freq > _FREQ_HZ_U32_MAX
         ):
             raise ValueError(
-                f"{ERR.node('source', key)} 在非 {ERR.field('probe_mode')} 下"
-                f"须填写 1～{_FREQ_HZ_U32_MAX} 的 {ERR.field('freq')}"
+                f"{ERR.node('source', key)} 须填写 1～{_FREQ_HZ_U32_MAX} 的 "
+                f"{ERR.field('freq')}"
             )
         if node.kind == "mux":
             for mux_key, peer in node.source.items():

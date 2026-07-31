@@ -23,16 +23,9 @@ function void build_phase(uvm_phase phase);
     ...
     clk_agt = {{ settings.class_prefix }}agent::type_id::create("clk_agt", this);
     tree = {{ settings.class_prefix }}tree::type_id::create("tree");
-{% if any_node_path and regs_enabled %}
     tree.build(your_regmodel);
+{% if any_node_path %}
     {{ settings.class_prefix }}connect(your_top_module.clk_tree_if, tree);
-{% elif any_node_path %}
-    tree.build();
-    {{ settings.class_prefix }}connect(your_top_module.clk_tree_if, tree);
-{% elif regs_enabled %}
-    tree.build(your_regmodel);
-{% else %}
-    tree.build();
 {% endif %}
     $cast(clk_sqr, clk_agt.sqr);
     uvm_config_db#({{ settings.class_prefix }}tree)::set(this, "clk_agt", "tree", tree);
@@ -45,11 +38,9 @@ endfunction
 task main_phase(uvm_phase phase);
     phase.raise_objection(this);
     ...
-{% if any_node_path and regs_enabled %}
+{% if any_node_path %}
     clk_sqr.test_measure();
-{% elif any_node_path %}
-    clk_sqr.check_measure();
-{% elif regs_enabled %}
+{% else %}
     clk_sqr.config_reg();
 {% endif %}
     ...

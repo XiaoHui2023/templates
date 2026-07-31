@@ -7,9 +7,7 @@ top/tree_interface.sv
 {% endif -%}
 model/base.sv
 model/node_base.sv
-{% if regs_enabled %}
 model/reg.sv
-{% endif -%}
 model/source_base.sv
 model/source.sv
 model/source_pad.sv
@@ -31,14 +29,12 @@ model/pll_sc.sv
 model/pll_dw.sv
 model/pll_inno.sv
 model/tree_base.sv
-{% if regs_enabled %}
 core/reg_access.sv
 core/node_ratio.sv
 core/node_reg_config.sv
 core/pll_config.sv
 core/core_tools.sv
 core/config_reg.sv
-{% endif -%}
 core/tree_nodes.sv
 {% if route_test_enabled %}
 core/route_ctrl_snap.sv
@@ -51,20 +47,16 @@ connect.sv
 {% endif -%}
 component/sequencer.sv
 sequence/base.sv
-{% if regs_enabled %}
 sequence/operation/config_reg/req.sv
 sequence/operation/config_reg/rsp.sv
 sequence/operation/config_reg/op.sv
-{% endif -%}
 {% if any_node_path %}
 sequence/operation/check_measure/req.sv
 sequence/operation/check_measure/rsp.sv
 sequence/operation/check_measure/op.sv
-{% if any_node_path and regs_enabled %}
 sequence/test/test_measure/req.sv
 sequence/test/test_measure/rsp.sv
 sequence/test/test_measure/test.sv
-{% endif -%}
 {% if route_test_enabled %}
 sequence/test/test_flip/req.sv
 sequence/test/test_flip/rsp.sv

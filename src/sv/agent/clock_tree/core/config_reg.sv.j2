@@ -1,4 +1,3 @@
-{% if regs_enabled %}
 `ifndef {{ (settings.class_prefix ~ "config_reg_core") | upper }}
 `define {{ (settings.class_prefix ~ "config_reg_core") | upper }}
 
@@ -710,4 +709,3 @@ task {{ settings.class_prefix }}config_reg_core::configure(
 endtask
 
 `endif
-{% endif %}

@@ -3,12 +3,10 @@
 
 class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_base;
     `uvm_object_utils({{ settings.class_prefix }}div_dto)
-{% if regs_enabled %}
     {{ settings.class_prefix }}reg f_rst;
     {{ settings.class_prefix }}reg f_load;
     {{ settings.class_prefix }}reg f_bypass;
     {{ settings.class_prefix }}reg f_step;
-{% endif %}
 
     constraint cst_dto {
         _resolved_ratio > 0;
@@ -17,12 +15,10 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_
 
     function new(string name = "");
         super.new(name);
-{% if regs_enabled %}
         f_rst = new();
         f_load = new();
         f_bypass = new();
         f_step = new();
-{% endif %}
     endfunction
 endclass
 

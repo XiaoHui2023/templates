@@ -1,4 +1,3 @@
-{% if regs_enabled %}
 `ifndef {{ (settings.class_prefix ~ "config_reg_req") | upper }}
 `define {{ (settings.class_prefix ~ "config_reg_req") | upper }}
 
@@ -17,4 +16,3 @@ class {{ settings.class_prefix }}config_reg_req extends uvm_sequence_item;
 endclass
 
 `endif
-{% endif %}

@@ -436,7 +436,7 @@ def any_reg_configured(tree: Tree) -> bool:
 
 
 def node_path_connectable(tree: Tree, node: object) -> bool:
-    """节点有任一 RTL probe path 时为真。"""
+    """节点有任一 RTL path 时为真。"""
     if getattr(node, "kind", "") in ("clk", "cell"):
         return bool(getattr(node, "path", ""))
     if getattr(node, "in_path", "") or getattr(node, "out_path", ""):
@@ -449,16 +449,11 @@ def node_path_connectable(tree: Tree, node: object) -> bool:
 
 
 def any_node_path(tree: Tree) -> bool:
-    """任一节点有可连接 RTL probe path 时为真，用于决定是否展开 interface。"""
+    """任一节点有可连接 RTL path 时为真，用于决定是否展开 interface。"""
     for node in tree.nodes_ordered:
         if node_path_connectable(tree, node):
             return True
     return False
-
-
-def tree_has_path_and_reg(tree: Tree) -> bool:
-    """树内分别存在带 clk path 的节点与带 reg 或 regs 的节点时为真，用于 enable_node_fix。"""
-    return any_node_path(tree) and any_reg_configured(tree)
 
 
 def _append_binding(

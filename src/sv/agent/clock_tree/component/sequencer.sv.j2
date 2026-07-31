@@ -4,24 +4,18 @@
 class {{ settings.class_prefix }}sequencer extends uvm_sequencer;
     `uvm_component_utils({{ settings.class_prefix }}sequencer)
 
-{% if regs_enabled %}
     {{ settings.class_prefix }}core_tools tools;
-{% endif %}
 
     function new(string name="{{ settings.class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
-{% if regs_enabled %}
     extern function void build_phase(uvm_phase phase);
-{% endif %}
 endclass
 
-{% if regs_enabled %}
 function void {{ settings.class_prefix }}sequencer::build_phase(uvm_phase phase);
     super.build_phase(phase);
     tools = new;
 endfunction
-{% endif %}
 
 `endif

@@ -18,16 +18,10 @@
 
 // 例化 tree
 tree = {{ settings.class_prefix }}tree::type_id::create("tree");
-{% if regs_enabled %}
 // 绑定寄存器
-tree.build(path-to-your-regmodel`);
-{% else %}
-// 随机化
-tree.build();
-{% endif -%}
+tree.build(path-to-your-regmodel);
 ```
 
-{% if regs_enabled -%}
 ## 低功耗
 
 关闭全部时钟以加速仿真，同时也会关闭你可能需要的时钟，不会关闭 PLL。
@@ -62,7 +56,7 @@ tree.{{ first_pll_access }}.enabled = 0;
 // 应用配置
 {{ settings.class_prefix }}config_reg(tree);
 ```
-{% endif %}
+
 {% if configurable_clks -%}
 ## 可配置时钟
 

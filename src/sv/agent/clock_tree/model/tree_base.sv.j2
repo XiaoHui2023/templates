@@ -41,7 +41,7 @@ endclass
 function void {{ settings.class_prefix }}tree_base::require_built(string ctx);
     if (!built)
         `uvm_fatal("CLK_TREE", $sformatf(
-            "%s: tree is not built; call tree.build() before use", ctx))
+            "%s: tree is not built; call tree.build(regmodel) before use", ctx))
 endfunction
 
 function void {{ settings.class_prefix }}tree_base::low_power();

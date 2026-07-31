@@ -14,9 +14,7 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
 {%- if enable_node_fix %}
     bit fix_inverted;
 {%- endif %}
-{% if regs_enabled %}
     {{ settings.class_prefix }}reg f_reg;
-{% endif %}
 
     constraint cst_resolve_active_from_src {
         source != null -> _resolved_active == source._resolved_active;
@@ -38,9 +36,7 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
 {%- if enable_node_fix %}
         fix_inverted = 0;
 {%- endif %}
-{% if regs_enabled %}
         f_reg = new();
-{% endif %}
         kind = "inv";
     endfunction
 endclass

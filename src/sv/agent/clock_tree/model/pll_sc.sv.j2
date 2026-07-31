@@ -3,19 +3,15 @@
 
 class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}pll_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_sc)
-{%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['sc'] %}
     {{ settings.class_prefix }}reg f_{{ key }};
 {%- endfor %}
-{%- endif %}
 
     function new(string name = "");
         super.new(name);
-{%- if regs_enabled %}
 {%- for key in pll_reg_keys_by_kind['sc'] %}
         f_{{ key }} = new();
 {%- endfor %}
-{%- endif %}
         pll_kind = PLL_SC;
     endfunction
 endclass

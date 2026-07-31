@@ -17,9 +17,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     bit unfix_sel;
 {%- endif %}
     {{ settings.class_prefix }}node_base to_source[int];
-{% if regs_enabled %}
     {{ settings.class_prefix }}reg f_reg;
-{% endif %}
 
     constraint cst_mux {
         _resolved_sel inside {[0:max_sel]};
@@ -44,9 +42,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
 {%- if enable_node_fix %}
         unfix_sel = 1'b1;
 {%- endif %}
-{% if regs_enabled %}
         f_reg = new();
-{% endif %}
         kind = "mux";
     endfunction
 

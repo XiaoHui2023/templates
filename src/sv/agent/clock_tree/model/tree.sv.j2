@@ -112,7 +112,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endfor %}
 {%- for node in tree.nodes_ordered %}
 {%- for src in node.sources %}
-{%- if not settings.probe_mode and src.name in tree.nodes and tree.nodes[src.name].present %}
+{%- if src.name in tree.nodes and tree.nodes[src.name].present %}
 {%- set peer = tree.nodes[src.name] %}
 {%- if peer.output_groups %}
 {%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' %}
@@ -139,36 +139,28 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- if not node.check_duty %}
         {{ clk_acc }}.check_duty = 1'b0;
 {%- endif %}
-{%- if (settings.probe_mode and node.active is not false and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
+{%- if node.clk_tree_emit_frequence %}
         {{ clk_acc }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
-{%- if settings.probe_mode %}
-        {{ clk_acc }}.enabled = {{ node.clk_init_enabled }};
-{%- else %}
 {%- if node.clk_tree_emit_enabled %}
         {{ clk_acc }}.enabled = {{ node.clk_init_enabled }};
 {%- endif %}
 {%- if node.stable %}
         {{ clk_acc }}.stable = 1;
 {%- endif %}
-{%- endif %}
 {%- endfor %}
 {%- else %}
 {%- if not node.check_duty %}
         {{ node.name }}.check_duty = 1'b0;
 {%- endif %}
-{%- if (settings.probe_mode and node.active is not false and node.freq is not none and node.freq > 0) or (not settings.probe_mode and node.clk_tree_emit_frequence) %}
+{%- if node.clk_tree_emit_frequence %}
         {{ node.name }}.frequence = {{ node.clk_init_frequence }};
 {%- endif %}
-{%- if settings.probe_mode %}
-        {{ node.name }}.enabled = {{ node.clk_init_enabled }};
-{%- else %}
 {%- if node.clk_tree_emit_enabled %}
         {{ node.name }}.enabled = {{ node.clk_init_enabled }};
 {%- endif %}
 {%- if node.stable %}
         {{ node.name }}.stable = 1;
-{%- endif %}
 {%- endif %}
 {%- endif %}
 {%- elif node.kind == "cell" %}
@@ -223,17 +215,12 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
                 clock_nodes.push_back(clk_nd);
         end
     endfunction
-{% if regs_enabled %}
     // Bind register fields, then randomize tree nodes.
-{% else %}
-    // Randomize tree nodes.
-{% endif %}
-    extern function void build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel = null{% endif %});
+    extern function void build({{ settings.class_regmodel }} regmodel = null);
 endclass
 
-function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ settings.class_regmodel }} regmodel{% endif %});
+function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel }} regmodel);
     built = 1'b0;
-{%- if regs_enabled %}
     if (regmodel != null) begin
 {%- for sv_access, member, path, offset, width in reg_bindings %}
         {{ sv_access }}.{{ member }}.field = regmodel.{{ path }};
@@ -260,10 +247,6 @@ function void {{ settings.class_prefix }}tree::build({% if regs_enabled %}{{ set
 {%- endfor %}
     if (!randomize())
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
-{%- else %}
-    if (!randomize())
-        `uvm_fatal("CLK_TREE", "build: tree randomize failed")
-{%- endif %}
     built = 1'b1;
 endfunction
 `endif

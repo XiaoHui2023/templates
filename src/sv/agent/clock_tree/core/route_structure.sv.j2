@@ -26,7 +26,7 @@ function automatic bit {{ settings.class_prefix }}route_structure_regs_ready(
 endfunction
 
 // kind 是否为 gate、mux、div、dto
-function automatic bit {{ settings.class_prefix }}route_structure_is_probe_kind(
+function automatic bit {{ settings.class_prefix }}route_structure_is_endpoint_kind(
         input {{ settings.class_prefix }}node_base nd);
     if (nd == null)
         return 1'b0;
@@ -191,7 +191,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_upstr
     foreach (raw[i]) begin
         if (raw[i] == subject)
             continue;
-        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i])
+        if ({{ settings.class_prefix }}route_structure_is_endpoint_kind(raw[i])
                 && {{ settings.class_prefix }}control_node_is_valid(tree, raw[i]))
             line.push_back(raw[i]);
     end
@@ -215,7 +215,7 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_downs
     foreach (raw[i]) begin
         if (raw[i] == subject)
             continue;
-        if ({{ settings.class_prefix }}route_structure_is_probe_kind(raw[i])
+        if ({{ settings.class_prefix }}route_structure_is_endpoint_kind(raw[i])
                 && {{ settings.class_prefix }}control_node_is_valid(tree, raw[i]))
             line.push_back(raw[i]);
     end
@@ -227,14 +227,14 @@ function automatic void {{ settings.class_prefix }}route_structure_collect_downs
 endfunction
 
 // 全树寄存器就绪的 gate/mux/div/dto
-function automatic void {{ settings.class_prefix }}route_structure_collect_probe_subjects(
+function automatic void {{ settings.class_prefix }}route_structure_collect_endpoint_subjects(
         input {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base subjects[$]);
     subjects.delete();
     if (tree == null)
         return;
     foreach (tree.nodes[i]) begin
-        if (!{{ settings.class_prefix }}route_structure_is_probe_kind(tree.nodes[i]))
+        if (!{{ settings.class_prefix }}route_structure_is_endpoint_kind(tree.nodes[i]))
             continue;
         if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
             continue;
