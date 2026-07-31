@@ -74,6 +74,26 @@ probe_signal_if #(.FREQ(100000000)) cpu_clk (.sig(`PROBE_PATH_CPU_CLK));
 
 `TOLERANCE_PPM`、`MIN_FREQ_HZ`、`STABLE_CYCLES` 是 `probe_signal_if` 内部统一默认参数，由 YAML 的 `settings` 渲染到子 interface 定义里，不在每个实例重复传入。
 
+`settings.prefix` 同时作用于路径宏和全局 SystemVerilog 符号。默认 `probe_` 会生成：
+
+```text
+PROBE_PATH_CPU_CLK
+probe_signal_if
+probe_if
+probe_check
+```
+
+如果改成 `pll0_`，会生成：
+
+```text
+PLL0_PATH_CPU_CLK
+pll0_signal_if
+pll0_if
+pll0_check
+```
+
+同一仿真里需要编译多份 probe 时，为每份配置不同 `prefix`，避免全局 interface 和 task 重名。
+
 ## 路径覆盖
 
 生成的路径宏格式如下：

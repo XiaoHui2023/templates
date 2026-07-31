@@ -70,3 +70,33 @@ class Models(BaseModel):
     @property
     def path_macros_guard(self) -> str:
         return f"{self.settings.prefix.upper()}PATH_MACROS"
+
+    @computed_field
+    @property
+    def signal_if_name(self) -> str:
+        return f"{self.settings.prefix}signal_if"
+
+    @computed_field
+    @property
+    def probe_if_name(self) -> str:
+        return f"{self.settings.prefix}if"
+
+    @computed_field
+    @property
+    def check_task_name(self) -> str:
+        return f"{self.settings.prefix}check"
+
+    @computed_field
+    @property
+    def signal_if_guard(self) -> str:
+        return self.signal_if_name.upper()
+
+    @computed_field
+    @property
+    def probe_if_guard(self) -> str:
+        return self.probe_if_name.upper()
+
+    @computed_field
+    @property
+    def check_guard(self) -> str:
+        return self.check_task_name.upper()

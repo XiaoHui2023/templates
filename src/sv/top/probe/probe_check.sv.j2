@@ -1,7 +1,7 @@
-`ifndef PROBE_CHECK
-`define PROBE_CHECK
+`ifndef {{ check_guard }}
+`define {{ check_guard }}
 
-task automatic probe_check(probe_if probe);
+task automatic {{ check_task_name }}({{ probe_if_name }} probe);
     bit ok;
     bit all_ok;
 

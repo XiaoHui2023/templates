@@ -1,7 +1,7 @@
-`ifndef PROBE_SIGNAL_IF
-`define PROBE_SIGNAL_IF
+`ifndef {{ signal_if_guard }}
+`define {{ signal_if_guard }}
 
-interface probe_signal_if #(
+interface {{ signal_if_name }} #(
     parameter longint FREQ = 0,
     parameter int TOLERANCE_PPM = {{ settings.tolerance_ppm }},
     parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},

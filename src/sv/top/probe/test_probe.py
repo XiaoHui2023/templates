@@ -42,7 +42,8 @@ def test_example_renders() -> None:
         "probe_check.sv",
     ]
     assert "`define PROBE_PATH_CPU_CLK dut.u_top.cpu_clk" in rendered["path_macros.sv.j2"]
-    assert ".FREQ(100000000)" in rendered["probe_if.sv.j2"]
+    assert "interface probe_if;" in rendered["probe_if.sv.j2"]
+    assert "probe_signal_if #(.FREQ(100000000)) cpu_clk" in rendered["probe_if.sv.j2"]
     assert ".TOLERANCE_PPM" not in rendered["probe_if.sv.j2"]
     assert ".MIN_FREQ_HZ" not in rendered["probe_if.sv.j2"]
     assert ".STABLE_CYCLES" not in rendered["probe_if.sv.j2"]
@@ -61,8 +62,31 @@ def test_omitted_freq_defaults_to_inactive() -> None:
     rendered = render_templates(model)
 
     assert model.signals["sleep_clk"].freq == 0
-    assert ".FREQ(0)" in rendered["probe_if.sv.j2"]
+    assert "probe_signal_if #(.FREQ(0)) sleep_clk" in rendered["probe_if.sv.j2"]
     assert 'probe.sleep_clk.check("sleep_clk", ok);' in rendered["probe_check.sv.j2"]
+
+
+def test_prefix_applies_to_global_symbols() -> None:
+    model = Models.model_validate(
+        {
+            "signals": {
+                "cpu_clk": {
+                    "path": "dut.u_top.cpu_clk",
+                    "freq": 100000000,
+                },
+            },
+            "settings": {
+                "prefix": "pll0_",
+            },
+        }
+    )
+    rendered = render_templates(model)
+
+    assert "`define PLL0_PATH_CPU_CLK dut.u_top.cpu_clk" in rendered["path_macros.sv.j2"]
+    assert "interface pll0_signal_if" in rendered["probe_signal_if.sv.j2"]
+    assert "interface pll0_if;" in rendered["probe_if.sv.j2"]
+    assert "pll0_signal_if #(.FREQ(100000000)) cpu_clk" in rendered["probe_if.sv.j2"]
+    assert "task automatic pll0_check(pll0_if probe);" in rendered["probe_check.sv.j2"]
 
 
 def test_unsupported_signal_fields_are_rejected() -> None:
