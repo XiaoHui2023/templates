@@ -1,0 +1,20 @@
+`ifndef PROBE_CHECK
+`define PROBE_CHECK
+
+task automatic probe_check(probe_if probe);
+    bit ok;
+    bit all_ok;
+
+    all_ok = 1'b1;
+{% for signal in signal_rows %}
+    probe.{{ signal.name }}.check("{{ signal.name }}", ok);
+    all_ok &= ok;
+{% endfor %}
+
+    if (!all_ok)
+        $error("probe: failed");
+    else
+        $display("probe: passed");
+endtask
+
+`endif

@@ -1,0 +1,8 @@
+`ifndef {{ path_macros_guard }}
+`define {{ path_macros_guard }}
+{% for signal in signal_rows %}
+`ifndef {{ signal.macro }}
+`define {{ signal.macro }} {{ signal.path }}
+`endif
+{% endfor %}
+`endif

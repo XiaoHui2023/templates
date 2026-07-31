@@ -1,0 +1,13 @@
+signals:
+  cpu_clk:
+    path: dut.u_top.cpu_clk
+    freq: 100000000
+
+  sleep_clk:
+    path: dut.u_top.sleep_clk
+
+settings:
+  prefix: probe_
+  tolerance_ppm: 20000
+  min_freq_hz: 15000
+  stable_cycles: 5

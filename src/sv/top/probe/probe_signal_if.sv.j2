@@ -1,0 +1,125 @@
+`ifndef PROBE_SIGNAL_IF
+`define PROBE_SIGNAL_IF
+
+interface probe_signal_if #(
+    parameter longint EXPECT_FREQ_HZ = 0,
+    parameter int TOLERANCE_PPM = {{ settings.tolerance_ppm }},
+    parameter int MIN_FREQ_HZ = {{ settings.min_freq_hz }},
+    parameter int STABLE_CYCLES = {{ settings.stable_cycles }}
+)(
+    input logic sig
+);
+    timeunit 1ns;
+    timeprecision 1fs;
+
+    localparam real RT_PER_SEC = 1.0e9;
+
+    function automatic int effective_min_freq_hz();
+        if (MIN_FREQ_HZ <= 0)
+            return 1;
+        return MIN_FREQ_HZ;
+    endfunction
+
+    function automatic int edge_timeout_ns();
+        int hz;
+
+        hz = effective_min_freq_hz();
+        return (1_000_000_000 + hz - 1) / hz;
+    endfunction
+
+    task automatic wait_posedge_or_timeout(output bit seen);
+        int timeout_ns;
+
+        timeout_ns = edge_timeout_ns();
+        seen = 1'b0;
+        fork
+            begin
+                @(posedge sig);
+                seen = 1'b1;
+            end
+            begin
+                #(timeout_ns * 1ns);
+            end
+        join_any
+        disable fork;
+    endtask
+
+    task automatic wait_activity_or_timeout(output bit seen);
+        int timeout_ns;
+
+        timeout_ns = edge_timeout_ns() * STABLE_CYCLES;
+        seen = 1'b0;
+        fork
+            begin
+                @(posedge sig or negedge sig);
+                seen = 1'b1;
+            end
+            begin
+                #(timeout_ns * 1ns);
+            end
+        join_any
+        disable fork;
+    endtask
+
+    task automatic check_active(input string name, output bit pass);
+        bit seen;
+        realtime first_edge_t;
+        realtime last_edge_t;
+        realtime period_t;
+        real measured_freq_hz;
+        longint measured_hz;
+        longint min_hz;
+        longint max_hz;
+
+        pass = 1'b0;
+        first_edge_t = 0.0;
+        last_edge_t = 0.0;
+        measured_freq_hz = 0.0;
+        measured_hz = 0;
+        min_hz = EXPECT_FREQ_HZ * (1_000_000 - TOLERANCE_PPM) / 1_000_000;
+        max_hz = EXPECT_FREQ_HZ * (1_000_000 + TOLERANCE_PPM) / 1_000_000;
+
+        for (int i = 0; i <= STABLE_CYCLES; i++) begin
+            wait_posedge_or_timeout(seen);
+            if (!seen) begin
+                $display("probe: %s failed measured 0 Hz expected %0d Hz", name, EXPECT_FREQ_HZ);
+                return;
+            end
+            if (i == 0)
+                first_edge_t = $realtime;
+            last_edge_t = $realtime;
+        end
+
+        period_t = (last_edge_t - first_edge_t) / STABLE_CYCLES;
+        if (period_t > 0.0) begin
+            measured_freq_hz = RT_PER_SEC / period_t;
+            measured_hz = $rtoi(measured_freq_hz + 0.5);
+        end
+
+        pass = (measured_hz >= min_hz) && (measured_hz <= max_hz);
+        if (pass)
+            $display("probe: %s pass measured %0d Hz expected %0d Hz", name, measured_hz, EXPECT_FREQ_HZ);
+        else
+            $display("probe: %s failed measured %0d Hz expected %0d Hz", name, measured_hz, EXPECT_FREQ_HZ);
+    endtask
+
+    task automatic check_inactive(input string name, output bit pass);
+        bit seen;
+
+        wait_activity_or_timeout(seen);
+        pass = !seen;
+        if (pass)
+            $display("probe: %s pass inactive", name);
+        else
+            $display("probe: %s failed expected inactive but active", name);
+    endtask
+
+    task automatic check(input string name, output bit pass);
+        if (EXPECT_FREQ_HZ > 0)
+            check_active(name, pass);
+        else
+            check_inactive(name, pass);
+    endtask
+endinterface
+
+`endif
