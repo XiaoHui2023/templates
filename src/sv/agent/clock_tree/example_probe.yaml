@@ -1,27 +1,105 @@
 nodes:
-    osc:
-      kind: source
-    ignored_source_with_freq:
-      kind: source
-      freq: 24000000
-    pll_probe:
-      kind: pll
-      pll_kind: tci
-      freq: 480000000
-    clk_cpu:
-      kind: clk
-      path: dut.clk_cpu
-      freq: 1000000000
-    clk_without_freq:
-      kind: clk
-      path: dut.clk_without_freq
-    clk_disabled:
-      kind: clk
-      path: dut.clk_disabled
-      active: false
-    gate_without_freq:
-      kind: gate
-      source: osc
+  osc:
+    kind: source
+    source_kind: pad
+    out_path: dut.osc_clk
+    freq: 24000000
+
+  pll_probe:
+    kind: pll
+    pll_kind: tci
+    source: osc
+    in_path: dut.pll_ref
+    out_path: dut.pll_clk
+    freq: 480000000
+
+  gate_probe:
+    kind: gate
+    source: pll_probe
+    in_path: dut.gate_i
+    out_path: dut.gate_o
+    open: 1
+
+  div_probe:
+    kind: div
+    div_kind: div
+    source: gate_probe
+    in_path: dut.div_i
+    out_path: dut.div_o
+    ratio: 2
+
+  mux_probe:
+    kind: mux
+    source:
+      "0": osc
+      "1": div_probe
+    in_paths:
+      "0": dut.mux_i0
+      "1": dut.mux_i1
+    out_path: dut.mux_o
+    sel: 1
+
+  inv_probe:
+    kind: inv
+    source: mux_probe
+    in_path: dut.inv_i
+    out_path: dut.inv_o
+
+  ignored_source_no_freq:
+    kind: source
+    out_path: dut.ignored_source_no_freq
+
+  ignored_pll_inno:
+    kind: pll
+    pll_kind: inno
+    source: ignored_source_no_freq
+    in_path: dut.ignored_pll_ref
+    out_paths:
+      "0": dut.ignored_pll_clk0
+      "1": dut.ignored_pll_clk1
+    freq:
+      "0": 600000000
+      "1": 300000000
+
+  clk_cpu:
+    kind: clk
+    path: dut.clk_cpu
+    freq: 1000000000
+
+  clk_without_freq:
+    kind: clk
+    path: dut.clk_without_freq
+
+  clk_disabled:
+    kind: clk
+    path: dut.clk_disabled
+    active: false
+
+  clk_not_present:
+    kind: clk
+    present: false
+
+  cell_freq:
+    kind: cell
+    cell_kind: buf
+    path: dut.cell_freq
+    freq: 198000000
+
+  cell_without_freq:
+    kind: cell
+    cell_kind: buf
+    path: dut.cell_without_freq
+
+  cell_disabled:
+    kind: cell
+    cell_kind: buf
+    path: dut.cell_disabled
+    active: false
+
+  cell_not_present:
+    kind: cell
+    present: false
+
 settings:
   class_prefix: clk_tree_
   probe_mode: true
