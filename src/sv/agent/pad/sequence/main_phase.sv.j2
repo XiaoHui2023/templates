@@ -22,7 +22,7 @@ task {{ class_main_phase_seq }}::pre_start();
 endtask
 
 task {{ class_main_phase_seq }}::body();
-    `uvm_info("PAD", "override or call p_sequencer.connection_test()/pull_test()", UVM_LOW)
+    `uvm_info("PAD", "override this sequence or call the agent kit test tasks", UVM_LOW)
 endtask
 
 task {{ class_main_phase_seq }}::post_start();

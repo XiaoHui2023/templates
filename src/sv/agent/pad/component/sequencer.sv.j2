@@ -17,8 +17,6 @@ class {{ class_sequencer }} extends uvm_sequencer;
     extern function void check_ready();
     extern task config_signal({{ class_signal_data }} signal, logic[31:0] value);
     extern function logic[31:0] get_signal({{ class_pad_data }} pad, string signal_name);
-    extern task connection_test();
-    extern task pull_test();
 endclass
 
 task {{ class_sequencer }}::reset_phase(uvm_phase phase);
@@ -70,21 +68,5 @@ function logic[31:0] {{ class_sequencer }}::get_signal({{ class_pad_data }} pad,
     `uvm_fatal("PAD", $sformatf("get_signal: unknown signal %s", signal_name))
     return '0;
 endfunction
-
-task {{ class_sequencer }}::connection_test();
-    {{ class_connection_test_seq }} seq;
-
-    check_ready();
-    seq = {{ class_connection_test_seq }}::type_id::create("connection_test");
-    seq.start(this);
-endtask
-
-task {{ class_sequencer }}::pull_test();
-    {{ class_pull_test_seq }} seq;
-
-    check_ready();
-    seq = {{ class_pull_test_seq }}::type_id::create("pull_test");
-    seq.start(this);
-endtask
 
 `endif
