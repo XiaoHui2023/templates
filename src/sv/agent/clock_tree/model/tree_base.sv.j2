@@ -46,7 +46,7 @@ endfunction
 
 function void {{ settings.class_prefix }}tree_base::low_power();
     foreach (clock_nodes[i]) begin
-        clock_nodes[i]._low_power = 1'b1;
+        clock_nodes[i].low_power = 1'b1;
         if (!clock_nodes[i].stable && clock_nodes[i].enabled > 0)
             clock_nodes[i].enabled = -1;
     end
