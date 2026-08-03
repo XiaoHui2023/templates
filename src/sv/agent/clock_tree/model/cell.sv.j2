@@ -17,7 +17,7 @@ class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_ba
     int enabled;
 
     constraint cst_cell {
-        frequence >= 0 -> frequence == _resolved_freq;
+        (frequence >= 0 && enabled != 0) -> frequence == _resolved_freq;
         enabled >= 0 -> (enabled != 0) == _resolved_active;
         !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
         !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};

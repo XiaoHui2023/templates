@@ -24,7 +24,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
     constraint cst_clk {
         !(unfix_enabled || enabled < 0) -> (enabled != 0) == _resolved_active;
         (_resolved_freq > 0) == _resolved_active;
-        !(unfix_frequence || frequence < 0 || enabled <= 0) -> frequence == _resolved_freq;
+        !(unfix_frequence || frequence < 0 || enabled == 0) -> frequence == _resolved_freq;
         stable -> enabled > 0;
         stable -> _resolved_active;
         !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
