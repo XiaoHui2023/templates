@@ -8,7 +8,7 @@
 
 | 层 | 职责 |
 | --- | --- |
-| `flash_command` | 基础指令包，保存 opcode、frame/transfer mode、数据线宽、地址线宽、dummy、payload 方向和 scoreboard side effect |
+| `flash_command` | 基础指令包，保存 opcode、frame/transfer mode、指令/地址/数据线宽、dummy、payload 方向和 scoreboard side effect |
 | 具体指令文件 | 只写本指令的约束，例如 opcode、地址相位线宽、payload 方向、QE 需求 |
 | `flash_command_adapter` | flow 内的通用适配器，把任意 `flash_command` 转换为 `transfer_req` |
 | `transfer_seq` | 通用执行 primitive transfer，负责寄存器配置、DR/DMA、CS、completion、scoreboard |
@@ -21,6 +21,7 @@
 | `frame_mode` | `STANDARD` 或 `ENHANCED` |
 | `transfer_mode` | 控制器 `TMOD`，例如 program 使用 `TX_ONLY`，read 使用 `RX_ONLY` |
 | `io_lanes` | data phase 线宽 |
+| `instruction_lanes` | instruction phase 线宽 |
 | `address_lanes` | address phase 线宽，不能从 data 线宽一刀切推导 |
 | `speed_multiplier` | 映射到 `CTRLR0.SPI_FRF` 的 1/2/4 倍速 |
 | `inst_bytes` | instruction phase 字节数；当前内置 flash command 默认 1 |
@@ -40,7 +41,7 @@
 | `write_status_qe.sv` | `write_status_qe_flash_command` | `0x01` | command + 2-byte status data，标准单线，`TX_ONLY`，不更新 memory mirror |
 | `page_program.sv` | `page_program_flash_command` | `0x02` | opcode/address 单线，payload 1 线，`TX_ONLY` |
 | `dual_page_program.sv` | `dual_page_program_flash_command` | `0xA2` | opcode/address 单线，payload 2 线，`TX_ONLY` |
-| `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | opcode/address 单线，payload 4 线，`TX_ONLY`，需要 QE |
+| `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | opcode/address/payload 均为 4 线，`TX_ONLY`，需要 QE |
 | `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，`RX_ONLY` |
 | `fast_read1x.sv` | `fast_read1x_flash_command` | `0x0B` | opcode/address 单线，payload 1 线，`RX_ONLY` |
 | `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，`RX_ONLY` |

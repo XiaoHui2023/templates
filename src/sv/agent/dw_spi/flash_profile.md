@@ -26,7 +26,7 @@ SPI NAND 不直接复用这个 NOR-like byte memory flow。NAND 通常需要 pag
 
 Other common P25Q21L commands recorded in the root skill include `RDID 0x9F`, `RDSR 0x05`, `RDSR2 0x35`, `WRSR 0x01`, `SE 0x20`, `BE32 0x52`, `BE64 0xD8`, `CE 0x60/0xC7`, `RSTEN 0x66`, and `RST 0x99`.
 
-Program commands use single-lane opcode and single-lane address for `PP 0x02`, `DPP 0xA2`, and `QPP 0x32`; only the payload data phase follows the selected 1/2/4-lane width. Read address width is opcode-specific: `READ1X 0x03`, `FASTREAD1X 0x0B`, `DREAD 0x3B`, and `QREAD 0x6B` are single-lane address; `READ2X 0xBB` is dual-lane address; `READ4X 0xEB` is quad-lane address.
+Program phase width is opcode-specific. `PP 0x02` and `DPP 0xA2` keep opcode/address single-lane; local QPP `0x32` uses quad-lane opcode, address, and payload. Read address width is also opcode-specific: `READ1X 0x03`, `FASTREAD1X 0x0B`, `DREAD 0x3B`, and `QREAD 0x6B` are single-lane address; `READ2X 0xBB` is dual-lane address; `READ4X 0xEB` is quad-lane address.
 
 `STANDARD` / `ENHANCED` is the controller driving path, not always a flash opcode property. Compatible 1x commands such as `WREN 0x06`, `WRSR 0x01`, and `PP 0x02` may be executed through either standard or enhanced 1x controller setup. Opcodes that require dual/quad phases still force enhanced mode.
 
@@ -45,7 +45,7 @@ Write:
   CS low -> 0x06 -> CS high
   CS low -> 0x01 -> 0x00 -> 0x02 -> CS high
   CS low -> 0x06 -> CS high
-  CS low -> 0x32 -> address -> data -> CS high
+  CS low -> 0x32(4S) -> address(4S) -> data(4S) -> CS high
 ```
 
 Read:
@@ -64,6 +64,7 @@ Implemented:
 
 - WREN as a separate command-only transaction.
 - QPP setup for 4x program: `WREN 0x06` sets WEL, `WRSR 0x01 + 16-bit status value 0x0200` sets `status[9] / SREG_QE`, then another `WREN 0x06` because WRSR clears WEL before `QPP 0x32`.
+- QPP `0x32` uses `instruction_lanes=4` and `address_lanes=4`, so `SPI_CTRLR0.TRANS_TYPE=2` and instruction/address both follow `CTRLR0.SPI_FRF=2`.
 - Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
 - One dummy byte by default for read data windows; program/write windows do not use dummy clocks.

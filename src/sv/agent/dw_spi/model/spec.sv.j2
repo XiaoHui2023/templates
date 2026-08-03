@@ -13,14 +13,14 @@ class {{ class_prefix }}spec#(type T = uvm_object) extends T;
     localparam int CTRLR0_SPI_FRF_STANDARD = 0;
     localparam int CTRLR0_SPI_FRF_DUAL = 1;
     localparam int CTRLR0_SPI_FRF_QUAD = 2;
-{% if external_dma %}
+{%- if external_dma %}
     localparam int DMACR_RDMAE = 0;
     localparam int DMACR_TDMAE = 1;
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
     localparam int DMACR_IDMAE = 0;
     localparam int DMACR_AINC = 1;
-{% endif %}
+{%- endif %}
 
     localparam int SR_BUSY = 0;
     localparam int SR_TFNF = 1;

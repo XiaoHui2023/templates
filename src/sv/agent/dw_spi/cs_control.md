@@ -32,11 +32,11 @@ SPI flash 的 CS window 由协议操作决定：
 - command-only 操作独立占用一个 CS window，例如 `WREN 0x06`、`RDSR 0x05`、`CHIP_ERASE 0xC7`。
 - status-register write 也独立占用一个 CS window，例如 P25Q21L QPP 前的 `WRSR 0x01 + 0x00 + 0x02`。
 - read 这类多阶段操作必须把 opcode、address、dummy、data 放在同一个 CS window 内；program/write 必须把 opcode、address、data 放在同一个 CS window 内，写流程不插入 dummy clock。
-- `WREN 0x06` 与后续 page program 必须是两个 CS window：先发 `0x06` 并释放 CS，再发 program opcode + address + dummy + data。QPP 还需要在 `WRSR` 后再次 `WREN`，因为 WRSR 会清除 WEL。
+- `WREN 0x06` 与后续 page program 必须是两个 CS window：先发 `0x06` 并释放 CS，再发 program opcode + address + data。QPP 还需要在 `WRSR` 后再次 `WREN`，因为 WRSR 会清除 WEL。
 
 DW SPI 的 native CS 有一个关键行为：`SER` 置位后传输可以自动开始；如果 TX FIFO 在一个 memory operation 中途变空，硬件 CS 可能提前释放，导致 flash 操作被截断。因此硬件 CS + PIO 必须先尽量预填 FIFO，并在 CS 有效期间及时补写 `DR`，保证 FIFO 不被喂空。
 
-flash write 的非 DMA PIO flow 不按 FIFO 容量拆成多个 program transaction。正确边界是 `WREN` 一个 CS window，随后整个 `program opcode + address + dummy + data` 一个 CS window；CPU/PIO 只是按 FIFO 状态慢慢补 `DR`。当前模板用 `SR.TFNF` 轮询补 FIFO；后续可以升级为 TX FIFO threshold interrupt/refill 状态机。
+flash write 的非 DMA PIO flow 不按 FIFO 容量拆成多个 program transaction。正确边界是 `WREN` 一个 CS window，随后整个 `program opcode + address + data` 一个 CS window；CPU/PIO 只是按 FIFO 状态慢慢补 `DR`。当前模板用 `SR.TFNF` 轮询补 FIFO；后续可以升级为 TX FIFO threshold interrupt/refill 状态机。
 
 ## SER 与 Callback
 

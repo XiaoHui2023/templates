@@ -7,6 +7,7 @@ class {{ class_prefix }}flash_command extends {{ class_prefix }}spec#(uvm_sequen
         `uvm_field_enum(frame_mode_e, frame_mode, UVM_ALL_ON)
         `uvm_field_enum(transfer_mode_e, transfer_mode, UVM_ALL_ON)
         `uvm_field_int(io_lanes, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(instruction_lanes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(address_lanes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(speed_multiplier, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
@@ -23,6 +24,7 @@ class {{ class_prefix }}flash_command extends {{ class_prefix }}spec#(uvm_sequen
     rand frame_mode_e frame_mode;
     rand transfer_mode_e transfer_mode;
     rand int io_lanes;
+    rand int instruction_lanes;
     rand int address_lanes;
     rand int speed_multiplier;
     rand int data_frame_bits;
@@ -42,21 +44,25 @@ class {{ class_prefix }}flash_command extends {{ class_prefix }}spec#(uvm_sequen
         inst_bytes == 1;
         addr_bytes inside {[0:4]};
         io_lanes inside {1, 2, 4};
+        instruction_lanes inside {1, 2, 4};
         address_lanes inside {1, 2, 4};
         speed_multiplier inside {1, 2, 4};
         data_frame_bits inside {[4:32]};
         soft data_frame_bits == 8;
         soft dummy_cycles == 0;
+        soft instruction_lanes == 1;
         soft address_lanes == 1;
         soft records_memory_write == 1'b0;
         soft requires_qe == 1'b0;
         !(payload_is_read && payload_is_write);
         if (frame_mode == STANDARD) {
             io_lanes == 1;
+            instruction_lanes == 1;
             address_lanes == 1;
             speed_multiplier == 1;
         }
         if (speed_multiplier > 1) frame_mode == ENHANCED;
+        if (instruction_lanes != 1) instruction_lanes == speed_multiplier;
         if (addr_bytes == 0) address_lanes == 1;
         if (address_lanes != 1) address_lanes == speed_multiplier;
     }

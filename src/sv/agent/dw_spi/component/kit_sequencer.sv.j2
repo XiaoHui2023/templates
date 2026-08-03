@@ -91,14 +91,14 @@ task {{ class_prefix }}kit_sequencer::flash_write(
             data_frame_bits == local::data_frame_bits;
             cs_id == local::cs_id;
             addr_bytes == local::addr_bytes;
-{% if internal_dma or external_dma %}
+{%- if internal_dma or external_dma %}
             use_dma == local::use_dma;
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
             awlen == local::awlen;
             arlen == local::arlen;
             axi_addr == local::axi_addr;
-{% endif %}
+{%- endif %}
         })
         `uvm_fatal("DW_SPI", "failed to randomize flash_write configuration")
     seq.start(this);
@@ -133,14 +133,14 @@ task {{ class_prefix }}kit_sequencer::flash_read(
             data_frame_bits == local::data_frame_bits;
             cs_id == local::cs_id;
             addr_bytes == local::addr_bytes;
-{% if internal_dma or external_dma %}
+{%- if internal_dma or external_dma %}
             use_dma == local::use_dma;
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
             awlen == local::awlen;
             arlen == local::arlen;
             axi_addr == local::axi_addr;
-{% endif %}
+{%- endif %}
         })
         `uvm_fatal("DW_SPI", "failed to randomize flash_read configuration")
     seq.start(this);
@@ -192,14 +192,14 @@ task {{ class_prefix }}kit_sequencer::rw_test(
             data_frame_bits == local::data_frame_bits;
             cs_id == local::cs_id;
             addr_bytes == local::addr_bytes;
-{% if internal_dma or external_dma %}
+{%- if internal_dma or external_dma %}
             use_dma == local::use_dma;
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
             awlen == local::awlen;
             arlen == local::arlen;
             axi_addr == local::axi_addr;
-{% endif %}
+{%- endif %}
         })
         `uvm_fatal("DW_SPI", "failed to randomize rw_test configuration")
     seq.start(this);

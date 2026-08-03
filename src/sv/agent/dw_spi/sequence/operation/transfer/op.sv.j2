@@ -53,7 +53,7 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
         input bit [7:0] dr_bytes[$],
         output bit cs_started,
         output bit ok);
-{% if internal_dma %}
+{%- if internal_dma %}
     extern protected task cpu_write_payload_to_axi(
         bit [31:0] axi_addr,
         uvm_tlm_generic_payload payload,
@@ -63,7 +63,7 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
         int length,
         output bit [7:0] read_data[$],
         output bit ok);
-{% endif %}
+{%- endif %}
 endclass
 
 task {{ class_prefix }}transfer_seq::body();
@@ -96,7 +96,7 @@ task {{ class_prefix }}transfer_seq::body();
     write_reason = "";
     rs = {{ class_prefix }}transfer_rsp::type_id::create("rsp");
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d address_lanes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "transfer start: protocol=%s mode=%s frame=%s cs_mode=%s opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d cs=%0d lanes=%0d speed=%0dx dfs_bits=%0d{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         rq.protocol.name(),
         rq.transfer_mode.name(),
         rq.frame_mode.name(),
@@ -106,6 +106,7 @@ task {{ class_prefix }}transfer_seq::body();
         rq.payload.get_data_length(),
         rq.inst_bytes,
         rq.addr_bytes,
+        rq.instruction_lanes,
         rq.address_lanes,
         rq.dummy_cycles,
         rq.cs_id,
@@ -117,7 +118,7 @@ task {{ class_prefix }}transfer_seq::body();
     config_builder.settings = p_sequencer.settings;
     `uvm_info("DW_SPI_XFER", "building register configuration for transfer", UVM_DEBUG)
     config_builder.build(rq, cfg);
-{% if internal_dma %}
+{%- if internal_dma %}
     if (rq.use_dma && command == UVM_TLM_WRITE_COMMAND) begin
         `uvm_info("DW_SPI_XFER", $sformatf(
             "preparing internal DMA source buffer before controller start: axi_addr=0x%08h bytes=%0d",
@@ -130,14 +131,14 @@ task {{ class_prefix }}transfer_seq::body();
             return;
         end
     end
-{% endif %}
+{%- endif %}
     register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
     register_access.report_context = p_sequencer;
     `uvm_info("DW_SPI_XFER", "applying controller register configuration", UVM_DEBUG)
     register_access.apply_configuration(cfg);
     `uvm_info("DW_SPI_XFER", "controller configured with SER released; transfer sequence will select CS at the transaction boundary", UVM_DEBUG)
-{% if internal_dma %}
+{%- if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
         `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; selecting CS before waiting for configured completion", UVM_HIGH)
@@ -157,7 +158,7 @@ task {{ class_prefix }}transfer_seq::body();
                 rq, cfg, register_access, pio_dr_bytes, cs_started, pio_ok);
         end
     end
-{% else %}
+{%- else %}
     pio_ok = 1'b1;
     if (command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
         build_pio_dr_write_bytes(
@@ -170,8 +171,8 @@ task {{ class_prefix }}transfer_seq::body();
         write_pio_stream_under_cs(
             rq, cfg, register_access, pio_dr_bytes, cs_started, pio_ok);
     end
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
     if (rq.use_dma) begin
         if (dma_ok) begin
             wait_transfer_completion(rq, cfg, register_access, completion_ok);
@@ -232,7 +233,7 @@ task {{ class_prefix }}transfer_seq::body();
         end
         rs.ok = pio_ok;
     end
-{% else %}
+{%- else %}
     if (pio_ok && command == UVM_TLM_READ_COMMAND) begin
         `uvm_info("DW_SPI_XFER", $sformatf(
             "PIO read path: reading payload from DR: expected_bytes=%0d",
@@ -263,7 +264,7 @@ task {{ class_prefix }}transfer_seq::body();
         end
     end
     rs.ok = pio_ok;
-{% endif %}
+{%- endif %}
     if (rs.ok && record_write_expected) begin
         `uvm_info("DW_SPI_XFER", $sformatf(
             "recording expected payload in scoreboard after CS release: reason=%s bytes=%0d data_preview=%s",
@@ -432,10 +433,10 @@ endtask
 // Reports whether this transfer may use the local internal-DMA done interrupt.
 function bit {{ class_prefix }}transfer_seq::can_use_internal_dma_done_interrupt(
         {{ class_prefix }}transfer_req rq);
-{% if internal_dma %}
+{%- if internal_dma %}
     if (rq != null && rq.use_dma)
         return 1'b1;
-{% endif %}
+{%- endif %}
     return 1'b0;
 endfunction
 
@@ -550,7 +551,7 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_bytes(
         dr_bytes.size()), UVM_DEBUG)
 endfunction
 
-{% if internal_dma %}
+{%- if internal_dma %}
 task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
         bit [31:0] axi_addr,
         uvm_tlm_generic_payload payload,
@@ -617,7 +618,7 @@ task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
         "cpu read DMA destination buffer: axi_addr=0x%08h bytes=%0d data_preview=%s",
         axi_addr, read_data.size(), byte_queue_preview(read_data, 16)), UVM_HIGH)
 endtask
-{% endif %}
+{%- endif %}
 
 task {{ class_prefix }}transfer_seq::wait_transfer_interrupt(
         {{ class_prefix }}transfer_req rq,

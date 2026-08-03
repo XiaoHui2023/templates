@@ -74,7 +74,7 @@ CTRLR1.NDF = actual_ndf - 1
 | `ADDR_L` | address length：0=no address，1=4 bit，2=8 bit，递增到 f=60 bit |
 | `TRANS_TYPE` | 0=instruction/address 都 standard，1=instruction standard/address 按 `SPI_FRF`，2=都按 `SPI_FRF` |
 
-当前 flash flow 的 `TRANS_TYPE` 由 `transfer_req.address_lanes` 推导，不直接等于 enhanced。`TRANS_TYPE=0` 表示 instruction/address 都走标准单线，data phase 仍可由 `CTRLR0.SPI_FRF` 使用 2/4 线；这适用于 DPP/QPP 这类写命令以及 `DREAD 0x3B`、`QREAD 0x6B` 这类 output-read。`TRANS_TYPE=1` 仅用于地址 phase 也按 `SPI_FRF` 的 I/O read，例如 `READ2X 0xBB` 和 `READ4X 0xEB`。当前不使用 `TRANS_TYPE=2`。
+当前 flash flow 的 `TRANS_TYPE` 由 `transfer_req.instruction_lanes` 和 `address_lanes` 共同推导，不直接等于 enhanced。`TRANS_TYPE=0` 表示 instruction/address 都走标准单线；`TRANS_TYPE=1` 表示 instruction 单线、address 按 `SPI_FRF`，用于 `READ2X 0xBB` 和 `READ4X 0xEB`；`TRANS_TYPE=2` 表示 instruction/address 都按 `SPI_FRF`，当前用于 QPP `0x32` 的四线 instruction/address phase。
 
 `WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。Flash write/program 不使用 dummy clock，也不把 dummy 写成 `DR` byte stream。
 

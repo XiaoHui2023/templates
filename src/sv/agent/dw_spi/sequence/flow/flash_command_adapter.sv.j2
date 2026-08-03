@@ -44,6 +44,7 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}spec#(uv
             `uvm_fatal("DW_SPI_FLASH", "failed to cast transfer_mode")
         op_req.opcode = command.opcode;
         op_req.io_lanes = command.io_lanes;
+        op_req.instruction_lanes = command.instruction_lanes;
         op_req.address_lanes = command.address_lanes;
         op_req.speed_multiplier = command.speed_multiplier;
         op_req.spi_mode = cfg.spi_mode;
@@ -53,14 +54,14 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}spec#(uv
         op_req.addr_bytes = command.addr_bytes;
         op_req.dummy_cycles = command.dummy_cycles;
         op_req.records_memory_write = command.records_memory_write;
-{% if internal_dma or external_dma %}
+{%- if internal_dma or external_dma %}
         op_req.use_dma = use_dma;
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
         op_req.awlen = cfg.awlen;
         op_req.arlen = cfg.arlen;
         op_req.axi_addr = cfg.axi_addr;
-{% endif %}
+{%- endif %}
         op_req.update_print_summary();
         return op_req;
     endfunction

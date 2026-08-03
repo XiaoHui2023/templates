@@ -36,7 +36,8 @@ f_sclk_out = f_ssi / BAUDR
 | **inst_bits** | instruction 阶段 bit 数，通常为 `inst_bytes * 8`。 |
 | **addr_bits** | address 阶段 bit 数，通常为 `addr_bytes * 8`。 |
 | **data_bits** | data 阶段 bit 数，通常为 `payload_bytes * 8`。 |
-| **width_addr** | address 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `address_lanes`。写命令和 output-read 命令常为 1，I/O read 命令可为 2/4。 |
+| **width_inst** | instruction 阶段每个 sclk 传输的 bit 数；由指令包的 `instruction_lanes` 决定。 |
+| **width_addr** | address 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `address_lanes`。PP/DPP 和 output-read 命令为 1，当前 QPP 与 I/O read 命令可为 2/4。 |
 | **width_data** | data 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `speed_multiplier`。 |
 | **dummy_cycles** | 协议 dummy/wait sclk 周期。接收类 enhanced transfer 会映射到 `SPI_CTRLR0.WAIT_CYCLES`；flash write/program flow 强制为 0。 |
 | **fifo_chunks** | `ceil(max(payload_bytes, 1) / fifo_depth_bytes)`。 |
@@ -44,7 +45,7 @@ f_sclk_out = f_ssi / BAUDR
 | **extra_cycles** | Python 输入的 `interrupt_timeout_extra_ssi_clk_cycles`。 |
 
 ```text
-inst_sclk = ceil(inst_bits / 1)
+inst_sclk = ceil(inst_bits / width_inst)
 
 addr_sclk = ceil(addr_bits / width_addr)
 

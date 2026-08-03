@@ -431,18 +431,18 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             "write RXFTLR: RFT=%0d raw=0x%0h", cfg.rxftlr, rm.RXFTLR.get()), UVM_DEBUG);
         rm.RXFTLR.write(status, rm.RXFTLR.get());
 
-{% if internal_dma or external_dma %}
+{%- if internal_dma or external_dma %}
         rm.DMACR.read(status, reg_data);
-{% if external_dma %}
+{%- if external_dma %}
         rm.DMACR.RDMAE.set(cfg.rdmae);
         rm.DMACR.TDMAE.set(cfg.tdmae);
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
         rm.DMACR.RDMAE.set(cfg.rdmae);
         rm.DMACR.TDMAE.set(cfg.tdmae);
         rm.DMACR.IDMAE.set(cfg.idmae);
         rm.DMACR.AINC.set(cfg.ainc);
-{% endif %}
+{%- endif %}
         report_info("DW_SPI_REG", $sformatf(
             "write DMACR: RDMAE=%0b TDMAE=%0b{% if internal_dma %} IDMAE=%0b AINC=%0b{% endif %} raw=0x%0h",
             cfg.rdmae,
@@ -466,7 +466,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             cfg.dmardl, rm.DMARDLR.get()), UVM_DEBUG);
         rm.DMARDLR.write(status, rm.DMARDLR.get());
 
-{% if internal_dma %}
+{%- if internal_dma %}
         if (cfg.write_internal_dma_regs) begin
             rm.AXIAWLEN.read(status, reg_data);
             rm.AXIAWLEN.AWLEN.set(cfg.awlen);
@@ -503,8 +503,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 cfg.axiar0, rm.AXIAR0.get()), UVM_DEBUG);
             rm.AXIAR0.write(status, rm.AXIAR0.get());
         end
-{% endif %}
-{% endif %}
+{%- endif %}
+{%- endif %}
 
         if (cfg.write_rx_sample_delay) begin
             rm.RX_SAMPLE_DELAY.read(status, reg_data);

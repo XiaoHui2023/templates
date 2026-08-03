@@ -121,19 +121,24 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(ceil_div(bits, lanes));
     endfunction
 
-    function int trans_type_from_address_lanes(
+    function int trans_type_from_phase_lanes(
             frame_mode_e frame_mode,
+            int instruction_lanes,
             int address_lanes,
             int speed_multiplier,
             int addr_bytes);
-        if (frame_mode == STANDARD || addr_bytes == 0)
+        if (frame_mode == STANDARD)
             return 0;
-        if (address_lanes == 1)
+        if (instruction_lanes == 1 && (addr_bytes == 0 || address_lanes == 1))
             return 0;
-        if (address_lanes == speed_multiplier)
+        if (instruction_lanes == 1 && address_lanes == speed_multiplier)
             return 1;
+        if (instruction_lanes == speed_multiplier &&
+                (addr_bytes == 0 || address_lanes == speed_multiplier))
+            return 2;
         `uvm_fatal("DW_SPI_CFG", $sformatf(
-            "unsupported enhanced address lanes: address_lanes=%0d speed_multiplier=%0d addr_bytes=%0d",
+            "unsupported enhanced phase lanes: instruction_lanes=%0d address_lanes=%0d speed_multiplier=%0d addr_bytes=%0d",
+            instruction_lanes,
             address_lanes,
             speed_multiplier,
             addr_bytes))
@@ -155,11 +160,13 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         longint margin_cycles;
         longint timeout_cycles;
         int data_width;
+        int inst_width;
         int addr_width;
 
         data_width = frame_mode == ENHANCED ? rq.speed_multiplier : 1;
+        inst_width = frame_mode == ENHANCED ? rq.instruction_lanes : 1;
         addr_width = frame_mode == ENHANCED ? rq.address_lanes : 1;
-        inst_cycles = phase_sclk_cycles(rq.inst_bytes * 8, 1);
+        inst_cycles = phase_sclk_cycles(rq.inst_bytes * 8, inst_width);
         addr_cycles = phase_sclk_cycles(rq.addr_bytes * 8, addr_width);
         data_cycles = phase_sclk_cycles(data_bytes * 8, data_width);
         serial_cycles = inst_cycles + addr_cycles + rq.dummy_cycles + data_cycles;
@@ -210,18 +217,18 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         frame_mode_e frame_mode;
         transfer_mode_e transfer_mode;
         completion_mode_e completion_mode;
-{% if internal_dma %}
+{%- if internal_dma %}
         bit write_internal_dma_regs;
         bit [15:0] spi_inst;
-{% endif %}
-{% if internal_dma or external_dma %}
+{%- endif %}
+{%- if internal_dma or external_dma %}
         bit rdmae;
         bit tdmae;
-{% endif %}
-{% if internal_dma %}
+{%- endif %}
+{%- if internal_dma %}
         bit [63:0] flash_addr;
         bit [31:0] sdar;
-{% endif %}
+{%- endif %}
 
         if (settings == null)
             `uvm_fatal("DW_SPI_CFG", "settings is null")
@@ -264,8 +271,12 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         spi_frf = spi_frf_from_speed(rq.speed_multiplier);
         inst_l = inst_l_from_bytes(rq.inst_bytes);
         addr_l = addr_l_from_bytes(rq.addr_bytes);
-        trans_type = trans_type_from_address_lanes(
-            frame_mode, rq.address_lanes, rq.speed_multiplier, rq.addr_bytes);
+        trans_type = trans_type_from_phase_lanes(
+            frame_mode,
+            rq.instruction_lanes,
+            rq.address_lanes,
+            rq.speed_multiplier,
+            rq.addr_bytes);
         spi_ctrlr0_en = frame_mode == ENHANCED;
         spi_clk_stretch_en = spi_ctrlr0_en;
         wait_cycles = (spi_ctrlr0_en && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX})) ? rq.dummy_cycles : 0;
@@ -284,9 +295,10 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         interrupt_timeout_cycles = transfer_timeout_cycles(
             rq, baudr, length, frame_mode);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "derived transfer fields: inst_bytes=%0d addr_bytes=%0d address_lanes=%0d dummy_cycles=%0d payload_bytes=%0d data_frame_bits=%0d actual_ndf=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
+            "derived transfer fields: inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d payload_bytes=%0d data_frame_bits=%0d actual_ndf=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
             rq.inst_bytes,
             rq.addr_bytes,
+            rq.instruction_lanes,
             rq.address_lanes,
             rq.dummy_cycles,
             length,
@@ -301,7 +313,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             spi_clk_stretch_en,
             wait_cycles,
             interrupt_timeout_cycles), UVM_DEBUG)
-{% if internal_dma %}
+{%- if internal_dma %}
         write_internal_dma_regs = rq.use_dma;
         spi_inst = spi_inst_from_opcode(rq.opcode, rq.inst_bytes);
         flash_addr = rq.payload.get_address();
@@ -316,14 +328,14 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             ({8'h0, rq.arlen} << 8),
             rq.inst_bytes,
             spi_inst), UVM_DEBUG)
-{% endif %}
-{% if internal_dma or external_dma %}
+{%- endif %}
+{%- if internal_dma or external_dma %}
         rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX});
         tdmae = rq.use_dma && (transfer_mode inside {TX_ONLY, TX_AND_RX});
         `uvm_info("DW_SPI_CFG", $sformatf(
             "derived DMA handshake fields: use_dma=%0b rdmae=%0b tdmae=%0b transfer_mode=%s",
             rq.use_dma, rdmae, tdmae, transfer_mode.name()), UVM_DEBUG)
-{% endif %}
+{%- endif %}
 
         cfg = {{ class_prefix }}configuration::type_id::create("configuration");
         cfg.settings = settings;
@@ -350,7 +362,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 ndf == local::ndf_reg_value;
                 interrupt_timeout_ssi_clk_cycles == local::interrupt_timeout_cycles;
                 ser == (32'h1 << rq.cs_id);
-{% if internal_dma %}
+{%- if internal_dma %}
                 write_internal_dma_regs == local::write_internal_dma_regs;
                 rdmae == local::rdmae;
                 tdmae == local::tdmae;
@@ -361,22 +373,23 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 spi_inst == local::spi_inst;
                 sdar == local::sdar;
                 axiar0 == rq.axi_addr;
-{% endif %}
-{% if external_dma %}
+{%- endif %}
+{%- if external_dma %}
                 rdmae == local::rdmae;
                 tdmae == local::tdmae;
-{% endif %}
+{%- endif %}
             })
             `uvm_fatal("DW_SPI_CFG", "failed to randomize register configuration")
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d address_lanes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_ndf=%0d spi_frf=%0d trans_type=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
+            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_ndf=%0d spi_frf=%0d trans_type=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
             rq.opcode,
             rq.payload.get_address(),
             length,
             rq.inst_bytes,
             rq.addr_bytes,
+            rq.instruction_lanes,
             rq.address_lanes,
             rq.dummy_cycles,
             ssi_clk_hz,
