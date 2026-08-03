@@ -1,6 +1,7 @@
 `ifndef {{ class_reg_rw | upper }}
 `define {{ class_reg_rw | upper }}
 
+// Returns a low-bit mask for a register slice width.
 function automatic uvm_reg_data_t {{ class_prefix }}reg_mask(int width);
     if (width <= 0)
         return '0;
@@ -10,14 +11,31 @@ function automatic uvm_reg_data_t {{ class_prefix }}reg_mask(int width);
 endfunction
 
 class {{ class_reg_rw }};
+    // Returns the register that owns a field binding.
     extern function uvm_reg parent_reg({{ class_reg_binding }} rb);
+
+    // Extracts a bound slice from the field mirror.
     extern function uvm_reg_data_t get({{ class_reg_binding }} rb);
+
+    // Updates a bound slice in the field mirror.
     extern function void set({{ class_reg_binding }} rb, uvm_reg_data_t value);
-    extern task read_reg(uvm_reg r, output uvm_reg_data_t rdata);
-    extern task read({{ class_reg_binding }} rb, output uvm_reg_data_t value);
+
+    // Reads a complete register through RAL.
+    extern task read_reg(input uvm_reg r, output uvm_reg_data_t rdata);
+
+    // Reads one bound slice through RAL.
+    extern task read(input {{ class_reg_binding }} rb, output uvm_reg_data_t value);
+
+    // Writes the current register mirror through RAL.
     extern task write_reg(uvm_reg r);
+
+    // Populates a binding mirror once before a partial update.
     extern task ensure_read({{ class_reg_binding }} rb);
+
+    // Updates and writes one bound slice only when its value changes.
     extern task set_write({{ class_reg_binding }} rb, uvm_reg_data_t value);
+
+    // Applies multiple bound values while coalescing accesses per register.
     extern task apply(input {{ class_reg_binding }} binds[$], input uvm_reg_data_t vals[$]);
 endclass
 
@@ -63,7 +81,7 @@ function void {{ class_reg_rw }}::set({{ class_reg_binding }} rb, uvm_reg_data_t
     end
 endfunction
 
-task {{ class_reg_rw }}::read_reg(uvm_reg r, output uvm_reg_data_t rdata);
+task {{ class_reg_rw }}::read_reg(input uvm_reg r, output uvm_reg_data_t rdata);
     uvm_status_e status;
 
     if (r == null)
@@ -73,7 +91,7 @@ task {{ class_reg_rw }}::read_reg(uvm_reg r, output uvm_reg_data_t rdata);
         `uvm_fatal("PAD", $sformatf("read %s failed", r.get_full_name()))
 endtask
 
-task {{ class_reg_rw }}::read({{ class_reg_binding }} rb, output uvm_reg_data_t value);
+task {{ class_reg_rw }}::read(input {{ class_reg_binding }} rb, output uvm_reg_data_t value);
     uvm_reg_data_t dummy;
 
     read_reg(parent_reg(rb), dummy);

@@ -9,6 +9,7 @@ class {{ class_signal_data }};
     logic[31:0] fix_value;
     {{ class_reg_binding }} reg_bind;
 
+    // Initializes one unbound signal description.
     function new(string name="", int width=1);
         this.name = name;
         this.width = width;

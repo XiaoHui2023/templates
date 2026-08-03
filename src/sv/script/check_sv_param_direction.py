@@ -12,6 +12,14 @@ NON_INPUT_DIRS = ("output ", "inout ", "ref ", "const ref ")
 
 
 def split_params(params: str) -> list[str]:
+    """Splits a formal list without breaking nested expressions.
+
+    Args:
+        params: Text inside a task or function parameter list.
+
+    Returns:
+        Individual formal declarations.
+    """
     out: list[str] = []
     cur: list[str] = []
     depth = 0
@@ -34,10 +42,19 @@ def split_params(params: str) -> list[str]:
 
 
 def check_file(path: Path) -> list[str]:
+    """Checks explicit directions in mixed-direction formal lists.
+
+    Args:
+        path: SystemVerilog source or template path.
+
+    Returns:
+        Direction diagnostics for the file.
+    """
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
     for match in DECL_RE.finditer(text):
-        params = " ".join(match.group(1).split())
+        raw_params = re.sub(r"//[^\n]*|/\*.*?\*/", " ", match.group(1), flags=re.S)
+        params = " ".join(raw_params.split())
         if not any(direction in params for direction in NON_INPUT_DIRS):
             continue
         bad = [
@@ -52,6 +69,14 @@ def check_file(path: Path) -> list[str]:
 
 
 def iter_sv_files(paths: list[Path]) -> list[Path]:
+    """Expands files and directories into source paths.
+
+    Args:
+        paths: Source files or directories, including dot-prefixed render roots.
+
+    Returns:
+        SystemVerilog source and template paths.
+    """
     files: list[Path] = []
     for path in paths:
         if path.is_dir():
@@ -59,7 +84,6 @@ def iter_sv_files(paths: list[Path]) -> list[Path]:
                 p
                 for p in path.rglob("*")
                 if p.suffix in {".sv", ".j2"}
-                and not any(part.startswith(".") for part in p.parts)
             )
         elif path.suffix in {".sv", ".j2"}:
             files.append(path)
@@ -67,6 +91,11 @@ def iter_sv_files(paths: list[Path]) -> list[Path]:
 
 
 def main() -> int:
+    """Runs formal direction checks for command-line paths.
+
+    Returns:
+        Process status code.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("paths", nargs="+", type=Path)
     args = parser.parse_args()

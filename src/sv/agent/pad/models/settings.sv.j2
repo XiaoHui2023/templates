@@ -12,6 +12,7 @@ class {{ class_settings }} extends uvm_sequence_item;
     {{ class_pad_data }} pads[$];
     rand bit has_randomized;
 
+    // Initializes unresolved runtime settings.
     function new(string name="{{ class_settings }}");
         super.new(name);
     endfunction
@@ -20,6 +21,7 @@ class {{ class_settings }} extends uvm_sequence_item;
         has_randomized == 1;
     }
 
+    // Rebuilds pad data from the configured interface and register model.
     extern function void build();
 endclass
 

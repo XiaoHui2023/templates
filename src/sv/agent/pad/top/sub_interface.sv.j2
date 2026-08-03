@@ -2,9 +2,7 @@
 `define {{ class_sub_interface | upper }}
 
 interface {{ class_sub_interface }};
-{% for signal in signal_keys %}
-    logic[31:0] {{ signal.sv_name }};
-{% endfor %}
-endinterface
+{% for signal in signal_keys %}    logic{% if signal.width > 1 %}[{{ signal.width - 1 }}:0]{% endif %} {{ signal.sv_name }};
+{% endfor %}endinterface
 
 `endif

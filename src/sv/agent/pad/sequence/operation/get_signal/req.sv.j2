@@ -1,0 +1,18 @@
+`ifndef {{ class_get_signal_req | upper }}
+`define {{ class_get_signal_req | upper }}
+
+class {{ class_get_signal_req }} extends uvm_sequence_item;
+    `uvm_object_utils_begin({{ class_get_signal_req }})
+        `uvm_field_string(signal_name,UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    {{ class_pad_data }} pad;
+    string signal_name;
+
+    // Initializes an empty pad signal read request.
+    function new(string name="{{ class_get_signal_req }}");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

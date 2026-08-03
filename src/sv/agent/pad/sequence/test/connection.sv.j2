@@ -8,13 +8,21 @@ class {{ class_connection_test_seq }} extends {{ class_base_seq }};
 
     bit ok = 1'b1;
 
+    // Initializes a passing connection test result.
     function new(string name = "{{ class_connection_test_seq }}");
         super.new(name);
     endfunction
 
+    // Returns a low-bit mask for the requested signal width.
     extern function logic[31:0] bit_mask(int width);
+
+    // Checks every present and testable signal on every pad.
     extern task body();
+
+    // Applies the fixed or all-zero/all-one cases for one pad.
     extern task check_one({{ class_pad_data }} pad);
+
+    // Configures and checks one signal value.
     extern task check_signal({{ class_pad_data }} pad, {{ class_signal_data }} signal, logic[31:0] value);
 endclass
 
@@ -51,22 +59,38 @@ task {{ class_connection_test_seq }}::check_signal(
         {{ class_pad_data }} pad,
         {{ class_signal_data }} signal,
         logic[31:0] value);
+    {{ class_get_signal_req }} req;
+    {{ class_get_signal_rsp }} seq_rsp;
+    {{ class_get_signal_seq }} seq;
     logic[31:0] mask;
-    logic[31:0] expect;
+    logic[31:0] expected;
     logic[31:0] actual;
 
     if (signal == null)
         `uvm_fatal("PAD", "check_signal: signal is null")
     mask = bit_mask(signal.width);
-    expect = value & mask;
-    p_sequencer.config_signal(signal, expect);
+    expected = value & mask;
+    if (!signal.has_fix) begin
+        if (!signal.has_reg || signal.reg_bind == null)
+            `uvm_fatal("PAD", $sformatf("check_signal: %s reg_bind is null", signal.name))
+        p_sequencer.rw.set_write(signal.reg_bind, expected);
+    end
     #1ns;
-    actual = p_sequencer.get_signal(pad, signal.name);
-    if ((actual & mask) !== expect) begin
+    req = {{ class_get_signal_req }}::type_id::create("req");
+    req.pad = pad;
+    req.signal_name = signal.name;
+    seq = {{ class_get_signal_seq }}::type_id::create("get_signal");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("PAD", "check_signal: get_signal operation failed")
+    actual = seq_rsp.value;
+    if ((actual & mask) !== expected) begin
         ok = 1'b0;
         `uvm_error("PAD", $sformatf(
             "%s.%s connection mismatch: expect 0x%0h actual 0x%0h",
-            pad.name, signal.name, expect, actual & mask))
+            pad.name, signal.name, expected, actual & mask))
     end
 endtask
 

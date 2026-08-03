@@ -1,9 +1,10 @@
 `ifndef {{ (class_prefix ~ "build") | upper }}
 `define {{ (class_prefix ~ "build") | upper }}
 
+// Builds pad data objects and binds their interfaces and register fields.
 function automatic void {{ class_prefix }}build(
-        virtual {{ class_interface }} vif,
-        {{ class_regmodel }} regmodel,
+        input virtual {{ class_interface }} vif,
+        input {{ class_regmodel }} regmodel,
         ref {{ class_pad_data }} pads[$]);
     {{ class_pad_data }} data;
     {{ class_signal_data }} sig;

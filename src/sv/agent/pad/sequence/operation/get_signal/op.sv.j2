@@ -1,0 +1,39 @@
+`ifndef {{ class_get_signal_seq | upper }}
+`define {{ class_get_signal_seq | upper }}
+
+class {{ class_get_signal_seq }} extends uvm_sequence #(
+        {{ class_get_signal_req }},
+        {{ class_get_signal_rsp }});
+    `uvm_object_utils({{ class_get_signal_seq }})
+    `uvm_declare_p_sequencer({{ class_sequencer }})
+
+    // Initializes the pad signal read operation.
+    function new(string name="{{ class_get_signal_seq }}");
+        super.new(name);
+    endfunction
+
+    // Samples the requested signal from its pad sub-interface.
+    extern virtual task body();
+endclass
+
+task {{ class_get_signal_seq }}::body();
+    {{ class_get_signal_rsp }} rs;
+
+    rs = {{ class_get_signal_rsp }}::type_id::create("rsp");
+    if (req == null)
+        `uvm_fatal("PAD", "get_signal request is null")
+    if (req.pad == null)
+        `uvm_fatal("PAD", "get_signal request requires pad")
+    if (req.pad.vif == null)
+        `uvm_fatal("PAD", "get_signal request requires pad vif")
+    if (req.pad.find_signal(req.signal_name) == null)
+        `uvm_fatal("PAD", $sformatf("get_signal: signal %s is not present", req.signal_name))
+{% for signal in signal_keys %}    if (req.signal_name == "{{ signal.name }}") begin
+        rs.value = req.pad.vif.{{ signal.sv_name }};
+        rsp = rs;
+        return;
+    end
+{% endfor %}    `uvm_fatal("PAD", $sformatf("get_signal: unknown signal %s", req.signal_name))
+endtask
+
+`endif

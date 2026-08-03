@@ -7,10 +7,12 @@ class {{ class_base_seq }} extends uvm_sequence;
 
     {{ class_settings }} settings;
 
+    // Initializes a sequence that resolves shared pad settings before execution.
     function new(string name = "{{ class_base_seq }}");
         super.new(name);
     endfunction
 
+    // Resolves settings from the active pad sequencer.
     extern task pre_start();
 endclass
 

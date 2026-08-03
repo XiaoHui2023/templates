@@ -7,6 +7,48 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _REG_BIT_SUFFIX = re.compile(r"\[(?P<body>[^\]]+)\]$")
 _BUILTIN_SIGNALS = ("pad_value", "pull_up", "pull_down")
+_SV_KEYWORDS = frozenset(
+    """
+    accept_on alias always always_comb always_ff always_latch and assert assign assume automatic
+    before begin bind bins binsof bit break buf bufif0 bufif1 byte case casex casez cell chandle
+    checker class clocking cmos config const constraint context continue cover covergroup coverpoint
+    cross deassign default defparam design disable dist do edge else end endcase endchecker endclass
+    endclocking endconfig endfunction endgenerate endgroup endinterface endmodule endpackage
+    endprimitive endprogram endproperty endsequence endspecify endtable endtask enum event eventually
+    expect export extends extern final first_match for force foreach forever fork forkjoin function
+    generate genvar global highz0 highz1 if iff ifnone ignore_bins illegal_bins implements implies
+    import incdir include initial inout input inside int integer interconnect intersect join join_any
+    join_none large let liblist library local localparam logic longint macromodule matches medium
+    modport module nand negedge nettype new nexttime nmos nor noshowcancelled not notif0 notif1 null or
+    output package packed parameter pmos posedge primitive priority program property protected pull0
+    pull1 pulldown pullup pulsestyle_ondetect pulsestyle_onevent pure rand randc randcase randsequence
+    rcmos real realtime ref reg reject_on release repeat restrict return rnmos rpmos rtran rtranif0
+    rtranif1 s_always s_eventually s_nexttime s_until s_until_with scalared sequence shortint
+    shortreal showcancelled signed small soft solve specify specparam static string strong strong0
+    strong1 struct super supply0 supply1 sync_accept_on sync_reject_on table tagged task this throughout
+    time timeprecision timeunit tran tranif0 tranif1 tri tri0 tri1 triand trior trireg type typedef
+    union unique unique0 unsigned until until_with untyped use uwire var vectored virtual void wait
+    wait_order wand weak weak0 weak1 while wildcard wire with within wor xnor xor
+    """.split()
+)
+_GENERATED_CLASS_SUFFIXES = (
+    "agent",
+    "sequencer",
+    "kit_sequencer",
+    "interface",
+    "sub_interface",
+    "settings",
+    "signal",
+    "data",
+    "reg",
+    "reg_rw",
+    "base_seq",
+    "get_signal_req",
+    "get_signal_rsp",
+    "get_signal_seq",
+    "connection_test_seq",
+    "pull_test_seq",
+)
 
 
 class RegPathSpec(BaseModel):
@@ -20,6 +62,8 @@ class RegPathSpec(BaseModel):
 def _check_sv_id(name: str, *, ctx: str) -> None:
     if not _SV_ID.match(name):
         raise ValueError(f"{ctx} {name!r} is not a valid SystemVerilog identifier")
+    if name in _SV_KEYWORDS:
+        raise ValueError(f"{ctx} {name!r} is a reserved SystemVerilog keyword")
 
 
 def _check_sv_path(path: str, *, ctx: str) -> None:
@@ -66,7 +110,9 @@ class SignalDecl(BaseModel):
 
     @model_validator(mode="after")
     def validate_decl(self) -> "SignalDecl":
-        _check_sv_id(self.name, ctx="pad signal name")
+        if not _SV_ID.match(self.name):
+            raise ValueError(f"pad signal name {self.name!r} is not a valid signal key")
+        _check_sv_id(self.sv_name, ctx="generated pad signal name")
         return self
 
     @computed_field  # type: ignore[prop-decorator]
@@ -166,8 +212,9 @@ class Models(BaseModel):
 
     @model_validator(mode="after")
     def validate_model(self) -> "Models":
-        if not _SV_ID.match(f"{self.class_prefix}agent"):
-            raise ValueError("class_prefix must form valid SystemVerilog identifiers")
+        for suffix in _GENERATED_CLASS_SUFFIXES:
+            _check_sv_id(f"{self.class_prefix}{suffix}", ctx="generated class name")
+        _check_sv_id(self.class_regmodel, ctx="register model class name")
 
         names = [signal.name for signal in self.extra_signals]
         if len(names) != len(set(names)):
@@ -201,6 +248,13 @@ class Models(BaseModel):
                     raise ValueError(f"non-fixed signal {pad_name}.{signal_name} requires reg")
                 if signal_name == "pad_value" and cfg.reg:
                     raise ValueError(f"pad_value signal {pad_name}.{signal_name} must not configure reg")
+                if cfg.reg:
+                    spec = parse_reg_path(cfg.reg, ctx=f"pad signal {pad_name}.{signal_name} reg")
+                    if spec.width is not None and spec.width != width:
+                        raise ValueError(
+                            f"pad signal {pad_name}.{signal_name} width {width} does not match "
+                            f"register slice width {spec.width}"
+                        )
         return self
 
     @computed_field  # type: ignore[prop-decorator]
@@ -287,8 +341,18 @@ class Models(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def class_main_phase_seq(self) -> str:
-        return f"{self.class_prefix}main_phase_seq"
+    def class_get_signal_req(self) -> str:
+        return f"{self.class_prefix}get_signal_req"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def class_get_signal_rsp(self) -> str:
+        return f"{self.class_prefix}get_signal_rsp"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def class_get_signal_seq(self) -> str:
+        return f"{self.class_prefix}get_signal_seq"
 
     @computed_field  # type: ignore[prop-decorator]
     @property

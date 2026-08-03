@@ -7,16 +7,20 @@ class {{ class_sequencer }} extends uvm_sequencer;
     {{ class_settings }} settings;
     {{ class_reg_rw }} rw;
 
+    // Allocates register access state owned by this sequencer.
     function new(string name, uvm_component parent);
         super.new(name, parent);
         rw = new();
     endfunction
 
+    // Stops active sequences and starts the configured reset sequence.
     extern task reset_phase(uvm_phase phase);
+
+    // Resolves and validates settings before tests can run.
     extern function void start_of_simulation_phase(uvm_phase phase);
+
+    // Verifies that all runtime dependencies and pad data are available.
     extern function void check_ready();
-    extern task config_signal({{ class_signal_data }} signal, logic[31:0] value);
-    extern function logic[31:0] get_signal({{ class_pad_data }} pad, string signal_name);
 endclass
 
 task {{ class_sequencer }}::reset_phase(uvm_phase phase);
@@ -45,28 +49,6 @@ function void {{ class_sequencer }}::check_ready();
         `uvm_fatal("PAD", "require settings.regmodel")
     if (settings.pads.size() == 0)
         `uvm_fatal("PAD", "settings.pads is empty; call settings.build() first")
-endfunction
-
-task {{ class_sequencer }}::config_signal({{ class_signal_data }} signal, logic[31:0] value);
-    check_ready();
-    if (signal == null)
-        `uvm_fatal("PAD", "config_signal: signal is null")
-    if (signal.has_fix)
-        return;
-    if (!signal.has_reg || signal.reg_bind == null)
-        `uvm_fatal("PAD", $sformatf("config_signal: %s reg_bind is null", signal.name))
-    rw.set_write(signal.reg_bind, value);
-endtask
-
-function logic[31:0] {{ class_sequencer }}::get_signal({{ class_pad_data }} pad, string signal_name);
-    if (pad == null || pad.vif == null)
-        `uvm_fatal("PAD", "get_signal: pad vif is null")
-{% for signal in signal_keys %}
-    if (signal_name == "{{ signal.name }}")
-        return pad.vif.{{ signal.sv_name }};
-{% endfor %}
-    `uvm_fatal("PAD", $sformatf("get_signal: unknown signal %s", signal_name))
-    return '0;
 endfunction
 
 `endif

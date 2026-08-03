@@ -1,48 +1,77 @@
 `ifndef {{ class_kit_sequencer | upper }}
 `define {{ class_kit_sequencer | upper }}
 
-class {{ class_kit_sequencer }} extends uvm_component;
+class {{ class_kit_sequencer }} extends {{ class_sequencer }};
     `uvm_component_utils({{ class_kit_sequencer }})
 
-    {{ class_settings }} settings;
-    {{ class_sequencer }} sequencer;
+    bit last_test_ok = 1'b1;
 
+    // Initializes the public pad sequencer.
     function new(string name="{{ class_kit_sequencer }}", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
-    // Checks that the wrapped sequencer is connected before forwarding operations.
-    extern function void check_ready();
+    // Reads one signal from a pad sub-interface.
+    extern task get_signal(
+        // pad — Pad data object that owns the target interface.
+        // signal_name — Logical signal name to sample.
+        // value — Sampled value returned to the caller.
+        input {{ class_pad_data }} pad,
+        input string signal_name,
+        output logic[31:0] value);
 
-    // Runs the pad register-to-interface connection test through the wrapped sequencer.
+    // Runs the register-to-interface connection test.
     extern task connection_test();
 
-    // Runs the pad pull-up and pull-down test through the wrapped sequencer.
+    // Runs the per-bit pull-up and pull-down test.
     extern task pull_test();
 endclass
 
-function void {{ class_kit_sequencer }}::check_ready();
-    if (settings == null)
-        `uvm_fatal("PAD", "require settings")
-    if (sequencer == null)
-        `uvm_fatal("PAD", "require sequencer")
-    sequencer.check_ready();
-endfunction
+task {{ class_kit_sequencer }}::get_signal(
+        input {{ class_pad_data }} pad,
+        input string signal_name,
+        output logic[31:0] value);
+    {{ class_get_signal_req }} req;
+    {{ class_get_signal_rsp }} seq_rsp;
+    {{ class_get_signal_seq }} seq;
+
+    check_ready();
+    req = {{ class_get_signal_req }}::type_id::create("req");
+    req.pad = pad;
+    req.signal_name = signal_name;
+    seq = {{ class_get_signal_seq }}::type_id::create("get_signal");
+    seq.req = req;
+    seq.start(this);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("PAD", "get_signal operation failed")
+    value = seq_rsp.value;
+endtask
 
 task {{ class_kit_sequencer }}::connection_test();
     {{ class_connection_test_seq }} seq;
 
+    last_test_ok = 1'b1;
     check_ready();
     seq = {{ class_connection_test_seq }}::type_id::create("connection_test");
-    seq.start(sequencer);
+    seq.start(this);
+    if (!seq.ok) begin
+        last_test_ok = 1'b0;
+        `uvm_error("PAD", "connection_test failed")
+    end
 endtask
 
 task {{ class_kit_sequencer }}::pull_test();
     {{ class_pull_test_seq }} seq;
 
+    last_test_ok = 1'b1;
     check_ready();
     seq = {{ class_pull_test_seq }}::type_id::create("pull_test");
-    seq.start(sequencer);
+    seq.start(this);
+    if (!seq.ok) begin
+        last_test_ok = 1'b0;
+        `uvm_error("PAD", "pull_test failed")
+    end
 endtask
 
 `endif

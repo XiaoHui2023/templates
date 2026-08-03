@@ -6,36 +6,23 @@ class {{ class_agent }} extends uvm_agent;
 
     {{ class_settings }} settings;
     {{ class_kit_sequencer }} sqr;
-    {{ class_sequencer }} sequencer;
 
+    // Creates the public sequencer and its shared settings object.
     function new(string name, uvm_component parent);
         super.new(name, parent);
 
         settings = {{ class_settings }}::type_id::create({get_full_name(), ".settings"});
         sqr = {{ class_kit_sequencer }}::type_id::create("sqr", this);
-        sequencer = {{ class_sequencer }}::type_id::create("sequencer", this);
+        sqr.settings = settings;
     endfunction
 
-    extern function void build_phase(uvm_phase phase);
+    // Reapplies shared settings after component construction.
     extern function void connect_phase(uvm_phase phase);
 endclass
 
-function void {{ class_agent }}::build_phase(uvm_phase phase);
-    super.build_phase(phase);
-
-    uvm_config_db#(uvm_object_wrapper)::set(
-        sequencer,
-        "main_phase",
-        "default_sequence",
-        {{ class_main_phase_seq }}::type_id::get());
-endfunction
-
 function void {{ class_agent }}::connect_phase(uvm_phase phase);
     super.connect_phase(phase);
-
     sqr.settings = settings;
-    sqr.sequencer = sequencer;
-    sequencer.settings = settings;
 endfunction
 
 `endif

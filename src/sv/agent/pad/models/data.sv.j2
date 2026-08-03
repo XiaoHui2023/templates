@@ -6,10 +6,12 @@ class {{ class_pad_data }};
     virtual {{ class_sub_interface }} vif;
     {{ class_signal_data }} signals[$];
 
+    // Initializes one named pad data object.
     function new(string name="");
         this.name = name;
     endfunction
 
+    // Finds a present signal by its logical name.
     extern function {{ class_signal_data }} find_signal(string signal_name);
 endclass
 

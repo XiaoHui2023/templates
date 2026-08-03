@@ -16,7 +16,7 @@ pads:
       reg: pad0_ctrl.pull_down
       path: dut.pad0_pull_down
     output:
-      reg: pad0_ctrl.output
+      reg: pad0_ctrl.dout
       path: dut.pad0_output
     drive_strength:
       reg: *pad0_drive_strength_reg

@@ -8,15 +8,27 @@ class {{ class_pull_test_seq }} extends {{ class_base_seq }};
 
     bit ok = 1'b1;
 
+    // Initializes a passing pull test result.
     function new(string name = "{{ class_pull_test_seq }}");
         super.new(name);
     endfunction
 
+    // Returns a low-bit mask for the requested signal width.
     extern function logic[31:0] bit_mask(int width);
+
+    // Checks both pull polarities for every bit on every pad.
     extern task body();
+
+    // Builds complementary pull values for one target bit.
     extern task test_one_bit({{ class_pad_data }} pad, int bit_index, bit target_pull_up);
+
+    // Applies one pull configuration and checks the sampled pad value.
     extern task test_pull({{ class_pad_data }} pad, {{ class_signal_data }} pad_value_signal, {{ class_signal_data }} pull_up_signal, {{ class_signal_data }} pull_down_signal, logic[31:0] pull_up, logic[31:0] pull_down);
+
+    // Resolves a fixed value in preference to a configured value.
     extern function logic[31:0] effective_value({{ class_signal_data }} signal, logic[31:0] configured_value);
+
+    // Computes the pad value implied by effective pull controls.
     extern function logic[31:0] expected_value({{ class_pad_data }} pad, {{ class_signal_data }} pull_up_signal, {{ class_signal_data }} pull_down_signal, logic[31:0] pull_up, logic[31:0] pull_down);
 endclass
 
@@ -84,23 +96,43 @@ task {{ class_pull_test_seq }}::test_pull(
         {{ class_signal_data }} pull_down_signal,
         logic[31:0] pull_up,
         logic[31:0] pull_down);
+    {{ class_get_signal_req }} req;
+    {{ class_get_signal_rsp }} seq_rsp;
+    {{ class_get_signal_seq }} seq;
     logic[31:0] mask;
-    logic[31:0] expect;
+    logic[31:0] expected;
     logic[31:0] actual;
 
     if (pad == null)
         `uvm_fatal("PAD", "test_pull: pad is null")
-    p_sequencer.config_signal(pull_up_signal, pull_up);
-    p_sequencer.config_signal(pull_down_signal, pull_down);
+    if (!pull_up_signal.has_fix) begin
+        if (!pull_up_signal.has_reg || pull_up_signal.reg_bind == null)
+            `uvm_fatal("PAD", "test_pull: pull_up reg_bind is null")
+        p_sequencer.rw.set_write(pull_up_signal.reg_bind, pull_up);
+    end
+    if (!pull_down_signal.has_fix) begin
+        if (!pull_down_signal.has_reg || pull_down_signal.reg_bind == null)
+            `uvm_fatal("PAD", "test_pull: pull_down reg_bind is null")
+        p_sequencer.rw.set_write(pull_down_signal.reg_bind, pull_down);
+    end
     #1ns;
     mask = bit_mask(pad_value_signal.width);
-    expect = expected_value(pad, pull_up_signal, pull_down_signal, pull_up, pull_down);
-    actual = p_sequencer.get_signal(pad, pad_value_signal.name);
-    if ((actual & mask) !== (expect & mask)) begin
+    expected = expected_value(pad, pull_up_signal, pull_down_signal, pull_up, pull_down);
+    req = {{ class_get_signal_req }}::type_id::create("req");
+    req.pad = pad;
+    req.signal_name = pad_value_signal.name;
+    seq = {{ class_get_signal_seq }}::type_id::create("get_signal");
+    seq.req = req;
+    seq.start(p_sequencer);
+    seq_rsp = seq.rsp;
+    if (seq_rsp == null || !seq_rsp.ok)
+        `uvm_fatal("PAD", "test_pull: get_signal operation failed")
+    actual = seq_rsp.value;
+    if ((actual & mask) !== (expected & mask)) begin
         ok = 1'b0;
         `uvm_error("PAD", $sformatf(
             "%s pull mismatch: pull_up=0x%0h pull_down=0x%0h expect=0x%0h actual=0x%0h",
-            pad.name, pull_up, pull_down, expect & mask, actual & mask))
+            pad.name, pull_up, pull_down, expected & mask, actual & mask))
     end
 endtask
 
