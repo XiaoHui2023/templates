@@ -45,7 +45,7 @@ function void build_phase(uvm_phase phase);
 endfunction
 ```
 
-常用入口在 kit sequencer 上：只配置寄存器用 `clk_sqr.config_reg()`，只测量用 `clk_sqr.check_measure()`，配置后测量用 `clk_sqr.test_measure()`；低功耗或改频等配置先改 `tree` 中节点属性，再调用 `config_reg()` 应用。`low_power()` 会让非 stable 时钟尽量关闭，并关闭 gate。
+常用入口在 kit sequencer 上：只配置寄存器用 `clk_sqr.config_reg()`，只测量用 `clk_sqr.check_measure()`，配置后测量用 `clk_sqr.test_measure()`；低功耗或改频等配置先改 `tree` 中节点属性，再调用 `config_reg()` 应用。`low_power()` 会让非 stable 时钟尽量关闭。
 
 ## 数据结构
 

@@ -22,8 +22,6 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
 `endif
 
     constraint cst_node_base {
-        soft _resolved_freq == 0;
-        soft _resolved_active == 0;
         (_resolved_freq > 0) == _resolved_active;
     }
 

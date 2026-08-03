@@ -29,7 +29,7 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
 
     // 确认 tree.build 已执行
     extern function void require_built(string ctx);
-    // 将全部非 stable 且显式打开的 clock_nodes 放回不主动控制
+    // 将全部 clock_nodes 切换为软关闭，并释放非 stable 的显式开启
     extern function void low_power();
     // 收集 stable 为真的 clk 节点
     extern function void collect_stable_clk_nodes(
@@ -45,16 +45,10 @@ function void {{ settings.class_prefix }}tree_base::require_built(string ctx);
 endfunction
 
 function void {{ settings.class_prefix }}tree_base::low_power();
-    {{ settings.class_prefix }}gate gate_nd;
     foreach (clock_nodes[i]) begin
+        clock_nodes[i]._low_power = 1'b1;
         if (!clock_nodes[i].stable && clock_nodes[i].enabled > 0)
             clock_nodes[i].enabled = -1;
-    end
-    foreach (nodes[i]) begin
-        if ($cast(gate_nd, nodes[i])) begin
-            gate_nd.open = 0;
-            gate_nd.unfix_open = 1'b0;
-        end
     end
 endfunction
 

@@ -16,15 +16,17 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 
     longint frequence;
     int enabled;
+    bit _low_power;
     bit stable;
     bit check_duty;
     bit unfix_frequence;
     bit unfix_enabled;
 
     constraint cst_clk {
+        soft _resolved_active == (!_low_power && source != null);
+        (_low_power || source == null) -> soft _resolved_freq == 0;
         !(unfix_enabled || enabled < 0) -> (enabled != 0) == _resolved_active;
-        (_resolved_freq > 0) == _resolved_active;
-        !(unfix_frequence || frequence < 0 || enabled == 0) -> frequence == _resolved_freq;
+        !(unfix_frequence || frequence < 0 || enabled <= 0) -> frequence == _resolved_freq;
         stable -> enabled > 0;
         stable -> _resolved_active;
         !_resolved_active || _resolved_freq >= {{ _min_freq_hz_lit }};
@@ -35,6 +37,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         super.new(name);
         frequence = -1;
         enabled = -1;
+        _low_power = 1'b0;
         stable = 1'b0;
         check_duty = 1'b1;
         unfix_frequence = 1'b0;

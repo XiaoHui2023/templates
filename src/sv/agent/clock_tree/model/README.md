@@ -12,7 +12,7 @@
 
 | 方法 | 说明 |
 | --- | --- |
-| **low_power** | 将非 **stable** 且显式打开的 **clk** **enabled** 置 -1 |
+| **low_power** | 将全部 **clk** 切换为软关闭，并释放非 **stable** 的显式开启 |
 | **collect_stable_clk_nodes** | 收集 **stable** 为真的 **clk** |
 | **has_stable_clk** | 是否存在 **stable** 为真的 **clk** |
 
@@ -74,7 +74,8 @@
 | **source** | **node_base** | 前级节点 |
 | **vif** | **interface** | 测量接口 |
 | **frequence** | **longint** | 频率 |
-| **enabled** | **int**，**rand** | 三态使能；负数表示不主动控制 |
+| **enabled** | **int** | 三态使能；负数表示不主动控制 |
+| **_low_power** | **bit** | 为 0 时软开启，为 1 时软关闭 |
 | **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
 | **check_duty** | **bit** | 为真时 **check_measure** 检查占空比 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
@@ -84,7 +85,7 @@
 | --- | --- |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
-| **cst_clk** | **enabled** 非负时约束 **_resolved_active**；**enabled** 大于 0 且 **frequence** 非负时 **frequence** 等于 **_resolved_freq**；**stable** 为真时 **enabled** 大于 0 且 **_resolved_active** 为真；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
+| **cst_clk** | 已连接 **source** 时按 **_low_power** 软开启或软关闭；**enabled** 非负时约束 **_resolved_active**；**enabled** 大于 0 且 **frequence** 非负时 **frequence** 等于 **_resolved_freq**；**stable** 为真时 **enabled** 大于 0 且 **_resolved_active** 为真；**_resolved_active** 为真时 **_resolved_freq** 不低于 **min_freq_hz**、不高于 **max_freq_hz** |
 
 ### pll_tci
 
@@ -292,6 +293,7 @@
 
 | 约束 | 说明 |
 | --- | --- |
+| **cst_cell** | 没有 **source** 时软关闭；显式 **enabled** 或 **frequence** 时按配置约束 |
 | **cst_resolve_active_from_src** | **source** 已连接时，**_resolved_active** 等于 **source._resolved_active** |
 | **cst_resolve_freq_from_src** | **source** 已连接时，**_resolved_freq** 等于 **source._resolved_freq** |
 
