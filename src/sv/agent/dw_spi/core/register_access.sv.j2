@@ -485,7 +485,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SPIDR.read(status, reg_data);
             rm.SPIDR.SPI_INST.set(cfg.spi_inst);
             report_info("DW_SPI_REG", $sformatf(
-                "write SPIDR: SPI_INST=0x%0h raw=0x%0h",
+                "write SPIDR: SPI_INST=0x%04h raw=0x%0h",
                 cfg.spi_inst, rm.SPIDR.get()), UVM_DEBUG);
             rm.SPIDR.write(status, rm.SPIDR.get());
 

@@ -28,3 +28,7 @@ sequence 层先把 operation 请求里的 DMA 意图转换成 register `configur
 3. 读回 byte 作为 actual read data 交给 flow/test 和 scoreboard 比较。
 
 CPU 读写 callback 不暴露通用寄存器 API，不处理 chip-select。
+
+## SPIDR Instruction Packing
+
+`SPIDR.SPI_INST` uses a 16-bit instruction container. A 1-byte SPI flash opcode is packed as `{opcode, 8'h00}` and the actual 8-bit instruction length is expressed by `SPI_CTRLR0.INST_L`. Do not treat the container width as `inst_bytes`, and do not low-align the opcode as `16'h00xx`.

@@ -104,3 +104,7 @@
 ## Flash Type Boundary
 
 默认 `flash_read` / `flash_write` 是 NOR-like 便捷 flow，不代表控制器 agent 固定绑定 NOR。NAND page/cache、XIP、厂商 feature、无地址或特殊地址形态命令应新增 `model/flash_command` 指令包，并按需要新增专用 flow/kit shortcut；基础 transfer 不应强制所有 `FLASH_SPI` 都有 3/4-byte address。
+
+## Internal DMA Instruction Register
+
+For internal DMA, `SPIDR.SPI_INST` is a 16-bit instruction container. Current flash commands use `inst_bytes == 1`, so the builder writes `{opcode, 8'h00}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. This keeps `inst_bytes` and the SPIDR container width separate.

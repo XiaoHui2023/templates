@@ -138,3 +138,15 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DM
 写 `DR` 表示写入一个数据项，读 `DR` 表示读出一个数据项。`DR` 与 FIFO 交互，寄存器宽度为 32 bit；常见交互粒度为 8 bit，具体粒度随数据帧配置变化。
 
 `RX_SAMPLE_DELAY.RSD` 只在 `configuration.write_rx_sample_delay == 1` 时写入。寄存器名使用 `RX_SAMPLE_DELAY`，不要写成 `RX_SAMPLE_DLY`。
+
+## SPIDR.SPI_INST Packing
+
+`SPIDR.SPI_INST` is a 16-bit internal-DMA instruction container, not the instruction length. The actual instruction length is configured by `SPI_CTRLR0.INST_L`, derived from `inst_bytes`.
+
+The current SPI flash opcode model carries one opcode byte. For internal DMA, pack it as:
+
+```text
+SPI_INST = {opcode, 8'h00}
+```
+
+Do not write a 1-byte opcode as low-aligned `16'h00xx` or as 32-bit `{24'h0, opcode}`. With an 8-bit `INST_L`, the hardware should consume the high byte of the 16-bit instruction container.

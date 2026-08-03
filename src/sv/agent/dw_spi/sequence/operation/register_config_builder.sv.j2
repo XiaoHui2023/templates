@@ -34,6 +34,21 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return addr_bytes * 2;
     endfunction
 
+    function bit [15:0] spi_inst_from_opcode(
+            bit [7:0] opcode,
+            int inst_bytes);
+        case (inst_bytes)
+            0: return 16'h0000;
+            1: return {opcode, 8'h00};
+            default: begin
+                `uvm_fatal("DW_SPI_CFG", $sformatf(
+                    "unsupported SPIDR.SPI_INST width: inst_bytes=%0d opcode=0x%02h; current opcode model carries one byte",
+                    inst_bytes, opcode))
+                return 16'h0000;
+            end
+        endcase
+    endfunction
+
     function longint ceil_div(
             longint dividend,
             longint divisor);
@@ -192,6 +207,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         completion_mode_e completion_mode;
 {% if internal_dma %}
         bit write_internal_dma_regs;
+        bit [15:0] spi_inst;
 {% endif %}
 {% if internal_dma or external_dma %}
         bit rdmae;
@@ -282,17 +298,19 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
             interrupt_timeout_cycles), UVM_DEBUG)
 {% if internal_dma %}
         write_internal_dma_regs = rq.use_dma;
+        spi_inst = spi_inst_from_opcode(rq.opcode, rq.inst_bytes);
         flash_addr = rq.payload.get_address();
         sdar = flash_addr[31:0];
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "derived internal DMA fields: use_dma=%0b flash_addr=0x%0h sdar=0x%08h axi_addr=0x%08h awlen_field=0x%0h arlen_field=0x%0h spi_inst=0x%02h",
+            "derived internal DMA fields: use_dma=%0b flash_addr=0x%0h sdar=0x%08h axi_addr=0x%08h awlen_field=0x%0h arlen_field=0x%0h inst_bytes=%0d spi_inst=0x%04h",
             rq.use_dma,
             flash_addr,
             sdar,
             rq.axi_addr,
             ({8'h0, rq.awlen} << 8),
             ({8'h0, rq.arlen} << 8),
-            rq.opcode), UVM_DEBUG)
+            rq.inst_bytes,
+            spi_inst), UVM_DEBUG)
 {% endif %}
 {% if internal_dma or external_dma %}
         rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX});
@@ -335,7 +353,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 ainc == local::write_internal_dma_regs;
                 awlen == ({8'h0, rq.awlen} << 8);
                 arlen == ({8'h0, rq.arlen} << 8);
-                spi_inst == {24'h0, rq.opcode};
+                spi_inst == local::spi_inst;
                 sdar == local::sdar;
                 axiar0 == rq.axi_addr;
 {% endif %}
