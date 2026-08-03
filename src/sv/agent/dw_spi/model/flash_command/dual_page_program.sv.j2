@@ -17,6 +17,7 @@ class {{ class_prefix }}dual_page_program_flash_command extends {{ class_prefix 
         speed_multiplier == 2;
         inst_bytes == 1;
         addr_bytes inside {3, 4};
+        dummy_cycles == 0;
         payload_is_read == 1'b0;
         payload_is_write == 1'b1;
         records_memory_write == 1'b1;

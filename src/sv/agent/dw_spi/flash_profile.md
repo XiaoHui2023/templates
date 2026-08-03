@@ -11,7 +11,8 @@
 | Flash family assumption for built-in read/write shortcuts | NOR-like explicit read/program |
 | Address width | 3 bytes by default; 4 bytes may be passed by configuration |
 | XIP | Not enabled by default |
-| Read/write window | opcode + address + 1 dummy byte + data |
+| Read window | opcode + address + 1 dummy byte + data |
+| Write window | opcode + address + data |
 | WREN | Separate CS window |
 
 SPI NAND 不直接复用这个 NOR-like byte memory flow。NAND 通常需要 page read-to-cache、cache read、program load、program execute、block erase、ECC/bad-block/status feature 等指令包和单独 flow。
@@ -38,13 +39,13 @@ Write:
 ```text
 1x/2x:
   CS low -> 0x06 -> CS high
-  CS low -> program opcode -> address -> dummy byte -> data -> CS high
+  CS low -> program opcode -> address -> data -> CS high
 
 4x QPP:
   CS low -> 0x06 -> CS high
   CS low -> 0x01 -> 0x00 -> 0x02 -> CS high
   CS low -> 0x06 -> CS high
-  CS low -> 0x32 -> address -> dummy byte -> data -> CS high
+  CS low -> 0x32 -> address -> data -> CS high
 ```
 
 Read:
@@ -65,8 +66,8 @@ Implemented:
 - QPP setup for 4x program: `WREN 0x06` sets WEL, `WRSR 0x01 + 16-bit status value 0x0200` sets `status[9] / SREG_QE`, then another `WREN 0x06` because WRSR clears WEL before `QPP 0x32`.
 - Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
-- One dummy byte by default for read/program data windows.
-- NDF derived from the full continuous window: opcode + address + dummy + data.
+- One dummy byte by default for read data windows; program/write windows do not use dummy clocks.
+- NDF derived from the full continuous window: read uses opcode + address + dummy + data; write uses opcode + address + data.
 - Scoreboard comparison using actual readback data from DR or DMA buffer.
 
 Not yet implemented as full NOR behavior:

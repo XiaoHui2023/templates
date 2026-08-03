@@ -149,7 +149,7 @@ task {{ class_prefix }}transfer_seq::body();
             build_pio_dr_write_bytes(
                 rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_bytes);
             `uvm_info("DW_SPI_XFER", $sformatf(
-                "PIO path: writing command/address/dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_bytes=%0d dr_preview=%s",
+                "PIO path: writing command/address/optional_dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_bytes=%0d dr_preview=%s",
                 rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
                 rq.dummy_cycles, pio_dr_bytes.size(),
                 byte_queue_preview(pio_dr_bytes, 16)), UVM_HIGH)
@@ -163,7 +163,7 @@ task {{ class_prefix }}transfer_seq::body();
         build_pio_dr_write_bytes(
             rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_bytes);
         `uvm_info("DW_SPI_XFER", $sformatf(
-            "PIO path: writing command/address/dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_bytes=%0d dr_preview=%s",
+            "PIO path: writing command/address/optional_dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_bytes=%0d dr_preview=%s",
             rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
             rq.dummy_cycles, pio_dr_bytes.size(),
             byte_queue_preview(pio_dr_bytes, 16)), UVM_HIGH)

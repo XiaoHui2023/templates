@@ -55,6 +55,7 @@
 - 通用 command packet 可以只表达 SPI bus transaction，不表达 flash 型号。需要具体型号行为时，通过派生指令包、flow sequence、flash model、scoreboard 策略逐层增加。
 - 新增某个 flash 类型或型号时，优先增加指令包和文档，再决定是否需要新的 kit shortcut。
 - 不要把 `STANDARD` / `ENHANCED` 一律当成指令语义。某些 opcode 的协议相位是固定的，但控制器可以选择 standard 或 enhanced 1x 路径驱动；这类指令包应允许两种 `frame_mode`，由 flow 的 `transfer_configuration` 约束。当前 `WREN 0x06`、`WRSR 0x01`、`PP 0x02` 属于这种情况。`DPP/QPP/READ2X/READ4X` 这类 opcode 自身依赖 2x/4x 相位，仍固定为 enhanced。
+- Program/write command packets force `dummy_cycles == 0`。Dummy/wait cycles 只用于 read/receive 类 transaction。
 
 ## 使用流程
 

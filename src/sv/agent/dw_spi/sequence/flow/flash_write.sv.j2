@@ -49,7 +49,7 @@ function {{ class_prefix }}flash_command {{ class_prefix }}flash_write_seq::crea
     if (!command.randomize() with {
             frame_mode == local::cfg.frame_mode;
             addr_bytes == local::cfg.addr_bytes;
-            dummy_cycles == local::cfg.dummy_cycles;
+            dummy_cycles == 0;
             data_frame_bits == local::cfg.data_frame_bits;
         })
         `uvm_fatal("DW_SPI", "flash_write: failed to randomize program flash command")
@@ -173,11 +173,10 @@ task {{ class_prefix }}flash_write_seq::body();
     ok = 1'b1;
     bytes_written = 0;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_write start: address=0x%08h bytes=%0d addr_bytes=%0d dummy_cycles=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_write start: address=0x%08h bytes=%0d addr_bytes=%0d program_dummy_cycles=0 lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         data.size(),
         configuration.addr_bytes,
-        configuration.dummy_cycles,
         configuration.io_lanes,
         configuration.speed_multiplier,
         configuration.frame_mode.name(),

@@ -22,9 +22,14 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
     function int inst_l_from_bytes(int inst_bytes);
         case (inst_bytes)
             0: return 0;
-            1: return 2;
-            2: return 3;
-            default: return 2;
+            1: return 1;
+            2: return 2;
+            default: begin
+                `uvm_fatal("DW_SPI_CFG", $sformatf(
+                    "unsupported SPI_CTRLR0.INST_L width: inst_bytes=%0d; local encoding supports 0, 1, or 2 bytes",
+                    inst_bytes))
+                return 0;
+            end
         endcase
     endfunction
 

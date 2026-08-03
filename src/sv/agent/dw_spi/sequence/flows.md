@@ -30,7 +30,7 @@
 3. 内置 DMA 写 transfer 在启动控制器前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 4. 调用 `register_access.apply_configuration()`。该阶段会关闭控制器、清中断、清 `SER`、配置寄存器、重新使能控制器，但不会选中片选。
 5. 非 DMA PIO 构造 DR byte stream。flash 协议包含 opcode、大端地址字节；写传输追加 payload。命令-only 传输 payload 长度为 0，但 DR stream 仍包含 opcode。
-   `TX_ONLY` program 的 dummy byte 也是发送出去的 DR byte；enhanced read 的 dummy/wait 才通过 `SPI_CTRLR0.WAIT_CYCLES` 表达。
+   flash write/program 不使用 dummy clock；enhanced read 的 dummy/wait 通过 `SPI_CTRLR0.WAIT_CYCLES` 表达。
 6. PIO 在 `SER=0` 时先向 `DR` 预填不超过 `settings.fifo_depth_bytes` 的字节。
 7. 到 transaction 边界时选中 CS：`HARDWARE_CS` 写 `SER.SER = cfg.ser`；`SOFTWARE_CS` 先调用 `p_sequencer.activate_chip_select(cs_id)`，再写 `SER.SER = cfg.ser`。
 8. PIO 写 transfer 如果还有 remaining byte，会在同一个 CS window 内继续等待 `SR.TFNF` 并补写 `DR`。`TXFTLR` 是硬件 FIFO 阈值配置；当前 sequence 用 `SR.TFNF` 轮询驱动补 FIFO，不把 FIFO interrupt 当 completion。
@@ -38,7 +38,7 @@
 10. 释放 CS：先写 `SER.SER = 0`，如果是 `SOFTWARE_CS` 再调用 `p_sequencer.release_chip_select(cs_id)`。
 11. 写传输在 CS 释放后仅对 flash memory program opcode（`0x02/0xA2/0x32`）更新 scoreboard expected data；`WREN/WRSR` 这类状态命令不更新 memory mirror。读传输把从 `DR` 或 DMA buffer 得到的 actual data 放入 rsp。
 
-一个 primitive transfer 对应一个完整 SPI transaction 边界。需要连续的 opcode + address + dummy + data 必须放在同一个 primitive transfer 内，不能拆成多个 CS window。
+一个 primitive transfer 对应一个完整 SPI transaction 边界。需要连续的 read opcode + address + dummy + data 或 write opcode + address + data 必须放在同一个 primitive transfer 内，不能拆成多个 CS window。
 
 ## Completion Rule
 
@@ -68,9 +68,9 @@
 2. WREN/WRSR/program 都先创建 `model/flash_command` 指令包，再由 `flash_command_adapter` 转成通用 `transfer_req`。
 3. 1x/2x program：先启动 `write_enable_flash_command`，opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
 4. 4x QPP：先 `WREN 0x06`，再 `WRSR 0x01 + 0x00 + 0x02` 写 16-bit status 值 `0x0200` 以设置 `status[9] / SREG_QE`，然后再次 `WREN 0x06`。WRSR 会清除 WEL，因此 QPP 前必须重新置位 WEL。
-5. write-enable 成功后启动 program transfer：1x 用 `page_program_flash_command`，2x 用 `dual_page_program_flash_command`，4x 用 `quad_page_program_flash_command`。所有 program 写命令的 opcode + address 都是单线；payload data phase 才按指令包使用 1/2/4 线。opcode + address + dummy + payload 必须在同一个 CS window 内连续发送。`TX_AND_RX` / `RX_ONLY` 是 enhanced read/EEPROM-read 类接收流程使用的模式，不能用于 page program。
+5. write-enable 成功后启动 program transfer：1x 用 `page_program_flash_command`，2x 用 `dual_page_program_flash_command`，4x 用 `quad_page_program_flash_command`。所有 program 写命令的 opcode + address 都是单线；payload data phase 才按指令包使用 1/2/4 线。opcode + address + payload 必须在同一个 CS window 内连续发送，写流程不插入 dummy clock。`TX_AND_RX` / `RX_ONLY` 是 enhanced read/EEPROM-read 类接收流程使用的模式，不能用于 page program。
 6. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
-7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + dummy + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
+7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
 8. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
 
 当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、跳过已置位 QE 和 256B 分页写限制；这些属于完整 SPI-NOR 行为建模，已作为后续扩展点记录。

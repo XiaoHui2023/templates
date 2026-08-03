@@ -38,7 +38,7 @@ f_sclk_out = f_ssi / BAUDR
 | **data_bits** | data 阶段 bit 数，通常为 `payload_bytes * 8`。 |
 | **width_addr** | address 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `address_lanes`。写命令和 output-read 命令常为 1，I/O read 命令可为 2/4。 |
 | **width_data** | data 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `speed_multiplier`。 |
-| **dummy_cycles** | 协议 dummy/wait sclk 周期。接收类 enhanced transfer 会映射到 `SPI_CTRLR0.WAIT_CYCLES`；`TX_ONLY` program 会换算为 outbound dummy byte 写入 `DR` stream。 |
+| **dummy_cycles** | 协议 dummy/wait sclk 周期。接收类 enhanced transfer 会映射到 `SPI_CTRLR0.WAIT_CYCLES`；flash write/program flow 强制为 0。 |
 | **fifo_chunks** | `ceil(max(payload_bytes, 1) / fifo_depth_bytes)`。 |
 | **margin_percent** | Python 输入的 `interrupt_timeout_margin_percent`。 |
 | **extra_cycles** | Python 输入的 `interrupt_timeout_extra_ssi_clk_cycles`。 |

@@ -31,7 +31,7 @@
 | `TMOD` | `3` | EEPROM read |
 | `DFS` | `data_frame_bits - 1` | 数据帧位宽 |
 
-Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/dummy/payload 都是 master 向 flash 发送。Enhanced read 使用 `TMOD=2 / RX_ONLY`，由 `SPI_CTRLR0` 的 instruction/address/dummy 字段描述接收前的发送阶段；不要把 page-program 配成 `TX_AND_RX`。
+Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/payload 都是 master 向 flash 发送，且写流程不使用 dummy clock。Enhanced read 使用 `TMOD=2 / RX_ONLY`，由 `SPI_CTRLR0` 的 instruction/address/dummy 字段描述接收前的发送阶段；不要把 page-program 配成 `TX_AND_RX`。
 
 `SSTE` 只描述标准 SPI 帧间分割行为。`SCPH=0` 且 `SSTE=1` 时，每帧数据之间 `ss_*_n` 会拉高再拉低，`SCLK` 停在默认电平；`SSTE=0` 时 `ss_n` 全程保持有效，`SCLK` 连续运行。该行为本质上是 frame 间分割，不等同于完整 SPI memory operation 的 CS window。当前模板每次 transfer 显式写 `CTRLR0.SSTE = 0`，避免收发数据时帧间片选 toggle 破坏连续性。
 
@@ -39,9 +39,9 @@ PSSI/HSSI 的 bit layout 可能不同，代码必须通过 FIELD 名访问，不
 
 ## CTRLR1
 
-实际 NDF 表示一个连续 CS window 内要传输的项数。除 `WREN 0x06` 这类单 opcode 命令外，flash read/program 这种连续命令必须把 opcode、address、dummy 和 data 都计入实际 NDF。寄存器字段 `CTRLR1.NDF` 是实际 NDF 减 1 后的编码值。
+实际 NDF 表示一个连续 CS window 内要传输的项数。除 `WREN 0x06` 这类单 opcode 命令外，flash read 必须把 opcode、address、dummy 和 data 都计入实际 NDF；flash program/write 必须把 opcode、address 和 data 计入实际 NDF，写流程不插入 dummy。寄存器字段 `CTRLR1.NDF` 是实际 NDF 减 1 后的编码值。
 
-当前 byte payload API 会先把 `dummy_cycles` 换算为 dummy byte，再按 `data_frame_bits` 把 opcode/address/dummy/data 总 byte 数换算为 frame 数。默认 1 个 dummy byte，即 8 个 dummy cycle。8 bit DFS 时，byte phase 的 frame 数等于 byte 数；DFS 大于 8 时，byte phase 按 DFS 分组。
+当前 byte payload API 会先把 `dummy_cycles` 换算为 dummy byte，再按 `data_frame_bits` 把 opcode/address/dummy/data 总 byte 数换算为 frame 数。读流程默认 1 个 dummy byte，即 8 个 dummy cycle；写/program flow 强制 `dummy_cycles = 0`。8 bit DFS 时，byte phase 的 frame 数等于 byte 数；DFS 大于 8 时，byte phase 按 DFS 分组。
 
 ```text
 dummy_bytes = ceil(dummy_cycles / 8)
@@ -69,14 +69,14 @@ CTRLR1.NDF = actual_ndf - 1
 | `INST_DDR_EN` | Instruction DDR enable |
 | `SPI_DDR_EN` | SPI DDR enable |
 | `WAIT_CYCLES` | dual/quad mode control frames 与 data reception 之间的 wait cycles |
-| `INST_L` | 0=no instruction，1=4 bit，2=8 bit，3=16 bit |
+| `INST_L` | 本地 regmodel 编码：0=no instruction，1=8 bit，2=16 bit |
 | `XIP_MD_BIT_EN` | XIP mode bits enable |
 | `ADDR_L` | address length：0=no address，1=4 bit，2=8 bit，递增到 f=60 bit |
 | `TRANS_TYPE` | 0=instruction/address 都 standard，1=instruction standard/address 按 `SPI_FRF`，2=都按 `SPI_FRF` |
 
 当前 flash flow 的 `TRANS_TYPE` 由 `transfer_req.address_lanes` 推导，不直接等于 enhanced。`TRANS_TYPE=0` 表示 instruction/address 都走标准单线，data phase 仍可由 `CTRLR0.SPI_FRF` 使用 2/4 线；这适用于 DPP/QPP 这类写命令以及 `DREAD 0x3B`、`QREAD 0x6B` 这类 output-read。`TRANS_TYPE=1` 仅用于地址 phase 也按 `SPI_FRF` 的 I/O read，例如 `READ2X 0xBB` 和 `READ4X 0xEB`。当前不使用 `TRANS_TYPE=2`。
 
-`WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。`TX_ONLY` page-program 的 dummy byte 是 master 发送给 flash 的字节，应进入 `DR` byte stream，不写成 `SPI_CTRLR0.WAIT_CYCLES`。
+`WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。Flash write/program 不使用 dummy clock，也不把 dummy 写成 `DR` byte stream。
 
 ## SSIENR / SER / BAUDR
 
@@ -149,4 +149,4 @@ The current SPI flash opcode model carries one opcode byte. For internal DMA, pa
 SPI_INST = {opcode, 8'h00}
 ```
 
-Do not write a 1-byte opcode as low-aligned `16'h00xx` or as 32-bit `{24'h0, opcode}`. With an 8-bit `INST_L`, the hardware should consume the high byte of the 16-bit instruction container.
+Do not write a 1-byte opcode as low-aligned `16'h00xx` or as 32-bit `{24'h0, opcode}`. With local `INST_L=1`, the hardware should consume an 8-bit instruction from the high byte of the 16-bit instruction container.
