@@ -69,7 +69,7 @@ CTRLR1.NDF = actual_ndf - 1
 | `INST_DDR_EN` | Instruction DDR enable |
 | `SPI_DDR_EN` | SPI DDR enable |
 | `WAIT_CYCLES` | dual/quad mode control frames 与 data reception 之间的 wait cycles |
-| `INST_L` | 本地 regmodel 编码：0=no instruction，1=8 bit，2=16 bit |
+| `INST_L` | instruction length：0=no instruction，1=4 bit，2=8 bit，3=16 bit |
 | `XIP_MD_BIT_EN` | XIP mode bits enable |
 | `ADDR_L` | address length：0=no address，1=4 bit，2=8 bit，递增到 f=60 bit |
 | `TRANS_TYPE` | 0=instruction/address 都 standard，1=instruction standard/address 按 `SPI_FRF`，2=都按 `SPI_FRF` |
@@ -149,4 +149,4 @@ The current SPI flash opcode model carries one opcode byte. For internal DMA, pa
 SPI_INST = {opcode, 8'h00}
 ```
 
-Do not write a 1-byte opcode as low-aligned `16'h00xx` or as 32-bit `{24'h0, opcode}`. With local `INST_L=1`, the hardware should consume an 8-bit instruction from the high byte of the 16-bit instruction container.
+Do not write a 1-byte opcode as low-aligned `16'h00xx` or as 32-bit `{24'h0, opcode}`. With `INST_L=2`, the hardware should consume an 8-bit instruction from the high byte of the 16-bit instruction container.
