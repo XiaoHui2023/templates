@@ -5,15 +5,22 @@ class {{ settings.class_prefix }}config_reg_core;
     {{ settings.class_prefix }}core_tools tools;
     protected bit quiet;
 
-    function new({{ settings.class_prefix }}core_tools core_tools_h);
+    // 绑定寄存器工具并设置日志模式。
+    function new(
+            {{ settings.class_prefix }}core_tools core_tools_h,
+            bit quiet = 1'b0);
         if (core_tools_h == null)
             `uvm_fatal("CLK_TREE", "config_reg_core: tools is null")
         tools = core_tools_h;
-        quiet = 1'b0;
+        this.quiet = quiet;
     endfunction
 
     // Run tree randomize and apply all register configuration.
     extern task configure({{ settings.class_prefix }}tree_base tree, bit quiet = 1'b0);
+    // Apply only gate and mux states needed by low-power tests.
+    extern task configure_low_power(
+        {{ settings.class_prefix }}tree_base tree,
+        bit quiet = 1'b0);
     // Configure gate open state.
     extern task config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
     // Configure gate register with a requested logical open value.
@@ -23,12 +30,28 @@ class {{ settings.class_prefix }}config_reg_core;
         bit reg_open);
     // Configure mux select.
     extern task config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
+    // Write an explicit mux select without tree resolution.
+    extern task config_reg_mux_node_reg(
+        {{ settings.class_prefix }}mux mux_nd,
+        int reg_sel);
     // Configure div reset, load and ratio.
     extern task config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
+    // Write an explicit div ratio without tree resolution.
+    extern task config_reg_div_node_reg(
+        {{ settings.class_prefix }}div_div div_nd,
+        int reg_ratio);
     // Configure dto reset, bypass, load and step.
     extern task config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
+    // Write an explicit dto ratio without tree resolution.
+    extern task config_reg_dto_node_reg(
+        {{ settings.class_prefix }}div_dto dto_nd,
+        int reg_ratio);
     // Configure inv state.
     extern task config_reg_inv_node({{ settings.class_prefix }}inv_base inv_nd);
+    // Write an explicit inv state without tree resolution.
+    extern task config_reg_inv_node_reg(
+        {{ settings.class_prefix }}inv_base inv_nd,
+        bit reg_inverted);
     // Dispatch PLL configuration by concrete type.
     extern task config_reg_pll_node({{ settings.class_prefix }}pll_base pll_nd, output bit configured);
     // Configure SC PLL target.
@@ -83,27 +106,39 @@ endtask
 
 // 写 mux 的选择控制
 task {{ settings.class_prefix }}config_reg_core::config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
+    config_reg_mux_node_reg(mux_nd, mux_nd._resolved_sel);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::config_reg_mux_node_reg(
+        {{ settings.class_prefix }}mux mux_nd,
+        int reg_sel);
     bit sel_match;
 
     if (!mux_nd.f_reg.is_bound())
         return;
     tools.node.mux_sel_matches(
-        mux_nd.f_reg, mux_nd._resolved_sel, sel_match);
+        mux_nd.f_reg, reg_sel, sel_match);
     if (sel_match) begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: mux %s skip reg sel %0d",
-                mux_nd.get_name(), mux_nd._resolved_sel), UVM_MEDIUM)
+                mux_nd.get_name(), reg_sel), UVM_MEDIUM)
         return;
     end
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "config_reg: mux %s sel %0d", mux_nd.get_name(), mux_nd._resolved_sel), UVM_MEDIUM)
-    tools.node.configure_mux(mux_nd.f_reg, mux_nd._resolved_sel);
+            "config_reg: mux %s sel %0d", mux_nd.get_name(), reg_sel), UVM_MEDIUM)
+    tools.node.configure_mux(mux_nd.f_reg, reg_sel);
 endtask
 
 // 写 div 的复位、load 与分频比
 task {{ settings.class_prefix }}config_reg_core::config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
+    config_reg_div_node_reg(div_nd, div_nd._resolved_ratio);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::config_reg_div_node_reg(
+        {{ settings.class_prefix }}div_div div_nd,
+        int reg_ratio);
     bit ratio_match;
     bit rst_released;
 
@@ -111,43 +146,49 @@ task {{ settings.class_prefix }}config_reg_core::config_reg_div_node({{ settings
             || !div_nd.f_rst.is_bound())
         return;
     tools.node.div_regs_match_ratio(
-        div_nd.f_rst, div_nd.f_div, div_nd._resolved_ratio, ratio_match);
+        div_nd.f_rst, div_nd.f_div, reg_ratio, ratio_match);
     if (ratio_match) begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: div %s skip reg ratio %0d",
-                div_nd.get_name(), div_nd._resolved_ratio), UVM_MEDIUM)
+                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
         return;
     end
 {%- if settings.should_reset_div %}
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: div %s ratio %0d reset pulse",
-            div_nd.get_name(), div_nd._resolved_ratio), UVM_MEDIUM)
+            div_nd.get_name(), reg_ratio), UVM_MEDIUM)
     tools.node.configure_div(
-        div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd._resolved_ratio);
+        div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
 {%- else %}
     tools.node.div_rst_released(div_nd.f_rst, rst_released);
     if (rst_released) begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: div %s reg rst released, ratio %0d",
-                div_nd.get_name(), div_nd._resolved_ratio), UVM_MEDIUM)
+                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
         tools.node.configure_div_ratio(
-            div_nd.f_load, div_nd.f_div, div_nd._resolved_ratio);
+            div_nd.f_load, div_nd.f_div, reg_ratio);
     end else begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: div %s reg rst active, ratio %0d",
-                div_nd.get_name(), div_nd._resolved_ratio), UVM_MEDIUM)
+                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
         tools.node.configure_div_direct(
-            div_nd.f_rst, div_nd.f_load, div_nd.f_div, div_nd._resolved_ratio);
+            div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
     end
 {%- endif %}
 endtask
 
 // 写 dto 的复位、bypass、load 与 step
 task {{ settings.class_prefix }}config_reg_core::config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
+    config_reg_dto_node_reg(dto_nd, dto_nd._resolved_ratio);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::config_reg_dto_node_reg(
+        {{ settings.class_prefix }}div_dto dto_nd,
+        int reg_ratio);
     bit rst_released;
 
     if (!dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
@@ -157,25 +198,25 @@ task {{ settings.class_prefix }}config_reg_core::config_reg_dto_node({{ settings
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: dto %s ratio %0d reset pulse",
-            dto_nd.get_name(), dto_nd._resolved_ratio), UVM_MEDIUM)
+            dto_nd.get_name(), reg_ratio), UVM_MEDIUM)
     tools.node.configure_dto(
-        dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd._resolved_ratio);
+        dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, reg_ratio);
 {%- else %}
     tools.node.dto_rst_released(dto_nd.f_rst, rst_released);
     if (rst_released) begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: dto %s reg rst released, ratio %0d",
-                dto_nd.get_name(), dto_nd._resolved_ratio), UVM_MEDIUM)
+                dto_nd.get_name(), reg_ratio), UVM_MEDIUM)
         tools.node.configure_dto_ratio(
-            dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd._resolved_ratio);
+            dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, reg_ratio);
     end else begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: dto %s reg rst active, ratio %0d",
-                dto_nd.get_name(), dto_nd._resolved_ratio), UVM_MEDIUM)
+                dto_nd.get_name(), reg_ratio), UVM_MEDIUM)
         tools.node.configure_dto_direct(
-            dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, dto_nd._resolved_ratio);
+            dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, reg_ratio);
     end
 {%- endif %}
 endtask
@@ -559,13 +600,19 @@ endtask
 // 写 inv 的反相/直通控制
 task {{ settings.class_prefix }}config_reg_core::config_reg_inv_node(
         {{ settings.class_prefix }}inv_base inv_nd);
+    config_reg_inv_node_reg(inv_nd, inv_nd.inverted);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::config_reg_inv_node_reg(
+        {{ settings.class_prefix }}inv_base inv_nd,
+        bit reg_inverted);
     if (!inv_nd.f_reg.is_bound())
         return;
     if (!quiet)
         `uvm_info("CLK_TREE", $sformatf(
-            "config_reg: inv %s inverted %0b", inv_nd.get_name(), inv_nd.inverted),
+            "config_reg: inv %s inverted %0b", inv_nd.get_name(), reg_inverted),
             UVM_MEDIUM)
-    tools.node.configure_inv(inv_nd.f_reg, inv_nd.inverted);
+    tools.node.configure_inv(inv_nd.f_reg, reg_inverted);
 endtask
 
 // 写入 inv 控制寄存器
@@ -703,6 +750,23 @@ task {{ settings.class_prefix }}config_reg_core::configure(
     config_div_dto_nodes(tree);
     config_inv_nodes(tree);
     prep_mux_switch_gates(tree);
+    config_gate_nodes(tree, 1'b1);
+    config_mux_nodes(tree);
+    config_gate_nodes(tree, 1'b0);
+endtask
+
+// 只应用低功耗所需的 gate 与 mux，不等待实际时钟。
+task {{ settings.class_prefix }}config_reg_core::configure_low_power(
+        {{ settings.class_prefix }}tree_base tree,
+        bit quiet);
+    if (tree == null)
+        `uvm_fatal("CLK_TREE", "low_power config: tree is null")
+    tree.require_built("low_power config");
+    if (!tree.randomize())
+        `uvm_fatal("CLK_TREE", "low_power config: tree randomize failed")
+
+    this.quiet = quiet;
+    report_invalid_control_nodes(tree);
     config_gate_nodes(tree, 1'b1);
     config_mux_nodes(tree);
     config_gate_nodes(tree, 1'b0);

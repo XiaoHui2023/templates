@@ -64,17 +64,49 @@ function automatic void {{ settings.class_prefix }}tree_upstream_peers(
         peers.push_back(nd.source);
 endfunction
 
-// mux 切换等待用频率：peer 为 0 时沿 source 向上取首段正频率
+// mux 切换等待使用首段活动时钟频率。
 function automatic longint {{ settings.class_prefix }}tree_mux_peer_wait_freq(
         {{ settings.class_prefix }}node_base peer);
     {{ settings.class_prefix }}node_base cur;
     cur = peer;
     while (cur != null) begin
-        if (cur._resolved_freq > 0)
+        if (cur._resolved_active && cur._resolved_freq > 0)
             return cur._resolved_freq;
         cur = cur.source;
     end
     return 0;
+endfunction
+
+// 收集 stable 时钟及其全部结构上游节点。
+function automatic void {{ settings.class_prefix }}collect_stable_upstream_nodes(
+        input {{ settings.class_prefix }}tree_base tree,
+        output {{ settings.class_prefix }}node_base collected[$]);
+    {{ settings.class_prefix }}node_base wave[$];
+    {{ settings.class_prefix }}node_base peers[$];
+    int w;
+
+    collected.delete();
+    if (tree == null)
+        return;
+    foreach (tree.clock_nodes[i]) begin
+        if (!tree.clock_nodes[i].stable)
+            continue;
+        {{ settings.class_prefix }}append_unique_node(collected, tree.clock_nodes[i]);
+        {{ settings.class_prefix }}append_unique_node(wave, tree.clock_nodes[i]);
+    end
+    w = 0;
+    while (w < wave.size()) begin
+        {{ settings.class_prefix }}node_base cur;
+        cur = wave[w];
+        w++;
+        {{ settings.class_prefix }}tree_upstream_peers(cur, peers);
+        foreach (peers[i]) begin
+            if ({{ settings.class_prefix }}node_in_queue(peers[i], collected))
+                continue;
+            {{ settings.class_prefix }}append_unique_node(collected, peers[i]);
+            {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
+        end
+    end
 endfunction
 
 // 直接后级：引用 nd 为 source 或 mux 输入的节点

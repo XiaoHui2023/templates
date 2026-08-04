@@ -15,9 +15,6 @@ class {{ settings.class_prefix }}route_check_seq extends uvm_sequence #(
 
     // 执行端口连线测试并写回结果
     extern virtual task body();
-    // 按当前树状态写寄存器
-    extern task run_config_reg(
-        {{ settings.class_prefix }}tree_base tree, bit quiet);
     // 检查一条 parent.out 到 child.in 的连线
     extern task check_edge(
         input {{ settings.class_prefix }}node_base parent,
@@ -29,23 +26,6 @@ class {{ settings.class_prefix }}route_check_seq extends uvm_sequence #(
         inout int checked,
         inout int skipped);
 endclass
-
-task {{ settings.class_prefix }}route_check_seq::run_config_reg(
-        {{ settings.class_prefix }}tree_base tree, bit quiet);
-    {{ settings.class_prefix }}config_reg_req cfg_req;
-    {{ settings.class_prefix }}config_reg_seq cfg_seq;
-
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "test_route: tree is null for config_reg")
-    cfg_req = {{ settings.class_prefix }}config_reg_req::type_id::create("cfg_req");
-    cfg_req.tree = tree;
-    cfg_req.quiet = quiet;
-    cfg_seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
-    cfg_seq.req = cfg_req;
-    cfg_seq.start(p_sequencer);
-    if (cfg_seq.rsp == null || !cfg_seq.rsp.ok)
-        `uvm_fatal("CLK_TREE", "test_route: config_reg failed")
-endtask
 
 task {{ settings.class_prefix }}route_check_seq::check_edge(
         input {{ settings.class_prefix }}node_base parent,
@@ -107,6 +87,7 @@ task {{ settings.class_prefix }}route_check_seq::body();
     {{ settings.class_prefix }}route_check_req rq;
     {{ settings.class_prefix }}route_check_rsp rs;
     {{ settings.class_prefix }}tree_base tree;
+    {{ settings.class_prefix }}config_reg_core cfg;
     {{ settings.class_prefix }}mux mux_nd;
     int checked;
     int skipped;
@@ -132,7 +113,10 @@ task {{ settings.class_prefix }}route_check_seq::body();
             "test_route: begin tree %s", tree.get_name()), UVM_LOW)
 
     tree.low_power();
-    run_config_reg(tree, rq.quiet);
+    if (p_sequencer.tools == null)
+        `uvm_fatal("CLK_TREE", "test_route: sequencer tools not built")
+    cfg = new(p_sequencer.tools, 1'b1);
+    cfg.configure_low_power(tree, rq.quiet);
 
     foreach (tree.nodes[i]) begin
         if (tree.nodes[i] == null)

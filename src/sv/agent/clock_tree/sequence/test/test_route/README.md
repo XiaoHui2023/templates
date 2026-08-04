@@ -17,10 +17,10 @@
 
 ## 流程
 
-1. 执行 **low_power** 并写入配置。
+1. 执行一次 **low_power**，只配置 gate 与 mux，不等待实际时钟。
 2. 按 **source** / **mux.source** 收集连线。
 3. force 前级 **out** 为 0，检查后级 **in** 为 0。
 4. force 前级 **out** 为 1，检查后级 **in** 为 1。
 5. release 前级 **out**。
 
-PLL 只参与连线检查。
+首次配置后不再写寄存器。PLL 只参与连线检查。
