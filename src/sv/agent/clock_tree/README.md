@@ -65,7 +65,6 @@ endfunction
 | `max_freq_hz` | `int` | `5000000000` | **clk/cell** 节点 randomize 后允许的最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 判定时钟有活动所需连续上升沿个数；超过一个最低频率周期仍无边沿则 inactive。 |
 | `stable_cycles` | `int` | `3` | 活动确认后频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。 |
-| `mux_switch_wait_cycles` | `int` | `3` | **config_reg** 写 **mux** 选择前，按待切换 **mux** 最慢直接前级时钟等待的周期数。 |
 | `period_tolerance` | `float` | `0.02` | 相邻周期相对偏差上限。 |
 | `div_freq_tolerance` | `float` | `0.01` | 分频器解析频率相对容差。 |
 | `duty_min` | `float` | `48` | 允许占空比下限，百分数；闭区间端点计入合格。 |

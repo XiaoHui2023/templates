@@ -64,19 +64,6 @@ function automatic void {{ settings.class_prefix }}tree_upstream_peers(
         peers.push_back(nd.source);
 endfunction
 
-// mux 切换等待使用首段活动时钟频率。
-function automatic longint {{ settings.class_prefix }}tree_mux_peer_wait_freq(
-        {{ settings.class_prefix }}node_base peer);
-    {{ settings.class_prefix }}node_base cur;
-    cur = peer;
-    while (cur != null) begin
-        if (cur._resolved_active && cur._resolved_freq > 0)
-            return cur._resolved_freq;
-        cur = cur.source;
-    end
-    return 0;
-endfunction
-
 // 收集 stable 时钟及其全部结构上游节点。
 function automatic void {{ settings.class_prefix }}collect_stable_upstream_nodes(
         input {{ settings.class_prefix }}tree_base tree,

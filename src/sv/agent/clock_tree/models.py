@@ -93,11 +93,6 @@ class Settings(BaseModel):
         ge=2,
         description="活动确认后频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。",
     )
-    mux_switch_wait_cycles: int = Field(
-        3,
-        ge=1,
-        description="config_reg 写 mux 选择前，按待切换 mux 最慢直接前级时钟等待的周期数。",
-    )
     period_tolerance: float = Field(
         0.02,
         gt=0.0,

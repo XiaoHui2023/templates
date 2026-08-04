@@ -78,8 +78,6 @@ class {{ settings.class_prefix }}config_reg_core;
     extern task config_gate_nodes({{ settings.class_prefix }}tree_base tree, bit open);
     // Configure mux nodes.
     extern task config_mux_nodes({{ settings.class_prefix }}tree_base tree);
-    // Open upstream gates before mux switching and wait for clocks.
-    extern task prep_mux_switch_gates({{ settings.class_prefix }}tree_base tree);
 endclass
 
 // 写 gate 的开关控制
@@ -649,87 +647,6 @@ task {{ settings.class_prefix }}config_reg_core::config_mux_nodes(
             config_reg_mux_node(mux_nd);
 endtask
 
-// 切换 mux 前打开上游 gate 并等待时钟稳定
-task {{ settings.class_prefix }}config_reg_core::prep_mux_switch_gates(
-        {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}gate gate_nd;
-    {{ settings.class_prefix }}node_base mux_switch[$];
-    {{ settings.class_prefix }}node_base gates_open[$];
-    {{ settings.class_prefix }}node_base peers[$];
-    {{ settings.class_prefix }}node_base upstream_gates[$];
-    longint slowest_hz;
-    longint peer_hz;
-    int wait_ns;
-    int max_wait_ns;
-
-    mux_switch.delete();
-    for (int i = 0; i < tree.nodes.size(); i++) begin
-        bit sel_match;
-        if (!$cast(mux_nd, tree.nodes[i]))
-            continue;
-        if (!mux_nd.f_reg.is_bound())
-            continue;
-        if (!{{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
-            continue;
-        tools.node.mux_sel_matches(
-            mux_nd.f_reg, mux_nd._resolved_sel, sel_match);
-        if (sel_match)
-            continue;
-        {{ settings.class_prefix }}append_unique_node(mux_switch, mux_nd);
-    end
-    if (mux_switch.size() == 0)
-        return;
-
-    gates_open.delete();
-    foreach (mux_switch[i]) begin
-        upstream_gates.delete();
-        {{ settings.class_prefix }}get_gates_before(tree, mux_switch[i], upstream_gates);
-        foreach (upstream_gates[j]) begin
-            if (!$cast(gate_nd, upstream_gates[j]))
-                continue;
-            if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
-                continue;
-            {{ settings.class_prefix }}append_unique_node(gates_open, gate_nd);
-        end
-    end
-
-    foreach (gates_open[i]) begin
-        if (!$cast(gate_nd, gates_open[i]))
-            continue;
-        if (!gate_nd.f_reg.is_bound())
-            continue;
-        config_reg_gate_node_reg(gate_nd, 1'b1);
-    end
-
-    max_wait_ns = 0;
-    foreach (mux_switch[i]) begin
-        slowest_hz = 0;
-        {{ settings.class_prefix }}tree_upstream_peers(mux_switch[i], peers);
-        foreach (peers[j]) begin
-            peer_hz = {{ settings.class_prefix }}tree_mux_peer_wait_freq(peers[j]);
-            if (peer_hz <= 0)
-                continue;
-            if (slowest_hz == 0 || peer_hz < slowest_hz)
-                slowest_hz = peer_hz;
-        end
-        if (slowest_hz > 0) begin
-            wait_ns = (1_000_000_000 + slowest_hz - 1) / slowest_hz
-                * {{ settings.mux_switch_wait_cycles }};
-            if (wait_ns > max_wait_ns)
-                max_wait_ns = wait_ns;
-        end
-    end
-
-    if (max_wait_ns > 0) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: mux switch wait %0d ns over %0d mux(s)",
-                max_wait_ns, mux_switch.size()), UVM_MEDIUM)
-        #(max_wait_ns * 1ns);
-    end
-endtask
-
 // 按树节点顺序配置寄存器并返回结果
 task {{ settings.class_prefix }}config_reg_core::configure(
         {{ settings.class_prefix }}tree_base tree,
@@ -749,7 +666,6 @@ task {{ settings.class_prefix }}config_reg_core::configure(
     wait_pll_nodes(plls);
     config_div_dto_nodes(tree);
     config_inv_nodes(tree);
-    prep_mux_switch_gates(tree);
     config_gate_nodes(tree, 1'b1);
     config_mux_nodes(tree);
     config_gate_nodes(tree, 1'b0);
