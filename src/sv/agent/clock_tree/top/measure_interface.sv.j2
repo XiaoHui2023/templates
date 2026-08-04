@@ -82,7 +82,8 @@ interface {{ settings.class_prefix }}measure_interface #(
         min_freq_hz_rt = hz;
         period_ns = (1_000_000_000 + hz - 1) / hz;
         active_timeout_ns_rt = period_ns * ACTIVE_CYCLES;
-        stable_timeout_ns_rt = period_ns * STABLE_CYCLES;
+        // 频率稳定需要一个基准周期，再累计 STABLE_CYCLES 次比较。
+        stable_timeout_ns_rt = period_ns * (STABLE_CYCLES + 1);
         max_edge_period_rt = RT_PER_SEC / hz;
     endfunction
 
