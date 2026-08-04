@@ -1,17 +1,18 @@
 `ifndef {{ check_guard }}
 `define {{ check_guard }}
 
-task automatic {{ check_task_name }}({{ probe_if_name }} probe);
+task automatic {{ check_task_name }}(
+        input virtual {{ probe_if_name }} probe,
+        output bit pass);
     bit ok;
-    bit all_ok;
 
-    all_ok = 1'b1;
+    pass = 1'b1;
 {% for signal in signal_rows %}
     probe.{{ signal.name }}.check("{{ signal.name }}", ok);
-    all_ok &= ok;
+    pass &= ok;
 {% endfor %}
 
-    if (!all_ok)
+    if (!pass)
         $error("probe: failed");
     else
         $display("probe: passed");

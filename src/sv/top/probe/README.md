@@ -60,11 +60,16 @@ probe_check.sv
 
 ```systemverilog
 probe_if probe();
+bit probe_pass;
 
 initial begin
-    probe_check(probe);
+    probe_check(probe, probe_pass);
+    if (!probe_pass)
+        $display("probe result is available to caller: failed");
 end
 ```
+
+`probe_check` 的 `pass` 是输出参数。全部信号通过时返回 `1`，任意信号失败时返回 `0`；内部仍会打印逐信号结果，并在总结果失败时调用 `$error`。
 
 生成的总 interface 只给每个子 interface 传该信号自己的频率：
 
