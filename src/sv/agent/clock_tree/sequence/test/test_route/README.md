@@ -1,28 +1,29 @@
 # test_route
 
-检查器件之间的 RTL 连线。
+启动一次 RTL 连线检查并返回汇总结果。
 
-## 输入
+## req
 
-| 节点 | 端口 |
-| --- | --- |
-| source | **out_path** |
-| pll | **in_path**、**out_path** / **out_paths** |
-| 单输出前级 | **out_path** |
-| mux 输入 | **in_paths** |
-| 单输入后级 | **in_path** |
-| clk / cell | **path** |
-
-缺少任一端口时跳过该连线并打印原因。
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **tree** | **tree_base** | 时钟树 |
+| **quiet** | **bit** | 静默打印 |
+| **debug** | **bit** | 打印开始信息 |
 
 ## 流程
 
-1. 执行一次 **low_power**，只配置 gate 与 mux，不等待实际时钟。
-2. 按前级 **out** 对全部连线分组，各组并行测试。
-3. force 前级 **out** 为 0，检查全部后级 **in** 为 0。
-4. force 前级 **out** 为 1，检查全部后级 **in** 为 1。
-5. release 前级 **out**。
+1. 校验请求。
+2. 创建 **route_check** 请求并转交 tree、打印开关。
+3. 启动 **route_check**。
+4. 将 operation 的通过状态和失败数写入 test response。
 
-首次配置后不再写寄存器。PLL 只参与连线检查。
+## 设计
 
-连线错误使用 **UVM_ERROR** 记录；完成全部连线后返回失败总数。
+test 不直接驱动 interface 或写寄存器，连线分组、low_power、force/release 和错误聚合都由 operation 负责。operation 没有返回 response 时按一次失败处理。
+
+## rsp
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| **ok** | **bit** | 连线检查通过 |
+| **failed** | **int** | 失败连线数 |

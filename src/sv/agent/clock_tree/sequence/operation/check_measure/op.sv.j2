@@ -64,6 +64,11 @@ class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
         bit check_clk,
         bit check_duty
     );
+    // Record a failed node once.
+    extern function void record_failed_node(
+        {{ settings.class_prefix }}check_measure_rsp rs,
+        {{ settings.class_prefix }}node_base nd
+    );
     // 比对单节点频率并在通过时打印
     // nd — 节点
     // rq — 请求
@@ -288,6 +293,18 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_duty_measure_rea
     return 1'b0;
 endfunction
 
+function void {{ settings.class_prefix }}check_measure_seq::record_failed_node(
+    {{ settings.class_prefix }}check_measure_rsp rs,
+    {{ settings.class_prefix }}node_base nd
+);
+    if (rs == null || nd == null)
+        return;
+    foreach (rs.failed_nodes[i])
+        if (rs.failed_nodes[i] == nd)
+            return;
+    rs.failed_nodes.push_back(nd);
+endfunction
+
 task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
     {{ settings.class_prefix }}node_base nd,
     {{ settings.class_prefix }}check_measure_req rq,
@@ -316,6 +333,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
             "check_measure: node %s expected %0d Hz no activity",
             nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -324,6 +342,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
             "check_measure: node %s activity not confirmed expected %0d Hz",
             nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -337,6 +356,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
                 "check_measure: node %s expected inactive, measured active",
                 nd.get_name()))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -345,6 +365,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
             "check_measure: node %s frequency did not stabilize expected %0d Hz",
             nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -353,6 +374,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
             "check_measure: node %s frequency did not stabilize expected %0d Hz",
             nd.get_name(), expected_freq_hz))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -365,6 +387,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
             "check_measure: node %s freq expected %0d Hz measured %0.2f Hz rel %0.4f",
             nd.get_name(), expected_freq_hz, measured_hz, rel_diff))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -390,7 +413,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
             "check_measure: node %s expected activity no clock edges",
             nd.get_name()))
         rs.ok = 1'b0;
-        rs.failed_nodes.push_back(nd);
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -399,6 +422,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
             "check_measure: node %s activity not confirmed",
             nd.get_name()))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -407,7 +431,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
             "check_measure: node %s expected inactive measured duty %0.3f%%",
             nd.get_name(), nd.vif.meas.duty * 100.0))
         rs.ok = 1'b0;
-        rs.failed_nodes.push_back(nd);
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -416,6 +440,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
             "check_measure: node %s duty did not stabilize",
             nd.get_name()))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -424,6 +449,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
             "check_measure: node %s duty did not stabilize",
             nd.get_name()))
         rs.ok = 1'b0;
+        record_failed_node(rs, nd);
         return;
     end
 
@@ -434,7 +460,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
             {{ settings.duty_min }}, {{ settings.duty_max }},
             {{ settings.duty_tolerance_pct }}))
         rs.ok = 1'b0;
-        rs.failed_nodes.push_back(nd);
+        record_failed_node(rs, nd);
         return;
     end
 

@@ -184,9 +184,7 @@ task {{ settings.class_prefix }}route_check_seq::body();
     foreach (parents[i]) begin
         fork
             begin
-                int idx;
-
-                idx = i;
+                automatic int idx = i;
                 check_parent_routes(tree, parents[idx], rq.quiet,
                     checked_counts[idx], skipped_counts[idx],
                     failed_counts[idx]);
