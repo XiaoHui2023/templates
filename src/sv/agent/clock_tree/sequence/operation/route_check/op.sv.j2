@@ -24,7 +24,8 @@ class {{ settings.class_prefix }}route_check_seq extends uvm_sequence #(
         input string edge_name,
         input bit quiet,
         inout int checked,
-        inout int skipped);
+        inout int skipped,
+        inout int failed);
 endclass
 
 task {{ settings.class_prefix }}route_check_seq::check_edge(
@@ -35,7 +36,8 @@ task {{ settings.class_prefix }}route_check_seq::check_edge(
         input string edge_name,
         input bit quiet,
         inout int checked,
-        inout int skipped);
+        inout int skipped,
+        inout int failed);
     virtual {{ settings.class_prefix }}interface out_vif;
     virtual {{ settings.class_prefix }}interface in_vif;
 
@@ -64,8 +66,8 @@ task {{ settings.class_prefix }}route_check_seq::check_edge(
     out_vif.drive_static(1'b0);
     #1ns;
     if (in_vif.in !== 1'b0) begin
-        out_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
+        failed++;
+        `uvm_error("CLK_TREE", $sformatf(
             "test_route: %s failed, force 0 measured %0b",
             edge_name, in_vif.in))
     end
@@ -73,8 +75,8 @@ task {{ settings.class_prefix }}route_check_seq::check_edge(
     out_vif.drive_static(1'b1);
     #1ns;
     if (in_vif.in !== 1'b1) begin
-        out_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
+        failed++;
+        `uvm_error("CLK_TREE", $sformatf(
             "test_route: %s failed, force 1 measured %0b",
             edge_name, in_vif.in))
     end
@@ -91,6 +93,7 @@ task {{ settings.class_prefix }}route_check_seq::body();
     {{ settings.class_prefix }}mux mux_nd;
     int checked;
     int skipped;
+    int failed;
     string in_key;
     string edge_name;
 
@@ -107,6 +110,7 @@ task {{ settings.class_prefix }}route_check_seq::body();
     rs.ok = 1'b1;
     checked = 0;
     skipped = 0;
+    failed = 0;
 
     if (!rq.quiet || rq.debug)
         `uvm_info("CLK_TREE", $sformatf(
@@ -129,13 +133,13 @@ task {{ settings.class_prefix }}route_check_seq::body();
                 edge_name = $sformatf("%s.out -> %s.in[%s]",
                     mux_nd.to_source[k].get_name(), mux_nd.get_name(), in_key);
                 check_edge(mux_nd.to_source[k], "", mux_nd, in_key, edge_name,
-                    rq.quiet, checked, skipped);
+                    rq.quiet, checked, skipped, failed);
             end
         end else if (tree.nodes[i].source != null) begin
             edge_name = $sformatf("%s.out -> %s.in",
                 tree.nodes[i].source.get_name(), tree.nodes[i].get_name());
             check_edge(tree.nodes[i].source, "", tree.nodes[i], "", edge_name,
-                rq.quiet, checked, skipped);
+                rq.quiet, checked, skipped, failed);
         end
     end
 
@@ -144,10 +148,12 @@ task {{ settings.class_prefix }}route_check_seq::body();
             "test_route: no edge checked, %0d skipped due to missing interface",
             skipped))
 
-    if (!rq.quiet)
+    rs.failed = failed;
+    rs.ok = failed == 0;
+    if (!rq.quiet || failed != 0)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_route: passed, %0d edge(s), %0d skipped",
-            checked, skipped), UVM_LOW)
+            "test_route: complete, %0d edge(s), %0d skipped, %0d failed",
+            checked, skipped, failed), UVM_LOW)
 
     rsp = rs;
 endtask

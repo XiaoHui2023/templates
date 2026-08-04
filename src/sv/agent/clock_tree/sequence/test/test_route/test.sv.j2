@@ -36,6 +36,7 @@ task {{ settings.class_prefix }}test_route_seq::body();
 
     rs = {{ settings.class_prefix }}test_route_rsp::type_id::create("rsp");
     rs.ok = op_seq.rsp != null && op_seq.rsp.ok;
+    rs.failed = op_seq.rsp == null ? 1 : op_seq.rsp.failed;
     rsp = rs;
 endtask
 

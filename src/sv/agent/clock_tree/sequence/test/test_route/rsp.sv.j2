@@ -4,9 +4,11 @@
 class {{ settings.class_prefix }}test_route_rsp extends uvm_sequence_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}test_route_rsp)
         `uvm_field_int(ok, UVM_ALL_ON)
+        `uvm_field_int(failed, UVM_ALL_ON)
     `uvm_object_utils_end
 
     bit ok;
+    int failed;
 
     function new(string name = "{{ settings.class_prefix }}test_route_rsp");
         super.new(name);

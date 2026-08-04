@@ -25,52 +25,61 @@ class {{ settings.class_prefix }}flip_check_seq extends uvm_sequence #(
         input virtual {{ settings.class_prefix }}interface vif,
         input string label,
         input int min_freq_hz,
-        output real freq_hz);
+        output real freq_hz,
+        output bit passed);
     // 确认一个端口不活跃
     extern task check_port_inactive(
         input virtual {{ settings.class_prefix }}interface vif,
         input string label,
-        input int min_freq_hz);
+        input int min_freq_hz,
+        output bit passed);
     // 验证 gate 开关功能
     extern task verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}gate gate_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     // 验证 div 功能
     extern task verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}div_div div_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     // 验证 dto 分频功能。
     extern task verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}div_dto dto_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     // 验证 mux 选择功能
     extern task verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}mux mux_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     // 验证 inv 直通与反相功能
     extern task verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}inv_base inv_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
 endclass
 
 task {{ settings.class_prefix }}flip_check_seq::measure_port_freq(
         input virtual {{ settings.class_prefix }}interface vif,
         input string label,
         input int min_freq_hz,
-        output real freq_hz);
+        output real freq_hz,
+        output bit passed);
     bit ok;
 
     freq_hz = 0.0;
+    passed = 1'b0;
     if (vif == null)
         `uvm_fatal("CLK_TREE", $sformatf(
             "test_flip: %s missing interface", label))
@@ -79,18 +88,24 @@ task {{ settings.class_prefix }}flip_check_seq::measure_port_freq(
     vif.wait_measure_stable(1'b1, 1'b0, ok);
     vif.stop_measure();
     vif.set_min_freq_hz({{ settings.min_freq_hz }});
-    if (!ok || !vif.meas.last_valid)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: %s frequency did not stabilize", label))
+    if (!ok || !vif.meas.last_valid) begin
+        `uvm_error("CLK_TREE", $sformatf(
+            "test_flip: %s frequency did not stabilize, expected %0d Hz",
+            label, min_freq_hz))
+        return;
+    end
     freq_hz = vif.meas.last_freq_hz;
+    passed = 1'b1;
 endtask
 
 task {{ settings.class_prefix }}flip_check_seq::check_port_inactive(
         input virtual {{ settings.class_prefix }}interface vif,
         input string label,
-        input int min_freq_hz);
+        input int min_freq_hz,
+        output bit passed);
     bit ok;
 
+    passed = 1'b0;
     if (vif == null)
         `uvm_fatal("CLK_TREE", $sformatf(
             "test_flip: %s missing interface", label))
@@ -99,21 +114,27 @@ task {{ settings.class_prefix }}flip_check_seq::check_port_inactive(
     vif.wait_measure_stable(1'b0, 1'b0, ok);
     vif.stop_measure();
     vif.set_min_freq_hz({{ settings.min_freq_hz }});
-    if (vif.meas.activity_ok)
-        `uvm_fatal("CLK_TREE", $sformatf(
+    if (vif.meas.activity_ok) begin
+        `uvm_error("CLK_TREE", $sformatf(
             "test_flip: %s expected inactive but active", label))
+        return;
+    end
+    passed = 1'b1;
 endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}gate gate_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
     real freq_hz;
+    bit passed;
 
     did_check = 1'b0;
+    failures = 0;
     if (gate_nd == null)
         return;
     in_vif = gate_nd.get_in_vif();
@@ -133,12 +154,17 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
     in_vif.start_clock(100_000_000);
     cfg.config_reg_gate_node_reg(gate_nd, 1'b1);
     measure_port_freq(
-        out_vif, {gate_nd.get_name(), ".out open"}, 100_000_000, freq_hz);
+        out_vif, {gate_nd.get_name(), ".out open"}, 100_000_000,
+        freq_hz, passed);
+    if (!passed)
+        failures++;
 
     cfg.config_reg_gate_node_reg(gate_nd, 1'b0);
     #20ns;
     check_port_inactive(
-        out_vif, {gate_nd.get_name(), ".out close"}, 100_000_000);
+        out_vif, {gate_nd.get_name(), ".out close"}, 100_000_000, passed);
+    if (!passed)
+        failures++;
     in_vif.release_drive();
     did_check = 1'b1;
 endtask
@@ -160,15 +186,18 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}div_div div_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
     real out_freq_hz;
     real expected_freq_hz;
     real err_ratio;
     int ratio;
+    bit passed;
 
     did_check = 1'b0;
+    failures = 0;
     if (div_nd == null)
         return;
     in_vif = div_nd.get_in_vif();
@@ -193,17 +222,22 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
     cfg.config_reg_div_node_reg(div_nd, ratio);
     #20ns;
     measure_port_freq(
-        out_vif, {div_nd.get_name(), ".out"}, 200_000_000, out_freq_hz);
+        out_vif, {div_nd.get_name(), ".out"}, 200_000_000,
+        out_freq_hz, passed);
 
     expected_freq_hz = 800_000_000.0 / ratio;
-    err_ratio = (out_freq_hz > expected_freq_hz)
-        ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
-        : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
-    if (err_ratio > {{ settings.period_tolerance }}) begin
-        in_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: div %s output %0.2f Hz expected %0.2f Hz",
-            div_nd.get_name(), out_freq_hz, expected_freq_hz))
+    if (!passed)
+        failures++;
+    else begin
+        err_ratio = (out_freq_hz > expected_freq_hz)
+            ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
+            : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
+        if (err_ratio > {{ settings.period_tolerance }}) begin
+            failures++;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: div %s output %0.2f Hz expected %0.2f Hz",
+                div_nd.get_name(), out_freq_hz, expected_freq_hz))
+        end
     end
     in_vif.release_drive();
     did_check = 1'b1;
@@ -213,15 +247,18 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}div_dto dto_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
     real out_freq_hz;
     real expected_freq_hz;
     real err_ratio;
     int ratio;
+    bit passed;
 
     did_check = 1'b0;
+    failures = 0;
     if (dto_nd == null)
         return;
     in_vif = dto_nd.get_in_vif();
@@ -246,17 +283,22 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
     cfg.config_reg_dto_node_reg(dto_nd, ratio);
     #20ns;
     measure_port_freq(
-        out_vif, {dto_nd.get_name(), ".out"}, 200_000_000, out_freq_hz);
+        out_vif, {dto_nd.get_name(), ".out"}, 200_000_000,
+        out_freq_hz, passed);
 
     expected_freq_hz = 800_000_000.0 / ratio;
-    err_ratio = (out_freq_hz > expected_freq_hz)
-        ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
-        : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
-    if (err_ratio > {{ settings.period_tolerance }}) begin
-        in_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "test_flip: dto %s output %0.2f Hz expected %0.2f Hz",
-            dto_nd.get_name(), out_freq_hz, expected_freq_hz))
+    if (!passed)
+        failures++;
+    else begin
+        err_ratio = (out_freq_hz > expected_freq_hz)
+            ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
+            : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
+        if (err_ratio > {{ settings.period_tolerance }}) begin
+            failures++;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: dto %s output %0.2f Hz expected %0.2f Hz",
+                dto_nd.get_name(), out_freq_hz, expected_freq_hz))
+        end
     end
     in_vif.release_drive();
     did_check = 1'b1;
@@ -266,7 +308,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}mux mux_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
     real out_freq_hz;
@@ -274,8 +317,10 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     real err_ratio;
     string in_key;
     int stim_freq_hz;
+    bit passed;
 
     did_check = 1'b0;
+    failures = 0;
     if (mux_nd == null)
         return;
     out_vif = mux_nd.get_out_vif();
@@ -312,14 +357,20 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         #50ns;
         measure_port_freq(
             out_vif, {mux_nd.get_name(), ".out"},
-            int'(expected_freq_hz[k]), out_freq_hz);
-        err_ratio = (out_freq_hz > expected_freq_hz[k])
-            ? ((out_freq_hz - expected_freq_hz[k]) / expected_freq_hz[k])
-            : ((expected_freq_hz[k] - out_freq_hz) / expected_freq_hz[k]);
-        if (err_ratio > {{ settings.period_tolerance }})
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "test_flip: mux %s sel %0d output %0.2f Hz expected %0.2f Hz",
-                mux_nd.get_name(), k, out_freq_hz, expected_freq_hz[k]))
+            int'(expected_freq_hz[k]), out_freq_hz, passed);
+        if (!passed)
+            failures++;
+        else begin
+            err_ratio = (out_freq_hz > expected_freq_hz[k])
+                ? ((out_freq_hz - expected_freq_hz[k]) / expected_freq_hz[k])
+                : ((expected_freq_hz[k] - out_freq_hz) / expected_freq_hz[k]);
+            if (err_ratio > {{ settings.period_tolerance }}) begin
+                failures++;
+                `uvm_error("CLK_TREE", $sformatf(
+                    "test_flip: mux %s sel %0d output %0.2f Hz expected %0.2f Hz",
+                    mux_nd.get_name(), k, out_freq_hz, expected_freq_hz[k]))
+            end
+        end
     end
 
     foreach (mux_nd.to_source[k]) begin
@@ -335,11 +386,13 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}inv_base inv_nd,
         input bit quiet,
-        output bit did_check);
+        output bit did_check,
+        output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
 
     did_check = 1'b0;
+    failures = 0;
     if (inv_nd == null)
         return;
     in_vif = inv_nd.get_in_vif();
@@ -356,16 +409,16 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b0) begin
-        in_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
+        failures++;
+        `uvm_error("CLK_TREE", $sformatf(
             "test_flip: inv %s direct input 0 output %0b",
             inv_nd.get_name(), out_vif.in))
     end
     in_vif.drive_static(1'b1);
     #1ns;
     if (out_vif.in !== 1'b1) begin
-        in_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
+        failures++;
+        `uvm_error("CLK_TREE", $sformatf(
             "test_flip: inv %s direct input 1 output %0b",
             inv_nd.get_name(), out_vif.in))
     end
@@ -374,16 +427,16 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b1) begin
-        in_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
+        failures++;
+        `uvm_error("CLK_TREE", $sformatf(
             "test_flip: inv %s inverted input 0 output %0b",
             inv_nd.get_name(), out_vif.in))
     end
     in_vif.drive_static(1'b1);
     #1ns;
     if (out_vif.in !== 1'b0) begin
-        in_vif.release_drive();
-        `uvm_fatal("CLK_TREE", $sformatf(
+        failures++;
+        `uvm_error("CLK_TREE", $sformatf(
             "test_flip: inv %s inverted input 1 output %0b",
             inv_nd.get_name(), out_vif.in))
     end
@@ -405,6 +458,8 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     int checked;
     int subjects;
     int stable_skipped;
+    int failed;
+    int subject_failures;
     bit did_check;
 
     if (req == null)
@@ -421,6 +476,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     checked = 0;
     subjects = 0;
     stable_skipped = 0;
+    failed = 0;
 
     if (!rq.quiet || rq.debug)
         `uvm_info("CLK_TREE", $sformatf(
@@ -444,9 +500,11 @@ task {{ settings.class_prefix }}flip_check_seq::body();
             end
             if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
                 continue;
-            verify_gate(cfg, gate_nd, rq.quiet, did_check);
+            verify_gate(
+                cfg, gate_nd, rq.quiet, did_check, subject_failures);
             if (did_check)
                 checked++;
+            failed += subject_failures;
         end else if ($cast(div_nd, tree.nodes[i])) begin
             subjects++;
             if (skip_stable_subject(div_nd, stable_nodes, rq.quiet)) begin
@@ -455,9 +513,11 @@ task {{ settings.class_prefix }}flip_check_seq::body();
             end
             if (!{{ settings.class_prefix }}control_node_is_valid(tree, div_nd))
                 continue;
-            verify_div(cfg, div_nd, rq.quiet, did_check);
+            verify_div(
+                cfg, div_nd, rq.quiet, did_check, subject_failures);
             if (did_check)
                 checked++;
+            failed += subject_failures;
         end else if ($cast(dto_nd, tree.nodes[i])) begin
             subjects++;
             if (skip_stable_subject(dto_nd, stable_nodes, rq.quiet)) begin
@@ -466,9 +526,11 @@ task {{ settings.class_prefix }}flip_check_seq::body();
             end
             if (!{{ settings.class_prefix }}control_node_is_valid(tree, dto_nd))
                 continue;
-            verify_dto(cfg, dto_nd, rq.quiet, did_check);
+            verify_dto(
+                cfg, dto_nd, rq.quiet, did_check, subject_failures);
             if (did_check)
                 checked++;
+            failed += subject_failures;
         end else if ($cast(mux_nd, tree.nodes[i])) begin
             subjects++;
             if (skip_stable_subject(mux_nd, stable_nodes, rq.quiet)) begin
@@ -477,18 +539,22 @@ task {{ settings.class_prefix }}flip_check_seq::body();
             end
             if (!{{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
                 continue;
-            verify_mux(cfg, mux_nd, rq.quiet, did_check);
+            verify_mux(
+                cfg, mux_nd, rq.quiet, did_check, subject_failures);
             if (did_check)
                 checked++;
+            failed += subject_failures;
         end else if ($cast(inv_nd, tree.nodes[i])) begin
             subjects++;
             if (skip_stable_subject(inv_nd, stable_nodes, rq.quiet)) begin
                 stable_skipped++;
                 continue;
             end
-            verify_inv(cfg, inv_nd, rq.quiet, did_check);
+            verify_inv(
+                cfg, inv_nd, rq.quiet, did_check, subject_failures);
             if (did_check)
                 checked++;
+            failed += subject_failures;
         end
     end
 
@@ -497,10 +563,12 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     if (checked == 0 && stable_skipped != subjects)
         `uvm_fatal("CLK_TREE", "test_flip: no subject checked")
 
-    if (!rq.quiet)
+    rs.failed = failed;
+    rs.ok = failed == 0;
+    if (!rq.quiet || failed != 0)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: passed, %0d subject(s), %0d stable upstream skipped, pll skipped",
-            checked, stable_skipped), UVM_LOW)
+            "test_flip: complete, %0d subject(s), %0d stable upstream skipped, %0d failed, pll skipped",
+            checked, stable_skipped, failed), UVM_LOW)
 
     rsp = rs;
 endtask
