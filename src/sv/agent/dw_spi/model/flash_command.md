@@ -41,7 +41,7 @@
 | `write_status_qe.sv` | `write_status_qe_flash_command` | `0x01` | command + 2-byte status data，标准单线，`TX_ONLY`，不更新 memory mirror |
 | `page_program.sv` | `page_program_flash_command` | `0x02` | opcode/address 单线，payload 1 线，`TX_ONLY` |
 | `dual_page_program.sv` | `dual_page_program_flash_command` | `0xA2` | opcode/address 单线，payload 2 线，`TX_ONLY` |
-| `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | opcode/address/payload 均为 4 线，`TX_ONLY`，需要 QE |
+| `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | `1S-1S-4S`：opcode/address 单线、payload 四线，`TX_ONLY`，需要 QE |
 | `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，`RX_ONLY` |
 | `fast_read1x.sv` | `fast_read1x_flash_command` | `0x0B` | opcode/address 单线，payload 1 线，`RX_ONLY` |
 | `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，`RX_ONLY` |

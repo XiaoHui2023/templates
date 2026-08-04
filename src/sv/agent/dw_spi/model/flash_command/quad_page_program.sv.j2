@@ -13,8 +13,8 @@ class {{ class_prefix }}quad_page_program_flash_command extends {{ class_prefix 
         frame_mode == ENHANCED;
         transfer_mode == TX_ONLY;
         io_lanes == 4;
-        instruction_lanes == 4;
-        address_lanes == 4;
+        instruction_lanes == 1;
+        address_lanes == 1;
         speed_multiplier == 4;
         inst_bytes == 1;
         addr_bytes inside {3, 4};
