@@ -46,7 +46,11 @@ def test_example_renders() -> None:
     assert "probe_signal_if #(.FREQ(100000000)) cpu_clk" in rendered["probe_if.sv.j2"]
     assert "input virtual probe_if probe" in rendered["probe_check.sv.j2"]
     assert "output bit pass" in rendered["probe_check.sv.j2"]
-    assert "pass &= ok;" in rendered["probe_check.sv.j2"]
+    assert "bit signal_ok[2];" in rendered["probe_check.sv.j2"]
+    assert "watchdog_timeout_ns" in rendered["probe_check.sv.j2"]
+    assert "join_any" in rendered["probe_check.sv.j2"]
+    assert "pass &= signal_ok[0];" in rendered["probe_check.sv.j2"]
+    assert "pass &= signal_ok[1];" in rendered["probe_check.sv.j2"]
     assert ".TOLERANCE_PPM" not in rendered["probe_if.sv.j2"]
     assert ".MIN_FREQ_HZ" not in rendered["probe_if.sv.j2"]
     assert ".STABLE_CYCLES" not in rendered["probe_if.sv.j2"]
@@ -66,7 +70,7 @@ def test_omitted_freq_defaults_to_inactive() -> None:
 
     assert model.signals["sleep_clk"].freq == 0
     assert "probe_signal_if #(.FREQ(0)) sleep_clk" in rendered["probe_if.sv.j2"]
-    assert 'probe.sleep_clk.check("sleep_clk", ok);' in rendered["probe_check.sv.j2"]
+    assert 'probe.sleep_clk.check("sleep_clk", signal_ok[0]);' in rendered["probe_check.sv.j2"]
 
 
 def test_prefix_applies_to_global_symbols() -> None:
@@ -91,6 +95,28 @@ def test_prefix_applies_to_global_symbols() -> None:
     assert "pll0_signal_if #(.FREQ(100000000)) cpu_clk" in rendered["probe_if.sv.j2"]
     assert "input virtual pll0_if probe" in rendered["probe_check.sv.j2"]
     assert "output bit pass" in rendered["probe_check.sv.j2"]
+
+
+def test_many_signals_render_as_parallel_checks() -> None:
+    signal_count = 1000
+    signals = {
+        f"clk_{index}": {
+            "path": f"dut.clk_{index}",
+            "freq": 100000000,
+        }
+        for index in range(signal_count)
+    }
+    model = Models.model_validate({"signals": signals})
+    rendered = render_templates(model)
+    check_text = rendered["probe_check.sv.j2"]
+
+    assert f"bit signal_ok[{signal_count}];" in check_text
+    assert check_text.count(".check(") == signal_count
+    assert check_text.count("pass &= signal_ok[") == signal_count
+    assert check_text.count("watchdog_timeout_ns") == 5
+    assert "wait_posedge_or_timeout" not in rendered["probe_signal_if.sv.j2"]
+    assert "frequency_timeout_ns" in rendered["probe_signal_if.sv.j2"]
+    assert "edge_period_ns() * STABLE_CYCLES" not in rendered["probe_signal_if.sv.j2"]
 
 
 def test_unsupported_signal_fields_are_rejected() -> None:

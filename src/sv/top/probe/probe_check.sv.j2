@@ -4,14 +4,40 @@
 task automatic {{ check_task_name }}(
         input virtual {{ probe_if_name }} probe,
         output bit pass);
-    bit ok;
+    bit signal_ok[{{ signal_rows | length }}];
+    bit checks_done;
+    longint watchdog_timeout_ns;
+
+    pass = 1'b0;
+    checks_done = 1'b0;
+    watchdog_timeout_ns = (1_000_000_000 + {{ settings.min_freq_hz }} - 1)
+        / {{ settings.min_freq_hz }};
+    watchdog_timeout_ns = watchdog_timeout_ns
+        * ({{ settings.stable_cycles }} + 1) + 2;
+
+    fork
+        begin
+            fork
+{% for signal in signal_rows %}                begin
+                    probe.{{ signal.name }}.check("{{ signal.name }}", signal_ok[{{ loop.index0 }}]);
+                end
+{% endfor %}            join
+            checks_done = 1'b1;
+        end
+        begin
+            #(watchdog_timeout_ns * 1ns);
+        end
+    join_any
+    disable fork;
+
+    if (!checks_done) begin
+        $error("probe: timeout");
+        return;
+    end
 
     pass = 1'b1;
-{% for signal in signal_rows %}
-    probe.{{ signal.name }}.check("{{ signal.name }}", ok);
-    pass &= ok;
+{% for signal in signal_rows %}    pass &= signal_ok[{{ loop.index0 }}];
 {% endfor %}
-
     if (!pass)
         $error("probe: failed");
     else

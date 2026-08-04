@@ -20,49 +20,26 @@ interface {{ signal_if_name }} #(
         return MIN_FREQ_HZ;
     endfunction
 
-    function automatic int edge_timeout_ns();
+    function automatic longint edge_period_ns();
         int hz;
 
         hz = effective_min_freq_hz();
         return (1_000_000_000 + hz - 1) / hz;
     endfunction
 
-    task automatic wait_posedge_or_timeout(output bit seen);
-        int timeout_ns;
+    function automatic longint activity_timeout_ns();
+        return edge_period_ns() + 1;
+    endfunction
 
-        timeout_ns = edge_timeout_ns();
-        seen = 1'b0;
-        fork
-            begin
-                @(posedge sig);
-                seen = 1'b1;
-            end
-            begin
-                #(timeout_ns * 1ns);
-            end
-        join_any
-        disable fork;
-    endtask
-
-    task automatic wait_activity_or_timeout(output bit seen);
-        int timeout_ns;
-
-        timeout_ns = edge_timeout_ns() * STABLE_CYCLES;
-        seen = 1'b0;
-        fork
-            begin
-                @(posedge sig or negedge sig);
-                seen = 1'b1;
-            end
-            begin
-                #(timeout_ns * 1ns);
-            end
-        join_any
-        disable fork;
-    endtask
+    function automatic longint frequency_timeout_ns();
+        return edge_period_ns() * (STABLE_CYCLES + 1) + 1;
+    endfunction
 
     task automatic check_active(input string name, output bit pass);
-        bit seen;
+        bit sample_done;
+        logic previous_sig;
+        int edge_count;
+        longint timeout_ns;
         realtime first_edge_t;
         realtime last_edge_t;
         realtime period_t;
@@ -72,6 +49,9 @@ interface {{ signal_if_name }} #(
         longint max_hz;
 
         pass = 1'b0;
+        sample_done = 1'b0;
+        edge_count = 0;
+        timeout_ns = frequency_timeout_ns();
         first_edge_t = 0.0;
         last_edge_t = 0.0;
         measured_freq_hz = 0.0;
@@ -79,21 +59,39 @@ interface {{ signal_if_name }} #(
         min_hz = FREQ * (1_000_000 - TOLERANCE_PPM) / 1_000_000;
         max_hz = FREQ * (1_000_000 + TOLERANCE_PPM) / 1_000_000;
 
-        for (int i = 0; i <= STABLE_CYCLES; i++) begin
-            wait_posedge_or_timeout(seen);
-            if (!seen) begin
-                $display("probe: %s failed measured 0 Hz expected %0d Hz", name, FREQ);
-                return;
+        fork
+            begin
+                previous_sig = sig;
+                forever begin
+                    @(sig);
+                    if (previous_sig === 1'b0 && sig === 1'b1) begin
+                        if (edge_count == 0)
+                            first_edge_t = $realtime;
+                        last_edge_t = $realtime;
+                        edge_count++;
+                        if (edge_count == STABLE_CYCLES + 1) begin
+                            sample_done = 1'b1;
+                            break;
+                        end
+                    end
+                    previous_sig = sig;
+                end
             end
-            if (i == 0)
-                first_edge_t = $realtime;
-            last_edge_t = $realtime;
+            begin
+                #(timeout_ns * 1ns);
+            end
+        join_any
+        disable fork;
+
+        if (!sample_done) begin
+            $display("probe: %s failed timeout measured 0 Hz expected %0d Hz", name, FREQ);
+            return;
         end
 
         period_t = (last_edge_t - first_edge_t) / STABLE_CYCLES;
         if (period_t > 0.0) begin
             measured_freq_hz = RT_PER_SEC / period_t;
-            measured_hz = $rtoi(measured_freq_hz + 0.5);
+            measured_hz = longint'($floor(measured_freq_hz + 0.5));
         end
 
         pass = (measured_hz >= min_hz) && (measured_hz <= max_hz);
@@ -105,8 +103,30 @@ interface {{ signal_if_name }} #(
 
     task automatic check_inactive(input string name, output bit pass);
         bit seen;
+        logic previous_sig;
+        longint timeout_ns;
 
-        wait_activity_or_timeout(seen);
+        seen = 1'b0;
+        timeout_ns = activity_timeout_ns();
+        fork
+            begin
+                previous_sig = sig;
+                forever begin
+                    @(sig);
+                    if (!$isunknown(previous_sig) && !$isunknown(sig)
+                            && previous_sig != sig) begin
+                        seen = 1'b1;
+                        break;
+                    end
+                    previous_sig = sig;
+                end
+            end
+            begin
+                #(timeout_ns * 1ns);
+            end
+        join_any
+        disable fork;
+
         pass = !seen;
         if (pass)
             $display("probe: %s pass inactive", name);
