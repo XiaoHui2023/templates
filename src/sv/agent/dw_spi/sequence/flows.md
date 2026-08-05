@@ -17,7 +17,7 @@
 1. `init_registers_seq` 接收一个 `transfer_req`。
 2. `register_config_builder` 根据 transfer req 和 settings 生成 `configuration`。
 3. builder 测量 `ssi_clk`，根据 `target_sclk_hz` 计算偶数 `BAUDR`。
-4. builder 根据 `opcode/address/dummy/payload` 的总 byte 数计算实际 NDF；除 `0x06` 这类单 opcode 命令外，连续命令写入 `CTRLR1.NDF = actual_ndf - 1`。如果该编码值超过 `settings.ctrlr1_ndf_max`，立即 fatal。
+4. builder 仅根据 payload byte 数和 DFS 计算 `actual_data_frames`，instruction/address/dummy 不计入 NDF；非零 data frame 数写入 `CTRLR1.NDF = actual_data_frames - 1`。如果该编码值超过 `settings.ctrlr1_ndf_max`，立即 fatal。
 5. `register_access` 实例化后注入 settings 和 `report_context = p_sequencer`。
 6. `register_access.apply_configuration()` 按 FIELD 写 regmodel。
 
@@ -29,9 +29,9 @@
 2. 生成本次寄存器 `configuration`。
 3. 内置 DMA 写 transfer 在启动控制器前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
 4. 调用 `register_access.apply_configuration()`。该阶段会关闭控制器、清中断、清 `SER`、配置寄存器、重新使能控制器，但不会选中片选。
-5. 非 DMA PIO 构造 DR byte stream。flash 协议包含 opcode、大端地址字节；写传输追加 payload。命令-only 传输 payload 长度为 0，但 DR stream 仍包含 opcode。
+5. 非 DMA PIO 构造 DR item stream。standard flash 把 opcode、大端地址、dummy 逐 byte 放入 item；enhanced flash 把 opcode 和完整 address 各放入一个 32-bit control item，再追加 payload。命令-only 传输 payload 长度为 0，但 DR stream 仍包含 opcode。
    flash write/program 不使用 dummy clock；enhanced read 的 dummy/wait 通过 `SPI_CTRLR0.WAIT_CYCLES` 表达。
-6. PIO 在 `SER=0` 时先向 `DR` 预填不超过 `settings.fifo_depth_bytes` 的字节。
+6. PIO 在 `SER=0` 时先向 `DR` 预填不超过 `settings.fifo_depth_bytes` 的 FIFO items。
 7. 到 transaction 边界时选中 CS：`HARDWARE_CS` 写 `SER.SER = cfg.ser`；`SOFTWARE_CS` 先调用 `p_sequencer.activate_chip_select(cs_id)`，再写 `SER.SER = cfg.ser`。
 8. PIO 写 transfer 如果还有 remaining byte，会在同一个 CS window 内继续等待 `SR.TFNF` 并补写 `DR`。`TXFTLR` 是硬件 FIFO 阈值配置；当前 sequence 用 `SR.TFNF` 轮询驱动补 FIFO，不把 FIFO interrupt 当 completion。
 9. 按 `configuration.completion_mode` 等待 completion。内置 DMA 可用 top `intr` + `ISR.DONES`；非 DMA PIO 使用 `SR.TFE && !SR.BUSY`。
@@ -70,7 +70,7 @@
 4. 4x QPP：先 `WREN 0x06`，再 `WRSR 0x01 + 0x00 + 0x02` 写 16-bit status 值 `0x0200` 以设置 `status[9] / SREG_QE`，然后再次 `WREN 0x06`。WRSR 会清除 WEL，因此 QPP 前必须重新置位 WEL。
 5. write-enable 成功后启动 program transfer：1x 用 `page_program_flash_command`，2x 用 `dual_page_program_flash_command`，4x 用 `quad_page_program_flash_command`。PP、DPP、QPP 的 opcode + address 都为单线；QPP `0x32` 只有 payload 为 4 线，因此配置 `SPI_CTRLR0.TRANS_TYPE=0`、`CTRLR0.SPI_FRF=2`。8-bit opcode 占 8 SCLK，默认 3-byte address 占 24 SCLK。opcode + address + payload 必须在同一个 CS window 内连续发送，写流程不插入 dummy clock。`TX_AND_RX` / `RX_ONLY` 是 enhanced read/EEPROM-read 类接收流程使用的模式，不能用于 page program。
 6. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
-7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 仍按完整 `opcode + address + payload` 总量配置。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
+7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 按完整 payload 的 data frame 数配置，不包含 opcode/address 两个 enhanced control entries。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
 8. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。
 
 当前模板暂不实现 flash erase `8'hC7`、status poll `8'h05`、跳过已置位 QE 和 256B 分页写限制；这些属于完整 SPI-NOR 行为建模，已作为后续扩展点记录。

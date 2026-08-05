@@ -97,18 +97,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
     function int actual_ndf_from_transfer(
             {{ class_prefix }}transfer_req rq,
             int payload_bytes);
-        int dummy_bytes;
-        int byte_phase_frames;
-        int actual_ndf;
-
-        if (rq.inst_bytes == 1 && rq.addr_bytes == 0 && rq.dummy_cycles == 0 && payload_bytes == 0)
-            return 0;
-        dummy_bytes = rq.dummy_cycles <= 0 ? 0 : (rq.dummy_cycles + 7) / 8;
-        byte_phase_frames = frame_count_from_bytes(
-            rq.inst_bytes + rq.addr_bytes + dummy_bytes + payload_bytes,
-            rq.data_frame_bits);
-        actual_ndf = byte_phase_frames;
-        return actual_ndf;
+        return frame_count_from_bytes(payload_bytes, rq.data_frame_bits);
     endfunction
 
     function int phase_sclk_cycles(
@@ -283,19 +272,16 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         ndf_reg_value = actual_ndf == 0 ? 0 : actual_ndf - 1;
         if (ndf_reg_value > settings.ctrlr1_ndf_max)
             `uvm_fatal("DW_SPI_CFG", $sformatf(
-                "CTRLR1.NDF exceeds configured register limit: ndf_reg_value=%0d actual_ndf=%0d ctrlr1_ndf_max=%0d payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d data_frame_bits=%0d",
+                "CTRLR1.NDF exceeds configured register limit: ndf_reg_value=%0d actual_data_frames=%0d ctrlr1_ndf_max=%0d payload_bytes=%0d data_frame_bits=%0d",
                 ndf_reg_value,
                 actual_ndf,
                 settings.ctrlr1_ndf_max,
                 length,
-                rq.inst_bytes,
-                rq.addr_bytes,
-                rq.dummy_cycles,
                 rq.data_frame_bits))
         interrupt_timeout_cycles = transfer_timeout_cycles(
             rq, baudr, length, frame_mode);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "derived transfer fields: inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d payload_bytes=%0d data_frame_bits=%0d actual_ndf=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
+            "derived transfer fields: inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d payload_bytes=%0d data_frame_bits=%0d actual_data_frames=%0d ndf_reg_value=%0d spi_frf=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d interrupt_timeout_cycles=%0d",
             rq.inst_bytes,
             rq.addr_bytes,
             rq.instruction_lanes,
@@ -357,6 +343,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
                 trans_type == local::trans_type;
                 spi_mode == rq.spi_mode;
                 data_frame_bits == rq.data_frame_bits;
+                actual_data_frames == local::actual_ndf;
                 completion_mode == local::completion_mode;
                 baudr == local::baudr;
                 ndf == local::ndf_reg_value;
@@ -383,7 +370,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_ndf=%0d spi_frf=%0d trans_type=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
+            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_data_frames=%0d spi_frf=%0d trans_type=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
             rq.opcode,
             rq.payload.get_address(),
             length,

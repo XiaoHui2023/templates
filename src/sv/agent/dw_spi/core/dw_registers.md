@@ -39,18 +39,16 @@ PSSI/HSSI 的 bit layout 可能不同，代码必须通过 FIELD 名访问，不
 
 ## CTRLR1
 
-实际 NDF 表示一个连续 CS window 内要传输的项数。除 `WREN 0x06` 这类单 opcode 命令外，flash read 必须把 opcode、address、dummy 和 data 都计入实际 NDF；flash program/write 必须把 opcode、address 和 data 计入实际 NDF，写流程不插入 dummy。寄存器字段 `CTRLR1.NDF` 是实际 NDF 减 1 后的编码值。
+`CTRLR1.NDF` 表示 data phase 的 frame 数，不包含 instruction、address 或 dummy/wait phase。Enhanced TX-only 使用它限制要发送的 payload data frames，并在 FIFO 暂时耗尽时配合 clock stretching 保持本次传输；enhanced read / receive-only 使用它指定要接收的 data frames。寄存器字段存放 `actual_data_frames - 1`。
 
-当前 byte payload API 会先把 `dummy_cycles` 换算为 dummy byte，再按 `data_frame_bits` 把 opcode/address/dummy/data 总 byte 数换算为 frame 数。读流程默认 1 个 dummy byte，即 8 个 dummy cycle；写/program flow 强制 `dummy_cycles = 0`。8 bit DFS 时，byte phase 的 frame 数等于 byte 数；DFS 大于 8 时，byte phase 按 DFS 分组。
+当前 byte payload API 按 `data_frame_bits` 把 payload byte 数换算为 data frame 数。8 bit DFS 时，data frame 数等于 payload byte 数；DFS 大于 8 时按 DFS 分组。Instruction/address 仍属于同一个 CS window，但由 `SPI_CTRLR0.INST_L/ADDR_L` 描述，不计入 NDF。
 
 ```text
-dummy_bytes = ceil(dummy_cycles / 8)
-total_bytes = inst_bytes + addr_bytes + dummy_bytes + payload_bytes
-actual_ndf = ceil(total_bytes * 8 / data_frame_bits)
-CTRLR1.NDF = actual_ndf - 1
+actual_data_frames = ceil(payload_bytes * 8 / data_frame_bits)
+CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 ```
 
-模板通过 `settings.ctrlr1_ndf_max` 记录本 IP 变体允许写入的最大 NDF 编码值，默认 `65535`。如果推导出的 `CTRLR1.NDF` 超过该上限，`register_config_builder` 必须直接 fatal。FIFO refill 只解决 CPU 如何持续喂 `DR`，不能突破一次 SPI transaction 的 NDF 寄存器上限。
+模板通过 `settings.ctrlr1_ndf_max` 记录本 IP 变体允许写入的最大 NDF 编码值，默认 `65535`。如果 payload data frames 推导出的 `CTRLR1.NDF` 超过该上限，`register_config_builder` 必须直接 fatal。FIFO refill 只解决 CPU 如何持续喂 `DR`，不能突破一次 SPI transaction 的 NDF 寄存器上限。
 
 ## SPI_CTRLR0
 
@@ -136,6 +134,8 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DM
 ## DR / RX_SAMPLE_DELAY
 
 写 `DR` 表示写入一个数据项，读 `DR` 表示读出一个数据项。`DR` 与 FIFO 交互，寄存器宽度为 32 bit；常见交互粒度为 8 bit，具体粒度随数据帧配置变化。
+
+Enhanced PIO flash transfer 的 control phase 使用专用 FIFO entry 形状：instruction 低位对齐写一个 32-bit DR item，完整 address 低位对齐再写一个 32-bit DR item，payload 随后按 data frame 写入。因此 3-byte address 不是三个 FIFO entries；QPP 的 instruction + address 总共占两个 control entries，但两者都不计入 NDF。Standard SPI 不使用该 packing，仍逐 byte 写 instruction/address。
 
 `RX_SAMPLE_DELAY.RSD` 只在 `configuration.write_rx_sample_delay == 1` 时写入。寄存器名使用 `RX_SAMPLE_DELAY`，不要写成 `RX_SAMPLE_DLY`。
 

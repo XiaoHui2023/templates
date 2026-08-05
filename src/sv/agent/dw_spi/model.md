@@ -103,7 +103,7 @@ flash 指令包见 [flash_command.md](model/flash_command.md)。每个指令包�
 | `spi_clk_stretch_en` | enhanced 模式下配置 `SPI_CTRLR0.CLK_STRETCH_EN`，保护 RX/DMA/FIFO 数据流 |
 | `spi_mode` / `data_frame_bits` | 配置 `CTRLR0` CPOL/CPHA/DFS |
 | `sste` | 配置 `CTRLR0.SSTE`，当前约束为 0，避免帧间自动 toggle 破坏收发连续性 |
-| `ndf` | 配置 `CTRLR1.NDF` 寄存器字段值，即实际 NDF 减 1；read 实际 NDF 覆盖 opcode/address/dummy/data，write 实际 NDF 覆盖 opcode/address/data，单 opcode 命令例外 |
+| `actual_data_frames` / `ndf` | data phase 的实际 frame 数，以及 `CTRLR1.NDF` 编码值。instruction/address/dummy 不计入；非零 data frame 数编码为 `actual_data_frames - 1` |
 | `ssi_en` / `ser` / `baudr` | 配置 `SSIENR`、`SER`、`BAUDR` |
 | `txftlr` / `rxftlr` | 配置 FIFO threshold |
 | `txeim/txoim/rxuim/rxoim/rxfim/mstim` | 配置 `IMR` FIFO/error mask |

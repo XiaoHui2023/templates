@@ -16,6 +16,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         `uvm_field_int(sste, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_clk_stretch_en, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(actual_data_frames, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ndf, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ssi_en, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ser, UVM_ALL_ON | UVM_HEX)
@@ -64,6 +65,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
     rand bit sste;
     rand bit spi_clk_stretch_en;
     rand int data_frame_bits;
+    rand int actual_data_frames;
     rand int ndf;
     rand bit ssi_en;
     rand bit [31:0] ser;
@@ -112,6 +114,12 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         sste == 1'b0;
         soft spi_clk_stretch_en == spi_ctrlr0_en;
         data_frame_bits inside {[4:32]};
+        actual_data_frames >= 0;
+        ndf >= 0;
+        if (actual_data_frames == 0)
+            ndf == 0;
+        else
+            ndf == actual_data_frames - 1;
         ssi_en == 1'b1;
         soft txeim == 1'b0;
         soft txoim == 1'b0;
@@ -140,6 +148,7 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}spec#(uvm_sequen
         if (settings != null) {
             txftlr == settings.default_tx_fifo_threshold;
             rxftlr == settings.default_rx_fifo_threshold;
+            ndf <= settings.ctrlr1_ndf_max;
 {%- if internal_dma or external_dma %}
             dmatdl == settings.default_tx_fifo_threshold;
             dmardl == settings.default_rx_fifo_threshold;

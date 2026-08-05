@@ -54,7 +54,7 @@ Read:
 CS low -> read opcode -> address -> dummy byte -> data -> CS high
 ```
 
-Non-DMA PIO does not split one flash program operation because the data is larger than the FIFO. It pre-fills up to the FIFO depth before selecting CS, then keeps the same CS window active while it waits for `SR.TFNF` and writes the remaining `DR` bytes. `CTRLR1.NDF` is derived from the full program stream, not from each FIFO refill. If the full stream exceeds `settings.ctrlr1_ndf_max`, the transfer is illegal for this IP configuration and the builder reports a fatal error.
+Non-DMA PIO does not split one flash program operation because the data is larger than the FIFO. It pre-fills up to the FIFO depth before selecting CS, then keeps the same CS window active while it waits for `SR.TFNF` and writes the remaining `DR` items. `CTRLR1.NDF` is derived from payload data frames, not instruction/address control entries or FIFO refill chunks. If the payload frame count exceeds `settings.ctrlr1_ndf_max`, the transfer is illegal for this IP configuration and the builder reports a fatal error.
 
 Internal DMA uses the controller DMA registers and CPU callback staging path instead of PIO DR stream refilling.
 
@@ -68,7 +68,7 @@ Implemented:
 - Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
 - One dummy byte by default for read data windows; program/write windows do not use dummy clocks.
-- NDF derived from the full continuous window: read uses opcode + address + dummy + data; write uses opcode + address + data.
+- NDF derived only from payload data frames. Instruction/address/dummy remain in the same continuous CS window but are excluded from NDF.
 - Scoreboard comparison using actual readback data from DR or DMA buffer.
 
 Not yet implemented as full NOR behavior:

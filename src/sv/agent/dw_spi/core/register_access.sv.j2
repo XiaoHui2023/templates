@@ -121,8 +121,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SR.BUSY.get()));
     endtask
 
-    task write_bytes_to_dr(
-            bit [7:0] data[$],
+    task write_items_to_dr(
+            bit [31:0] data[$],
             string reason,
             output bit ok);
         uvm_status_e status;
@@ -134,11 +134,11 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm = settings.regmodel;
         ok = 1'b1;
         report_info("DW_SPI_REG", $sformatf(
-            "writing bytes to DR: reason=%s bytes=%0d",
+            "writing items to DR: reason=%s items=%0d",
             reason, data.size()), UVM_HIGH);
         foreach (data[i]) begin
             report_info("DW_SPI_REG", $sformatf(
-                "DR write byte[%0d]=0x%02h: wait TX FIFO not full",
+                "DR write item[%0d]=0x%08h: wait TX FIFO not full",
                 i, data[i]), UVM_DEBUG);
             wait_tfnf(ready);
             if (!ready) begin
@@ -146,24 +146,24 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 return;
             end
             report_info("DW_SPI_REG", $sformatf(
-                "DR write byte[%0d]=0x%02h", i, data[i]), UVM_DEBUG);
+                "DR write item[%0d]=0x%08h", i, data[i]), UVM_DEBUG);
             rm.DR.write(status, uvm_reg_data_t'(data[i]));
         end
         report_info("DW_SPI_REG", $sformatf(
-            "wrote %0d byte(s) to DR: reason=%s",
+            "wrote %0d item(s) to DR: reason=%s",
             data.size(), reason), UVM_HIGH);
     endtask
 
     task write_payload_to_dr(uvm_tlm_generic_payload payload, output bit ok);
         byte unsigned gp_data[];
-        bit [7:0] data[$];
+        bit [31:0] data[$];
 
         if (payload == null)
             report_fatal("DW_SPI_REG", "payload is null");
         payload.get_data(gp_data);
         foreach (gp_data[i])
             data.push_back(gp_data[i]);
-        write_bytes_to_dr(data, "payload", ok);
+        write_items_to_dr(data, "payload", ok);
     endtask
 
     task read_dr_to_payload(
@@ -318,10 +318,9 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             report_fatal("DW_SPI_REG", "failed to cast configuration host_mode");
         if (!$cast(transfer_mode, cfg.transfer_mode))
             report_fatal("DW_SPI_REG", "failed to cast configuration transfer_mode");
-        if (cfg.ndf != 0)
-            ndf_detail = $sformatf("CTRLR1.NDF register=%0d actual_ndf=%0d", cfg.ndf, cfg.ndf + 1);
-        else
-            ndf_detail = $sformatf("CTRLR1.NDF register=0 actual_ndf=0_or_1_command_only");
+        ndf_detail = $sformatf(
+            "CTRLR1.NDF register=%0d actual_data_frames=%0d",
+            cfg.ndf, cfg.actual_data_frames);
 
         report_info("DW_SPI_REG", "applying controller register configuration", UVM_DEBUG);
         report_info("DW_SPI_REG", $sformatf(
