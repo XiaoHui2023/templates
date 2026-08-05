@@ -10,7 +10,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
 
     // operation shortcuts
     extern task frequence_set_operation(int frequence);
-    extern task power_up_operation({{ class_prefix }}power_up_request req = null);
+    extern task power_up_operation(bit enable_soft_reset = 0, {{ class_prefix }}power_up_request req = null);
     extern task reset_operation(bit sw_rst_cmd = 0, bit sw_rst_dat = 0);
     extern task cpu_read_bytes(input bit[63:0] addr, input int len, ref bit[7:0] rdata[$]);
     extern task cpu_write_bytes(input bit[63:0] addr, ref bit[7:0] wdata[$]);
@@ -77,14 +77,16 @@ task {{ class_prefix }}kit_sequencer::frequence_set_operation(int frequence);
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::power_up_operation({{ class_prefix }}power_up_request req = null);
+task {{ class_prefix }}kit_sequencer::power_up_operation(bit enable_soft_reset = 0, {{ class_prefix }}power_up_request req = null);
     {{ class_prefix }}power_up_operation_seq seq;
 
     seq = {{ class_prefix }}power_up_operation_seq::type_id::create("power_up_operation_seq");
     if(req != null)
         seq.power_up_request = req;
     seq.set_item_context(null, this);
-    if(!seq.randomize())
+    if(!seq.randomize() with {
+        power_up_request.enable_soft_reset == local::enable_soft_reset;
+    })
         `uvm_fatal("KIT", "power_up_operation_seq randomize failed")
     seq.start(this);
 endtask

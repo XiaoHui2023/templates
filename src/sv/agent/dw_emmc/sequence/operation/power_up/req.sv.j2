@@ -16,6 +16,7 @@ class {{ class_prefix }}power_up_request extends {{ class_prefix }}base_request;
         `uvm_field_int(sd_bus_vol_vdd1, UVM_ALL_ON)
         `uvm_field_int(sd_bus_vol_vdd2, UVM_ALL_ON)
         `uvm_field_int(signaling_en, UVM_ALL_ON)
+        `uvm_field_int(enable_soft_reset, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand int freq_divide; // 时钟分频系数
@@ -25,6 +26,7 @@ class {{ class_prefix }}power_up_request extends {{ class_prefix }}base_request;
     rand bit sd_bus_pwr_vdd2; // vdd2 使能
     rand int sd_bus_vol_vdd2; // vdd2 电压
     rand bit signaling_en; // 1.8V使能
+    rand bit enable_soft_reset; // soft reset enable
     rand clk_gen_select_e clk_gen_select; // 时钟分频计算方式 (取决于 freq_divide)
 
     function new(string name="{{ class_prefix }}power_up_request");
@@ -39,6 +41,7 @@ class {{ class_prefix }}power_up_request extends {{ class_prefix }}base_request;
         soft sd_bus_pwr_vdd2 == 1;
         soft sd_bus_vol_vdd1 == 7;
         soft sd_bus_vol_vdd2 == 5;
+        soft enable_soft_reset == 0;
 
         // voltage
         if(settings.boot_cfg.voltage == V3_3) {

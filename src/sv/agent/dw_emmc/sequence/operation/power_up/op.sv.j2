@@ -14,7 +14,13 @@ class {{ class_prefix }}power_up_operation_seq extends {{ class_prefix }}base_op
     {{ class_prefix }}reset_operation_seq reset_seq;
 
     constraint cst_power_up_behavior {
-        rst_request.sw_rst_all == 1;
+        if(power_up_request.enable_soft_reset) {
+            rst_request.sw_rst_all == 1;
+        }
+        else {
+            rst_request.sw_rst_cmd == 0;
+            rst_request.sw_rst_dat == 0;
+        }
     }
 
     extern function void pre_randomize();
@@ -40,8 +46,9 @@ endfunction
 task {{ class_prefix }}power_up_operation_seq::body();
     `uvm_info("", $psprintf("power-up start: %s", power_up_request.sprint()), UVM_LOW)
 
-    // 复位
-    `uvm_rand_send(reset_seq)
+    // soft reset
+    if (power_up_request.enable_soft_reset)
+        `uvm_rand_send(reset_seq)
     power_up();
     wait_done();
 

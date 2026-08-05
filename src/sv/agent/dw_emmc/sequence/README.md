@@ -7,7 +7,7 @@ sequence 使用 operation、flow、test 三层命名。operation 按子目录聚
 eMMC 初始化：
 
 1. `frequence_set_operation_seq`，目标 400000Hz
-2. `power_up_operation_seq`
+2. `power_up_operation_seq`，默认不执行软复位；`enable_soft_reset == 1` 时先执行 CMD/DAT 软复位
 3. `check_clock_frequence_test_seq`
 4. CMD0 `go_idle_state`
 5. CMD1 `send_op_cond`，当前约束 `ocr == 32'h40ff8080`

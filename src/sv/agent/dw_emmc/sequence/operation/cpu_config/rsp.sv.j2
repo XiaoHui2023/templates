@@ -6,7 +6,7 @@ class {{ class_prefix }}cpu_config_response extends {{ class_prefix }}base_respo
         `uvm_field_queue_int(rdata, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    bit[7:0] rdata[$];
+    bit [7:0] rdata[$];
 
     function new(string name = "{{ class_prefix }}cpu_config_response");
         super.new(name);

@@ -11,6 +11,7 @@
 ```systemverilog
 env.emmc_agent.scb.load_memh("card_init.memh");
 env.emmc_agent.sqr.initial_card();
+// env.emmc_agent.sqr.power_up_operation(1); // 主动执行 power up 软复位
 env.emmc_agent.sqr.switch_bus(HS400, 8);
 env.emmc_agent.sqr.rw_test(.addr(0), .count(2));
 env.emmc_agent.sqr.speed_mode_test(.enable_hs200_4bit(1), .enable_hs400_8bit(1));
