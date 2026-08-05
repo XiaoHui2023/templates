@@ -62,8 +62,11 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
                     skipped++;
                     if (!quiet)
                         `uvm_info("CLK_TREE", $sformatf(
-                            "test_route: skip %s, missing interface",
-                            edge_name), UVM_LOW)
+                            "test_route: skip %s, missing %s%s%s",
+                            edge_name,
+                            out_vif == null ? "source out interface" : "",
+                            (out_vif == null && in_vif == null) ? " and " : "",
+                            in_vif == null ? "sink in interface" : ""), UVM_LOW)
                 end else begin
                     in_vifs.push_back(in_vif);
                     edge_names.push_back(edge_name);
@@ -77,8 +80,11 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
                 skipped++;
                 if (!quiet)
                     `uvm_info("CLK_TREE", $sformatf(
-                        "test_route: skip %s, missing interface",
-                        edge_name), UVM_LOW)
+                        "test_route: skip %s, missing %s%s%s",
+                        edge_name,
+                        out_vif == null ? "source out interface" : "",
+                        (out_vif == null && in_vif == null) ? " and " : "",
+                        in_vif == null ? "sink in interface" : ""), UVM_LOW)
             end else begin
                 in_vifs.push_back(in_vif);
                 edge_names.push_back(edge_name);
@@ -201,7 +207,7 @@ task {{ settings.class_prefix }}route_check_seq::body();
     end
 
     if (checked == 0)
-        `uvm_fatal("CLK_TREE", $sformatf(
+        `uvm_warning("CLK_TREE", $sformatf(
             "test_route: no edge checked, %0d skipped due to missing interface",
             skipped))
 

@@ -28,11 +28,11 @@ class {{ settings.class_prefix }}kit_sequencer extends {{ settings.class_prefix 
         bit check_freq = 1'b1,
         bit check_duty = 1'b1,
         bit debug = 1'b0);
-    // 写寄存器后校验 div/dto 复位翻转
+    // 检查控制器件的寄存器功能
     extern task test_flip(
         {{ settings.class_prefix }}tree_base tree = null,
         bit debug = 1'b0);
-    // 配置寄存器并遍历路由组合
+    // 检查器件之间的 RTL 连线
     // tree — 时钟树句柄，空则用 kit.tree
     extern task test_route(
         {{ settings.class_prefix }}tree_base tree = null,
