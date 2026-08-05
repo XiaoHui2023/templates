@@ -642,8 +642,8 @@ task {{ settings.class_prefix }}flip_check_seq::body();
         begin
             foreach (test_subjects[i]) begin
                 fork
+                    automatic int idx = i;
                     begin
-                        automatic int idx = i;
                         verify_subject(cfg, reg_lock, test_subjects[idx],
                             did_checks[idx], did_skips[idx],
                             failure_counts[idx]);
