@@ -206,10 +206,16 @@ task {{ settings.class_prefix }}route_check_seq::body();
         failed += failed_counts[i];
     end
 
-    if (checked == 0)
-        `uvm_warning("CLK_TREE", $sformatf(
-            "test_route: no edge checked, %0d skipped due to missing interface",
-            skipped))
+    if (checked == 0) begin
+        if (skipped == 0)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_route: no route edge found in %0d tree node(s); source/to_source connections are empty",
+                tree.nodes.size()))
+        else
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_route: all %0d route edge(s) skipped due to missing interface",
+                skipped))
+    end
 
     rs.failed = failed;
     rs.ok = failed == 0;
