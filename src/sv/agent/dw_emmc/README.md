@@ -1,5 +1,94 @@
 # DW eMMC
 
+## 示例
+
+```yaml
+card_type: emmc
+class_prefix: Emmc_ctrl_
+enable_dma: false
+
+clock_defaults:
+  crystal_frequence: 24000000
+  tmclk_frequence: 1000000
+  cqetmclk_frequence: 1000000
+  tolerance: 5
+  cclk_rx_relation_operator: "=="
+
+monitored_clocks:
+  - name: hclk
+    enable: true
+    check_type: presence
+  - name: cclk_tx
+    enable: true
+    check_type: presence
+  - name: cclk_rx
+    enable: true
+    check_type: relation
+    relation_clock: cclk_tx
+    relation_operator: "=="
+  - name: tmclk
+    enable: true
+    check_type: frequency
+    frequence: 1000000
+```
+
+## 数据结构
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `card_type` | `emmc` / `sdcard` / `sdio` |  | 卡类型 |
+| `class_prefix` | `str` | `Emmc_ctrl_` | 命名前缀 |
+| `class_regmodel` | `str` | `ral_sys_DWC_mshc` | 寄存器模型类名 |
+| `class_regmodel_rm` | `str` | `ral_block_DWC_mshc_map_DWC_mshc_block` | 标准寄存器块类名 |
+| `class_regmodel_rm_vd1` | `str` | `ral_block_DWC_mshc_map_DWC_mshc_vendor1_block` | vendor1 寄存器块类名 |
+| `clock_defaults` | `ClockDefaults` |  | 时钟默认值 |
+| `monitored_clocks` | `list[MonitoredClock]` |  | 时钟检查配置 |
+| `enable_dma` | `bool` | `false` | 内置 DMA |
+
+### ClockDefaults
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `crystal_frequence` | `int` | `24000000` | 晶振频率 |
+| `tmclk_frequence` | `int` | `1000000` | `tmclk` 默认频率 |
+| `cqetmclk_frequence` | `int` | `1000000` | `cqetmclk` 默认频率 |
+| `tolerance` | `int` | `5` | 频率容差 |
+| `cclk_rx_relation_operator` | `>` / `>=` / `<` / `<=` / `==` | `==` | `cclk_rx` 与 `cclk_tx` 默认关系 |
+
+### MonitoredClock
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `name` | `str` |  | 时钟名 |
+| `enable` | `bool` | `false` | 是否检查 |
+| `check_type` | `presence` / `relation` / `frequency` |  | 检查类型 |
+| `frequence` | `int` | `0` | 固定频率 |
+| `min_frequence` | `int` | `24000000` | 有时钟的最小频率 |
+| `tolerance` | `int` | `5` | 频率容差 |
+| `relation_clock` | `str` |  | 大小关系目标时钟 |
+| `relation_operator` | `>` / `>=` / `<` / `<=` / `==` | `==` | 大小关系 |
+
+#### check_type
+
+| 取值 | 配置 |
+| --- | --- |
+| `presence` | `min_frequence` |
+| `relation` | `relation_clock`、`relation_operator`、`tolerance` |
+| `frequency` | `frequence`、`tolerance` |
+
+### 内置时钟
+
+| 时钟 | 默认检查 | 默认类型 |
+| --- | :---: | --- |
+| `hclk` | ✓ | `presence` |
+| `aclk` |  | `presence` |
+| `cclk_tx` |  | `presence` |
+| `cclk_rx` |  | `relation` |
+| `tmclk` |  | `frequency` |
+| `cqetmclk` |  | `frequency` |
+
+`sdcard` 和 `sdio` 不使用 `cqetmclk`。`monitored_clocks` 里写同名时钟表示覆盖内置值；写新名字表示新增时钟。
+
 示例按默认 `class_prefix: Emmc_ctrl_` 书写；改过前缀时，只替换类名前缀。
 
 ## 例化
@@ -11,8 +100,6 @@ Emmc_ctrl_interface emmc_if(
     .heartbeat(heartbeat)
 );
 ```
-
-默认只生成 `hclk` 时钟端口。需要检查其它 clock 时，在 Python 输入 `monitored_clocks` 中把对应 clock 设为 `enable: true`，端口和检查代码才会生成。内置 clock 默认值通过 Python 输入 `clock_defaults` 配置。
 
 ```systemverilog
 class env extends uvm_env;
