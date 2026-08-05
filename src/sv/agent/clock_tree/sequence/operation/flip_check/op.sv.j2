@@ -18,8 +18,7 @@ class {{ settings.class_prefix }}flip_check_seq extends uvm_sequence #(
     // 跳过 stable 时钟及其结构上游器件。
     extern function bit skip_stable_subject(
         input {{ settings.class_prefix }}node_base subject,
-        input {{ settings.class_prefix }}node_base stable_nodes[$],
-        input bit quiet);
+        input {{ settings.class_prefix }}node_base stable_nodes[$]);
     // 测量一个端口频率
     extern task measure_port_freq(
         input virtual {{ settings.class_prefix }}interface vif,
@@ -38,48 +37,48 @@ class {{ settings.class_prefix }}flip_check_seq extends uvm_sequence #(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}gate gate_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     // 验证 div 功能
     extern task verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}div_div div_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     // 验证 dto 分频功能。
     extern task verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}div_dto dto_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     // 验证 mux 选择功能
     extern task verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}mux mux_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     // 验证 inv 直通与反相功能
     extern task verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}inv_base inv_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     // 按具体器件类型执行一个并行功能检查。
     extern task verify_subject(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}node_base subject,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
 endclass
 
@@ -139,8 +138,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}gate gate_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
@@ -148,22 +147,22 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
     bit passed;
 
     did_check = 1'b0;
+    did_skip = 1'b0;
     failures = 0;
     if (gate_nd == null)
         return;
     in_vif = gate_nd.get_in_vif();
     out_vif = gate_nd.get_out_vif();
     if (in_vif == null || out_vif == null || !gate_nd.f_reg.is_bound()) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "test_flip: skip gate %s, missing interface or reg",
-                gate_nd.get_name()), UVM_LOW)
+        did_skip = 1'b1;
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: skip gate %s, missing interface or reg",
+            gate_nd.get_name()), UVM_LOW)
         return;
     end
 
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: gate %s", gate_nd.get_name()), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: test gate %s", gate_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(100_000_000);
     reg_lock.get(1);
@@ -189,14 +188,12 @@ endtask
 
 function bit {{ settings.class_prefix }}flip_check_seq::skip_stable_subject(
         input {{ settings.class_prefix }}node_base subject,
-        input {{ settings.class_prefix }}node_base stable_nodes[$],
-        input bit quiet);
+        input {{ settings.class_prefix }}node_base stable_nodes[$]);
     if (!{{ settings.class_prefix }}node_in_queue(subject, stable_nodes))
         return 1'b0;
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: skip %s %s, upstream of stable clock",
-            subject.kind, subject.get_name()), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: skip %s %s, upstream of stable clock",
+        subject.kind, subject.get_name()), UVM_LOW)
     return 1'b1;
 endfunction
 
@@ -204,8 +201,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}div_div div_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
@@ -216,6 +213,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
     bit passed;
 
     did_check = 1'b0;
+    did_skip = 1'b0;
     failures = 0;
     if (div_nd == null)
         return;
@@ -224,18 +222,16 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
     if (in_vif == null || out_vif == null
             || !div_nd.f_rst.is_bound() || !div_nd.f_load.is_bound()
             || !div_nd.f_div.is_bound()) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "test_flip: skip div %s, missing interface or reg",
-                div_nd.get_name()), UVM_LOW)
+        did_skip = 1'b1;
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: skip div %s, missing interface or reg",
+            div_nd.get_name()), UVM_LOW)
         return;
     end
 
     ratio = 4;
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: div %s ratio %0d",
-            div_nd.get_name(), ratio), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: test div %s", div_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(800_000_000);
     reg_lock.get(1);
@@ -268,8 +264,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}div_dto dto_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
@@ -280,6 +276,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
     bit passed;
 
     did_check = 1'b0;
+    did_skip = 1'b0;
     failures = 0;
     if (dto_nd == null)
         return;
@@ -288,18 +285,16 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
     if (in_vif == null || out_vif == null
             || !dto_nd.f_rst.is_bound() || !dto_nd.f_load.is_bound()
             || !dto_nd.f_bypass.is_bound() || !dto_nd.f_step.is_bound()) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "test_flip: skip dto %s, missing interface or reg",
-                dto_nd.get_name()), UVM_LOW)
+        did_skip = 1'b1;
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: skip dto %s, missing interface or reg",
+            dto_nd.get_name()), UVM_LOW)
         return;
     end
 
     ratio = 4;
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: dto %s ratio %0d",
-            dto_nd.get_name(), ratio), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: test dto %s", dto_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(800_000_000);
     reg_lock.get(1);
@@ -332,8 +327,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}mux mux_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
@@ -345,15 +340,16 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     bit passed;
 
     did_check = 1'b0;
+    did_skip = 1'b0;
     failures = 0;
     if (mux_nd == null)
         return;
     out_vif = mux_nd.get_out_vif();
     if (out_vif == null || !mux_nd.f_reg.is_bound()) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "test_flip: skip mux %s, missing out interface or reg",
-                mux_nd.get_name()), UVM_LOW)
+        did_skip = 1'b1;
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: skip mux %s, missing out interface or reg",
+            mux_nd.get_name()), UVM_LOW)
         return;
     end
 
@@ -361,13 +357,16 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         in_key = $sformatf("%0d", k);
         in_vif = mux_nd.get_in_vif(in_key);
         if (in_vif == null) begin
-            if (!quiet)
-                `uvm_info("CLK_TREE", $sformatf(
-                    "test_flip: skip mux %s input %s, missing interface",
-                    mux_nd.get_name(), in_key), UVM_LOW)
+            did_skip = 1'b1;
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip mux %s input %s, missing interface",
+                mux_nd.get_name(), in_key), UVM_LOW)
             return;
         end
     end
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: test mux %s", mux_nd.get_name()), UVM_LOW)
 
     foreach (mux_nd.to_source[k]) begin
         in_key = $sformatf("%0d", k);
@@ -413,25 +412,29 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}inv_base inv_nd,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
 
     did_check = 1'b0;
+    did_skip = 1'b0;
     failures = 0;
     if (inv_nd == null)
         return;
     in_vif = inv_nd.get_in_vif();
     out_vif = inv_nd.get_out_vif();
     if (in_vif == null || out_vif == null || !inv_nd.f_reg.is_bound()) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "test_flip: skip inv %s, missing interface or reg",
-                inv_nd.get_name()), UVM_LOW)
+        did_skip = 1'b1;
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: skip inv %s, missing interface or reg",
+            inv_nd.get_name()), UVM_LOW)
         return;
     end
+
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: test inv %s", inv_nd.get_name()), UVM_LOW)
 
     reg_lock.get(1);
     cfg.config_reg_inv_node_reg(inv_nd, 1'b0);
@@ -480,8 +483,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_subject(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input semaphore reg_lock,
         input {{ settings.class_prefix }}node_base subject,
-        input bit quiet,
         output bit did_check,
+        output bit did_skip,
         output int failures);
     {{ settings.class_prefix }}gate gate_nd;
     {{ settings.class_prefix }}div_div div_nd;
@@ -490,17 +493,18 @@ task {{ settings.class_prefix }}flip_check_seq::verify_subject(
     {{ settings.class_prefix }}inv_base inv_nd;
 
     did_check = 1'b0;
+    did_skip = 1'b0;
     failures = 0;
     if ($cast(gate_nd, subject))
-        verify_gate(cfg, reg_lock, gate_nd, quiet, did_check, failures);
+        verify_gate(cfg, reg_lock, gate_nd, did_check, did_skip, failures);
     else if ($cast(div_nd, subject))
-        verify_div(cfg, reg_lock, div_nd, quiet, did_check, failures);
+        verify_div(cfg, reg_lock, div_nd, did_check, did_skip, failures);
     else if ($cast(dto_nd, subject))
-        verify_dto(cfg, reg_lock, dto_nd, quiet, did_check, failures);
+        verify_dto(cfg, reg_lock, dto_nd, did_check, did_skip, failures);
     else if ($cast(mux_nd, subject))
-        verify_mux(cfg, reg_lock, mux_nd, quiet, did_check, failures);
+        verify_mux(cfg, reg_lock, mux_nd, did_check, did_skip, failures);
     else if ($cast(inv_nd, subject))
-        verify_inv(cfg, reg_lock, inv_nd, quiet, did_check, failures);
+        verify_inv(cfg, reg_lock, inv_nd, did_check, did_skip, failures);
 endtask
 
 task {{ settings.class_prefix }}flip_check_seq::body();
@@ -513,16 +517,18 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     {{ settings.class_prefix }}div_dto dto_nd;
     {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}inv_base inv_nd;
+    {{ settings.class_prefix }}pll_base pll_nd;
     {{ settings.class_prefix }}node_base stable_nodes[$];
     {{ settings.class_prefix }}node_base test_subjects[$];
     semaphore reg_lock;
     bit did_checks[];
+    bit did_skips[];
     int failure_counts[];
     int checked;
+    int skipped;
     int subjects;
     int stable_skipped;
     int failed;
-    int done_cnt;
     int total;
 
     if (req == null)
@@ -537,6 +543,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     rs = {{ settings.class_prefix }}flip_check_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
     checked = 0;
+    skipped = 0;
     subjects = 0;
     stable_skipped = 0;
     failed = 0;
@@ -558,47 +565,67 @@ task {{ settings.class_prefix }}flip_check_seq::body();
             continue;
         if ($cast(gate_nd, tree.nodes[i])) begin
             subjects++;
-            if (skip_stable_subject(gate_nd, stable_nodes, rq.quiet)) begin
+            if (skip_stable_subject(gate_nd, stable_nodes)) begin
                 stable_skipped++;
                 continue;
             end
-            if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_nd))
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, gate_nd)) begin
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_flip: skip gate %s, no non-volatile clock downstream",
+                    gate_nd.get_name()), UVM_LOW)
                 continue;
+            end
             test_subjects.push_back(gate_nd);
         end else if ($cast(div_nd, tree.nodes[i])) begin
             subjects++;
-            if (skip_stable_subject(div_nd, stable_nodes, rq.quiet)) begin
+            if (skip_stable_subject(div_nd, stable_nodes)) begin
                 stable_skipped++;
                 continue;
             end
-            if (!{{ settings.class_prefix }}control_node_is_valid(tree, div_nd))
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, div_nd)) begin
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_flip: skip div %s, no non-volatile clock downstream",
+                    div_nd.get_name()), UVM_LOW)
                 continue;
+            end
             test_subjects.push_back(div_nd);
         end else if ($cast(dto_nd, tree.nodes[i])) begin
             subjects++;
-            if (skip_stable_subject(dto_nd, stable_nodes, rq.quiet)) begin
+            if (skip_stable_subject(dto_nd, stable_nodes)) begin
                 stable_skipped++;
                 continue;
             end
-            if (!{{ settings.class_prefix }}control_node_is_valid(tree, dto_nd))
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, dto_nd)) begin
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_flip: skip dto %s, no non-volatile clock downstream",
+                    dto_nd.get_name()), UVM_LOW)
                 continue;
+            end
             test_subjects.push_back(dto_nd);
         end else if ($cast(mux_nd, tree.nodes[i])) begin
             subjects++;
-            if (skip_stable_subject(mux_nd, stable_nodes, rq.quiet)) begin
+            if (skip_stable_subject(mux_nd, stable_nodes)) begin
                 stable_skipped++;
                 continue;
             end
-            if (!{{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
+            if (!{{ settings.class_prefix }}control_node_is_valid(tree, mux_nd)) begin
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_flip: skip mux %s, no non-volatile clock downstream",
+                    mux_nd.get_name()), UVM_LOW)
                 continue;
+            end
             test_subjects.push_back(mux_nd);
         end else if ($cast(inv_nd, tree.nodes[i])) begin
             subjects++;
-            if (skip_stable_subject(inv_nd, stable_nodes, rq.quiet)) begin
+            if (skip_stable_subject(inv_nd, stable_nodes)) begin
                 stable_skipped++;
                 continue;
             end
             test_subjects.push_back(inv_nd);
+        end else if ($cast(pll_nd, tree.nodes[i])) begin
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip pll %s, function test disabled",
+                pll_nd.get_name()), UVM_LOW)
         end
     end
 
@@ -608,24 +635,34 @@ task {{ settings.class_prefix }}flip_check_seq::body();
         `uvm_fatal("CLK_TREE", "test_flip: no subject checked")
 
     total = test_subjects.size();
-    done_cnt = 0;
     did_checks = new[total];
+    did_skips = new[total];
     failure_counts = new[total];
-    foreach (test_subjects[i]) begin
-        fork
-            begin
-                automatic int idx = i;
-                verify_subject(cfg, reg_lock, test_subjects[idx], rq.quiet,
-                    did_checks[idx], failure_counts[idx]);
-                done_cnt++;
+    fork
+        begin
+            foreach (test_subjects[i]) begin
+                fork
+                    begin
+                        automatic int idx = i;
+                        verify_subject(cfg, reg_lock, test_subjects[idx],
+                            did_checks[idx], did_skips[idx],
+                            failure_counts[idx]);
+                    end
+                join_none
             end
-        join_none
-    end
-    wait (done_cnt == total);
+            wait fork;
+        end
+    join
 
     for (int i = 0; i < total; i++) begin
+        if (did_checks[i] == did_skips[i])
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_flip: subject %s returned invalid check/skip status",
+                test_subjects[i].get_name()))
         if (did_checks[i])
             checked++;
+        if (did_skips[i])
+            skipped++;
         failed += failure_counts[i];
     end
 
@@ -633,8 +670,8 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     rs.ok = failed == 0;
     if (!rq.quiet || failed != 0)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: complete, %0d subject(s), %0d stable upstream skipped, %0d failed, pll skipped",
-            checked, stable_skipped, failed), UVM_LOW)
+            "test_flip: complete, %0d tested, %0d skipped, %0d stable upstream skipped, %0d failed, pll skipped",
+            checked, skipped, stable_skipped, failed), UVM_LOW)
 
     rsp = rs;
 endtask

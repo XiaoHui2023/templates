@@ -19,7 +19,6 @@ class {{ settings.class_prefix }}route_check_seq extends uvm_sequence #(
     extern task check_parent_routes(
         input {{ settings.class_prefix }}tree_base tree,
         input {{ settings.class_prefix }}node_base parent,
-        input bit quiet,
         output int checked,
         output int skipped,
         output int failed);
@@ -28,7 +27,6 @@ endclass
 task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
         input {{ settings.class_prefix }}tree_base tree,
         input {{ settings.class_prefix }}node_base parent,
-        input bit quiet,
         output int checked,
         output int skipped,
         output int failed);
@@ -60,13 +58,12 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
                     parent.get_name(), mux_nd.get_name(), in_key);
                 if (out_vif == null || in_vif == null) begin
                     skipped++;
-                    if (!quiet)
-                        `uvm_info("CLK_TREE", $sformatf(
-                            "test_route: skip %s, missing %s%s%s",
-                            edge_name,
-                            out_vif == null ? "source out interface" : "",
-                            (out_vif == null && in_vif == null) ? " and " : "",
-                            in_vif == null ? "sink in interface" : ""), UVM_LOW)
+                    `uvm_info("CLK_TREE", $sformatf(
+                        "test_route: skip %s, missing %s%s%s",
+                        edge_name,
+                        out_vif == null ? "source out interface" : "",
+                        (out_vif == null && in_vif == null) ? " and " : "",
+                        in_vif == null ? "sink in interface" : ""), UVM_LOW)
                 end else begin
                     in_vifs.push_back(in_vif);
                     edge_names.push_back(edge_name);
@@ -78,13 +75,12 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
                 parent.get_name(), tree.nodes[i].get_name());
             if (out_vif == null || in_vif == null) begin
                 skipped++;
-                if (!quiet)
-                    `uvm_info("CLK_TREE", $sformatf(
-                        "test_route: skip %s, missing %s%s%s",
-                        edge_name,
-                        out_vif == null ? "source out interface" : "",
-                        (out_vif == null && in_vif == null) ? " and " : "",
-                        in_vif == null ? "sink in interface" : ""), UVM_LOW)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_route: skip %s, missing %s%s%s",
+                    edge_name,
+                    out_vif == null ? "source out interface" : "",
+                    (out_vif == null && in_vif == null) ? " and " : "",
+                    in_vif == null ? "sink in interface" : ""), UVM_LOW)
             end else begin
                 in_vifs.push_back(in_vif);
                 edge_names.push_back(edge_name);
@@ -94,10 +90,9 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
 
     if (in_vifs.size() == 0)
         return;
-    if (!quiet)
-        foreach (edge_names[i])
-            `uvm_info("CLK_TREE", $sformatf(
-                "test_route: check %s", edge_names[i]), UVM_LOW)
+    foreach (edge_names[i])
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_route: test %s", edge_names[i]), UVM_LOW)
 
     out_vif.drive_static(1'b0);
     #1ns;
@@ -138,7 +133,6 @@ task {{ settings.class_prefix }}route_check_seq::body();
     int checked;
     int skipped;
     int failed;
-    int done_cnt;
     int total;
 
     if (req == null)
@@ -183,31 +177,37 @@ task {{ settings.class_prefix }}route_check_seq::body();
     end
 
     total = parents.size();
-    done_cnt = 0;
     checked_counts = new[total];
     skipped_counts = new[total];
     failed_counts = new[total];
-    foreach (parents[i]) begin
-        fork
-            begin
-                automatic int idx = i;
-                check_parent_routes(tree, parents[idx], rq.quiet,
-                    checked_counts[idx], skipped_counts[idx],
-                    failed_counts[idx]);
-                done_cnt++;
+    fork
+        begin
+            foreach (parents[i]) begin
+                fork
+                    begin
+                        automatic int idx = i;
+                        check_parent_routes(tree, parents[idx],
+                            checked_counts[idx], skipped_counts[idx],
+                            failed_counts[idx]);
+                    end
+                join_none
             end
-        join_none
-    end
-    wait (done_cnt == total);
+            wait fork;
+        end
+    join
 
     for (int i = 0; i < total; i++) begin
+        if (checked_counts[i] == 0 && skipped_counts[i] == 0)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_route: parent %s returned no checked or skipped edge",
+                parents[i].get_name()))
         checked += checked_counts[i];
         skipped += skipped_counts[i];
         failed += failed_counts[i];
     end
 
     if (checked == 0) begin
-        if (skipped == 0)
+        if (total == 0)
             `uvm_fatal("CLK_TREE", $sformatf(
                 "test_route: no route edge found in %0d tree node(s); source/to_source connections are empty",
                 tree.nodes.size()))
