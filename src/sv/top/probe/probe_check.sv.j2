@@ -18,17 +18,21 @@ task automatic {{ check_task_name }}(
     fork
         begin
             fork
-{% for signal in signal_rows %}                begin
-                    probe.{{ signal.name }}.check("{{ signal.name }}", signal_ok[{{ loop.index0 }}]);
+                begin
+                    fork
+{% for signal in signal_rows %}                        begin
+                            probe.{{ signal.name }}.check("{{ signal.name }}", signal_ok[{{ loop.index0 }}]);
+                        end
+{% endfor %}                    join
+                    checks_done = 1'b1;
                 end
-{% endfor %}            join
-            checks_done = 1'b1;
+                begin
+                    #(watchdog_timeout_ns * 1ns);
+                end
+            join_any
+            disable fork;
         end
-        begin
-            #(watchdog_timeout_ns * 1ns);
-        end
-    join_any
-    disable fork;
+    join
 
     if (!checks_done) begin
         $error("probe: timeout");

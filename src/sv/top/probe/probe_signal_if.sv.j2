@@ -61,27 +61,31 @@ interface {{ signal_if_name }} #(
 
         fork
             begin
-                previous_sig = sig;
-                forever begin
-                    @(sig);
-                    if (previous_sig === 1'b0 && sig === 1'b1) begin
-                        if (edge_count == 0)
-                            first_edge_t = $realtime;
-                        last_edge_t = $realtime;
-                        edge_count++;
-                        if (edge_count == STABLE_CYCLES + 1) begin
-                            sample_done = 1'b1;
-                            break;
+                fork
+                    begin
+                        previous_sig = sig;
+                        forever begin
+                            @(sig);
+                            if (previous_sig === 1'b0 && sig === 1'b1) begin
+                                if (edge_count == 0)
+                                    first_edge_t = $realtime;
+                                last_edge_t = $realtime;
+                                edge_count++;
+                                if (edge_count == STABLE_CYCLES + 1) begin
+                                    sample_done = 1'b1;
+                                    break;
+                                end
+                            end
+                            previous_sig = sig;
                         end
                     end
-                    previous_sig = sig;
-                end
+                    begin
+                        #(timeout_ns * 1ns);
+                    end
+                join_any
+                disable fork;
             end
-            begin
-                #(timeout_ns * 1ns);
-            end
-        join_any
-        disable fork;
+        join
 
         if (!sample_done) begin
             $display("probe: %s failed timeout measured 0 Hz expected %0d Hz", name, FREQ);
@@ -110,22 +114,26 @@ interface {{ signal_if_name }} #(
         timeout_ns = activity_timeout_ns();
         fork
             begin
-                previous_sig = sig;
-                forever begin
-                    @(sig);
-                    if (!$isunknown(previous_sig) && !$isunknown(sig)
-                            && previous_sig != sig) begin
-                        seen = 1'b1;
-                        break;
+                fork
+                    begin
+                        previous_sig = sig;
+                        forever begin
+                            @(sig);
+                            if (!$isunknown(previous_sig) && !$isunknown(sig)
+                                    && previous_sig != sig) begin
+                                seen = 1'b1;
+                                break;
+                            end
+                            previous_sig = sig;
+                        end
                     end
-                    previous_sig = sig;
-                end
+                    begin
+                        #(timeout_ns * 1ns);
+                    end
+                join_any
+                disable fork;
             end
-            begin
-                #(timeout_ns * 1ns);
-            end
-        join_any
-        disable fork;
+        join
 
         pass = !seen;
         if (pass)

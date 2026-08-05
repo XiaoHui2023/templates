@@ -49,6 +49,10 @@ def test_example_renders() -> None:
     assert "bit signal_ok[2];" in rendered["probe_check.sv.j2"]
     assert "watchdog_timeout_ns" in rendered["probe_check.sv.j2"]
     assert "join_any" in rendered["probe_check.sv.j2"]
+    assert "join_any\n            disable fork;\n        end\n    join" in rendered["probe_check.sv.j2"]
+    assert rendered["probe_signal_if.sv.j2"].count(
+        "join_any\n                disable fork;\n            end\n        join"
+    ) == 2
     assert "pass &= signal_ok[0];" in rendered["probe_check.sv.j2"]
     assert "pass &= signal_ok[1];" in rendered["probe_check.sv.j2"]
     assert ".TOLERANCE_PPM" not in rendered["probe_if.sv.j2"]
