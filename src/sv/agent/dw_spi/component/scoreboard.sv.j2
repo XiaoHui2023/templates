@@ -8,19 +8,28 @@ class {{ class_prefix }}scoreboard extends uvm_component;
     {{ class_prefix }}mem mem;
     string init_memh;
 
+    // Creates the scoreboard and its byte-addressed memory mirror.
     function new(string name="{{ class_prefix }}scoreboard", uvm_component parent=null);
         super.new(name, parent);
         settings = {{ class_prefix }}settings::type_id::create("settings");
         mem = new();
     endfunction
 
+    // Resolves settings and loads optional initial memory contents.
     extern function void build_phase(uvm_phase phase);
+    // Loads a memh image into the memory mirror.
     extern function bit load_memh(string filename, bit clear_first = 1'b1);
+    // Loads sequential bytes from a plain hexadecimal file.
     extern function bit load_hex(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
-    extern function bit apply_payload(uvm_tlm_generic_payload gp, output bit [7:0] read_data[$]);
+    // Applies a generic payload and returns modeled read data.
+    extern function bit apply_payload(input uvm_tlm_generic_payload gp, output bit [7:0] read_data[$]);
+    // Records an expected write in the memory mirror.
     extern function bit record_expected_write(bit [63:0] addr, bit [7:0] data[$], string label = "expected_write");
+    // Compares DUT read data against the memory mirror.
     extern function bit check_actual_read(bit [63:0] addr, bit [7:0] actual[$], string label = "actual_read");
+    // Compares an observed write against the memory mirror.
     extern function bit check_actual_write(bit [63:0] addr, bit [7:0] actual[$], string label = "actual_write");
+    // Compares one byte queue against the selected mirror address.
     extern function bit compare_actual(bit [63:0] addr, bit [7:0] actual[$], string label = "actual");
 endclass
 
@@ -47,7 +56,7 @@ function bit {{ class_prefix }}scoreboard::load_hex(
 endfunction
 
 function bit {{ class_prefix }}scoreboard::apply_payload(
-        uvm_tlm_generic_payload gp,
+        input uvm_tlm_generic_payload gp,
         output bit [7:0] read_data[$]);
     byte unsigned gp_data[];
     bit [7:0] data[$];

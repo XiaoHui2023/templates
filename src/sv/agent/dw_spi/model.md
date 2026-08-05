@@ -77,7 +77,6 @@
 | `data_frame_bits` | 每帧数据位宽 |
 | `cs_id` | `SER` 和 callback 使用的片选编号 |
 | `addr_bytes` | flash address phase 字节数 |
-| `dummy_cycles` | flash read dummy/wait cycle 数，默认 8 cycles，即 1 个 dummy byte；写/program flow 强制为 0 |
 
 这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。`SOFTWARE_CS` 只支持主机 1x standard；enhanced、2x、4x 约束为硬件 CS。
 

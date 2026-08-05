@@ -66,3 +66,9 @@ CPU callback 用于内置 DMA 的系统内存 buffer 访问，不用于控制器
 | `UVM_FRONTDOOR` | 普通 CPU 总线访问。当前 `dw_spi` 没有通用 CPU 访问 operation，保留给用户扩展。 |
 
 内置 DMA 写 transfer 启动前，sequence 用 `cpu_write(addr, word, UVM_BACKDOOR)` 准备 AXI source buffer。内置 DMA 读 transfer 完成后，sequence 用 `cpu_read(addr, word, UVM_BACKDOOR)` 回读 AXI destination buffer。
+
+## External DMA
+
+外部 DMA 配置生成 `start_external_dma(transfer_req)` 和 `finish_external_dma(transfer_req, read_data, ok)` callback。前者必须只完成 DMA engine 的配置与 arm 并返回，不能在 CS 尚未启动时阻塞等待完成；完整 `transfer_req` 提供 opcode、address、dummy、data、frame width 和方向，使 DMA 环境能维持同一个 CS window。后者等待 DMA engine 完成；read 返回来自 DUT 的实际字节，write 返回空队列并设置 `ok`。
+
+外部 flash read 同时开启 `DMACR.TDMAE` 和 `RDMAE`：TX handshake 负责 command/address/dummy 控制阶段，RX handshake 负责 payload。外部 write/command-only transfer 开启 `TDMAE`。未 override 这两个 callback 时，基类会 `uvm_fatal`。

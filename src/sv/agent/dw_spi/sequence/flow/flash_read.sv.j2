@@ -17,12 +17,15 @@ class {{ class_prefix }}flash_read_seq extends {{ class_prefix }}spec#(uvm_seque
     bit ok;
     bit [7:0] data[$];
 
+    // Creates a flash read flow with a host configuration packet.
     function new(string name="{{ class_prefix }}flash_read_seq");
         super.new(name);
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
 
+    // Executes one opcode-specific flash read and checks the returned data.
     extern virtual task body();
+    // Selects and configures the read command packet for the requested speed.
     extern function {{ class_prefix }}flash_command create_read_command(
         {{ class_prefix }}transfer_configuration cfg);
 endclass
@@ -53,7 +56,6 @@ function {{ class_prefix }}flash_command {{ class_prefix }}flash_read_seq::creat
     endcase
     if (!command.randomize() with {
             addr_bytes == local::cfg.addr_bytes;
-            dummy_cycles == local::cfg.dummy_cycles;
             data_frame_bits == local::cfg.data_frame_bits;
         })
         `uvm_fatal("DW_SPI", "flash_read: failed to randomize read flash command")
@@ -76,18 +78,19 @@ task {{ class_prefix }}flash_read_seq::body();
     end
     configuration.settings = p_sequencer.settings;
     cfg = configuration;
+    command = create_read_command(cfg);
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_read start: address=0x%08h length=%0d addr_bytes=%0d dummy_cycles=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_read start: address=0x%08h length=%0d addr_bytes=%0d opcode=0x%02h dummy_cycles=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         length,
         cfg.addr_bytes,
-        cfg.dummy_cycles,
+        command.opcode,
+        command.dummy_cycles,
         cfg.io_lanes,
         cfg.speed_multiplier,
         cfg.frame_mode.name(),
         cfg.cs_control_mode.name(){% if internal_dma or external_dma %},
         cfg.use_dma{% endif %}), UVM_HIGH)
-    command = create_read_command(cfg);
     adapter = {{ class_prefix }}flash_command_adapter::type_id::create("flash_command_adapter");
     begin
         byte unsigned empty_payload[];

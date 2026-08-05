@@ -12,7 +12,6 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
         `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(cs_id, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
 {%- if internal_dma or external_dma %}
         `uvm_field_int(use_dma, UVM_ALL_ON)
 {%- endif %}
@@ -32,7 +31,6 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
     rand int data_frame_bits;
     rand int cs_id;
     rand int addr_bytes;
-    rand int dummy_cycles;
 {%- if internal_dma or external_dma %}
     rand bit use_dma;
 {%- endif %}
@@ -43,6 +41,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
 {%- endif %}
     {{ class_prefix }}settings settings;
 
+    // Creates one per-transfer controller configuration packet.
     function new(string name="{{ class_prefix }}transfer_configuration");
         super.new(name);
     endfunction
@@ -60,7 +59,6 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}spec#(u
         soft data_frame_bits == {{ default_data_frame_bits }};
         soft cs_id == {{ default_cs }};
         soft addr_bytes == {{ default_addr_bytes }};
-        soft dummy_cycles == 8;
 {%- if internal_dma or external_dma %}
         soft use_dma == 1'b0;
 {%- endif %}

@@ -61,8 +61,19 @@
 ## 使用流程
 
 1. flow sequence 创建一个具体 `flash_command`。
-2. flow 用本次 `transfer_configuration` 约束 `addr_bytes`、`dummy_cycles`、`data_frame_bits` 等运行期形态。
+2. flow 用本次 `transfer_configuration` 约束 `addr_bytes`、`data_frame_bits` 等运行期形态；dummy cycle 由具体 read command packet 约束。
 3. flow 调用 `flash_command_adapter.create_transfer_req()`。
 4. flow 把生成的 `transfer_req` 交给 `transfer_seq`。
 
 新增指令时先加 `model/flash_command/<name>.sv.j2` 和本文档，再在 flow 中组合该指令包。
+
+## Read Dummy Cycles
+
+| Command | Opcode | Dummy SCLK cycles | Controller path |
+| --- | ---: | ---: | --- |
+| `READ1X` | `0x03` | 8 | standard DR stream inserts one dummy byte |
+| `FASTREAD1X` | `0x0B` | 16 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
+| `READ2X` | `0xBB` | 12 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
+| `READ4X` | `0xEB` | 10 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
+
+这些值属于 opcode command packet，不属于 `transfer_configuration` 的全局默认值。

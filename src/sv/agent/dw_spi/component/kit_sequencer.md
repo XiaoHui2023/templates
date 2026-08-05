@@ -109,3 +109,11 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 ## Flash Defaults
 
 flash 便捷入口不要求用户声明挂载的 flash 类型。普通读写按默认 NOR-like 显式 transaction 执行，`address` 默认 0，`addr_bytes` 默认 3，可传入 4 支持 4-byte address。只有当某个操作确实依赖 NAND page/cache、XIP、厂商 feature 等专有语义时，才增加对应的专用快捷函数和指令包。
+
+### `speed_test`
+
+遍历 standard 1x、enhanced 1x、enhanced 2x、enhanced 4x 的完整读写回读测试。地址和数据默认规则与 `rw_test` 相同；每种模式使用不重叠地址，任一模式失败即停止。
+
+### `dma_test`
+
+仅在 `internal_dma` 或 `external_dma` 开启时存在。参数与单次 `rw_test` 的传输配置一致，但不暴露 `use_dma`，入口始终强制 DMA。内部 DMA 额外接受 `awlen`、`arlen`、`axi_addr`；外部 DMA 的具体 mover 由 callback 注入。

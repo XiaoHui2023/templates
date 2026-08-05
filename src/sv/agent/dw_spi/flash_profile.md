@@ -11,7 +11,7 @@
 | Flash family assumption for built-in read/write shortcuts | NOR-like explicit read/program |
 | Address width | 3 bytes by default; 4 bytes may be passed by configuration |
 | XIP | Not enabled by default |
-| Read window | opcode + address + 1 dummy byte + data |
+| Read window | opcode + address + opcode-specific dummy cycles + data |
 | Write window | opcode + address + data |
 | WREN | Separate CS window |
 
@@ -51,7 +51,7 @@ Write:
 Read:
 
 ```text
-CS low -> read opcode -> address -> dummy byte -> data -> CS high
+CS low -> read opcode -> address -> opcode-specific dummy cycles -> data -> CS high
 ```
 
 Non-DMA PIO does not split one flash program operation because the data is larger than the FIFO. It pre-fills up to the FIFO depth before selecting CS, then keeps the same CS window active while it waits for `SR.TFNF` and writes the remaining `DR` items. `CTRLR1.NDF` is derived from payload data frames, not instruction/address control entries or FIFO refill chunks. If the payload frame count exceeds `settings.ctrlr1_ndf_max`, the transfer is illegal for this IP configuration and the builder reports a fatal error.
@@ -67,7 +67,7 @@ Implemented:
 - QPP `0x32` is `1S-1S-4S`: `instruction_lanes=1`, `address_lanes=1`, and payload uses four lines. Therefore `SPI_CTRLR0.TRANS_TYPE=0` while `CTRLR0.SPI_FRF=2`; the 8-bit instruction takes 8 SCLK cycles and the default 24-bit address takes 24 SCLK cycles.
 - Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
-- One dummy byte by default for read data windows; program/write windows do not use dummy clocks.
+- Read dummy clocks are command-owned SCLK cycles: `03h=8`, `0Bh=16`, `BBh=12`, and `EBh=10`; program/write windows do not use dummy clocks.
 - NDF derived only from payload data frames. Instruction/address/dummy remain in the same continuous CS window but are excluded from NDF.
 - Scoreboard comparison using actual readback data from DR or DMA buffer.
 

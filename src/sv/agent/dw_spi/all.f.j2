@@ -19,10 +19,10 @@ model/flash_command/read2x.sv
 model/flash_command/read4x.sv
 core/mem.sv
 component/scoreboard.sv
+sequence/operation/transfer/req.sv
 component/callback.sv
 component/sequencer.sv
 sequence/base.sv
-sequence/operation/transfer/req.sv
 sequence/operation/register_config_builder.sv
 core/register_access.sv
 sequence/operation/init_registers/req.sv
@@ -37,5 +37,9 @@ sequence/flow/flash_command_adapter.sv
 sequence/flow/flash_write.sv
 sequence/flow/flash_read.sv
 sequence/test/rw.sv
+sequence/test/speed.sv
+{% if internal_dma or external_dma -%}
+sequence/test/dma.sv
+{% endif -%}
 component/kit_sequencer.sv
 component/agent.sv

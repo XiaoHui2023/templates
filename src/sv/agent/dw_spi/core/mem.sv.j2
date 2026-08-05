@@ -4,21 +4,34 @@
 class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
     bit [7:0] bytes[$];
 
+    // Creates an empty byte-addressed memory mirror.
     function new(string name="{{ class_prefix }}mem");
         super.new(name);
     endfunction
 
+    // Removes all bytes from the memory mirror.
     extern function void clear();
+    // Expands the memory mirror to the requested size.
     extern function void ensure_size(bit [63:0] size);
+    // Writes sequential bytes at one address.
     extern function bit write_bytes(bit [63:0] addr, bit [7:0] data[$]);
-    extern function bit read_bytes(bit [63:0] addr, int len, output bit [7:0] data[$]);
+    // Reads sequential bytes from one address.
+    extern function bit read_bytes(input bit [63:0] addr, input int len, output bit [7:0] data[$]);
+    // Compares expected bytes against the memory mirror.
     extern function bit compare_bytes(bit [63:0] addr, bit [7:0] expected[$], string label = "expected");
+    // Loads a memh image.
     extern function bit load_memh(string filename, bit clear_first = 1'b1);
+    // Loads bytes from plain hexadecimal lines.
     extern function bit load_hex(string filename, bit clear_first = 1'b1, bit [63:0] base_addr = '0);
+    // Writes the memory mirror as memh data.
     extern function bit dump_memh(string filename);
+    // Reports whether one character is hexadecimal.
     extern local function bit is_hex_char(bit [7:0] ch);
+    // Converts one hexadecimal character to its integer value.
     extern local function int hex_char_value(bit [7:0] ch);
+    // Computes the address width needed by memh output.
     extern local function int memh_addr_hex_digits(bit [63:0] max_addr);
+    // Formats one zero-padded memh address.
     extern local function string memh_padded_hex_addr(bit [63:0] addr, int hex_digits);
 endclass
 
@@ -49,8 +62,8 @@ function bit {{ class_prefix }}mem::write_bytes(bit [63:0] addr, bit [7:0] data[
 endfunction
 
 function bit {{ class_prefix }}mem::read_bytes(
-        bit [63:0] addr,
-        int len,
+        input bit [63:0] addr,
+        input int len,
         output bit [7:0] data[$]);
     data.delete();
     if (len == 0)

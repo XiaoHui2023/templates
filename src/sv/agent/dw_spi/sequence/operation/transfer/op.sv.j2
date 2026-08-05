@@ -8,17 +8,21 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
     `uvm_object_utils({{ class_prefix }}transfer_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
+    // Creates one primitive controller transfer sequence.
     function new(string name="{{ class_prefix }}transfer_seq");
         super.new(name);
     endfunction
 
+    // Executes controller setup, data movement, completion, and scoreboarding.
     extern virtual task body();
+    // Formats a bounded byte queue preview for diagnostics.
     extern protected function string byte_queue_preview(
         bit [7:0] data[$],
         int max_bytes);
+    // Builds the command, address, dummy, and write-data DR stream.
     extern protected function void build_pio_dr_write_items(
-        {{ class_prefix }}transfer_req rq,
-        bit include_payload,
+        input {{ class_prefix }}transfer_req rq,
+        input bit include_payload,
         output bit [31:0] dr_items[$]);
     // Reports whether this transfer may use the local internal-DMA done interrupt.
     extern protected function bit can_use_internal_dma_done_interrupt(
@@ -32,20 +36,24 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
         {{ class_prefix }}transfer_req rq,
         {{ class_prefix }}configuration cfg,
         string expected_source);
+    // Waits for the completion source valid for the selected transfer path.
     extern protected task wait_transfer_completion(
-        {{ class_prefix }}transfer_req rq,
-        {{ class_prefix }}configuration cfg,
-        {{ class_prefix }}register_access register_access,
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
         output bit ok);
+    // Starts the configured hardware or software chip-select window.
     extern protected task activate_transfer_cs(
         input {{ class_prefix }}transfer_req rq,
         input {{ class_prefix }}configuration cfg,
         input {{ class_prefix }}register_access register_access,
         output bit cs_started);
+    // Closes the configured hardware or software chip-select window.
     extern protected task release_transfer_cs(
         input {{ class_prefix }}transfer_req rq,
         input {{ class_prefix }}register_access register_access,
         input bit cs_started);
+    // Refills the transmit FIFO while preserving one chip-select window.
     extern protected task write_pio_stream_under_cs(
         input {{ class_prefix }}transfer_req rq,
         input {{ class_prefix }}configuration cfg,
@@ -54,13 +62,15 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequenc
         output bit cs_started,
         output bit ok);
 {%- if internal_dma %}
+    // Writes the request payload into the internal-DMA AXI source buffer.
     extern protected task cpu_write_payload_to_axi(
-        bit [31:0] axi_addr,
-        uvm_tlm_generic_payload payload,
+        input bit [31:0] axi_addr,
+        input uvm_tlm_generic_payload payload,
         output bit ok);
+    // Reads the internal-DMA AXI destination buffer into a byte queue.
     extern protected task cpu_read_payload_from_axi(
-        bit [31:0] axi_addr,
-        int length,
+        input bit [31:0] axi_addr,
+        input int length,
         output bit [7:0] read_data[$],
         output bit ok);
 {%- endif %}
@@ -131,6 +141,12 @@ task {{ class_prefix }}transfer_seq::body();
             return;
         end
     end
+{%- elif external_dma %}
+    if (rq.use_dma) begin
+        dma_ok = 1'b1;
+        `uvm_info("DW_SPI_XFER", "arming external DMA before controller start", UVM_HIGH)
+        p_sequencer.start_external_dma(rq);
+    end
 {%- endif %}
     register_access = {{ class_prefix }}register_access::type_id::create("register_access");
     register_access.settings = p_sequencer.settings;
@@ -142,6 +158,24 @@ task {{ class_prefix }}transfer_seq::body();
     if (rq.use_dma) begin
         dma_ok = 1'b1;
         `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; selecting CS before waiting for configured completion", UVM_HIGH)
+        activate_transfer_cs(rq, cfg, register_access, cs_started);
+    end
+    else begin
+        pio_ok = 1'b1;
+        if (command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
+            build_pio_dr_write_items(
+                rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_items);
+            `uvm_info("DW_SPI_XFER", $sformatf(
+                "PIO path: writing command/address/optional_dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_items=%0d",
+                rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
+                rq.dummy_cycles, pio_dr_items.size()), UVM_HIGH)
+            write_pio_stream_under_cs(
+                rq, cfg, register_access, pio_dr_items, cs_started, pio_ok);
+        end
+    end
+{%- elif external_dma %}
+    if (rq.use_dma) begin
+        `uvm_info("DW_SPI_XFER", "external DMA armed; selecting CS before waiting for completion", UVM_HIGH)
         activate_transfer_cs(rq, cfg, register_access, cs_started);
     end
     else begin
@@ -217,6 +251,62 @@ task {{ class_prefix }}transfer_seq::body();
         if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
             if (should_record_expected_write(rq, command)) begin
                 `uvm_info("DW_SPI_XFER", "PIO write path: staging expected payload for scoreboard", UVM_DEBUG)
+                rq.payload.get_data(gp_data);
+                foreach (gp_data[i])
+                    write_data.push_back(gp_data[i]);
+                record_write_expected = 1'b1;
+                write_reason = "pio_write";
+            end
+            else begin
+                `uvm_info("DW_SPI_XFER", $sformatf(
+                    "PIO write path does not update flash memory mirror: opcode=0x%02h",
+                    rq.opcode), UVM_HIGH)
+            end
+        end
+        rs.ok = pio_ok;
+    end
+{%- elif external_dma %}
+    if (rq.use_dma) begin
+        wait_transfer_completion(rq, cfg, register_access, completion_ok);
+        dma_ok = dma_ok && completion_ok;
+        if (dma_ok) begin
+            `uvm_info("DW_SPI_XFER", "waiting for external DMA completion and collecting read data", UVM_HIGH)
+            p_sequencer.finish_external_dma(rq, rs.read_data, dma_ok);
+        end
+        release_transfer_cs(rq, register_access, cs_started);
+        if (dma_ok && command == UVM_TLM_WRITE_COMMAND) begin
+            if (should_record_expected_write(rq, command)) begin
+                rq.payload.get_data(gp_data);
+                foreach (gp_data[i])
+                    write_data.push_back(gp_data[i]);
+                record_write_expected = 1'b1;
+                write_reason = "external_dma_write";
+            end
+            else begin
+                `uvm_info("DW_SPI_XFER", $sformatf(
+                    "external DMA write path does not update flash memory mirror: opcode=0x%02h",
+                    rq.opcode), UVM_HIGH)
+            end
+        end
+        rs.ok = dma_ok;
+    end
+    else begin
+        if (pio_ok && command == UVM_TLM_READ_COMMAND) begin
+            `uvm_info("DW_SPI_XFER", $sformatf(
+                "PIO read path: reading payload from DR: expected_bytes=%0d",
+                rq.payload.get_data_length()), UVM_HIGH)
+            register_access.read_dr_to_payload(rq.payload, rs.read_data, pio_ok);
+            `uvm_info("DW_SPI_XFER", $sformatf(
+                "PIO read path received data: bytes=%0d data_preview=%s",
+                rs.read_data.size(), byte_queue_preview(rs.read_data, 16)), UVM_HIGH)
+        end
+        if (pio_ok) begin
+            wait_transfer_completion(rq, cfg, register_access, completion_ok);
+            pio_ok = pio_ok && completion_ok;
+        end
+        release_transfer_cs(rq, register_access, cs_started);
+        if (pio_ok && command == UVM_TLM_WRITE_COMMAND) begin
+            if (should_record_expected_write(rq, command)) begin
                 rq.payload.get_data(gp_data);
                 foreach (gp_data[i])
                     write_data.push_back(gp_data[i]);
@@ -439,9 +529,9 @@ function bit {{ class_prefix }}transfer_seq::can_use_internal_dma_done_interrupt
 endfunction
 
 task {{ class_prefix }}transfer_seq::wait_transfer_completion(
-        {{ class_prefix }}transfer_req rq,
-        {{ class_prefix }}configuration cfg,
-        {{ class_prefix }}register_access register_access,
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
         output bit ok);
     completion_mode_e completion_mode;
     bit dones_completion_available;
@@ -494,8 +584,8 @@ task {{ class_prefix }}transfer_seq::wait_transfer_completion(
 endtask
 
 function void {{ class_prefix }}transfer_seq::build_pio_dr_write_items(
-        {{ class_prefix }}transfer_req rq,
-        bit include_payload,
+        input {{ class_prefix }}transfer_req rq,
+        input bit include_payload,
         output bit [31:0] dr_items[$]);
     protocol_e protocol;
     frame_mode_e frame_mode;
@@ -561,9 +651,10 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_items(
 endfunction
 
 {%- if internal_dma %}
+
 task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
-        bit [31:0] axi_addr,
-        uvm_tlm_generic_payload payload,
+        input bit [31:0] axi_addr,
+        input uvm_tlm_generic_payload payload,
         output bit ok);
     byte unsigned gp_data[];
     bit [7:0] preview_data[$];
@@ -599,8 +690,8 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
 endtask
 
 task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(
-        bit [31:0] axi_addr,
-        int length,
+        input bit [31:0] axi_addr,
+        input int length,
         output bit [7:0] read_data[$],
         output bit ok);
     bit [31:0] word;

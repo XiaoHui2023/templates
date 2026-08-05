@@ -4,18 +4,22 @@
 class {{ class_prefix }}callback extends uvm_callback;
     `uvm_object_utils({{ class_prefix }}callback)
 
+    // Creates a dependency-injection callback object.
     function new(string name="{{ class_prefix }}callback");
         super.new(name);
     endfunction
 
+    // Activates one software-controlled chip select.
     virtual task activate_chip_select(int cs_id);
         `uvm_fatal("DW_SPI_CB", "activate_chip_select requires callback override when SOFTWARE_CS is used")
     endtask
 
+    // Releases one software-controlled chip select.
     virtual task release_chip_select(int cs_id);
         `uvm_fatal("DW_SPI_CB", "release_chip_select requires callback override when SOFTWARE_CS is used")
     endtask
 
+{%- if internal_dma %}
     // Reads one 32-bit CPU word from the selected access path.
     virtual task cpu_read(input bit [63:0] addr, output bit [31:0] data, input uvm_path_e path);
         `uvm_fatal("DW_SPI_CB", "cpu_read requires callback override when internal DMA CPU access is used")
@@ -25,6 +29,21 @@ class {{ class_prefix }}callback extends uvm_callback;
     virtual task cpu_write(input bit [63:0] addr, input bit [31:0] data, input uvm_path_e path);
         `uvm_fatal("DW_SPI_CB", "cpu_write requires callback override when internal DMA CPU access is used")
     endtask
+{%- endif %}
+{%- if external_dma %}
+    // Arms an external DMA engine before the controller selects the flash.
+    virtual task start_external_dma({{ class_prefix }}transfer_req transfer_req);
+        `uvm_fatal("DW_SPI_CB", "start_external_dma requires callback override when external DMA is used")
+    endtask
+
+    // Waits for external DMA completion and returns actual read data.
+    virtual task finish_external_dma(
+        input {{ class_prefix }}transfer_req transfer_req,
+        output bit [7:0] read_data[$],
+        output bit ok);
+        `uvm_fatal("DW_SPI_CB", "finish_external_dma requires callback override when external DMA is used")
+    endtask
+{%- endif %}
 endclass
 
 `endif

@@ -6,10 +6,12 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
 
     {{ class_prefix }}settings settings;
 
+    // Creates one register-configuration derivation tool.
     function new(string name="{{ class_prefix }}register_config_builder");
         super.new(name);
     endfunction
 
+    // Encodes the requested serial width in CTRLR0.SPI_FRF.
     function int spi_frf_from_speed(int speed_multiplier);
         case (speed_multiplier)
             1: return CTRLR0_SPI_FRF_STANDARD;
@@ -19,6 +21,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         endcase
     endfunction
 
+    // Encodes the instruction byte count in SPI_CTRLR0.INST_L.
     function int inst_l_from_bytes(int inst_bytes);
         case (inst_bytes)
             0: return 0;
@@ -33,12 +36,14 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         endcase
     endfunction
 
+    // Encodes the address byte count in SPI_CTRLR0.ADDR_L.
     function int addr_l_from_bytes(int addr_bytes);
         if (addr_bytes == 0)
             return 0;
         return addr_bytes * 2;
     endfunction
 
+    // Places an opcode in the internal-DMA instruction register format.
     function bit [15:0] spi_inst_from_opcode(
             bit [7:0] opcode,
             int inst_bytes);
@@ -54,6 +59,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         endcase
     endfunction
 
+    // Divides positive integer quantities with upward rounding.
     function longint ceil_div(
             longint dividend,
             longint divisor);
@@ -62,6 +68,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return (dividend + divisor - 1) / divisor;
     endfunction
 
+    // Derives an even BAUDR that does not exceed the target serial clock.
     function int baudr_from_clock(
             longint ssi_clk_hz,
             longint target_sclk_hz);
@@ -79,6 +86,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(div);
     endfunction
 
+    // Converts a byte count into controller data frames.
     function int frame_count_from_bytes(
             int byte_count,
             int data_frame_bits);
@@ -94,12 +102,14 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(frame_count);
     endfunction
 
+    // Returns the payload frame count represented by CTRLR1.NDF.
     function int actual_ndf_from_transfer(
-            {{ class_prefix }}transfer_req rq,
+            input {{ class_prefix }}transfer_req rq,
             int payload_bytes);
         return frame_count_from_bytes(payload_bytes, rq.data_frame_bits);
     endfunction
 
+    // Converts phase bits and lane count into serial clock cycles.
     function int phase_sclk_cycles(
             int bits,
             int lanes);
@@ -110,6 +120,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return int'(ceil_div(bits, lanes));
     endfunction
 
+    // Encodes instruction and address lane usage in SPI_CTRLR0.TRANS_TYPE.
     function int trans_type_from_phase_lanes(
             frame_mode_e frame_mode,
             int instruction_lanes,
@@ -134,8 +145,9 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return 0;
     endfunction
 
+    // Derives a bounded completion timeout from the complete serial transfer.
     function int transfer_timeout_cycles(
-            {{ class_prefix }}transfer_req rq,
+            input {{ class_prefix }}transfer_req rq,
             int baudr,
             int data_bytes,
             frame_mode_e frame_mode);
@@ -186,8 +198,9 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
         return timeout_cycles;
     endfunction
 
+    // Builds the one-shot register configuration for a transfer request.
     task build(
-            {{ class_prefix }}transfer_req rq,
+            input {{ class_prefix }}transfer_req rq,
             output {{ class_prefix }}configuration cfg);
         int length;
         int actual_ndf;
@@ -317,7 +330,12 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(
 {%- endif %}
 {%- if internal_dma or external_dma %}
         rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX});
+{%- if external_dma %}
+        tdmae = rq.use_dma && ((transfer_mode inside {TX_ONLY, TX_AND_RX}) ||
+            (rq.protocol == FLASH_SPI && rq.inst_bytes > 0));
+{%- else %}
         tdmae = rq.use_dma && (transfer_mode inside {TX_ONLY, TX_AND_RX});
+{%- endif %}
         `uvm_info("DW_SPI_CFG", $sformatf(
             "derived DMA handshake fields: use_dma=%0b rdmae=%0b tdmae=%0b transfer_mode=%s",
             rq.use_dma, rdmae, tdmae, transfer_mode.name()), UVM_DEBUG)

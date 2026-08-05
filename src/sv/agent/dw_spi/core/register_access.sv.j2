@@ -7,16 +7,19 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
     {{ class_prefix }}settings settings;
     uvm_report_object report_context;
 
+    // Creates one regmodel access tool.
     function new(string name="{{ class_prefix }}register_access");
         super.new(name);
     endfunction
 
+    // Returns the injected report context or the UVM root fallback.
     function uvm_report_object get_report_context();
         if (report_context != null)
             return report_context;
         return uvm_root::get();
     endfunction
 
+    // Emits an info message through the active report context.
     function void report_info(string id, string message, int verbosity);
         uvm_report_object cntxt;
 
@@ -25,14 +28,17 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             cntxt.uvm_report_info(id, message, verbosity);
     endfunction
 
+    // Emits an error through the active report context.
     function void report_error(string id, string message);
         get_report_context().uvm_report_error(id, message);
     endfunction
 
+    // Emits a fatal report through the active report context.
     function void report_fatal(string id, string message);
         get_report_context().uvm_report_fatal(id, message);
     endfunction
 
+    // Encodes a transfer mode for CTRLR0.TMOD.
     function bit [1:0] transfer_mode_bits(transfer_mode_e mode);
         case (mode)
             TX_AND_RX: return 2'h0;
@@ -43,6 +49,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         endcase
     endfunction
 
+    // Polls SR.TFNF until the transmit FIFO accepts data.
     task wait_tfnf(output bit ok);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -82,6 +89,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SR.BUSY.get()));
     endtask
 
+    // Polls SR.RFNE until receive data is available.
     task wait_rfne(output bit ok);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -121,9 +129,10 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SR.BUSY.get()));
     endtask
 
+    // Writes a queue of controller frames through DR.
     task write_items_to_dr(
-            bit [31:0] data[$],
-            string reason,
+            input bit [31:0] data[$],
+            input string reason,
             output bit ok);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -154,7 +163,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             data.size(), reason), UVM_HIGH);
     endtask
 
-    task write_payload_to_dr(uvm_tlm_generic_payload payload, output bit ok);
+    // Writes generic-payload bytes through DR.
+    task write_payload_to_dr(input uvm_tlm_generic_payload payload, output bit ok);
         byte unsigned gp_data[];
         bit [31:0] data[$];
 
@@ -166,8 +176,9 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         write_items_to_dr(data, "payload", ok);
     endtask
 
+    // Reads the requested payload length from DR.
     task read_dr_to_payload(
-            uvm_tlm_generic_payload payload,
+            input uvm_tlm_generic_payload payload,
             output bit [7:0] read_data[$],
             output bit ok);
         uvm_status_e status;
@@ -207,8 +218,9 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         report_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_HIGH);
     endtask
 
+    // Polls SR until the controller and transmit FIFO are idle.
     task wait_idle(
-            int timeout_cycles,
+            input int timeout_cycles,
             output bit ok);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -248,6 +260,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
             rm.SR.BUSY.get()));
     endtask
 
+    // Reads and validates the internal-DMA completion status.
     task check_internal_dma_dones(output bit ok);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -269,6 +282,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
                 reg_data, ok));
     endtask
 
+    // Selects hardware chip-select lines through SER.
     task select_hardware_chip(input int ser_value);
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -285,6 +299,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.SER.write(status, rm.SER.get());
     endtask
 
+    // Releases all hardware chip-select lines through SER.
     task release_hardware_chip_selects();
         uvm_status_e status;
         {{ regmodel_type }} rm;
@@ -300,6 +315,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}spec#(uvm_obje
         rm.SER.write(status, rm.SER.get());
     endtask
 
+    // Writes one complete controller configuration through the regmodel.
     task apply_configuration({{ class_prefix }}configuration cfg);
         uvm_status_e status;
         {{ regmodel_type }} rm;

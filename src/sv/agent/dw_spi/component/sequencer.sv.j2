@@ -9,18 +9,33 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     {{ class_prefix }}scoreboard scoreboard;
     virtual {{ class_prefix }}interface vif;
 
+    // Creates the base sequencer and its default settings object.
     function new(string name="{{ class_prefix }}sequencer", uvm_component parent=null);
         super.new(name, parent);
         settings = {{ class_prefix }}settings::type_id::create("settings");
     endfunction
 
+    // Resolves shared settings, scoreboard, and interface handles.
     extern function void build_phase(uvm_phase phase);
+    // Dispatches software chip-select activation to registered callbacks.
     extern task activate_chip_select(int cs_id);
+    // Dispatches software chip-select release to registered callbacks.
     extern task release_chip_select(int cs_id);
+{%- if internal_dma %}
     // Dispatches a CPU read request to registered callbacks.
     extern task cpu_read(input bit [63:0] addr, output bit [31:0] data, input uvm_path_e path);
     // Dispatches a CPU write request to registered callbacks.
     extern task cpu_write(input bit [63:0] addr, input bit [31:0] data, input uvm_path_e path);
+{%- endif %}
+{%- if external_dma %}
+    // Dispatches external DMA arming to registered callbacks.
+    extern task start_external_dma({{ class_prefix }}transfer_req transfer_req);
+    // Dispatches external DMA completion and read-data collection.
+    extern task finish_external_dma(
+        input {{ class_prefix }}transfer_req transfer_req,
+        output bit [7:0] read_data[$],
+        output bit ok);
+{%- endif %}
 endclass
 
 function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
@@ -46,6 +61,8 @@ task {{ class_prefix }}sequencer::release_chip_select(int cs_id);
     `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, release_chip_select(cs_id))
 endtask
 
+{%- if internal_dma %}
+
 // Dispatches a CPU read request to registered callbacks.
 task {{ class_prefix }}sequencer::cpu_read(input bit [63:0] addr, output bit [31:0] data, input uvm_path_e path);
     `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, cpu_read(addr, data, path))
@@ -55,5 +72,22 @@ endtask
 task {{ class_prefix }}sequencer::cpu_write(input bit [63:0] addr, input bit [31:0] data, input uvm_path_e path);
     `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, cpu_write(addr, data, path))
 endtask
+{%- endif %}
+{%- if external_dma %}
+
+task {{ class_prefix }}sequencer::start_external_dma(
+        {{ class_prefix }}transfer_req transfer_req);
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this,
+        start_external_dma(transfer_req))
+endtask
+
+task {{ class_prefix }}sequencer::finish_external_dma(
+        input {{ class_prefix }}transfer_req transfer_req,
+        output bit [7:0] read_data[$],
+        output bit ok);
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this,
+        finish_external_dma(transfer_req, read_data, ok))
+endtask
+{%- endif %}
 
 `endif

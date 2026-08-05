@@ -4,11 +4,14 @@
 class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     `uvm_component_utils({{ class_prefix }}kit_sequencer)
 
+    // Creates the convenience sequencer facade.
     function new(string name="{{ class_prefix }}kit_sequencer", uvm_component parent=null);
         super.new(name, parent);
     endfunction
 
+    // Initializes controller registers for one primitive transfer request.
     extern task init_registers({{ class_prefix }}transfer_req transfer_req);
+    // Runs one flash write flow.
     extern task flash_write(bit [31:0] address,
         bit [7:0] data[$],
         int io_lanes = {{ default_io_lanes }},
@@ -21,6 +24,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
         bit [31:0] axi_addr = '0{% endif %});
+    // Runs one flash read flow.
     extern task flash_read(bit [31:0] address,
         int length,
         int io_lanes = {{ default_io_lanes }},
@@ -33,7 +37,9 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
         bit [31:0] axi_addr = '0{% endif %});
+    // Checks all connected controller clocks.
     extern task check_clocks();
+    // Runs one flash write/readback scenario.
     extern task rw_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
@@ -47,6 +53,29 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
         bit [31:0] axi_addr = '0{% endif %});
+    // Runs standard 1x and all enabled enhanced read/write speeds.
+    extern task speed_test(
+        bit [31:0] address = '0,
+        bit [7:0] write_data[$] = '{},
+        int spi_mode = {{ default_spi_mode }},
+        int data_frame_bits = {{ default_data_frame_bits }},
+        int cs_id = {{ default_cs }},
+        int addr_bytes = {{ default_addr_bytes }});
+{%- if internal_dma or external_dma %}
+    // Runs one flash read/writeback scenario through DMA.
+    extern task dma_test(
+        bit [31:0] address = '0,
+        bit [7:0] write_data[$] = '{},
+        int io_lanes = {{ default_io_lanes }},
+        int speed_multiplier = {{ default_speed_multiplier }},
+        int spi_mode = {{ default_spi_mode }},
+        int data_frame_bits = {{ default_data_frame_bits }},
+        int cs_id = {{ default_cs }},
+        int addr_bytes = {{ default_addr_bytes }}{% if internal_dma %},
+        bit [7:0] awlen = '0,
+        bit [7:0] arlen = '0,
+        bit [31:0] axi_addr = '0{% endif %});
+{%- endif %}
 endclass
 
 task {{ class_prefix }}kit_sequencer::init_registers({{ class_prefix }}transfer_req transfer_req);
@@ -206,5 +235,68 @@ task {{ class_prefix }}kit_sequencer::rw_test(
     if (!seq.ok)
         `uvm_fatal("DW_SPI", "rw_test failed")
 endtask
+
+task {{ class_prefix }}kit_sequencer::speed_test(
+        bit [31:0] address = '0,
+        bit [7:0] write_data[$] = '{},
+        int spi_mode = {{ default_spi_mode }},
+        int data_frame_bits = {{ default_data_frame_bits }},
+        int cs_id = {{ default_cs }},
+        int addr_bytes = {{ default_addr_bytes }});
+    {{ class_prefix }}speed_test_seq seq;
+
+    seq = {{ class_prefix }}speed_test_seq::type_id::create("speed_test");
+    seq.address = address;
+    seq.write_data = write_data;
+    seq.spi_mode = spi_mode;
+    seq.data_frame_bits = data_frame_bits;
+    seq.cs_id = cs_id;
+    seq.addr_bytes = addr_bytes;
+    seq.start(this);
+    if (!seq.ok)
+        `uvm_fatal("DW_SPI", "speed_test failed")
+endtask
+
+{%- if internal_dma or external_dma %}
+
+task {{ class_prefix }}kit_sequencer::dma_test(
+        bit [31:0] address = '0,
+        bit [7:0] write_data[$] = '{},
+        int io_lanes = {{ default_io_lanes }},
+        int speed_multiplier = {{ default_speed_multiplier }},
+        int spi_mode = {{ default_spi_mode }},
+        int data_frame_bits = {{ default_data_frame_bits }},
+        int cs_id = {{ default_cs }},
+        int addr_bytes = {{ default_addr_bytes }}{% if internal_dma %},
+        bit [7:0] awlen = '0,
+        bit [7:0] arlen = '0,
+        bit [31:0] axi_addr = '0{% endif %});
+    {{ class_prefix }}dma_test_seq seq;
+
+    seq = {{ class_prefix }}dma_test_seq::type_id::create("dma_test");
+    seq.address = address;
+    seq.write_data = write_data;
+    seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
+    seq.configuration.settings = settings;
+    if (!seq.configuration.randomize() with {
+            io_lanes == local::io_lanes;
+            speed_multiplier == local::speed_multiplier;
+            spi_mode == local::spi_mode;
+            data_frame_bits == local::data_frame_bits;
+            cs_id == local::cs_id;
+            addr_bytes == local::addr_bytes;
+            use_dma == 1'b1;
+{%- if internal_dma %}
+            awlen == local::awlen;
+            arlen == local::arlen;
+            axi_addr == local::axi_addr;
+{%- endif %}
+        })
+        `uvm_fatal("DW_SPI", "failed to randomize dma_test configuration")
+    seq.start(this);
+    if (!seq.ok)
+        `uvm_fatal("DW_SPI", "dma_test failed")
+endtask
+{%- endif %}
 
 `endif

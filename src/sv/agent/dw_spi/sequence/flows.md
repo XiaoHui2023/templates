@@ -54,7 +54,7 @@
 
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
 2. 根据本次 configuration 创建一个 `model/flash_command` 指令包：1x standard 为 `read1x_flash_command`，1x enhanced 为 `fast_read1x_flash_command`，2x 为 `read2x_flash_command`，4x 为 `read4x_flash_command`。
-3. 用 configuration 约束该指令包的 `addr_bytes`、`dummy_cycles`、`data_frame_bits`。
+3. 用 configuration 约束该指令包的 `addr_bytes`、`data_frame_bits`；dummy cycle 由 opcode 指令包决定。
 4. 调用 `flash_command_adapter.create_transfer_req()` 生成通用 `transfer_req`，payload command 为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读取长度。
 5. 指令包负责 opcode、`RX_ONLY`、address phase 线宽和 data phase 线宽。`READ1X/FASTREAD1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
 6. 同一个 primitive transfer 内完成 opcode + address + dummy + read data，CS 不能在中间断开。
@@ -108,3 +108,11 @@
 ## Internal DMA Instruction Register
 
 For internal DMA, `SPIDR.SPI_INST` is a 16-bit instruction container. Current flash commands use `inst_bytes == 1`, so the builder writes `{opcode, 8'h00}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. This keeps `inst_bytes` and the SPIDR container width separate.
+
+## Speed Test
+
+`speed_test` 顺序运行 `standard_1x`、`enhanced_1x`、`enhanced_2x`、`enhanced_4x`。每种模式调用完整 `rw_test`，使用独立地址窗口 `base_address + mode_index * data_length`，避免重复 program 同一 NOR 地址。任一模式失败后立即停止，不再运行后续模式。该测试固定使用 hardware CS，DMA 关闭。
+
+## DMA Test
+
+`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。它复用一次完整 `rw_test`，但强制 `use_dma=1`。内部 DMA 通过 CPU callback 准备/回读 AXI buffer；外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。无 DMA 配置不生成该类、kit 入口或 filelist 条目。

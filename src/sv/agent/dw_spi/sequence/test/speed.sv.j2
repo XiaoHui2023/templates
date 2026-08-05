@@ -1,0 +1,139 @@
+`ifndef {{ (class_prefix ~ "speed_test_seq") | upper }}
+`define {{ (class_prefix ~ "speed_test_seq") | upper }}
+
+class {{ class_prefix }}speed_test_seq extends {{ class_prefix }}spec#(uvm_sequence);
+    `uvm_object_utils_begin({{ class_prefix }}speed_test_seq)
+        `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_queue_int(write_data, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(data_frame_bits, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(cs_id, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(ok, UVM_ALL_ON)
+    `uvm_object_utils_end
+    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+    rand bit [31:0] address;
+    rand bit [7:0] write_data[$];
+    int spi_mode;
+    int data_frame_bits;
+    int cs_id;
+    int addr_bytes;
+    bit ok;
+
+    // Creates an all-speed flash read/write test scenario.
+    function new(string name="{{ class_prefix }}speed_test_seq");
+        super.new(name);
+        spi_mode = {{ default_spi_mode }};
+        data_frame_bits = {{ default_data_frame_bits }};
+        cs_id = {{ default_cs }};
+        addr_bytes = {{ default_addr_bytes }};
+    endfunction
+
+    constraint cst {
+        soft address == '0;
+        soft write_data.size() == {{ default_rw_data_bytes }};
+    }
+
+    // Runs every enabled standard and enhanced speed until the first failure.
+    extern virtual task body();
+    // Runs one hardware-CS read/write mode at its isolated flash address.
+    extern protected task run_mode(
+        input string mode_name,
+        input int frame_mode_value,
+        input int speed_value,
+        input int lane_count,
+        input int mode_index,
+        output bit mode_ok);
+endclass
+
+task {{ class_prefix }}speed_test_seq::run_mode(
+        input string mode_name,
+        input int frame_mode_value,
+        input int speed_value,
+        input int lane_count,
+        input int mode_index,
+        output bit mode_ok);
+    {{ class_prefix }}host_configuration cfg;
+    {{ class_prefix }}rw_test_seq rw_seq;
+    bit [31:0] mode_address;
+
+    cfg = {{ class_prefix }}host_configuration::type_id::create({"configuration_", mode_name});
+    cfg.settings = p_sequencer.settings;
+    if (!$cast(cfg.frame_mode, frame_mode_value))
+        `uvm_fatal("DW_SPI_TEST", $sformatf("speed_test failed to cast frame mode for %s", mode_name))
+    if (!$cast(cfg.cs_control_mode, HARDWARE_CS))
+        `uvm_fatal("DW_SPI_TEST", $sformatf("speed_test failed to cast CS mode for %s", mode_name))
+    cfg.frame_mode.rand_mode(0);
+    cfg.cs_control_mode.rand_mode(0);
+    if (!cfg.randomize() with {
+            io_lanes == local::lane_count;
+            speed_multiplier == local::speed_value;
+            spi_mode == local::spi_mode;
+            data_frame_bits == local::data_frame_bits;
+            cs_id == local::cs_id;
+            addr_bytes == local::addr_bytes;
+{%- if internal_dma or external_dma %}
+            use_dma == 1'b0;
+{%- endif %}
+        })
+        `uvm_fatal("DW_SPI_TEST", $sformatf("speed_test failed to randomize %s configuration", mode_name))
+
+    mode_address = address + mode_index * write_data.size();
+    `uvm_info("DW_SPI_TEST", $sformatf(
+        "speed_test running %s: address=0x%08h bytes=%0d",
+        mode_name, mode_address, write_data.size()), UVM_LOW)
+    rw_seq = {{ class_prefix }}rw_test_seq::type_id::create({"rw_", mode_name});
+    rw_seq.address = mode_address;
+    rw_seq.write_data = write_data;
+    rw_seq.configuration = cfg;
+    rw_seq.start(p_sequencer);
+    mode_ok = rw_seq.ok;
+endtask
+
+task {{ class_prefix }}speed_test_seq::body();
+    bit mode_ok;
+
+    if (write_data.size() == 0) begin
+        if (!randomize(write_data) with {
+                write_data.size() == {{ default_rw_data_bytes }};
+            })
+            `uvm_fatal("DW_SPI_TEST", "speed_test failed to randomize write_data")
+    end
+    ok = 1'b1;
+    `uvm_info("DW_SPI_TEST", $sformatf(
+        "speed_test start: base_address=0x%08h bytes_per_mode=%0d",
+        address, write_data.size()), UVM_LOW)
+
+{%- if support_standard %}
+    run_mode("standard_1x", STANDARD, 1, 1, 0, mode_ok);
+    if (!mode_ok) begin
+        ok = 1'b0;
+        `uvm_info("DW_SPI_TEST", "speed_test stopped after standard_1x failure", UVM_LOW)
+        return;
+    end
+{%- endif %}
+{%- if support_enhanced %}
+    run_mode("enhanced_1x", ENHANCED, 1, 1, 1, mode_ok);
+    if (!mode_ok) begin
+        ok = 1'b0;
+        `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_1x failure", UVM_LOW)
+        return;
+    end
+    run_mode("enhanced_2x", ENHANCED, 2, 2, 2, mode_ok);
+    if (!mode_ok) begin
+        ok = 1'b0;
+        `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_2x failure", UVM_LOW)
+        return;
+    end
+    run_mode("enhanced_4x", ENHANCED, 4, 4, 3, mode_ok);
+    if (!mode_ok) begin
+        ok = 1'b0;
+        `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_4x failure", UVM_LOW)
+        return;
+    end
+{%- endif %}
+    `uvm_info("DW_SPI_TEST", "speed_test done: all enabled modes passed", UVM_LOW)
+endtask
+
+`endif

@@ -17,15 +17,21 @@ class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}spec#(uvm_sequ
     bit ok;
     int bytes_written;
 
+    // Creates a flash write flow with a host configuration packet.
     function new(string name="{{ class_prefix }}flash_write_seq");
         super.new(name);
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
 
+    // Executes write setup and one opcode-specific program transfer.
     extern virtual task body();
+    // Sends one write-enable command window.
     extern task run_write_enable(output bit ok);
+    // Sends the status-register sequence needed to enable quad I/O.
     extern task run_write_status_qe(output bit ok);
-    extern task run_program(bit [31:0] addr, bit [7:0] program_data[$], output bit ok);
+    // Sends one continuous opcode, address, and payload program window.
+    extern task run_program(input bit [31:0] addr, input bit [7:0] program_data[$], output bit ok);
+    // Selects and configures the program command packet for the requested speed.
     extern function {{ class_prefix }}flash_command create_program_command(
         {{ class_prefix }}transfer_configuration cfg);
 endclass
@@ -123,8 +129,8 @@ task {{ class_prefix }}flash_write_seq::run_write_status_qe(output bit ok);
 endtask
 
 task {{ class_prefix }}flash_write_seq::run_program(
-        bit [31:0] addr,
-        bit [7:0] program_data[$],
+        input bit [31:0] addr,
+        input bit [7:0] program_data[$],
         output bit ok);
     {{ class_prefix }}flash_command command;
     {{ class_prefix }}flash_command_adapter adapter;
