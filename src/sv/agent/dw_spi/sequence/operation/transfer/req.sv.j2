@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "transfer_req") | upper }}
 `define {{ (class_prefix ~ "transfer_req") | upper }}
 
-class {{ class_prefix }}transfer_req extends {{ class_prefix }}spec#(uvm_sequence_item);
+class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}transfer_req)
         `uvm_field_object(payload, UVM_ALL_ON)
         `uvm_field_string(payload_command, UVM_ALL_ON)

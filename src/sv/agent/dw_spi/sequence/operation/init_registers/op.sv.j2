@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "init_registers_seq") | upper }}
 `define {{ (class_prefix ~ "init_registers_seq") | upper }}
 
-class {{ class_prefix }}init_registers_seq extends uvm_sequence #(
+class {{ class_prefix }}init_registers_seq extends {{ class_prefix }}base_seq #(
     {{ class_prefix }}init_registers_req,
     {{ class_prefix }}init_registers_rsp
 );

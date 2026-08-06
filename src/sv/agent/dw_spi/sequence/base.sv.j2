@@ -1,10 +1,13 @@
 `ifndef {{ (class_prefix ~ "base_seq") | upper }}
 `define {{ (class_prefix ~ "base_seq") | upper }}
 
-class {{ class_prefix }}base_seq extends uvm_sequence;
-    `uvm_object_utils({{ class_prefix }}base_seq)
-    `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+class {{ class_prefix }}base_seq #(
+    type REQ = uvm_sequence_item,
+    type RSP = REQ
+) extends uvm_sequence #(REQ, RSP);
+{{ sv_family_declarations | indent(4, true) }}
 
+    // Creates the typed sequence-family base.
     function new(string name="{{ class_prefix }}base_seq");
         super.new(name);
     endfunction

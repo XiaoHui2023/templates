@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "mem") | upper }}
 `define {{ (class_prefix ~ "mem") | upper }}
 
-class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
+class {{ class_prefix }}mem extends {{ class_prefix }}base_object;
     bit [7:0] bytes[$];
 
     // Creates an empty byte-addressed memory mirror.

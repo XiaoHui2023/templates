@@ -1,0 +1,13 @@
+`ifndef {{ (class_prefix ~ "base_item") | upper }}
+`define {{ (class_prefix ~ "base_item") | upper }}
+
+class {{ class_prefix }}base_item extends uvm_sequence_item;
+{{ sv_family_declarations | indent(4, true) }}
+
+    // Creates the sequence-item-family base.
+    function new(string name="{{ class_prefix }}base_item");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "flash_command") | upper }}
 `define {{ (class_prefix ~ "flash_command") | upper }}
 
-class {{ class_prefix }}flash_command extends {{ class_prefix }}spec#(uvm_sequence_item);
+class {{ class_prefix }}flash_command extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}flash_command)
         `uvm_field_int(opcode, UVM_ALL_ON | UVM_HEX)
         `uvm_field_enum(frame_mode_e, frame_mode, UVM_ALL_ON)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 _SV_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _SV_TYPE = re.compile(r"^([A-Za-z_][A-Za-z0-9_$]*::)*[A-Za-z_][A-Za-z0-9_$]*$")
@@ -192,6 +192,46 @@ class Models(BaseModel):
         le=256,
         description="Maximum consecutive data bytes emitted on one memh line.",
     )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def sv_family_declarations(self) -> str:
+        """Build enum and constant declarations repeated by each UVM role base."""
+        declarations = [
+            "typedef enum {MASTER, SLAVE} host_mode_e;",
+            "typedef enum {GENERAL_SPI, FLASH_SPI} protocol_e;",
+            "typedef enum {STANDARD, ENHANCED} frame_mode_e;",
+            "typedef enum {PSSI, HSSI} ssi_variant_e;",
+            "typedef enum {TX_AND_RX, TX_ONLY, RX_ONLY, EEPROM_READ} transfer_mode_e;",
+            "typedef enum {HARDWARE_CS, SOFTWARE_CS} cs_control_mode_e;",
+            "typedef enum {PREFER_INTERRUPT_COMPLETION, INTERRUPT_COMPLETION, POLLING_COMPLETION} completion_mode_e;",
+            "",
+            "localparam int CTRLR0_SPI_FRF_STANDARD = 0;",
+            "localparam int CTRLR0_SPI_FRF_DUAL = 1;",
+            "localparam int CTRLR0_SPI_FRF_QUAD = 2;",
+        ]
+        if self.external_dma:
+            declarations.extend([
+                "localparam int DMACR_RDMAE = 0;",
+                "localparam int DMACR_TDMAE = 1;",
+            ])
+        if self.internal_dma:
+            declarations.extend([
+                "localparam int DMACR_IDMAE = 0;",
+                "localparam int DMACR_AINC = 1;",
+            ])
+        declarations.extend([
+            "",
+            "localparam int SR_BUSY = 0;",
+            "localparam int SR_TFNF = 1;",
+            "localparam int SR_TFE = 2;",
+            "localparam int SR_RFNE = 3;",
+            "localparam int SR_RFF = 4;",
+            "",
+            "localparam int ISR_DONES = 0;",
+            f"localparam int MEMH_MAX_BYTES_PER_LINE = {self.memh_max_bytes_per_line};",
+        ])
+        return "\n".join(declarations)
 
     @field_validator("class_prefix")
     @classmethod

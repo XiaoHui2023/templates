@@ -1,10 +1,10 @@
 `ifndef {{ (class_prefix ~ "transfer_seq") | upper }}
 `define {{ (class_prefix ~ "transfer_seq") | upper }}
 
-class {{ class_prefix }}transfer_seq extends {{ class_prefix }}spec#(uvm_sequence #(
+class {{ class_prefix }}transfer_seq extends {{ class_prefix }}base_seq #(
     {{ class_prefix }}transfer_req,
     {{ class_prefix }}transfer_rsp
-));
+);
     `uvm_object_utils({{ class_prefix }}transfer_seq)
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 

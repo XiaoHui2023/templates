@@ -2,7 +2,7 @@
 `ifndef {{ (class_prefix ~ "dma_test_seq") | upper }}
 `define {{ (class_prefix ~ "dma_test_seq") | upper }}
 
-class {{ class_prefix }}dma_test_seq extends {{ class_prefix }}spec#(uvm_sequence);
+class {{ class_prefix }}dma_test_seq extends {{ class_prefix }}base_seq;
     `uvm_object_utils_begin({{ class_prefix }}dma_test_seq)
         `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
         `uvm_field_queue_int(write_data, UVM_ALL_ON | UVM_HEX)

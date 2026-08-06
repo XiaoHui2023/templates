@@ -6,35 +6,12 @@
 
 | 文件 | 类 | 职责 |
 | --- | --- | --- |
-| `spec.sv` | `dw_spi_spec#(type T)` | enum、localparam、族级常量定义夹层 |
 | `settings.sv` | `dw_spi_settings` | agent/sequencer 共享运行期配置和句柄 |
 | `transfer_configuration.sv` | `dw_spi_transfer_configuration` | 单次传输协议形态配置包 |
 | `host_configuration.sv` | `dw_spi_host_configuration` | 主机侧单次传输配置包 |
 | `slave_configuration.sv` | `dw_spi_slave_configuration` | 从机侧单次传输配置包 |
 | `configuration.sv` | `dw_spi_configuration` | 单次寄存器 FIELD 配置包 |
 | `flash_command/*.sv` | `dw_spi_*_flash_command` | SPI flash 指令配置包；具体 NOR/NAND/XIP/厂商 opcode 各自独立文件 |
-
-数据包统一继承 `dw_spi_spec#(uvm_sequence_item)`；settings 和 core tool 类继承 `dw_spi_spec#(uvm_object)`。需要在不同 spec 派生类型之间传枚举值时，用 `$cast()` 转换，不直接赋值。
-
-## `spec.sv`
-
-`spec` 保存模块族共享定义：
-
-| 定义 | 用途 |
-| --- | --- |
-| `host_mode_e` | `MASTER` / `SLAVE` |
-| `protocol_e` | `GENERAL_SPI` / `FLASH_SPI` |
-| `frame_mode_e` | `STANDARD` / `ENHANCED` |
-| `cs_control_mode_e` | `HARDWARE_CS` / `SOFTWARE_CS` |
-| `ssi_variant_e` | `PSSI` / `HSSI` |
-| `transfer_mode_e` | `TX_AND_RX` / `TX_ONLY` / `RX_ONLY` / `EEPROM_READ` |
-| `completion_mode_e` | `PREFER_INTERRUPT_COMPLETION` / `INTERRUPT_COMPLETION` / `POLLING_COMPLETION` |
-| `CTRLR0_SPI_FRF_*` | `CTRLR0.SPI_FRF` 编码 |
-| `SR_*` | `SR` 状态位索引 |
-| `ISR_DONES` | 本地内置 DMA done 位索引；非 DMA PIO 不使用 |
-| `MEMH_MAX_BYTES_PER_LINE` | memh 解析单行最大字节数 |
-
-继承 `dw_spi_spec#(...)` 后，类内直接写 `MASTER`、`FLASH_SPI`、`ENHANCED` 等枚举名，不写 `settings::`。
 
 ## `settings.sv`
 

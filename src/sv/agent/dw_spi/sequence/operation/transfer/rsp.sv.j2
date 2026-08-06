@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "transfer_rsp") | upper }}
 `define {{ (class_prefix ~ "transfer_rsp") | upper }}
 
-class {{ class_prefix }}transfer_rsp extends {{ class_prefix }}spec#(uvm_sequence_item);
+class {{ class_prefix }}transfer_rsp extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}transfer_rsp)
         `uvm_field_int(ok, UVM_ALL_ON)
         `uvm_field_queue_int(read_data, UVM_ALL_ON | UVM_HEX)

@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "flash_command_adapter") | upper }}
 `define {{ (class_prefix ~ "flash_command_adapter") | upper }}
 
-class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}spec#(uvm_object);
+class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_object;
     `uvm_object_utils({{ class_prefix }}flash_command_adapter)
 
     function new(string name="{{ class_prefix }}flash_command_adapter");

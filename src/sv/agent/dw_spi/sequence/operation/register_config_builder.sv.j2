@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "register_config_builder") | upper }}
 `define {{ (class_prefix ~ "register_config_builder") | upper }}
 
-class {{ class_prefix }}register_config_builder extends {{ class_prefix }}spec#(uvm_object);
+class {{ class_prefix }}register_config_builder extends {{ class_prefix }}base_object;
     `uvm_object_utils({{ class_prefix }}register_config_builder)
 
     {{ class_prefix }}settings settings;

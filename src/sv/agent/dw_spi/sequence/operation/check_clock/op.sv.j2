@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "check_clock_seq") | upper }}
 `define {{ (class_prefix ~ "check_clock_seq") | upper }}
 
-class {{ class_prefix }}check_clock_seq extends uvm_sequence #(
+class {{ class_prefix }}check_clock_seq extends {{ class_prefix }}base_seq #(
     {{ class_prefix }}check_clock_req,
     {{ class_prefix }}check_clock_rsp
 );

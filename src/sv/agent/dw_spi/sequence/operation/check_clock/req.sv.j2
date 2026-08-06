@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "check_clock_req") | upper }}
 `define {{ (class_prefix ~ "check_clock_req") | upper }}
 
-class {{ class_prefix }}check_clock_req extends {{ class_prefix }}spec#(uvm_sequence_item);
+class {{ class_prefix }}check_clock_req extends {{ class_prefix }}base_item;
     `uvm_object_utils_begin({{ class_prefix }}check_clock_req)
         `uvm_field_int(check_hclk, UVM_ALL_ON)
         `uvm_field_int(check_ssi_clk, UVM_ALL_ON)

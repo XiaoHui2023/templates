@@ -1,7 +1,7 @@
 `ifndef {{ (class_prefix ~ "settings") | upper }}
 `define {{ (class_prefix ~ "settings") | upper }}
 
-class {{ class_prefix }}settings extends {{ class_prefix }}spec#(uvm_object);
+class {{ class_prefix }}settings extends {{ class_prefix }}base_object;
     `uvm_object_utils_begin({{ class_prefix }}settings)
         `uvm_field_enum(ssi_variant_e, ssi_variant, UVM_ALL_ON)
         `uvm_field_enum(cs_control_mode_e, default_cs_control_mode, UVM_ALL_ON)
