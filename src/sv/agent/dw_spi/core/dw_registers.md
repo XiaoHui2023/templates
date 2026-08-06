@@ -76,7 +76,7 @@ CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 
 `WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。Flash write/program 不使用 dummy clock，也不把 dummy 写成 `DR` byte stream。
 
-当前内置 read opcode 的 wait/dummy SCLK 数为：`READ1X 03h=8`、`FASTREAD1X 0Bh=16`、`READ2X BBh=12`、`READ4X EBh=10`。后三者在 enhanced `RX_ONLY` 路径写入 `WAIT_CYCLES`。
+当前内置 read opcode 的 wait/dummy SCLK 数为：`READ1X 03h=0`、`FASTREAD1X 0Bh=8`、`READ2X BBh=4`、`READ4X EBh=6`。后三者在 enhanced `RX_ONLY` 路径写入 `WAIT_CYCLES`。
 
 ## SSIENR / SER / BAUDR
 

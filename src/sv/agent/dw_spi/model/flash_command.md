@@ -71,9 +71,9 @@
 
 | Command | Opcode | Dummy SCLK cycles | Controller path |
 | --- | ---: | ---: | --- |
-| `READ1X` | `0x03` | 8 | standard DR stream inserts one dummy byte |
-| `FASTREAD1X` | `0x0B` | 16 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
-| `READ2X` | `0xBB` | 12 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
-| `READ4X` | `0xEB` | 10 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
+| `READ1X` | `0x03` | 0 | standard DR stream inserts no dummy byte |
+| `FASTREAD1X` | `0x0B` | 8 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
+| `READ2X` | `0xBB` | 4 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
+| `READ4X` | `0xEB` | 6 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
 
 这些值属于 opcode command packet，不属于 `transfer_configuration` 的全局默认值。
