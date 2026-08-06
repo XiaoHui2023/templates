@@ -10,7 +10,7 @@ function automatic bit {{ settings.class_prefix }}inno_fbdiv_legal(int fbdiv);
     return 1;
 endfunction
 
-class {{ settings.class_prefix }}pll_cfg;
+class {{ settings.class_prefix }}pll_cfg extends {{ settings.class_prefix }}base_object;
     localparam int SC_FBDIV_HW_MIN = 1;
     localparam int SC_FBDIV_HW_MAX = 4095;
     localparam int SC_FBDIV_PREF_MIN = {{ settings.pll_sc_fbdiv_min }};
@@ -20,6 +20,7 @@ class {{ settings.class_prefix }}pll_cfg;
     {{ settings.class_prefix }}reg_rw rw;
 
     function new({{ settings.class_prefix }}reg_rw reg_rw);
+        super.new("{{ settings.class_prefix }}pll_cfg");
         if (reg_rw == null)
             `uvm_fatal("CLK_TREE", "pll_cfg: reg_rw is null")
         rw = reg_rw;

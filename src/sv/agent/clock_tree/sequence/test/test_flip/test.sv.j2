@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "test_flip_seq") | upper }}
 `define {{ (settings.class_prefix ~ "test_flip_seq") | upper }}
 
-class {{ settings.class_prefix }}test_flip_seq extends uvm_sequence #(
+class {{ settings.class_prefix }}test_flip_seq extends {{ settings.class_prefix }}base_seq #(
     {{ settings.class_prefix }}test_flip_req,
     {{ settings.class_prefix }}test_flip_rsp
 );

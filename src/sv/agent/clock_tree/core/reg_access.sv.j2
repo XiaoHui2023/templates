@@ -19,7 +19,11 @@ function automatic int {{ settings.class_prefix }}reg_bound_max(
     return (1 << w) - 1;
 endfunction
 
-class {{ settings.class_prefix }}reg_rw;
+class {{ settings.class_prefix }}reg_rw extends {{ settings.class_prefix }}base_object;
+    function new();
+        super.new("{{ settings.class_prefix }}reg_rw");
+    endfunction
+
     // 取 field 所属 uvm_reg
     extern function uvm_reg parent_reg({{ settings.class_prefix }}reg rb);
     // 按 offset/width 读出 field 切片

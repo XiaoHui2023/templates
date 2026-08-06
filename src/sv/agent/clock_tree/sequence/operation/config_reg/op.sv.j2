@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "config_reg_seq") | upper }}
 `define {{ (settings.class_prefix ~ "config_reg_seq") | upper }}
 
-class {{ settings.class_prefix }}config_reg_seq extends uvm_sequence #(
+class {{ settings.class_prefix }}config_reg_seq extends {{ settings.class_prefix }}base_seq #(
     {{ settings.class_prefix }}config_reg_req,
     {{ settings.class_prefix }}config_reg_rsp
 );

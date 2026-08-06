@@ -1,10 +1,11 @@
 `ifndef {{ (settings.class_prefix ~ "node_cfg") | upper }}
 `define {{ (settings.class_prefix ~ "node_cfg") | upper }}
 
-class {{ settings.class_prefix }}node_cfg;
+class {{ settings.class_prefix }}node_cfg extends {{ settings.class_prefix }}base_object;
     {{ settings.class_prefix }}reg_rw rw;
 
     function new({{ settings.class_prefix }}reg_rw reg_rw);
+        super.new("{{ settings.class_prefix }}node_cfg");
         if (reg_rw == null)
             `uvm_fatal("CLK_TREE", "node_cfg: reg_rw is null")
         rw = reg_rw;

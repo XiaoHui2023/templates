@@ -1,13 +1,14 @@
 `ifndef {{ (settings.class_prefix ~ "reg") | upper }}
 `define {{ (settings.class_prefix ~ "reg") | upper }}
 
-class {{ settings.class_prefix }}reg;
+class {{ settings.class_prefix }}reg extends {{ settings.class_prefix }}base_object;
     uvm_reg_field field;
     int unsigned offset;
     int unsigned width;
     bit has_read;
 
     function new();
+        super.new("{{ settings.class_prefix }}reg");
         offset = 0;
         width = 0;
         has_read = 1'b0;

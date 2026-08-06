@@ -1,13 +1,14 @@
 `ifndef {{ (settings.class_prefix ~ "core_tools") | upper }}
 `define {{ (settings.class_prefix ~ "core_tools") | upper }}
 
-class {{ settings.class_prefix }}core_tools;
+class {{ settings.class_prefix }}core_tools extends {{ settings.class_prefix }}base_object;
     {{ settings.class_prefix }}reg_rw rw;
     {{ settings.class_prefix }}node_cfg node;
     {{ settings.class_prefix }}pll_cfg pll;
 
     // 构造 reg_rw、node_cfg、pll_cfg
     function new();
+        super.new("{{ settings.class_prefix }}core_tools");
         rw = new;
         node = new(rw);
         pll = new(rw);

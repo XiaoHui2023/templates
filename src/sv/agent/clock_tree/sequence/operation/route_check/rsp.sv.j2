@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "route_check_rsp") | upper }}
 `define {{ (settings.class_prefix ~ "route_check_rsp") | upper }}
 
-class {{ settings.class_prefix }}route_check_rsp extends uvm_sequence_item;
+class {{ settings.class_prefix }}route_check_rsp extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}route_check_rsp)
         `uvm_field_int(ok, UVM_ALL_ON)
         `uvm_field_int(failed, UVM_ALL_ON)

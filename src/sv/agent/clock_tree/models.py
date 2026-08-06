@@ -34,6 +34,32 @@ from schema_error import ERR
 
 _MAX_FREQ_HZ = 5_000_000_000
 
+_SV_FAMILY_DECLARATIONS = "\n".join((
+    "typedef enum {",
+    "    PLL_TCI,",
+    "    PLL_SC,",
+    "    PLL_DW,",
+    "    PLL_INNO",
+    "} pll_kind_e;",
+    "",
+    "typedef enum {",
+    "    DIV,",
+    "    DTO,",
+    "    DIV_R",
+    "} div_kind_e;",
+    "",
+    "typedef enum {",
+    "    INV,",
+    "    INV_MUX,",
+    "    INV_CELL",
+    "} inv_kind_e;",
+    "",
+    "typedef enum {",
+    "    SOURCE,",
+    "    PAD",
+    "} source_kind_e;",
+))
+
 
 def _format_freq_hz(freq_hz: int) -> str:
     for scale, unit in (
@@ -255,6 +281,11 @@ class Models(BaseModel):
         if key not in self._cache:
             self._cache[key] = factory()
         return self._cache[key]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def sv_family_declarations(self) -> str:
+        return _SV_FAMILY_DECLARATIONS
 
     @field_validator("nodes", mode="before")
     @classmethod

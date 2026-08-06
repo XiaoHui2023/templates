@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "config_reg_core") | upper }}
 `define {{ (settings.class_prefix ~ "config_reg_core") | upper }}
 
-class {{ settings.class_prefix }}config_reg_core;
+class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefix }}base_object;
     {{ settings.class_prefix }}core_tools tools;
     protected bit quiet;
 
@@ -9,6 +9,7 @@ class {{ settings.class_prefix }}config_reg_core;
     function new(
             {{ settings.class_prefix }}core_tools core_tools_h,
             bit quiet = 1'b0);
+        super.new("{{ settings.class_prefix }}config_reg_core");
         if (core_tools_h == null)
             `uvm_fatal("CLK_TREE", "config_reg_core: tools is null")
         tools = core_tools_h;

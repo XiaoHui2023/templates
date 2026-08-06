@@ -1,11 +1,11 @@
 # base_seq
 
-为派生 sequence 提供统一类型和 clock_tree sequencer 声明，不执行具体操作。
+为派生 sequence 提供统一的参数化 REQ/RSP 基类和公共类型，不执行具体操作。
 
 ## 流程
 
-1. 构造 sequence 对象。
-2. 由派生 sequence 实现请求处理和执行流程。
+1. 派生 sequence 指定 REQ/RSP 类型。
+2. 派生 sequence 声明 sequencer 并实现执行流程。
 
 ## 设计
 

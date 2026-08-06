@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "check_measure_seq") | upper }}
 `define {{ (settings.class_prefix ~ "check_measure_seq") | upper }}
 
-class {{ settings.class_prefix }}check_measure_seq extends uvm_sequence #(
+class {{ settings.class_prefix }}check_measure_seq extends {{ settings.class_prefix }}base_seq #(
     {{ settings.class_prefix }}check_measure_req,
     {{ settings.class_prefix }}check_measure_rsp
 );

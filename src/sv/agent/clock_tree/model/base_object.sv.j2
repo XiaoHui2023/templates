@@ -1,0 +1,14 @@
+`ifndef {{ (settings.class_prefix ~ "base_object") | upper }}
+`define {{ (settings.class_prefix ~ "base_object") | upper }}
+
+class {{ settings.class_prefix }}base_object extends uvm_object;
+    `uvm_object_utils({{ settings.class_prefix }}base_object)
+
+{{ sv_family_declarations | indent(4, true) }}
+
+    function new(string name = "{{ settings.class_prefix }}base_object");
+        super.new(name);
+    endfunction
+endclass
+
+`endif

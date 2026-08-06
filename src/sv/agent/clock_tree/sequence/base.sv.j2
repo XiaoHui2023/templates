@@ -1,11 +1,15 @@
 `ifndef {{ (settings.class_prefix ~ "base_seq") | upper }}
 `define {{ (settings.class_prefix ~ "base_seq") | upper }}
 
-class {{ settings.class_prefix }}base_seq extends {{ settings.class_prefix }}spec#(uvm_sequence);
-    `uvm_object_utils({{ settings.class_prefix }}base_seq)
-    `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
+class {{ settings.class_prefix }}base_seq #(
+    type REQ = uvm_sequence_item,
+    type RSP = REQ
+) extends uvm_sequence #(REQ, RSP);
+    `uvm_object_param_utils({{ settings.class_prefix }}base_seq#(REQ, RSP))
 
-    function new(string name="{{ settings.class_prefix }}base_seq");
+{{ sv_family_declarations | indent(4, true) }}
+
+    function new(string name = "{{ settings.class_prefix }}base_seq");
         super.new(name);
     endfunction
 endclass

@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "check_measure_req") | upper }}
 `define {{ (settings.class_prefix ~ "check_measure_req") | upper }}
 
-class {{ settings.class_prefix }}check_measure_req extends uvm_sequence_item;
+class {{ settings.class_prefix }}check_measure_req extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}check_measure_req)
         `uvm_field_object(tree, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(quiet, UVM_ALL_ON)
