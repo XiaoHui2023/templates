@@ -1,5 +1,9 @@
 # DMA Buffer Access
 
+## Data Integrity
+
+DMA completion alone does not prove data integrity. The DMA test reuses `rw_test`: program data is recorded as expected only after successful completion, then a DMA read obtains actual bytes from the destination buffer and scoreboard checks both the requested length and every byte. An empty callback result with `ok=1` is therefore still an error.
+
 `core/dma_engine.sv` 不进入 generated `all.f`。内置 DMA 数据搬运通过 sequencer callback 注入 CPU 32-bit 读写，由外部 CPU/AXI 模型在 `axi_addr` 指定的系统内存 buffer 上完成。
 
 sequence 层先把 operation 请求里的 DMA 意图转换成 register `configuration`，再由 `core/register_access.sv` 写入 `DMACR`、`DMATDLR`、`DMARDLR`、`AXIAWLEN`、`AXIARLEN`、`SPIDR`、`SPIAR`、`AXIAR0`。

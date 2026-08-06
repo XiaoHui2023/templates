@@ -109,6 +109,7 @@ task {{ class_prefix }}speed_test_seq::body();
     run_mode("standard_1x", STANDARD, 1, 1, 0, mode_ok);
     if (!mode_ok) begin
         ok = 1'b0;
+        `uvm_error("DW_SPI_TEST", "speed_test standard_1x failed")
         `uvm_info("DW_SPI_TEST", "speed_test stopped after standard_1x failure", UVM_LOW)
         return;
     end
@@ -117,18 +118,21 @@ task {{ class_prefix }}speed_test_seq::body();
     run_mode("enhanced_1x", ENHANCED, 1, 1, 1, mode_ok);
     if (!mode_ok) begin
         ok = 1'b0;
+        `uvm_error("DW_SPI_TEST", "speed_test enhanced_1x failed")
         `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_1x failure", UVM_LOW)
         return;
     end
     run_mode("enhanced_2x", ENHANCED, 2, 2, 2, mode_ok);
     if (!mode_ok) begin
         ok = 1'b0;
+        `uvm_error("DW_SPI_TEST", "speed_test enhanced_2x failed")
         `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_2x failure", UVM_LOW)
         return;
     end
     run_mode("enhanced_4x", ENHANCED, 4, 4, 3, mode_ok);
     if (!mode_ok) begin
         ok = 1'b0;
+        `uvm_error("DW_SPI_TEST", "speed_test enhanced_4x failed")
         `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_4x failure", UVM_LOW)
         return;
     end

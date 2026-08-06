@@ -90,7 +90,7 @@ task {{ class_prefix }}kit_sequencer::init_registers({{ class_prefix }}transfer_
     seq.start(this);
     seq_rsp = seq.rsp;
     if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("DW_SPI", "init_registers failed")
+        `uvm_error("DW_SPI", "init_registers failed")
 endtask
 
 task {{ class_prefix }}kit_sequencer::flash_write(
@@ -132,7 +132,7 @@ task {{ class_prefix }}kit_sequencer::flash_write(
         `uvm_fatal("DW_SPI", "failed to randomize flash_write configuration")
     seq.start(this);
     if (!seq.ok)
-        `uvm_fatal("DW_SPI", "flash_write failed")
+        `uvm_error("DW_SPI", "flash_write failed")
 endtask
 
 task {{ class_prefix }}kit_sequencer::flash_read(
@@ -174,7 +174,7 @@ task {{ class_prefix }}kit_sequencer::flash_read(
         `uvm_fatal("DW_SPI", "failed to randomize flash_read configuration")
     seq.start(this);
     if (!seq.ok)
-        `uvm_fatal("DW_SPI", "flash_read failed")
+        `uvm_error("DW_SPI", "flash_read failed")
 endtask
 
 task {{ class_prefix }}kit_sequencer::check_clocks();
@@ -191,7 +191,7 @@ task {{ class_prefix }}kit_sequencer::check_clocks();
     seq.start(this);
     seq_rsp = seq.rsp;
     if (seq_rsp == null || !seq_rsp.ok)
-        `uvm_fatal("DW_SPI", "check_clocks failed")
+        `uvm_error("DW_SPI", "check_clocks failed")
 endtask
 
 task {{ class_prefix }}kit_sequencer::rw_test(
@@ -233,7 +233,7 @@ task {{ class_prefix }}kit_sequencer::rw_test(
         `uvm_fatal("DW_SPI", "failed to randomize rw_test configuration")
     seq.start(this);
     if (!seq.ok)
-        `uvm_fatal("DW_SPI", "rw_test failed")
+        `uvm_error("DW_SPI", "rw_test failed")
 endtask
 
 task {{ class_prefix }}kit_sequencer::speed_test(
@@ -254,7 +254,7 @@ task {{ class_prefix }}kit_sequencer::speed_test(
     seq.addr_bytes = addr_bytes;
     seq.start(this);
     if (!seq.ok)
-        `uvm_fatal("DW_SPI", "speed_test failed")
+        `uvm_error("DW_SPI", "speed_test failed")
 endtask
 
 {%- if internal_dma or external_dma %}
@@ -295,7 +295,7 @@ task {{ class_prefix }}kit_sequencer::dma_test(
         `uvm_fatal("DW_SPI", "failed to randomize dma_test configuration")
     seq.start(this);
     if (!seq.ok)
-        `uvm_fatal("DW_SPI", "dma_test failed")
+        `uvm_error("DW_SPI", "dma_test failed")
 endtask
 {%- endif %}
 

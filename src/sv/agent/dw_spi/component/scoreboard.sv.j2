@@ -26,7 +26,11 @@ class {{ class_prefix }}scoreboard extends uvm_component;
     // Records an expected write in the memory mirror.
     extern function bit record_expected_write(bit [63:0] addr, bit [7:0] data[$], string label = "expected_write");
     // Compares DUT read data against the memory mirror.
-    extern function bit check_actual_read(bit [63:0] addr, bit [7:0] actual[$], string label = "actual_read");
+    extern function bit check_actual_read(
+        bit [63:0] addr,
+        bit [7:0] actual[$],
+        string label = "actual_read",
+        int expected_length = -1);
     // Compares an observed write against the memory mirror.
     extern function bit check_actual_write(bit [63:0] addr, bit [7:0] actual[$], string label = "actual_write");
     // Compares one byte queue against the selected mirror address.
@@ -106,10 +110,17 @@ endfunction
 function bit {{ class_prefix }}scoreboard::check_actual_read(
         bit [63:0] addr,
         bit [7:0] actual[$],
-        string label);
+        string label,
+        int expected_length);
     `uvm_info("DW_SPI_SB", $sformatf(
-        "check actual read: label=%s addr=0x%016h len=%0d",
-        label, addr, actual.size()), UVM_LOW)
+        "check actual read: label=%s addr=0x%016h actual_len=%0d expected_len=%0d",
+        label, addr, actual.size(), expected_length), UVM_LOW)
+    if (expected_length >= 0 && actual.size() != expected_length) begin
+        `uvm_error("DW_SPI_SB", $sformatf(
+            "actual read length mismatch: label=%s addr=0x%016h expected_len=%0d actual_len=%0d",
+            label, addr, expected_length, actual.size()))
+        return 1'b0;
+    end
     return mem.compare_bytes(addr, actual, label);
 endfunction
 

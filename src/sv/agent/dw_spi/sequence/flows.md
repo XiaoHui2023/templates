@@ -1,5 +1,12 @@
 # Sequence Flows
 
+## Failure Contract
+
+- FIFO/status/interrupt waits have bounded timeouts. Timeout errors identify the exact `SR` condition or interrupt source that did not arrive.
+- Any operation, flow, or test that finishes with `ok == 0` emits `uvm_error` with its transfer or phase context. Structural failures such as null mandatory handles, invalid configuration, and failed randomization remain `uvm_fatal`.
+- Flash reads validate the returned byte count before comparing bytes. Zero-byte or short DMA/DR readback cannot pass an empty comparison.
+- `rw_test` and `dma_test` verify moved write data by reading it back from the DUT path and comparing it with the scoreboard mirror. The source payload is expected data, not actual observed data.
+
 `sequence` 目录承载执行流程。`operation` 是具体动作，`flow` 组合多个 operation，`test` 组合可复用场景。sequencer 只保存句柄和 callback wrapper；kit_sequencer 只提供快捷启动入口。
 
 ## Clock Check
@@ -84,7 +91,7 @@
 2. `write_data` 为空时随机生成一段数据，长度来自 Python `default_rw_data_bytes`，默认 256 byte。
 3. 启动 `flash_write`。
 4. 启动同地址同长度的 `flash_read`。
-5. 调用 `scoreboard.check_actual_read(address, read_data, "rw_readback_actual")`。比较对象是真实读传输从 `DR` 或 DMA buffer 读回的 actual data。
+5. 调用 `scoreboard.check_actual_read(address, read_data, "rw_readback_actual", write_data.size())`。先检查返回长度，再比较真实读传输从 `DR` 或 DMA buffer 读回的 actual data。
 
 ## DMA Transfer
 

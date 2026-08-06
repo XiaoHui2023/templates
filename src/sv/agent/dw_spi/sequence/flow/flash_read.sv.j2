@@ -107,12 +107,21 @@ task {{ class_prefix }}flash_read_seq::body();
     op_rsp = op_seq.rsp;
     ok = op_rsp != null && op_rsp.ok;
     data.delete();
-    if (op_rsp != null)
+    if (op_rsp == null)
+        `uvm_error("DW_SPI_FLASH", $sformatf(
+            "flash_read received no transfer response: address=0x%08h requested=%0d opcode=0x%02h",
+            address, length, op_req.opcode))
+    else
         data = op_rsp.read_data;
     if (ok) begin
         `uvm_info("DW_SPI_FLASH", "checking flash read actual data against scoreboard", UVM_HIGH)
-        ok = p_sequencer.scoreboard.check_actual_read(address, data, "flash_read_actual");
+        ok = p_sequencer.scoreboard.check_actual_read(
+            address, data, "flash_read_actual", length);
     end
+    if (!ok)
+        `uvm_error("DW_SPI_FLASH", $sformatf(
+            "flash_read failed: address=0x%08h requested=%0d received=%0d opcode=0x%02h",
+            address, length, data.size(), op_req.opcode))
     `uvm_info("DW_SPI_FLASH", $sformatf(
         "flash_read done: ok=%0b address=0x%08h requested=%0d received=%0d opcode=0x%02h",
         ok, address, length, data.size(), op_req.opcode), UVM_HIGH)

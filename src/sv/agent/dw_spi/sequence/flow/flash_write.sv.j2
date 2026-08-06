@@ -228,6 +228,10 @@ task {{ class_prefix }}flash_write_seq::body();
         if (chunk_ok)
             bytes_written = data.size();
     end
+    if (!ok)
+        `uvm_error("DW_SPI_FLASH", $sformatf(
+            "flash_write failed: address=0x%08h requested=%0d bytes_written=%0d speed=%0dx",
+            address, data.size(), bytes_written, configuration.speed_multiplier))
     `uvm_info("DW_SPI_FLASH", $sformatf(
         "flash_write done: ok=%0b address=0x%08h bytes_written=%0d",
         ok, address, bytes_written), UVM_HIGH)

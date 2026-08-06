@@ -59,6 +59,10 @@ task {{ class_prefix }}dma_test_seq::body();
     rw_seq.configuration = configuration;
     rw_seq.start(p_sequencer);
     ok = rw_seq.ok;
+    if (!ok)
+        `uvm_error("DW_SPI_DMA_TEST", $sformatf(
+            "dma_test data movement/readback comparison failed: dma={{ 'internal' if internal_dma else 'external' }} address=0x%08h bytes=%0d",
+            address, write_data.size()))
     `uvm_info("DW_SPI_DMA_TEST", $sformatf(
         "dma_test done: ok=%0b dma={{ 'internal' if internal_dma else 'external' }} address=0x%08h bytes=%0d",
         ok, address, write_data.size()), UVM_LOW)

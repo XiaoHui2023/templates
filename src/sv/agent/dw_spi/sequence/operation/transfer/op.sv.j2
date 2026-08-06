@@ -136,6 +136,9 @@ task {{ class_prefix }}transfer_seq::body();
         cpu_write_payload_to_axi(rq.axi_addr, rq.payload, dma_ok);
         if (!dma_ok) begin
             rs.ok = 1'b0;
+            `uvm_error("DW_SPI_XFER", $sformatf(
+                "internal DMA source preparation failed: opcode=0x%02h axi_addr=0x%08h bytes=%0d",
+                rq.opcode, rq.axi_addr, rq.payload.get_data_length()))
             `uvm_info("DW_SPI_XFER", "internal DMA source buffer preparation failed", UVM_HIGH)
             rsp = rs;
             return;
@@ -360,6 +363,12 @@ task {{ class_prefix }}transfer_seq::body();
         rs.ok = p_sequencer.scoreboard.record_expected_write(
             rq.payload.get_address(), write_data, write_reason);
     end
+    if (!rs.ok)
+        `uvm_error("DW_SPI_XFER", $sformatf(
+            "transfer failed: protocol=%s mode=%s opcode=0x%02h address=0x%0h length=%0d read_bytes=%0d",
+            rq.protocol.name(), rq.transfer_mode.name(), rq.opcode,
+            rq.payload.get_address(), rq.payload.get_data_length(),
+            rs.read_data.size()))
     `uvm_info("DW_SPI_XFER", $sformatf(
         "transfer done: ok=%0b protocol=%s mode=%s cs_mode=%s address=0x%0h length=%0d read_bytes=%0d",
         rs.ok,
