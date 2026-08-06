@@ -56,9 +56,10 @@
 2. 根据本次 configuration 创建一个 `model/flash_command` 指令包：1x standard 为 `read1x_flash_command`，1x enhanced 为 `fast_read1x_flash_command`，2x 为 `read2x_flash_command`，4x 为 `read4x_flash_command`。
 3. 用 configuration 约束该指令包的 `addr_bytes`、`data_frame_bits`；dummy cycle 由 opcode 指令包决定。
 4. 调用 `flash_command_adapter.create_transfer_req()` 生成通用 `transfer_req`，payload command 为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读取长度。
-5. 指令包负责 opcode、`RX_ONLY`、address phase 线宽和 data phase 线宽。`READ1X/FASTREAD1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
-6. 同一个 primitive transfer 内完成 opcode + address + dummy + read data，CS 不能在中间断开。
-7. flow sequence 保存 transfer rsp 的 `read_data`，并调用 scoreboard 比较 actual read data。
+5. 指令包负责 opcode、`EEPROM_READ`、address phase 线宽和 data phase 线宽。`READ1X/FASTREAD1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
+6. Standard read 从 `DR` 连续发送 opcode + address，然后控制器按 `CTRLR1.NDF` 自动切换到 RX。Enhanced read 由 `SPI_CTRLR0` 控制 instruction + address + dummy/wait phase，然后按 NDF 自动切换到 RX。
+7. 同一个 primitive transfer 内完成 opcode + address + dummy + read data，CS 不能在中间断开。
+8. flow sequence 保存 transfer rsp 的 `read_data`，并调用 scoreboard 比较 actual read data。
 
 地址是 32 bit flash/model 地址，不是寄存器地址。
 
@@ -68,7 +69,7 @@
 2. WREN/WRSR/program 都先创建 `model/flash_command` 指令包，再由 `flash_command_adapter` 转成通用 `transfer_req`。
 3. 1x/2x program：先启动 `write_enable_flash_command`，opcode `8'h06`，`TX_ONLY`，不使用 DMA。payload 长度为 0，但 PIO DR stream 仍包含 1 byte opcode。该命令独立占用一个 CS window。
 4. 4x QPP：先 `WREN 0x06`，再 `WRSR 0x01 + 0x00 + 0x02` 写 16-bit status 值 `0x0200` 以设置 `status[9] / SREG_QE`，然后再次 `WREN 0x06`。WRSR 会清除 WEL，因此 QPP 前必须重新置位 WEL。
-5. write-enable 成功后启动 program transfer：1x 用 `page_program_flash_command`，2x 用 `dual_page_program_flash_command`，4x 用 `quad_page_program_flash_command`。PP、DPP、QPP 的 opcode + address 都为单线；QPP `0x32` 只有 payload 为 4 线，因此配置 `SPI_CTRLR0.TRANS_TYPE=0`、`CTRLR0.SPI_FRF=2`。8-bit opcode 占 8 SCLK，默认 3-byte address 占 24 SCLK。opcode + address + payload 必须在同一个 CS window 内连续发送，写流程不插入 dummy clock。`TX_AND_RX` / `RX_ONLY` 是 enhanced read/EEPROM-read 类接收流程使用的模式，不能用于 page program。
+5. write-enable 成功后启动 program transfer：1x 用 `page_program_flash_command`，2x 用 `dual_page_program_flash_command`，4x 用 `quad_page_program_flash_command`。PP、DPP、QPP 的 opcode + address 都为单线；QPP `0x32` 只有 payload 为 4 线，因此配置 `SPI_CTRLR0.TRANS_TYPE=0`、`CTRLR0.SPI_FRF=2`。8-bit opcode 占 8 SCLK，默认 3-byte address 占 24 SCLK。opcode + address + payload 必须在同一个 CS window 内连续发送，写流程不插入 dummy clock。`EEPROM_READ` 等接收流程使用的模式不能用于 page program。
 6. payload command 为 `UVM_TLM_WRITE_COMMAND`，address 为 flash 地址，data 为非空写入 byte 队列。`flash_write` 不接受 0 byte program；只有 `rw_test` 的空 `write_data` 表示随机生成默认长度数据。
 7. 非 DMA PIO 不因为数据超过 FIFO 就拆成多个 program。它先预填 FIFO，然后在同一个 program CS window 内按 `SR.TFNF` 继续补数据；`CTRLR1.NDF` 按完整 payload 的 data frame 数配置，不包含 opcode/address 两个 enhanced control entries。如果完整 payload 使 NDF 超过寄存器上限，则报错，不在该层偷偷拆交易。
 8. program transfer 完成并释放 CS 后，operation sequence 记录 expected write 到 scoreboard。

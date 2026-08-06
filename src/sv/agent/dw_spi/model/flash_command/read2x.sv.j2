@@ -12,7 +12,7 @@ class {{ class_prefix }}read2x_flash_command extends {{ class_prefix }}flash_com
     constraint cst_read2x {
         opcode == 8'hBB;
         frame_mode == ENHANCED;
-        transfer_mode == RX_ONLY;
+        transfer_mode == EEPROM_READ;
         io_lanes == 2;
         address_lanes == 2;
         speed_multiplier == 2;

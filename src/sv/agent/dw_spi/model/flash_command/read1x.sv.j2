@@ -12,7 +12,7 @@ class {{ class_prefix }}read1x_flash_command extends {{ class_prefix }}flash_com
     constraint cst_read1x {
         opcode == 8'h03;
         frame_mode == STANDARD;
-        transfer_mode == RX_ONLY;
+        transfer_mode == EEPROM_READ;
         io_lanes == 1;
         address_lanes == 1;
         speed_multiplier == 1;

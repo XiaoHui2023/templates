@@ -19,7 +19,7 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}base_seq #(
     extern protected function string byte_queue_preview(
         bit [7:0] data[$],
         int max_bytes);
-    // Builds the command, address, dummy, and write-data DR stream.
+    // Builds DR control/write-data items; enhanced dummy cycles stay in SPI_CTRLR0.
     extern protected function void build_pio_dr_write_items(
         input {{ class_prefix }}transfer_req rq,
         input bit include_payload,
@@ -166,7 +166,7 @@ task {{ class_prefix }}transfer_seq::body();
             build_pio_dr_write_items(
                 rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_items);
             `uvm_info("DW_SPI_XFER", $sformatf(
-                "PIO path: writing command/address/optional_dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_items=%0d",
+                "PIO path: writing control/write-data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d configured_dummy_cycles=%0d dr_items=%0d",
                 rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
                 rq.dummy_cycles, pio_dr_items.size()), UVM_HIGH)
             write_pio_stream_under_cs(
@@ -184,7 +184,7 @@ task {{ class_prefix }}transfer_seq::body();
             build_pio_dr_write_items(
                 rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_items);
             `uvm_info("DW_SPI_XFER", $sformatf(
-                "PIO path: writing command/address/optional_dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_items=%0d",
+                "PIO path: writing control/write-data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d configured_dummy_cycles=%0d dr_items=%0d",
                 rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
                 rq.dummy_cycles, pio_dr_items.size()), UVM_HIGH)
             write_pio_stream_under_cs(
@@ -197,7 +197,7 @@ task {{ class_prefix }}transfer_seq::body();
         build_pio_dr_write_items(
             rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_items);
         `uvm_info("DW_SPI_XFER", $sformatf(
-            "PIO path: writing command/address/optional_dummy/data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d dummy_cycles=%0d dr_items=%0d",
+            "PIO path: writing control/write-data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d configured_dummy_cycles=%0d dr_items=%0d",
             rq.opcode, rq.payload.get_address(), rq.payload.get_data_length(),
             rq.dummy_cycles, pio_dr_items.size()), UVM_HIGH)
         write_pio_stream_under_cs(

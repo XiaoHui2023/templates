@@ -19,7 +19,7 @@
 | --- | --- |
 | `opcode` | SPI flash 指令码 |
 | `frame_mode` | `STANDARD` 或 `ENHANCED` |
-| `transfer_mode` | 控制器 `TMOD`，例如 program 使用 `TX_ONLY`，read 使用 `RX_ONLY` |
+| `transfer_mode` | 控制器 `TMOD`，例如 program 使用 `TX_ONLY`，read 使用 `EEPROM_READ` |
 | `io_lanes` | data phase 线宽 |
 | `instruction_lanes` | instruction phase 线宽 |
 | `address_lanes` | address phase 线宽，不能从 data 线宽一刀切推导 |
@@ -42,10 +42,10 @@
 | `page_program.sv` | `page_program_flash_command` | `0x02` | opcode/address 单线，payload 1 线，`TX_ONLY` |
 | `dual_page_program.sv` | `dual_page_program_flash_command` | `0xA2` | opcode/address 单线，payload 2 线，`TX_ONLY` |
 | `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | `1S-1S-4S`：opcode/address 单线、payload 四线，`TX_ONLY`，需要 QE |
-| `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，`RX_ONLY` |
-| `fast_read1x.sv` | `fast_read1x_flash_command` | `0x0B` | opcode/address 单线，payload 1 线，`RX_ONLY` |
-| `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，`RX_ONLY` |
-| `read4x.sv` | `read4x_flash_command` | `0xEB` | opcode 单线，address/data 4 线，`RX_ONLY` |
+| `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，`EEPROM_READ` |
+| `fast_read1x.sv` | `fast_read1x_flash_command` | `0x0B` | opcode/address 单线，payload 1 线，`EEPROM_READ` |
+| `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，`EEPROM_READ` |
+| `read4x.sv` | `read4x_flash_command` | `0xEB` | opcode 单线，address/data 4 线，`EEPROM_READ` |
 
 `DREAD 0x3B`、`QREAD 0x6B`、erase、RDSR/WIP polling、NAND page read/cache read/program load/program execute 等还没有进入当前可执行 flow。加入时应新增对应指令包，不把 opcode 和相位规则散写在 sequence 里。
 
@@ -71,9 +71,9 @@
 
 | Command | Opcode | Dummy SCLK cycles | Controller path |
 | --- | ---: | ---: | --- |
-| `READ1X` | `0x03` | 0 | standard DR stream inserts no dummy byte |
-| `FASTREAD1X` | `0x0B` | 8 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
-| `READ2X` | `0xBB` | 4 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
-| `READ4X` | `0xEB` | 6 | enhanced `SPI_CTRLR0.WAIT_CYCLES` |
+| `READ1X` | `0x03` | 0 | standard `EEPROM_READ` 从 `DR` 发送 opcode/address，随后自动进入 RX |
+| `FASTREAD1X` | `0x0B` | 8 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES` |
+| `READ2X` | `0xBB` | 4 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES` |
+| `READ4X` | `0xEB` | 6 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES` |
 
 这些值属于 opcode command packet，不属于 `transfer_configuration` 的全局默认值。

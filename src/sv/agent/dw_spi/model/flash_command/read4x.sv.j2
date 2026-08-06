@@ -12,7 +12,7 @@ class {{ class_prefix }}read4x_flash_command extends {{ class_prefix }}flash_com
     constraint cst_read4x {
         opcode == 8'hEB;
         frame_mode == ENHANCED;
-        transfer_mode == RX_ONLY;
+        transfer_mode == EEPROM_READ;
         io_lanes == 4;
         address_lanes == 4;
         speed_multiplier == 4;

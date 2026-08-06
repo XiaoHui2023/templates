@@ -31,7 +31,7 @@
 | `TMOD` | `3` | EEPROM read |
 | `DFS` | `data_frame_bits - 1` | 数据帧位宽 |
 
-Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/payload 都是 master 向 flash 发送，且写流程不使用 dummy clock。Enhanced read 使用 `TMOD=2 / RX_ONLY`，由 `SPI_CTRLR0` 的 instruction/address/dummy 字段描述接收前的发送阶段；不要把 page-program 配成 `TX_AND_RX`。
+Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/payload 都是 master 向 flash 发送，且写流程不使用 dummy clock。Flash read 使用 `TMOD=3 / EEPROM_READ`：standard 路径从 `DR` 发送 opcode 和 address；enhanced 路径把 opcode/address 值作为 control item 预填到 `DR`，由 `SPI_CTRLR0` 描述 instruction、address 和 wait phase。控制阶段结束后，控制器自动切换到 NDF 指定的 RX data phase。不要把 page-program 配成 `TX_AND_RX`。
 
 `SSTE` 只描述标准 SPI 帧间分割行为。`SCPH=0` 且 `SSTE=1` 时，每帧数据之间 `ss_*_n` 会拉高再拉低，`SCLK` 停在默认电平；`SSTE=0` 时 `ss_n` 全程保持有效，`SCLK` 连续运行。该行为本质上是 frame 间分割，不等同于完整 SPI memory operation 的 CS window。当前模板每次 transfer 显式写 `CTRLR0.SSTE = 0`，避免收发数据时帧间片选 toggle 破坏连续性。
 
@@ -76,7 +76,7 @@ CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 
 `WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。Flash write/program 不使用 dummy clock，也不把 dummy 写成 `DR` byte stream。
 
-当前内置 read opcode 的 wait/dummy SCLK 数为：`READ1X 03h=0`、`FASTREAD1X 0Bh=8`、`READ2X BBh=4`、`READ4X EBh=6`。后三者在 enhanced `RX_ONLY` 路径写入 `WAIT_CYCLES`。
+当前内置 read opcode 的 wait/dummy SCLK 数为：`READ1X 03h=0`、`FASTREAD1X 0Bh=8`、`READ2X BBh=4`、`READ4X EBh=6`。后三者在 enhanced `EEPROM_READ` 路径写入 `WAIT_CYCLES`。
 
 ## SSIENR / SER / BAUDR
 
