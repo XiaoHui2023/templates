@@ -38,6 +38,10 @@ class Models(BaseModel):
 
     class_prefix: str = Field("Emmc_ctrl_", description="默认类名的前缀")
     card_type: Literal["emmc", "sdcard", "sdio"] = Field(..., description="card类型")
+    controller_ip: Literal["mshc", "mobile_storage"] = Field(
+        "mshc",
+        description="DesignWare controller IP line.",
+    )
     class_regmodel: str = Field("ral_sys_DWC_mshc", description="寄存器类名")
     class_regmodel_rm: str = Field(
         "ral_block_DWC_mshc_map_DWC_mshc_block",
@@ -79,6 +83,20 @@ class Models(BaseModel):
     @property
     def is_sd(self) -> bool:
         return self.is_sdio or self.is_sdcard
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Derived from controller_ip.",
+    )
+    @property
+    def is_mshc(self) -> bool:
+        return self.controller_ip == "mshc"
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Derived from controller_ip.",
+    )
+    @property
+    def is_mobile_storage(self) -> bool:
+        return self.controller_ip == "mobile_storage"
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由 card_type 推导；配置不可传入。",
@@ -139,8 +157,24 @@ class Models(BaseModel):
             return "UHS_MODE_SEL_UHS2"
 
     def model_post_init(self, ctx):
+        self._set_regmodel_defaults()
         self._set_data_width()
         self._create_monitored_clocks()
+
+    def _set_regmodel_defaults(self):
+        if self.controller_ip != "mobile_storage":
+            return
+        if "enable_dma" in self.model_fields_set and not self.enable_dma:
+            raise ValueError("controller_ip mobile_storage requires enable_dma true")
+        self.enable_dma = True
+        if "class_regmodel" not in self.model_fields_set:
+            self.class_regmodel = "ral_sys_DWC_mobile_storage"
+        if "class_regmodel_rm" not in self.model_fields_set:
+            self.class_regmodel_rm = "ral_block_DWC_mobile_storage_map_DWC_mobile_storage_block"
+        if "class_regmodel_rm_vd1" not in self.model_fields_set:
+            self.class_regmodel_rm_vd1 = (
+                "ral_block_DWC_mobile_storage_map_DWC_mobile_storage_vendor1_block"
+            )
 
     def _set_data_width(self):
         """设置数据位宽"""
@@ -231,4 +265,3 @@ class Models(BaseModel):
                 }
             )
         return datas
-

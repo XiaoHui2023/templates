@@ -21,6 +21,9 @@ class {{ class_prefix }}wait_interrupt_operation_seq extends {{ class_prefix }}b
     extern task wait_interrupt_signal();
     // 清理中断状态
     extern task clear_interrupt_status(uvm_reg_field f_stat, uvm_reg_field f_stat_en, uvm_reg_field f_signal_en);
+{%- if is_mobile_storage %}
+    extern function bit [31:0] requested_interrupt_mask();
+{%- endif %}
 endclass
 
 function void {{ class_prefix }}wait_interrupt_operation_seq::pre_randomize();
@@ -41,6 +44,28 @@ task {{ class_prefix }}wait_interrupt_operation_seq::body();
 endtask
 
 task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
+{%- if is_mobile_storage %}
+    bit [31:0] mask;
+    bit [31:0] observed;
+
+    mask = requested_interrupt_mask();
+    if (!mask)
+        return;
+
+    rm.RAW_INTS_R.write(status, 'hffff_ffff);
+    rm.INTMSK_R.write(status, mask);
+
+    while (mask) begin
+        wait_interrupt_signal();
+        rm.MASKED_INTS_R.read(status, observed);
+        observed &= mask;
+        if (observed) begin
+            rm.RAW_INTS_R.write(status, observed);
+            mask &= ~observed;
+            rm.INTMSK_R.write(status, mask);
+        end
+    end
+{%- else %}
     rm.NORMAL_INT_STAT_EN_R.set('hffff_ffff);
     rm.NORMAL_INT_STAT_EN_R.update(status);
     rm.NORMAL_INT_STAT_EN_R.write(status, rm.NORMAL_INT_STAT_EN_R.get());
@@ -100,6 +125,7 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
         clear_interrupt_status(rm.NORMAL_INT_STAT_R.CQE_EVENT, rm.NORMAL_INT_STAT_EN_R.CQE_EVENT_STAT_EN,
             rm.NORMAL_INT_SIGNAL_EN_R.CQE_EVENT_SIGNAL_EN);
     end
+{%- endif %}
 endtask
 
 task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt_signal();
@@ -113,9 +139,15 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt_signal();
         forever begin
             `uvm_rand_send(chk_err_seq)
             if (p_sequencer.vif.intr) begin
+{%- if is_mobile_storage %}
+                rm.MASKED_INTS_R.read(status, rdata);
+                if (|rm.MASKED_INTS_R.get())
+                    break;
+{%- else %}
                 rm.NORMAL_INT_STAT_R.read(status, rdata);
                 if (|rm.NORMAL_INT_STAT_R.get())
                     break;
+{%- endif %}
             end
         end
     join_any
@@ -143,5 +175,26 @@ task {{ class_prefix }}wait_interrupt_operation_seq::clear_interrupt_status(uvm_
         r_signal_en.write(status, r_signal_en.get());
     end
 endtask
+
+{%- if is_mobile_storage %}
+function bit [31:0] {{ class_prefix }}wait_interrupt_operation_seq::requested_interrupt_mask();
+    bit [31:0] mask;
+
+    mask = 0;
+    if (wait_intr_request.card_insertion || wait_intr_request.card_removal)
+        mask |= (1 << 0);
+    if (wait_intr_request.cmd_complete)
+        mask |= (1 << 2);
+    if (wait_intr_request.xfer_complete)
+        mask |= (1 << 3);
+    if (wait_intr_request.buf_wr_ready)
+        mask |= (1 << 4);
+    if (wait_intr_request.buf_rd_ready)
+        mask |= (1 << 5);
+    if (wait_intr_request.card_interrupt)
+        mask |= (1 << 16);
+    return mask;
+endfunction
+{%- endif %}
 
 `endif

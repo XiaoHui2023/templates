@@ -91,6 +91,9 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
 
 {%- if enable_dma %}
         (dma_enable) -> data_present_sel == 1;
+{%- if is_mobile_storage %}
+        (data_present_sel) -> dma_enable == 1;
+{%- endif %}
 {%- endif %}
 
         // crc chk

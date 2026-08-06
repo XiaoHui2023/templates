@@ -183,6 +183,9 @@ task {{ class_prefix }}command_operation_seq::read_buffer_blocked(ref bit [7:0] 
 endtask
 
 task {{ class_prefix }}command_operation_seq::write_buffer_one_block(ref bit [7:0] data[$]);
+{%- if is_mobile_storage %}
+    `uvm_fatal("", "mobile_storage has no PIO data register; use DMA")
+{%- else %}
     int words;
 
     words = $ceil(cmd_request.block_size / 4.0);
@@ -195,9 +198,13 @@ task {{ class_prefix }}command_operation_seq::write_buffer_one_block(ref bit [7:
         dat = {<<byte{d}};
         rm.BUF_DATA_R.write(status, dat);
     end
+{%- endif %}
 endtask
 
 task {{ class_prefix }}command_operation_seq::read_buffer_one_block(ref bit [7:0] data[$]);
+{%- if is_mobile_storage %}
+    `uvm_fatal("", "mobile_storage has no PIO data register; use DMA")
+{%- else %}
     int words;
 
     words = $ceil(cmd_request.block_size / 4.0);
@@ -213,23 +220,35 @@ task {{ class_prefix }}command_operation_seq::read_buffer_one_block(ref bit [7:0
     // 去掉多余的
     repeat (words * 4 - cmd_request.block_size)
         data.pop_back();
+{%- endif %}
 endtask
 
 task {{ class_prefix }}command_operation_seq::abort();
+{%- if is_mobile_storage %}
+    `uvm_info("", "skip block gap abort for mobile_storage", UVM_LOW)
+{%- else %}
     rm.BGAP_CTRL_R.STOP_BG_REQ.set(1);
     rm.BGAP_CTRL_R.CONTINUE_REQ.set(0);
     rm.BGAP_CTRL_R.RD_WAIT_CTRL.set(0);
     rm.BGAP_CTRL_R.INT_AT_BGAP.set(1);
     rm.BGAP_CTRL_R.write(status, rm.BGAP_CTRL_R.get());
+{%- endif %}
 endtask
 
 task {{ class_prefix }}command_operation_seq::read_resp();
     bit [31:0] w0, w1, w2, w3;
 
+{%- if is_mobile_storage %}
+    rm.RESP0_R.read(status, w0);
+    rm.RESP1_R.read(status, w1);
+    rm.RESP2_R.read(status, w2);
+    rm.RESP3_R.read(status, w3);
+{%- else %}
     rm.RESP01_R.read(status, w0);
     rm.RESP23_R.read(status, w1);
     rm.RESP45_R.read(status, w2);
     rm.RESP67_R.read(status, w3);
+{%- endif %}
     rsp.resp = {w3, w2, w1, w0};
 
     `uvm_info("", $psprintf("resp = %0h", rsp.resp), UVM_LOW)

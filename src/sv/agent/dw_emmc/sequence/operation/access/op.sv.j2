@@ -62,6 +62,11 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     {{ class_prefix }}wait_field_operation_seq wait_field_seq;
 
     // 设置HOST控制1
+{%- if is_mobile_storage %}
+    rm.CTYPE_R.CARD_WIDTH.set(access_request.data_width);
+    rm.CTYPE_R.write(status, rm.CTYPE_R.get());
+    rm.UHS_REG_R.write(status, access_request.uhs_mode_sel);
+{%- else %}
     rm.HOST_CTRL1_R.LED_CTRL.set(0);
     rm.HOST_CTRL1_R.DAT_XFER_WIDTH.set(access_request.dat_xfer_width);
     rm.HOST_CTRL1_R.HIGH_SPEED_EN.set(access_request.high_speed_en);
@@ -77,6 +82,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.HOST_CTRL2_R.read(status, rdata);
     rm.HOST_CTRL2_R.UHS_MODE_SEL.set(access_request.uhs_mode_sel);
     rm.HOST_CTRL2_R.write(status, rm.HOST_CTRL2_R.get());
+{%- endif %}
 
     // 等待命令寄存器
     $cast(wait_field_seq, create_wait_field_seq());
@@ -86,24 +92,55 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     })
 
     // [0x00] 设置地址
+{%- if is_mobile_storage %}
+{%- if enable_dma %}
+    if(access_request.dma_enable)
+        rm.DBADDR_R.write(status, access_request.dma_addr);
+{%- endif %}
+{%- else %}
     rm.SDMASA_R.write(status, access_request.sdmasa);
+{%- endif %}
 
     // [0x04] 设置buffer型号
+{%- if is_mobile_storage %}
+    rm.BLKSIZ_R.BLK_SIZE.set(access_request.xfer_block_size);
+    rm.BLKSIZ_R.write(status, rm.BLKSIZ_R.get());
+    rm.BYTCNT_R.BYTE_CNT.set(access_request.xfer_block_size * access_request.sdmasa);
+    rm.BYTCNT_R.write(status, rm.BYTCNT_R.get());
+{%- else %}
     rm.BLOCKSIZE_R.XFER_BLOCK_SIZE.set(access_request.xfer_block_size); // 1 byte
 {%- if enable_dma %}
     rm.BLOCKSIZE_R.SDMA_BUF_BDARY.set(access_request.sdma_buf_bdary); // DMA用
 {%- endif %}
     rm.BLOCKSIZE_R.write(status, rm.BLOCKSIZE_R.get());
+{%- endif %}
 
 {%- if enable_dma %}
     // DMA
+{%- if is_mshc %}
     if(access_request.dma_enable) begin
         rm.ADMA_SA_LOW_R.write(status, access_request.dma_addr);
         // rm.ADMA_SA_HIGH_R.write(status, 0);
     end
 {%- endif %}
+{%- endif %}
 
     // [0x0c] 设置数据传输选项
+{%- if is_mobile_storage %}
+    rm.CMDARG_R.CMD_ARG.set(access_request.argument);
+    rm.CMDARG_R.write(status, rm.CMDARG_R.get());
+
+    rm.CMD_R.RESP_EXPECT.set(access_request.resp_type_select != access_request.NO_RESP);
+    rm.CMD_R.RESP_LENGTH.set(access_request.resp_type_select == access_request.RESP_LEN_136);
+    rm.CMD_R.CHECK_RESPONSE_CRC.set(access_request.cmd_crc_chk_enable);
+    rm.CMD_R.DATA_EXPECTED.set(access_request.data_present_sel);
+    rm.CMD_R.READ_WRITE.set(access_request.data_xfer_dir);
+    rm.CMD_R.SEND_AUTO_STOP.set(access_request.auto_cmd_enable != AUTO_CMD_DISABLED);
+    rm.CMD_R.WAIT_PRVDATA_COMPLETE.set(1);
+    rm.CMD_R.CMD_INDEX.set(access_request.cmd_index);
+    rm.CMD_R.START_CMD.set(1);
+    rm.CMD_R.write(status, rm.CMD_R.get());
+{%- else %}
 {%- if enable_dma %}
     rm.XFER_MODE_R.DMA_ENABLE.set(access_request.dma_enable);
 {%- endif %}
@@ -128,6 +165,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.CMD_R.CMD_TYPE.set(0);
     rm.CMD_R.CMD_INDEX.set(access_request.cmd_index);
     rm.CMD_R.write(status, rm.CMD_R.get());
+{%- endif %}
 endtask
 
 task {{ class_prefix }}access_operation_seq::config_tune();
@@ -136,12 +174,15 @@ task {{ class_prefix }}access_operation_seq::config_tune();
     if(!access_request.tune_en)
         return;
 
-    // 关闭采样时钟
+{%- if is_mobile_storage %}
+    `uvm_fatal("", "mobile_storage tune is not implemented without a product-specific tuning register map")
+{%- else %}
+    // close sample clock
     rm.CLK_CTRL_R.read(status,rdata);
     rm.CLK_CTRL_R.SD_CLK_EN.set(0);
     rm.CLK_CTRL_R.write(status,rm.CLK_CTRL_R.get());
 
-    // 设置自动调整控制
+    // configure tuning control
     rm_vd1.AT_CTRL_R.read(status,rdata);
     rm_vd1.AT_CTRL_R.SW_TUNE_EN.set(1);
     rm_vd1.AT_CTRL_R.write(status,rm_vd1.AT_CTRL_R.get());
@@ -150,14 +191,19 @@ task {{ class_prefix }}access_operation_seq::config_tune();
     rm_vd1.AT_STAT_R.CENTER_PH_CODE.set(access_request.center_ph_code);
     rm_vd1.AT_STAT_R.write(status,rm_vd1.AT_STAT_R.get());
 
-    // 打开采样时钟
+    // open sample clock
     rm.CLK_CTRL_R.read(status,rdata);
     rm.CLK_CTRL_R.SD_CLK_EN.set(1);
     rm.CLK_CTRL_R.write(status,rm.CLK_CTRL_R.get());
+{%- endif %}
 endtask
 
 task {{ class_prefix }}access_operation_seq::clear_interrupt_status();
+{%- if is_mobile_storage %}
+    rm.RAW_INTS_R.write(status,'hffff_ffff);
+{%- else %}
     rm.NORMAL_INT_STAT_R.write(status,'hffff_ffff);
+{%- endif %}
 endtask
 
 function {{ class_prefix }}wait_field_operation_seq {{ class_prefix }}access_operation_seq::create_wait_field_seq();

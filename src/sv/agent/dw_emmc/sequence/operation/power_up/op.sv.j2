@@ -69,13 +69,25 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
 {%- endif %}
 
     // 设置电压会触发时钟，所以要先设置
+{%- if is_mobile_storage %}
+    rm.PWREN_R.CARD_PWR_EN.set(power_up_request.sd_bus_pwr_vdd1);
+    rm.PWREN_R.write(status, rm.PWREN_R.get());
+{%- else %}
     rm.PWR_CTRL_R.SD_BUS_PWR_VDD1.set(power_up_request.sd_bus_pwr_vdd1);
     rm.PWR_CTRL_R.SD_BUS_VOL_VDD1.set(power_up_request.sd_bus_vol_vdd1); // 3.3V
     rm.PWR_CTRL_R.SD_BUS_PWR_VDD2.set(power_up_request.sd_bus_pwr_vdd2);
     rm.PWR_CTRL_R.SD_BUS_VOL_VDD2.set(power_up_request.sd_bus_vol_vdd2); // 1.8V
     rm.PWR_CTRL_R.write(status, rm.PWR_CTRL_R.get());
+{%- endif %}
 
     // 设置时钟
+{%- if is_mobile_storage %}
+    rm.CLKDIV_R.CLK_DIV.set(power_up_request.freq_sel);
+    rm.CLKDIV_R.write(status, rm.CLKDIV_R.get());
+    rm.CLKENA_R.CCLK_ENABLE.set(1);
+    rm.CLKENA_R.write(status, rm.CLKENA_R.get());
+    rm.UHS_REG_R.write(status, power_up_request.signaling_en);
+{%- else %}
     rm.CLK_CTRL_R.INTERNAL_CLK_EN.set(1);
     rm.CLK_CTRL_R.SD_CLK_EN.set(1);
     rm.CLK_CTRL_R.PLL_ENABLE.set(1);
@@ -83,17 +95,27 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
     rm.CLK_CTRL_R.UPPER_FREQ_SEL.set(power_up_request.freq_sel[9:8]);
     rm.CLK_CTRL_R.FREQ_SEL.set(power_up_request.freq_sel[7:0]);
     rm.CLK_CTRL_R.write(status, rm.CLK_CTRL_R.get());
+{%- endif %}
 
     // 在等待中断前，先测试寄存器读写功能是否正常
+{%- if is_mobile_storage %}
+    rm.CLKENA_R.read(status, rdata);
+    if (rdata != rm.CLKENA_R.get())
+        `uvm_fatal("", "ahb bus error")
+{%- else %}
     rm.CLK_CTRL_R.read(status, rdata);
     if (rdata != rm.CLK_CTRL_R.get())
         `uvm_fatal("", "ahb bus error")
 
     `uvm_do_with(wait_field_seq, {wait_field_request.internal_clk_stable;})
+{%- endif %}
     `uvm_do_with(wait_field_seq, {wait_field_request.card_inserted;})
+{%- if is_mshc %}
     `uvm_do_with(wait_field_seq, {wait_field_request.card_stable;})
+{%- endif %}
 
     // 设置EMMC控制
+{%- if is_mshc %}
     rm_vd1.EMMC_CTRL_R.CARD_IS_EMMC.set(1);
     rm_vd1.EMMC_CTRL_R.DISABLE_DATA_CRC_CHK.set(0);
     rm_vd1.EMMC_CTRL_R.EMMC_RST_N.set(1);
@@ -124,7 +146,9 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
     rm_vd1.MSHC_CTRL_R.SW_CG_DIS.set(1);
     rm_vd1.MSHC_CTRL_R.write(status, rm_vd1.MSHC_CTRL_R.get());
 
+{%- if is_mshc %}
     `uvm_do_with(wait_field_seq, {wait_field_request.card_stable;})
+{%- endif %}
 
     rm_vd1.AT_CTRL_R.SWIN_TH_EN.set(1);
     rm_vd1.AT_CTRL_R.RPT_TUNE_ERR.set(0);
@@ -134,6 +158,7 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
     rm_vd1.AT_CTRL_R.POST_CHANGE_DLY.set(0);
     rm_vd1.AT_CTRL_R.SWIN_TH_VAL.set(2);
     rm_vd1.AT_CTRL_R.write(status, rm_vd1.AT_CTRL_R.get());
+{%- endif %}
 endtask
 
 task {{ class_prefix }}power_up_operation_seq::wait_done();

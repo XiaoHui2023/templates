@@ -18,6 +18,9 @@ class {{ class_prefix }}wait_field_operation_seq extends {{ class_prefix }}base_
 
     // 持续等待寄存器某一field，直到值为期望值
     extern task wait_field(uvm_reg_field f, int value);
+{%- if is_mobile_storage %}
+    extern task wait_status_bit(int bit_idx, int value, string field_name);
+{%- endif %}
 endclass
 
 function void {{ class_prefix }}wait_field_operation_seq::pre_randomize();
@@ -34,6 +37,19 @@ endfunction
 task {{ class_prefix }}wait_field_operation_seq::body();
     `uvm_info("", $psprintf("wait field:\n%s", wait_field_request.sprint()), UVM_DEBUG)
 
+{%- if is_mobile_storage %}
+    if(wait_field_request.cmd_uninhibit)
+        `uvm_info("", "skip CMD_INHIBIT wait for mobile_storage", UVM_DEBUG)
+    if(wait_field_request.cmd_uninhibit_dat) wait_status_bit(9, 0, "STATUS_R.DATA_BUSY");
+    if(wait_field_request.internal_clk_stable)
+        `uvm_info("", "skip INTERNAL_CLK_STABLE wait for mobile_storage", UVM_DEBUG)
+    if(wait_field_request.card_inserted) wait_field(rm.CARD_DETECT_R.CARD_DETECT, 0);
+    if(wait_field_request.card_stable)
+        `uvm_info("", "skip CARD_STABLE wait for mobile_storage", UVM_DEBUG)
+    if(wait_field_request.rd_xfer_inactive) wait_status_bit(9, 0, "STATUS_R.DATA_BUSY");
+    if(wait_field_request.wr_xfer_inactive) wait_status_bit(9, 0, "STATUS_R.DATA_BUSY");
+    if(wait_field_request.dat_line_inactive) wait_status_bit(9, 0, "STATUS_R.DATA_BUSY");
+{%- else %}
     if(wait_field_request.cmd_uninhibit) wait_field(rm.PSTATE_REG.CMD_INHIBIT, 0);
     if(wait_field_request.cmd_uninhibit_dat) wait_field(rm.PSTATE_REG.CMD_INHIBIT_DAT, 0);
     if(wait_field_request.internal_clk_stable) wait_field(rm.CLK_CTRL_R.INTERNAL_CLK_STABLE, 1);
@@ -42,6 +58,7 @@ task {{ class_prefix }}wait_field_operation_seq::body();
     if(wait_field_request.rd_xfer_inactive) wait_field(rm.PSTATE_REG.RD_XFER_ACTIVE, 0);
     if(wait_field_request.wr_xfer_inactive) wait_field(rm.PSTATE_REG.WR_XFER_ACTIVE, 0);
     if(wait_field_request.dat_line_inactive) wait_field(rm.PSTATE_REG.DAT_LINE_ACTIVE, 0);
+{%- endif %}
 
     `uvm_info("", "wait field done", UVM_DEBUG)
 endtask
@@ -75,5 +92,33 @@ task {{ class_prefix }}wait_field_operation_seq::wait_field(uvm_reg_field f, int
     end
     join
 endtask
+
+{%- if is_mobile_storage %}
+task {{ class_prefix }}wait_field_operation_seq::wait_status_bit(int bit_idx, int value, string field_name);
+    bit [31:0] rdata;
+
+    `uvm_info("", $psprintf("wait field.f = %s", field_name), UVM_DEBUG)
+    `uvm_info("", "wait field.r = STATUS_R", UVM_DEBUG)
+
+    fork begin
+        fork
+            begin
+                p_sequencer.vif.wait_timeout(wait_field_request.timeout_us);
+                `uvm_fatal("", $psprintf("wait status timeout:\n%s", wait_field_request.sprint()))
+            end
+            forever begin
+                `uvm_rand_send(chk_err_seq)
+
+                rm.STATUS_R.read(status, rdata);
+                `uvm_info("", $psprintf("wait status.rdata = 0x%0h", rdata), UVM_DEBUG)
+                if (rdata[bit_idx] == value)
+                    break;
+            end
+        join_any
+        disable fork;
+    end
+    join
+endtask
+{%- endif %}
 
 `endif
