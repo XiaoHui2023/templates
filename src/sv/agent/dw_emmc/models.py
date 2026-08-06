@@ -42,13 +42,13 @@ class Models(BaseModel):
         "mshc",
         description="DesignWare controller IP line.",
     )
-    class_regmodel: str = Field("ral_sys_DWC_mshc", description="寄存器类名")
+    class_regmodel: str = Field("", description="寄存器类名")
     class_regmodel_rm: str = Field(
-        "ral_block_DWC_mshc_map_DWC_mshc_block",
+        "",
         description="rm寄存器块类名",
     )
     class_regmodel_rm_vd1: str = Field(
-        "ral_block_DWC_mshc_map_DWC_mshc_vendor1_block",
+        "",
         description="rm_vd1寄存器块类名",
     )
     data_width: Optional[int] = None
@@ -97,6 +97,29 @@ class Models(BaseModel):
     @property
     def is_mobile_storage(self) -> bool:
         return self.controller_ip == "mobile_storage"
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Register-model root name derived from controller_ip.",
+    )
+    @property
+    def regmodel_root(self) -> str:
+        return f"DWC_{self.controller_ip}"
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Register-model map member derived from controller_ip.",
+    )
+    @property
+    def regmodel_block_member(self) -> str:
+        root = self.regmodel_root
+        return f"{root}_map_{root}_block"
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Register-model vendor1 member derived from controller_ip.",
+    )
+    @property
+    def regmodel_vendor1_member(self) -> str:
+        root = self.regmodel_root
+        return f"{root}_map_{root}_vendor1_block"
 
     @computed_field(  # type: ignore[prop-decorator]
         description="由 card_type 推导；配置不可传入。",
@@ -314,19 +337,18 @@ class Models(BaseModel):
         self._create_monitored_clocks()
 
     def _set_regmodel_defaults(self):
-        if self.controller_ip != "mobile_storage":
-            return
         if "enable_dma" in self.model_fields_set and not self.enable_dma:
-            raise ValueError("controller_ip mobile_storage requires enable_dma true")
-        self.enable_dma = True
-        if "class_regmodel" not in self.model_fields_set:
-            self.class_regmodel = "ral_sys_DWC_mobile_storage"
-        if "class_regmodel_rm" not in self.model_fields_set:
-            self.class_regmodel_rm = "ral_block_DWC_mobile_storage_map_DWC_mobile_storage_block"
-        if "class_regmodel_rm_vd1" not in self.model_fields_set:
-            self.class_regmodel_rm_vd1 = (
-                "ral_block_DWC_mobile_storage_map_DWC_mobile_storage_vendor1_block"
-            )
+            if self.controller_ip == "mobile_storage":
+                raise ValueError("controller_ip mobile_storage requires enable_dma true")
+        if self.controller_ip == "mobile_storage":
+            self.enable_dma = True
+
+        if not self.class_regmodel:
+            self.class_regmodel = f"ral_sys_{self.regmodel_root}"
+        if not self.class_regmodel_rm:
+            self.class_regmodel_rm = f"ral_block_{self.regmodel_block_member}"
+        if not self.class_regmodel_rm_vd1:
+            self.class_regmodel_rm_vd1 = f"ral_block_{self.regmodel_vendor1_member}"
 
     def _set_data_width(self):
         """设置数据位宽"""

@@ -48,7 +48,9 @@
 ## 生成规则
 
 - `controller_ip` 默认是 `mshc`。
-- `mobile_storage` 自动切换默认 RAL 类名；也可以通过 `class_regmodel`、`class_regmodel_rm`、`class_regmodel_rm_vd1` 覆盖。
+- `class_regmodel`、`class_regmodel_rm`、`class_regmodel_rm_vd1` 默认是空字符串。
+- 类名为空时，RAL 顶层类名、寄存器块类名、寄存器块 member 名都按 `controller_ip` 生成。
+- 类名非空时，使用用户指定值。
 - 不存在的 mobile storage 字段不生成访问代码。
 - `freq_sel` 在 `mshc` 下拆成 `[9:8]` 和 `[7:0]`，在 `mobile_storage` 下整体写入 `CLKDIV_R.CLK_DIV[9:0]`。
 - `mobile_storage` 自动启用 `enable_dma`；显式配置 `enable_dma: false` 会报错。

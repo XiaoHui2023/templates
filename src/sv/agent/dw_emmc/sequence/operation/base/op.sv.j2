@@ -35,8 +35,8 @@ endtask
 function void {{ class_prefix }}base_operation_seq#(RSP)::pre_randomize();
     super.pre_randomize();
 
-    $cast(rm,settings.regmodel.DWC_mshc_map_DWC_mshc_block);
-    $cast(rm_vd1,settings.regmodel.DWC_mshc_map_DWC_mshc_vendor1_block);
+    $cast(rm, settings.regmodel.{{ regmodel_block_member }});
+    $cast(rm_vd1, settings.regmodel.{{ regmodel_vendor1_member }});
 endfunction
 
 function void {{ class_prefix }}base_operation_seq#(RSP)::post_randomize();

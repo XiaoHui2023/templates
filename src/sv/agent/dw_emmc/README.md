@@ -40,9 +40,9 @@ monitored_clocks:
 | `card_type` | `emmc` / `sdcard` / `sdio` |  | 卡类型 |
 | `controller_ip` | `mshc` / `mobile_storage` | `mshc` | 寄存器模型 |
 | `class_prefix` | `str` | `Emmc_ctrl_` | 命名前缀 |
-| `class_regmodel` | `str` | `ral_sys_DWC_mshc` | 寄存器模型类名 |
-| `class_regmodel_rm` | `str` | `ral_block_DWC_mshc_map_DWC_mshc_block` | 标准寄存器块类名 |
-| `class_regmodel_rm_vd1` | `str` | `ral_block_DWC_mshc_map_DWC_mshc_vendor1_block` | vendor1 寄存器块类名 |
+| `class_regmodel` | `str` | `""` | 空字符串时按 `controller_ip` 生成顶层寄存器模型类名 |
+| `class_regmodel_rm` | `str` | `""` | 空字符串时按 `controller_ip` 生成标准寄存器块类名 |
+| `class_regmodel_rm_vd1` | `str` | `""` | 空字符串时按 `controller_ip` 生成 vendor1 寄存器块类名 |
 | `clock_defaults` | `ClockDefaults` |  | 时钟默认值 |
 | `monitored_clocks` | `list[MonitoredClock]` |  | 时钟检查配置 |
 | `enable_dma` | `bool` | `false` | 内置 DMA；`mobile_storage` 会自动打开 |
