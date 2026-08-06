@@ -1,7 +1,8 @@
 `ifndef {{ class_prefix | upper }}BASE_OP_SEQ
 `define {{ class_prefix | upper }}BASE_OP_SEQ
 
-class {{ class_prefix }}base_operation_seq#(type RSP={{ class_prefix }}base_response) extends {{ class_prefix }}base_seq#(RSP);
+class {{ class_prefix }}base_operation_seq#(type RSP={{ class_prefix }}base_response)
+    extends {{ class_prefix }}base_seq#({{ class_prefix }}base_request, RSP);
     `uvm_object_param_utils({{ class_prefix }}base_operation_seq#(RSP))
 
     {{ class_regmodel_rm }} rm; // 主寄存器
@@ -18,27 +19,27 @@ class {{ class_prefix }}base_operation_seq#(type RSP={{ class_prefix }}base_resp
     extern function void post_randomize();
 endclass
 
-task {{ class_prefix }}base_operation_seq::pre_start();
+task {{ class_prefix }}base_operation_seq#(RSP)::pre_start();
     super.pre_start();
 
     `uvm_create(rsp)
 endtask
 
-task {{ class_prefix }}base_operation_seq::post_start();
+task {{ class_prefix }}base_operation_seq#(RSP)::post_start();
     super.post_start();
 
     if(!rsp.has_randomized)
         rsp.randomize();
 endtask
 
-function void {{ class_prefix }}base_operation_seq::pre_randomize();
+function void {{ class_prefix }}base_operation_seq#(RSP)::pre_randomize();
     super.pre_randomize();
 
     $cast(rm,settings.regmodel.DWC_mshc_map_DWC_mshc_block);
     $cast(rm_vd1,settings.regmodel.DWC_mshc_map_DWC_mshc_vendor1_block);
 endfunction
 
-function void {{ class_prefix }}base_operation_seq::post_randomize();
+function void {{ class_prefix }}base_operation_seq#(RSP)::post_randomize();
     super.post_randomize();
 
     `uvm_info("",$psprintf("behavior config:\n%s",sprint()),UVM_DEBUG)

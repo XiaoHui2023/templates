@@ -156,6 +156,158 @@ class Models(BaseModel):
         elif self.is_sd:
             return "UHS_MODE_SEL_UHS2"
 
+    @computed_field(  # type: ignore[prop-decorator]
+        description="SystemVerilog declarations repeated in each role-specific base class.",
+    )
+    @property
+    def sv_family_declarations(self) -> str:
+        declarations: list[str] = []
+        if self.is_sd:
+            declarations.extend(
+                [
+                    "typedef enum {",
+                    "    SDSC,",
+                    "    SDHC,",
+                    "    SDXC",
+                    "} capacity_type_e;",
+                    "",
+                ]
+            )
+
+        declarations.extend(
+            [
+                "typedef enum {",
+                "    V3_3,",
+                "    V3_0,",
+                "    V1_8,",
+                "    V1_2",
+                "} voltage_e;",
+                "",
+                "typedef enum {",
+            ]
+        )
+        if self.is_emmc:
+            declarations.extend(
+                [
+                    "    HIGH_SPEED_SDR,",
+                    "    HIGH_SPEED_DDR,",
+                    "    HS200,",
+                    "    HS400,",
+                ]
+            )
+        elif self.is_sd:
+            declarations.extend(
+                [
+                    "    DS,",
+                    "    HS,",
+                    "    SDR12,",
+                    "    SDR25,",
+                    "    SDR50,",
+                    "    SDR104,",
+                    "    DDR50,",
+                ]
+            )
+        declarations.extend(
+            [
+                "    LEGACY",
+                "} bus_speed_mode_e;",
+                "",
+                "typedef enum {",
+                "    NO_RESP,",
+                "    RESP_LEN_136,",
+                "    RESP_LEN_48,",
+                "    RESP_LEN_48B",
+                "} resp_type_select_e;",
+                "",
+            ]
+        )
+        if self.enable_dma:
+            declarations.extend(
+                [
+                    "typedef enum {",
+                    "    BYTES_4K,",
+                    "    BYTES_8K,",
+                    "    BYTES_16K,",
+                    "    BYTES_32K,",
+                    "    BYTES_64K,",
+                    "    BYTES_128K,",
+                    "    BYTES_256K,",
+                    "    BYTES_512K",
+                    "} sdma_buf_bdary_e;",
+                    "",
+                ]
+            )
+
+        declarations.extend(
+            [
+                "typedef enum {",
+                "    XFER_WRITE,",
+                "    XFER_READ",
+                "} data_xfer_dir_e;",
+                "",
+                "typedef enum {",
+                "    SINGLE,",
+                "    MULTI",
+                "} multi_blk_sel_e;",
+                "",
+                "typedef enum {",
+                "    AUTO_CMD_DISABLED,",
+                "    AUTO_CMD12_ENABLED,",
+                "    AUTO_CMD23_ENABLED,",
+                "    AUTO_CMD_AUTO_SEL",
+                "} auto_cmd_enable_e;",
+                "",
+            ]
+        )
+        if self.enable_dma:
+            declarations.extend(
+                [
+                    "typedef enum {",
+                    "    SDMA = 0,",
+                    "    ADMA2 = 2,",
+                    "    ADMA2_3 = 3",
+                    "} dma_sel_e;",
+                    "",
+                ]
+            )
+
+        declarations.extend(
+            [
+                "typedef enum {",
+                f"    {self.UHS_MODE_SEL_SDR12_LEGACY} = 0,",
+                f"    {self.UHS_MODE_SEL_SDR25_HIGH_SPEED_SDR} = 1,",
+            ]
+        )
+        if self.is_sd:
+            declarations.append(f"    {self.UHS_MODE_SEL_SDR50} = 2,")
+        declarations.extend(
+            [
+                f"    {self.UHS_MODE_SEL_SDR104_HS200} = 3,",
+                f"    {self.UHS_MODE_SEL_DDR50_HIGH_SPEED_DDR} = 4,",
+                f"    {self.UHS_MODE_SEL_UHS2_HS400} = 7",
+                "} uhs_mode_sel_e;",
+                "",
+                "typedef enum {",
+                "    BOOT_PARTITION_ENABLE_NO = 0,",
+                "    BOOT_PARTITION_ENABLE_1 = 1,",
+                "    BOOT_PARTITION_ENABLE_2 = 2,",
+                "    BOOT_PARTITION_ENABLE_USER_AREA = 7",
+                "} boot_partition_enable_e;",
+                "",
+                "typedef enum {",
+                "    BOOT_PARTITION_ACCESS_NO = 0,",
+                "    BOOT_PARTITION_ACCESS_1 = 1,",
+                "    BOOT_PARTITION_ACCESS_2 = 2,",
+                "    BOOT_PARTITION_ACCESS_RPMB = 3,",
+                "    BOOT_PARTITION_ACCESS_GP1 = 4,",
+                "    BOOT_PARTITION_ACCESS_GP2 = 5,",
+                "    BOOT_PARTITION_ACCESS_GP3 = 6,",
+                "    BOOT_PARTITION_ACCESS_GP4 = 7",
+                "} boot_partition_access_e;",
+            ]
+        )
+        return "\n".join(declarations)
+
     def model_post_init(self, ctx):
         self._set_regmodel_defaults()
         self._set_data_width()

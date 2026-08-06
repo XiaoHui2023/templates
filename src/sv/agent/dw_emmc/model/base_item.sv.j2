@@ -5,8 +5,10 @@ typedef class {{ class_prefix }}sequencer;
 typedef class {{ class_prefix }}settings;
 typedef class {{ class_prefix }}context;
 
-class {{ class_prefix }}base_item extends {{ class_prefix }}spec#(uvm_sequence_item);
+class {{ class_prefix }}base_item extends uvm_sequence_item;
     `uvm_object_utils({{ class_prefix }}base_item)
+
+{{ sv_family_declarations | indent(4, true) }}
 
     function new(string name="{{ class_prefix }}base_item");
         super.new(name);

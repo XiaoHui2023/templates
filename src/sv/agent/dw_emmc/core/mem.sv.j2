@@ -1,7 +1,7 @@
 `ifndef {{ class_prefix | upper }}MEM
 `define {{ class_prefix | upper }}MEM
 
-class {{ class_prefix }}mem extends {{ class_prefix }}spec#(uvm_object);
+class {{ class_prefix }}mem extends {{ class_prefix }}base_object;
     `uvm_object_utils({{ class_prefix }}mem)
 
     bit[7:0] data[$];

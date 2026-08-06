@@ -23,7 +23,7 @@
 
 默认状态：eMMC 为 `data_width_cur == 1`、`bus_speed_mode_cur == LEGACY`；SD/SDIO 为 `data_width_cur == 1`、`bus_speed_mode_cur == DS`。
 
-## spec
+## 公共声明
 
 | 枚举 | 取值 |
 | --- | --- |

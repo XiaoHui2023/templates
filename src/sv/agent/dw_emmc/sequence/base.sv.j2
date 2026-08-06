@@ -1,9 +1,14 @@
 `ifndef {{ class_prefix | upper }}BASE_SEQ
 `define {{ class_prefix | upper }}BASE_SEQ
 
-class {{ class_prefix }}base_seq#(type RSP={{ class_prefix }}base_item) extends {{ class_prefix }}spec#(uvm_sequence#(RSP));
-    `uvm_object_param_utils({{ class_prefix }}base_seq)
+class {{ class_prefix }}base_seq#(
+    type REQ={{ class_prefix }}base_item,
+    type RSP=REQ
+) extends uvm_sequence#(REQ, RSP);
+    `uvm_object_param_utils({{ class_prefix }}base_seq#(REQ, RSP))
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
+
+{{ sv_family_declarations | indent(4, true) }}
 
     {{ class_prefix }}settings settings;
     {{ class_prefix }}boot_configuration boot_cfg;
@@ -21,7 +26,7 @@ class {{ class_prefix }}base_seq#(type RSP={{ class_prefix }}base_item) extends 
     extern function void post_randomize();
 endclass
 
-function void {{ class_prefix }}base_seq::pre_randomize();
+function void {{ class_prefix }}base_seq#(REQ, RSP)::pre_randomize();
     super.pre_randomize();
 
     $cast(settings,p_sequencer.settings);
@@ -38,7 +43,7 @@ function void {{ class_prefix }}base_seq::pre_randomize();
     join_none
 endfunction
 
-function void {{ class_prefix }}base_seq::post_randomize();
+function void {{ class_prefix }}base_seq#(REQ, RSP)::post_randomize();
     cnt_post_randomize++;
 endfunction
 
