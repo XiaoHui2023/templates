@@ -35,7 +35,6 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 gate 开关功能
     extern task verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}gate gate_nd,
         output bit did_check,
         output bit did_skip,
@@ -43,7 +42,6 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 div 功能
     extern task verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_div div_nd,
         output bit did_check,
         output bit did_skip,
@@ -51,7 +49,6 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 dto 分频功能。
     extern task verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_dto dto_nd,
         output bit did_check,
         output bit did_skip,
@@ -59,7 +56,6 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 mux 选择功能
     extern task verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}mux mux_nd,
         output bit did_check,
         output bit did_skip,
@@ -67,7 +63,6 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 inv 直通与反相功能
     extern task verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}inv_base inv_nd,
         output bit did_check,
         output bit did_skip,
@@ -75,7 +70,6 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 按具体器件类型执行一个并行功能检查。
     extern task verify_subject(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}node_base subject,
         output bit did_check,
         output bit did_skip,
@@ -136,7 +130,6 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}gate gate_nd,
         output bit did_check,
         output bit did_skip,
@@ -165,18 +158,14 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
         "test_flip: test gate %s", gate_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(100_000_000);
-    reg_lock.get(1);
     cfg.config_reg_gate_node_reg(gate_nd, 1'b1);
-    reg_lock.put(1);
     measure_port_freq(
         out_vif, {gate_nd.get_name(), ".out open"}, 100_000_000,
         freq_hz, passed);
     if (!passed)
         failures++;
 
-    reg_lock.get(1);
     cfg.config_reg_gate_node_reg(gate_nd, 1'b0);
-    reg_lock.put(1);
     #20ns;
     check_port_inactive(
         out_vif, {gate_nd.get_name(), ".out close"}, 100_000_000, passed);
@@ -199,7 +188,6 @@ endfunction
 
 task {{ settings.class_prefix }}flip_check_seq::verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_div div_nd,
         output bit did_check,
         output bit did_skip,
@@ -234,9 +222,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
         "test_flip: test div %s", div_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(800_000_000);
-    reg_lock.get(1);
     cfg.config_reg_div_node_reg(div_nd, ratio);
-    reg_lock.put(1);
     #20ns;
     measure_port_freq(
         out_vif, {div_nd.get_name(), ".out"}, 200_000_000,
@@ -262,7 +248,6 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_dto dto_nd,
         output bit did_check,
         output bit did_skip,
@@ -297,9 +282,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
         "test_flip: test dto %s", dto_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(800_000_000);
-    reg_lock.get(1);
     cfg.config_reg_dto_node_reg(dto_nd, ratio);
-    reg_lock.put(1);
     #20ns;
     measure_port_freq(
         out_vif, {dto_nd.get_name(), ".out"}, 200_000_000,
@@ -325,7 +308,6 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}mux mux_nd,
         output bit did_check,
         output bit did_skip,
@@ -377,9 +359,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     end
 
     foreach (mux_nd.to_source[k]) begin
-        reg_lock.get(1);
         cfg.config_reg_mux_node_reg(mux_nd, k);
-        reg_lock.put(1);
         #50ns;
         measure_port_freq(
             out_vif, {mux_nd.get_name(), ".out"},
@@ -410,7 +390,6 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}inv_base inv_nd,
         output bit did_check,
         output bit did_skip,
@@ -436,9 +415,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test inv %s", inv_nd.get_name()), UVM_LOW)
 
-    reg_lock.get(1);
     cfg.config_reg_inv_node_reg(inv_nd, 1'b0);
-    reg_lock.put(1);
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b0) begin
@@ -456,9 +433,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
             inv_nd.get_name(), out_vif.in))
     end
 
-    reg_lock.get(1);
     cfg.config_reg_inv_node_reg(inv_nd, 1'b1);
-    reg_lock.put(1);
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b1) begin
@@ -481,7 +456,6 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_subject(
         input {{ settings.class_prefix }}config_reg_core cfg,
-        input semaphore reg_lock,
         input {{ settings.class_prefix }}node_base subject,
         output bit did_check,
         output bit did_skip,
@@ -496,15 +470,15 @@ task {{ settings.class_prefix }}flip_check_seq::verify_subject(
     did_skip = 1'b0;
     failures = 0;
     if ($cast(gate_nd, subject))
-        verify_gate(cfg, reg_lock, gate_nd, did_check, did_skip, failures);
+        verify_gate(cfg, gate_nd, did_check, did_skip, failures);
     else if ($cast(div_nd, subject))
-        verify_div(cfg, reg_lock, div_nd, did_check, did_skip, failures);
+        verify_div(cfg, div_nd, did_check, did_skip, failures);
     else if ($cast(dto_nd, subject))
-        verify_dto(cfg, reg_lock, dto_nd, did_check, did_skip, failures);
+        verify_dto(cfg, dto_nd, did_check, did_skip, failures);
     else if ($cast(mux_nd, subject))
-        verify_mux(cfg, reg_lock, mux_nd, did_check, did_skip, failures);
+        verify_mux(cfg, mux_nd, did_check, did_skip, failures);
     else if ($cast(inv_nd, subject))
-        verify_inv(cfg, reg_lock, inv_nd, did_check, did_skip, failures);
+        verify_inv(cfg, inv_nd, did_check, did_skip, failures);
 endtask
 
 task {{ settings.class_prefix }}flip_check_seq::body();
@@ -520,7 +494,6 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     {{ settings.class_prefix }}pll_base pll_nd;
     {{ settings.class_prefix }}node_base stable_nodes[$];
     {{ settings.class_prefix }}node_base test_subjects[$];
-    semaphore reg_lock;
     bit did_checks[];
     bit did_skips[];
     int failure_counts[];
@@ -557,7 +530,6 @@ task {{ settings.class_prefix }}flip_check_seq::body();
         `uvm_fatal("CLK_TREE", "test_flip: sequencer tools not built")
     cfg = new(p_sequencer.tools, 1'b1);
     cfg.configure_low_power(tree, rq.quiet);
-    reg_lock = new(1);
     {{ settings.class_prefix }}collect_stable_upstream_nodes(tree, stable_nodes);
 
     foreach (tree.nodes[i]) begin
@@ -644,7 +616,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
                 fork
                     automatic int idx = i;
                     begin
-                        verify_subject(cfg, reg_lock, test_subjects[idx],
+                        verify_subject(cfg, test_subjects[idx],
                             did_checks[idx], did_skips[idx],
                             failure_counts[idx]);
                     end

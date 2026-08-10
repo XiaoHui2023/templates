@@ -180,21 +180,10 @@ task {{ settings.class_prefix }}route_check_seq::body();
     checked_counts = new[total];
     skipped_counts = new[total];
     failed_counts = new[total];
-    fork
-        begin
-            foreach (parents[i]) begin
-                fork
-                    automatic int idx = i;
-                    begin
-                        check_parent_routes(tree, parents[idx],
-                            checked_counts[idx], skipped_counts[idx],
-                            failed_counts[idx]);
-                    end
-                join_none
-            end
-            wait fork;
-        end
-    join
+    foreach (parents[i]) begin
+        check_parent_routes(tree, parents[i],
+            checked_counts[i], skipped_counts[i], failed_counts[i]);
+    end
 
     for (int i = 0; i < total; i++) begin
         if (checked_counts[i] == 0 && skipped_counts[i] == 0)
