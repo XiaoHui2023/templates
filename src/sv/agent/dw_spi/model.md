@@ -76,6 +76,7 @@ flash 指令包见 [flash_command.md](model/flash_command.md)。每个指令包�
 | `spi_frf` | 配置 `CTRLR0.SPI_FRF` |
 | `spi_ctrlr0_en` | enhanced 模式下写 `SPI_CTRLR0` |
 | `wait_cycles` / `inst_l` / `addr_l` / `trans_type` | 配置 `SPI_CTRLR0` |
+| `spi_inst` / `sdar` | enhanced 模式下配置 `SPIDR.SPI_INST` / `SPIAR.SDAR`；与 DMA 是否启用无关 |
 | `spi_clk_stretch_en` | enhanced 模式下配置 `SPI_CTRLR0.CLK_STRETCH_EN`，保护 RX/DMA/FIFO 数据流 |
 | `spi_mode` / `data_frame_bits` | 配置 `CTRLR0` CPOL/CPHA/DFS |
 | `sste` | 配置 `CTRLR0.SSTE`，当前约束为 0，避免帧间自动 toggle 破坏收发连续性 |

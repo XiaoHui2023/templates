@@ -340,12 +340,14 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
 
         report_info("DW_SPI_REG", "applying controller register configuration", UVM_DEBUG);
         report_info("DW_SPI_REG", $sformatf(
-            "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b spi_clk_stretch_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d sste=%0b data_frame_bits=%0d %s ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
+            "configuration detail: host_mode=%s transfer_mode=%s completion_mode=%s spi_frf=%0d spi_ctrlr0_en=%0b spi_inst=0x%04h sdar=0x%08h spi_clk_stretch_en=%0b wait_cycles=%0d inst_l=%0d addr_l=%0d trans_type=%0d spi_mode=%0d sste=%0b data_frame_bits=%0d %s ser=0x%0h baudr=%0d txftlr=%0d rxftlr=%0d interrupt_timeout_cycles=%0d",
             host_mode.name(),
             transfer_mode.name(),
             cfg.completion_mode.name(),
             cfg.spi_frf,
             cfg.spi_ctrlr0_en,
+            cfg.spi_inst,
+            cfg.sdar,
             cfg.spi_clk_stretch_en,
             cfg.wait_cycles,
             cfg.inst_l,
@@ -420,6 +422,20 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
                 cfg.spi_clk_stretch_en,
                 rm.SPI_CTRLR0.get()), UVM_DEBUG);
             rm.SPI_CTRLR0.write(status, rm.SPI_CTRLR0.get());
+
+            rm.SPIDR.read(status, reg_data);
+            rm.SPIDR.SPI_INST.set(cfg.spi_inst);
+            report_info("DW_SPI_REG", $sformatf(
+                "write SPIDR: SPI_INST=0x%04h raw=0x%0h",
+                cfg.spi_inst, rm.SPIDR.get()), UVM_DEBUG);
+            rm.SPIDR.write(status, rm.SPIDR.get());
+
+            rm.SPIAR.read(status, reg_data);
+            rm.SPIAR.SDAR.set(cfg.sdar);
+            report_info("DW_SPI_REG", $sformatf(
+                "write SPIAR: SDAR=0x%0h raw=0x%0h",
+                cfg.sdar, rm.SPIAR.get()), UVM_DEBUG);
+            rm.SPIAR.write(status, rm.SPIAR.get());
         end
 
         rm.CTRLR1.read(status, reg_data);
@@ -496,20 +512,6 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
                 "write AXIARLEN: ARLEN=0x%0h raw=0x%0h",
                 cfg.arlen, rm.AXIARLEN.get()), UVM_DEBUG);
             rm.AXIARLEN.write(status, rm.AXIARLEN.get());
-
-            rm.SPIDR.read(status, reg_data);
-            rm.SPIDR.SPI_INST.set(cfg.spi_inst);
-            report_info("DW_SPI_REG", $sformatf(
-                "write SPIDR: SPI_INST=0x%04h raw=0x%0h",
-                cfg.spi_inst, rm.SPIDR.get()), UVM_DEBUG);
-            rm.SPIDR.write(status, rm.SPIDR.get());
-
-            rm.SPIAR.read(status, reg_data);
-            rm.SPIAR.SDAR.set(cfg.sdar);
-            report_info("DW_SPI_REG", $sformatf(
-                "write SPIAR: SDAR=0x%0h raw=0x%0h",
-                cfg.sdar, rm.SPIAR.get()), UVM_DEBUG);
-            rm.SPIAR.write(status, rm.SPIAR.get());
 
             rm.AXIAR0.read(status, reg_data);
             rm.AXIAR0.AXIAR0.set(cfg.axiar0);

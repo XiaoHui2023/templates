@@ -12,6 +12,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}base_item;
         `uvm_field_int(inst_l, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_l, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(trans_type, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(spi_inst, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(sdar, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(spi_mode, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(sste, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(spi_clk_stretch_en, UVM_ALL_ON | UVM_DEC)
@@ -42,8 +44,6 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}base_item;
         `uvm_field_int(ainc, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(awlen, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(arlen, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(spi_inst, UVM_ALL_ON | UVM_HEX)
-        `uvm_field_int(sdar, UVM_ALL_ON | UVM_HEX)
         `uvm_field_int(axiar0, UVM_ALL_ON | UVM_HEX)
 {%- endif %}
         `uvm_field_int(rx_sample_delay, UVM_ALL_ON | UVM_DEC)
@@ -61,6 +61,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}base_item;
     rand int inst_l;
     rand int addr_l;
     rand int trans_type;
+    rand bit [15:0] spi_inst;
+    rand bit [31:0] sdar;
     rand int spi_mode;
     rand bit sste;
     rand bit spi_clk_stretch_en;
@@ -91,8 +93,6 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}base_item;
     rand bit ainc;
     rand bit [15:0] awlen;
     rand bit [15:0] arlen;
-    rand bit [15:0] spi_inst;
-    rand bit [31:0] sdar;
     rand bit [31:0] axiar0;
 {%- endif %}
     rand bit [31:0] rx_sample_delay;
@@ -110,6 +110,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}base_item;
         inst_l inside {[0:3]};
         addr_l inside {[0:15]};
         trans_type inside {[0:2]};
+        soft spi_inst == '0;
+        soft sdar == '0;
         spi_mode inside {[0:3]};
         sste == 1'b0;
         soft spi_clk_stretch_en == spi_ctrlr0_en;
@@ -141,8 +143,6 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}base_item;
         soft ainc == 1'b0;
         soft awlen == '0;
         soft arlen == '0;
-        soft spi_inst == '0;
-        soft sdar == '0;
         soft axiar0 == '0;
 {%- endif %}
         if (settings != null) {

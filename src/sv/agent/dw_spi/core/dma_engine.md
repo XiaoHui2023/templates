@@ -6,7 +6,7 @@ DMA completion alone does not prove data integrity. The DMA test reuses `rw_test
 
 `core/dma_engine.sv` 不进入 generated `all.f`。内置 DMA 数据搬运通过 sequencer callback 注入 CPU 32-bit 读写，由外部 CPU/AXI 模型在 `axi_addr` 指定的系统内存 buffer 上完成。
 
-sequence 层先把 operation 请求里的 DMA 意图转换成 register `configuration`，再由 `core/register_access.sv` 写入 `DMACR`、`DMATDLR`、`DMARDLR`、`AXIAWLEN`、`AXIARLEN`、`SPIDR`、`SPIAR`、`AXIAR0`。
+sequence 层先把 operation 请求里的 DMA 意图转换成 register `configuration`，再由 `core/register_access.sv` 写入 `DMACR`、`DMATDLR`、`DMARDLR`、`AXIAWLEN`、`AXIARLEN`、`AXIAR0`。`SPIDR/SPIAR` 属于 enhanced SPI 配置，只要 `spi_ctrlr0_en=1` 就写，不受 DMA 开关控制。
 
 ## Callback Contract
 
@@ -33,6 +33,6 @@ sequence 层先把 operation 请求里的 DMA 意图转换成 register `configur
 
 CPU 读写 callback 不暴露通用寄存器 API，不处理 chip-select。
 
-## SPIDR Instruction Packing
+## Enhanced SPI Instruction Packing
 
-`SPIDR.SPI_INST` uses a 16-bit instruction container. A 1-byte SPI flash opcode is packed as `{opcode, 8'h00}` and the actual 8-bit instruction length is expressed by `SPI_CTRLR0.INST_L`. Do not treat the container width as `inst_bytes`, and do not low-align the opcode as `16'h00xx`.
+`SPIDR.SPI_INST` uses a 16-bit instruction container. A 1-byte SPI flash opcode is packed as `{opcode, 8'h00}` and the actual 8-bit instruction length is expressed by `SPI_CTRLR0.INST_L`. This rule applies whenever enhanced SPI control is enabled, not only to internal DMA.

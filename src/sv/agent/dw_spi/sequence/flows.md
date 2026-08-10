@@ -97,7 +97,7 @@
 
 1. Python 通过 `internal_dma` / `external_dma` 选择生成内置 DMA、外部 DMA 或无 DMA，二者不能同时开启。
 2. 无 DMA 时不生成 `use_dma` 和 DMA 寄存器配置。
-3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；builder 转换成 `DMACR.RDMAE/TDMAE/IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`SPIDR.SPI_INST`、`SPIAR.SDAR`、`AXIAR0.AXIAR0`。
+3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；builder 转换成 `DMACR.RDMAE/TDMAE/IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`AXIAR0.AXIAR0`。`SPIDR.SPI_INST` 和 `SPIAR.SDAR` 是 enhanced SPI 配置，只要 `spi_ctrlr0_en=1` 就写。
 4. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source buffer；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
 5. 外部 DMA 只配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
 6. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
@@ -113,9 +113,9 @@
 
 默认 `flash_read` / `flash_write` 是 NOR-like 便捷 flow，不代表控制器 agent 固定绑定 NOR。NAND page/cache、XIP、厂商 feature、无地址或特殊地址形态命令应新增 `model/flash_command` 指令包，并按需要新增专用 flow/kit shortcut；基础 transfer 不应强制所有 `FLASH_SPI` 都有 3/4-byte address。
 
-## Internal DMA Instruction Register
+## Enhanced SPI Instruction Register
 
-For internal DMA, `SPIDR.SPI_INST` is a 16-bit instruction container. Current flash commands use `inst_bytes == 1`, so the builder writes `{opcode, 8'h00}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. This keeps `inst_bytes` and the SPIDR container width separate.
+`SPIDR.SPI_INST` is a 16-bit instruction container used whenever `spi_ctrlr0_en=1`. Current flash commands use `inst_bytes == 1`, so the builder writes `{opcode, 8'h00}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. `SPIAR.SDAR` receives the current 32-bit device address in the same enhanced configuration branch. Neither write depends on DMA enablement.
 
 ## Speed Test
 

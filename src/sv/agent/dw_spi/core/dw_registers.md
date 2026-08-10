@@ -127,8 +127,6 @@ PIO 搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR`，读�
 | `DMARDLR` | `DMARDL` | RX DMA threshold |
 | `AXIAWLEN` | `AWLEN` | per-transfer `awlen << 8` |
 | `AXIARLEN` | `ARLEN` | per-transfer `arlen << 8` |
-| `SPIDR` | `SPI_INST` | 当前 transfer opcode |
-| `SPIAR` | `SDAR` | 当前 SPI device/flash address，32 bit |
 | `AXIAR0` | `AXIAR0` | per-transfer `axi_addr` |
 
 Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DMA 配置代码。内置 DMA 使用 CPU callback 准备或读回 AXI buffer；外部 DMA 不使用内置 CPU buffer mover。
@@ -141,11 +139,20 @@ Enhanced PIO flash transfer 的 control phase 使用专用 FIFO entry 形状：i
 
 `RX_SAMPLE_DELAY.RSD` 只在 `configuration.write_rx_sample_delay == 1` 时写入。寄存器名使用 `RX_SAMPLE_DELAY`，不要写成 `RX_SAMPLE_DLY`。
 
+## Enhanced SPI Instruction And Address
+
+When `SPI_CTRLR0` control is enabled, program both registers regardless of PIO, internal DMA, or external DMA:
+
+| Register | Field | Effect |
+| --- | --- | --- |
+| `SPIDR` | `SPI_INST` | Current transfer opcode container |
+| `SPIAR` | `SDAR` | Current 32-bit SPI device/flash address |
+
 ## SPIDR.SPI_INST Packing
 
-`SPIDR.SPI_INST` is a 16-bit internal-DMA instruction container, not the instruction length. The actual instruction length is configured by `SPI_CTRLR0.INST_L`, derived from `inst_bytes`.
+`SPIDR.SPI_INST` is a 16-bit enhanced-SPI instruction container, not the instruction length. The actual instruction length is configured by `SPI_CTRLR0.INST_L`, derived from `inst_bytes`.
 
-The current SPI flash opcode model carries one opcode byte. For internal DMA, pack it as:
+The current SPI flash opcode model carries one opcode byte. Pack it as:
 
 ```text
 SPI_INST = {opcode, 8'h00}
