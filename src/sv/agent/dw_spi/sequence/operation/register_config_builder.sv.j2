@@ -281,7 +281,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}base_o
         spi_clk_stretch_en = spi_ctrlr0_en;
         spi_inst = '0;
         sdar = '0;
-        if (spi_ctrlr0_en) begin
+        if (spi_ctrlr0_en{% if internal_dma %} || rq.use_dma{% endif %}) begin
             spi_inst = spi_inst_from_opcode(rq.opcode, rq.inst_bytes);
             flash_addr = rq.payload.get_address();
             sdar = flash_addr[31:0];

@@ -141,7 +141,7 @@ Enhanced PIO flash transfer 的 control phase 使用专用 FIFO entry 形状：i
 
 ## Enhanced SPI Instruction And Address
 
-When `SPI_CTRLR0` control is enabled, program both registers regardless of PIO, internal DMA, or external DMA:
+Program both registers when enhanced `SPI_CTRLR0` control is enabled or when the internal-DMA register path is enabled:
 
 | Register | Field | Effect |
 | --- | --- | --- |

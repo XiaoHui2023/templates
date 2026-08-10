@@ -422,7 +422,9 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
                 cfg.spi_clk_stretch_en,
                 rm.SPI_CTRLR0.get()), UVM_DEBUG);
             rm.SPI_CTRLR0.write(status, rm.SPI_CTRLR0.get());
+        end
 
+        if (cfg.spi_ctrlr0_en{% if internal_dma %} || cfg.write_internal_dma_regs{% endif %}) begin
             rm.SPIDR.read(status, reg_data);
             rm.SPIDR.SPI_INST.set(cfg.spi_inst);
             report_info("DW_SPI_REG", $sformatf(

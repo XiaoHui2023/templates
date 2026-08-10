@@ -97,7 +97,7 @@
 
 1. Python 通过 `internal_dma` / `external_dma` 选择生成内置 DMA、外部 DMA 或无 DMA，二者不能同时开启。
 2. 无 DMA 时不生成 `use_dma` 和 DMA 寄存器配置。
-3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；builder 转换成 `DMACR.RDMAE/TDMAE/IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`AXIAR0.AXIAR0`。`SPIDR.SPI_INST` 和 `SPIAR.SDAR` 是 enhanced SPI 配置，只要 `spi_ctrlr0_en=1` 就写。
+3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；builder 转换成 `DMACR.RDMAE/TDMAE/IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`AXIAR0.AXIAR0`。`SPIDR.SPI_INST` 和 `SPIAR.SDAR` 在 `spi_ctrlr0_en=1` 或 `write_internal_dma_regs=1` 时写。
 4. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source buffer；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
 5. 外部 DMA 只配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
 6. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
@@ -115,7 +115,7 @@
 
 ## Enhanced SPI Instruction Register
 
-`SPIDR.SPI_INST` is a 16-bit instruction container used whenever `spi_ctrlr0_en=1`. Current flash commands use `inst_bytes == 1`, so the builder writes `{opcode, 8'h00}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. `SPIAR.SDAR` receives the current 32-bit device address in the same enhanced configuration branch. Neither write depends on DMA enablement.
+`SPIDR.SPI_INST` is a 16-bit instruction container used whenever `spi_ctrlr0_en=1` or `write_internal_dma_regs=1`. Current flash commands use `inst_bytes == 1`, so the builder writes `{opcode, 8'h00}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. `SPIAR.SDAR` receives the current 32-bit device address under the same combined condition.
 
 ## Speed Test
 
