@@ -201,10 +201,14 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         nodes.push_back({{ slot.access }});
 {%- endfor %}
         clock_nodes.delete();
+        cell_nodes.delete();
         foreach (nodes[i]) begin
             {{ settings.class_prefix }}clk clk_nd;
+            {{ settings.class_prefix }}cell cell_nd;
             if ($cast(clk_nd, nodes[i]))
                 clock_nodes.push_back(clk_nd);
+            if ($cast(cell_nd, nodes[i]))
+                cell_nodes.push_back(cell_nd);
         end
     endfunction
     // Bind register fields, then randomize tree nodes.

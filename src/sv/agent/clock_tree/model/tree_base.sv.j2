@@ -5,11 +5,13 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
     `uvm_object_utils_begin({{ settings.class_prefix }}tree_base)
         `uvm_field_queue_object(nodes, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_queue_object(clock_nodes, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_queue_object(cell_nodes, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(built, UVM_DEFAULT | UVM_NOPRINT)
     `uvm_object_utils_end
 
     {{ settings.class_prefix }}node_base nodes[$];
     {{ settings.class_prefix }}clk clock_nodes[$];
+    {{ settings.class_prefix }}cell cell_nodes[$];
     bit built;
     bit _print_mux;
     bit _print_div;
