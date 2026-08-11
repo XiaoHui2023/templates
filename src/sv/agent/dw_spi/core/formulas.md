@@ -41,7 +41,7 @@ f_sclk_out = f_ssi / BAUDR
 | **width_data** | data 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `speed_multiplier`。 |
 | **dummy_cycles** | 协议 dummy/wait sclk 周期。接收类 enhanced transfer 会映射到 `SPI_CTRLR0.WAIT_CYCLES`；flash write/program flow 强制为 0。 |
 
-当前内置 NOR-like read packet 使用 `03h=0`、`0Bh=8`、`BBh=4`、`EBh=12` 个 SCLK cycle。标准 `03h` 路径不向 DR 写入 dummy byte；enhanced 路径把对应值直接写入 `SPI_CTRLR0.WAIT_CYCLES`。
+当前内置 NOR-like read packet 使用 `03h=0`、`0Bh=8`、`BBh=4`、`EBh=10` 个 SCLK cycle。标准 `03h` 路径不向 DR 写入 dummy byte；enhanced 路径把对应值直接写入 `SPI_CTRLR0.WAIT_CYCLES`。
 | **fifo_chunks** | `ceil(max(payload_bytes, 1) / fifo_depth_bytes)`。 |
 | **margin_percent** | Python 输入的 `interrupt_timeout_margin_percent`。 |
 | **extra_cycles** | Python 输入的 `interrupt_timeout_extra_ssi_clk_cycles`。 |
