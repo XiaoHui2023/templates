@@ -26,7 +26,7 @@ task {{ class_prefix }}check_error_operation_seq::body();
     bit[31:0] rdata;
 
 {%- if is_mobile_storage %}
-    rm.RAW_INTS_R.read(status, rdata);
+    rm.RINTSTS_R.read(status, rdata);
     rsp.status[0] = rdata[8];  // response timeout
     rsp.status[1] = rdata[6];  // response CRC
     rsp.status[2] = 0;
@@ -41,7 +41,7 @@ task {{ class_prefix }}check_error_operation_seq::body();
     rsp.status[11] = rdata[12]; // hardware locked / response path
     rsp.status[12] = 0;
     if (rdata)
-        rm.RAW_INTS_R.write(status, rdata);
+        rm.RINTSTS_R.write(status, rdata);
 {%- else %}
     // ERROR
     rm.ERROR_INT_STAT_R.read(status,rdata);

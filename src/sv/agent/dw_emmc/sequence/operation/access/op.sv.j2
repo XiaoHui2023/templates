@@ -96,7 +96,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 {%- if enable_dma %}
     if(access_request.dma_enable) begin
         rm.DBADDR_R.write(status, access_request.dma_addr);
-        rm.POLDMD_R.write(status, 32'h1);
+        rm.PLDMND_R.write(status, 32'h1);
     end
 {%- endif %}
 {%- else %}
@@ -132,7 +132,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.CMDARG_R.CMD_ARG.set(access_request.argument);
     rm.CMDARG_R.write(status, rm.CMDARG_R.get());
 
-    rm.CMD_R.RESPONSE_EXPECTED.set(access_request.resp_type_select != access_request.NO_RESP);
+    rm.CMD_R.RESPONSE_EXPECT.set(access_request.resp_type_select != access_request.NO_RESP);
     rm.CMD_R.RESPONSE_LENGTH.set(access_request.resp_type_select == access_request.RESP_LEN_136);
     rm.CMD_R.CHECK_RESPONSE_CRC.set(access_request.cmd_crc_chk_enable);
     rm.CMD_R.DATA_EXPECTED.set(access_request.data_present_sel);
@@ -202,7 +202,7 @@ endtask
 
 task {{ class_prefix }}access_operation_seq::clear_interrupt_status();
 {%- if is_mobile_storage %}
-    rm.RAW_INTS_R.write(status,'hffff_ffff);
+    rm.RINTSTS_R.write(status,'hffff_ffff);
 {%- else %}
     rm.NORMAL_INT_STAT_R.write(status,'hffff_ffff);
 {%- endif %}

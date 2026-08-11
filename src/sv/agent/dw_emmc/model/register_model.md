@@ -26,7 +26,7 @@
 | 卡稳定 | `PSTATE_REG.CARD_STABLE` | 无 |
 | 数据活跃 | `PSTATE_REG.DAT_LINE_ACTIVE`、`RD_XFER_ACTIVE`、`WR_XFER_ACTIVE` | `STATUS_R[9] == 0` |
 | DMA 地址 | `SDMASA_R` / `ADMA_SA_LOW_R` | `DBADDR_R` 写 IDMAC 描述符链表地址；真实数据 buffer 地址在描述符里 |
-| DMA 触发 | 命令触发 SDMA/ADMA | 写 `DBADDR_R` 后向 `POLDMD_R` 写 `32'h1` 触发 IDMAC；`0x84` 是 `POLDMD_R` 地址 |
+| DMA 触发 | 命令触发 SDMA/ADMA | 写 `DBADDR_R` 后向 `PLDMND_R` 写 `32'h1` 触发 IDMAC；`0x84` 是 `PLDMND_R` 地址 |
 | 块大小 | `BLOCKSIZE_R.XFER_BLOCK_SIZE` | `BLKSIZ_R.BLOCK_SIZE` |
 | 块数量 | `BLOCKCOUNT_R.BLOCK_CNT` | `BYTCNT_R.BYTE_COUNT`，按 `block_size * block_count` 写字节数 |
 | 命令参数 | `ARGUMENT_R.ARGUMENT` | `CMDARG_R.CMD_ARG` |
@@ -35,9 +35,9 @@
 | 高速模式 | `HOST_CTRL1_R.HIGH_SPEED_EN`、`HOST_CTRL2_R.UHS_MODE_SEL`、`HOST_CTRL2_R.SIGNALING_EN` | `UHS_REG_R` |
 | DMA 选择 | `HOST_CTRL1_R.DMA_SEL` | `CNTRL_R.user_internal_dmac`，RO，硬件固定 |
 | Host 控制 | `HOST_CTRL1_R`、`HOST_CTRL2_R` 其他字段 | 无 |
-| 普通中断状态 | `NORMAL_INT_STAT_R` | `MASKED_INTS_R` + `RAW_INTS_R` |
-| 错误中断状态 | `ERROR_INT_STAT_R` | `MASKED_INTS_R` + `RAW_INTS_R` |
-| 中断使能 | `NORMAL_INT_STAT_EN_R`、`ERROR_INT_STAT_EN_R`、`NORMAL_INT_SIGNAL_EN_R`、`ERROR_INT_SIGNAL_EN_R` | `INTMSK_R` |
+| 普通中断状态 | `NORMAL_INT_STAT_R` | `MINTSTS_R` + `RINTSTS_R` |
+| 错误中断状态 | `ERROR_INT_STAT_R` | `MINTSTS_R` + `RINTSTS_R` |
+| 中断使能 | `NORMAL_INT_STAT_EN_R`、`ERROR_INT_STAT_EN_R`、`NORMAL_INT_SIGNAL_EN_R`、`ERROR_INT_SIGNAL_EN_R` | `INTMASK_R` |
 | 响应寄存器 | `RESP01_R`、`RESP23_R`、`RESP45_R`、`RESP67_R` | `RESP0_R`、`RESP1_R`、`RESP2_R`、`RESP3_R` |
 | 软件复位 | `SW_RST_R` | 无 |
 | 块间隔控制 | `BGAP_CTRL_R` | 无 |
