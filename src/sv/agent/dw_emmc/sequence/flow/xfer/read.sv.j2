@@ -49,10 +49,15 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
                 cmd_request.addr == local::addr;
 {%- if enable_dma %}
                 cmd_request.dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+                if(local::dma_enable)
+                    cmd_request.dma_addr == local::adma_des.cmd_addr;
+{%- else %}
                 if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                     cmd_request.dma_addr == local::adma_des.cmd_addr;
                 else
                     cmd_request.dma_addr == local::addr;
+{%- endif %}
 {%- endif %}
                 cmd_request.rd_blocking == local::blocking;
             })
@@ -69,10 +74,15 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
                 cmd_request.addr == local::addr;
 {%- if enable_dma %}
                 cmd_request.dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+                if(local::dma_enable)
+                    cmd_request.dma_addr == local::adma_des.cmd_addr;
+{%- else %}
                 if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                     cmd_request.dma_addr == local::adma_des.cmd_addr;
                 else
                     cmd_request.dma_addr == local::addr;
+{%- endif %}
 {%- endif %}
                 cmd_request.rd_blocking == local::blocking;
             })
@@ -102,10 +112,15 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
 {%- if enable_dma %}
             cmd_request.dma_enable == local::dma_enable;
             cmd_request.dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+            if(local::dma_enable)
+                cmd_request.dma_addr == local::adma_des.cmd_addr;
+{%- else %}
             if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                 cmd_request.dma_addr == local::adma_des.cmd_addr;
             else
                 cmd_request.dma_addr == local::addr;
+{%- endif %}
 {%- endif %}
             cmd_request.rd_blocking == local::blocking;
         })

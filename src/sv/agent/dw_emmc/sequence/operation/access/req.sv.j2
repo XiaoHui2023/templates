@@ -47,7 +47,7 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
     rand bit resp_type; // 应答类型
 {%- if enable_dma %}
     rand bit dma_enable; // DMA使能
-    rand bit[31:0] dma_addr; // DMA起始地址
+    rand bit[31:0] dma_addr; // DMA起始地址；mobile_storage 时为 IDMAC 描述符链表地址
     rand dma_sel_e dma_sel; // DMA种类选择
 {%- endif %}
     rand int uhs_mode_sel; // 速度模式选择
@@ -73,6 +73,10 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
 {%- if enable_dma %}
         soft dma_enable == 0;
         soft dma_addr == 'h0;
+{%- if is_mobile_storage %}
+        (data_present_sel) -> dma_enable == 1;
+        (dma_enable) -> dma_sel inside {ADMA2, ADMA2_3};
+{%- endif %}
 {%- endif %}
         soft data_present_sel == 0;
         soft multi_blk_sel == 0;

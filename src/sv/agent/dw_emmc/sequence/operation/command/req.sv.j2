@@ -63,7 +63,7 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
 {%- if enable_dma %}
     rand bit dma_enable; // DMA使能
     rand dma_sel_e dma_sel; // DMA传输模式
-    rand bit[63:0] dma_addr; // DMA 起始地址；ADMA 为描述符地址，SDMA 为数据地址
+    rand bit[63:0] dma_addr; // DMA 起始地址；mobile_storage/ADMA 为描述符地址，SDMA 为数据地址
 {%- endif %}
     rand bit rd_blocking; // 是否读取阻塞（若不读，最后一个请求返回）
     rand bit[63:0] addr; // 传输数据地址
@@ -78,7 +78,11 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         soft wdata.size == 0;
         soft addr == 0;
 {%- if enable_dma %}
+{%- if is_mobile_storage %}
+        soft dma_addr == 'h0;
+{%- else %}
         soft dma_addr == addr;
+{%- endif %}
 {%- endif %}
 
         len == block_size * block_count;
@@ -93,6 +97,7 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         (dma_enable) -> data_present_sel == 1;
 {%- if is_mobile_storage %}
         (data_present_sel) -> dma_enable == 1;
+        (dma_enable) -> dma_sel inside {ADMA2, ADMA2_3};
 {%- endif %}
 {%- endif %}
 

@@ -96,6 +96,7 @@ DMA 传输由读写命令触发，flow 只负责准备描述符和 request 字�
 | `dma_enable == 1` 且 ADMA2/ADMA2_3 | 用 `cpu_config_operation_seq` 后门写描述符，命令 request 携带 `dma_enable`、`dma_sel` |
 
 ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA 模式下，命令寄存器使用数据地址 `addr`。
+`mobile_storage` 只走 IDMAC 描述符链表模型：`DBADDR_R` 写 `adma_des.cmd_addr`，真实数据 buffer 地址写在描述符 `real_addr` 中，写完 `DBADDR_R` 后写 `POLDMD_R = 32'h84` 触发 DMA。
 
 DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写默认前门访问。
 

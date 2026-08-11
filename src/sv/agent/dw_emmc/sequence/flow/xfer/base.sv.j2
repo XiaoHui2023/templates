@@ -74,8 +74,14 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
 
         soft abort == 0;
 {%- if enable_dma %}
+{%- if is_mobile_storage %}
+        soft dma_enable == 1;
+        soft dma_sel == ADMA2;
+        dma_enable -> dma_sel inside {ADMA2, ADMA2_3};
+{%- else %}
         soft dma_enable == 0;
         soft dma_sel == ADMA2;
+{%- endif %}
 {%- endif %}
         soft addr == 0;
 
@@ -204,10 +210,15 @@ task {{ class_prefix }}xfer_base_seq::execute_sdio(bit[7:0] wdata[$]);
 {%- if enable_dma %}
         cmd_request.dma_enable == local::dma_enable;
         cmd_request.dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+        if(local::dma_enable)
+            cmd_request.dma_addr == local::adma_des.cmd_addr;
+{%- else %}
         if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
             cmd_request.dma_addr == local::adma_des.cmd_addr;
         else
             cmd_request.dma_addr == local::addr;
+{%- endif %}
 {%- endif %}
 
         cmd_request.wdata.size == local::wdata.size;

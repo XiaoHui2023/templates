@@ -25,7 +25,8 @@
 | 插卡 | `PSTATE_REG.CARD_INSERTED == 1` | `CARD_DETECT_R.CARD_DETECT[0] == 0` |
 | 卡稳定 | `PSTATE_REG.CARD_STABLE` | 无 |
 | 数据活跃 | `PSTATE_REG.DAT_LINE_ACTIVE`、`RD_XFER_ACTIVE`、`WR_XFER_ACTIVE` | `STATUS_R[9] == 0` |
-| DMA 地址 | `SDMASA_R` / `ADMA_SA_LOW_R` | IDMAC 区域，当前写 `DBADDR_R` |
+| DMA 地址 | `SDMASA_R` / `ADMA_SA_LOW_R` | `DBADDR_R` 写 IDMAC 描述符链表地址；真实数据 buffer 地址在描述符里 |
+| DMA 触发 | 命令触发 SDMA/ADMA | 写 `DBADDR_R` 后写 `POLDMD_R = 32'h84` 触发 IDMAC |
 | 块大小 | `BLOCKSIZE_R.XFER_BLOCK_SIZE` | `BLKSIZ_R.BLK_SIZE` |
 | 块数量 | `BLOCKCOUNT_R.BLOCK_CNT` | `BYTCNT_R.BYTE_CNT`，按 `block_size * block_count` 写字节数 |
 | 命令参数 | `ARGUMENT_R.ARGUMENT` | `CMDARG_R.CMD_ARG` |

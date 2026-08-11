@@ -94,8 +94,10 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     // [0x00] 设置地址
 {%- if is_mobile_storage %}
 {%- if enable_dma %}
-    if(access_request.dma_enable)
+    if(access_request.dma_enable) begin
         rm.DBADDR_R.write(status, access_request.dma_addr);
+        rm.POLDMD_R.write(status, 32'h84);
+    end
 {%- endif %}
 {%- else %}
     rm.SDMASA_R.write(status, access_request.sdmasa);
