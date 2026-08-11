@@ -96,7 +96,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 {%- if enable_dma %}
     if(access_request.dma_enable) begin
         rm.DBADDR_R.write(status, access_request.dma_addr);
-        rm.POLDMD_R.write(status, 32'h84);
+        rm.POLDMD_R.write(status, 32'h1);
     end
 {%- endif %}
 {%- else %}
