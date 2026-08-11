@@ -63,7 +63,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 
     // 设置HOST控制1
 {%- if is_mobile_storage %}
-    rm.CTYPE_R.CARD_WIDTH.set(access_request.data_width);
+    rm.CTYPE_R.CARD_WIDTH0.set(access_request.data_width);
     rm.CTYPE_R.write(status, rm.CTYPE_R.get());
     rm.UHS_REG_R.write(status, access_request.uhs_mode_sel);
 {%- else %}
@@ -105,9 +105,9 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 
     // [0x04] 设置buffer型号
 {%- if is_mobile_storage %}
-    rm.BLKSIZ_R.BLK_SIZE.set(access_request.xfer_block_size);
+    rm.BLKSIZ_R.BLOCK_SIZE.set(access_request.xfer_block_size);
     rm.BLKSIZ_R.write(status, rm.BLKSIZ_R.get());
-    rm.BYTCNT_R.BYTE_CNT.set(access_request.xfer_block_size * access_request.sdmasa);
+    rm.BYTCNT_R.BYTE_COUNT.set(access_request.xfer_block_size * access_request.sdmasa);
     rm.BYTCNT_R.write(status, rm.BYTCNT_R.get());
 {%- else %}
     rm.BLOCKSIZE_R.XFER_BLOCK_SIZE.set(access_request.xfer_block_size); // 1 byte
@@ -132,8 +132,8 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.CMDARG_R.CMD_ARG.set(access_request.argument);
     rm.CMDARG_R.write(status, rm.CMDARG_R.get());
 
-    rm.CMD_R.RESP_EXPECT.set(access_request.resp_type_select != access_request.NO_RESP);
-    rm.CMD_R.RESP_LENGTH.set(access_request.resp_type_select == access_request.RESP_LEN_136);
+    rm.CMD_R.RESPONSE_EXPECTED.set(access_request.resp_type_select != access_request.NO_RESP);
+    rm.CMD_R.RESPONSE_LENGTH.set(access_request.resp_type_select == access_request.RESP_LEN_136);
     rm.CMD_R.CHECK_RESPONSE_CRC.set(access_request.cmd_crc_chk_enable);
     rm.CMD_R.DATA_EXPECTED.set(access_request.data_present_sel);
     rm.CMD_R.READ_WRITE.set(access_request.data_xfer_dir);

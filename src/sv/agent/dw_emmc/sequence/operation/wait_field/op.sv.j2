@@ -43,7 +43,7 @@ task {{ class_prefix }}wait_field_operation_seq::body();
     if(wait_field_request.cmd_uninhibit_dat) wait_status_bit(9, 0, "STATUS_R.DATA_BUSY");
     if(wait_field_request.internal_clk_stable)
         `uvm_info("", "skip INTERNAL_CLK_STABLE wait for mobile_storage", UVM_DEBUG)
-    if(wait_field_request.card_inserted) wait_field(rm.CARD_DETECT_R.CARD_DETECT, 0);
+    if(wait_field_request.card_inserted) wait_field(rm.CDETECT_R.CARD_DETECT_N, 0);
     if(wait_field_request.card_stable)
         `uvm_info("", "skip CARD_STABLE wait for mobile_storage", UVM_DEBUG)
     if(wait_field_request.rd_xfer_inactive) wait_status_bit(9, 0, "STATUS_R.DATA_BUSY");

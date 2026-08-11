@@ -70,7 +70,7 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
 
     // 设置电压会触发时钟，所以要先设置
 {%- if is_mobile_storage %}
-    rm.PWREN_R.CARD_PWR_EN.set(power_up_request.sd_bus_pwr_vdd1);
+    rm.PWREN_R.POWER_ENABLE.set(power_up_request.sd_bus_pwr_vdd1);
     rm.PWREN_R.write(status, rm.PWREN_R.get());
 {%- else %}
     rm.PWR_CTRL_R.SD_BUS_PWR_VDD1.set(power_up_request.sd_bus_pwr_vdd1);
@@ -82,7 +82,7 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
 
     // 设置时钟
 {%- if is_mobile_storage %}
-    rm.CLKDIV_R.CLK_DIV.set(power_up_request.freq_sel);
+    rm.CLKDIV_R.CLK_DIVIDER0.set(power_up_request.freq_sel);
     rm.CLKDIV_R.write(status, rm.CLKDIV_R.get());
     rm.CLKENA_R.CCLK_ENABLE.set(1);
     rm.CLKENA_R.write(status, rm.CLKENA_R.get());
