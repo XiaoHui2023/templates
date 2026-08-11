@@ -19,6 +19,14 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     extern function bit skip_stable_subject(
         input {{ settings.class_prefix }}node_base subject,
         input {{ settings.class_prefix }}node_base stable_nodes[$]);
+    // 两个器件的输入驱动或输入驱动与输出观测是否使用同一结构信号。
+    extern function bit subjects_conflict(
+        input {{ settings.class_prefix }}node_base lhs,
+        input {{ settings.class_prefix }}node_base rhs);
+    // 将候选器件划分为批内无 force 冲突的并行批次。
+    extern function void build_subject_batches(
+        input {{ settings.class_prefix }}node_base subjects[$],
+        output int batches[$][$]);
     // 测量一个端口频率
     extern task measure_port_freq(
         input virtual {{ settings.class_prefix }}interface vif,
@@ -35,6 +43,7 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 gate 开关功能
     extern task verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}gate gate_nd,
         output bit did_check,
         output bit did_skip,
@@ -42,6 +51,7 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 div 功能
     extern task verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_div div_nd,
         output bit did_check,
         output bit did_skip,
@@ -49,6 +59,7 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 dto 分频功能。
     extern task verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_dto dto_nd,
         output bit did_check,
         output bit did_skip,
@@ -56,6 +67,7 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 mux 选择功能
     extern task verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}mux mux_nd,
         output bit did_check,
         output bit did_skip,
@@ -63,6 +75,7 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 验证 inv 直通与反相功能
     extern task verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}inv_base inv_nd,
         output bit did_check,
         output bit did_skip,
@@ -70,6 +83,7 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     // 按具体器件类型执行一个并行功能检查。
     extern task verify_subject(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}node_base subject,
         output bit did_check,
         output bit did_skip,
@@ -130,6 +144,7 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}gate gate_nd,
         output bit did_check,
         output bit did_skip,
@@ -158,14 +173,18 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
         "test_flip: test gate %s", gate_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(100_000_000);
+    reg_lock.get(1);
     cfg.config_reg_gate_node_reg(gate_nd, 1'b1);
+    reg_lock.put(1);
     measure_port_freq(
         out_vif, {gate_nd.get_name(), ".out open"}, 100_000_000,
         freq_hz, passed);
     if (!passed)
         failures++;
 
+    reg_lock.get(1);
     cfg.config_reg_gate_node_reg(gate_nd, 1'b0);
+    reg_lock.put(1);
     #20ns;
     check_port_inactive(
         out_vif, {gate_nd.get_name(), ".out close"}, 100_000_000, passed);
@@ -186,8 +205,61 @@ function bit {{ settings.class_prefix }}flip_check_seq::skip_stable_subject(
     return 1'b1;
 endfunction
 
+function bit {{ settings.class_prefix }}flip_check_seq::subjects_conflict(
+        input {{ settings.class_prefix }}node_base lhs,
+        input {{ settings.class_prefix }}node_base rhs);
+    {{ settings.class_prefix }}node_base lhs_inputs[$];
+    {{ settings.class_prefix }}node_base rhs_inputs[$];
+
+    if (lhs == null || rhs == null)
+        return 1'b1;
+    {{ settings.class_prefix }}tree_upstream_peers(lhs, lhs_inputs);
+    {{ settings.class_prefix }}tree_upstream_peers(rhs, rhs_inputs);
+
+    foreach (lhs_inputs[i]) begin
+        if ({{ settings.class_prefix }}node_in_queue(lhs_inputs[i], rhs_inputs))
+            return 1'b1;
+    end
+    if ({{ settings.class_prefix }}node_in_queue(lhs, rhs_inputs))
+        return 1'b1;
+    if ({{ settings.class_prefix }}node_in_queue(rhs, lhs_inputs))
+        return 1'b1;
+    return 1'b0;
+endfunction
+
+function void {{ settings.class_prefix }}flip_check_seq::build_subject_batches(
+        input {{ settings.class_prefix }}node_base subjects[$],
+        output int batches[$][$]);
+    batches.delete();
+    foreach (subjects[i]) begin
+        bit placed;
+        placed = 1'b0;
+        foreach (batches[b]) begin
+            bit conflict;
+            conflict = 1'b0;
+            foreach (batches[b][j]) begin
+                if (subjects_conflict(subjects[i], subjects[batches[b][j]])) begin
+                    conflict = 1'b1;
+                    break;
+                end
+            end
+            if (!conflict) begin
+                batches[b].push_back(i);
+                placed = 1'b1;
+                break;
+            end
+        end
+        if (!placed) begin
+            int new_batch[$];
+            new_batch.push_back(i);
+            batches.push_back(new_batch);
+        end
+    end
+endfunction
+
 task {{ settings.class_prefix }}flip_check_seq::verify_div(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_div div_nd,
         output bit did_check,
         output bit did_skip,
@@ -222,7 +294,9 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
         "test_flip: test div %s", div_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(800_000_000);
+    reg_lock.get(1);
     cfg.config_reg_div_node_reg(div_nd, ratio);
+    reg_lock.put(1);
     #20ns;
     measure_port_freq(
         out_vif, {div_nd.get_name(), ".out"}, 200_000_000,
@@ -248,6 +322,7 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_dto(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}div_dto dto_nd,
         output bit did_check,
         output bit did_skip,
@@ -282,7 +357,9 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
         "test_flip: test dto %s", dto_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(800_000_000);
+    reg_lock.get(1);
     cfg.config_reg_dto_node_reg(dto_nd, ratio);
+    reg_lock.put(1);
     #20ns;
     measure_port_freq(
         out_vif, {dto_nd.get_name(), ".out"}, 200_000_000,
@@ -308,6 +385,7 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}mux mux_nd,
         output bit did_check,
         output bit did_skip,
@@ -359,7 +437,9 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     end
 
     foreach (mux_nd.to_source[k]) begin
+        reg_lock.get(1);
         cfg.config_reg_mux_node_reg(mux_nd, k);
+        reg_lock.put(1);
         #50ns;
         measure_port_freq(
             out_vif, {mux_nd.get_name(), ".out"},
@@ -390,6 +470,7 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_inv(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}inv_base inv_nd,
         output bit did_check,
         output bit did_skip,
@@ -415,7 +496,9 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test inv %s", inv_nd.get_name()), UVM_LOW)
 
+    reg_lock.get(1);
     cfg.config_reg_inv_node_reg(inv_nd, 1'b0);
+    reg_lock.put(1);
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b0) begin
@@ -433,7 +516,9 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
             inv_nd.get_name(), out_vif.in))
     end
 
+    reg_lock.get(1);
     cfg.config_reg_inv_node_reg(inv_nd, 1'b1);
+    reg_lock.put(1);
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b1) begin
@@ -456,6 +541,7 @@ endtask
 
 task {{ settings.class_prefix }}flip_check_seq::verify_subject(
         input {{ settings.class_prefix }}config_reg_core cfg,
+        input semaphore reg_lock,
         input {{ settings.class_prefix }}node_base subject,
         output bit did_check,
         output bit did_skip,
@@ -470,15 +556,15 @@ task {{ settings.class_prefix }}flip_check_seq::verify_subject(
     did_skip = 1'b0;
     failures = 0;
     if ($cast(gate_nd, subject))
-        verify_gate(cfg, gate_nd, did_check, did_skip, failures);
+        verify_gate(cfg, reg_lock, gate_nd, did_check, did_skip, failures);
     else if ($cast(div_nd, subject))
-        verify_div(cfg, div_nd, did_check, did_skip, failures);
+        verify_div(cfg, reg_lock, div_nd, did_check, did_skip, failures);
     else if ($cast(dto_nd, subject))
-        verify_dto(cfg, dto_nd, did_check, did_skip, failures);
+        verify_dto(cfg, reg_lock, dto_nd, did_check, did_skip, failures);
     else if ($cast(mux_nd, subject))
-        verify_mux(cfg, mux_nd, did_check, did_skip, failures);
+        verify_mux(cfg, reg_lock, mux_nd, did_check, did_skip, failures);
     else if ($cast(inv_nd, subject))
-        verify_inv(cfg, inv_nd, did_check, did_skip, failures);
+        verify_inv(cfg, reg_lock, inv_nd, did_check, did_skip, failures);
 endtask
 
 task {{ settings.class_prefix }}flip_check_seq::body();
@@ -494,6 +580,8 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     {{ settings.class_prefix }}pll_base pll_nd;
     {{ settings.class_prefix }}node_base stable_nodes[$];
     {{ settings.class_prefix }}node_base test_subjects[$];
+    semaphore reg_lock;
+    int subject_batches[$][$];
     bit did_checks[];
     bit did_skips[];
     int failure_counts[];
@@ -530,6 +618,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
         `uvm_fatal("CLK_TREE", "test_flip: sequencer tools not built")
     cfg = new(p_sequencer.tools, 1'b1);
     cfg.configure_low_power(tree, rq.quiet);
+    reg_lock = new(1);
     {{ settings.class_prefix }}collect_stable_upstream_nodes(tree, stable_nodes);
 
     foreach (tree.nodes[i]) begin
@@ -610,21 +699,24 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     did_checks = new[total];
     did_skips = new[total];
     failure_counts = new[total];
-    fork
-        begin
-            foreach (test_subjects[i]) begin
-                fork
-                    automatic int idx = i;
-                    begin
-                        verify_subject(cfg, test_subjects[idx],
-                            did_checks[idx], did_skips[idx],
-                            failure_counts[idx]);
-                    end
-                join_none
+    build_subject_batches(test_subjects, subject_batches);
+    foreach (subject_batches[b]) begin
+        fork
+            begin
+                foreach (subject_batches[b][i]) begin
+                    fork
+                        automatic int idx = subject_batches[b][i];
+                        begin
+                            verify_subject(cfg, reg_lock, test_subjects[idx],
+                                did_checks[idx], did_skips[idx],
+                                failure_counts[idx]);
+                        end
+                    join_none
+                end
+                wait fork;
             end
-            wait fork;
-        end
-    join
+        join
+    end
 
     for (int i = 0; i < total; i++) begin
         if (did_checks[i] == did_skips[i])

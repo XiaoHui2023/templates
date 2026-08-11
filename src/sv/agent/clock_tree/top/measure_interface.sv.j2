@@ -143,17 +143,13 @@ interface {{ settings.class_prefix }}measure_interface #(
         duty_stable_cnt = 0;
     endfunction
 
-    // 活动已确认但在稳定阶段时限内未达到稳定计数
+    // 活动已确认但仍有测量项未在稳定阶段时限内完成
     function automatic void mark_timeout();
         latch_last_results();
         active = 1'b1;
         activity_ok = 1'b1;
         inactive = 1'b0;
         timed_out = 1'b1;
-        freq_stable = 1'b0;
-        duty_stable = 1'b0;
-        freq_stable_cnt = 0;
-        duty_stable_cnt = 0;
     endfunction
 
     // 活动确认后根据相邻上升沿更新频率、占空比与稳定计数

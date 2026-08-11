@@ -56,8 +56,7 @@ task {{ settings.class_prefix }}test_measure_seq::run_check_measure(
 
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null for check_measure")
-    if (!(check_clk && (check_freq || check_duty))
-            && !(check_cell && check_freq))
+    if (!check_clk && !check_cell)
         `uvm_fatal("CLK_TREE", "test_measure: no enabled check target")
     meas_req = {{ settings.class_prefix }}check_measure_req::type_id::create("meas_req");
     meas_req.tree = tree;
@@ -88,8 +87,7 @@ task {{ settings.class_prefix }}test_measure_seq::body();
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null")
     tree.require_built("test_measure");
-    if (!(rq.check_clk && (rq.check_freq || rq.check_duty))
-            && !(rq.check_cell && rq.check_freq))
+    if (!rq.check_clk && !rq.check_cell)
         `uvm_fatal("CLK_TREE", "test_measure: no enabled check target")
 
     if (!rq.quiet || rq.debug)

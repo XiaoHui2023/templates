@@ -1,6 +1,6 @@
 # test_measure
 
-编排完整配置和测量检查。tree 必须已经 build，并至少启用一种有效的 **clk/cell** 检查组合。
+编排完整配置和测量检查。tree 必须已经 build，并至少选择 **clk/cell** 一类节点。
 
 ## req
 
@@ -11,8 +11,8 @@
 | **debug** | **bit** | 打印测量进度 |
 | **check_clk** | **bit** | 检查 **clk** |
 | **check_cell** | **bit** | 检查 **cell** |
-| **check_freq** | **bit** | 检查频率 |
-| **check_duty** | **bit** | 检查占空比 |
+| **check_freq** | **bit** | 检查频率；关闭后仍检查活动 |
+| **check_duty** | **bit** | 检查占空比；关闭后仍检查活动 |
 
 ## 流程
 
