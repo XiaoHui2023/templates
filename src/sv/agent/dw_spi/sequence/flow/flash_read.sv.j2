@@ -68,7 +68,9 @@ task {{ class_prefix }}flash_read_seq::body();
     {{ class_prefix }}transfer_req op_req;
     {{ class_prefix }}transfer_rsp op_rsp;
     {{ class_prefix }}transfer_seq op_seq;
+    {{ class_prefix }}flash_enable_qe_seq qe_seq;
     {{ class_prefix }}transfer_configuration cfg;
+    int transfer_length;
 
     if (configuration == null) begin
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
@@ -79,24 +81,39 @@ task {{ class_prefix }}flash_read_seq::body();
     configuration.settings = p_sequencer.settings;
     cfg = configuration;
     command = create_read_command(cfg);
+    transfer_length = length + command.rx_skip_bytes;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_read start: address=0x%08h length=%0d addr_bytes=%0d opcode=0x%02h dummy_cycles=%0d lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_read start: address=0x%08h length=%0d transfer_length=%0d rx_skip_bytes=%0d addr_bytes=%0d opcode=0x%02h dummy_cycles=%0d requires_qe=%0b lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         length,
+        transfer_length,
+        command.rx_skip_bytes,
         cfg.addr_bytes,
         command.opcode,
         command.dummy_cycles,
+        command.requires_qe,
         cfg.io_lanes,
         cfg.speed_multiplier,
         cfg.frame_mode.name(),
         cfg.cs_control_mode.name(){% if internal_dma or external_dma %},
         cfg.use_dma{% endif %}), UVM_HIGH)
+    if (command.requires_qe) begin
+        `uvm_info("DW_SPI_FLASH", "flash read command requires QE; starting shared QE-enable flow", UVM_LOW)
+        qe_seq = {{ class_prefix }}flash_enable_qe_seq::type_id::create("enable_qe");
+        qe_seq.configuration = cfg;
+        qe_seq.start(p_sequencer);
+        if (!qe_seq.ok) begin
+            ok = 1'b0;
+            `uvm_error("DW_SPI_FLASH", "flash_read QE-enable flow failed")
+            return;
+        end
+    end
     adapter = {{ class_prefix }}flash_command_adapter::type_id::create("flash_command_adapter");
     begin
         byte unsigned empty_payload[];
         empty_payload = new[0];
         op_req = adapter.create_transfer_req(
-            command, cfg, "read_req", address, UVM_TLM_READ_COMMAND, empty_payload, length{% if internal_dma or external_dma %}, cfg.use_dma{% endif %});
+            command, cfg, "read_req", address, UVM_TLM_READ_COMMAND, empty_payload, transfer_length{% if internal_dma or external_dma %}, cfg.use_dma{% endif %});
     end
     `uvm_info("DW_SPI_FLASH", "starting primitive transfer for flash read", UVM_HIGH)
     `uvm_info("DW_SPI_FLASH", {"flash read command:\n", command.sprint()}, UVM_LOW)
@@ -113,6 +130,19 @@ task {{ class_prefix }}flash_read_seq::body();
             address, length, op_req.opcode))
     else
         data = op_rsp.read_data;
+    if (ok && data.size() < command.rx_skip_bytes) begin
+        `uvm_error("DW_SPI_FLASH", $sformatf(
+            "flash_read cannot discard leading bytes: received=%0d rx_skip_bytes=%0d opcode=0x%02h",
+            data.size(), command.rx_skip_bytes, command.opcode))
+        ok = 1'b0;
+    end
+    if (ok && command.rx_skip_bytes > 0) begin
+        `uvm_info("DW_SPI_FLASH", $sformatf(
+            "discarding %0d leading receive byte(s) before scoreboard comparison",
+            command.rx_skip_bytes), UVM_HIGH)
+        repeat (command.rx_skip_bytes)
+            void'(data.pop_front());
+    end
     if (ok) begin
         `uvm_info("DW_SPI_FLASH", "checking flash read actual data against scoreboard", UVM_HIGH)
         ok = p_sequencer.scoreboard.check_actual_read(

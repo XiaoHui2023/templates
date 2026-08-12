@@ -24,6 +24,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
         `uvm_field_int(inst_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(rx_skip_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(records_memory_write, UVM_ALL_ON)
 {%- if internal_dma or external_dma %}
         `uvm_field_int(use_dma, UVM_ALL_ON)
@@ -56,6 +57,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
     rand int inst_bytes;
     rand int addr_bytes;
     rand int dummy_cycles;
+    rand int rx_skip_bytes;
     rand bit records_memory_write;
 {%- if internal_dma or external_dma %}
     rand bit use_dma;
@@ -66,10 +68,12 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
     rand bit [31:0] axi_addr;
 {%- endif %}
 
+    // Creates a primitive transfer request.
     function new(string name="{{ class_prefix }}transfer_req");
         super.new(name);
     endfunction
 
+    // Refreshes the compact payload summary used by UVM field printing.
     function void update_print_summary(int max_bytes = 16);
         uvm_tlm_command_e command;
         byte unsigned gp_data[];
@@ -144,6 +148,8 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
         cs_id < {{ num_cs }};
         inst_bytes inside {[0:1]};
         addr_bytes inside {[0:4]};
+        soft rx_skip_bytes == 0;
+        rx_skip_bytes >= 0;
 {%- if internal_dma or external_dma %}
         soft use_dma == 1'b0;
 {%- endif %}

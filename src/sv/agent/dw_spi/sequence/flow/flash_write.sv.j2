@@ -27,10 +27,12 @@ class {{ class_prefix }}flash_write_seq extends {{ class_prefix }}base_seq;
     extern virtual task body();
     // Sends one write-enable command window.
     extern task run_write_enable(output bit ok);
-    // Sends the status-register sequence needed to enable quad I/O.
-    extern task run_write_status_qe(output bit ok);
     // Sends one continuous opcode, address, and payload program window.
-    extern task run_program(input bit [31:0] addr, input bit [7:0] program_data[$], output bit ok);
+    extern task run_program(
+        input {{ class_prefix }}flash_command command,
+        input bit [31:0] addr,
+        input bit [7:0] program_data[$],
+        output bit ok);
     // Selects and configures the program command packet for the requested speed.
     extern function {{ class_prefix }}flash_command create_program_command(
         {{ class_prefix }}transfer_configuration cfg);
@@ -94,45 +96,11 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
         ok, cfg.cs_id), UVM_HIGH)
 endtask
 
-task {{ class_prefix }}flash_write_seq::run_write_status_qe(output bit ok);
-    {{ class_prefix }}write_status_qe_flash_command command;
-    {{ class_prefix }}flash_command_adapter adapter;
-    {{ class_prefix }}transfer_req op_req;
-    {{ class_prefix }}transfer_rsp op_rsp;
-    {{ class_prefix }}transfer_seq op_seq;
-    {{ class_prefix }}transfer_configuration cfg;
-    byte unsigned payload_data[];
-
-    cfg = configuration;
-    command = {{ class_prefix }}write_status_qe_flash_command::type_id::create("write_status_qe_command");
-    if (!command.randomize() with {
-            frame_mode == local::cfg.frame_mode;
-        })
-        `uvm_fatal("DW_SPI", "flash_write: failed to randomize write-status QE flash command")
-    adapter = {{ class_prefix }}flash_command_adapter::type_id::create("flash_command_adapter");
-    payload_data = new[2];
-    payload_data[0] = 8'h00;
-    payload_data[1] = 8'h02;
-    op_req = adapter.create_transfer_req(
-        command, cfg, "write_status_qe_req", 32'h0, UVM_TLM_WRITE_COMMAND, payload_data, 2{% if internal_dma or external_dma %}, 1'b0{% endif %});
-    `uvm_info("DW_SPI_FLASH", "starting write-status command to set QE before QPP", UVM_HIGH)
-    `uvm_info("DW_SPI_FLASH", {"write-status QE flash command:\n", command.sprint()}, UVM_LOW)
-    `uvm_info("DW_SPI_FLASH", {"write-status QE transfer req:\n", op_req.sprint()}, UVM_LOW)
-    op_seq = {{ class_prefix }}transfer_seq::type_id::create("write_status_qe");
-    op_seq.req = op_req;
-    op_seq.start(p_sequencer);
-    op_rsp = op_seq.rsp;
-    ok = op_rsp != null && op_rsp.ok;
-    `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_write WRSR QE done: ok=%0b cs=%0d status16=0x%04h",
-        ok, cfg.cs_id, 16'h0200), UVM_HIGH)
-endtask
-
 task {{ class_prefix }}flash_write_seq::run_program(
+        input {{ class_prefix }}flash_command command,
         input bit [31:0] addr,
         input bit [7:0] program_data[$],
         output bit ok);
-    {{ class_prefix }}flash_command command;
     {{ class_prefix }}flash_command_adapter adapter;
     {{ class_prefix }}transfer_req op_req;
     {{ class_prefix }}transfer_rsp op_rsp;
@@ -141,7 +109,8 @@ task {{ class_prefix }}flash_write_seq::run_program(
     byte unsigned payload_data[];
 
     cfg = configuration;
-    command = create_program_command(cfg);
+    if (command == null)
+        `uvm_fatal("DW_SPI", "flash_write: program command is null")
     adapter = {{ class_prefix }}flash_command_adapter::type_id::create("flash_command_adapter");
     payload_data = new[program_data.size()];
     foreach (program_data[i])
@@ -167,7 +136,8 @@ endtask
 
 task {{ class_prefix }}flash_write_seq::body();
     bit chunk_ok;
-    bit qe_ok;
+    {{ class_prefix }}flash_command program_command;
+    {{ class_prefix }}flash_enable_qe_seq qe_seq;
 
     if (configuration == null) begin
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
@@ -176,6 +146,7 @@ task {{ class_prefix }}flash_write_seq::body();
             `uvm_fatal("DW_SPI", "flash_write: failed to randomize configuration")
     end
     configuration.settings = p_sequencer.settings;
+    program_command = create_program_command(configuration);
     ok = 1'b1;
     bytes_written = 0;
     `uvm_info("DW_SPI_FLASH", $sformatf(
@@ -191,30 +162,17 @@ task {{ class_prefix }}flash_write_seq::body();
     if (data.size() == 0)
         `uvm_fatal("DW_SPI", "flash_write requires non-empty data; use rw_test empty write_data only for random default data")
 
-    if (configuration.speed_multiplier == 4) begin
-        `uvm_info("DW_SPI_FLASH",
-            "QPP flow: WREN -> WRSR(QE=1) -> WREN -> one continuous QPP transaction", UVM_HIGH)
-        run_write_enable(chunk_ok);
-        if (!chunk_ok) begin
+    if (program_command.requires_qe) begin
+        `uvm_info("DW_SPI_FLASH", "program command requires QE; starting shared QE-enable flow", UVM_LOW)
+        qe_seq = {{ class_prefix }}flash_enable_qe_seq::type_id::create("enable_qe");
+        qe_seq.configuration = configuration;
+        qe_seq.start(p_sequencer);
+        if (!qe_seq.ok)
             ok = 1'b0;
-        end
-        else begin
-            run_write_status_qe(qe_ok);
-            if (!qe_ok) begin
-                ok = 1'b0;
-            end
-            else begin
-                `uvm_info("DW_SPI_FLASH",
-                    "WRSR may clear WEL; issuing WREN again before QPP", UVM_HIGH)
-                run_write_enable(chunk_ok);
-                if (!chunk_ok)
-                    ok = 1'b0;
-            end
-        end
     end
-    else begin
-        `uvm_info("DW_SPI_FLASH",
-            "flash_write flow will issue one write-enable followed by one continuous program transaction", UVM_HIGH)
+
+    if (ok) begin
+        `uvm_info("DW_SPI_FLASH", "issuing WREN before program transaction", UVM_LOW)
         run_write_enable(chunk_ok);
         if (!chunk_ok)
             ok = 1'b0;
@@ -223,7 +181,7 @@ task {{ class_prefix }}flash_write_seq::body();
     if (ok) begin
         `uvm_info("DW_SPI_FLASH",
             "write-enable is active; starting one continuous program transaction", UVM_HIGH)
-        run_program(address, data, chunk_ok);
+        run_program(program_command, address, data, chunk_ok);
         ok = chunk_ok;
         if (chunk_ok)
             bytes_written = data.size();

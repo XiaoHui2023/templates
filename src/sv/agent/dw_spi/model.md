@@ -65,6 +65,8 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不�
 
 flash 指令包见 [flash_command.md](model/flash_command.md)。每个指令包只写本 opcode 的协议形态约束；flow sequence 通过 `flash_command_adapter` 把指令包转换为通用 `transfer_req`，再交给 `transfer_seq` 执行。不要在 flow 里散写 opcode、address lane、dummy、TMOD、memory mirror 更新等规则。
 
+接收整形和前置流程也由指令包声明：`rx_skip_bytes` 表示实际接收后需要丢弃的前导 byte 数，`requires_qe` 表示执行该指令前是否运行 QE 配置流程。flow 只消费这些字段，不根据速度或 opcode 再次推导。当前 `READ4X 0xEB` 配置 `dummy_cycles=6`、`rx_skip_bytes=3`、`requires_qe=1`。
+
 ## `configuration.sv`
 
 `configuration` 是单次寄存器 FIELD 配置包，用来承载一次 apply 需要写入 regmodel FIELD 的值。它不保存寄存器地址，也不保存拼好的完整寄存器值；寄存器地址和 bit layout 由 regmodel/FIELD 托管。

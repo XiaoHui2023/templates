@@ -4,10 +4,12 @@
 class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_object;
     `uvm_object_utils({{ class_prefix }}flash_command_adapter)
 
+    // Creates a flash-command adapter.
     function new(string name="{{ class_prefix }}flash_command_adapter");
         super.new(name);
     endfunction
 
+    // Converts a command packet and transfer settings into a primitive request.
     function {{ class_prefix }}transfer_req create_transfer_req(
             {{ class_prefix }}flash_command command,
             {{ class_prefix }}transfer_configuration cfg,
@@ -53,6 +55,7 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
         op_req.inst_bytes = command.inst_bytes;
         op_req.addr_bytes = command.addr_bytes;
         op_req.dummy_cycles = command.dummy_cycles;
+        op_req.rx_skip_bytes = command.rx_skip_bytes;
         op_req.records_memory_write = command.records_memory_write;
 {%- if internal_dma or external_dma %}
         op_req.use_dma = use_dma;

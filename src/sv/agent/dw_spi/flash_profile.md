@@ -67,7 +67,8 @@ Implemented:
 - QPP `0x32` is `1S-1S-4S`: `instruction_lanes=1`, `address_lanes=1`, and payload uses four lines. Therefore `SPI_CTRLR0.TRANS_TYPE=0` while `CTRLR0.SPI_FRF=2`; the 8-bit instruction takes 8 SCLK cycles and the default 24-bit address takes 24 SCLK cycles.
 - Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
-- Read dummy clocks are command-owned SCLK cycles: `03h=0`, `0Bh=8`, `BBh=4`, and `EBh=10`; program/write windows do not use dummy clocks.
+- Read dummy clocks are command-owned SCLK cycles: `03h=0`, `0Bh=8`, `BBh=4`, and `EBh=6`; program/write windows do not use dummy clocks.
+- `READ4X 0xEB` requests three additional receive bytes and discards those leading bytes before returning data to scoreboard (`rx_skip_bytes=3`).
 - NDF derived only from payload data frames. Instruction/address/dummy remain in the same continuous CS window but are excluded from NDF.
 - Scoreboard comparison using actual readback data from DR or DMA buffer.
 
@@ -76,7 +77,7 @@ Not yet implemented as full NOR behavior:
 - Erase command before program.
 - RDSR WIP polling and WEL checking after WREN/WRSR/program/erase.
 - Skipping WRSR when QE is already set.
-- QE/WRSR flow before quad read when the flash model requires it.
+- Skipping repeated WRSR when QE state is already known to be set; command packets currently request the QE flow explicitly through `requires_qe`.
 - 256-byte page boundary split/wrap/truncate behavior.
 - Program bit rule where NOR only changes `1 -> 0` without erase.
 - Unsupported command behavior per concrete model.

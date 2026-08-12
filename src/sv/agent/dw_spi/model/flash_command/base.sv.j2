@@ -14,6 +14,7 @@ class {{ class_prefix }}flash_command extends {{ class_prefix }}base_item;
         `uvm_field_int(inst_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(addr_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(dummy_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(rx_skip_bytes, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(payload_is_read, UVM_ALL_ON)
         `uvm_field_int(payload_is_write, UVM_ALL_ON)
         `uvm_field_int(records_memory_write, UVM_ALL_ON)
@@ -31,11 +32,13 @@ class {{ class_prefix }}flash_command extends {{ class_prefix }}base_item;
     rand int inst_bytes;
     rand int addr_bytes;
     rand int dummy_cycles;
+    rand int rx_skip_bytes;
     rand bit payload_is_read;
     rand bit payload_is_write;
     rand bit records_memory_write;
     rand bit requires_qe;
 
+    // Creates a generic flash command packet.
     function new(string name="{{ class_prefix }}flash_command");
         super.new(name);
     endfunction
@@ -50,6 +53,8 @@ class {{ class_prefix }}flash_command extends {{ class_prefix }}base_item;
         data_frame_bits inside {[4:32]};
         soft data_frame_bits == 8;
         soft dummy_cycles == 0;
+        soft rx_skip_bytes == 0;
+        rx_skip_bytes >= 0;
         soft instruction_lanes == 1;
         soft address_lanes == 1;
         soft records_memory_write == 1'b0;
