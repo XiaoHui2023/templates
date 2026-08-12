@@ -29,7 +29,7 @@
 | **div** | 800 MHz 输入和 ratio 4 下检查 200 MHz 输出 |
 | **dto** | 800 MHz 输入和 ratio 4 下检查 200 MHz 输出 |
 | **mux** | 各输入使用不同频率，遍历全部选择值并核对输出频率 |
-| **inv** | 遍历直通、反相配置和输入 0/1 |
+| **inv** | 按 **inv_reg_high_means_inverted** 极性遍历直通、反相配置和输入 0/1 |
 
 **div/dto** 使用代表 ratio 验证功能，不穷举寄存器全部取值。PLL 不做功能检查，每个 PLL 打印 skip。
 

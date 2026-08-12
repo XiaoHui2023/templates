@@ -48,3 +48,4 @@ settings:
   class_prefix: clk_tree_
   class_regmodel: regmodel_t
   direct_config: true
+  inv_reg_high_means_inverted: false

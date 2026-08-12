@@ -74,7 +74,7 @@ endfunction
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
 | `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。 |
-| `inv_reg_high_means_inverted` | `bool` | `false` | 为真时 inv 寄存器位 1 表示反相输出；为假时 1 表示直通。 |
+| `inv_reg_high_means_inverted` | `bool` | `true` | 为真时 inv 寄存器位 1 表示反相输出；为假时 1 表示直通。 |
 | `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 | `dto_reg_high_means_reset` | `bool` | `false` | 为真时 dto **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 | `should_reset_div` | `bool` | `false` | 为真时每次 **config_reg** 写 div 都先拉 **rst** 复位再释放；为假时首次只写 **rst** 不复位并写 **div** 与 **load**，此后仅更新 **div** 与 **load**。 |

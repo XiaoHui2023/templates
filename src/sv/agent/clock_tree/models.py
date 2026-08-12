@@ -187,7 +187,7 @@ class Settings(BaseModel):
         description="为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。",
     )
     inv_reg_high_means_inverted: bool = Field(
-        False,
+        True,
         description="为真时 inv 寄存器位 1 表示反相输出；为假时 1 表示直通。",
     )
     div_reg_high_means_reset: bool = Field(
