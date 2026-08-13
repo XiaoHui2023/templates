@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List
 
 from load.tools import log_stage_done, log_stage_start, run_consolver_solve
+from load.regmodel import RegModelIndex
 from registers.formulas import DTO_MAX_RATIO
 from registers.formulas import (
     freq_tolerance_bounds,
@@ -30,12 +31,14 @@ def solve_tree_with_consolver(
     period_tolerance: float,
     timeout_ms: int | None = None,
     debug_smt_path: Path | None = None,
+    reg_index: RegModelIndex | None = None,
 ) -> SolveModel:
     builder = _SmtBuilder(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
+        reg_index=reg_index,
     )
     smt2 = builder.render()
     if debug_smt_path is not None:
@@ -87,12 +90,14 @@ def build_tree_smt2(
     pll_sc_fbdiv_min: int,
     pll_sc_fbdiv_max: int,
     period_tolerance: float,
+    reg_index: RegModelIndex | None = None,
 ) -> str:
     builder = _SmtBuilder(
         tree,
         pll_sc_fbdiv_min=pll_sc_fbdiv_min,
         pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
+        reg_index=reg_index,
     )
     return builder.render()
 
@@ -105,13 +110,18 @@ class _SmtBuilder:
         pll_sc_fbdiv_min: int,
         pll_sc_fbdiv_max: int,
         period_tolerance: float,
+        reg_index: RegModelIndex | None,
     ) -> None:
         self.tree = tree
         self.pll_sc_fbdiv_min = pll_sc_fbdiv_min
         self.pll_sc_fbdiv_max = pll_sc_fbdiv_max
         self.tol_lo, self.tol_hi, self.tol_den = freq_tolerance_bounds(period_tolerance)
+        self.reg_index = reg_index
+        self.ratio_vars: Dict[str, str] = {}
+        self.sel_vars: Dict[str, str] = {}
         self.constraints: List[NamedConstraint] = []
         self.decls: Dict[str, str] = {}
+        self._build_shared_control_vars()
         self._build()
 
     def render(self) -> str:
@@ -134,9 +144,9 @@ class _SmtBuilder:
         for name, node in self.tree.nodes.items():
             active[name] = bool(model.get(_act(name), False))
             if isinstance(node, DivNode):
-                ratios[name] = int(model.get(_ratio(name), node.ratio or 0))
+                ratios[name] = int(model.get(self._ratio_var(name), node.ratio or 0))
             if isinstance(node, MuxNode):
-                mux_sel[name] = int(model.get(_sel(name), node.sel or 0))
+                mux_sel[name] = int(model.get(self._sel_var(name), node.sel or 0))
             if isinstance(node, GateNode):
                 gate_open[name] = active[name]
             if isinstance(node, PllNode) and active[name]:
@@ -235,7 +245,7 @@ class _SmtBuilder:
 
     def _div_constraints(self, name: str, node: DivNode) -> None:
         act = _act(name)
-        ratio = _ratio(name)
+        ratio = self._ratio_var(name)
         self._declare(ratio, "Int")
         try:
             parent = parent_port_for_child(self.tree, name)
@@ -291,7 +301,7 @@ class _SmtBuilder:
 
     def _mux_constraints(self, name: str, node: MuxNode) -> None:
         act = _act(name)
-        sel = _sel(name)
+        sel = self._sel_var(name)
         self._declare(sel, "Int")
         source_by_sel = {int(key): value for key, value in node.source.items()}
         keys = sorted(source_by_sel)
@@ -330,7 +340,7 @@ class _SmtBuilder:
                         f"{child_name}.source[{key}]",
                     )
                     if ref == port:
-                        consumers.append(f"(and {_act(child_name)} (= {_sel(child_name)} {int(key)}))")
+                        consumers.append(f"(and {_act(child_name)} (= {self._sel_var(child_name)} {int(key)}))")
                 continue
             if child.kind == "source":
                 continue
@@ -341,6 +351,50 @@ class _SmtBuilder:
             if ref == port:
                 consumers.append(_act(child_name))
         return consumers
+
+    def _build_shared_control_vars(self) -> None:
+        if self.reg_index is None:
+            return
+
+        ratio_vars_by_field: dict[tuple[str, str, int, int], str] = {}
+        sel_vars_by_field: dict[tuple[str, str, int, int], str] = {}
+        for name, node in self.tree.nodes.items():
+            if isinstance(node, DivNode):
+                path = _div_ratio_reg_path(node)
+                if not path:
+                    continue
+                key = self._control_field_key(path, f"{name}.regs")
+                self.ratio_vars[name] = ratio_vars_by_field.setdefault(
+                    key,
+                    _shared_control_var("ratio", key),
+                )
+            elif isinstance(node, MuxNode) and node.reg:
+                key = self._control_field_key(node.reg, f"{name}.reg")
+                self.sel_vars[name] = sel_vars_by_field.setdefault(
+                    key,
+                    _shared_control_var("sel", key),
+                )
+
+    def _control_field_key(
+        self,
+        raw_path: str,
+        ctx: str,
+    ) -> tuple[str, str, int, int]:
+        if self.reg_index is None:
+            raise RuntimeError("reg_index is required to resolve control fields")
+        ref = self.reg_index.resolve(raw_path, ctx=ctx)
+        return (
+            ref.reg.path,
+            ref.field.name,
+            ref.effective_lsb,
+            ref.effective_width,
+        )
+
+    def _ratio_var(self, node_name: str) -> str:
+        return self.ratio_vars.get(node_name, _ratio(node_name))
+
+    def _sel_var(self, node_name: str) -> str:
+        return self.sel_vars.get(node_name, _sel(node_name))
 
 
 def parent_port_for_child_ref(tree: Tree, raw: str, ctx: str) -> Port:
@@ -377,6 +431,24 @@ def _ratio(node: str) -> str:
 
 def _sel(node: str) -> str:
     return _safe_name(f"sel__{node}")
+
+
+def _div_ratio_reg_path(node: DivNode) -> str:
+    if node.ratio is not None or not node.regs:
+        return ""
+    if node.div_kind in ("dto", "dto_n"):
+        return node.regs.get("step", "")
+    return node.regs.get("div", "")
+
+
+def _shared_control_var(
+    kind: str,
+    key: tuple[str, str, int, int],
+) -> str:
+    reg_path, field_name, lsb, width = key
+    return _safe_name(
+        f"{kind}__shared__{reg_path}__{field_name}__{lsb}__{width}"
+    )
 
 
 def _pll_var(node: str, key: str) -> str:

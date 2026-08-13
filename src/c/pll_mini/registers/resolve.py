@@ -93,6 +93,7 @@ def resolve_tree(
         period_tolerance=period_tolerance,
         timeout_ms=solve_timeout_ms,
         debug_smt_path=debug_consolver_smt_path,
+        reg_index=reg_index,
     )
 
     fit_started_at = log_stage_start(

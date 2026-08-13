@@ -371,6 +371,7 @@ class Models(BaseModel):
                 pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
                 pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
                 period_tolerance=s.period_tolerance,
+                reg_index=RegModelIndex(self.regmodel),
             )
             _CONSOLVER_SMT_CACHE[key] = result
             return result

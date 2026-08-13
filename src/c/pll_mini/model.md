@@ -21,6 +21,12 @@
 
 这个阶段不写实际寄存器配置，不展开 PLL 具体寄存器公式，不读取 gate open 真实配置。
 
+## 共享控制 field
+
+可配置 `div` / `dto` 的分频变量来自寄存器 field：`div` / `div_n` 使用 `regs.div`，`dto` / `dto_n` 使用 `regs.step`。可配置 `mux` 的选择变量来自 `reg`。多个节点绑定到同一个寄存器 field 时，SMT 约束复用同一个变量；如果下游目标能用同一个控制值同时满足则求解成功，否则由求解器返回无解。
+
+配置生成阶段不再为共享 field 额外报错。同一寄存器 field 的多个 patch 会合并到同一个 `pll_mini_config_steps` 数组项中。
+
 ## 通路语义
 
 source 是固定频率源，必须从 Python 输入给出 `freq`。它只负责向下游传播确定频率，不参与 PLL 寄存器公式求解。
