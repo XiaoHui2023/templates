@@ -536,9 +536,9 @@ task {{ settings.class_prefix }}check_measure_seq::body();
 
     meas_min_freq_hz = rq.min_freq_hz > 0 ? rq.min_freq_hz : {{ settings.min_freq_hz }};
     meas_period_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz;
-    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }};
-    // 与 measure_interface 一致，为频率基准周期保留一个周期。
-    meas_stable_timeout_ns = meas_period_ns * ({{ settings.stable_cycles }} + 1);
+    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }} + 1;
+    // 与 measure_interface 一致：保留频率基准周期及一个 1ns 轮询步长。
+    meas_stable_timeout_ns = meas_period_ns * ({{ settings.stable_cycles }} + 1) + 1;
     meas_timeout_ns = meas_active_timeout_ns;
     if (rq.check_freq || (rq.check_clk && rq.check_duty))
         meas_timeout_ns += meas_stable_timeout_ns;

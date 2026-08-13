@@ -19,6 +19,7 @@ interface {{ settings.class_prefix }}measure_interface #(
     localparam real DUTY_MAX = (DUTY_MAX_PCT + DUTY_TOL_PCT) / 100.0;
     localparam real DUTY_BOUND_EPS = 1.0e-12;
     localparam real RT_PER_SEC = 1.0e9;
+    localparam int TIMEOUT_GUARD_NS = 1;
 
     bit meas_en;
 
@@ -81,9 +82,11 @@ interface {{ settings.class_prefix }}measure_interface #(
             hz = MIN_FREQ_HZ;
         min_freq_hz_rt = hz;
         period_ns = (1_000_000_000 + hz - 1) / hz;
-        active_timeout_ns_rt = period_ns * ACTIVE_CYCLES;
-        // 频率稳定需要一个基准周期，再累计 STABLE_CYCLES 次比较。
-        stable_timeout_ns_rt = period_ns * (STABLE_CYCLES + 1);
+        active_timeout_ns_rt = period_ns * ACTIVE_CYCLES + TIMEOUT_GUARD_NS;
+        // 频率稳定需要一个基准周期，再累计 STABLE_CYCLES 次比较；
+        // 额外一个轮询步长避免末次边沿与超时进程在同一时刻竞争。
+        stable_timeout_ns_rt = period_ns * (STABLE_CYCLES + 1)
+            + TIMEOUT_GUARD_NS;
         max_edge_period_rt = RT_PER_SEC / hz;
     endfunction
 
@@ -92,10 +95,10 @@ interface {{ settings.class_prefix }}measure_interface #(
         if (activity_ok || inactive || !meas_en)
             return;
         if (activity_edge_cnt == 0) begin
-            if (($realtime - activity_start_t) >= max_edge_period_rt)
+            if (($realtime - activity_start_t) > max_edge_period_rt)
                 mark_inactive();
         end
-        else if (($realtime - last_edge_t) >= max_edge_period_rt)
+        else if (($realtime - last_edge_t) > max_edge_period_rt)
             mark_inactive();
     endfunction
 
