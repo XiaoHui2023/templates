@@ -41,7 +41,7 @@ f_sclk_out = f_ssi / BAUDR
 | **width_data** | data 阶段每个 sclk 可传输的 bit 数；standard 为 1，enhanced 按本次 `speed_multiplier`。 |
 | **dummy_cycles** | 协议 dummy/wait sclk 周期。接收类 enhanced transfer 会映射到 `SPI_CTRLR0.WAIT_CYCLES`；flash write/program flow 强制为 0。 |
 
-当前内置 NOR-like read packet 使用 `03h=0`、`0Bh=8`、`BBh=4`、`EBh=6` 个 SCLK cycle。标准 `03h` 路径不向 DR 写入 dummy byte；enhanced 路径把对应值直接写入 `SPI_CTRLR0.WAIT_CYCLES`。
+当前内置 NOR-like read packet 使用 `03h=0`、`BBh=4`、`EBh=6` 个 SCLK cycle。`READ1X 03h` 的 standard 和 enhanced 路径都不使用 dummy cycle；enhanced 路径仍通过 `SPI_CTRLR0` 描述 instruction、address 和 data phase。
 
 接收前导丢弃量与 dummy cycle 分开建模：`transfer_length = requested_length + rx_skip_bytes`。控制器按 `transfer_length` 配置 NDF 并接收，flow 丢弃前 `rx_skip_bytes` 后，只把 `requested_length` 个实际数据 byte 交给 scoreboard。`READ2X` 使用 `rx_skip_bytes=addr_bytes`，`READ4X` 使用 `rx_skip_bytes=3`。
 | **fifo_chunks** | `ceil(max(payload_bytes, 1) / fifo_depth_bytes)`。 |

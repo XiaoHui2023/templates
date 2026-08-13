@@ -33,19 +33,11 @@ endclass
 function {{ class_prefix }}flash_command {{ class_prefix }}flash_read_seq::create_read_command(
         {{ class_prefix }}transfer_configuration cfg);
     {{ class_prefix }}flash_command command;
-    frame_mode_e frame_mode;
 
     if (cfg == null)
         `uvm_fatal("DW_SPI", "flash_read: configuration is null")
-    if (!$cast(frame_mode, cfg.frame_mode))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast frame_mode")
     case (cfg.speed_multiplier)
-        1: begin
-            if (frame_mode == ENHANCED)
-                command = {{ class_prefix }}fast_read1x_flash_command::type_id::create("fast_read1x_command");
-            else
-                command = {{ class_prefix }}read1x_flash_command::type_id::create("read1x_command");
-        end
+        1: command = {{ class_prefix }}read1x_flash_command::type_id::create("read1x_command");
         2: command = {{ class_prefix }}read2x_flash_command::type_id::create("read2x_command");
         4: command = {{ class_prefix }}read4x_flash_command::type_id::create("read4x_command");
         default: begin
@@ -54,11 +46,15 @@ function {{ class_prefix }}flash_command {{ class_prefix }}flash_read_seq::creat
                 cfg.speed_multiplier))
         end
     endcase
+    if (!$cast(command.frame_mode, cfg.frame_mode))
+        `uvm_fatal("DW_SPI", "flash_read: failed to cast frame_mode into read command")
+    command.frame_mode.rand_mode(0);
     if (!command.randomize() with {
             addr_bytes == local::cfg.addr_bytes;
             data_frame_bits == local::cfg.data_frame_bits;
         })
         `uvm_fatal("DW_SPI", "flash_read: failed to randomize read flash command")
+    command.frame_mode.rand_mode(1);
     return command;
 endfunction
 

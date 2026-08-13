@@ -21,14 +21,14 @@ SPI NAND 不直接复用这个 NOR-like byte memory flow。NAND 通常需要 pag
 
 | Operation | 1x standard | 1x enhanced | 2x | 4x |
 | --- | --- | --- | --- | --- |
-| Read | `0x03` | `0x0B` | `0xBB` | `0xEB` |
+| Read | `0x03` | `0x03` | `0xBB` | `0xEB` |
 | Program | `0x02` | `0x02` | `0xA2` | `0x32` |
 
 Other common P25Q21L commands recorded in the root skill include `RDID 0x9F`, `RDSR 0x05`, `RDSR2 0x35`, `WRSR 0x01`, `SE 0x20`, `BE32 0x52`, `BE64 0xD8`, `CE 0x60/0xC7`, `RSTEN 0x66`, and `RST 0x99`.
 
-Program phase width is opcode-specific. `PP 0x02`, `DPP 0xA2`, and QPP `0x32` keep opcode/address single-lane; QPP changes only the payload phase to quad-lane. Read address width is also opcode-specific: `READ1X 0x03`, `FASTREAD1X 0x0B`, `DREAD 0x3B`, and `QREAD 0x6B` are single-lane address; `READ2X 0xBB` is dual-lane address; `READ4X 0xEB` is quad-lane address.
+Program phase width is opcode-specific. `PP 0x02`, `DPP 0xA2`, and QPP `0x32` keep opcode/address single-lane; QPP changes only the payload phase to quad-lane. Read address width is also opcode-specific: `READ1X 0x03`, `DREAD 0x3B`, and `QREAD 0x6B` are single-lane address; `READ2X 0xBB` is dual-lane address; `READ4X 0xEB` is quad-lane address.
 
-`STANDARD` / `ENHANCED` is the controller driving path, not always a flash opcode property. Compatible 1x commands such as `WREN 0x06`, `WRSR 0x01`, and `PP 0x02` may be executed through either standard or enhanced 1x controller setup. Opcodes that require dual/quad phases still force enhanced mode.
+`STANDARD` / `ENHANCED` is the controller driving path, not always a flash opcode property. Compatible 1x commands such as `READ1X 0x03`, `WREN 0x06`, `WRSR 0x01`, and `PP 0x02` may be executed through either standard or enhanced 1x controller setup. The built-in flow does not use `FASTREAD1X 0x0B`. Opcodes that require dual/quad phases still force enhanced mode.
 
 Executable command shapes are documented in [model/flash_command.md](model/flash_command.md). New flash opcodes should first get command packets, then be composed in flow sequences.
 
@@ -67,7 +67,7 @@ Implemented:
 - QPP `0x32` is `1S-1S-4S`: `instruction_lanes=1`, `address_lanes=1`, and payload uses four lines. Therefore `SPI_CTRLR0.TRANS_TYPE=0` while `CTRLR0.SPI_FRF=2`; the 8-bit instruction takes 8 SCLK cycles and the default 24-bit address takes 24 SCLK cycles.
 - Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
-- Read dummy clocks are command-owned SCLK cycles: `03h=0`, `0Bh=8`, `BBh=4`, and `EBh=6`; program/write windows do not use dummy clocks.
+- Read dummy clocks are command-owned SCLK cycles: `03h=0`, `BBh=4`, and `EBh=6`; program/write windows do not use dummy clocks.
 - `READ2X 0xBB` discards `addr_bytes` leading receive bytes (`rx_skip_bytes=addr_bytes`).
 - `READ4X 0xEB` requests three additional receive bytes and discards those leading bytes before returning data to scoreboard (`rx_skip_bytes=3`).
 - NDF derived only from payload data frames. Instruction/address/dummy remain in the same continuous CS window but are excluded from NDF.
