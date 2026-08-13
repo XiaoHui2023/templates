@@ -66,7 +66,7 @@
 5. 指令包负责 opcode、`EEPROM_READ`、address phase 线宽和 data phase 线宽。`READ1X/FASTREAD1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
 6. Standard read 从 `DR` 连续发送 opcode + address，然后控制器按 `CTRLR1.NDF` 自动切换到 RX。Enhanced read 由 `SPI_CTRLR0` 控制 instruction + address + dummy/wait phase，然后按 NDF 自动切换到 RX。
 7. 同一个 primitive transfer 内完成 opcode + address + dummy + read data，CS 不能在中间断开。
-8. 指令包的 `rx_skip_bytes` 非零时，transfer 按 `requested_length + rx_skip_bytes` 接收；flow 丢弃指定数量的前导 byte，再保存 `read_data` 并调用 scoreboard 比较。当前 `READ4X` 丢弃 3 byte。
+8. 指令包的 `rx_skip_bytes` 非零时，transfer 按 `requested_length + rx_skip_bytes` 接收；flow 丢弃指定数量的前导 byte，再保存 `read_data` 并调用 scoreboard 比较。`READ2X` 丢弃 `addr_bytes` 个前导 byte，`READ4X` 丢弃 3 byte。
 
 地址是 32 bit flash/model 地址，不是寄存器地址。
 

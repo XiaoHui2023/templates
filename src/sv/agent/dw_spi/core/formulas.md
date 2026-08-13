@@ -43,7 +43,7 @@ f_sclk_out = f_ssi / BAUDR
 
 当前内置 NOR-like read packet 使用 `03h=0`、`0Bh=8`、`BBh=4`、`EBh=6` 个 SCLK cycle。标准 `03h` 路径不向 DR 写入 dummy byte；enhanced 路径把对应值直接写入 `SPI_CTRLR0.WAIT_CYCLES`。
 
-接收前导丢弃量与 dummy cycle 分开建模：`transfer_length = requested_length + rx_skip_bytes`。控制器按 `transfer_length` 配置 NDF 并接收，flow 丢弃前 `rx_skip_bytes` 后，只把 `requested_length` 个实际数据 byte 交给 scoreboard。当前 `READ4X` 使用 `rx_skip_bytes=3`。
+接收前导丢弃量与 dummy cycle 分开建模：`transfer_length = requested_length + rx_skip_bytes`。控制器按 `transfer_length` 配置 NDF 并接收，flow 丢弃前 `rx_skip_bytes` 后，只把 `requested_length` 个实际数据 byte 交给 scoreboard。`READ2X` 使用 `rx_skip_bytes=addr_bytes`，`READ4X` 使用 `rx_skip_bytes=3`。
 | **fifo_chunks** | `ceil(max(payload_bytes, 1) / fifo_depth_bytes)`。 |
 | **margin_percent** | Python 输入的 `interrupt_timeout_margin_percent`。 |
 | **extra_cycles** | Python 输入的 `interrupt_timeout_extra_ssi_clk_cycles`。 |
