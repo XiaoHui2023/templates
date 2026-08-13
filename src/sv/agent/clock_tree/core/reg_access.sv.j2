@@ -19,6 +19,21 @@ function automatic int {{ settings.class_prefix }}reg_bound_max(
     return (1 << w) - 1;
 endfunction
 
+// Two bindings overlap when they address at least one common bit of one field.
+function automatic bit {{ settings.class_prefix }}reg_bindings_overlap(
+        input {{ settings.class_prefix }}reg lhs,
+        input {{ settings.class_prefix }}reg rhs);
+    int lhs_hi;
+    int rhs_hi;
+    if (lhs == null || rhs == null || !lhs.is_bound() || !rhs.is_bound())
+        return 1'b0;
+    if (lhs.field != rhs.field)
+        return 1'b0;
+    lhs_hi = lhs.offset + {{ settings.class_prefix }}reg_bound_width(lhs) - 1;
+    rhs_hi = rhs.offset + {{ settings.class_prefix }}reg_bound_width(rhs) - 1;
+    return lhs.offset <= rhs_hi && rhs.offset <= lhs_hi;
+endfunction
+
 class {{ settings.class_prefix }}reg_rw extends {{ settings.class_prefix }}base_object;
     function new();
         super.new("{{ settings.class_prefix }}reg_rw");

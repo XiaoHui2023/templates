@@ -14,8 +14,6 @@ from pydantic import (
     model_validator,
 )
 
-_SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
-
 from nodes import Node, Tree, validate_nodes_graph
 from reg_paths import (
     DIV_KIND_TO_SV_ENUM,
@@ -23,15 +21,17 @@ from reg_paths import (
     PLL_REG_KEYS,
     SOURCE_KIND_TO_SV_ENUM,
     RegBindingRow,
+    RegConstraintRow,
+    analyze_reg_bindings,
     any_reg_configured as tree_has_node_regs,
     collect_div_sv_classes,
     collect_inv_sv_classes,
     collect_pll_sv_classes,
     collect_source_sv_classes,
-    iter_reg_bindings,
 )
 from schema_error import ERR
 
+_SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _MAX_FREQ_HZ = 5_000_000_000
 
 _SV_FAMILY_DECLARATIONS = "\n".join((
@@ -304,6 +304,7 @@ class Models(BaseModel):
                 f"任意节点配置了 {ERR.fields('reg', 'regs')} 时须在 "
                 f"{ERR.field('settings')} 中填写 {ERR.field('class_regmodel')}"
             )
+        self._cache["reg_analysis"] = analyze_reg_bindings(self.tree)
         return self
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -369,10 +370,12 @@ class Models(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def reg_bindings(self) -> List[RegBindingRow]:
-        return self._cached(
-            "reg_bindings",
-            lambda: iter_reg_bindings(self.tree),
-        )
+        return self._cache["reg_analysis"][0]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def shared_reg_constraints(self) -> List[RegConstraintRow]:
+        return self._cache["reg_analysis"][1]
     @computed_field  # type: ignore[prop-decorator]
     @property
     def first_clk_name(self) -> Optional[str]:

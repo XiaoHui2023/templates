@@ -5,12 +5,14 @@ class {{ settings.class_prefix }}reg extends {{ settings.class_prefix }}base_obj
     uvm_reg_field field;
     int unsigned offset;
     int unsigned width;
+    int unsigned alias_count;
     bit has_read;
 
     function new();
         super.new("{{ settings.class_prefix }}reg");
         offset = 0;
         width = 0;
+        alias_count = 1;
         has_read = 1'b0;
     endfunction
 

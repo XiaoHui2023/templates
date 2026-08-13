@@ -9,6 +9,8 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
     {{ settings.class_prefix }}reg f_load;
     {{ settings.class_prefix }}reg f_div;
     int max_ratio;
+    int last_configured_ratio;
+    bit has_configured_ratio;
 
     constraint cst_div {
         max_ratio > 0;
@@ -19,6 +21,8 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
     function new(string name = "");
         super.new(name);
         max_ratio = 64;
+        last_configured_ratio = 0;
+        has_configured_ratio = 1'b0;
         f_rst = new();
         f_load = new();
         f_div = new();

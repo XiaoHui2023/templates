@@ -235,6 +235,49 @@ function automatic bit {{ settings.class_prefix }}control_node_is_valid(
     return 1'b1;
 endfunction
 
+// Collect all writable register fields used while configuring one control node.
+function automatic void {{ settings.class_prefix }}collect_node_control_regs(
+        input {{ settings.class_prefix }}node_base nd,
+        output {{ settings.class_prefix }}reg regs[$]);
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}div_div div_nd;
+    {{ settings.class_prefix }}div_dto dto_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+    {{ settings.class_prefix }}inv_base inv_nd;
+    regs.delete();
+    if ($cast(gate_nd, nd))
+        regs.push_back(gate_nd.f_reg);
+    else if ($cast(div_nd, nd)) begin
+        regs.push_back(div_nd.f_rst);
+        regs.push_back(div_nd.f_load);
+        regs.push_back(div_nd.f_div);
+    end else if ($cast(dto_nd, nd)) begin
+        regs.push_back(dto_nd.f_rst);
+        regs.push_back(dto_nd.f_load);
+        regs.push_back(dto_nd.f_bypass);
+        regs.push_back(dto_nd.f_step);
+    end else if ($cast(mux_nd, nd))
+        regs.push_back(mux_nd.f_reg);
+    else if ($cast(inv_nd, nd))
+        regs.push_back(inv_nd.f_reg);
+endfunction
+
+// Register aliases are a full-test conflict, not only a write-time RMW conflict.
+function automatic bit {{ settings.class_prefix }}nodes_share_control_reg(
+        input {{ settings.class_prefix }}node_base lhs,
+        input {{ settings.class_prefix }}node_base rhs);
+    {{ settings.class_prefix }}reg lhs_regs[$];
+    {{ settings.class_prefix }}reg rhs_regs[$];
+    {{ settings.class_prefix }}collect_node_control_regs(lhs, lhs_regs);
+    {{ settings.class_prefix }}collect_node_control_regs(rhs, rhs_regs);
+    foreach (lhs_regs[i])
+        foreach (rhs_regs[j])
+            if ({{ settings.class_prefix }}reg_bindings_overlap(
+                    lhs_regs[i], rhs_regs[j]))
+                return 1'b1;
+    return 1'b0;
+endfunction
+
 // scope 内是否存在 nd 的直接前级
 function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
         {{ settings.class_prefix }}node_base nd,

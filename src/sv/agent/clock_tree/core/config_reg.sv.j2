@@ -146,7 +146,11 @@ task {{ settings.class_prefix }}config_reg_core::config_reg_div_node_reg(
         return;
     tools.node.div_regs_match_ratio(
         div_nd.f_rst, div_nd.f_div, reg_ratio, ratio_match);
-    if (ratio_match) begin
+    // A shared ratio field may feed multiple dividers with independent load bits.
+    // Each owner must still receive its own load edge.
+    if (ratio_match && (div_nd.f_div.alias_count == 1
+            || (div_nd.has_configured_ratio
+                && div_nd.last_configured_ratio == reg_ratio))) begin
         if (!quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: div %s skip reg ratio %0d",
@@ -178,6 +182,8 @@ task {{ settings.class_prefix }}config_reg_core::config_reg_div_node_reg(
             div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
     end
 {%- endif %}
+    div_nd.last_configured_ratio = reg_ratio;
+    div_nd.has_configured_ratio = 1'b1;
 endtask
 
 // 写 dto 的复位、bypass、load 与 step

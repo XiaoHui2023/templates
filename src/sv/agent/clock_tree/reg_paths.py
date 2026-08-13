@@ -238,7 +238,24 @@ class RegPathSpec:
     width: Optional[int]
 
 
-RegBindingRow = tuple[str, str, str, Optional[int], Optional[int]]
+@dataclass(frozen=True)
+class RegBindingRow:
+    sv_access: str
+    member: str
+    path: str
+    offset: Optional[int]
+    width: Optional[int]
+    node_name: str
+    role: str
+    semantic_expr: Optional[str]
+    alias_count: int = 1
+
+    @property
+    def identity(self) -> tuple[str, Optional[int], Optional[int]]:
+        return self.path, self.offset, self.width
+
+
+RegConstraintRow = tuple[str, str]
 
 
 def _validate_dot_path(path: str, *, ctx: str) -> None:
@@ -453,12 +470,25 @@ def _append_binding(
     sv_access: str,
     member: str,
     raw_path: str,
+    *,
+    node_name: str,
+    role: str,
+    semantic_expr: Optional[str] = None,
 ) -> None:
     spec = parse_reg_path(
         raw_path,
         ctx=f"tree access {sv_access!r} member {member!r}",
     )
-    out.append((sv_access, member, spec.path, spec.offset, spec.width))
+    out.append(RegBindingRow(
+        sv_access=sv_access,
+        member=member,
+        path=spec.path,
+        offset=spec.offset,
+        width=spec.width,
+        node_name=node_name,
+        role=role,
+        semantic_expr=semantic_expr,
+    ))
 
 
 def _pll_reg_bindings(
@@ -480,22 +510,133 @@ def _pll_reg_bindings(
             access = sv_node_access(node.name, group_id, groups)
             for key in sorted(INNO_PLL_SHARED_REG_KEYS):
                 _append_binding(
-                    out, access, f"f_{key}", regs[key]
+                    out, access, f"f_{key}", regs[key],
+                    node_name=node.name, role=f"pll_{key}",
                 )
             p1_key, p2_key = inno_postdiv_reg_keys(group_id)
             _append_binding(
-                out, access, "f_postdiv1", regs[p1_key]
+                out, access, "f_postdiv1", regs[p1_key],
+                node_name=node.name, role=f"pll_postdiv1_{group_id}",
             )
             _append_binding(
-                out, access, "f_postdiv2", regs[p2_key]
+                out, access, "f_postdiv2", regs[p2_key],
+                node_name=node.name, role=f"pll_postdiv2_{group_id}",
             )
         return
     access = sv_node_access(node.name, "", groups)
     for key, path in sorted(regs.items()):
-        _append_binding(out, access, f"f_{key}", path)
+        _append_binding(
+            out, access, f"f_{key}", path,
+            node_name=node.name, role=f"pll_{key}",
+        )
 
 
-def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
+def _single_reg_semantics(node: object, access: str) -> tuple[str, str]:
+    kind = getattr(node, "kind", "")
+    if kind == "gate":
+        return "gate_open", f"{access}._resolved_open"
+    if kind == "mux":
+        return "mux_sel", f"{access}._resolved_sel"
+    if kind == "inv":
+        return "inv_inverted", f"{access}.inverted"
+    raise ValueError(f"unsupported single-reg node kind {kind!r}")
+
+
+def _div_reg_semantics(
+    node: object,
+    access: str,
+    key: str,
+) -> tuple[str, Optional[str]]:
+    div_kind = getattr(node, "div_kind", "")
+    if div_kind == "div":
+        if key == "div":
+            return "div_ratio", f"{access}._resolved_ratio"
+        return f"div_{key}", None
+    if div_kind == "dto":
+        if key == "step":
+            return "dto_step", f"{access}._resolved_ratio"
+        if key == "bypass":
+            return "dto_bypass", f"({access}._resolved_ratio == 1)"
+        return f"dto_{key}", None
+    return f"{div_kind}_{key}", None
+
+
+def _analyze_reg_aliases(
+    rows: List[RegBindingRow],
+) -> tuple[List[RegBindingRow], List[RegConstraintRow]]:
+    path_groups: dict[str, List[RegBindingRow]] = {}
+    groups: dict[tuple[str, Optional[int], Optional[int]], List[RegBindingRow]] = {}
+    for row in rows:
+        path_groups.setdefault(row.path, []).append(row)
+        groups.setdefault(row.identity, []).append(row)
+
+    for path_rows in path_groups.values():
+        for i, lhs in enumerate(path_rows):
+            for rhs in path_rows[i + 1:]:
+                if lhs.identity == rhs.identity:
+                    continue
+                overlaps = lhs.width is None or rhs.width is None
+                if not overlaps:
+                    lhs_hi = lhs.offset + lhs.width - 1
+                    rhs_hi = rhs.offset + rhs.width - 1
+                    overlaps = lhs.offset <= rhs_hi and rhs.offset <= lhs_hi
+                if overlaps:
+                    raise ValueError(
+                        f"寄存器字段 {lhs.path} 的重叠切片不受支持: "
+                        f"{lhs.node_name}.{lhs.member} 与 "
+                        f"{rhs.node_name}.{rhs.member}"
+                    )
+
+    constraints: List[RegConstraintRow] = []
+    constraint_set: set[RegConstraintRow] = set()
+    analyzed: List[RegBindingRow] = []
+    for row in rows:
+        analyzed.append(RegBindingRow(
+            sv_access=row.sv_access,
+            member=row.member,
+            path=row.path,
+            offset=row.offset,
+            width=row.width,
+            node_name=row.node_name,
+            role=row.role,
+            semantic_expr=row.semantic_expr,
+            alias_count=len(groups[row.identity]),
+        ))
+
+    for identity, aliases in groups.items():
+        if len(aliases) < 2:
+            continue
+        node_names = {row.node_name for row in aliases}
+        roles = {row.role for row in aliases}
+        is_one_pll = len(node_names) == 1 and len(roles) == 1 and all(
+            role.startswith("pll_") for role in roles
+        )
+        if is_one_pll:
+            continue
+        if any(role.startswith("pll_") for role in roles) or len(roles) != 1:
+            path, offset, width = identity
+            suffix = "" if offset is None else f"[{offset + width - 1}:{offset}]"
+            uses = ", ".join(
+                f"{row.node_name}.{row.member}({row.role})" for row in aliases
+            )
+            raise ValueError(
+                f"寄存器字段 {path}{suffix} 被不兼容的控制项共用: {uses}"
+            )
+        semantic = [row.semantic_expr for row in aliases if row.semantic_expr]
+        if semantic:
+            first = semantic[0]
+            for other in semantic[1:]:
+                if other != first:
+                    constraint = (first, other)
+                    if constraint not in constraint_set:
+                        constraints.append(constraint)
+                        constraint_set.add(constraint)
+    return analyzed, constraints
+
+
+def analyze_reg_bindings(
+    tree: Tree,
+) -> tuple[List[RegBindingRow], List[RegConstraintRow]]:
     out: List[RegBindingRow] = []
     for node in tree.nodes_ordered:
         if not _node_reg_configured(node):
@@ -503,7 +644,12 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
         if node.kind in SINGLE_REG_NODE_KINDS:
             validate_optional_reg(node.reg, node_name=node.name, kind=node.kind)
             access = sv_node_access(node.name, "", node_output_groups(node))
-            _append_binding(out, access, "f_reg", node.reg)
+            role, semantic_expr = _single_reg_semantics(node, access)
+            _append_binding(
+                out, access, "f_reg", node.reg,
+                node_name=node.name, role=role,
+                semantic_expr=semantic_expr,
+            )
         elif node.kind == "pll":
             _pll_reg_bindings(out, tree, node)
         elif node.kind == "div":
@@ -518,10 +664,26 @@ def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
                 node.name, primary_output_group(node), groups
             )
             for key, path in sorted(node.regs.items()):
-                _append_binding(out, access, f"f_{key}", path)
+                role, semantic_expr = _div_reg_semantics(node, access, key)
+                _append_binding(
+                    out, access, f"f_{key}", path,
+                    node_name=node.name, role=role,
+                    semantic_expr=semantic_expr,
+                )
         else:
             flat = flatten_regs(node.regs)
             access = sv_node_access(node.name, "", node_output_groups(node))
             for key, path in sorted(flat.items()):
-                _append_binding(out, access, f"f_{key}", path)
-    return out
+                _append_binding(
+                    out, access, f"f_{key}", path,
+                    node_name=node.name, role=f"{node.kind}_{key}",
+                )
+    return _analyze_reg_aliases(out)
+
+
+def iter_reg_bindings(tree: Tree) -> List[RegBindingRow]:
+    return analyze_reg_bindings(tree)[0]
+
+
+def collect_shared_reg_constraints(tree: Tree) -> List[RegConstraintRow]:
+    return analyze_reg_bindings(tree)[1]

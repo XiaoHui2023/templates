@@ -161,6 +161,22 @@ nodes:
         load: blk_div0.load
         div: blk_div0.div
 
+    div0_alias:
+      kind: div
+      div_kind: div
+      source: div_r_0
+      in_path: dut.div0_alias_i
+      out_path: dut.div0_alias_o
+      regs:
+        rst: blk_div0_alias.rst
+        load: blk_div0_alias.load
+        div: blk_div0.div
+
+    clk_div0_alias:
+      kind: clk
+      path: dut.clk_div0_alias
+      source: div0_alias
+
     inv0:
       kind: inv
       inv_kind: inv

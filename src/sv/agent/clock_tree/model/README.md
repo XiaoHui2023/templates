@@ -24,6 +24,7 @@
 | **field** | **uvm_reg_field** | 读写目标 field |
 | **offset** | **int unsigned** | 在父寄存器中的位偏移 |
 | **width** | **int unsigned** | 位宽 |
+| **alias_count** | **int unsigned** | 绑定同一字段的控制项数量 |
 | **has_read** | **bit** | 是否已读过父寄存器 |
 
 ## 枚举
@@ -217,6 +218,8 @@
 | **source** | **node_base** | 前级节点 |
 | **ratio** | **int**，**rand** | 分频比 |
 | **max_ratio** | **int** | 最大分频比；绑定寄存器后由 **f_div.width** 推导 |
+| **last_configured_ratio** | **int** | 最近一次已应用的分频比 |
+| **has_configured_ratio** | **bit** | 本节点是否已应用分频比 |
 | **f_rst** | **reg** | |
 | **f_load** | **reg** | |
 | **f_div** | **reg** | |

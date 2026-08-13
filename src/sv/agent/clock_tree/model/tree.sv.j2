@@ -51,6 +51,14 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endfor %}
 
+{%- if shared_reg_constraints %}
+    constraint cst_shared_regs {
+{%- for lhs, rhs in shared_reg_constraints %}
+        {{ lhs }} == {{ rhs }};
+{%- endfor %}
+    }
+{%- endif %}
+
     // Create node objects, connect sources, and populate tree queues.
     function new(string name="{{ settings.class_prefix }}tree");
         super.new(name);
@@ -218,24 +226,29 @@ endclass
 function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel }} regmodel);
     built = 1'b0;
     if (regmodel != null) begin
-{%- for sv_access, member, path, offset, width in reg_bindings %}
-        {{ sv_access }}.{{ member }}.field = regmodel.{{ path }};
-        {{ sv_access }}.{{ member }}.offset = {{ offset if offset is not none else 0 }};
-{%- if width is none %}
-        {{ sv_access }}.{{ member }}.width = {{ sv_access }}.{{ member }}.field.get_n_bits();
+{%- for binding in reg_bindings %}
+        {{ binding.sv_access }}.{{ binding.member }}.field = regmodel.{{ binding.path }};
+        {{ binding.sv_access }}.{{ binding.member }}.offset = {{ binding.offset if binding.offset is not none else 0 }};
+{%- if binding.width is none %}
+        {{ binding.sv_access }}.{{ binding.member }}.width = {{ binding.sv_access }}.{{ binding.member }}.field.get_n_bits();
 {%- else %}
-        {{ sv_access }}.{{ member }}.width = {{ width }};
+        {{ binding.sv_access }}.{{ binding.member }}.width = {{ binding.width }};
 {%- endif %}
+        {{ binding.sv_access }}.{{ binding.member }}.alias_count = {{ binding.alias_count }};
 {%- endfor %}
     end
 {%- for node in tree.nodes_ordered %}
 {%- if node.kind == "div" and node.div_kind == "div" and node.regs.get("div") %}
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
+    {{ node.name }}["{{ g }}"].last_configured_ratio = 0;
+    {{ node.name }}["{{ g }}"].has_configured_ratio = 1'b0;
     if ({{ node.name }}["{{ g }}"].f_div.is_bound())
         {{ node.name }}["{{ g }}"].max_ratio = {{ settings.class_prefix }}div_max_ratio_for_width({{ node.name }}["{{ g }}"].f_div.width);
 {%- endfor %}
 {%- else %}
+    {{ node.name }}.last_configured_ratio = 0;
+    {{ node.name }}.has_configured_ratio = 1'b0;
     if ({{ node.name }}.f_div.is_bound())
         {{ node.name }}.max_ratio = {{ settings.class_prefix }}div_max_ratio_for_width({{ node.name }}.f_div.width);
 {%- endif %}

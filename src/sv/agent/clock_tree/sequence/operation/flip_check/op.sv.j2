@@ -197,12 +197,23 @@ endtask
 function bit {{ settings.class_prefix }}flip_check_seq::skip_stable_subject(
         input {{ settings.class_prefix }}node_base subject,
         input {{ settings.class_prefix }}node_base stable_nodes[$]);
-    if (!{{ settings.class_prefix }}node_in_queue(subject, stable_nodes))
-        return 1'b0;
-    `uvm_info("CLK_TREE", $sformatf(
-        "test_flip: skip %s %s, upstream of stable clock",
-        subject.kind, subject.get_name()), UVM_LOW)
-    return 1'b1;
+    if ({{ settings.class_prefix }}node_in_queue(subject, stable_nodes)) begin
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: skip %s %s, upstream of stable clock",
+            subject.kind, subject.get_name()), UVM_LOW)
+        return 1'b1;
+    end
+    foreach (stable_nodes[i]) begin
+        if ({{ settings.class_prefix }}nodes_share_control_reg(
+                subject, stable_nodes[i])) begin
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip %s %s, register shared with stable path %s",
+                subject.kind, subject.get_name(),
+                stable_nodes[i].get_name()), UVM_LOW)
+            return 1'b1;
+        end
+    end
+    return 1'b0;
 endfunction
 
 function bit {{ settings.class_prefix }}flip_check_seq::subjects_conflict(
@@ -212,6 +223,8 @@ function bit {{ settings.class_prefix }}flip_check_seq::subjects_conflict(
     {{ settings.class_prefix }}node_base rhs_inputs[$];
 
     if (lhs == null || rhs == null)
+        return 1'b1;
+    if ({{ settings.class_prefix }}nodes_share_control_reg(lhs, rhs))
         return 1'b1;
     {{ settings.class_prefix }}tree_upstream_peers(lhs, lhs_inputs);
     {{ settings.class_prefix }}tree_upstream_peers(rhs, rhs_inputs);
