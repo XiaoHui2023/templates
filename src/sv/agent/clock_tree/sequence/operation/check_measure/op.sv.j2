@@ -111,14 +111,11 @@ class {{ settings.class_prefix }}check_measure_seq extends {{ settings.class_pre
         {{ settings.class_prefix }}node_base nd,
         int idx,
         {{ settings.class_prefix }}node_base nodes[],
-        int meas_min_freq_hz
-    );
-    // 强制重启该节点 vif 上的测量
-    // nd — 节点
-    // meas_min_freq_hz — 最低频率，Hz
-    extern function void restart_measure_on_vif(
-        {{ settings.class_prefix }}node_base nd,
-        int meas_min_freq_hz
+        int meas_min_freq_hz,
+        bit check_clk,
+        bit check_cell,
+        bit check_freq,
+        bit check_duty
     );
     // 无其它待测节点占用该 vif 时关闭测量
     // nd — 节点
@@ -421,22 +418,30 @@ function void {{ settings.class_prefix }}check_measure_seq::start_measure_if_new
     {{ settings.class_prefix }}node_base nd,
     int idx,
     {{ settings.class_prefix }}node_base nodes[],
-    int meas_min_freq_hz
+    int meas_min_freq_hz,
+    bit check_clk,
+    bit check_cell,
+    bit check_freq,
+    bit check_duty
 );
+    bit need_freq;
+    bit need_duty;
+
+    need_freq = 1'b0;
+    need_duty = 1'b0;
     for (int j = 0; j < idx; j++) begin
         if (nodes[j].vif == nd.vif)
             return;
     end
+    foreach (nodes[j]) begin
+        if (nodes[j].vif != nd.vif)
+            continue;
+        need_freq |= node_needs_freq_check(nodes[j], check_clk, check_cell,
+            check_freq);
+        need_duty |= node_needs_duty_check(nodes[j], check_clk, check_duty);
+    end
     nd.vif.set_min_freq_hz(meas_min_freq_hz);
-    nd.vif.start_measure();
-endfunction
-
-function void {{ settings.class_prefix }}check_measure_seq::restart_measure_on_vif(
-    {{ settings.class_prefix }}node_base nd,
-    int meas_min_freq_hz
-);
-    nd.vif.set_min_freq_hz(meas_min_freq_hz);
-    nd.vif.start_measure();
+    nd.vif.start_measure(need_freq, need_duty);
 endfunction
 
 function void {{ settings.class_prefix }}check_measure_seq::stop_measure_if_vif_idle(
@@ -521,7 +526,6 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     bit activity_passed[];
     bit freq_done[];
     bit duty_done[];
-    bit meas_restart_done[];
     {{ settings.class_prefix }}node_base nodes_arr[];
 
     if (req == null)
@@ -536,9 +540,9 @@ task {{ settings.class_prefix }}check_measure_seq::body();
 
     meas_min_freq_hz = rq.min_freq_hz > 0 ? rq.min_freq_hz : {{ settings.min_freq_hz }};
     meas_period_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz;
-    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }} + 1;
-    // 与 measure_interface 一致：保留频率基准周期及一个 1ns 轮询步长。
-    meas_stable_timeout_ns = meas_period_ns * ({{ settings.stable_cycles }} + 1) + 1;
+    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }};
+    // 与 measure_interface 一致：频率基准周期后累计稳定周期。
+    meas_stable_timeout_ns = meas_period_ns * ({{ settings.stable_cycles }} + 1);
     meas_timeout_ns = meas_active_timeout_ns;
     if (rq.check_freq || (rq.check_clk && rq.check_duty))
         meas_timeout_ns += meas_stable_timeout_ns;
@@ -571,7 +575,6 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     activity_passed = new[nodes_to_check.size()];
     freq_done = new[nodes_to_check.size()];
     duty_done = new[nodes_to_check.size()];
-    meas_restart_done = new[nodes_to_check.size()];
     pending = nodes_to_check.size();
     last_progress_ns = -progress_interval_ns;
 
@@ -594,7 +597,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
                     rq.check_freq),
                 node_needs_duty_check(nd, rq.check_clk, rq.check_duty),
                 nd._resolved_freq, nd._resolved_active), UVM_MEDIUM)
-        start_measure_if_new_vif(nd, i, nodes_arr, meas_min_freq_hz);
+        start_measure_if_new_vif(nd, i, nodes_arr, meas_min_freq_hz,
+            rq.check_clk, rq.check_cell, rq.check_freq, rq.check_duty);
     end
 
     elapsed_ns = 0;
@@ -608,20 +612,6 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             if (node_done[i])
                 continue;
             nd = nodes_to_check[i];
-            if (!meas_restart_done[i] && !nd.vif.meas.meas_en
-                    && !nd.vif.meas.timed_out && !nd.vif.meas.inactive
-                    && (nd.vif.meas.activity_ok || nd.vif.meas.freq_stable
-                        || (node_needs_duty_check(nd, rq.check_clk, rq.check_duty)
-                            && nd.vif.meas.duty_stable))
-                    && (!freq_done[i] || !duty_done[i])) begin
-                meas_restart_done[i] = 1'b1;
-                `uvm_warning("CLK_TREE", $sformatf(
-                    "check_measure: node %s meas_en low while pending; restart measure",
-                    nd.get_name()))
-                restart_measure_on_vif(nd, meas_min_freq_hz);
-                activity_done[i] = 1'b0;
-                activity_passed[i] = 1'b0;
-            end
             if (!activity_done[i] && node_activity_ready(nd)) begin
                 activity_done[i] = 1'b1;
                 evaluate_node_activity(nd, rs, activity_passed[i]);
@@ -657,6 +647,10 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             elapsed_ns++;
         end
     end
+
+    // 截止时刻属于有效测量窗口；跨过一个仿真精度步后再判定结果。
+    if (pending > 0)
+        #1step;
 
     if (rq.debug && pending > 0)
         log_measure_progress(rq, nodes_to_check, node_done, activity_done,

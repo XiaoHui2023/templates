@@ -89,6 +89,7 @@ nodes:
         postdiv1[1]: blk_pll_inno.postdiv1_1
         postdiv2[1]: blk_pll_inno.postdiv2_1
 
+    # flip_check 为多输入 mux 生成 137/174/211 MHz 等非整数 ns 周期激励。
     mux_pll:
       kind: mux
       source:

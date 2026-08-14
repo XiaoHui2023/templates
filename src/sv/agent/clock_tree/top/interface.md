@@ -43,7 +43,12 @@
 
 ### start_measure
 
-清零当前测量结果后开启测量。
+清零当前测量结果后开启测量，并声明本次需要稳定的测量项。
+
+| 参数 | 方向 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| **need_freq** | input | bit | 是否等待频率稳定，默认 1 |
+| **need_duty** | input | bit | 是否等待占空比稳定，默认 1 |
 
 ### stop_measure
 
@@ -63,7 +68,7 @@
 
 ### wait_measure_stable
 
-先轮询 **activity_ok** 或 **inactive**，最长 **active_timeout_ns_rt**；活动阶段自测量起点或上一边沿起超过一个最低频率周期仍无边沿则 **inactive** 为 1。活动已确认后再轮询 **freq_stable** 与 **duty_stable**，最长 **stable_timeout_ns_rt**。活动已确认但稳定阶段超时则置 **timed_out**。
+事件驱动等待 **activity_ok** 或 **inactive**，再等待本次请求的 **freq_stable/duty_stable**。最低频率只用于活动与稳定阶段的截止时间，不过滤已采到的合法周期。截止时刻仍属于有效窗口；超时按待采周期数保留 **timeprecision** 量化余量，并跨入截止时间后的时间槽判定，避免边沿处理与超时处理竞争。
 
 | 参数 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |
@@ -126,7 +131,12 @@
 
 ### start_measure
 
-清零当前测量结果后开启测量。
+清零当前测量结果后开启测量，并声明本次需要稳定的测量项。
+
+| 参数 | 方向 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| **need_freq** | input | bit | 是否等待频率稳定，默认 1 |
+| **need_duty** | input | bit | 是否等待占空比稳定，默认 1 |
 
 ### stop_measure
 
@@ -146,7 +156,7 @@
 
 ### wait_measure_stable
 
-先轮询 **activity_ok** 或 **inactive**，最长 **active_timeout_ns_rt**；活动阶段自测量起点或上一边沿起超过一个最低频率周期仍无边沿则 **inactive** 为 1。活动已确认后再轮询 **freq_stable** 与 **duty_stable**，最长 **stable_timeout_ns_rt**。活动已确认但稳定阶段超时则置 **timed_out**。
+事件驱动等待 **activity_ok** 或 **inactive**，再等待本次请求的 **freq_stable/duty_stable**。最低频率只用于活动与稳定阶段的截止时间，不过滤已采到的合法周期。截止时刻仍属于有效窗口；超时按待采周期数保留 **timeprecision** 量化余量，并跨入截止时间后的时间槽判定，避免边沿处理与超时处理竞争。
 
 | 参数 | 方向 | 类型 | 说明 |
 | --- | --- | --- | --- |

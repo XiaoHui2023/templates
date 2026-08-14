@@ -66,8 +66,10 @@ interface {{ settings.class_prefix }}interface #(
     endfunction
 
     // 清零测量结果后开启测量
-    function automatic void start_measure();
-        meas.start_measure();
+    function automatic void start_measure(
+            input bit need_freq = 1'b1,
+            input bit need_duty = 1'b1);
+        meas.start_measure(need_freq, need_duty);
     endfunction
 
     // 关闭测量并写入 last_* 快照
@@ -86,7 +88,7 @@ interface {{ settings.class_prefix }}interface #(
         meas.measure_freq_hz();
     endtask
 
-    // 轮询活动确认与频率、占空比稳定
+    // 等待活动确认与频率、占空比稳定
     // need_freq — 为真时等待 freq_stable
     // need_duty — 为真时等待 duty_stable
     // ok — 为真表示活动已确认且在稳定时限内达到所需稳定

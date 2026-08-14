@@ -141,7 +141,7 @@ f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 phase_frac = fmod(t_rise - t_ref, T) / T
 ```
 
-**phase_frac** 为 **real**，表示周期内位置；频率达到 **freq_stable** 后读数有效。测量分两阶段：**ACTIVE_CYCLES** 个连续上升沿确认有活动；活动确认后占空比与频率并行采样，各自独立计数 **STABLE_CYCLES** 个连续稳定周期，中途失稳则对应计数清零。活动阶段自 **start_measure** 起超过一个最低频率周期仍无边沿则置 **inactive**，表示频率低于可测下限或无时钟；已见边沿但未采够 **ACTIVE_CYCLES** 且距上一边沿超过该周期同样置 **inactive**。测量结束可通过 **last_freq_hz**、**last_duty**、**last_phase_frac** 读取最近一次结果。
+**phase_frac** 为 **real**，表示周期内位置；频率达到 **freq_stable** 后读数有效。测量分两阶段：在最低频率对应的 **ACTIVE_CYCLES** 个周期内采够上升沿确认有活动；活动确认后占空比与频率并行采样，各自独立计数 **STABLE_CYCLES** 个连续稳定周期，中途失稳则对应计数清零。最低频率只计算截止时间，不过滤已采到的正周期。频率稳定需要先采一个基准周期，因此稳定截止时间按 **STABLE_CYCLES + 1** 个最低频率周期计算；超时按待采周期数保留 **timeprecision** 量化余量，并在截止时间槽结束后判定。测量结束可通过 **last_freq_hz**、**last_duty**、**last_phase_frac** 读取最近一次结果。
 
 ### dw
 
