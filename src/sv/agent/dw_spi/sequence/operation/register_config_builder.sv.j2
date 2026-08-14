@@ -365,7 +365,11 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}base_o
                 data_frame_bits == rq.data_frame_bits;
                 actual_data_frames == local::actual_ndf;
                 completion_mode == local::completion_mode;
+{%- if internal_dma or external_dma %}
+                baudr == (rq.use_dma ? (local::baudr >> 1) : local::baudr);
+{%- else %}
                 baudr == local::baudr;
+{%- endif %}
                 ndf == local::ndf_reg_value;
                 interrupt_timeout_ssi_clk_cycles == local::interrupt_timeout_cycles;
                 ser == (32'h1 << rq.cs_id);
@@ -388,7 +392,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}base_o
         cfg.host_mode.rand_mode(1);
         cfg.transfer_mode.rand_mode(1);
         `uvm_info("DW_SPI_CFG", $sformatf(
-            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz baudr=%0d dfs_bits=%0d ndf_reg_value=%0d actual_data_frames=%0d spi_frf=%0d trans_type=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
+            "register configuration derived: opcode=0x%02h address=0x%0h payload_bytes=%0d inst_bytes=%0d addr_bytes=%0d instruction_lanes=%0d address_lanes=%0d dummy_cycles=%0d ssi_clk=%0d Hz target_sclk=%0d Hz logical_baudr=%0d sckdv=%0d dfs_bits=%0d ndf_reg_value=%0d actual_data_frames=%0d spi_frf=%0d trans_type=%0d completion_mode=%s timeout_ssi_cycles=%0d ser=0x%0h",
             rq.opcode,
             rq.payload.get_address(),
             length,
@@ -399,6 +403,7 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}base_o
             rq.dummy_cycles,
             ssi_clk_hz,
             settings.target_sclk_hz,
+            baudr,
             cfg.baudr,
             cfg.data_frame_bits,
             cfg.ndf,

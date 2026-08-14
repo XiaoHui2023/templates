@@ -84,9 +84,9 @@ CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 | --- | --- | --- |
 | `SSIENR` | `SSIC_EN` | `1` 使能 SSI 控制器，`0` 关闭 |
 | `SER` | `SER` | 片选 mask |
-| `BAUDR` | `SCKDV` | 偶数分频值 |
+| `BAUDR` | `SCKDV` | 串行时钟分频寄存器编码；PIO 写逻辑分频值，DMA 写逻辑分频值的一半 |
 
-`sclk_out = ssi_clk / BAUDR`。`ssi_clk` 是输入 DesignWare SPI/SSI 控制器的参考时钟。`BAUDR` 由测量到的 `ssi_clk` 和目标串行输出频率推导，不是固定默认值。公式见 [formulas.md](formulas.md)。
+`ssi_clk` 是输入 DesignWare SPI/SSI 控制器的参考时钟。先由测量到的 `ssi_clk` 和目标频率推导偶数逻辑分频值 `BAUDR_logical`。PIO 写 `SCKDV=BAUDR_logical`；DMA 的实际波形分频为寄存器值的两倍，因此写 `SCKDV=BAUDR_logical>>1`。两种路径的实际输出均为 `sclk_out=ssi_clk/BAUDR_logical`。公式见 [formulas.md](formulas.md)。
 
 ## IMR / ICR / ISR
 

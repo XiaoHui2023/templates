@@ -17,13 +17,13 @@
 4. 与各自最低频率比较，默认最低 24 MHz，默认容差 1%。
 5. 不检查 `sclk_out`，也不检查 `hclk` 与 `ssi_clk` 的频率关系。
 
-`ssi_clk` 是控制器输入参考时钟。`sclk_out = ssi_clk / BAUDR`，由 register configuration 阶段根据公式推导。
+`ssi_clk` 是控制器输入参考时钟。`sclk_out = ssi_clk / BAUDR_logical`，由 register configuration 阶段根据公式推导。DMA 模式写入的 `BAUDR.SCKDV` 为该逻辑分频值的一半。
 
 ## Init Registers
 
 1. `init_registers_seq` 接收一个 `transfer_req`。
 2. `register_config_builder` 根据 transfer req 和 settings 生成 `configuration`。
-3. builder 测量 `ssi_clk`，根据 `target_sclk_hz` 计算偶数 `BAUDR`。
+3. builder 测量 `ssi_clk`，根据 `target_sclk_hz` 计算偶数逻辑分频值。PIO 令 `configuration.baudr=BAUDR_logical`；DMA 令 `configuration.baudr=BAUDR_logical>>1`，供 `register_access` 写入 `BAUDR.SCKDV`。
 4. builder 仅根据 payload byte 数和 DFS 计算 `actual_data_frames`，instruction/address/dummy 不计入 NDF；非零 data frame 数写入 `CTRLR1.NDF = actual_data_frames - 1`。如果该编码值超过 `settings.ctrlr1_ndf_max`，立即 fatal。
 5. `register_access` 实例化后注入 settings 和 `report_context = p_sequencer`。
 6. `register_access.apply_configuration()` 按 FIELD 写 regmodel。

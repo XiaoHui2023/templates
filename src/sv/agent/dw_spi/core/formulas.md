@@ -3,7 +3,8 @@
 - **f_ssi**：输入 DesignWare SPI/SSI 控制器的参考时钟频率，单位 Hz。
 - **f_sclk_target**：目标串行输出频率，单位 Hz。
 - **f_sclk_out**：输出到从机的串行时钟频率，单位 Hz。
-- **BAUDR**：写入 `BAUDR.SCKDV` 的偶数分频值，取值范围 2 到 65534。
+- **BAUDR_logical**：按目标波形推导的偶数逻辑分频值，取值范围 2 到 65534。
+- **SCKDV_reg**：实际写入 `BAUDR.SCKDV` 的寄存器编码。
 
 ## BAUDR
 
@@ -12,20 +13,25 @@
 | **f_ssi** | 由 `ssi_clk` 测量得到，必须大于 0。 |
 | **f_sclk_target** | 目标串行输出频率，必须大于 0。 |
 | **BAUDR_raw** | 初始分频值，向上取整，保证输出频率不超过目标。 |
-| **BAUDR** | 偶数分频值；小于 2 时取 2，奇数时加 1。 |
+| **BAUDR_logical** | 偶数逻辑分频值；小于 2 时取 2，奇数时加 1。 |
+| **SCKDV_reg** | 非 DMA 等于 `BAUDR_logical`；DMA 等于 `BAUDR_logical >> 1`。 |
 
 ```text
 BAUDR_raw = ceil(f_ssi / f_sclk_target)
 
 BAUDR_min = max(2, BAUDR_raw)
 
-BAUDR = BAUDR_min                 when BAUDR_min is even
-BAUDR = BAUDR_min + 1             when BAUDR_min is odd
+BAUDR_logical = BAUDR_min         when BAUDR_min is even
+BAUDR_logical = BAUDR_min + 1     when BAUDR_min is odd
 
-f_sclk_out = f_ssi / BAUDR
+SCKDV_reg = BAUDR_logical         for PIO
+SCKDV_reg = BAUDR_logical >> 1    for DMA
+
+f_sclk_out = f_ssi / BAUDR_logical
+f_sclk_out = f_ssi / (2 * SCKDV_reg)  for DMA
 ```
 
-`BAUDR` 是由输入时钟和目标输出频率推导出的寄存器写入值，不是固定默认值。
+`BAUDR_logical` 由输入时钟和目标输出频率推导，不是固定默认值。当前控制器的 DMA 波形分频是 `SCKDV` 寄存器值的两倍，因此 DMA 只在寄存器编码阶段右移一位；实际波形与超时计算仍使用 `BAUDR_logical`。
 
 ## Transfer Interrupt Timeout
 
@@ -57,11 +63,11 @@ data_sclk = ceil(data_bits / width_data)
 
 serial_sclk = max(1, inst_sclk + addr_sclk + dummy_cycles + data_sclk)
 
-base_ssi_cycles = serial_sclk * BAUDR
+base_ssi_cycles = serial_sclk * BAUDR_logical
 
 fifo_chunks = ceil(max(payload_bytes, 1) / fifo_depth_bytes)
 
-fifo_ssi_cycles = fifo_chunks * BAUDR
+fifo_ssi_cycles = fifo_chunks * BAUDR_logical
 
 margin_ssi_cycles = ceil((base_ssi_cycles + fifo_ssi_cycles) * margin_percent / 100)
 
