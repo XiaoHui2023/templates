@@ -10,7 +10,7 @@ class {{ class_prefix }}write_status_qe_flash_command extends {{ class_prefix }}
 
     constraint cst_write_status_qe {
         opcode == 8'h01;
-        frame_mode inside {STANDARD, ENHANCED};
+        frame_mode == STANDARD;
         transfer_mode == TX_ONLY;
         io_lanes == 1;
         address_lanes == 1;

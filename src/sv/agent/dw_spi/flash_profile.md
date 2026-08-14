@@ -19,16 +19,16 @@ SPI NAND 不直接复用这个 NOR-like byte memory flow。NAND 通常需要 pag
 
 ## Command Mapping
 
-| Operation | 1x standard | 1x enhanced | 2x | 4x |
-| --- | --- | --- | --- | --- |
-| Read | `0x03` | `0x03` | `0xBB` | `0xEB` |
-| Program | `0x02` | `0x02` | `0xA2` | `0x32` |
+| Operation | 1x | 2x | 4x |
+| --- | --- | --- | --- |
+| Read | `0x03` | `0xBB` | `0xEB` |
+| Program | `0x02` | `0xA2` | `0x32` |
 
 Other common P25Q21L commands recorded in the root skill include `RDID 0x9F`, `RDSR 0x05`, `RDSR2 0x35`, `WRSR 0x01`, `SE 0x20`, `BE32 0x52`, `BE64 0xD8`, `CE 0x60/0xC7`, `RSTEN 0x66`, and `RST 0x99`.
 
 Program phase width is opcode-specific. `PP 0x02`, `DPP 0xA2`, and QPP `0x32` keep opcode/address single-lane; QPP changes only the payload phase to quad-lane. Read address width is also opcode-specific: `READ1X 0x03`, `DREAD 0x3B`, and `QREAD 0x6B` are single-lane address; `READ2X 0xBB` is dual-lane address; `READ4X 0xEB` is quad-lane address.
 
-`STANDARD` / `ENHANCED` is the controller driving path, not always a flash opcode property. Compatible 1x commands such as `READ1X 0x03`, `WREN 0x06`, `WRSR 0x01`, and `PP 0x02` may be executed through either standard or enhanced 1x controller setup. The built-in flow does not use `FASTREAD1X 0x0B`. Opcodes that require dual/quad phases still force enhanced mode.
+The user selects only `speed_multiplier`. The controller path is derived: 1x is always standard; 2x/4x are always enhanced. The built-in flow does not use `FASTREAD1X 0x0B`.
 
 Executable command shapes are documented in [model/flash_command.md](model/flash_command.md). New flash opcodes should first get command packets, then be composed in flow sequences.
 

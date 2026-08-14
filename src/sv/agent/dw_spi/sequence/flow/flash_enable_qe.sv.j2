@@ -52,7 +52,6 @@ endtask
 task {{ class_prefix }}flash_enable_qe_seq::body();
     {{ class_prefix }}write_enable_flash_command wren_command;
     {{ class_prefix }}write_status_qe_flash_command wrsr_command;
-    {{ class_prefix }}transfer_configuration cfg;
     byte unsigned empty_payload[];
     byte unsigned status_payload[];
     bit command_ok;
@@ -60,13 +59,10 @@ task {{ class_prefix }}flash_enable_qe_seq::body();
     if (configuration == null)
         `uvm_fatal("DW_SPI_FLASH", "flash_enable_qe: configuration is null")
     configuration.settings = p_sequencer.settings;
-    cfg = configuration;
     ok = 1'b1;
 
     wren_command = {{ class_prefix }}write_enable_flash_command::type_id::create("write_enable_command");
-    if (!wren_command.randomize() with {
-            frame_mode == local::cfg.frame_mode;
-        })
+    if (!wren_command.randomize())
         `uvm_fatal("DW_SPI_FLASH", "flash_enable_qe: failed to randomize WREN command")
     empty_payload = new[0];
     `uvm_info("DW_SPI_FLASH", "QE-enable flow issuing WREN", UVM_LOW)
@@ -78,9 +74,7 @@ task {{ class_prefix }}flash_enable_qe_seq::body();
     end
 
     wrsr_command = {{ class_prefix }}write_status_qe_flash_command::type_id::create("write_status_qe_command");
-    if (!wrsr_command.randomize() with {
-            frame_mode == local::cfg.frame_mode;
-        })
+    if (!wrsr_command.randomize())
         `uvm_fatal("DW_SPI_FLASH", "flash_enable_qe: failed to randomize WRSR command")
     status_payload = new[2];
     status_payload[0] = 8'h00;

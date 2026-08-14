@@ -60,13 +60,13 @@ class {{ class_prefix }}flash_command extends {{ class_prefix }}base_item;
         soft records_memory_write == 1'b0;
         soft requires_qe == 1'b0;
         !(payload_is_read && payload_is_write);
-        if (frame_mode == STANDARD) {
+        if (speed_multiplier == 1) {
+            frame_mode == STANDARD;
             io_lanes == 1;
             instruction_lanes == 1;
             address_lanes == 1;
-            speed_multiplier == 1;
         }
-        if (speed_multiplier > 1) frame_mode == ENHANCED;
+        else frame_mode == ENHANCED;
         if (instruction_lanes != 1) instruction_lanes == speed_multiplier;
         if (addr_bytes == 0) address_lanes == 1;
         if (address_lanes != 1) address_lanes == speed_multiplier;

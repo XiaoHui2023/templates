@@ -35,23 +35,19 @@ class {{ class_prefix }}speed_test_seq extends {{ class_prefix }}base_seq;
         soft write_data.size() == {{ default_rw_data_bytes }};
     }
 
-    // Runs every enabled standard and enhanced speed until the first failure.
+    // Runs every generated speed until the first failure.
     extern virtual task body();
     // Runs one hardware-CS read/write mode at its isolated flash address.
     extern protected task run_mode(
         input string mode_name,
-        input int frame_mode_value,
         input int speed_value,
-        input int lane_count,
         input int mode_index,
         output bit mode_ok);
 endclass
 
 task {{ class_prefix }}speed_test_seq::run_mode(
         input string mode_name,
-        input int frame_mode_value,
         input int speed_value,
-        input int lane_count,
         input int mode_index,
         output bit mode_ok);
     {{ class_prefix }}host_configuration cfg;
@@ -60,14 +56,10 @@ task {{ class_prefix }}speed_test_seq::run_mode(
 
     cfg = {{ class_prefix }}host_configuration::type_id::create({"configuration_", mode_name});
     cfg.settings = p_sequencer.settings;
-    if (!$cast(cfg.frame_mode, frame_mode_value))
-        `uvm_fatal("DW_SPI_TEST", $sformatf("speed_test failed to cast frame mode for %s", mode_name))
     if (!$cast(cfg.cs_control_mode, HARDWARE_CS))
         `uvm_fatal("DW_SPI_TEST", $sformatf("speed_test failed to cast CS mode for %s", mode_name))
-    cfg.frame_mode.rand_mode(0);
     cfg.cs_control_mode.rand_mode(0);
     if (!cfg.randomize() with {
-            io_lanes == local::lane_count;
             speed_multiplier == local::speed_value;
             spi_mode == local::spi_mode;
             data_frame_bits == local::data_frame_bits;
@@ -105,35 +97,28 @@ task {{ class_prefix }}speed_test_seq::body();
         "speed_test start: base_address=0x%08h bytes_per_mode=%0d",
         address, write_data.size()), UVM_LOW)
 
-{%- if support_standard %}
-    run_mode("standard_1x", STANDARD, 1, 1, 0, mode_ok);
+    run_mode("speed_1x", 1, 0, mode_ok);
     if (!mode_ok) begin
         ok = 1'b0;
-        `uvm_error("DW_SPI_TEST", "speed_test standard_1x failed")
-        `uvm_info("DW_SPI_TEST", "speed_test stopped after standard_1x failure", UVM_LOW)
+        `uvm_error("DW_SPI_TEST", "speed_test speed_1x failed")
+        `uvm_info("DW_SPI_TEST", "speed_test stopped after speed_1x failure", UVM_LOW)
+        return;
+    end
+{%- if max_speed_multiplier >= 2 %}
+    run_mode("speed_2x", 2, 1, mode_ok);
+    if (!mode_ok) begin
+        ok = 1'b0;
+        `uvm_error("DW_SPI_TEST", "speed_test speed_2x failed")
+        `uvm_info("DW_SPI_TEST", "speed_test stopped after speed_2x failure", UVM_LOW)
         return;
     end
 {%- endif %}
-{%- if support_enhanced %}
-    run_mode("enhanced_1x", ENHANCED, 1, 1, 1, mode_ok);
+{%- if max_speed_multiplier >= 4 %}
+    run_mode("speed_4x", 4, 2, mode_ok);
     if (!mode_ok) begin
         ok = 1'b0;
-        `uvm_error("DW_SPI_TEST", "speed_test enhanced_1x failed")
-        `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_1x failure", UVM_LOW)
-        return;
-    end
-    run_mode("enhanced_2x", ENHANCED, 2, 2, 2, mode_ok);
-    if (!mode_ok) begin
-        ok = 1'b0;
-        `uvm_error("DW_SPI_TEST", "speed_test enhanced_2x failed")
-        `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_2x failure", UVM_LOW)
-        return;
-    end
-    run_mode("enhanced_4x", ENHANCED, 4, 4, 3, mode_ok);
-    if (!mode_ok) begin
-        ok = 1'b0;
-        `uvm_error("DW_SPI_TEST", "speed_test enhanced_4x failed")
-        `uvm_info("DW_SPI_TEST", "speed_test stopped after enhanced_4x failure", UVM_LOW)
+        `uvm_error("DW_SPI_TEST", "speed_test speed_4x failed")
+        `uvm_info("DW_SPI_TEST", "speed_test stopped after speed_4x failure", UVM_LOW)
         return;
     end
 {%- endif %}

@@ -14,7 +14,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     // Runs one flash write flow.
     extern task flash_write(bit [31:0] address,
         bit [7:0] data[$],
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -27,7 +26,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     // Runs one flash read flow.
     extern task flash_read(bit [31:0] address,
         int length,
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -43,7 +41,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task rw_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -53,7 +50,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         bit [7:0] awlen = '0,
         bit [7:0] arlen = '0,
         bit [31:0] axi_addr = '0{% endif %});
-    // Runs standard 1x and all enabled enhanced read/write speeds.
+    // Runs all generated read/write speeds.
     extern task speed_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
@@ -66,7 +63,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task dma_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -96,7 +92,6 @@ endtask
 task {{ class_prefix }}kit_sequencer::flash_write(
         bit [31:0] address,
         bit [7:0] data[$],
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -114,7 +109,6 @@ task {{ class_prefix }}kit_sequencer::flash_write(
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {
-            io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
             spi_mode == local::spi_mode;
             data_frame_bits == local::data_frame_bits;
@@ -138,7 +132,6 @@ endtask
 task {{ class_prefix }}kit_sequencer::flash_read(
         bit [31:0] address,
         int length,
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -156,7 +149,6 @@ task {{ class_prefix }}kit_sequencer::flash_read(
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {
-            io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
             spi_mode == local::spi_mode;
             data_frame_bits == local::data_frame_bits;
@@ -197,7 +189,6 @@ endtask
 task {{ class_prefix }}kit_sequencer::rw_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -215,7 +206,6 @@ task {{ class_prefix }}kit_sequencer::rw_test(
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {
-            io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
             spi_mode == local::spi_mode;
             data_frame_bits == local::data_frame_bits;
@@ -262,7 +252,6 @@ endtask
 task {{ class_prefix }}kit_sequencer::dma_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
-        int io_lanes = {{ default_io_lanes }},
         int speed_multiplier = {{ default_speed_multiplier }},
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
@@ -279,7 +268,6 @@ task {{ class_prefix }}kit_sequencer::dma_test(
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {
-            io_lanes == local::io_lanes;
             speed_multiplier == local::speed_multiplier;
             spi_mode == local::spi_mode;
             data_frame_bits == local::data_frame_bits;

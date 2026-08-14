@@ -18,7 +18,7 @@
 | 字段 | 说明 |
 | --- | --- |
 | `opcode` | SPI flash 指令码 |
-| `frame_mode` | `STANDARD` 或 `ENHANCED` |
+| `frame_mode` | 内部派生字段：1x 为 `STANDARD`，2x/4x 为 `ENHANCED` |
 | `transfer_mode` | 控制器 `TMOD`，例如 program 使用 `TX_ONLY`，read 使用 `EEPROM_READ` |
 | `io_lanes` | data phase 线宽 |
 | `instruction_lanes` | instruction phase 线宽 |
@@ -43,7 +43,7 @@
 | `page_program.sv` | `page_program_flash_command` | `0x02` | opcode/address 单线，payload 1 线，`TX_ONLY` |
 | `dual_page_program.sv` | `dual_page_program_flash_command` | `0xA2` | opcode/address 单线，payload 2 线，`TX_ONLY` |
 | `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | `1S-1S-4S`：opcode/address 单线、payload 四线，`TX_ONLY`，需要 QE |
-| `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，支持 standard/enhanced `EEPROM_READ` |
+| `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，standard `EEPROM_READ` |
 | `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，`EEPROM_READ`，接收后丢弃 `addr_bytes` 个前导 byte |
 | `read4x.sv` | `read4x_flash_command` | `0xEB` | opcode 单线，address/data 4 线，`EEPROM_READ`，要求 QE，接收后丢弃 3 个前导 byte |
 
@@ -55,7 +55,7 @@
 - 普通便捷读写默认 `addr_bytes = 3`，可传入 4 支持 NOR 4-byte address。
 - 通用 command packet 可以只表达 SPI bus transaction，不表达 flash 型号。需要具体型号行为时，通过派生指令包、flow sequence、flash model、scoreboard 策略逐层增加。
 - 新增某个 flash 类型或型号时，优先增加指令包和文档，再决定是否需要新的 kit shortcut。
-- 不要把 `STANDARD` / `ENHANCED` 一律当成指令语义。某些 opcode 的协议相位是固定的，但控制器可以选择 standard 或 enhanced 1x 路径驱动；这类指令包应允许两种 `frame_mode`，由 flow 的 `transfer_configuration` 约束。当前 `READ1X 0x03`、`WREN 0x06`、`WRSR 0x01`、`PP 0x02` 属于这种情况。`DPP/QPP/READ2X/READ4X` 这类 opcode 自身依赖 2x/4x 相位，仍固定为 enhanced。
+- 用户不配置 `frame_mode`。指令包和 primitive request 必须根据 `speed_multiplier` 严格派生：1x 固定 `STANDARD`，2x/4x 固定 `ENHANCED`。WREN、WRSR、READ1X、PP 都是 1x standard；DPP/QPP/READ2X/READ4X 是 2x/4x enhanced。
 - Program/write command packets force `dummy_cycles == 0`。Dummy/wait cycles 只用于 read/receive 类 transaction。
 
 ## 使用流程
@@ -71,7 +71,7 @@
 
 | Command | Opcode | Dummy SCLK cycles | Controller path |
 | --- | ---: | ---: | --- |
-| `READ1X` | `0x03` | 0 | standard 从 `DR` 发送 opcode/address；enhanced 由 `SPI_CTRLR0` 描述控制阶段；两者随后进入 RX |
+| `READ1X` | `0x03` | 0 | standard 从 `DR` 发送 opcode/address，随后进入 RX |
 | `READ2X` | `0xBB` | 4 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES`；`rx_skip_bytes=addr_bytes` |
 | `READ4X` | `0xEB` | 6 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES`；`rx_skip_bytes=3` |
 

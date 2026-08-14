@@ -10,7 +10,7 @@ class {{ class_prefix }}page_program_flash_command extends {{ class_prefix }}fla
 
     constraint cst_page_program {
         opcode == 8'h02;
-        frame_mode inside {STANDARD, ENHANCED};
+        frame_mode == STANDARD;
         transfer_mode == TX_ONLY;
         io_lanes == 1;
         address_lanes == 1;

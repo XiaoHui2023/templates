@@ -60,8 +60,8 @@
 ## Flash Read
 
 1. 未携带 configuration 时创建 `host_configuration` 并 randomize。
-2. 根据本次 configuration 创建一个 `model/flash_command` 指令包：standard/enhanced 1x 都使用 `read1x_flash_command`，2x 使用 `read2x_flash_command`，4x 使用 `read4x_flash_command`。
-3. 用 configuration 固定该指令包的 `frame_mode`，并约束 `addr_bytes`、`data_frame_bits`；dummy cycle 由 opcode 指令包决定。
+2. 根据本次 configuration 创建一个 `model/flash_command` 指令包：1x 使用 standard `read1x_flash_command`，2x 使用 enhanced `read2x_flash_command`，4x 使用 enhanced `read4x_flash_command`。
+3. 用 configuration 约束 `addr_bytes`、`data_frame_bits`；`frame_mode` 由指令包的倍速约束派生，dummy cycle 由 opcode 指令包决定。
 4. 调用 `flash_command_adapter.create_transfer_req()` 生成通用 `transfer_req`，payload command 为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读取长度。
 5. 指令包负责 opcode、`EEPROM_READ`、address phase 线宽和 data phase 线宽。`READ1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
 6. Standard read 从 `DR` 连续发送 opcode + address，然后控制器按 `CTRLR1.NDF` 自动切换到 RX。Enhanced read 由 `SPI_CTRLR0` 控制 instruction + address + dummy/wait phase，然后按 NDF 自动切换到 RX。
@@ -119,7 +119,7 @@
 
 ## Speed Test
 
-`speed_test` 顺序运行 `standard_1x`、`enhanced_1x`、`enhanced_2x`、`enhanced_4x`。每种模式调用完整 `rw_test`，使用独立地址窗口 `base_address + mode_index * data_length`，避免重复 program 同一 NOR 地址。任一模式失败后立即停止，不再运行后续模式。该测试固定使用 hardware CS，DMA 关闭。
+`speed_test` 按 Python `max_speed_multiplier` 顺序运行 `speed_1x`、`speed_2x`、`speed_4x`。每种倍速调用完整 `rw_test`，使用独立地址窗口 `base_address + mode_index * data_length`，避免重复 program 同一 NOR 地址。任一倍速失败后立即停止，不再运行后续测试。该测试固定使用 hardware CS，DMA 关闭。
 
 ## DMA Test
 

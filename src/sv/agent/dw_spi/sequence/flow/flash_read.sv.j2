@@ -46,15 +46,11 @@ function {{ class_prefix }}flash_command {{ class_prefix }}flash_read_seq::creat
                 cfg.speed_multiplier))
         end
     endcase
-    if (!$cast(command.frame_mode, cfg.frame_mode))
-        `uvm_fatal("DW_SPI", "flash_read: failed to cast frame_mode into read command")
-    command.frame_mode.rand_mode(0);
     if (!command.randomize() with {
             addr_bytes == local::cfg.addr_bytes;
             data_frame_bits == local::cfg.data_frame_bits;
         })
         `uvm_fatal("DW_SPI", "flash_read: failed to randomize read flash command")
-    command.frame_mode.rand_mode(1);
     return command;
 endfunction
 
@@ -79,7 +75,7 @@ task {{ class_prefix }}flash_read_seq::body();
     command = create_read_command(cfg);
     transfer_length = length + command.rx_skip_bytes;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_read start: address=0x%08h length=%0d transfer_length=%0d rx_skip_bytes=%0d addr_bytes=%0d opcode=0x%02h dummy_cycles=%0d requires_qe=%0b lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_read start: address=0x%08h length=%0d transfer_length=%0d rx_skip_bytes=%0d addr_bytes=%0d opcode=0x%02h dummy_cycles=%0d requires_qe=%0b lanes=%0d speed=%0dx cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         length,
         transfer_length,
@@ -88,9 +84,8 @@ task {{ class_prefix }}flash_read_seq::body();
         command.opcode,
         command.dummy_cycles,
         command.requires_qe,
-        cfg.io_lanes,
+        command.io_lanes,
         cfg.speed_multiplier,
-        cfg.frame_mode.name(),
         cfg.cs_control_mode.name(){% if internal_dma or external_dma %},
         cfg.use_dma{% endif %}), UVM_HIGH)
     if (command.requires_qe) begin

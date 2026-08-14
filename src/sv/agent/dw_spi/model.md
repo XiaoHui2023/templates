@@ -44,9 +44,7 @@
 | 字段 | 用途 |
 | --- | --- |
 | `host_mode` | 主机/从机模式 |
-| `frame_mode` | 标准/enhanced 模式 |
 | `cs_control_mode` | 本次片选控制模式 |
-| `io_lanes` | 1/2/4 线传输选择 |
 | `speed_multiplier` | 1/2/4 倍速，映射到 `CTRLR0.SPI_FRF` |
 | `use_dma` | 仅在 Python 开启内置或外部 DMA 时生成，默认 0 |
 | `awlen` / `arlen` / `axi_addr` | 仅内置 DMA 生成 |
@@ -55,7 +53,7 @@
 | `cs_id` | `SER` 和 callback 使用的片选编号 |
 | `addr_bytes` | flash address phase 字节数 |
 
-这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。`SOFTWARE_CS` 只支持主机 1x standard；enhanced、2x、4x 约束为硬件 CS。
+这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。用户只选择 `speed_multiplier`：1x 自动为 standard，2x/4x 自动为 enhanced；各协议阶段线宽由指令包给出。`SOFTWARE_CS` 只支持主机 1x。
 
 operation transfer req 还会携带 `instruction_lanes` 和 `address_lanes`，分别描述 instruction/address phase 线宽。这两个字段不是用户级默认配置，而是由 flash command packet 按 opcode 填入：QPP `0x32` 的 instruction/address 均为单线，只有 payload 为 4 线；`READ2X 0xBB` 使用单线 instruction、2 线 address；`READ4X 0xEB` 使用单线 instruction、4 线 address；其余当前内置指令使用单线 instruction。`register_config_builder` 根据两个相位线宽推导 `SPI_CTRLR0.TRANS_TYPE` 和 timeout。
 
@@ -65,7 +63,7 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不�
 
 flash 指令包见 [flash_command.md](model/flash_command.md)。每个指令包只写本 opcode 的协议形态约束；flow sequence 通过 `flash_command_adapter` 把指令包转换为通用 `transfer_req`，再交给 `transfer_seq` 执行。不要在 flow 里散写 opcode、address lane、dummy、TMOD、memory mirror 更新等规则。
 
-接收整形和前置流程也由指令包声明：`rx_skip_bytes` 表示实际接收后需要丢弃的前导 byte 数，`requires_qe` 表示执行该指令前是否运行 QE 配置流程。flow 只消费这些字段，不根据速度或 opcode 再次推导。Standard 和 enhanced 1x 都使用 `READ1X 0x03`，由单次配置决定控制器驱动路径；`READ2X 0xBB` 配置 `rx_skip_bytes=addr_bytes`；`READ4X 0xEB` 配置 `dummy_cycles=6`、`rx_skip_bytes=3`、`requires_qe=1`。
+接收整形和前置流程也由指令包声明：`rx_skip_bytes` 表示实际接收后需要丢弃的前导 byte 数，`requires_qe` 表示执行该指令前是否运行 QE 配置流程。flow 只消费这些字段，不根据速度或 opcode 再次推导。1x 使用 standard `READ1X 0x03`；`READ2X 0xBB` 配置 `rx_skip_bytes=addr_bytes`；`READ4X 0xEB` 配置 `dummy_cycles=6`、`rx_skip_bytes=3`、`requires_qe=1`。
 
 ## `configuration.sv`
 

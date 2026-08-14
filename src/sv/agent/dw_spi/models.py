@@ -25,17 +25,13 @@ class Models(BaseModel):
         "PSSI",
         description="DesignWare SSI register-layout family used by controller-facing flows.",
     )
-    default_io_lanes: Literal[1, 2, 4] = Field(
-        4,
-        description="Default SPI data lanes used by per-transfer configuration constraints.",
-    )
     default_speed_multiplier: Literal[1, 2, 4] = Field(
         4,
         description="Default transfer-rate multiplier used by per-transfer configuration constraints.",
     )
-    default_frame_mode: Literal["STANDARD", "ENHANCED"] = Field(
-        "ENHANCED",
-        description="Default standard/enhanced transfer mode used by per-transfer configuration constraints.",
+    max_speed_multiplier: Literal[1, 2, 4] = Field(
+        4,
+        description="Maximum generated transfer-rate multiplier. 1x is standard; 2x and 4x are enhanced.",
     )
     default_data_frame_bits: int = Field(
         8,
@@ -170,14 +166,6 @@ class Models(BaseModel):
         True,
         description="Allow slave-mode transfers.",
     )
-    support_standard: bool = Field(
-        True,
-        description="Allow standard SSI transfers.",
-    )
-    support_enhanced: bool = Field(
-        True,
-        description="Allow enhanced SPI transfers with instruction, address, and dummy phases.",
-    )
     support_general_spi: bool = Field(
         True,
         description="Allow non-flash SPI peripheral traffic.",
@@ -251,8 +239,6 @@ class Models(BaseModel):
     def _validate_enabled_modes(self) -> Models:
         if not self.support_master and not self.support_slave:
             raise ValueError("at least one of support_master or support_slave must be enabled")
-        if not self.support_standard and not self.support_enhanced:
-            raise ValueError("at least one of support_standard or support_enhanced must be enabled")
         if not self.support_general_spi and not self.support_flash_spi:
             raise ValueError("at least one of support_general_spi or support_flash_spi must be enabled")
         if self.internal_dma and self.external_dma:
@@ -267,19 +253,13 @@ class Models(BaseModel):
 
     @model_validator(mode="after")
     def _validate_transfer_defaults(self) -> Models:
-        if self.default_frame_mode == "STANDARD" and self.default_speed_multiplier != 1:
-            raise ValueError("default_speed_multiplier must be 1 when default_frame_mode is STANDARD")
-        if self.default_speed_multiplier > 1 and self.default_frame_mode != "ENHANCED":
-            raise ValueError("default_frame_mode must be ENHANCED when default_speed_multiplier is greater than 1")
-        if self.default_frame_mode == "STANDARD" and not self.support_standard:
-            raise ValueError("default_frame_mode STANDARD requires support_standard")
-        if self.default_frame_mode == "ENHANCED" and not self.support_enhanced:
-            raise ValueError("default_frame_mode ENHANCED requires support_enhanced")
+        if self.default_speed_multiplier > self.max_speed_multiplier:
+            raise ValueError("default_speed_multiplier must not exceed max_speed_multiplier")
         if self.default_cs_control_mode == "SOFTWARE_CS":
             if not self.support_master:
                 raise ValueError("default_cs_control_mode SOFTWARE_CS requires support_master")
-            if self.default_frame_mode != "STANDARD" or self.default_speed_multiplier != 1:
-                raise ValueError("default_cs_control_mode SOFTWARE_CS requires STANDARD frame mode and 1x speed")
+            if self.default_speed_multiplier != 1:
+                raise ValueError("default_cs_control_mode SOFTWARE_CS requires 1x speed")
         return self
 
     @model_validator(mode="after")

@@ -13,17 +13,16 @@ DW SPI 模板显式区分两种片选控制模式。
 
 | 速度/模式 | 硬件 CS | 软件 CS | 原因 |
 | --- | --- | --- | --- |
-| 1x standard | 支持 | 支持 | 标准单线 SPI 时序简单，软件在 primitive transfer 边界拉低/释放 CS 可以表达外设模型行为。 |
-| 1x enhanced | 支持 | 不支持 | enhanced 使用 `SPI_CTRLR0` 描述 instruction/address/dummy/data 分阶段时序，CS 边界应由控制器保持。 |
+| 1x | 支持 | 支持 | 1x 固定为标准单线 SPI，软件在 primitive transfer 边界拉低/释放 CS 可以表达外设模型行为。 |
 | 2x enhanced | 支持 | 不支持 | 双线增强模式对 command/address/data phase 连续性更敏感，软件 callback 无法保证 SCLK 级边界。 |
 | 4x enhanced | 支持 | 不支持 | 四线增强模式同上，必须使用控制器硬件 CS。 |
 
 约束规则：
 
 - `SOFTWARE_CS` 只允许 `host_mode == MASTER`。
-- `SOFTWARE_CS` 只允许 `frame_mode == STANDARD`。
 - `SOFTWARE_CS` 只允许 `speed_multiplier == 1`。
-- 2x/4x 必然是 enhanced，因此只使用 `HARDWARE_CS`。
+- 1x 自动使用 standard；2x/4x 自动使用 enhanced，用户不单独配置 frame mode。
+- 2x/4x 只使用 `HARDWARE_CS`。
 
 ## Transaction 边界
 

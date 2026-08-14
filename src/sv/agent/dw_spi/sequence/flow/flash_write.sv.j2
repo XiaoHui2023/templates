@@ -55,7 +55,6 @@ function {{ class_prefix }}flash_command {{ class_prefix }}flash_write_seq::crea
         end
     endcase
     if (!command.randomize() with {
-            frame_mode == local::cfg.frame_mode;
             addr_bytes == local::cfg.addr_bytes;
             dummy_cycles == 0;
             data_frame_bits == local::cfg.data_frame_bits;
@@ -75,9 +74,7 @@ task {{ class_prefix }}flash_write_seq::run_write_enable(output bit ok);
 
     cfg = configuration;
     command = {{ class_prefix }}write_enable_flash_command::type_id::create("write_enable_command");
-    if (!command.randomize() with {
-            frame_mode == local::cfg.frame_mode;
-        })
+    if (!command.randomize())
         `uvm_fatal("DW_SPI", "flash_write: failed to randomize write-enable flash command")
     adapter = {{ class_prefix }}flash_command_adapter::type_id::create("flash_command_adapter");
     payload_data = new[0];
@@ -150,13 +147,12 @@ task {{ class_prefix }}flash_write_seq::body();
     ok = 1'b1;
     bytes_written = 0;
     `uvm_info("DW_SPI_FLASH", $sformatf(
-        "flash_write start: address=0x%08h bytes=%0d addr_bytes=%0d program_dummy_cycles=0 lanes=%0d speed=%0dx frame=%s cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
+        "flash_write start: address=0x%08h bytes=%0d addr_bytes=%0d program_dummy_cycles=0 lanes=%0d speed=%0dx cs_mode=%s{% if internal_dma or external_dma %} use_dma=%0b{% endif %}",
         address,
         data.size(),
         configuration.addr_bytes,
-        configuration.io_lanes,
+        program_command.io_lanes,
         configuration.speed_multiplier,
-        configuration.frame_mode.name(),
         configuration.cs_control_mode.name(){% if internal_dma or external_dma %},
         configuration.use_dma{% endif %}), UVM_HIGH)
     if (data.size() == 0)

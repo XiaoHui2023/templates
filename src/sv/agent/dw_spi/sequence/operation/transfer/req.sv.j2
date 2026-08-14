@@ -123,16 +123,16 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
         io_lanes inside {1, 2, 4};
         instruction_lanes inside {1, 2, 4};
         address_lanes inside {1, 2, 4};
-        speed_multiplier inside {1, 2, 4};
+        speed_multiplier inside {1{% if max_speed_multiplier >= 2 %}, 2{% endif %}{% if max_speed_multiplier >= 4 %}, 4{% endif %}};
         soft instruction_lanes == 1;
         soft address_lanes == 1;
         soft records_memory_write == 1'b0;
-        if (frame_mode == STANDARD) speed_multiplier == 1;
-        if (speed_multiplier > 1) frame_mode == ENHANCED;
-        if (frame_mode == STANDARD) {
+        if (speed_multiplier == 1) {
+            frame_mode == STANDARD;
             instruction_lanes == 1;
             address_lanes == 1;
         }
+        else frame_mode == ENHANCED;
         if (instruction_lanes != 1) instruction_lanes == speed_multiplier;
         if (addr_bytes == 0) address_lanes == 1;
         if (address_lanes != 1) address_lanes == speed_multiplier;
@@ -172,12 +172,6 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
 {%- endif %}
 {%- if not support_flash_spi %}
         protocol != FLASH_SPI;
-{%- endif %}
-{%- if not support_standard %}
-        frame_mode != STANDARD;
-{%- endif %}
-{%- if not support_enhanced %}
-        frame_mode != ENHANCED;
 {%- endif %}
     }
 endclass

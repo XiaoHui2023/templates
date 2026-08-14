@@ -10,8 +10,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 
 | 参数 | 说明 |
 | --- | --- |
-| `io_lanes` | 本次传输使用 1/2/4 线。 |
-| `speed_multiplier` | 本次传输使用 1/2/4 倍速。 |
+| `speed_multiplier` | 本次传输使用 1/2/4 倍速；1x 自动为 standard，2x/4x 自动为 enhanced。 |
 | `spi_mode` | SPI mode 0-3。 |
 | `data_frame_bits` | 数据帧位宽。 |
 | `cs_id` | 片选编号。 |
@@ -21,7 +20,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `arlen` | 仅内部 DMA 生成，内部 DMA 读突发长度，默认 0。 |
 | `axi_addr` | 仅内部 DMA 生成，DMA 访问系统内存的 AXI buffer 地址，默认 0。 |
 
-每个 flow/test 快捷入口在 sequence 字段中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。operation 快捷入口仍按 operation req/rsp 三件套传参。标准/增强模式仍由 configuration 约束根据默认值和倍速关系决定。
+每个 flow/test 快捷入口在 sequence 字段中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。operation 快捷入口仍按 operation req/rsp 三件套传参。用户不输入 frame mode 或 data lane；两者由倍速和具体指令包派生。
 
 DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同时开启；两者都关闭时 kit API 不出现 DMA 参数。
 
@@ -43,7 +42,6 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | --- | --- | --- |
 | `address` | `bit [31:0]` | flash 起始地址 |
 | `data` | `bit [7:0] $` | 非空写入数据 |
-| `io_lanes` | `int` | 可选传输配置 |
 | `speed_multiplier` | `int` | 可选传输配置 |
 | `spi_mode` | `int` | 可选传输配置 |
 | `data_frame_bits` | `int` | 可选传输配置 |
@@ -62,7 +60,6 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | --- | --- | --- |
 | `address` | `bit [31:0]` | flash 起始地址 |
 | `length` | `int` | 读长度 |
-| `io_lanes` | `int` | 可选传输配置 |
 | `speed_multiplier` | `int` | 可选传输配置 |
 | `spi_mode` | `int` | 可选传输配置 |
 | `data_frame_bits` | `int` | 可选传输配置 |
@@ -89,7 +86,6 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | --- | --- | --- |
 | `address` | `bit [31:0]` | flash 起始地址，默认 0 |
 | `write_data` | `bit [7:0] $` | 写入数据；空队列表示随机数据 |
-| `io_lanes` | `int` | 可选传输配置 |
 | `speed_multiplier` | `int` | 可选传输配置 |
 | `spi_mode` | `int` | 可选传输配置 |
 | `data_frame_bits` | `int` | 可选传输配置 |
@@ -112,7 +108,7 @@ flash 便捷入口不要求用户声明挂载的 flash 类型。普通读写按�
 
 ### `speed_test`
 
-遍历 standard 1x、enhanced 1x、enhanced 2x、enhanced 4x 的完整读写回读测试。地址和数据默认规则与 `rw_test` 相同；每种模式使用不重叠地址，任一模式失败即停止。
+按 `max_speed_multiplier` 遍历 1x、2x、4x 的完整读写回读测试。地址和数据默认规则与 `rw_test` 相同；每种倍速使用不重叠地址，任一倍速失败即停止。
 
 ### `dma_test`
 

@@ -1,9 +1,8 @@
 class_prefix: dw_spi_
 regmodel_type: dw_spi_regmodel
 ssi_variant: PSSI
-default_io_lanes: 4
 default_speed_multiplier: 4
-default_frame_mode: ENHANCED
+max_speed_multiplier: 4
 default_data_frame_bits: 8
 num_cs: 4
 default_spi_mode: 0
@@ -28,8 +27,6 @@ internal_dma: false
 external_dma: false
 support_master: true
 support_slave: true
-support_standard: true
-support_enhanced: true
 support_general_spi: true
 support_flash_spi: true
 memh_max_bytes_per_line: 16
