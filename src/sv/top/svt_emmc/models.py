@@ -6,6 +6,8 @@ class Models(BaseModel):
     class_prefix: str = Field('emmc_vip_', description="Class name prefix.")
     card_type: Literal['emmc', 'sdcard', 'sdio'] = Field(..., description="Card type.")
     max_mem_data_width: int = Field(4096, description="Maximum memory data width.")
+    power_ramp_up_time_us: int = Field(1000, ge=0, description="Power ramp-up time in microseconds.")
+    tsupply_rampup_min_ck: int = Field(1, gt=0, description="Minimum supply ramp-up clocks.")
 
     @property
     def is_emmc(self) -> bool:

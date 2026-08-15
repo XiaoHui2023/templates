@@ -39,6 +39,9 @@ function void {{ class_prefix }}svt_configuration::configure({{ class_prefix }}s
     this.timing_cfg.tNcrc_hs200_max_ck = 8;
     this.timing_cfg.tNcrc_hs400_min_ck = 8;
     this.timing_cfg.tNcrc_hs400_max_ck = 8;
+    // Power-up acceleration: reduce long default ramp-up waits.
+    this.timing_cfg.power_ramp_up_time_us = sys_cfg.power_ramp_up_time_us;
+    this.timing_cfg.tSupply_rampup_min_ck = sys_cfg.tsupply_rampup_min_ck;
 
     {%- if is_emmc %}
     load_emmc_config(sys_cfg,this.reg_cfg);
