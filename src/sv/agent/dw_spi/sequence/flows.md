@@ -98,9 +98,10 @@
 1. Python 通过 `internal_dma` / `external_dma` 选择生成内置 DMA、外部 DMA 或无 DMA，二者不能同时开启。
 2. 无 DMA 时不生成 `use_dma` 和 DMA 寄存器配置。
 3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；builder 转换成 `DMACR.RDMAE/TDMAE/IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`AXIAR0.AXIAR0`。`SPIDR.SPI_INST` 和 `SPIAR.SDAR` 在 `spi_ctrlr0_en=1` 或 `write_internal_dma_regs=1` 时写。
-4. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source buffer；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
-5. 外部 DMA 只配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
-6. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
+4. DMA 读 transfer 在选择 CS 前向 `DR` 写入指令和地址控制项；不足 `TXFTLR+1` 时补零，达到启动门槛后再选择 CS。
+5. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source buffer；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
+6. 外部 DMA 只配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
+7. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
 
 ## Log Verbosity
 
@@ -115,7 +116,7 @@
 
 ## Enhanced SPI Instruction Register
 
-`SPIDR.SPI_INST` is a 16-bit instruction container used whenever `spi_ctrlr0_en=1` or `write_internal_dma_regs=1`. Current flash commands use `inst_bytes == 1`, so the builder writes `{opcode, 8'h00}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. `SPIAR.SDAR` receives the current 32-bit device address under the same combined condition.
+`SPIDR.SPI_INST` is a 16-bit instruction container used whenever `spi_ctrlr0_en=1` or `write_internal_dma_regs=1`. Current flash commands use `inst_bytes == 1`, so the builder writes `{8'h00, opcode}` and relies on `SPI_CTRLR0.INST_L` to select an 8-bit instruction. `SPIAR.SDAR` receives the current 32-bit device address under the same combined condition.
 
 ## Speed Test
 
@@ -123,4 +124,4 @@
 
 ## DMA Test
 
-`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。它复用一次完整 `rw_test`，但强制 `use_dma=1`。内部 DMA 通过 CPU callback 准备/回读 AXI buffer；外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。无 DMA 配置不生成该类、kit 入口或 filelist 条目。
+`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。它复用一次完整 `rw_test`，但强制 `use_dma=1`。内部 DMA 通过 CPU callback 准备和回读 AXI buffer；外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。两种 DMA 读路径都在选择 CS 前预填 TX FIFO。无 DMA 配置不生成该类、kit 入口或 filelist 条目。

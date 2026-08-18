@@ -155,7 +155,7 @@ Program both registers when enhanced `SPI_CTRLR0` control is enabled or when the
 The current SPI flash opcode model carries one opcode byte. Pack it as:
 
 ```text
-SPI_INST = {opcode, 8'h00}
+SPI_INST = {8'h00, opcode}
 ```
 
-Do not write a 1-byte opcode as low-aligned `16'h00xx` or as 32-bit `{24'h0, opcode}`. With `INST_L=2`, the hardware should consume an 8-bit instruction from the high byte of the 16-bit instruction container.
+With `INST_L=2`, DWC SSI RTL consumes the 8-bit instruction from `SPI_INST[7:0]`. High-byte packing sends `8'h00` instead of the requested opcode.

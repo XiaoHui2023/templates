@@ -27,12 +27,14 @@ sequence 层先把 operation 请求里的 DMA 意图转换成 register `configur
 
 内置 DMA 读传输：
 
-1. 控制器完成 DMA 后，从 `axi_addr` 按 32-bit little-endian word 读回数据。
-2. 每个 word 调用 `p_sequencer.cpu_read(addr, word, UVM_BACKDOOR)`。
-3. 读回 byte 作为 actual read data 交给 flow/test 和 scoreboard 比较。
+1. 选择 CS 前，把指令和地址控制项写入 `DR`。
+2. 控制项少于 `TXFTLR+1` 时补零，达到 RTL 启动门槛后再选择 CS。
+3. 控制器完成 DMA 后，从 `axi_addr` 按 32-bit little-endian word 读回数据。
+4. 每个 word 调用 `p_sequencer.cpu_read(addr, word, UVM_BACKDOOR)`。
+5. 读回 byte 作为 actual read data 交给 flow/test 和 scoreboard 比较。
 
 CPU 读写 callback 不暴露通用寄存器 API，不处理 chip-select。
 
 ## Enhanced SPI Instruction Packing
 
-`SPIDR.SPI_INST` uses a 16-bit instruction container. A 1-byte SPI flash opcode is packed as `{opcode, 8'h00}` and the actual 8-bit instruction length is expressed by `SPI_CTRLR0.INST_L`. Derive it for enhanced SPI and the internal-DMA register path.
+`SPIDR.SPI_INST` uses a 16-bit instruction container. DWC SSI RTL consumes a 1-byte SPI flash opcode from the low byte, so pack it as `{8'h00, opcode}`. The actual 8-bit instruction length is expressed by `SPI_CTRLR0.INST_L`.

@@ -61,6 +61,14 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}base_seq #(
         input bit [31:0] dr_items[$],
         output bit cs_started,
         output bit ok);
+{%- if internal_dma or external_dma %}
+    // Prefills DMA-read control items until the transmit start threshold is met.
+    extern protected task prefill_dma_read_control(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
+        output bit ok);
+{%- endif %}
 {%- if internal_dma %}
     // Writes the request payload into the internal-DMA AXI source buffer.
     extern protected task cpu_write_payload_to_axi(
@@ -160,8 +168,12 @@ task {{ class_prefix }}transfer_seq::body();
 {%- if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
-        `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; selecting CS before waiting for configured completion", UVM_HIGH)
-        activate_transfer_cs(rq, cfg, register_access, cs_started);
+        if (command == UVM_TLM_READ_COMMAND)
+            prefill_dma_read_control(rq, cfg, register_access, dma_ok);
+        if (dma_ok) begin
+            `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; selecting CS before waiting for configured completion", UVM_HIGH)
+            activate_transfer_cs(rq, cfg, register_access, cs_started);
+        end
     end
     else begin
         pio_ok = 1'b1;
@@ -178,8 +190,12 @@ task {{ class_prefix }}transfer_seq::body();
     end
 {%- elif external_dma %}
     if (rq.use_dma) begin
-        `uvm_info("DW_SPI_XFER", "external DMA armed; selecting CS before waiting for completion", UVM_HIGH)
-        activate_transfer_cs(rq, cfg, register_access, cs_started);
+        if (command == UVM_TLM_READ_COMMAND)
+            prefill_dma_read_control(rq, cfg, register_access, dma_ok);
+        if (dma_ok) begin
+            `uvm_info("DW_SPI_XFER", "external DMA armed; selecting CS before waiting for completion", UVM_HIGH)
+            activate_transfer_cs(rq, cfg, register_access, cs_started);
+        end
     end
     else begin
         pio_ok = 1'b1;
@@ -270,8 +286,10 @@ task {{ class_prefix }}transfer_seq::body();
     end
 {%- elif external_dma %}
     if (rq.use_dma) begin
-        wait_transfer_completion(rq, cfg, register_access, completion_ok);
-        dma_ok = dma_ok && completion_ok;
+        if (dma_ok) begin
+            wait_transfer_completion(rq, cfg, register_access, completion_ok);
+            dma_ok = dma_ok && completion_ok;
+        end
         if (dma_ok) begin
             `uvm_info("DW_SPI_XFER", "waiting for external DMA completion and collecting read data", UVM_HIGH)
             p_sequencer.finish_external_dma(rq, rs.read_data, dma_ok);
@@ -526,6 +544,63 @@ task {{ class_prefix }}transfer_seq::write_pio_stream_under_cs(
             remaining_items, "pio_remaining_under_cs", ok);
     end
 endtask
+
+{%- if internal_dma or external_dma %}
+
+task {{ class_prefix }}transfer_seq::prefill_dma_read_control(
+        input {{ class_prefix }}transfer_req rq,
+        input {{ class_prefix }}configuration cfg,
+        input {{ class_prefix }}register_access register_access,
+        output bit ok);
+    bit [31:0] control_items[$];
+    int required_items;
+
+    ok = 1'b1;
+    if (rq == null)
+        `uvm_fatal("DW_SPI_DMA", "DMA read prefill req is null")
+    if (cfg == null)
+        `uvm_fatal("DW_SPI_DMA", "DMA read prefill configuration is null")
+    if (register_access == null)
+        `uvm_fatal("DW_SPI_DMA", "DMA read prefill register_access is null")
+    if (p_sequencer.settings == null)
+        `uvm_fatal("DW_SPI_DMA", "DMA read prefill settings is null")
+
+    required_items = cfg.txftlr + 1;
+    if (required_items > p_sequencer.settings.fifo_depth_bytes)
+        `uvm_fatal("DW_SPI_DMA", $sformatf(
+            "DMA read TX FIFO start threshold exceeds FIFO depth: required_items=%0d txftlr=%0d fifo_depth_bytes=%0d",
+            required_items,
+            cfg.txftlr,
+            p_sequencer.settings.fifo_depth_bytes))
+
+    build_pio_dr_write_items(rq, 1'b0, control_items);
+    while (control_items.size() < required_items)
+        control_items.push_back(32'h0);
+    if (control_items.size() > p_sequencer.settings.fifo_depth_bytes)
+        `uvm_fatal("DW_SPI_DMA", $sformatf(
+            "DMA read control prefill exceeds FIFO depth: control_items=%0d fifo_depth_bytes=%0d",
+            control_items.size(),
+            p_sequencer.settings.fifo_depth_bytes))
+
+    `uvm_info("DW_SPI_DMA", $sformatf(
+        "prefilling DMA read TX FIFO before CS: opcode=0x%02h address=0x%0h control_items=%0d required_items=%0d txftlr=%0d",
+        rq.opcode,
+        rq.payload.get_address(),
+        control_items.size(),
+        required_items,
+        cfg.txftlr), UVM_HIGH)
+    register_access.write_items_to_dr(
+        control_items, "dma_read_control_prefill_before_cs", ok);
+    if (!ok)
+        `uvm_error("DW_SPI_DMA", $sformatf(
+            "DMA read TX FIFO prefill failed before CS: opcode=0x%02h address=0x%0h control_items=%0d required_items=%0d txftlr=%0d",
+            rq.opcode,
+            rq.payload.get_address(),
+            control_items.size(),
+            required_items,
+            cfg.txftlr))
+endtask
+{%- endif %}
 
 // Reports whether this transfer may use the local internal-DMA done interrupt.
 function bit {{ class_prefix }}transfer_seq::can_use_internal_dma_done_interrupt(
