@@ -117,7 +117,13 @@ task {{ class_prefix }}initial_seq::execute_initial();
         `uvm_do(voltage_switch_seq)
 
     // CMD3
+{%- if is_mobile_storage %}
     `uvm_do(send_relative_addr_seq)
+{%- else %}
+    `uvm_do_with(send_relative_addr_seq, {
+        cmd_request.rst_request.sw_rst_cmd == 1; // 复位错误
+    })
+{%- endif %}
 
     // 切换前延时
     `uvm_rand_send(pre_switch_yield)

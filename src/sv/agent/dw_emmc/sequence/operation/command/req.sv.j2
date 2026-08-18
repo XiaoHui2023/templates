@@ -102,12 +102,23 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
 {%- endif %}
 
         // crc chk
+{%- if is_mobile_storage %}
         (resp inside {NR, R3, R4}) -> cmd_crc_chk_enable == 0;
         (resp inside {R1, R1b, R2, R5, R6, R7}) -> cmd_crc_chk_enable == 1;
+{%- else %}
+        (resp == R3) -> cmd_crc_chk_enable == 0;
+        (resp inside {NR, R1, R1b, R2, R4, R5}) -> cmd_crc_chk_enable == 1;
+{%- endif %}
 
         // idx chk
+{%- if is_mobile_storage %}
         (resp inside {NR, R2, R3, R4}) -> cmd_idx_chk_enable == 0;
         (resp inside {R1, R1b, R5, R6, R7}) -> cmd_idx_chk_enable == 1;
+{%- else %}
+        (resp == R2) -> cmd_idx_chk_enable == 0;
+        (resp == R3) -> cmd_idx_chk_enable == 0;
+        (resp inside {NR,R1,R1b,R4,R5}) -> cmd_idx_chk_enable == 1;
+{%- endif %}
 
         if(data_present_sel) {
             block_size > 0;

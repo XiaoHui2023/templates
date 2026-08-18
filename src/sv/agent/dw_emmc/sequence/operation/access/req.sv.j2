@@ -84,8 +84,10 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
         soft xfer_block_size == 0;
         soft tune_en == 0;
         soft center_ph_code == 0;
+{%- if is_mobile_storage %}
         soft cmd_crc_chk_enable == 0;
         soft cmd_idx_chk_enable == 0;
+{%- endif %}
 
         // valid
         xfer_block_size inside {[0:'h800]};
