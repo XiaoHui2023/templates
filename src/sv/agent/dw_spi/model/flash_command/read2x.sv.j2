@@ -19,7 +19,7 @@ class {{ class_prefix }}read2x_flash_command extends {{ class_prefix }}flash_com
         inst_bytes == 1;
         addr_bytes inside {3, 4};
         dummy_cycles == 4;
-        rx_skip_bytes == addr_bytes;
+        rx_skip_bytes == 1;
         payload_is_read == 1'b1;
         payload_is_write == 1'b0;
     }

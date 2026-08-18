@@ -68,7 +68,7 @@ Implemented:
 - Read/program opcode selection for 1x/2x/4x in the default NOR-like shortcuts.
 - 3-byte or 4-byte address width by configuration, default 3.
 - Read dummy clocks are command-owned SCLK cycles: `03h=0`, `BBh=4`, and `EBh=6`; program/write windows do not use dummy clocks.
-- `READ2X 0xBB` discards `addr_bytes` leading receive bytes (`rx_skip_bytes=addr_bytes`).
+- `READ2X 0xBB` discards one leading receive byte (`rx_skip_bytes=1`).
 - `READ4X 0xEB` requests three additional receive bytes and discards those leading bytes before returning data to scoreboard (`rx_skip_bytes=3`).
 - NDF derived only from payload data frames. Instruction/address/dummy remain in the same continuous CS window but are excluded from NDF.
 - Scoreboard comparison using actual readback data from DR or DMA buffer.
