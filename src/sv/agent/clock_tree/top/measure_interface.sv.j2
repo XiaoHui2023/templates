@@ -33,6 +33,7 @@ interface {{ settings.class_prefix }}measure_interface #(
     logic freq_stable;
     logic duty_stable;
     logic timed_out;
+    wire requested_measure_stable;
     real phase_frac;
 
     real last_freq_hz;
@@ -52,6 +53,9 @@ interface {{ settings.class_prefix }}measure_interface #(
     realtime active_timeout_rt;
     realtime stable_timeout_rt;
     real max_edge_period_rt;
+
+    assign requested_measure_stable = (!need_freq_rt || freq_stable)
+        && (!need_duty_rt || duty_stable);
 
     // 周期内归一化相位，取值 0 以上且小于 1
     // t — 上升沿时刻
@@ -136,11 +140,6 @@ interface {{ settings.class_prefix }}measure_interface #(
         activity_ok = 1'b1;
         inactive = 1'b0;
         timed_out = 1'b1;
-    endfunction
-
-    function automatic bit requested_measure_stable();
-        return (!need_freq_rt || freq_stable)
-            && (!need_duty_rt || duty_stable);
     endfunction
 
     // 活动确认后根据相邻上升沿更新频率、占空比与稳定计数
@@ -255,8 +254,8 @@ interface {{ settings.class_prefix }}measure_interface #(
         wait (activity_ok || inactive || !meas_en);
         if (!activity_ok)
             return;
-        wait (requested_measure_stable() || timed_out || !meas_en);
-        ok = meas_en && !timed_out && requested_measure_stable();
+        wait (requested_measure_stable || timed_out || !meas_en);
+        ok = meas_en && !timed_out && requested_measure_stable;
     endtask
 
     // 监视上升沿并采样周期
@@ -356,7 +355,7 @@ interface {{ settings.class_prefix }}measure_interface #(
             fork : wait_stable_or_timeout
                 begin
                     wait (!meas_en || measure_id != active_measure_id
-                        || requested_measure_stable());
+                        || requested_measure_stable);
                 end
                 begin
                     #(stable_timeout_rt * 1ns);
@@ -367,7 +366,7 @@ interface {{ settings.class_prefix }}measure_interface #(
             join_any
             disable wait_stable_or_timeout;
             if (meas_en && measure_id == active_measure_id
-                    && !requested_measure_stable())
+                    && !requested_measure_stable)
                 mark_timeout();
             wait (!meas_en || measure_id != active_measure_id);
         end
