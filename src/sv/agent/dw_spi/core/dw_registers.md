@@ -125,8 +125,8 @@ PIO 搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR`，读�
 | `DMACR` | `AINC` | 使能 AXI 地址自增 |
 | `DMATDLR` | `DMATDL` | TX DMA threshold |
 | `DMARDLR` | `DMARDL` | RX DMA threshold |
-| `AXIAWLEN` | `AWLEN` | per-transfer `awlen << 8` |
-| `AXIARLEN` | `ARLEN` | per-transfer `arlen << 8` |
+| `AXIAWLEN` | `AWLEN` | operation req 的 `awlen << 8`；内部 DMA 读按 destination payload beat 数推导 |
+| `AXIARLEN` | `ARLEN` | operation req 的 `arlen << 8`；内部 DMA 读按 source control beat 数、写按 source payload beat 数推导 |
 | `AXIAR0` | `AXIAR0` | per-transfer `axi_addr` |
 
 Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DMA 配置代码。内置 DMA 使用 CPU callback 准备或读回 AXI buffer；外部 DMA 不使用内置 CPU buffer mover。

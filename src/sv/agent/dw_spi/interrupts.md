@@ -47,13 +47,13 @@ PIO 读必须先 drain RX FIFO，再等待最终 idle，避免 RX FIFO 因等待
 
 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的路径。
 
-1. 内置 DMA 写 transfer 启动前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
+1. 内置 DMA transfer 启动前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 准备 AXI source buffer：写命令放 payload，读命令放 opcode/address 控制项；内部 DMA 读不写 `DR`。
 2. 配置 `DMACR.IDMAE/AINC`、方向握手位和 `AXIAWLEN/AXIARLEN/AXIAR0`。`SPIDR/SPIAR` 在 `write_internal_dma_regs` 或 enhanced `spi_ctrlr0_en` 任一条件成立时写入。
 3. 选中 CS，启动控制器内部 DMA transfer。
 4. 若 `completion_mode` 是 `PREFER_INTERRUPT_COMPLETION` 且 `intr` 已连接，等待 top `intr`，再读取 `ISR.DONES`。
 5. 若 `intr` 未连接，退回轮询 `SR.TFE && !SR.BUSY`。
 6. 释放 CS。
-7. 内置 DMA 读 transfer 在释放 CS 后，通过 callback `cpu_read(addr, word, UVM_BACKDOOR)` 从 `axi_addr` 读回 actual data。
+7. 内置 DMA 读 transfer 在释放 CS 后，通过 callback `cpu_read(addr, word, UVM_BACKDOOR)` 从 `axi_addr` 读回 actual data；`ARLEN` 已按控制项 beat 数、`AWLEN` 已按 payload beat 数配置。
 
 外部 DMA 只生成 `DMACR.RDMAE/TDMAE` 和 threshold 配置；外部 DMA engine 的启动、完成与 buffer 管理由环境补齐。当前模板不把 `ISR.DONES` 用作外部 DMA 默认完成源。
 

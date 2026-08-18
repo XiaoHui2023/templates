@@ -14,8 +14,6 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}base_it
         `uvm_field_int(use_dma, UVM_ALL_ON)
 {%- endif %}
 {%- if internal_dma %}
-        `uvm_field_int(awlen, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(arlen, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(axi_addr, UVM_ALL_ON | UVM_HEX)
 {%- endif %}
     `uvm_object_utils_end
@@ -31,8 +29,6 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}base_it
     rand bit use_dma;
 {%- endif %}
 {%- if internal_dma %}
-    rand bit [7:0] awlen;
-    rand bit [7:0] arlen;
     rand bit [31:0] axi_addr;
 {%- endif %}
     {{ class_prefix }}settings settings;
@@ -57,9 +53,11 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}base_it
         soft use_dma == 1'b0;
 {%- endif %}
 {%- if internal_dma %}
-        soft awlen == '0;
-        soft arlen == '0;
-        soft axi_addr == '0;
+        soft axi_addr == 32'h1000_0000;
+        if (use_dma) {
+            axi_addr != 0;
+            axi_addr[1:0] == 2'b00;
+        }
 {%- endif %}
 
         speed_multiplier inside {1{% if max_speed_multiplier >= 2 %}, 2{% endif %}{% if max_speed_multiplier >= 4 %}, 4{% endif %}};

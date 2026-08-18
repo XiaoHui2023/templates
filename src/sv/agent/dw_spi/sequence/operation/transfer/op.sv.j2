@@ -19,8 +19,8 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}base_seq #(
     extern protected function string byte_queue_preview(
         bit [7:0] data[$],
         int max_bytes);
-    // Builds DR control/write-data items; enhanced dummy cycles stay in SPI_CTRLR0.
-    extern protected function void build_pio_dr_write_items(
+    // Builds controller TX items; enhanced dummy cycles stay in SPI_CTRLR0.
+    extern protected function void build_tx_items(
         input {{ class_prefix }}transfer_req rq,
         input bit include_payload,
         output bit [31:0] dr_items[$]);
@@ -61,19 +61,18 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}base_seq #(
         input bit [31:0] dr_items[$],
         output bit cs_started,
         output bit ok);
-{%- if internal_dma or external_dma %}
-    // Prefills DMA-read control items until the transmit start threshold is met.
-    extern protected task prefill_dma_read_control(
+{%- if external_dma %}
+    // Prefills external-DMA read control items until the transmit start threshold is met.
+    extern protected task prefill_external_dma_read_control(
         input {{ class_prefix }}transfer_req rq,
         input {{ class_prefix }}configuration cfg,
         input {{ class_prefix }}register_access register_access,
         output bit ok);
 {%- endif %}
 {%- if internal_dma %}
-    // Writes the request payload into the internal-DMA AXI source buffer.
-    extern protected task cpu_write_payload_to_axi(
-        input bit [31:0] axi_addr,
-        input uvm_tlm_generic_payload payload,
+    // Writes write payload or read control items into the internal-DMA AXI source buffer.
+    extern protected task cpu_write_dma_source_to_axi(
+        input {{ class_prefix }}transfer_req rq,
         output bit ok);
     // Reads the internal-DMA AXI destination buffer into a byte queue.
     extern protected task cpu_read_payload_from_axi(
@@ -137,16 +136,16 @@ task {{ class_prefix }}transfer_seq::body();
     `uvm_info("DW_SPI_XFER", "building register configuration for transfer", UVM_DEBUG)
     config_builder.build(rq, cfg);
 {%- if internal_dma %}
-    if (rq.use_dma && command == UVM_TLM_WRITE_COMMAND) begin
+    if (rq.use_dma && command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
         `uvm_info("DW_SPI_XFER", $sformatf(
-            "preparing internal DMA source buffer before controller start: axi_addr=0x%08h bytes=%0d",
-            rq.axi_addr, rq.payload.get_data_length()), UVM_HIGH)
-        cpu_write_payload_to_axi(rq.axi_addr, rq.payload, dma_ok);
+            "preparing internal DMA source buffer before controller start: command=%s axi_addr=0x%08h payload_bytes=%0d awlen=%0d arlen=%0d",
+            command.name(), rq.axi_addr, rq.payload.get_data_length(), rq.awlen, rq.arlen), UVM_HIGH)
+        cpu_write_dma_source_to_axi(rq, dma_ok);
         if (!dma_ok) begin
             rs.ok = 1'b0;
             `uvm_error("DW_SPI_XFER", $sformatf(
-                "internal DMA source preparation failed: opcode=0x%02h axi_addr=0x%08h bytes=%0d",
-                rq.opcode, rq.axi_addr, rq.payload.get_data_length()))
+                "internal DMA source preparation failed: opcode=0x%02h command=%s axi_addr=0x%08h payload_bytes=%0d",
+                rq.opcode, command.name(), rq.axi_addr, rq.payload.get_data_length()))
             `uvm_info("DW_SPI_XFER", "internal DMA source buffer preparation failed", UVM_HIGH)
             rsp = rs;
             return;
@@ -168,8 +167,6 @@ task {{ class_prefix }}transfer_seq::body();
 {%- if internal_dma %}
     if (rq.use_dma) begin
         dma_ok = 1'b1;
-        if (command == UVM_TLM_READ_COMMAND)
-            prefill_dma_read_control(rq, cfg, register_access, dma_ok);
         if (dma_ok) begin
             `uvm_info("DW_SPI_XFER", "internal DMA transfer armed; selecting CS before waiting for configured completion", UVM_HIGH)
             activate_transfer_cs(rq, cfg, register_access, cs_started);
@@ -178,7 +175,7 @@ task {{ class_prefix }}transfer_seq::body();
     else begin
         pio_ok = 1'b1;
         if (command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
-            build_pio_dr_write_items(
+            build_tx_items(
                 rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_items);
             `uvm_info("DW_SPI_XFER", $sformatf(
                 "PIO path: writing control/write-data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d configured_dummy_cycles=%0d dr_items=%0d",
@@ -191,7 +188,7 @@ task {{ class_prefix }}transfer_seq::body();
 {%- elif external_dma %}
     if (rq.use_dma) begin
         if (command == UVM_TLM_READ_COMMAND)
-            prefill_dma_read_control(rq, cfg, register_access, dma_ok);
+            prefill_external_dma_read_control(rq, cfg, register_access, dma_ok);
         if (dma_ok) begin
             `uvm_info("DW_SPI_XFER", "external DMA armed; selecting CS before waiting for completion", UVM_HIGH)
             activate_transfer_cs(rq, cfg, register_access, cs_started);
@@ -200,7 +197,7 @@ task {{ class_prefix }}transfer_seq::body();
     else begin
         pio_ok = 1'b1;
         if (command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
-            build_pio_dr_write_items(
+            build_tx_items(
                 rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_items);
             `uvm_info("DW_SPI_XFER", $sformatf(
                 "PIO path: writing control/write-data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d configured_dummy_cycles=%0d dr_items=%0d",
@@ -213,7 +210,7 @@ task {{ class_prefix }}transfer_seq::body();
 {%- else %}
     pio_ok = 1'b1;
     if (command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
-        build_pio_dr_write_items(
+        build_tx_items(
             rq, command == UVM_TLM_WRITE_COMMAND, pio_dr_items);
         `uvm_info("DW_SPI_XFER", $sformatf(
             "PIO path: writing control/write-data stream to DR: opcode=0x%02h address=0x%0h payload_bytes=%0d configured_dummy_cycles=%0d dr_items=%0d",
@@ -545,9 +542,9 @@ task {{ class_prefix }}transfer_seq::write_pio_stream_under_cs(
     end
 endtask
 
-{%- if internal_dma or external_dma %}
+{%- if external_dma %}
 
-task {{ class_prefix }}transfer_seq::prefill_dma_read_control(
+task {{ class_prefix }}transfer_seq::prefill_external_dma_read_control(
         input {{ class_prefix }}transfer_req rq,
         input {{ class_prefix }}configuration cfg,
         input {{ class_prefix }}register_access register_access,
@@ -557,43 +554,43 @@ task {{ class_prefix }}transfer_seq::prefill_dma_read_control(
 
     ok = 1'b1;
     if (rq == null)
-        `uvm_fatal("DW_SPI_DMA", "DMA read prefill req is null")
+        `uvm_fatal("DW_SPI_DMA", "external DMA read prefill req is null")
     if (cfg == null)
-        `uvm_fatal("DW_SPI_DMA", "DMA read prefill configuration is null")
+        `uvm_fatal("DW_SPI_DMA", "external DMA read prefill configuration is null")
     if (register_access == null)
-        `uvm_fatal("DW_SPI_DMA", "DMA read prefill register_access is null")
+        `uvm_fatal("DW_SPI_DMA", "external DMA read prefill register_access is null")
     if (p_sequencer.settings == null)
-        `uvm_fatal("DW_SPI_DMA", "DMA read prefill settings is null")
+        `uvm_fatal("DW_SPI_DMA", "external DMA read prefill settings is null")
 
     required_items = cfg.txftlr + 1;
     if (required_items > p_sequencer.settings.fifo_depth_bytes)
         `uvm_fatal("DW_SPI_DMA", $sformatf(
-            "DMA read TX FIFO start threshold exceeds FIFO depth: required_items=%0d txftlr=%0d fifo_depth_bytes=%0d",
+            "external DMA read TX FIFO start threshold exceeds FIFO depth: required_items=%0d txftlr=%0d fifo_depth_bytes=%0d",
             required_items,
             cfg.txftlr,
             p_sequencer.settings.fifo_depth_bytes))
 
-    build_pio_dr_write_items(rq, 1'b0, control_items);
+    build_tx_items(rq, 1'b0, control_items);
     while (control_items.size() < required_items)
         control_items.push_back(32'h0);
     if (control_items.size() > p_sequencer.settings.fifo_depth_bytes)
         `uvm_fatal("DW_SPI_DMA", $sformatf(
-            "DMA read control prefill exceeds FIFO depth: control_items=%0d fifo_depth_bytes=%0d",
+            "external DMA read control prefill exceeds FIFO depth: control_items=%0d fifo_depth_bytes=%0d",
             control_items.size(),
             p_sequencer.settings.fifo_depth_bytes))
 
     `uvm_info("DW_SPI_DMA", $sformatf(
-        "prefilling DMA read TX FIFO before CS: opcode=0x%02h address=0x%0h control_items=%0d required_items=%0d txftlr=%0d",
+        "prefilling external DMA read TX FIFO before CS: opcode=0x%02h address=0x%0h control_items=%0d required_items=%0d txftlr=%0d",
         rq.opcode,
         rq.payload.get_address(),
         control_items.size(),
         required_items,
         cfg.txftlr), UVM_HIGH)
     register_access.write_items_to_dr(
-        control_items, "dma_read_control_prefill_before_cs", ok);
+        control_items, "external_dma_read_control_prefill_before_cs", ok);
     if (!ok)
         `uvm_error("DW_SPI_DMA", $sformatf(
-            "DMA read TX FIFO prefill failed before CS: opcode=0x%02h address=0x%0h control_items=%0d required_items=%0d txftlr=%0d",
+            "external DMA read TX FIFO prefill failed before CS: opcode=0x%02h address=0x%0h control_items=%0d required_items=%0d txftlr=%0d",
             rq.opcode,
             rq.payload.get_address(),
             control_items.size(),
@@ -667,7 +664,7 @@ task {{ class_prefix }}transfer_seq::wait_transfer_completion(
         completion_mode.name(), ok), UVM_HIGH)
 endtask
 
-function void {{ class_prefix }}transfer_seq::build_pio_dr_write_items(
+function void {{ class_prefix }}transfer_seq::build_tx_items(
         input {{ class_prefix }}transfer_req rq,
         input bit include_payload,
         output bit [31:0] dr_items[$]);
@@ -720,7 +717,7 @@ function void {{ class_prefix }}transfer_seq::build_pio_dr_write_items(
     end
 
     `uvm_info("DW_SPI_XFER", $sformatf(
-        "PIO DR stream built: protocol=%s frame=%s opcode=0x%02h address=0x%0h inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d include_payload=%0b payload_bytes=%0d control_items=%0d total_items=%0d",
+        "controller TX item stream built: protocol=%s frame=%s opcode=0x%02h address=0x%0h inst_bytes=%0d addr_bytes=%0d dummy_cycles=%0d include_payload=%0b payload_bytes=%0d control_items=%0d total_items=%0d",
         protocol.name(),
         frame_mode.name(),
         rq.opcode,
@@ -736,25 +733,55 @@ endfunction
 
 {%- if internal_dma %}
 
-task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
-        input bit [31:0] axi_addr,
-        input uvm_tlm_generic_payload payload,
+task {{ class_prefix }}transfer_seq::cpu_write_dma_source_to_axi(
+        input {{ class_prefix }}transfer_req rq,
         output bit ok);
+    uvm_tlm_command_e command;
     byte unsigned gp_data[];
     bit [7:0] preview_data[$];
+    bit [31:0] control_items[$];
     bit [31:0] word;
     int index;
 
     ok = 1'b1;
-    if (payload == null)
-        `uvm_fatal("DW_SPI_DMA", "payload is null")
-    payload.get_data(gp_data);
+    if (rq == null)
+        `uvm_fatal("DW_SPI_DMA", "internal DMA source req is null")
+    if (rq.payload == null)
+        `uvm_fatal("DW_SPI_DMA", "internal DMA source payload is null")
+    if (rq.axi_addr == 0 || rq.axi_addr[1:0] != 2'b00)
+        `uvm_fatal("DW_SPI_DMA", $sformatf(
+            "internal DMA source axi_addr must be nonzero and 4-byte aligned: axi_addr=0x%08h",
+            rq.axi_addr))
+    command = rq.payload.get_command();
+    if (command == UVM_TLM_READ_COMMAND) begin
+        build_tx_items(rq, 1'b0, control_items);
+        if (control_items.size() == 0)
+            `uvm_fatal("DW_SPI_DMA", "internal DMA read source has no control items")
+        `uvm_info("DW_SPI_DMA", $sformatf(
+            "cpu writing internal DMA read control buffer: axi_addr=0x%08h control_words=%0d arlen=%0d",
+            rq.axi_addr, control_items.size(), rq.arlen), UVM_HIGH)
+        foreach (control_items[i]) begin
+            `uvm_info("DW_SPI_DMA", $sformatf(
+                "CPU write internal DMA read control word: addr=0x%0h word=0x%08h word_index=%0d",
+                {32'h0, rq.axi_addr + i * 4}, control_items[i], i), UVM_DEBUG)
+            p_sequencer.cpu_write(
+                {32'h0, rq.axi_addr + i * 4}, control_items[i], UVM_BACKDOOR);
+        end
+        `uvm_info("DW_SPI_DMA", $sformatf(
+            "cpu wrote internal DMA read control buffer: axi_addr=0x%08h control_words=%0d",
+            rq.axi_addr, control_items.size()), UVM_HIGH)
+        return;
+    end
+    if (command != UVM_TLM_WRITE_COMMAND)
+        `uvm_fatal("DW_SPI_DMA", $sformatf(
+            "unsupported internal DMA source command: %s", command.name()))
+    rq.payload.get_data(gp_data);
     preview_data.delete();
     foreach (gp_data[i])
         preview_data.push_back(gp_data[i]);
     `uvm_info("DW_SPI_DMA", $sformatf(
         "cpu writing DMA source buffer: axi_addr=0x%08h bytes=%0d data_preview=%s",
-        axi_addr, gp_data.size(), byte_queue_preview(preview_data, 16)), UVM_HIGH)
+        rq.axi_addr, gp_data.size(), byte_queue_preview(preview_data, 16)), UVM_HIGH)
     index = 0;
     while (index < gp_data.size()) begin
         word = '0;
@@ -764,13 +791,13 @@ task {{ class_prefix }}transfer_seq::cpu_write_payload_to_axi(
         end
         `uvm_info("DW_SPI_DMA", $sformatf(
             "CPU write DMA source word: addr=0x%0h word=0x%08h byte_index=%0d",
-            {32'h0, axi_addr + index}, word, index), UVM_DEBUG)
-        p_sequencer.cpu_write({32'h0, axi_addr + index}, word, UVM_BACKDOOR);
+            {32'h0, rq.axi_addr + index}, word, index), UVM_DEBUG)
+        p_sequencer.cpu_write({32'h0, rq.axi_addr + index}, word, UVM_BACKDOOR);
         index += 4;
     end
     `uvm_info("DW_SPI_DMA", $sformatf(
         "cpu wrote DMA source buffer: axi_addr=0x%08h bytes=%0d",
-        axi_addr, gp_data.size()), UVM_HIGH)
+        rq.axi_addr, gp_data.size()), UVM_HIGH)
 endtask
 
 task {{ class_prefix }}transfer_seq::cpu_read_payload_from_axi(

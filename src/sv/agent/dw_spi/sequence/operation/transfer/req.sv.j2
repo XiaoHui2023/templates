@@ -157,6 +157,10 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
         soft awlen == '0;
         soft arlen == '0;
         soft axi_addr == '0;
+        if (use_dma) {
+            axi_addr != 0;
+            axi_addr[1:0] == 2'b00;
+        }
 {%- endif %}
         if (protocol == FLASH_SPI) {
             inst_bytes == 1;

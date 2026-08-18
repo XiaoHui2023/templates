@@ -34,7 +34,7 @@
 
 1. `transfer_seq` 检查 req、payload、scoreboard。
 2. 生成本次寄存器 `configuration`。
-3. 内置 DMA 写 transfer 在启动控制器前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 把 payload 写入 `axi_addr` 指定的系统内存 buffer。
+3. 内置 DMA transfer 在启动控制器前准备 AXI source buffer：写命令通过 callback 写 payload；读命令通过 callback 写 opcode/address 控制项。内部 DMA 不通过 PIO 写 `DR` 喂控制项。
 4. 调用 `register_access.apply_configuration()`。该阶段会关闭控制器、清中断、清 `SER`、配置寄存器、重新使能控制器，但不会选中片选。
 5. 非 DMA PIO 构造 DR item stream。standard flash 把 opcode、大端地址、dummy 逐 byte 放入 item；enhanced flash 把 opcode 和完整 address 各放入一个 32-bit control item，再追加 payload。命令-only 传输 payload 长度为 0，但 DR stream 仍包含 opcode。
    flash write/program 不使用 dummy clock；enhanced read 的 dummy/wait 通过 `SPI_CTRLR0.WAIT_CYCLES` 表达。
@@ -97,10 +97,10 @@
 
 1. Python 通过 `internal_dma` / `external_dma` 选择生成内置 DMA、外部 DMA 或无 DMA，二者不能同时开启。
 2. 无 DMA 时不生成 `use_dma` 和 DMA 寄存器配置。
-3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma`、`awlen`、`arlen`、`axi_addr`；builder 转换成 `DMACR.RDMAE/TDMAE/IDMAE/AINC`、DMA threshold、`AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8`、`AXIAR0.AXIAR0`。`SPIDR.SPI_INST` 和 `SPIAR.SDAR` 在 `spi_ctrlr0_en=1` 或 `write_internal_dma_regs=1` 时写。
-4. DMA 读 transfer 在选择 CS 前向 `DR` 写入指令和地址控制项；不足 `TXFTLR+1` 时补零，达到启动门槛后再选择 CS。
-5. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source buffer；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
-6. 外部 DMA 只配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
+3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma` 和 `axi_addr`。adapter 为读命令推导 `ARLEN=control_beats-1`、`AWLEN=payload_beats-1`，为写命令推导 `ARLEN=payload_beats-1`、`AWLEN=0`；builder 写 `AXIAWLEN.AWLEN = awlen << 8`、`AXIARLEN.ARLEN = arlen << 8` 和 `AXIAR0.AXIAR0`。
+4. 内置 DMA 读 transfer 在配置控制器前，通过 CPU callback 把指令和地址控制项逐 32-bit word 写入 `axi_addr`。内部 DMA 引擎从 AXI source buffer 取控制项；该路径不写 `DR`。
+5. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source payload；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
+6. 外部 DMA 仍在选择 CS 前向 TX FIFO 预填 read control items，并配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
 7. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
 
 ## Log Verbosity
@@ -124,4 +124,4 @@
 
 ## DMA Test
 
-`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。它复用一次完整 `rw_test`，但强制 `use_dma=1`。内部 DMA 通过 CPU callback 准备和回读 AXI buffer；外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。两种 DMA 读路径都在选择 CS 前预填 TX FIFO。无 DMA 配置不生成该类、kit 入口或 filelist 条目。
+`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。它复用一次完整 `rw_test`，但强制 `use_dma=1`。内部 DMA 通过 CPU callback 把写 payload 或读控制项放入 AXI source buffer，并从 AXI destination buffer 回读实际数据；不通过 PIO 预填 `DR`。外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。无 DMA 配置不生成该类、kit 入口或 filelist 条目。

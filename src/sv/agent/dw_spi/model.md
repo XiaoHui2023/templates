@@ -47,7 +47,7 @@
 | `cs_control_mode` | 本次片选控制模式 |
 | `speed_multiplier` | 1/2/4 倍速，映射到 `CTRLR0.SPI_FRF` |
 | `use_dma` | 仅在 Python 开启内置或外部 DMA 时生成，默认 0 |
-| `awlen` / `arlen` / `axi_addr` | 仅内置 DMA 生成 |
+| `axi_addr` | 仅内置 DMA 生成；非零且 4-byte 对齐，默认 `0x10000000` |
 | `spi_mode` | SPI mode 0-3 |
 | `data_frame_bits` | 每帧数据位宽 |
 | `cs_id` | `SER` 和 callback 使用的片选编号 |
@@ -57,7 +57,7 @@
 
 operation transfer req 还会携带 `instruction_lanes` 和 `address_lanes`，分别描述 instruction/address phase 线宽。这两个字段不是用户级默认配置，而是由 flash command packet 按 opcode 填入：QPP `0x32` 的 instruction/address 均为单线，只有 payload 为 4 线；`READ2X 0xBB` 使用单线 instruction、2 线 address；`READ4X 0xEB` 使用单线 instruction、4 线 address；其余当前内置指令使用单线 instruction。`register_config_builder` 根据两个相位线宽推导 `SPI_CTRLR0.TRANS_TYPE` 和 timeout。
 
-Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不生成 DMA 字段和 DMA 寄存器配置。
+Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不生成 DMA 字段和 DMA 寄存器配置。内部 DMA operation req 的 `awlen/arlen` 由 adapter 按控制项和 payload 的 32-bit AXI beat 数推导，不作为 transfer configuration 或 kit 输入。
 
 ## `flash_command/*.sv`
 

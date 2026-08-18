@@ -23,7 +23,7 @@ default_tx_fifo_threshold: 0
 default_rx_fifo_threshold: 0
 default_rx_sample_delay_ns: 0
 support_rx_sample_delay: true
-internal_dma: false
+internal_dma: true
 external_dma: false
 support_master: true
 support_slave: true

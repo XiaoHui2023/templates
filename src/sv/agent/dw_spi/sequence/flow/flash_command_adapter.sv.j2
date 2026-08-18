@@ -20,6 +20,11 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
             int payload_length{% if internal_dma or external_dma %},
             bit use_dma{% endif %});
         {{ class_prefix }}transfer_req op_req;
+{%- if internal_dma %}
+        int axi_payload_beats;
+        int axi_source_beats;
+        int dummy_bytes;
+{%- endif %}
 
         if (command == null)
             `uvm_fatal("DW_SPI_FLASH", "flash command is null")
@@ -61,9 +66,41 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
         op_req.use_dma = use_dma;
 {%- endif %}
 {%- if internal_dma %}
-        op_req.awlen = cfg.awlen;
-        op_req.arlen = cfg.arlen;
         op_req.axi_addr = cfg.axi_addr;
+        if (use_dma) begin
+            if (cfg.axi_addr == 0 || cfg.axi_addr[1:0] != 2'b00)
+                `uvm_fatal("DW_SPI_DMA", $sformatf(
+                    "internal DMA axi_addr must be nonzero and 4-byte aligned: axi_addr=0x%08h",
+                    cfg.axi_addr))
+            axi_payload_beats = (payload_length + 3) / 4;
+            if (axi_payload_beats == 0 || axi_payload_beats > 256)
+                `uvm_fatal("DW_SPI_DMA", $sformatf(
+                    "internal DMA payload requires an invalid AXI burst: payload_length=%0d beats=%0d",
+                    payload_length, axi_payload_beats))
+            if (payload_command == UVM_TLM_READ_COMMAND) begin
+                dummy_bytes = command.frame_mode == STANDARD ?
+                    (command.dummy_cycles + 7) / 8 : 0;
+                axi_source_beats = (command.inst_bytes != 0 ? 1 : 0) +
+                    (command.addr_bytes != 0 ?
+                        (command.frame_mode == ENHANCED ? 1 : command.addr_bytes) : 0) +
+                    dummy_bytes;
+                if (axi_source_beats == 0 || axi_source_beats > 256)
+                    `uvm_fatal("DW_SPI_DMA", $sformatf(
+                        "internal DMA read control requires an invalid AXI burst: control_beats=%0d",
+                        axi_source_beats))
+                op_req.awlen = axi_payload_beats - 1;
+                op_req.arlen = axi_source_beats - 1;
+            end
+            else if (payload_command == UVM_TLM_WRITE_COMMAND) begin
+                op_req.awlen = '0;
+                op_req.arlen = axi_payload_beats - 1;
+            end
+            else begin
+                `uvm_fatal("DW_SPI_DMA", $sformatf(
+                    "internal DMA does not support payload command %s",
+                    payload_command.name()))
+            end
+        end
 {%- endif %}
         op_req.update_print_summary();
         return op_req;

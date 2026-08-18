@@ -20,9 +20,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
         bit use_dma = 1'b0{% endif %}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
     // Runs one flash read flow.
     extern task flash_read(bit [31:0] address,
         int length,
@@ -32,9 +30,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
         bit use_dma = 1'b0{% endif %}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
     // Checks all connected controller clocks.
     extern task check_clocks();
     // Runs one flash write/readback scenario.
@@ -47,9 +43,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
         bit use_dma = 1'b0{% endif %}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
     // Runs all generated read/write speeds.
     extern task speed_test(
         bit [31:0] address = '0,
@@ -68,9 +62,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         int data_frame_bits = {{ default_data_frame_bits }},
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
 {%- endif %}
 endclass
 
@@ -98,9 +90,7 @@ task {{ class_prefix }}kit_sequencer::flash_write(
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
         bit use_dma = 1'b0{% endif %}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
     {{ class_prefix }}flash_write_seq seq;
 
     seq = {{ class_prefix }}flash_write_seq::type_id::create("flash_write");
@@ -118,8 +108,6 @@ task {{ class_prefix }}kit_sequencer::flash_write(
             use_dma == local::use_dma;
 {%- endif %}
 {%- if internal_dma %}
-            awlen == local::awlen;
-            arlen == local::arlen;
             axi_addr == local::axi_addr;
 {%- endif %}
         })
@@ -138,9 +126,7 @@ task {{ class_prefix }}kit_sequencer::flash_read(
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
         bit use_dma = 1'b0{% endif %}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
     {{ class_prefix }}flash_read_seq seq;
 
     seq = {{ class_prefix }}flash_read_seq::type_id::create("flash_read");
@@ -158,8 +144,6 @@ task {{ class_prefix }}kit_sequencer::flash_read(
             use_dma == local::use_dma;
 {%- endif %}
 {%- if internal_dma %}
-            awlen == local::awlen;
-            arlen == local::arlen;
             axi_addr == local::axi_addr;
 {%- endif %}
         })
@@ -195,9 +179,7 @@ task {{ class_prefix }}kit_sequencer::rw_test(
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma or external_dma %},
         bit use_dma = 1'b0{% endif %}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
     {{ class_prefix }}rw_test_seq seq;
 
     seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test");
@@ -215,8 +197,6 @@ task {{ class_prefix }}kit_sequencer::rw_test(
             use_dma == local::use_dma;
 {%- endif %}
 {%- if internal_dma %}
-            awlen == local::awlen;
-            arlen == local::arlen;
             axi_addr == local::axi_addr;
 {%- endif %}
         })
@@ -257,9 +237,7 @@ task {{ class_prefix }}kit_sequencer::dma_test(
         int data_frame_bits = {{ default_data_frame_bits }},
         int cs_id = {{ default_cs }},
         int addr_bytes = {{ default_addr_bytes }}{% if internal_dma %},
-        bit [7:0] awlen = '0,
-        bit [7:0] arlen = '0,
-        bit [31:0] axi_addr = '0{% endif %});
+        bit [31:0] axi_addr = 32'h1000_0000{% endif %});
     {{ class_prefix }}dma_test_seq seq;
 
     seq = {{ class_prefix }}dma_test_seq::type_id::create("dma_test");
@@ -275,8 +253,6 @@ task {{ class_prefix }}kit_sequencer::dma_test(
             addr_bytes == local::addr_bytes;
             use_dma == 1'b1;
 {%- if internal_dma %}
-            awlen == local::awlen;
-            arlen == local::arlen;
             axi_addr == local::axi_addr;
 {%- endif %}
         })

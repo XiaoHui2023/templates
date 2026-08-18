@@ -65,7 +65,7 @@ CPU callback 用于内置 DMA 的系统内存 buffer 访问，不用于控制器
 | `UVM_BACKDOOR` | DMA buffer 准备和回读。`dw_spi` 内置 DMA 当前固定使用这个路径。 |
 | `UVM_FRONTDOOR` | 普通 CPU 总线访问。当前 `dw_spi` 没有通用 CPU 访问 operation，保留给用户扩展。 |
 
-内置 DMA 写 transfer 启动前，sequence 用 `cpu_write(addr, word, UVM_BACKDOOR)` 准备 AXI source buffer。内置 DMA 读 transfer 完成后，sequence 用 `cpu_read(addr, word, UVM_BACKDOOR)` 回读 AXI destination buffer。
+内置 DMA transfer 启动前，sequence 用 `cpu_write(addr, word, UVM_BACKDOOR)` 准备 AXI source buffer：写命令放 payload，读命令放 opcode/address 控制项。内置 DMA 读 transfer 完成后，sequence 用 `cpu_read(addr, word, UVM_BACKDOOR)` 回读同一 AXI buffer 中的 destination payload。
 
 ## External DMA
 

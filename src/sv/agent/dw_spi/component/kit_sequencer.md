@@ -16,9 +16,7 @@ flash 相关快捷入口可以输入单次传输配置。所有配置入参都�
 | `cs_id` | 片选编号。 |
 | `addr_bytes` | flash 地址阶段字节数。 |
 | `use_dma` | 仅在 Python 开启内部或外部 DMA 时生成，默认 0。 |
-| `awlen` | 仅内部 DMA 生成，内部 DMA 写突发长度，默认 0。 |
-| `arlen` | 仅内部 DMA 生成，内部 DMA 读突发长度，默认 0。 |
-| `axi_addr` | 仅内部 DMA 生成，DMA 访问系统内存的 AXI buffer 地址，默认 0。 |
+| `axi_addr` | 仅内部 DMA 生成，DMA 访问系统内存的 4-byte 对齐 AXI buffer 地址，默认 `0x10000000`。 |
 
 每个 flow/test 快捷入口在 sequence 字段中创建 `host_configuration`，把这些入参作为 inline constraint 参与 randomize。operation 快捷入口仍按 operation req/rsp 三件套传参。用户不输入 frame mode 或 data lane；两者由倍速和具体指令包派生。
 
@@ -48,8 +46,6 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | `cs_id` | `int` | 可选传输配置 |
 | `addr_bytes` | `int` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
-| `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
-| `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
 | `axi_addr` | `bit [31:0]` | 可选 DMA AXI buffer 地址 |
 
 ### `flash_read`
@@ -66,8 +62,6 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | `cs_id` | `int` | 可选传输配置 |
 | `addr_bytes` | `int` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
-| `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
-| `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
 | `axi_addr` | `bit [31:0]` | 可选 DMA AXI buffer 地址 |
 
 ### `check_clocks`
@@ -92,8 +86,6 @@ DMA 入口由 Python 配置裁剪：`internal_dma` 和 `external_dma` 不能同�
 | `cs_id` | `int` | 可选传输配置 |
 | `addr_bytes` | `int` | 可选传输配置 |
 | `use_dma` | `bit` | 可选传输配置 |
-| `awlen` | `bit [7:0]` | 可选内部 DMA 写突发长度 |
-| `arlen` | `bit [7:0]` | 可选内部 DMA 读突发长度 |
 | `axi_addr` | `bit [31:0]` | 可选 DMA AXI buffer 地址 |
 
 ## 边界
@@ -112,4 +104,4 @@ flash 便捷入口不要求用户声明挂载的 flash 类型。普通读写按�
 
 ### `dma_test`
 
-仅在 `internal_dma` 或 `external_dma` 开启时存在。参数与单次 `rw_test` 的传输配置一致，但不暴露 `use_dma`，入口始终强制 DMA。内部 DMA 额外接受 `awlen`、`arlen`、`axi_addr`；外部 DMA 的具体 mover 由 callback 注入。
+仅在 `internal_dma` 或 `external_dma` 开启时存在。参数与单次 `rw_test` 的传输配置一致，但不暴露 `use_dma`，入口始终强制 DMA。内部 DMA 额外接受 `axi_addr`；`awlen/arlen` 由指令控制项和 payload 的 32-bit AXI beat 数推导。外部 DMA 的具体 mover 由 callback 注入。
