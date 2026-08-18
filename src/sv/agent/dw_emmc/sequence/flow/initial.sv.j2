@@ -116,12 +116,8 @@ task {{ class_prefix }}initial_seq::execute_initial();
     if(settings.boot_cfg.voltage == V1_8)
         `uvm_do(voltage_switch_seq)
 
-    // CMD5 会产生 index_err 和 crc_err 需要复位
-
     // CMD3
-    `uvm_do_with(send_relative_addr_seq, {
-        cmd_request.rst_request.sw_rst_cmd == 1; // 复位错误
-    })
+    `uvm_do(send_relative_addr_seq)
 
     // 切换前延时
     `uvm_rand_send(pre_switch_yield)

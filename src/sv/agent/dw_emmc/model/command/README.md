@@ -67,10 +67,11 @@
 
 | response | `access_request.resp_type_select` | CRC check | index check |
 | --- | --- | --- | --- |
-| NR | `NO_RESP` | enable | enable |
+| NR | `NO_RESP` | disable | disable |
 | R1 | `RESP_LEN_48` | enable | enable |
 | R1b | `RESP_LEN_48B` | enable | enable |
 | R2 | `RESP_LEN_136` | enable | disable |
 | R3 | `RESP_LEN_48` | disable | disable |
-| R4/R5/R6/R7 | `RESP_LEN_48` | enable | enable |
+| R4 | `RESP_LEN_48` | disable | disable |
+| R5/R6/R7 | `RESP_LEN_48` | enable | enable |
 
