@@ -132,6 +132,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.CMDARG_R.CMD_ARG.set(access_request.argument);
     rm.CMDARG_R.write(status, rm.CMDARG_R.get());
 
+    rm.CMD_R.UPDATE_CLOCK_REGISTERS_ONLY.set(0);
     rm.CMD_R.RESPONSE_EXPECT.set(access_request.resp_type_select != access_request.NO_RESP);
     rm.CMD_R.RESPONSE_LENGTH.set(access_request.resp_type_select == access_request.RESP_LEN_136);
     rm.CMD_R.CHECK_RESPONSE_CRC.set(access_request.cmd_crc_chk_enable);

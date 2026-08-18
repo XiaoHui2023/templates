@@ -3,47 +3,47 @@
 
 class {{ class_prefix }}check_clock_frequence_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}base_item);
     `uvm_object_utils_begin({{ class_prefix }}check_clock_frequence_test_seq)
-{% for clk in monitored_clocks %}
-{% if clk.check_type == "presence" %}
+{%- for clk in monitored_clocks %}
+{%- if clk.check_type == "presence" %}
         `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
-{% elif clk.check_type == "frequency" %}
+{%- elif clk.check_type == "frequency" %}
         `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
         `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
-{% elif clk.check_type == "relation" %}
+{%- elif clk.check_type == "relation" %}
         `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
         `uvm_field_int(relation_tolerance_{{ clk.name }}, UVM_ALL_ON)
-{% endif %}
-{% endfor %}
+{%- endif %}
+{%- endfor %}
     `uvm_object_utils_end
 
-{% for clk in monitored_clocks %}
-{% if clk.check_type == "presence" %}
+{%- for clk in monitored_clocks %}
+{%- if clk.check_type == "presence" %}
     rand int min_frequence_{{ clk.name }};
-{% elif clk.check_type == "frequency" %}
+{%- elif clk.check_type == "frequency" %}
     rand int frequence_{{ clk.name }};
     rand int tolerance_{{ clk.name }};
-{% elif clk.check_type == "relation" %}
+{%- elif clk.check_type == "relation" %}
     rand int min_frequence_{{ clk.name }};
     rand int relation_tolerance_{{ clk.name }};
-{% endif %}
-{% endfor %}
+{%- endif %}
+{%- endfor %}
 
     function new(string name = "{{ class_prefix }}check_clock_frequence_test_seq");
         super.new(name);
     endfunction
 
     constraint cst_test {
-{% for clk in monitored_clocks %}
-{% if clk.check_type == "presence" %}
+{%- for clk in monitored_clocks %}
+{%- if clk.check_type == "presence" %}
         soft min_frequence_{{ clk.name }} == settings.chk_clk_cfg.min_frequence_{{ clk.name }};
-{% elif clk.check_type == "frequency" %}
+{%- elif clk.check_type == "frequency" %}
         soft frequence_{{ clk.name }} == settings.chk_clk_cfg.frequence_{{ clk.name }};
         soft tolerance_{{ clk.name }} == settings.chk_clk_cfg.tolerance_{{ clk.name }};
-{% elif clk.check_type == "relation" %}
+{%- elif clk.check_type == "relation" %}
         soft min_frequence_{{ clk.name }} == settings.chk_clk_cfg.min_frequence_{{ clk.name }};
         soft relation_tolerance_{{ clk.name }} == settings.chk_clk_cfg.relation_tolerance_{{ clk.name }};
-{% endif %}
-{% endfor %}
+{%- endif %}
+{%- endfor %}
     }
 
     extern task body();
@@ -57,17 +57,16 @@ endclass
 
 task {{ class_prefix }}check_clock_frequence_test_seq::body();
     `uvm_info("", $psprintf("check:\n%s", sprint()), UVM_DEBUG)
-
-{% for clk in monitored_clocks %}
-{% if clk.check_type == "presence" %}
+{%- for clk in monitored_clocks %}
+{%- if clk.check_type == "presence" %}
     check_presence_clock("{{ clk.name }}", min_frequence_{{ clk.name }});
-{% elif clk.check_type == "frequency" %}
+{%- elif clk.check_type == "frequency" %}
     check_frequency_clock("{{ clk.name }}", frequence_{{ clk.name }}, tolerance_{{ clk.name }});
-{% elif clk.check_type == "relation" %}
+{%- elif clk.check_type == "relation" %}
     check_relation_clock("{{ clk.name }}", "{{ clk.relation_clock }}", "{{ clk.relation_operator }}",
         min_frequence_{{ clk.name }}, relation_tolerance_{{ clk.name }});
-{% endif %}
-{% endfor %}
+{%- endif %}
+{%- endfor %}
 
     `uvm_info("", "done", UVM_DEBUG)
 endtask
@@ -75,11 +74,11 @@ endtask
 task {{ class_prefix }}check_clock_frequence_test_seq::measure_single_clock(input string name, input longint min_frequence,
         output bit is_connected, output bit is_timeout, output longint measure_result);
     case (name)
-{% for clk in monitored_clocks %}
+{%- for clk in monitored_clocks %}
         "{{ clk.name }}" :
             settings.vif.monitor_if.measure_{{ clk.name }}_frequence(is_connected, is_timeout, measure_result,
                 min_frequence);
-{% endfor %}
+{%- endfor %}
         default:
             `uvm_fatal("", $psprintf("Unknown clock %s", name))
     endcase

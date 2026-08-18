@@ -27,8 +27,8 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task rw_test(bit[63:0] addr = 0, int count = 2{%- if enable_dma %}, bit use_dma = 0{%- endif %});
 {% if is_emmc or is_sdcard %}
     extern task reg_test();
-{% endif %}
-{% if is_emmc %}
+{%- endif %}
+{%- if is_emmc %}
     extern task speed_mode_test(
         bit enable_legacy_1bit = 0,
         bit enable_legacy_4bit = 0,
@@ -42,7 +42,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         bit enable_hs200_8bit = 1,
         bit enable_hs400_8bit = 1
     );
-{% elif is_sd %}
+{%- elif is_sd %}
     extern task speed_mode_test(
         bit enable_ds_1bit = 0,
         bit enable_ds_4bit = 1,
@@ -58,13 +58,12 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
         bit enable_sdr104_4bit = 1,
         bit enable_ddr50_4bit = 1
     );
-{% endif %}
-{% if is_emmc %}
+{%- endif %}
+{%- if is_emmc %}
     extern task tune_test(int data_width = 0);
-{% endif %}
+{%- endif %}
     extern task check_clock_frequence_test();
 endclass
-
 task {{ class_prefix }}kit_sequencer::frequence_set_operation(int frequence);
     {{ class_prefix }}frequence_set_operation_seq seq;
 
@@ -160,8 +159,7 @@ task {{ class_prefix }}kit_sequencer::switch_bus(int bus_speed_mode, int data_wi
         `uvm_fatal("KIT", "switch_bus_seq randomize failed")
     seq.start(this);
 endtask
-
-{% if is_emmc %}
+{%- if is_emmc %}
 task {{ class_prefix }}kit_sequencer::send_ext_csd(int bus_speed_mode, int data_width);
     {{ class_prefix }}send_ext_csd_seq seq;
 
@@ -174,8 +172,7 @@ task {{ class_prefix }}kit_sequencer::send_ext_csd(int bus_speed_mode, int data_
         `uvm_fatal("KIT", "send_ext_csd_seq randomize failed")
     seq.start(this);
 endtask
-
-{% endif %}
+{%- endif %}
 task {{ class_prefix }}kit_sequencer::tune_phase(bit[7:0] phase);
     {{ class_prefix }}tune_seq seq;
 
@@ -204,8 +201,7 @@ task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 2{
         `uvm_fatal("KIT", "rw_test_seq randomize failed")
     seq.start(this);
 endtask
-
-{% if is_emmc or is_sdcard %}
+{%- if is_emmc or is_sdcard %}
 task {{ class_prefix }}kit_sequencer::reg_test();
     {{ class_prefix }}reg_test_seq seq;
 
@@ -215,9 +211,8 @@ task {{ class_prefix }}kit_sequencer::reg_test();
         `uvm_fatal("KIT", "reg_test_seq randomize failed")
     seq.start(this);
 endtask
-
-{% endif %}
-{% if is_emmc %}
+{%- endif %}
+{%- if is_emmc %}
 task {{ class_prefix }}kit_sequencer::speed_mode_test(
     bit enable_legacy_1bit = 0,
     bit enable_legacy_4bit = 0,
@@ -251,8 +246,7 @@ task {{ class_prefix }}kit_sequencer::speed_mode_test(
         `uvm_fatal("KIT", "speed_mode_test_seq randomize failed")
     seq.start(this);
 endtask
-
-{% elif is_sd %}
+{%- elif is_sd %}
 task {{ class_prefix }}kit_sequencer::speed_mode_test(
     bit enable_ds_1bit = 0,
     bit enable_ds_4bit = 1,
@@ -291,8 +285,8 @@ task {{ class_prefix }}kit_sequencer::speed_mode_test(
     seq.start(this);
 endtask
 
-{% endif %}
-{% if is_emmc %}
+{%- endif %}
+{%- if is_emmc %}
 task {{ class_prefix }}kit_sequencer::tune_test(int data_width = 0);
     {{ class_prefix }}tune_test_seq seq;
 
@@ -305,8 +299,7 @@ task {{ class_prefix }}kit_sequencer::tune_test(int data_width = 0);
         `uvm_fatal("KIT", "tune_test_seq randomize failed")
     seq.start(this);
 endtask
-
-{% endif %}
+{%- endif %}
 task {{ class_prefix }}kit_sequencer::check_clock_frequence_test();
     {{ class_prefix }}check_clock_frequence_test_seq seq;
 

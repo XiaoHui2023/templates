@@ -15,6 +15,7 @@
 | PLL | `CLK_CTRL_R.PLL_ENABLE` | 无 |
 | 分频选择 | `CLK_CTRL_R.UPPER_FREQ_SEL`、`CLK_CTRL_R.FREQ_SEL` | `CLKDIV_R.CLK_DIVIDER0[9:0]` |
 | 时钟参数加载 | 写 `CLK_CTRL_R` 后直接生效 | 写 `CLKDIV_R`、`CLKENA_R` 后，写 `CMDARG_R`，再写 `CMD_R.UPDATE_CLOCK_REGISTERS_ONLY`、`RESPONSE_EXPECT`、`CMD_INDEX`、`START_CMD`，等待 `START_CMD` 自清 |
+| 普通命令 | `CMD_R` 直接发命令 | 写 `CMD_R` 前清 `UPDATE_CLOCK_REGISTERS_ONLY` |
 | 分频算法选择 | `CLK_CTRL_R.CLK_GEN_SELECT` | 无 |
 | 内部时钟稳定 | `CLK_CTRL_R.INTERNAL_CLK_STABLE` | 无 |
 | VDD1 电源 | `PWR_CTRL_R.SD_BUS_PWR_VDD1` | `PWREN_R.POWER_ENABLE[0]` |
@@ -56,5 +57,6 @@
 - 不存在的 mobile storage 字段不生成访问代码。
 - `freq_sel` 在 `mshc` 下拆成 `[9:8]` 和 `[7:0]`，在 `mobile_storage` 下整体写入 `CLKDIV_R.CLK_DIVIDER0[9:0]`。
 - mobile_storage 的 `CMDARG_R` 地址 `0x28`、`CMD_R` 地址 `0x2c`、`UPDATE_CLOCK_REGISTERS_ONLY` bit 21、`START_CMD` bit 31 只作为寄存器模型校对依据；模板代码通过 RAL 字段访问，不手写地址或位偏移。
+- mobile_storage 的 power up 会把 `CMD_R.UPDATE_CLOCK_REGISTERS_ONLY` 置 1，access 发普通命令前必须清 0。
 - `mobile_storage` 自动启用 `enable_dma`；显式配置 `enable_dma: false` 会报错。
 - `mobile_storage` 的 tuning 寄存器映射未确认前，`tune_en` 会直接 fatal。

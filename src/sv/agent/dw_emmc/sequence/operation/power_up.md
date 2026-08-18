@@ -29,3 +29,4 @@
 - 默认不执行软复位，需要主动打开。
 - 当前软复位路径是 CMD 和 DAT 软复位，不是单独写 `SW_RST_ALL`。
 - mobile_storage 的 `CMDARG_R` 地址 `0x28`、`CMD_R` 地址 `0x2c`、`UPDATE_CLOCK_REGISTERS_ONLY` bit 21、`START_CMD` bit 31 只作为寄存器模型校对依据；代码使用 RAL 字段。
+- 普通命令由 access 负责清 `UPDATE_CLOCK_REGISTERS_ONLY`。

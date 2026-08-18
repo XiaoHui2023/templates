@@ -26,7 +26,6 @@ class {{ class_prefix }}io_rw_extended_command_request extends {{ class_prefix }
         RW_FLAG_WRITE=1
     } rw_flag_e;
 
-
     `uvm_object_utils_begin({{ class_prefix }}io_rw_extended_command_request)
         `uvm_field_enum(rw_flag_e, rw_flag, UVM_ALL_ON)
         `uvm_field_int(function_number, UVM_ALL_ON)
