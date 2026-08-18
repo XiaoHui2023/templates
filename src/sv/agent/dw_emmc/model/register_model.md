@@ -33,7 +33,7 @@
 | 块数量 | `BLOCKCOUNT_R.BLOCK_CNT` | `BYTCNT_R.BYTE_COUNT`，按 `block_size * block_count` 写字节数 |
 | 命令参数 | `ARGUMENT_R.ARGUMENT` | `CMDARG_R.CMD_ARG` |
 | 传输模式 | `XFER_MODE_R` | 合并到 `CMD_R` |
-| 数据宽度 | `HOST_CTRL1_R.DAT_XFER_WIDTH` / `EXT_DAT_XFER` | `CTYPE_R.CARD_WIDTH0` |
+| 数据宽度 | `HOST_CTRL1_R.DAT_XFER_WIDTH` / `EXT_DAT_XFER` | `CTYPE_R.CARD_WIDTH` |
 | 高速模式 | `HOST_CTRL1_R.HIGH_SPEED_EN`、`HOST_CTRL2_R.UHS_MODE_SEL`、`HOST_CTRL2_R.SIGNALING_EN` | `UHS_REG_R` |
 | DMA 选择 | `HOST_CTRL1_R.DMA_SEL` | `CNTRL_R.user_internal_dmac`，RO，硬件固定 |
 | Host 控制 | `HOST_CTRL1_R`、`HOST_CTRL2_R` 其他字段 | 无 |
