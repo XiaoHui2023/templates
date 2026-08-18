@@ -7,7 +7,7 @@
 1. 检查 `configuration`、`settings`、`settings.regmodel` 非空。
 2. 用 `$cast()` 把 configuration 里的枚举值转换成本工具类的枚举类型。
 3. 写 `SSIENR.SSIC_EN = 0`，关闭控制器。
-4. 配置 `IMR` 并写 `ICR` 清旧中断状态；这里不等待 `intr`，也不轮询 `ISR.DONES`。
+4. 配置 `IMR` 并读 `ICR` 清旧中断状态；`ICR` 是 read-to-clear 寄存器。这里不等待 `intr`，也不轮询 `ISR.DONES`。
 5. 写 `SER.SER = 0`，释放所有片选。
 6. 通过大写 REG/FIELD 句柄配置 `CTRLR0`、`SPI_CTRLR0`、`CTRLR1`、`BAUDR`、FIFO threshold、DMA threshold、DMA 寄存器和 `RX_SAMPLE_DELAY`。
 7. 写 `SSIENR.SSIC_EN = 1` 使能控制器。

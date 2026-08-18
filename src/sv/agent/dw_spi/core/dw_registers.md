@@ -5,7 +5,7 @@
 ## 配置顺序
 
 1. 写 `SSIENR.SSIC_EN = 0` 关闭控制器。
-2. 写 `IMR` 配置 FIFO/error mask，写 `ICR` 清旧中断状态。
+2. 写 `IMR` 配置 FIFO/error mask，读 `ICR` 清旧中断状态。
 3. 写 `SER.SER = 0` 释放片选。
 4. 写 `CTRLR0`、`SPI_CTRLR0`、`CTRLR1`、`BAUDR`、FIFO threshold、DMA threshold、DMA 地址寄存器、`RX_SAMPLE_DELAY`。
 5. 写 `SSIENR.SSIC_EN = 1` 打开控制器。
@@ -98,7 +98,7 @@ CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 | `IMR` | `RXOIM` | RX overflow interrupt mask |
 | `IMR` | `RXFIM` | RX full interrupt mask |
 | `IMR` | `MSTIM` | Multi-master contention interrupt mask |
-| `ICR` | full register write | 清中断状态 |
+| `ICR` | full register read | read-to-clear，清中断状态 |
 | `ISR` | `DONES` | 本地 DWC SSI/内置 DMA 扩展完成位 |
 
 公共 Linux `spi-dw` ISR 只暴露 FIFO/error 类中断位，没有通用 `DONES`。本模板只在内置 DMA transfer 中使用 `ISR.DONES` 确认完成；非 DMA PIO 不使用它，默认轮询 `SR.TFE && !SR.BUSY`。`TXEIM/RXFIM` 等 FIFO 中断不能当作 transfer done 使用；详细边界见 [interrupts.md](../interrupts.md)。

@@ -383,8 +383,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
             rm.IMR.get()), UVM_DEBUG);
         rm.IMR.write(status, rm.IMR.get());
 
-        report_info("DW_SPI_REG", "clear interrupt status with ICR write", UVM_DEBUG);
-        rm.ICR.write(status, '0);
+        report_info("DW_SPI_REG", "clear interrupt status with ICR read", UVM_DEBUG);
+        rm.ICR.read(status, reg_data);
 
         rm.SER.read(status, reg_data);
         rm.SER.SER.set(0);
