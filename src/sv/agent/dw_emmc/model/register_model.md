@@ -40,6 +40,7 @@
 | 普通中断状态 | `NORMAL_INT_STAT_R` | `MINTSTS_R` + `RINTSTS_R` |
 | 错误中断状态 | `ERROR_INT_STAT_R` | `MINTSTS_R` + `RINTSTS_R` |
 | 中断使能 | `NORMAL_INT_STAT_EN_R`、`ERROR_INT_STAT_EN_R`、`NORMAL_INT_SIGNAL_EN_R`、`ERROR_INT_SIGNAL_EN_R` | `INTMASK_R` |
+| 中断总使能 | 无单独项 | `CTRL_R.INT_ENABLE` |
 | 响应寄存器 | `RESP01_R`、`RESP23_R`、`RESP45_R`、`RESP67_R` | `RESP0_R`、`RESP1_R`、`RESP2_R`、`RESP3_R` |
 | 软件复位 | `SW_RST_R` | 无 |
 | 块间隔控制 | `BGAP_CTRL_R` | 无 |

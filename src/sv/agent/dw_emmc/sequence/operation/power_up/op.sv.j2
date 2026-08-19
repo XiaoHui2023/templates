@@ -90,6 +90,8 @@ task {{ class_prefix }}power_up_operation_seq::power_up();
     rm.CLKENA_R.CCLK_ENABLE.set(1);
     rm.CLKENA_R.write(status, rm.CLKENA_R.get());
     update_clock_registers();
+    rm.CTRL_R.INT_ENABLE.set(1);
+    rm.CTRL_R.write(status, rm.CTRL_R.get());
     rm.UHS_REG_R.write(status, power_up_request.signaling_en);
 {%- else %}
     rm.CLK_CTRL_R.INTERNAL_CLK_EN.set(1);

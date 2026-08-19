@@ -65,6 +65,8 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 {%- if is_mobile_storage %}
     rm.CTYPE_R.CARD_WIDTH.set(access_request.data_width);
     rm.CTYPE_R.write(status, rm.CTYPE_R.get());
+    rm.CTRL_R.INT_ENABLE.set(1);
+    rm.CTRL_R.write(status, rm.CTRL_R.get());
     rm.UHS_REG_R.write(status, access_request.uhs_mode_sel);
 {%- else %}
     rm.HOST_CTRL1_R.LED_CTRL.set(0);

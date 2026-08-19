@@ -5,6 +5,10 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-08-19
+
+- mobile_storage 在 power_up 和 access 配置 `CTRL_R.INT_ENABLE`，保证 `INTMASK_R` 前还有全局中断使能。
+
 ## 2026-08-18
 
 - mobile_storage access 写普通 `CMD_R` 前清 `UPDATE_CLOCK_REGISTERS_ONLY`，避免 power up 的 update-clock-only 状态残留到 CMD5 等普通命令。
