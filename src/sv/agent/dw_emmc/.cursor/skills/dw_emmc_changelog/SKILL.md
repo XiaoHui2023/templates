@@ -7,6 +7,7 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 ## 2026-08-19
 
+- mobile_storage 的 `check_error` 只清 `RINTSTS_R` 错误位，普通中断位由 `wait_interrupt` 独占清除。
 - mobile_storage 在 power_up 和 access 配置 `CTRL_R.INT_ENABLE`，保证 `INTMASK_R` 前还有全局中断使能。
 
 ## 2026-08-18

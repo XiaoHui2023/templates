@@ -59,5 +59,6 @@
 - `freq_sel` 在 `mshc` 下拆成 `[9:8]` 和 `[7:0]`，在 `mobile_storage` 下整体写入 `CLKDIV_R.CLK_DIVIDER0[9:0]`。
 - mobile_storage 的 `CMDARG_R` 地址 `0x28`、`CMD_R` 地址 `0x2c`、`UPDATE_CLOCK_REGISTERS_ONLY` bit 21、`START_CMD` bit 31 只作为寄存器模型校对依据；模板代码通过 RAL 字段访问，不手写地址或位偏移。
 - mobile_storage 的 power up 会把 `CMD_R.UPDATE_CLOCK_REGISTERS_ONLY` 置 1，access 发普通命令前必须清 0。
+- mobile_storage 的 `RINTSTS_R` 同时包含普通中断和错误中断；`wait_interrupt` 清等待的普通中断位，`check_error` 只清错误位。
 - `mobile_storage` 自动启用 `enable_dma`；显式配置 `enable_dma: false` 会报错。
 - `mobile_storage` 的 tuning 寄存器映射未确认前，`tune_en` 会直接 fatal。

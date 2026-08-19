@@ -173,6 +173,7 @@ SV 不生成 clock 检查开关。monitor interface 对每个已生成 clock 先
 - `set_block_count()` 只能有一个流程 owner。
 - `resp_type_select` 从 `cmd_request.access_request` 访问。
 - mobile_storage 普通命令写 `CMD_R` 前必须清 `UPDATE_CLOCK_REGISTERS_ONLY`。
+- mobile_storage 的普通中断由 `wait_interrupt` 清除，`check_error` 不能写回普通中断位。
 - clock 字段只来自 Python 启用生成的 `monitored_clocks`，调用方不能硬编码未生成字段。
 - `uvm_do_with` 必须带内嵌约束；无约束调用用 `uvm_do`。
 - 内嵌约束用 `==`，不能写赋值 `=`。
