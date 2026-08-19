@@ -53,13 +53,6 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
         output bit did_check,
         output bit did_skip,
         output int failures);
-    // 释放 mux 的全部输入激励。
-    extern task release_mux_inputs(
-        input {{ settings.class_prefix }}mux mux_nd);
-    // 按输入编号为 mux 恢复差异化频率激励。
-    extern task drive_mux_inputs(
-        input {{ settings.class_prefix }}mux mux_nd,
-        input int input_freq_hz[int]);
     // 验证 mux 选择功能
     extern task verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
@@ -170,18 +163,15 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test gate %s", gate_nd.get_name()), UVM_LOW)
 
-    in_vif.release_drive();
-    cfg.config_reg_gate_node_reg(gate_nd, 1'b1);
     in_vif.start_clock(100_000_000);
+    cfg.config_reg_gate_node_reg(gate_nd, 1'b1);
     measure_port_freq(
         out_vif, {gate_nd.get_name(), ".out open"}, 100_000_000,
         freq_hz, passed);
     if (!passed)
         failures++;
 
-    in_vif.release_drive();
     cfg.config_reg_gate_node_reg(gate_nd, 1'b0);
-    in_vif.start_clock(100_000_000);
     #20ns;
     check_port_inactive(
         out_vif, {gate_nd.get_name(), ".out close"}, 100_000_000, passed);
@@ -248,9 +238,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test div %s", div_nd.get_name()), UVM_LOW)
 
-    in_vif.release_drive();
-    cfg.config_reg_div_node_reg(div_nd, ratio);
     in_vif.start_clock(800_000_000);
+    cfg.config_reg_div_node_reg(div_nd, ratio);
     #20ns;
     measure_port_freq(
         out_vif, {div_nd.get_name(), ".out"}, 200_000_000,
@@ -309,9 +298,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test dto %s", dto_nd.get_name()), UVM_LOW)
 
-    in_vif.release_drive();
-    cfg.config_reg_dto_node_reg(dto_nd, ratio);
     in_vif.start_clock(800_000_000);
+    cfg.config_reg_dto_node_reg(dto_nd, ratio);
     #20ns;
     measure_port_freq(
         out_vif, {dto_nd.get_name(), ".out"}, 200_000_000,
@@ -335,33 +323,6 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
     did_check = 1'b1;
 endtask
 
-task {{ settings.class_prefix }}flip_check_seq::release_mux_inputs(
-        input {{ settings.class_prefix }}mux mux_nd);
-    virtual {{ settings.class_prefix }}interface in_vif;
-    string in_key;
-
-    foreach (mux_nd.to_source[k]) begin
-        in_key = $sformatf("%0d", k);
-        in_vif = mux_nd.get_in_vif(in_key);
-        if (in_vif != null)
-            in_vif.release_drive();
-    end
-endtask
-
-task {{ settings.class_prefix }}flip_check_seq::drive_mux_inputs(
-        input {{ settings.class_prefix }}mux mux_nd,
-        input int input_freq_hz[int]);
-    virtual {{ settings.class_prefix }}interface in_vif;
-    string in_key;
-
-    foreach (mux_nd.to_source[k]) begin
-        in_key = $sformatf("%0d", k);
-        in_vif = mux_nd.get_in_vif(in_key);
-        if (in_vif != null)
-            in_vif.start_clock(input_freq_hz[k]);
-    end
-endtask
-
 task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         input {{ settings.class_prefix }}config_reg_core cfg,
         input {{ settings.class_prefix }}mux mux_nd,
@@ -371,9 +332,10 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface out_vif;
     real out_freq_hz;
-    int expected_freq_hz[int];
+    real expected_freq_hz[int];
     real err_ratio;
     string in_key;
+    int stim_freq_hz;
     bit passed;
 
     did_check = 1'b0;
@@ -406,17 +368,19 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         "test_flip: test mux %s", mux_nd.get_name()), UVM_LOW)
 
     foreach (mux_nd.to_source[k]) begin
-        expected_freq_hz[k] = 100_000_000 + k * 37_000_000;
+        in_key = $sformatf("%0d", k);
+        in_vif = mux_nd.get_in_vif(in_key);
+        stim_freq_hz = 100_000_000 + k * 37_000_000;
+        expected_freq_hz[k] = stim_freq_hz;
+        in_vif.start_clock(stim_freq_hz);
     end
 
     foreach (mux_nd.to_source[k]) begin
-        release_mux_inputs(mux_nd);
         cfg.config_reg_mux_node_reg(mux_nd, k);
-        drive_mux_inputs(mux_nd, expected_freq_hz);
         #50ns;
         measure_port_freq(
             out_vif, {mux_nd.get_name(), ".out"},
-            expected_freq_hz[k], out_freq_hz, passed);
+            int'(expected_freq_hz[k]), out_freq_hz, passed);
         if (!passed)
             failures++;
         else begin
@@ -432,7 +396,12 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
         end
     end
 
-    release_mux_inputs(mux_nd);
+    foreach (mux_nd.to_source[k]) begin
+        in_key = $sformatf("%0d", k);
+        in_vif = mux_nd.get_in_vif(in_key);
+        if (in_vif != null)
+            in_vif.release_drive();
+    end
     did_check = 1'b1;
 endtask
 
@@ -463,7 +432,6 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test inv %s", inv_nd.get_name()), UVM_LOW)
 
-    in_vif.release_drive();
     cfg.config_reg_inv_node_reg(inv_nd, 1'b0);
     in_vif.drive_static(1'b0);
     #1ns;
@@ -482,7 +450,6 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
             inv_nd.get_name(), out_vif.in))
     end
 
-    in_vif.release_drive();
     cfg.config_reg_inv_node_reg(inv_nd, 1'b1);
     in_vif.drive_static(1'b0);
     #1ns;

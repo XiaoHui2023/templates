@@ -18,7 +18,6 @@ interface {{ settings.class_prefix }}interface #(
     bit drive_en;
     bit drive_value;
     bit clock_drive_en;
-    bit force_active;
     int clock_freq_hz;
 
     {{ settings.class_prefix }}measure_interface #(
@@ -54,7 +53,6 @@ interface {{ settings.class_prefix }}interface #(
     task automatic release_drive();
         clock_drive_en = 1'b0;
         drive_en = 1'b0;
-        wait (!force_active);
     endtask
 
     task automatic stop_clock();
