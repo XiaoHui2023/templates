@@ -8,12 +8,14 @@
         realtime half_period_ns; \
         IF_INST.drive_en = 1'b0; \
         IF_INST.clock_drive_en = 1'b0; \
+        IF_INST.force_active = 1'b0; \
         IF_INST.drive_value = 1'b0; \
         forever begin \
             wait (IF_INST.drive_en); \
             if (IF_INST.clock_drive_en) begin \
                 while (IF_INST.drive_en && IF_INST.clock_drive_en) begin \
                     force PATH = IF_INST.drive_value; \
+                    IF_INST.force_active = 1'b1; \
                     if (IF_INST.clock_freq_hz <= 0) \
                         half_period_ns = 1.0; \
                     else \
@@ -23,10 +25,13 @@
                 end \
             end else begin \
                 force PATH = IF_INST.drive_value; \
+                IF_INST.force_active = 1'b1; \
                 @(IF_INST.drive_en or IF_INST.drive_value or IF_INST.clock_drive_en); \
             end \
-            if (!IF_INST.drive_en) \
+            if (!IF_INST.drive_en) begin \
                 release PATH; \
+                IF_INST.force_active = 1'b0; \
+            end \
         end \
     end
 
