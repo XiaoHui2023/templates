@@ -53,7 +53,7 @@ PIO 读必须先 drain RX FIFO，再等待最终 idle，避免 RX FIFO 因等待
 4. 若 `completion_mode` 是 `PREFER_INTERRUPT_COMPLETION` 且 `intr` 已连接，等待 top `intr`，再读取 `ISR.DONES`。
 5. 若 `intr` 未连接，退回轮询 `SR.TFE && !SR.BUSY`。
 6. 释放 CS。
-7. 内置 DMA 读 transfer 在释放 CS 后，通过 callback `cpu_read(addr, word, UVM_BACKDOOR)` 从 `axi_addr` 读回 actual data；`ARLEN/AWLEN` 表示单笔 AXI burst 的 beat 数减一，最大值 15，总量超过 16 beat 时由内部 DMA 连续发起多笔 burst。
+7. 内置 DMA 读 transfer 在释放 CS 后，通过 callback `cpu_read(addr, word, UVM_BACKDOOR)` 从 `axi_addr` 读回 actual data；`ARLEN/AWLEN` 固定为 15，控制器根据总搬运量自动安排 AXI burst。
 
 外部 DMA 只生成 `DMACR.RDMAE/TDMAE` 和 threshold 配置；外部 DMA engine 的启动、完成与 buffer 管理由环境补齐。当前模板不把 `ISR.DONES` 用作外部 DMA 默认完成源。
 

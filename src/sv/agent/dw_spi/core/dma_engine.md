@@ -8,7 +8,7 @@ DMA completion alone does not prove data integrity. The DMA test reuses `rw_test
 
 sequence 层先把 operation 请求里的 DMA 意图转换成 register `configuration`，再由 `core/register_access.sv` 写入 `DMACR`、`DMATDLR`、`DMARDLR`、`AXIAWLEN`、`AXIARLEN`、`AXIAR0`。`SPIDR/SPIAR` 在 `spi_ctrlr0_en=1` 或 `write_internal_dma_regs=1` 时写入。
 
-`AXIAWLEN.AWLEN` 与 `AXIARLEN.ARLEN` 仅低四位有效，表示单笔 burst 的 beat 数减一。builder 直接写四位 req 值，不做位移。adapter 将单笔 burst 限制为 16 个 32-bit beat，不计算 burst 数；更长数据由控制器内部 DMA 使用地址自增自动发起后续 AXI burst，SPI transaction 不拆分。
+`AXIAWLEN.AWLEN` 与 `AXIARLEN.ARLEN` 仅低四位有效，表示允许的单笔最大 burst beat 数减一。内部 DMA 固定设置两者为 15，builder 直接写四位 req 值，不做位移。软件不按本次数据量计算 LEN；控制器内部 DMA 根据总搬运量自动安排 AXI burst，SPI transaction 不拆分。
 
 ## Callback Contract
 
@@ -31,7 +31,7 @@ sequence 层先把 operation 请求里的 DMA 意图转换成 register `configur
 
 1. 根据指令包构造 opcode/address 控制项；standard 地址按 byte 展开，enhanced 地址使用一个 32-bit item。
 2. 每个控制项调用 `p_sequencer.cpu_write(addr, word, UVM_BACKDOOR)` 写入 `axi_addr`，内部 DMA 引擎从 AXI source buffer 取数；不写 `DR`。
-3. `ARLEN` 按控制项 beat 数推导，`AWLEN` 按接收 payload beat 数推导。
+3. `ARLEN/AWLEN` 均固定为 15，控制器根据控制项和接收 payload 的总量自动安排 burst。
 4. 控制器完成 DMA 后，从 `axi_addr` 按 32-bit little-endian word 读回数据。
 5. 每个 word 调用 `p_sequencer.cpu_read(addr, word, UVM_BACKDOOR)`。
 6. 读回 byte 作为 actual read data 交给 flow/test 和 scoreboard 比较。

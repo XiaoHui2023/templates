@@ -104,4 +104,4 @@ flash 便捷入口不要求用户声明挂载的 flash 类型。普通读写按�
 
 ### `dma_test`
 
-仅在 `internal_dma` 或 `external_dma` 开启时存在。参数与单次 `rw_test` 的传输配置一致，但不暴露 `use_dma`，入口始终强制 DMA。内部 DMA 额外接受 `axi_addr`；`awlen/arlen` 由指令控制项和 payload 的 32-bit AXI beat 数推导，每笔最多 16 beat。外部 DMA 的具体 mover 由 callback 注入。
+仅在 `internal_dma` 或 `external_dma` 开启时存在。参数与单次 `rw_test` 的传输配置一致，但不暴露 `use_dma`，入口始终强制 DMA。内部 DMA 额外接受 `axi_addr`，`awlen/arlen` 固定为 15。外部 DMA 的具体 mover 由 callback 注入。
