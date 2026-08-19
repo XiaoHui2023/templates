@@ -8,6 +8,8 @@ DMA completion alone does not prove data integrity. The DMA test reuses `rw_test
 
 sequence 层先把 operation 请求里的 DMA 意图转换成 register `configuration`，再由 `core/register_access.sv` 写入 `DMACR`、`DMATDLR`、`DMARDLR`、`AXIAWLEN`、`AXIARLEN`、`AXIAR0`。`SPIDR/SPIAR` 在 `spi_ctrlr0_en=1` 或 `write_internal_dma_regs=1` 时写入。
 
+`AXIAWLEN.AWLEN` 与 `AXIARLEN.ARLEN` 仅低四位有效，表示单笔 burst 的 beat 数减一。builder 直接写四位 req 值，不做位移。adapter 将单笔 burst 限制为 16 个 32-bit beat；更长数据由内部 DMA 使用地址自增拆成多笔 AXI burst，SPI transaction 不拆分。
+
 ## Callback Contract
 
 | Task | 用途 |

@@ -125,11 +125,13 @@ PIO 搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR`，读�
 | `DMACR` | `AINC` | 使能 AXI 地址自增 |
 | `DMATDLR` | `DMATDL` | TX DMA threshold |
 | `DMARDLR` | `DMARDL` | RX DMA threshold |
-| `AXIAWLEN` | `AWLEN` | operation req 的 `awlen << 8`；内部 DMA 读按 destination payload beat 数推导 |
-| `AXIARLEN` | `ARLEN` | operation req 的 `arlen << 8`；内部 DMA 读按 source control beat 数、写按 source payload beat 数推导 |
+| `AXIAWLEN` | `AWLEN` | 四位 AXI 写 burst 长度，寄存器值为单笔 beat 数减一；直接写 operation req 的 `awlen` 低四位 |
+| `AXIARLEN` | `ARLEN` | 四位 AXI 读 burst 长度，寄存器值为单笔 beat 数减一；直接写 operation req 的 `arlen` 低四位 |
 | `AXIAR0` | `AXIAR0` | per-transfer `axi_addr` |
 
 Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DMA 配置代码。内置 DMA 使用 CPU callback 准备或读回 AXI buffer；外部 DMA 不使用内置 CPU buffer mover。
+
+`AWLEN/ARLEN` 每笔最多表示 16 beat。32-bit AXI 数据宽度下单笔最多搬运 64 字节；更长 payload 由内部 DMA 在同一次 SPI transaction 中发起多笔连续 AXI burst。256 字节对应 64 beat 和 4 笔 burst，SPI 指令、地址与 CS 不会重复。
 
 ## DR / RX_SAMPLE_DELAY
 

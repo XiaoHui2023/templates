@@ -22,7 +22,11 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
         {{ class_prefix }}transfer_req op_req;
 {%- if internal_dma %}
         int axi_payload_beats;
+        int axi_payload_burst_beats;
+        int axi_payload_bursts;
         int axi_source_beats;
+        int axi_source_burst_beats;
+        int axi_source_bursts;
         int dummy_bytes;
 {%- endif %}
 
@@ -73,10 +77,12 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
                     "internal DMA axi_addr must be nonzero and 4-byte aligned: axi_addr=0x%08h",
                     cfg.axi_addr))
             axi_payload_beats = (payload_length + 3) / 4;
-            if (axi_payload_beats == 0 || axi_payload_beats > 256)
+            if (axi_payload_beats == 0)
                 `uvm_fatal("DW_SPI_DMA", $sformatf(
-                    "internal DMA payload requires an invalid AXI burst: payload_length=%0d beats=%0d",
+                    "internal DMA payload requires at least one AXI beat: payload_length=%0d beats=%0d",
                     payload_length, axi_payload_beats))
+            axi_payload_burst_beats = axi_payload_beats > 16 ? 16 : axi_payload_beats;
+            axi_payload_bursts = (axi_payload_beats + 15) / 16;
             if (payload_command == UVM_TLM_READ_COMMAND) begin
                 dummy_bytes = command.frame_mode == STANDARD ?
                     (command.dummy_cycles + 7) / 8 : 0;
@@ -84,16 +90,25 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
                     (command.addr_bytes != 0 ?
                         (command.frame_mode == ENHANCED ? 1 : command.addr_bytes) : 0) +
                     dummy_bytes;
-                if (axi_source_beats == 0 || axi_source_beats > 256)
+                if (axi_source_beats == 0)
                     `uvm_fatal("DW_SPI_DMA", $sformatf(
-                        "internal DMA read control requires an invalid AXI burst: control_beats=%0d",
+                        "internal DMA read control requires at least one AXI beat: control_beats=%0d",
                         axi_source_beats))
-                op_req.awlen = axi_payload_beats - 1;
-                op_req.arlen = axi_source_beats - 1;
+                axi_source_burst_beats = axi_source_beats > 16 ? 16 : axi_source_beats;
+                axi_source_bursts = (axi_source_beats + 15) / 16;
+                op_req.awlen = axi_payload_burst_beats - 1;
+                op_req.arlen = axi_source_burst_beats - 1;
+                `uvm_info("DW_SPI_DMA", $sformatf(
+                    "derived internal DMA read bursts: payload_beats=%0d payload_bursts=%0d awlen=%0d control_beats=%0d control_bursts=%0d arlen=%0d",
+                    axi_payload_beats, axi_payload_bursts, op_req.awlen,
+                    axi_source_beats, axi_source_bursts, op_req.arlen), UVM_DEBUG)
             end
             else if (payload_command == UVM_TLM_WRITE_COMMAND) begin
                 op_req.awlen = '0;
-                op_req.arlen = axi_payload_beats - 1;
+                op_req.arlen = axi_payload_burst_beats - 1;
+                `uvm_info("DW_SPI_DMA", $sformatf(
+                    "derived internal DMA write bursts: payload_beats=%0d payload_bursts=%0d arlen=%0d",
+                    axi_payload_beats, axi_payload_bursts, op_req.arlen), UVM_DEBUG)
             end
             else begin
                 `uvm_fatal("DW_SPI_DMA", $sformatf(

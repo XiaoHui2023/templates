@@ -63,8 +63,8 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
     rand bit use_dma;
 {%- endif %}
 {%- if internal_dma %}
-    rand bit [7:0] awlen;
-    rand bit [7:0] arlen;
+    rand bit [3:0] awlen;
+    rand bit [3:0] arlen;
     rand bit [31:0] axi_addr;
 {%- endif %}
 

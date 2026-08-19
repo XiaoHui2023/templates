@@ -91,8 +91,8 @@ class {{ class_prefix }}configuration extends {{ class_prefix }}base_item;
     rand bit write_internal_dma_regs;
     rand bit idmae;
     rand bit ainc;
-    rand bit [15:0] awlen;
-    rand bit [15:0] arlen;
+    rand bit [3:0] awlen;
+    rand bit [3:0] arlen;
     rand bit [31:0] axiar0;
 {%- endif %}
     rand bit [31:0] rx_sample_delay;

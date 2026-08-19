@@ -325,8 +325,8 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}base_o
             "derived internal DMA fields: use_dma=%0b axi_addr=0x%08h awlen_field=0x%0h arlen_field=0x%0h",
             rq.use_dma,
             rq.axi_addr,
-            ({8'h0, rq.awlen} << 8),
-            ({8'h0, rq.arlen} << 8)), UVM_DEBUG)
+            rq.awlen,
+            rq.arlen), UVM_DEBUG)
 {%- endif %}
 {%- if internal_dma or external_dma %}
         rdmae = rq.use_dma && (transfer_mode inside {RX_ONLY, EEPROM_READ, TX_AND_RX});
@@ -379,8 +379,8 @@ class {{ class_prefix }}register_config_builder extends {{ class_prefix }}base_o
                 tdmae == local::tdmae;
                 idmae == local::write_internal_dma_regs;
                 ainc == local::write_internal_dma_regs;
-                awlen == ({8'h0, rq.awlen} << 8);
-                arlen == ({8'h0, rq.arlen} << 8);
+                awlen == rq.awlen;
+                arlen == rq.arlen;
                 axiar0 == rq.axi_addr;
 {%- endif %}
 {%- if external_dma %}
