@@ -54,9 +54,9 @@ Read:
 CS low -> read opcode -> address -> opcode-specific dummy cycles -> data -> CS high
 ```
 
-Non-DMA PIO does not split one flash program operation because the data is larger than the FIFO. It pre-fills up to the FIFO depth before selecting CS, then keeps the same CS window active while it waits for `SR.TFNF` and writes the remaining `DR` items. `CTRLR1.NDF` is derived from payload data frames, not instruction/address control entries or FIFO refill chunks. If the payload frame count exceeds `settings.ctrlr1_ndf_max`, the transfer is illegal for this IP configuration and the builder reports a fatal error.
+Non-DMA PIO does not split one flash program operation because the data is larger than the FIFO. It pre-fills up to the FIFO depth before selecting CS, then keeps the same CS window active while it waits for `SR.TFNF` and writes the remaining `DR0` items. `CTRLR1.NDF` is derived from payload data frames, not instruction/address control entries or FIFO refill chunks. If the payload frame count exceeds `settings.ctrlr1_ndf_max`, the transfer is illegal for this IP configuration and the builder reports a fatal error.
 
-Internal DMA uses the controller DMA registers and CPU callback staging path instead of PIO DR stream refilling.
+Internal DMA uses the controller DMA registers and CPU callback staging path instead of PIO DR0 stream refilling.
 
 ## Current Verification Boundary
 
@@ -71,7 +71,7 @@ Implemented:
 - `READ2X 0xBB` discards one leading receive byte (`rx_skip_bytes=1`).
 - `READ4X 0xEB` requests three additional receive bytes and discards those leading bytes before returning data to scoreboard (`rx_skip_bytes=3`).
 - NDF derived only from payload data frames. Instruction/address/dummy remain in the same continuous CS window but are excluded from NDF.
-- Scoreboard comparison using actual readback data from DR or DMA buffer.
+- Scoreboard comparison using actual readback data from DR0 or DMA buffer.
 
 Not yet implemented as full NOR behavior:
 

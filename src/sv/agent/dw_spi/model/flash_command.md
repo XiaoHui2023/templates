@@ -11,7 +11,7 @@
 | `flash_command` | 基础指令包，保存 opcode、frame/transfer mode、指令/地址/数据线宽、dummy、payload 方向和 scoreboard side effect |
 | 具体指令文件 | 只写本指令的约束，例如 opcode、地址相位线宽、payload 方向、QE 需求 |
 | `flash_command_adapter` | flow 内的通用适配器，把任意 `flash_command` 转换为 `transfer_req` |
-| `transfer_seq` | 通用执行 primitive transfer，负责寄存器配置、DR/DMA、CS、completion、scoreboard |
+| `transfer_seq` | 通用执行 primitive transfer，负责寄存器配置、DR0/DMA、CS、completion、scoreboard |
 
 ## 基础字段
 
@@ -71,7 +71,7 @@
 
 | Command | Opcode | Dummy SCLK cycles | Controller path |
 | --- | ---: | ---: | --- |
-| `READ1X` | `0x03` | 0 | standard 从 `DR` 发送 opcode/address，随后进入 RX |
+| `READ1X` | `0x03` | 0 | standard 从 `DR0` 发送 opcode/address，随后进入 RX |
 | `READ2X` | `0xBB` | 4 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES`；`rx_skip_bytes=1` |
 | `READ4X` | `0xEB` | 6 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES`；`rx_skip_bytes=3` |
 

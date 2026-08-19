@@ -25,18 +25,18 @@
 
 PIO 写流程：
 
-1. 在 `SER=0` 时预填部分 DR stream。
+1. 在 `SER=0` 时预填部分 DR0 stream。
 2. 选中 CS。
-3. 在 CS 有效期间继续写剩余 DR stream。
+3. 在 CS 有效期间继续写剩余 DR0 stream。
 4. 等待 `SR.TFE && !SR.BUSY` 收尾。
 5. 释放 CS。
 6. 把 payload 记录为 scoreboard expected data。
 
 PIO 读流程：
 
-1. 在 `SER=0` 时预填 read command/address DR stream。
+1. 在 `SER=0` 时预填 read command/address DR0 stream。
 2. 选中 CS。
-3. 用 `SR.RFNE` 从 `DR` 读回 actual data。
+3. 用 `SR.RFNE` 从 `DR0` 读回 actual data。
 4. 等待 `SR.TFE && !SR.BUSY` 收尾。
 5. 释放 CS。
 6. flow/test 把 actual read data 送入 scoreboard 比较。
@@ -47,7 +47,7 @@ PIO 读必须先 drain RX FIFO，再等待最终 idle，避免 RX FIFO 因等待
 
 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的路径。
 
-1. 内置 DMA transfer 启动前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 准备 AXI source buffer：写命令放 payload，读命令放 opcode/address 控制项；内部 DMA 读不写 `DR`。
+1. 内置 DMA transfer 启动前，通过 callback `cpu_write(addr, word, UVM_BACKDOOR)` 准备 AXI source buffer：写命令放 payload，读命令放 opcode/address 控制项；内部 DMA 读不写 `DR0`。
 2. 配置 `DMACR.IDMAE/AINC`、方向握手位和 `AXIAWLEN/AXIARLEN/AXIAR0`。`SPIDR/SPIAR` 在 `write_internal_dma_regs` 或 enhanced `spi_ctrlr0_en` 任一条件成立时写入。
 3. 选中 CS，启动控制器内部 DMA transfer。
 4. 若 `completion_mode` 是 `PREFER_INTERRUPT_COMPLETION` 且 `intr` 已连接，等待 top `intr`，再读取 `ISR.DONES`。

@@ -31,7 +31,7 @@
 | `TMOD` | `3` | EEPROM read |
 | `DFS` | `data_frame_bits - 1` | 数据帧位宽 |
 
-Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/payload 都是 master 向 flash 发送，且写流程不使用 dummy clock。Flash read 使用 `TMOD=3 / EEPROM_READ`：standard 路径从 `DR` 发送 opcode 和 address；enhanced 路径把 opcode/address 值作为 control item 预填到 `DR`，由 `SPI_CTRLR0` 描述 instruction、address 和 wait phase。控制阶段结束后，控制器自动切换到 NDF 指定的 RX data phase。不要把 page-program 配成 `TX_AND_RX`。
+Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/payload 都是 master 向 flash 发送，且写流程不使用 dummy clock。Flash read 使用 `TMOD=3 / EEPROM_READ`：standard 路径从 `DR0` 发送 opcode 和 address；enhanced 路径把 opcode/address 值作为 control item 预填到 `DR0`，由 `SPI_CTRLR0` 描述 instruction、address 和 wait phase。控制阶段结束后，控制器自动切换到 NDF 指定的 RX data phase。不要把 page-program 配成 `TX_AND_RX`。
 
 `SSTE` 只描述标准 SPI 帧间分割行为。`SCPH=0` 且 `SSTE=1` 时，每帧数据之间 `ss_*_n` 会拉高再拉低，`SCLK` 停在默认电平；`SSTE=0` 时 `ss_n` 全程保持有效，`SCLK` 连续运行。该行为本质上是 frame 间分割，不等同于完整 SPI memory operation 的 CS window。当前模板每次 transfer 显式写 `CTRLR0.SSTE = 0`，避免收发数据时帧间片选 toggle 破坏连续性。
 
@@ -48,7 +48,7 @@ actual_data_frames = ceil(payload_bytes * 8 / data_frame_bits)
 CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 ```
 
-模板通过 `settings.ctrlr1_ndf_max` 记录本 IP 变体允许写入的最大 NDF 编码值，默认 `65535`。如果 payload data frames 推导出的 `CTRLR1.NDF` 超过该上限，`register_config_builder` 必须直接 fatal。FIFO refill 只解决 CPU 如何持续喂 `DR`，不能突破一次 SPI transaction 的 NDF 寄存器上限。
+模板通过 `settings.ctrlr1_ndf_max` 记录本 IP 变体允许写入的最大 NDF 编码值，默认 `65535`。如果 payload data frames 推导出的 `CTRLR1.NDF` 超过该上限，`register_config_builder` 必须直接 fatal。FIFO refill 只解决 CPU 如何持续喂 `DR0`，不能突破一次 SPI transaction 的 NDF 寄存器上限。
 
 ## SPI_CTRLR0
 
@@ -74,7 +74,7 @@ CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 
 当前 flash flow 的 `TRANS_TYPE` 由 `transfer_req.instruction_lanes` 和 `address_lanes` 共同推导，不直接等于 enhanced。`TRANS_TYPE=0` 表示 instruction/address 都走标准单线，用于 PP、DPP、QPP 和 output-read；`TRANS_TYPE=1` 表示 instruction 单线、address 按 `SPI_FRF`，用于 `READ2X 0xBB` 和 `READ4X 0xEB`；`TRANS_TYPE=2` 表示 instruction/address 都按 `SPI_FRF`，保留给显式声明多线 instruction/address 的扩展指令包。
 
-`WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。Flash write/program 不使用 dummy clock，也不把 dummy 写成 `DR` byte stream。
+`WAIT_CYCLES` 只用于 enhanced 接收类 transfer，例如 `RX_ONLY` / `EEPROM_READ` / `TX_AND_RX` 读路径中控制帧到数据接收之间的等待。Flash write/program 不使用 dummy clock，也不把 dummy 写成 `DR0` byte stream。
 
 当前内置 read opcode 的 wait/dummy SCLK 数为：`READ1X 03h=0`、`READ2X BBh=4`、`READ4X EBh=6`。Enhanced `READ1X` 写入 `WAIT_CYCLES=0`，2x/4x 路径写入各自的 dummy cycle。`READ2X` 配置 `rx_skip_bytes=1`，`READ4X` 配置 `rx_skip_bytes=3`；接收丢弃量不属于 `WAIT_CYCLES`。
 
@@ -113,7 +113,7 @@ CTRLR1.NDF = actual_data_frames == 0 ? 0 : actual_data_frames - 1
 | `TFNF` | TX FIFO 不满 |
 | `BUSY` | 总线忙碌 |
 
-PIO 搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR`，读传输等待 `RFNE` 后读 `DR`。非 DMA PIO 的最终完成由 `SR.TFE && !SR.BUSY` 判断。`SR.TFNF` 只表示 TX FIFO 不满，不能代表 transmit complete。
+PIO 搬运使用 `TFNF/RFNE` 驱动：写传输等待 `TFNF` 后写 `DR0`，读传输等待 `RFNE` 后读 `DR0`。非 DMA PIO 的最终完成由 `SR.TFE && !SR.BUSY` 判断。`SR.TFNF` 只表示 TX FIFO 不满，不能代表 transmit complete。
 
 ## DMA Registers
 
@@ -133,11 +133,13 @@ Python `internal_dma` 和 `external_dma` 互斥。两者都关闭时不生成 DM
 
 `AWLEN/ARLEN` 配置允许的单笔最大 burst，不表示当前传输的数据量。32-bit AXI 数据宽度下固定值 15 允许单笔最多搬运 64 字节；控制器根据总搬运量自动安排实际 burst。
 
-## DR / RX_SAMPLE_DELAY
+## DR0 / RX_SAMPLE_DELAY
 
-写 `DR` 表示写入一个数据项，读 `DR` 表示读出一个数据项。`DR` 与 FIFO 交互，寄存器宽度为 32 bit；常见交互粒度为 8 bit，具体粒度随数据帧配置变化。
+官方手册把 FIFO data-register bank 记为 `DRx`；本模板只访问 index 0，因此寄存器模型句柄固定使用 `DR0`。
 
-Enhanced PIO flash transfer 的 control phase 使用专用 FIFO entry 形状：instruction 低位对齐写一个 32-bit DR item，完整 address 低位对齐再写一个 32-bit DR item，payload 随后按 data frame 写入。因此 3-byte address 不是三个 FIFO entries；QPP 的 instruction + address 总共占两个 control entries，但两者都不计入 NDF。Standard SPI 不使用该 packing，仍逐 byte 写 instruction/address。
+写 `DR0` 表示写入一个数据项，读 `DR0` 表示读出一个数据项。`DR0` 与 FIFO 交互，寄存器宽度为 32 bit；常见交互粒度为 8 bit，具体粒度随数据帧配置变化。
+
+Enhanced PIO flash transfer 的 control phase 使用专用 FIFO entry 形状：instruction 低位对齐写一个 32-bit DR0 item，完整 address 低位对齐再写一个 32-bit DR0 item，payload 随后按 data frame 写入。因此 3-byte address 不是三个 FIFO entries；QPP 的 instruction + address 总共占两个 control entries，但两者都不计入 NDF。Standard SPI 不使用该 packing，仍逐 byte 写 instruction/address。
 
 `RX_SAMPLE_DELAY.RSD` 只在 `configuration.write_rx_sample_delay == 1` 时写入。寄存器名使用 `RX_SAMPLE_DELAY`，不要写成 `RX_SAMPLE_DLY`。
 

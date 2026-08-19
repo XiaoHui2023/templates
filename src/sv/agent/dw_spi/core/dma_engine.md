@@ -30,7 +30,7 @@ sequence 层先把 operation 请求里的 DMA 意图转换成 register `configur
 内置 DMA 读传输：
 
 1. 根据指令包构造 opcode/address 控制项；standard 地址按 byte 展开，enhanced 地址使用一个 32-bit item。
-2. 每个控制项调用 `p_sequencer.cpu_write(addr, word, UVM_BACKDOOR)` 写入 `axi_addr`，内部 DMA 引擎从 AXI source buffer 取数；不写 `DR`。
+2. 每个控制项调用 `p_sequencer.cpu_write(addr, word, UVM_BACKDOOR)` 写入 `axi_addr`，内部 DMA 引擎从 AXI source buffer 取数；不写 `DR0`。
 3. `ARLEN/AWLEN` 均固定为 15，控制器根据控制项和接收 payload 的总量自动安排 burst。
 4. 控制器完成 DMA 后，从 `axi_addr` 按 32-bit little-endian word 读回数据。
 5. 每个 word 调用 `p_sequencer.cpu_read(addr, word, UVM_BACKDOOR)`。

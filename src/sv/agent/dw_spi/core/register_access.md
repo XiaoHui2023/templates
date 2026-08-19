@@ -42,8 +42,8 @@ core 不决定 completion mode，也不判断本次是否 DMA；这些决策在 
 - 不封装 `set_field/get_field/update_reg` 这类二次寄存器 API。
 - core 工具类不是 `uvm_component` 时，通过调用方注入 `uvm_report_object report_context`，并用它的 `uvm_report_enabled()` / `uvm_report_info()` 控制 `UVM_LOW` 与 `UVM_DEBUG` 打印。
 
-## DR Helpers
+## DR0 Helpers
 
-PIO 写 DR 使用 `write_items_to_dr()`。flash operation sequence 负责构造 DR item stream：standard 模式逐 byte 放入 opcode/address/dummy；enhanced 模式把 opcode 和完整 address 各打包成一个 32-bit control item，再追加 payload data items。core 不理解各 item 的协议语义，只负责等待 `SR.TFNF` 并逐 item 写 `DR`。
+PIO 写 DR0 使用 `write_items_to_dr0()`。flash operation sequence 负责构造 DR0 item stream：standard 模式逐 byte 放入 opcode/address/dummy；enhanced 模式把 opcode 和完整 address 各打包成一个 32-bit control item，再追加 payload data items。core 不理解各 item 的协议语义，只负责等待 `SR.TFNF` 并逐 item 写 `DR0`。
 
-PIO 读 payload 使用 `read_dr_to_payload()`。它按 payload length 等待 `SR.RFNE`，逐 byte 读 `DR`，并把实际读回数据写入 generic payload。
+PIO 读 payload 使用 `read_dr0_to_payload()`。它按 payload length 等待 `SR.RFNE`，逐 byte 读 `DR0`，并把实际读回数据写入 generic payload。

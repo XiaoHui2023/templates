@@ -4,7 +4,7 @@
 
 - `check_actual_read()` can receive `expected_length`. A short, empty, or oversized DUT/DMA result reports `uvm_error` before byte comparison.
 - Byte mismatches report the failing address, expected byte, actual byte, and comparison label.
-- PIO actual read data comes from `DR`; internal DMA actual read data comes from the CPU callback reading the AXI destination buffer; external DMA actual read data comes from `finish_external_dma()`.
+- PIO actual read data comes from `DR0`; internal DMA actual read data comes from the CPU callback reading the AXI destination buffer; external DMA actual read data comes from `finish_external_dma()`.
 - A successful write updates only the expected mirror. Write verification requires either observed bus data through `check_actual_write()` or a subsequent DUT readback. Never use the source payload as actual write data.
 
 `scoreboard` 内部持有一个动态 byte queue 形式的 memory mirror，用来模拟 flash model 的有效数据区。sequence 把实际读写得到的数据交给 scoreboard，scoreboard 立即比较或更新 mirror。
@@ -64,4 +64,4 @@ scoreboard 不消费协议专用 transfer 类，也不配置寄存器。
 | `check_actual_write()` | 检查真实写入数据 |
 | `compare_actual()` | 通用逐 byte 比较 |
 
-读写测试中，sequence 先写入，再读回，然后用 `check_actual_read(address, read_data, "rw_readback_actual", expected_length)` 检查 DUT 读回长度和数据是否与 mirror 一致。`read_data` 必须来自读传输从 `DR` 或 DMA 目标 buffer 读回的 actual data，不能由 scoreboard 自己合成。
+读写测试中，sequence 先写入，再读回，然后用 `check_actual_read(address, read_data, "rw_readback_actual", expected_length)` 检查 DUT 读回长度和数据是否与 mirror 一致。`read_data` 必须来自读传输从 `DR0` 或 DMA 目标 buffer 读回的 actual data，不能由 scoreboard 自己合成。

@@ -60,7 +60,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
         rm = settings.regmodel;
         ok = 1'b0;
         report_info("DW_SPI_REG", $sformatf(
-            "waiting SR.TFNF before DR write: timeout_cycles=%0d",
+            "waiting SR.TFNF before DR0 write: timeout_cycles=%0d",
             settings.fifo_status_timeout_ssi_clk_cycles), UVM_DEBUG);
         repeat (settings.fifo_status_timeout_ssi_clk_cycles) begin
             rm.SR.read(status, reg_data);
@@ -74,12 +74,12 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
                 rm.SR.BUSY.get()), UVM_DEBUG);
             if (rm.SR.TFNF.get()) begin
                 ok = 1'b1;
-                report_info("DW_SPI_REG", "SR.TFNF asserted; DR write can proceed", UVM_DEBUG);
+                report_info("DW_SPI_REG", "SR.TFNF asserted; DR0 write can proceed", UVM_DEBUG);
                 return;
             end
         end
         report_error("DW_SPI_REG", $sformatf(
-            "timeout waiting SR.TFNF before DR write: waiting_for=SR.TFNF==1 timeout_cycles=%0d last_SR=0x%0h last_TFNF=%0b last_RFNE=%0b last_TFE=%0b last_RFF=%0b last_BUSY=%0b",
+            "timeout waiting SR.TFNF before DR0 write: waiting_for=SR.TFNF==1 timeout_cycles=%0d last_SR=0x%0h last_TFNF=%0b last_RFNE=%0b last_TFE=%0b last_RFF=%0b last_BUSY=%0b",
             settings.fifo_status_timeout_ssi_clk_cycles,
             reg_data,
             rm.SR.TFNF.get(),
@@ -100,7 +100,7 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
         rm = settings.regmodel;
         ok = 1'b0;
         report_info("DW_SPI_REG", $sformatf(
-            "waiting SR.RFNE before DR read: timeout_cycles=%0d",
+            "waiting SR.RFNE before DR0 read: timeout_cycles=%0d",
             settings.fifo_status_timeout_ssi_clk_cycles), UVM_DEBUG);
         repeat (settings.fifo_status_timeout_ssi_clk_cycles) begin
             rm.SR.read(status, reg_data);
@@ -114,12 +114,12 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
                 rm.SR.BUSY.get()), UVM_DEBUG);
             if (rm.SR.RFNE.get()) begin
                 ok = 1'b1;
-                report_info("DW_SPI_REG", "SR.RFNE asserted; DR read can proceed", UVM_DEBUG);
+                report_info("DW_SPI_REG", "SR.RFNE asserted; DR0 read can proceed", UVM_DEBUG);
                 return;
             end
         end
         report_error("DW_SPI_REG", $sformatf(
-            "timeout waiting SR.RFNE before DR read: waiting_for=SR.RFNE==1 timeout_cycles=%0d last_SR=0x%0h last_TFNF=%0b last_RFNE=%0b last_TFE=%0b last_RFF=%0b last_BUSY=%0b",
+            "timeout waiting SR.RFNE before DR0 read: waiting_for=SR.RFNE==1 timeout_cycles=%0d last_SR=0x%0h last_TFNF=%0b last_RFNE=%0b last_TFE=%0b last_RFF=%0b last_BUSY=%0b",
             settings.fifo_status_timeout_ssi_clk_cycles,
             reg_data,
             rm.SR.TFNF.get(),
@@ -129,8 +129,8 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
             rm.SR.BUSY.get()));
     endtask
 
-    // Writes a queue of controller frames through DR.
-    task write_items_to_dr(
+    // Writes a queue of controller frames through DR0.
+    task write_items_to_dr0(
             input bit [31:0] data[$],
             input string reason,
             output bit ok);
@@ -143,11 +143,11 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
         rm = settings.regmodel;
         ok = 1'b1;
         report_info("DW_SPI_REG", $sformatf(
-            "writing items to DR: reason=%s items=%0d",
+            "writing items to DR0: reason=%s items=%0d",
             reason, data.size()), UVM_HIGH);
         foreach (data[i]) begin
             report_info("DW_SPI_REG", $sformatf(
-                "DR write item[%0d]=0x%08h: wait TX FIFO not full",
+                "DR0 write item[%0d]=0x%08h: wait TX FIFO not full",
                 i, data[i]), UVM_DEBUG);
             wait_tfnf(ready);
             if (!ready) begin
@@ -155,16 +155,16 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
                 return;
             end
             report_info("DW_SPI_REG", $sformatf(
-                "DR write item[%0d]=0x%08h", i, data[i]), UVM_DEBUG);
-            rm.DR.write(status, uvm_reg_data_t'(data[i]));
+                "DR0 write item[%0d]=0x%08h", i, data[i]), UVM_DEBUG);
+            rm.DR0.write(status, uvm_reg_data_t'(data[i]));
         end
         report_info("DW_SPI_REG", $sformatf(
-            "wrote %0d item(s) to DR: reason=%s",
+            "wrote %0d item(s) to DR0: reason=%s",
             data.size(), reason), UVM_HIGH);
     endtask
 
-    // Writes generic-payload bytes through DR.
-    task write_payload_to_dr(input uvm_tlm_generic_payload payload, output bit ok);
+    // Writes generic-payload bytes through DR0.
+    task write_payload_to_dr0(input uvm_tlm_generic_payload payload, output bit ok);
         byte unsigned gp_data[];
         bit [31:0] data[$];
 
@@ -173,11 +173,11 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
         payload.get_data(gp_data);
         foreach (gp_data[i])
             data.push_back(gp_data[i]);
-        write_items_to_dr(data, "payload", ok);
+        write_items_to_dr0(data, "payload", ok);
     endtask
 
-    // Reads the requested payload length from DR.
-    task read_dr_to_payload(
+    // Reads the requested payload length from DR0.
+    task read_dr0_to_payload(
             input uvm_tlm_generic_payload payload,
             output bit [7:0] read_data[$],
             output bit ok);
@@ -198,24 +198,24 @@ class {{ class_prefix }}register_access extends {{ class_prefix }}base_object;
         length = payload.get_data_length();
         gp_data = new[length];
         report_info("DW_SPI_REG", $sformatf(
-            "reading payload from DR: bytes=%0d", length), UVM_HIGH);
+            "reading payload from DR0: bytes=%0d", length), UVM_HIGH);
         for (int i = 0; i < length; i++) begin
             report_info("DW_SPI_REG", $sformatf(
-                "DR read byte[%0d]: wait RX FIFO not empty", i), UVM_DEBUG);
+                "DR0 read byte[%0d]: wait RX FIFO not empty", i), UVM_DEBUG);
             wait_rfne(ready);
             if (!ready) begin
                 ok = 1'b0;
                 return;
             end
-            rm.DR.read(status, reg_data);
+            rm.DR0.read(status, reg_data);
             report_info("DW_SPI_REG", $sformatf(
-                "DR read byte[%0d]=0x%02h raw=0x%0h",
+                "DR0 read byte[%0d]=0x%02h raw=0x%0h",
                 i, reg_data[7:0], reg_data), UVM_DEBUG);
             read_data.push_back(reg_data[7:0]);
             gp_data[i] = reg_data[7:0];
         end
         payload.set_data(gp_data);
-        report_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR", read_data.size()), UVM_HIGH);
+        report_info("DW_SPI_REG", $sformatf("read %0d byte(s) from DR0", read_data.size()), UVM_HIGH);
     endtask
 
     // Polls SR until the controller and transmit FIFO are idle.
