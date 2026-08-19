@@ -97,7 +97,7 @@
 
 1. Python 通过 `internal_dma` / `external_dma` 选择生成内置 DMA、外部 DMA 或无 DMA，二者不能同时开启。
 2. 无 DMA 时不生成 `use_dma` 和 DMA 寄存器配置。
-3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma` 和 `axi_addr`。adapter 根据 payload 或 control 的总 beat 数推导单笔 burst 长度和 burst 数，读命令设置 `ARLEN=min(control_beats,16)-1`、`AWLEN=min(payload_beats,16)-1`，写命令设置 `ARLEN=min(payload_beats,16)-1`、`AWLEN=0`；builder 将四位 `awlen/arlen` 直接写入对应 field，并配置 `AXIAR0.AXIAR0`。
+3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma` 和 `axi_addr`。adapter 只根据 payload 或 control 的总 beat 数推导单笔 burst 长度，读命令设置 `ARLEN=min(control_beats,16)-1`、`AWLEN=min(payload_beats,16)-1`，写命令设置 `ARLEN=min(payload_beats,16)-1`、`AWLEN=0`；builder 将四位 `awlen/arlen` 直接写入对应 field，并配置 `AXIAR0.AXIAR0`。后续 burst 数量由控制器自动决定。
 4. 内置 DMA 读 transfer 在配置控制器前，通过 CPU callback 把指令和地址控制项逐 32-bit word 写入 `axi_addr`。内部 DMA 引擎从 AXI source buffer 取控制项；该路径不写 `DR`。
 5. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source payload；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
 6. 外部 DMA 仍在选择 CS 前向 TX FIFO 预填 read control items，并配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
