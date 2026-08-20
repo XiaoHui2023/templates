@@ -73,8 +73,8 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
 {%- if enable_dma %}
         soft dma_enable == 0;
         soft dma_addr == 'h0;
+        (dma_enable) -> data_present_sel == 1;
 {%- if is_mobile_storage %}
-        (data_present_sel) -> dma_enable == 1;
         (dma_enable) -> dma_sel inside {ADMA2, ADMA2_3};
 {%- endif %}
 {%- endif %}
@@ -200,6 +200,7 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
 
     }
 
+    // Create the register access request.
     function new(string name="{{ class_prefix }}access_request");
         super.new(name);
     endfunction

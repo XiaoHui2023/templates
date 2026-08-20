@@ -96,7 +96,6 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
 {%- if enable_dma %}
         (dma_enable) -> data_present_sel == 1;
 {%- if is_mobile_storage %}
-        (data_present_sel) -> dma_enable == 1;
         (dma_enable) -> dma_sel inside {ADMA2, ADMA2_3};
 {%- endif %}
 {%- endif %}
@@ -181,6 +180,7 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         // (cmd_index == 56) -> resp == R1;
     }
 
+    // Create child requests used by the command operation.
     function new(string name="{{ class_prefix }}command_request");
         super.new(name);
 
@@ -189,6 +189,7 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         rst_request = {{ class_prefix }}reset_request::type_id::create({get_full_name(),".rst_request"});
     endfunction
 
+    // Propagate parent context before randomizing child requests.
     function void pre_randomize();
         super.pre_randomize();
 

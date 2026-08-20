@@ -46,7 +46,7 @@
 | 块间隔控制 | `BGAP_CTRL_R` | 无 |
 | 唤醒控制 | `WUP_CTRL_R` | 无 |
 | 超时控制 | `TOUT_CTRL_R` | `TMOUT_R`，4-bit 变 32-bit |
-| PIO 数据口 | `BUF_DATA_R` | 无，数据传输必须用 DMA |
+| PIO 数据口 | `BUF_DATA_R` | 无 `BUF_DATA_R` |
 | 自动命令状态 | `AUTO_CMD_STAT_R` | 无 |
 
 ## 生成规则
@@ -61,4 +61,5 @@
 - mobile_storage 的 power up 会把 `CMD_R.UPDATE_CLOCK_REGISTERS_ONLY` 置 1，access 发普通命令前必须清 0。
 - mobile_storage 的 `RINTSTS_R` 同时包含普通中断和错误中断；`wait_interrupt` 清等待的普通中断位，`check_error` 只清错误位。
 - `mobile_storage` 自动启用 `enable_dma`；显式配置 `enable_dma: false` 会报错。
+- `dma_enable == 1` 时必须有数据；有数据不能反向要求 `dma_enable == 1`，SDIO CMD53 允许非 DMA 数据传输。
 - `mobile_storage` 的 tuning 寄存器映射未确认前，`tune_en` 会直接 fatal。

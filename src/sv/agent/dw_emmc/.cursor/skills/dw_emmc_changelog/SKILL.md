@@ -5,6 +5,11 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-08-20
+
+- 修正 `command_request` 和 `access_request` 的 DMA 约束方向：保留 `dma_enable -> data_present_sel`，删除 `data_present_sel -> dma_enable`，允许 SDIO CMD53 非 DMA 数据传输；`mshc` 旧流程不改变。
+- 明确当前模板库的 mobile_storage 暂时只支持 SDIO：用户说 `mobile_storage` 时按 `controller_ip: mobile_storage` + `card_type: sdio` 验证；`mshc` 维持原有 eMMC/SDCard/SDIO 行为。
+
 ## 2026-08-19
 
 - mobile_storage 的 `check_error` 只清 `RINTSTS_R` 错误位，普通中断位由 `wait_interrupt` 独占清除。
