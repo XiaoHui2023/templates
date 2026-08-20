@@ -29,6 +29,21 @@ module {{ class_prefix }}top(
     );
         env.set(pre_cycles, reset_cycles, post_cycles);
     endfunction
+
+    // 设置复位拉低前的等待拍数。
+    function automatic void set_pre_cycles(input int cycles);
+        env.set_pre_cycles(cycles);
+    endfunction
+
+    // 设置复位拉低的维持拍数。
+    function automatic void set_reset_cycles(input int cycles);
+        env.set_reset_cycles(cycles);
+    endfunction
+
+    // 设置复位释放后的等待拍数。
+    function automatic void set_post_cycles(input int cycles);
+        env.set_post_cycles(cycles);
+    endfunction
 endmodule
 
 `endif

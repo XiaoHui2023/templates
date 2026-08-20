@@ -2,25 +2,34 @@
 `define {{ class_prefix | upper }}INTERFACE
 
 interface {{ class_prefix }}interface(input logic clk, output logic rst_n);
+    // 按当前配置等待时钟拍数。
+    // cycles — 可动态调整的目标拍数
+    task automatic wait_cycles(ref int cycles);
+        int elapsed;
+
+        elapsed = 0;
+        while (elapsed < cycles) begin
+            @(posedge clk);
+            elapsed++;
+        end
+    endtask
+
     // 按三个时序区间驱动低有效复位。
     // pre_cycles — 复位拉低前的等待拍数
     // reset_cycles — 复位拉低的维持拍数
     // post_cycles — 复位释放后的等待拍数
     task automatic drive_reset(
-        input int pre_cycles,
-        input int reset_cycles,
-        input int post_cycles
+        ref int pre_cycles,
+        ref int reset_cycles,
+        ref int post_cycles
     );
-        repeat (pre_cycles)
-            @(posedge clk);
+        wait_cycles(pre_cycles);
 
         rst_n <= 1'b0;
-        repeat (reset_cycles)
-            @(posedge clk);
+        wait_cycles(reset_cycles);
 
         rst_n <= 1'b1;
-        repeat (post_cycles)
-            @(posedge clk);
+        wait_cycles(post_cycles);
     endtask
 
     // 默认保持复位释放状态。
