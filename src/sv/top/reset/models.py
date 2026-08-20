@@ -1,9 +1,22 @@
-from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Models(BaseModel):
-    class_prefix: str = Field("reset_vip_", description="默认类名前缀")
+    model_config = ConfigDict(extra="forbid")
 
-    def model_post_init(self,ctx):
-        pass
+    class_prefix: str = Field("reset_vip_", description="类型名前缀。")
+    pre_reset_cycles: int = Field(
+        10,
+        ge=0,
+        description="复位拉低前保持释放状态的时钟拍数。",
+    )
+    reset_asserted_cycles: int = Field(
+        10,
+        ge=0,
+        description="复位拉低期间的时钟拍数。",
+    )
+    post_reset_cycles: int = Field(
+        10,
+        ge=0,
+        description="复位释放后继续等待的时钟拍数。",
+    )

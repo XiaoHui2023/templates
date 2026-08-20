@@ -1,9 +1,31 @@
 `ifndef {{ class_prefix | upper }}INTERFACE
 `define {{ class_prefix | upper }}INTERFACE
 
-interface {{ class_prefix }}interface(input logic clk,output reg rst_n);
+interface {{ class_prefix }}interface(input logic clk, output logic rst_n);
+    // 按三个时序区间驱动低有效复位。
+    // pre_reset_cycles — 复位拉低前的等待拍数
+    // reset_asserted_cycles — 复位拉低的维持拍数
+    // post_reset_cycles — 复位释放后的等待拍数
+    task automatic drive_reset(
+        input int pre_reset_cycles,
+        input int reset_asserted_cycles,
+        input int post_reset_cycles
+    );
+        repeat (pre_reset_cycles)
+            @(posedge clk);
+
+        rst_n <= 1'b0;
+        repeat (reset_asserted_cycles)
+            @(posedge clk);
+
+        rst_n <= 1'b1;
+        repeat (post_reset_cycles)
+            @(posedge clk);
+    endtask
+
+    // 默认保持复位释放状态。
     initial begin
-        rst_n <= 1;
+        rst_n <= 1'b1;
     end
 endinterface
 
