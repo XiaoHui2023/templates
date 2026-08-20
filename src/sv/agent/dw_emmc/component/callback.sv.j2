@@ -13,6 +13,8 @@ class {{ class_prefix }}callback extends uvm_callback;
     extern virtual task set_frequence(int frequence);
     extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
     extern virtual task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
+    extern virtual task debug_clock_phase(input int round, output bit stop);
+    extern virtual task debug_dat_stb_phase(input int round, output bit stop);
 endclass
 
 task {{ class_prefix }}callback::set_frequence(int frequence);
@@ -22,6 +24,14 @@ task {{ class_prefix }}callback::cpu_read(input bit[63:0] addr, output bit[31:0]
 endtask
 
 task {{ class_prefix }}callback::cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
+endtask
+
+task {{ class_prefix }}callback::debug_clock_phase(input int round, output bit stop);
+    stop = 1;
+endtask
+
+task {{ class_prefix }}callback::debug_dat_stb_phase(input int round, output bit stop);
+    stop = 1;
 endtask
 
 `endif

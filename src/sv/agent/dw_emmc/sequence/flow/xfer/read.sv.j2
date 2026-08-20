@@ -43,6 +43,7 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
             `uvm_do_with(read_multiple_block_seq, {
                 cmd_request.block_count == local::count;
                 cmd_request.block_size == local::size;
+                cmd_request.chk_err_request.should_fatal == !local::allow_failure;
 {%- if enable_dma %}
                 cmd_request.dma_enable == local::dma_enable;
 {%- endif %}
@@ -68,6 +69,7 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
             `uvm_do_with(read_single_block_seq, {
                 cmd_request.block_count == local::count;
                 cmd_request.block_size == local::size;
+                cmd_request.chk_err_request.should_fatal == !local::allow_failure;
 {%- if enable_dma %}
                 cmd_request.dma_enable == local::dma_enable;
 {%- endif %}
@@ -109,6 +111,7 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
             cmd_request.block_size == local::size;
             cmd_request.block_count == local::count;
             cmd_request.addr == local::addr;
+            cmd_request.chk_err_request.should_fatal == !local::allow_failure;
 {%- if enable_dma %}
             cmd_request.dma_enable == local::dma_enable;
             cmd_request.dma_sel == local::dma_sel;
@@ -129,6 +132,11 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
 
                                                                                 {%- endif %}
 
+        if (cmd_response.failed) begin
+            failed = 1;
+            failure_reason = cmd_response.failure_reason;
+            return;
+        end
         rdata = cmd_response.data;
     endtask
 endclass

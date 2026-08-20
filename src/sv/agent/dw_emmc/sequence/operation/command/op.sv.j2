@@ -69,13 +69,26 @@ task {{ class_prefix }}command_operation_seq::body();
     init_memory(); // 初始化内存
 {%- endif %}
     `uvm_rand_send(access_seq)
+    if (access_seq.rsp.failed) begin
+        rsp.failed = 1;
+        rsp.failure_reason = access_seq.rsp.failure_reason;
+        return;
+    end
     wait_cmd_complete(); // 等中断
+    if (rsp.failed)
+        return;
     // 读写数据
     if (cmd_request.data_present_sel) begin
-        if (cmd_request.data_xfer_dir == cmd_request.XFER_READ)
+        if (cmd_request.data_xfer_dir == cmd_request.XFER_READ) begin
             read(rsp.data);
-        else
+            if (rsp.failed)
+                return;
+        end
+        else begin
             write(cmd_request.wdata);
+            if (rsp.failed)
+                return;
+        end
     end
     // 读答案
     if (cmd_request.access_request.resp_type_select != cmd_request.access_request.NO_RESP)
@@ -92,6 +105,8 @@ task {{ class_prefix }}command_operation_seq::read(ref bit [7:0] data[$]);
 {%- if enable_dma %}
     if (cmd_request.dma_enable) begin
         wait_xfer_complete();
+        if (rsp.failed)
+            return;
         read_memory(data);
     end
     else begin
@@ -101,6 +116,8 @@ task {{ class_prefix }}command_operation_seq::read(ref bit [7:0] data[$]);
         end
         else begin
             read_buffer(data);
+            if (rsp.failed)
+                return;
             wait_xfer_complete();
         end
 {%- if enable_dma %}
@@ -115,6 +132,8 @@ task {{ class_prefix }}command_operation_seq::write(bit [7:0] data[$]);
     else begin
 {%- endif %}
         write_buffer(data);
+        if (rsp.failed)
+            return;
 {%- if enable_dma %}
     end
 {%- endif %}
@@ -159,6 +178,11 @@ task {{ class_prefix }}command_operation_seq::write_buffer(bit [7:0] data[$]);
         // wait ready
         $cast(wait_intr_seq, create_wait_intr_seq());
         `uvm_rand_send_with(wait_intr_seq, {wait_intr_request.buf_wr_ready;})
+        if (wait_intr_seq.rsp.failed) begin
+            rsp.failed = 1;
+            rsp.failure_reason = wait_intr_seq.rsp.failure_reason;
+            return;
+        end
         // write
         write_buffer_one_block(data);
     end
@@ -170,6 +194,11 @@ task {{ class_prefix }}command_operation_seq::read_buffer(ref bit [7:0] data[$])
         // wait ready
         $cast(wait_intr_seq, create_wait_intr_seq());
         `uvm_rand_send_with(wait_intr_seq, {wait_intr_request.buf_rd_ready;})
+        if (wait_intr_seq.rsp.failed) begin
+            rsp.failed = 1;
+            rsp.failure_reason = wait_intr_seq.rsp.failure_reason;
+            return;
+        end
         read_buffer_one_block(data);
     end
     `uvm_info("", "read buffer done", UVM_LOW)
@@ -177,6 +206,8 @@ endtask
 
 task {{ class_prefix }}command_operation_seq::read_buffer_blocked(ref bit [7:0] data[$]);
     wait_xfer_complete();
+    if (rsp.failed)
+        return;
     repeat (cmd_request.block_count)
         read_buffer_one_block(data);
     `uvm_info("", "read buffer blocked done", UVM_LOW)
@@ -257,11 +288,19 @@ endtask
 task {{ class_prefix }}command_operation_seq::wait_cmd_complete();
     $cast(wait_intr_seq, create_wait_intr_seq());
     `uvm_rand_send_with(wait_intr_seq, {wait_intr_request.cmd_complete;})
+    if (wait_intr_seq.rsp.failed) begin
+        rsp.failed = 1;
+        rsp.failure_reason = wait_intr_seq.rsp.failure_reason;
+    end
 endtask
 
 task {{ class_prefix }}command_operation_seq::wait_xfer_complete();
     $cast(wait_intr_seq, create_wait_intr_seq());
     `uvm_rand_send_with(wait_intr_seq, {wait_intr_request.xfer_complete;})
+    if (wait_intr_seq.rsp.failed) begin
+        rsp.failed = 1;
+        rsp.failure_reason = wait_intr_seq.rsp.failure_reason;
+    end
 endtask
 
 function {{ class_prefix }}wait_field_operation_seq {{ class_prefix }}command_operation_seq::create_wait_field_seq();

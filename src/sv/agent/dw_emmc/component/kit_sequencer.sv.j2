@@ -24,7 +24,8 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task tune_phase(bit[7:0] phase);
 
     // test shortcuts
-    extern task rw_test(bit[63:0] addr = 0, int count = 2{%- if enable_dma %}, bit use_dma = 0{%- endif %});
+    extern task rw_test(bit[63:0] addr = 0, int count = 2{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
+    extern task phase_debug_test(bit[63:0] addr = 0, int count = 2, int max_round_count = 64{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
 {% if is_emmc or is_sdcard %}
     extern task reg_test();
 {%- endif %}
@@ -185,7 +186,7 @@ task {{ class_prefix }}kit_sequencer::tune_phase(bit[7:0] phase);
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 2{%- if enable_dma %}, bit use_dma = 0{%- endif %});
+task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 2{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
     {{ class_prefix }}rw_test_seq seq;
 
     seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test_seq");
@@ -199,6 +200,24 @@ task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 2{
 {%- endif %}
     })
         `uvm_fatal("KIT", "rw_test_seq randomize failed")
+    seq.start(this);
+endtask
+
+task {{ class_prefix }}kit_sequencer::phase_debug_test(bit[63:0] addr = 0, int count = 2,
+        int max_round_count = 64{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
+    {{ class_prefix }}phase_debug_test_seq seq;
+
+    seq = {{ class_prefix }}phase_debug_test_seq::type_id::create("phase_debug_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        addr == local::addr;
+        count == local::count;
+        max_round_count == local::max_round_count;
+{%- if enable_dma %}
+        dma_enable == local::use_dma;
+{%- endif %}
+    })
+        `uvm_fatal("KIT", "phase_debug_test_seq randomize failed")
     seq.start(this);
 endtask
 {%- if is_emmc or is_sdcard %}

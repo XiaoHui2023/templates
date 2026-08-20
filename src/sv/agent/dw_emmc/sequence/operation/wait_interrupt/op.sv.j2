@@ -64,6 +64,8 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
         observed &= mask;
         if (!observed) begin
             wait_interrupt_signal(mask);
+            if (rsp.failed)
+                return;
             rm.MINTSTS_R.read(status, observed);
             observed &= mask;
         end
@@ -100,6 +102,8 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
 
     while (rm.NORMAL_INT_SIGNAL_EN_R.get()) begin
         wait_interrupt_signal();
+        if (rsp.failed)
+            return;
         clear_interrupt_status(rm.NORMAL_INT_STAT_R.CMD_COMPLETE, rm.NORMAL_INT_STAT_EN_R.CMD_COMPLETE_STAT_EN,
             rm.NORMAL_INT_SIGNAL_EN_R.CMD_COMPLETE_SIGNAL_EN);
         clear_interrupt_status(rm.NORMAL_INT_STAT_R.XFER_COMPLETE, rm.NORMAL_INT_STAT_EN_R.XFER_COMPLETE_STAT_EN,
@@ -146,10 +150,20 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt_signal();
     fork
         begin
             p_sequencer.vif.wait_timeout(wait_intr_request.timeout_us);
-            `uvm_fatal("", $psprintf("wait interrupt timeout:\n%s", wait_intr_request.sprint()))
+            if (chk_err_request.should_fatal)
+                `uvm_fatal("", $psprintf("wait interrupt timeout:\n%s", wait_intr_request.sprint()))
+            else begin
+                rsp.failed = 1;
+                rsp.failure_reason = "wait interrupt timeout";
+            end
         end
         forever begin
             `uvm_rand_send(chk_err_seq)
+            if (chk_err_seq.rsp.is_error) begin
+                rsp.failed = 1;
+                rsp.failure_reason = "check error";
+                break;
+            end
 {%- if is_mobile_storage %}
             rm.MINTSTS_R.read(status, rdata);
             rdata &= mask;

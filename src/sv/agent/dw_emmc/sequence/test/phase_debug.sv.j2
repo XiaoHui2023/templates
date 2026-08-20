@@ -1,0 +1,228 @@
+`ifndef {{ class_prefix | upper }}PHASE_DEBUG_TEST_SEQ
+`define {{ class_prefix | upper }}PHASE_DEBUG_TEST_SEQ
+
+class {{ class_prefix }}phase_debug_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}base_item);
+    localparam int CLOCK_PHASE_DEBUG = 0;
+    localparam int DAT_STB_PHASE_DEBUG = 1;
+
+    `uvm_object_utils_begin({{ class_prefix }}phase_debug_test_seq)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(count, UVM_ALL_ON)
+        `uvm_field_int(block_size, UVM_ALL_ON)
+        `uvm_field_int(max_round_count, UVM_ALL_ON)
+{%- if enable_dma %}
+        `uvm_field_int(dma_enable, UVM_ALL_ON)
+        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+        `uvm_field_int(adma_des_addr, UVM_ALL_ON)
+{%- endif %}
+    `uvm_object_utils_end
+
+    rand bit [63:0] addr;
+    rand int count;
+    rand int block_size;
+    rand int max_round_count;
+{%- if enable_dma %}
+    rand bit dma_enable;
+    rand dma_sel_e dma_sel;
+    rand bit [31:0] adma_des_addr;
+{%- endif %}
+
+    {{ class_prefix }}initial_seq initial_seq;
+    {{ class_prefix }}switch_bus_seq switch_bus_seq;
+    {{ class_prefix }}xfer_read_seq read_seq;
+    {{ class_prefix }}xfer_write_seq write_seq;
+    {{ class_prefix }}reset_operation_seq reset_seq;
+
+    function new(string name = "{{ class_prefix }}phase_debug_test_seq");
+        super.new(name);
+    endfunction
+
+    constraint cst_test {
+        addr[63:32] == 0;
+        soft addr == 0;
+        soft block_size == 512;
+        soft max_round_count == 64;
+{%- if is_sd %}
+        if (settings.boot_cfg.sd_capacity_type == SDSC)
+            count == 1;
+        else
+            soft count == 2;
+{%- else %}
+        soft count == 2;
+{%- endif %}
+{%- if enable_dma %}
+{%- if is_mobile_storage %}
+        soft dma_enable == 1;
+{%- else %}
+        soft dma_enable == 0;
+{%- endif %}
+        soft dma_sel == ADMA2;
+        soft adma_des_addr == 'h1000_0000;
+{%- endif %}
+    }
+
+    extern task body();
+    extern task run_phase_debug(input int kind, input bus_speed_mode_e bus_speed_mode, input int data_width);
+    extern task run_one_round(input int kind, input int round, output bit success, output string failure_reason);
+    extern task switch_phase_bus(input bus_speed_mode_e bus_speed_mode, input int data_width);
+    extern task debug_phase(input int kind, input int round, output bit stop);
+    extern task recover_failed_round();
+    extern function string phase_name(input int kind);
+    extern function bus_speed_mode_e sd_highest_bus_speed_mode();
+    extern function void compare_read_data(ref bit [7:0] data[$], output bit success, output string failure_reason);
+    extern function void update_expected(ref bit [7:0] data[$]);
+endclass
+
+task {{ class_prefix }}phase_debug_test_seq::body();
+    if (!ctx.has_initialized)
+        `uvm_do(initial_seq)
+
+{%- if is_emmc %}
+    run_phase_debug(CLOCK_PHASE_DEBUG, HS200, 8);
+    run_phase_debug(DAT_STB_PHASE_DEBUG, HS400, 8);
+{%- else %}
+    run_phase_debug(CLOCK_PHASE_DEBUG, sd_highest_bus_speed_mode(), 4);
+{%- endif %}
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::run_phase_debug(input int kind,
+        input bus_speed_mode_e bus_speed_mode, input int data_width);
+    int round;
+    bit stop;
+    bit success;
+    string failure_reason;
+
+    round = 0;
+    switch_phase_bus(bus_speed_mode, data_width);
+
+    forever begin
+        debug_phase(kind, round, stop);
+        run_one_round(kind, round, success, failure_reason);
+        if (success) begin
+            `uvm_info("", $psprintf("phase_debug %s success round=%0d", phase_name(kind), round), UVM_LOW)
+            return;
+        end
+
+        `uvm_info("", $psprintf("phase_debug %s failed round=%0d reason=%s", phase_name(kind), round, failure_reason), UVM_LOW)
+        if (stop)
+            `uvm_fatal("", $psprintf("phase_debug %s failed at final round=%0d reason=%s", phase_name(kind), round, failure_reason))
+
+        recover_failed_round();
+        round++;
+        if (round >= max_round_count)
+            `uvm_fatal("", $psprintf("phase_debug %s reached max_round_count=%0d", phase_name(kind), max_round_count))
+    end
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::run_one_round(input int kind,
+        input int round, output bit success, output string failure_reason);
+    success = 0;
+    failure_reason = "";
+
+    `uvm_do_with(read_seq, {
+        addr == local::addr;
+        count == local::count;
+        size == local::block_size;
+        allow_failure == 1;
+{%- if enable_dma %}
+        dma_enable == local::dma_enable;
+        dma_sel == local::dma_sel;
+        adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
+    })
+    if (read_seq.failed) begin
+        failure_reason = {"read ", read_seq.failure_reason};
+        return;
+    end
+
+    compare_read_data(read_seq.rdata, success, failure_reason);
+    if (!success)
+        return;
+
+    `uvm_do_with(write_seq, {
+        addr == local::addr;
+        count == local::count;
+        size == local::block_size;
+        allow_failure == 1;
+{%- if enable_dma %}
+        dma_enable == local::dma_enable;
+        dma_sel == local::dma_sel;
+        adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
+    })
+    if (write_seq.failed) begin
+        success = 0;
+        failure_reason = {"write ", write_seq.failure_reason};
+        return;
+    end
+
+    update_expected(write_seq.wdata);
+    success = 1;
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::switch_phase_bus(input bus_speed_mode_e bus_speed_mode, input int data_width);
+    `uvm_do_with(switch_bus_seq, {
+        bus_speed_mode == local::bus_speed_mode;
+        data_width == local::data_width;
+    })
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::debug_phase(input int kind, input int round, output bit stop);
+    if (kind == DAT_STB_PHASE_DEBUG)
+        p_sequencer.debug_dat_stb_phase(round, stop);
+    else
+        p_sequencer.debug_clock_phase(round, stop);
+
+    `uvm_info("", $psprintf("phase_debug %s round=%0d stop=%0b", phase_name(kind), round, stop), UVM_LOW)
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::recover_failed_round();
+    `uvm_do_with(reset_seq, {
+        rst_request.sw_rst_cmd == 1;
+        rst_request.sw_rst_dat == 1;
+    })
+endtask
+
+function string {{ class_prefix }}phase_debug_test_seq::phase_name(input int kind);
+    if (kind == DAT_STB_PHASE_DEBUG)
+        return "dat_stb";
+    return "clock";
+endfunction
+
+function bus_speed_mode_e {{ class_prefix }}phase_debug_test_seq::sd_highest_bus_speed_mode();
+{%- if is_sd %}
+    if (settings.boot_cfg.voltage == V1_8) begin
+        if (settings.boot_cfg.is_support_sdr104)
+            return SDR104;
+        if (settings.boot_cfg.is_support_sdr50)
+            return SDR50;
+        if (settings.boot_cfg.is_support_ddr50)
+            return DDR50;
+        if (settings.boot_cfg.is_support_sdr25)
+            return SDR25;
+        return SDR12;
+    end
+    return HS;
+{%- else %}
+    return LEGACY;
+{%- endif %}
+endfunction
+
+function void {{ class_prefix }}phase_debug_test_seq::compare_read_data(ref bit [7:0] data[$],
+        output bit success, output string failure_reason);
+    if (p_sequencer.scoreboard == null)
+        `uvm_fatal("", "sequencer require scoreboard")
+
+    success = p_sequencer.scoreboard.compare_actual(addr, data, "phase_debug read");
+    if (!success)
+        failure_reason = "read compare failed";
+endfunction
+
+function void {{ class_prefix }}phase_debug_test_seq::update_expected(ref bit [7:0] data[$]);
+    if (p_sequencer.scoreboard == null)
+        `uvm_fatal("", "sequencer require scoreboard")
+
+    p_sequencer.scoreboard.write_expected(addr, data, "phase_debug write");
+endfunction
+
+`endif

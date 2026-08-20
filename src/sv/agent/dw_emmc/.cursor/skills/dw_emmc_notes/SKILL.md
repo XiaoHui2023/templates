@@ -23,6 +23,9 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - access 写 `CMD_R.START_CMD` 前先清本次等待的旧状态并配置 `INTMASK_R`；等待阶段先读取 `MINTSTS_R`，消费已经置位的中断。
 - DMA 模式使用 IDMAC 描述符链表，`DBADDR_R` 写描述符地址，`PLDMND_R` 写 `32'h1` 触发。
 - 数据命令不反向强制打开 DMA；SDIO CMD53 允许 `data_present_sel == 1` 且 `dma_enable == 0`。
+- mobile_storage 没有 PIO 数据寄存器；生成 DMA 时，kit `rw_test()` 和 `phase_debug_test()` 默认 `use_dma = 1`，mshc 默认仍为 0。
+- `phase_debug_test` 用外部 callback 调相。eMMC 先 HS200 时钟相位，再 HS400 DAT STB；SDCard/SDIO 只调时钟相位。默认 callback 输出 stop，避免未重载时无限循环。
+- phase_debug 的非致命失败路径必须默认关闭，只能由 `allow_failure` 打开；普通 rw/test 保持原 fatal 行为。
 
 ## 验收
 
