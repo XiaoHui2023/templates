@@ -5,6 +5,10 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     {{ settings.class_prefix }}flip_check_req,
     {{ settings.class_prefix }}flip_check_rsp
 );
+    localparam int FLIP_STIM_FREQ_HZ = 800_000_000;
+    localparam int MUX_STIM_START_FREQ_HZ = 900_000_000;
+    localparam real MUX_STIM_SCALE = 20.0 / 21.0;
+
     `uvm_object_utils({{ settings.class_prefix }}flip_check_seq)
     `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
@@ -163,10 +167,10 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test gate %s", gate_nd.get_name()), UVM_LOW)
 
-    in_vif.start_clock(100_000_000);
+    in_vif.start_clock(FLIP_STIM_FREQ_HZ);
     cfg.config_reg_gate_node_reg(gate_nd, 1'b1);
     measure_port_freq(
-        out_vif, {gate_nd.get_name(), ".out open"}, 100_000_000,
+        out_vif, {gate_nd.get_name(), ".out open"}, FLIP_STIM_FREQ_HZ,
         freq_hz, passed);
     if (!passed)
         failures++;
@@ -174,7 +178,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_gate(
     cfg.config_reg_gate_node_reg(gate_nd, 1'b0);
     #20ns;
     check_port_inactive(
-        out_vif, {gate_nd.get_name(), ".out close"}, 100_000_000, passed);
+        out_vif, {gate_nd.get_name(), ".out close"},
+        FLIP_STIM_FREQ_HZ, passed);
     if (!passed)
         failures++;
     in_vif.release_drive();
@@ -238,14 +243,14 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test div %s", div_nd.get_name()), UVM_LOW)
 
-    in_vif.start_clock(800_000_000);
+    in_vif.start_clock(FLIP_STIM_FREQ_HZ);
     cfg.config_reg_div_node_reg(div_nd, ratio);
     #20ns;
+    expected_freq_hz = real'(FLIP_STIM_FREQ_HZ) / ratio;
     measure_port_freq(
-        out_vif, {div_nd.get_name(), ".out"}, 200_000_000,
+        out_vif, {div_nd.get_name(), ".out"}, int'(expected_freq_hz),
         out_freq_hz, passed);
 
-    expected_freq_hz = 800_000_000.0 / ratio;
     if (!passed)
         failures++;
     else begin
@@ -298,14 +303,14 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test dto %s", dto_nd.get_name()), UVM_LOW)
 
-    in_vif.start_clock(800_000_000);
+    in_vif.start_clock(FLIP_STIM_FREQ_HZ);
     cfg.config_reg_dto_node_reg(dto_nd, ratio);
     #20ns;
+    expected_freq_hz = real'(FLIP_STIM_FREQ_HZ) / ratio;
     measure_port_freq(
-        out_vif, {dto_nd.get_name(), ".out"}, 200_000_000,
+        out_vif, {dto_nd.get_name(), ".out"}, int'(expected_freq_hz),
         out_freq_hz, passed);
 
-    expected_freq_hz = 800_000_000.0 / ratio;
     if (!passed)
         failures++;
     else begin
@@ -367,12 +372,13 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test mux %s", mux_nd.get_name()), UVM_LOW)
 
+    stim_freq_hz = MUX_STIM_START_FREQ_HZ;
     foreach (mux_nd.to_source[k]) begin
         in_key = $sformatf("%0d", k);
         in_vif = mux_nd.get_in_vif(in_key);
-        stim_freq_hz = 100_000_000 + k * 37_000_000;
         expected_freq_hz[k] = stim_freq_hz;
         in_vif.start_clock(stim_freq_hz);
+        stim_freq_hz = int'(real'(stim_freq_hz) * MUX_STIM_SCALE);
     end
 
     foreach (mux_nd.to_source[k]) begin
