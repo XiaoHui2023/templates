@@ -2,8 +2,9 @@
 `define {{ class_prefix | upper }}PHASE_DEBUG_TEST_SEQ
 
 class {{ class_prefix }}phase_debug_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}base_item);
-    localparam int CLOCK_PHASE_DEBUG = 0;
-    localparam int DAT_STB_PHASE_DEBUG = 1;
+    localparam int WRITE_PHASE_DEBUG = 0;
+    localparam int READ_PHASE_DEBUG = 1;
+    localparam int DAT_STB_PHASE_DEBUG = 2;
 
     `uvm_object_utils_begin({{ class_prefix }}phase_debug_test_seq)
         `uvm_field_int(addr, UVM_ALL_ON)
@@ -62,14 +63,20 @@ class {{ class_prefix }}phase_debug_test_seq extends {{ class_prefix }}base_seq#
     }
 
     extern task body();
-    extern task run_phase_debug(input int kind, input bus_speed_mode_e bus_speed_mode, input int data_width);
-    extern task run_one_round(input int kind, input int round, output bit success, output string failure_reason);
+    extern task run_phase_debug(input int kind);
+    extern task run_one_round(input int kind, output bit success, output string failure_reason);
+    extern task run_write_round(output bit success, output string failure_reason);
+    extern task run_read_round(input int kind, output bit success, output string failure_reason);
     extern task switch_phase_bus(input bus_speed_mode_e bus_speed_mode, input int data_width);
     extern task debug_phase(input int kind, input int round, output bit stop);
+    extern task get_card_memory(output bit valid, ref bit [7:0] data[$]);
+    extern task sync_expected_from_card_memory();
     extern task recover_failed_round();
     extern function string phase_name(input int kind);
+    extern function int transfer_len();
     extern function bus_speed_mode_e sd_highest_bus_speed_mode();
-    extern function void compare_read_data(ref bit [7:0] data[$], output bit success, output string failure_reason);
+    extern function void compare_data(input string label, ref bit [7:0] data[$],
+        output bit success, output string failure_reason);
     extern function void update_expected(ref bit [7:0] data[$]);
 endclass
 
@@ -78,26 +85,29 @@ task {{ class_prefix }}phase_debug_test_seq::body();
         `uvm_do(initial_seq)
 
 {%- if is_emmc %}
-    run_phase_debug(CLOCK_PHASE_DEBUG, HS200, 8);
-    run_phase_debug(DAT_STB_PHASE_DEBUG, HS400, 8);
+    switch_phase_bus(HS200, 8);
+    run_phase_debug(WRITE_PHASE_DEBUG);
+    run_phase_debug(READ_PHASE_DEBUG);
+    switch_phase_bus(HS400, 8);
+    run_phase_debug(DAT_STB_PHASE_DEBUG);
 {%- else %}
-    run_phase_debug(CLOCK_PHASE_DEBUG, sd_highest_bus_speed_mode(), 4);
+    switch_phase_bus(sd_highest_bus_speed_mode(), 4);
+    run_phase_debug(WRITE_PHASE_DEBUG);
+    run_phase_debug(READ_PHASE_DEBUG);
 {%- endif %}
 endtask
 
-task {{ class_prefix }}phase_debug_test_seq::run_phase_debug(input int kind,
-        input bus_speed_mode_e bus_speed_mode, input int data_width);
+task {{ class_prefix }}phase_debug_test_seq::run_phase_debug(input int kind);
     int round;
     bit stop;
     bit success;
     string failure_reason;
 
     round = 0;
-    switch_phase_bus(bus_speed_mode, data_width);
 
     forever begin
         debug_phase(kind, round, stop);
-        run_one_round(kind, round, success, failure_reason);
+        run_one_round(kind, success, failure_reason);
         if (success) begin
             `uvm_info("", $psprintf("phase_debug %s success round=%0d", phase_name(kind), round), UVM_LOW)
             return;
@@ -115,29 +125,19 @@ task {{ class_prefix }}phase_debug_test_seq::run_phase_debug(input int kind,
 endtask
 
 task {{ class_prefix }}phase_debug_test_seq::run_one_round(input int kind,
-        input int round, output bit success, output string failure_reason);
+        output bit success, output string failure_reason);
+    if (kind == WRITE_PHASE_DEBUG)
+        run_write_round(success, failure_reason);
+    else
+        run_read_round(kind, success, failure_reason);
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::run_write_round(output bit success, output string failure_reason);
+    bit card_valid;
+    bit [7:0] card_data[$];
+
     success = 0;
     failure_reason = "";
-
-    `uvm_do_with(read_seq, {
-        addr == local::addr;
-        count == local::count;
-        size == local::block_size;
-        allow_failure == 1;
-{%- if enable_dma %}
-        dma_enable == local::dma_enable;
-        dma_sel == local::dma_sel;
-        adma_des.cmd_addr == local::adma_des_addr;
-{%- endif %}
-    })
-    if (read_seq.failed) begin
-        failure_reason = {"read ", read_seq.failure_reason};
-        return;
-    end
-
-    compare_read_data(read_seq.rdata, success, failure_reason);
-    if (!success)
-        return;
 
     `uvm_do_with(write_seq, {
         addr == local::addr;
@@ -151,13 +151,48 @@ task {{ class_prefix }}phase_debug_test_seq::run_one_round(input int kind,
 {%- endif %}
     })
     if (write_seq.failed) begin
-        success = 0;
         failure_reason = {"write ", write_seq.failure_reason};
         return;
     end
 
     update_expected(write_seq.wdata);
-    success = 1;
+    get_card_memory(card_valid, card_data);
+    if (!card_valid) begin
+        success = 1;
+        return;
+    end
+
+    compare_data("phase_debug write card memory", card_data, success, failure_reason);
+    if (!success)
+        failure_reason = "write card memory compare failed";
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::run_read_round(input int kind,
+        output bit success, output string failure_reason);
+    success = 0;
+    failure_reason = "";
+
+    sync_expected_from_card_memory();
+
+    `uvm_do_with(read_seq, {
+        addr == local::addr;
+        count == local::count;
+        size == local::block_size;
+        allow_failure == 1;
+{%- if enable_dma %}
+        dma_enable == local::dma_enable;
+        dma_sel == local::dma_sel;
+        adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
+    })
+    if (read_seq.failed) begin
+        failure_reason = {phase_name(kind), " read ", read_seq.failure_reason};
+        return;
+    end
+
+    compare_data({ "phase_debug ", phase_name(kind) }, read_seq.rdata, success, failure_reason);
+    if (!success)
+        failure_reason = {phase_name(kind), " read compare failed"};
 endtask
 
 task {{ class_prefix }}phase_debug_test_seq::switch_phase_bus(input bus_speed_mode_e bus_speed_mode, input int data_width);
@@ -170,10 +205,27 @@ endtask
 task {{ class_prefix }}phase_debug_test_seq::debug_phase(input int kind, input int round, output bit stop);
     if (kind == DAT_STB_PHASE_DEBUG)
         p_sequencer.debug_dat_stb_phase(round, stop);
+    else if (kind == WRITE_PHASE_DEBUG)
+        p_sequencer.debug_write_phase(round, stop);
     else
-        p_sequencer.debug_clock_phase(round, stop);
+        p_sequencer.debug_read_phase(round, stop);
 
     `uvm_info("", $psprintf("phase_debug %s round=%0d stop=%0b", phase_name(kind), round, stop), UVM_LOW)
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::get_card_memory(output bit valid, ref bit [7:0] data[$]);
+    p_sequencer.get_card_memory(addr, transfer_len(), data, valid);
+    if (valid)
+        `uvm_info("", $psprintf("phase_debug got card memory addr=0x%0h len=%0d", addr, data.size()), UVM_LOW)
+endtask
+
+task {{ class_prefix }}phase_debug_test_seq::sync_expected_from_card_memory();
+    bit valid;
+    bit [7:0] data[$];
+
+    get_card_memory(valid, data);
+    if (valid)
+        update_expected(data);
 endtask
 
 task {{ class_prefix }}phase_debug_test_seq::recover_failed_round();
@@ -186,7 +238,13 @@ endtask
 function string {{ class_prefix }}phase_debug_test_seq::phase_name(input int kind);
     if (kind == DAT_STB_PHASE_DEBUG)
         return "dat_stb";
-    return "clock";
+    if (kind == WRITE_PHASE_DEBUG)
+        return "write";
+    return "read";
+endfunction
+
+function int {{ class_prefix }}phase_debug_test_seq::transfer_len();
+    return count * block_size;
 endfunction
 
 function bus_speed_mode_e {{ class_prefix }}phase_debug_test_seq::sd_highest_bus_speed_mode();
@@ -208,14 +266,14 @@ function bus_speed_mode_e {{ class_prefix }}phase_debug_test_seq::sd_highest_bus
 {%- endif %}
 endfunction
 
-function void {{ class_prefix }}phase_debug_test_seq::compare_read_data(ref bit [7:0] data[$],
+function void {{ class_prefix }}phase_debug_test_seq::compare_data(input string label, ref bit [7:0] data[$],
         output bit success, output string failure_reason);
     if (p_sequencer.scoreboard == null)
         `uvm_fatal("", "sequencer require scoreboard")
 
-    success = p_sequencer.scoreboard.compare_actual(addr, data, "phase_debug read");
+    success = p_sequencer.scoreboard.compare_actual(addr, data, label);
     if (!success)
-        failure_reason = "read compare failed";
+        failure_reason = {label, " compare failed"};
 endfunction
 
 function void {{ class_prefix }}phase_debug_test_seq::update_expected(ref bit [7:0] data[$]);

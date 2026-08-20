@@ -14,7 +14,10 @@ class {{ class_prefix }}callback extends uvm_callback;
     extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
     extern virtual task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
     extern virtual task debug_clock_phase(input int round, output bit stop);
+    extern virtual task debug_write_phase(input int round, output bit stop);
+    extern virtual task debug_read_phase(input int round, output bit stop);
     extern virtual task debug_dat_stb_phase(input int round, output bit stop);
+    extern virtual task get_card_memory(input bit[63:0] addr, input int len, ref bit[7:0] data[$], output bit valid);
 endclass
 
 task {{ class_prefix }}callback::set_frequence(int frequence);
@@ -30,8 +33,22 @@ task {{ class_prefix }}callback::debug_clock_phase(input int round, output bit s
     stop = 1;
 endtask
 
+task {{ class_prefix }}callback::debug_write_phase(input int round, output bit stop);
+    stop = 1;
+endtask
+
+task {{ class_prefix }}callback::debug_read_phase(input int round, output bit stop);
+    stop = 1;
+endtask
+
 task {{ class_prefix }}callback::debug_dat_stb_phase(input int round, output bit stop);
     stop = 1;
+endtask
+
+task {{ class_prefix }}callback::get_card_memory(input bit[63:0] addr, input int len,
+        ref bit[7:0] data[$], output bit valid);
+    data.delete();
+    valid = 0;
 endtask
 
 `endif

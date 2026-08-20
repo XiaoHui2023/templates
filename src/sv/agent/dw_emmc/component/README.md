@@ -53,13 +53,18 @@ Python 配置 `enable_dma: true` 后才生成 DMA 搬运字段和 kit `rw_test(.
 | `set_frequence(frequence)` | 调用 testbench/时钟环境设置输入时钟 |
 | `cpu_read(addr, data, path)` | 按 `path` 读取 32-bit word |
 | `cpu_write(addr, data, path)` | 按 `path` 写入 32-bit word |
+| `debug_write_phase(round, stop)` | 调试写相位；`round` 从 0 开始，`stop` 为 1 表示本轮后停止 |
+| `debug_read_phase(round, stop)` | 调试读相位；`round` 从 0 开始，`stop` 为 1 表示本轮后停止 |
 | `debug_clock_phase(round, stop)` | 调试时钟相位；`round` 从 0 开始，`stop` 为 1 表示本轮后停止 |
 | `debug_dat_stb_phase(round, stop)` | 调试 eMMC DAT STB 相位；其它卡不会调用 |
+| `get_card_memory(addr, len, data, valid)` | 可选读取外部 card memory；默认 `valid = 0` |
 
 `path` 使用 `UVM_FRONTDOOR` 或 `UVM_BACKDOOR`。kit 手动 CPU 访问默认前门；启用 DMA 后，DMA buffer 和 ADMA descriptor 访问使用后门以提高效率。
 
 callback 只接收必要数据，不传 sequencer 句柄或 handled 标记。
 
 相位调试 callback 默认输出 `stop = 1`。未重载时只执行一轮。
+
+`phase_debug_test()` 实际使用 `debug_write_phase()`、`debug_read_phase()` 和 eMMC 的 `debug_dat_stb_phase()`。`debug_clock_phase()` 保留为兼容入口。
 
 `frequence_set_operation_seq` 和 `cpu_config_operation_seq` 只负责收集参数、拆装 byte/word、触发 callback。它们不是外部依赖注入点。

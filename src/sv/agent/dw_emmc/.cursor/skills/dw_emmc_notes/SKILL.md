@@ -24,7 +24,9 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - DMA 模式使用 IDMAC 描述符链表，`DBADDR_R` 写描述符地址，`PLDMND_R` 写 `32'h1` 触发。
 - 数据命令不反向强制打开 DMA；SDIO CMD53 允许 `data_present_sel == 1` 且 `dma_enable == 0`。
 - mobile_storage 没有 PIO 数据寄存器；生成 DMA 时，kit `rw_test()` 和 `phase_debug_test()` 默认 `use_dma = 1`，mshc 默认仍为 0。
-- `phase_debug_test` 用外部 callback 调相。eMMC 先 HS200 时钟相位，再 HS400 DAT STB；SDCard/SDIO 只调时钟相位。默认 callback 输出 stop，避免未重载时无限循环。
+- `phase_debug_test` 用外部 callback 调相。eMMC 分三段：HS200 写调相、HS200 读调相、HS400 DAT STB 调相；SDCard/SDIO 分两段：写调相、读调相。
+- 写、读、DAT STB 调相 callback 必须独立：`debug_write_phase`、`debug_read_phase`、`debug_dat_stb_phase`。默认 callback 输出 stop，避免未重载时无限循环。
+- `get_card_memory(addr, len, data, valid)` 是可选外部卡模型 memory 获取钩子。默认无效；有效时 phase_debug 用它做写后校验或读前同步 scoreboard。
 - phase_debug 的非致命失败路径必须默认关闭，只能由 `allow_failure` 打开；普通 rw/test 保持原 fatal 行为。
 
 ## 验收
