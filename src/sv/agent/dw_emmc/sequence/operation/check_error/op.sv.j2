@@ -89,8 +89,10 @@ task {{ class_prefix }}check_error_operation_seq::body();
         else
             `uvm_info("",s,UVM_LOW)
     end
+{%- if not is_mobile_storage %}
     else
         `uvm_info("",$psprintf("check_error:\n%s",rsp.sprint()),UVM_DEBUG)
+{%- endif %}
 endtask
 
 `endif

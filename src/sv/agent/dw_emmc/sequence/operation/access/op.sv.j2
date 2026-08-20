@@ -134,6 +134,9 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.CMDARG_R.CMD_ARG.set(access_request.argument);
     rm.CMDARG_R.write(status, rm.CMDARG_R.get());
 
+    rm.RINTSTS_R.write(status, (1 << 2));
+    rm.INTMASK_R.write(status, (1 << 2));
+
     rm.CMD_R.UPDATE_CLOCK_REGISTERS_ONLY.set(0);
     rm.CMD_R.RESPONSE_EXPECT.set(access_request.resp_type_select != access_request.NO_RESP);
     rm.CMD_R.RESPONSE_LENGTH.set(access_request.resp_type_select == access_request.RESP_LEN_136);
@@ -205,7 +208,7 @@ endtask
 
 task {{ class_prefix }}access_operation_seq::clear_interrupt_status();
 {%- if is_mobile_storage %}
-    rm.RINTSTS_R.write(status,'hffff_ffff);
+    rm.RINTSTS_R.write(status, (1 << 2));
 {%- else %}
     rm.NORMAL_INT_STAT_R.write(status,'hffff_ffff);
 {%- endif %}

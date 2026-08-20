@@ -17,8 +17,13 @@ class {{ class_prefix }}wait_interrupt_operation_seq extends {{ class_prefix }}b
     extern task body();
     // 等待中断
     extern task wait_interrupt();
+{%- if is_mobile_storage %}
+    // 等待中断状态
+    extern task wait_interrupt_signal(input bit [31:0] mask);
+{%- else %}
     // 等待中断信号
     extern task wait_interrupt_signal();
+{%- endif %}
     // 清理中断状态
     extern task clear_interrupt_status(uvm_reg_field f_stat, uvm_reg_field f_stat_en, uvm_reg_field f_signal_en);
 {%- if is_mobile_storage %}
@@ -52,13 +57,16 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
     if (!mask)
         return;
 
-    rm.RINTSTS_R.write(status, 'hffff_ffff);
     rm.INTMASK_R.write(status, mask);
 
     while (mask) begin
-        wait_interrupt_signal();
         rm.MINTSTS_R.read(status, observed);
         observed &= mask;
+        if (!observed) begin
+            wait_interrupt_signal(mask);
+            rm.MINTSTS_R.read(status, observed);
+            observed &= mask;
+        end
         if (observed) begin
             rm.RINTSTS_R.write(status, observed);
             mask &= ~observed;
@@ -128,7 +136,11 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
 {%- endif %}
 endtask
 
+{%- if is_mobile_storage %}
+task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt_signal(input bit [31:0] mask);
+{%- else %}
 task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt_signal();
+{%- endif %}
     bit [31:0] rdata;
 
     fork
@@ -138,17 +150,21 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt_signal();
         end
         forever begin
             `uvm_rand_send(chk_err_seq)
-            if (p_sequencer.vif.intr) begin
 {%- if is_mobile_storage %}
-                rm.MINTSTS_R.read(status, rdata);
-                if (|rm.MINTSTS_R.get())
-                    break;
+            rm.MINTSTS_R.read(status, rdata);
+            rdata &= mask;
+            if (rdata)
+                break;
 {%- else %}
+            if (p_sequencer.vif.intr) begin
                 rm.NORMAL_INT_STAT_R.read(status, rdata);
                 if (|rm.NORMAL_INT_STAT_R.get())
                     break;
-{%- endif %}
             end
+{%- endif %}
+{%- if is_mobile_storage %}
+            p_sequencer.vif.wait_timeout(1);
+{%- endif %}
         end
     join_any
     disable fork;
