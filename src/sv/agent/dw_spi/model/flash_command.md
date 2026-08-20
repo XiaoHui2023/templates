@@ -44,8 +44,8 @@
 | `dual_page_program.sv` | `dual_page_program_flash_command` | `0xA2` | opcode/address 单线，payload 2 线，`TX_ONLY` |
 | `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | `1S-1S-4S`：opcode/address 单线、payload 四线，`TX_ONLY`，需要 QE |
 | `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，standard `EEPROM_READ` |
-| `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，`EEPROM_READ`，接收后丢弃 1 个前导 byte |
-| `read4x.sv` | `read4x_flash_command` | `0xEB` | opcode 单线，address/data 4 线，`EEPROM_READ`，要求 QE，接收后丢弃 3 个前导 byte |
+| `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，PIO 使用 `EEPROM_READ`，内部 DMA 使用 `RX_ONLY`，接收后丢弃 1 byte |
+| `read4x.sv` | `read4x_flash_command` | `0xEB` | opcode 单线，address/data 4 线，PIO 使用 `EEPROM_READ`，内部 DMA 使用 `RX_ONLY`，要求 QE，接收后丢弃 3 byte |
 
 `DREAD 0x3B`、`QREAD 0x6B`、erase、RDSR/WIP polling、NAND page read/cache read/program load/program execute 等还没有进入当前可执行 flow。加入时应新增对应指令包，不把 opcode 和相位规则散写在 sequence 里。
 
@@ -72,7 +72,7 @@
 | Command | Opcode | Dummy SCLK cycles | Controller path |
 | --- | ---: | ---: | --- |
 | `READ1X` | `0x03` | 0 | standard 从 `DR0` 发送 opcode/address，随后进入 RX |
-| `READ2X` | `0xBB` | 4 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES`；`rx_skip_bytes=1` |
-| `READ4X` | `0xEB` | 6 | enhanced `EEPROM_READ`，`SPI_CTRLR0.WAIT_CYCLES`；`rx_skip_bytes=3` |
+| `READ2X` | `0xBB` | 4 | enhanced；PIO 为 `EEPROM_READ`，内部 DMA 为 `RX_ONLY`；`rx_skip_bytes=1` |
+| `READ4X` | `0xEB` | 6 | enhanced；PIO 为 `EEPROM_READ`，内部 DMA 为 `RX_ONLY`；`rx_skip_bytes=3` |
 
 这些值属于 opcode command packet，不属于 `transfer_configuration` 的全局默认值。

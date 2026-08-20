@@ -42,8 +42,18 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
             `uvm_fatal("DW_SPI_FLASH", "failed to cast frame_mode")
         if (!$cast(op_req.cs_control_mode, cfg.cs_control_mode))
             `uvm_fatal("DW_SPI_FLASH", "failed to cast cs_control_mode")
+{%- if internal_dma %}
+        if (use_dma && payload_command == UVM_TLM_READ_COMMAND &&
+                command.speed_multiplier inside {2, 4}) begin
+            if (!$cast(op_req.transfer_mode, RX_ONLY))
+                `uvm_fatal("DW_SPI_FLASH", "failed to cast internal DMA enhanced read transfer_mode")
+        end
+        else if (!$cast(op_req.transfer_mode, command.transfer_mode))
+            `uvm_fatal("DW_SPI_FLASH", "failed to cast transfer_mode")
+{%- else %}
         if (!$cast(op_req.transfer_mode, command.transfer_mode))
             `uvm_fatal("DW_SPI_FLASH", "failed to cast transfer_mode")
+{%- endif %}
         op_req.opcode = command.opcode;
         op_req.io_lanes = command.io_lanes;
         op_req.instruction_lanes = command.instruction_lanes;

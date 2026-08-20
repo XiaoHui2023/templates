@@ -70,8 +70,8 @@ class {{ class_prefix }}transfer_seq extends {{ class_prefix }}base_seq #(
         output bit ok);
 {%- endif %}
 {%- if internal_dma %}
-    // Writes write payload or read control items into the internal-DMA AXI source buffer.
-    extern protected task cpu_write_dma_source_to_axi(
+    // Writes program payload into the internal-DMA AXI source buffer.
+    extern protected task cpu_write_dma_payload_to_axi(
         input {{ class_prefix }}transfer_req rq,
         output bit ok);
     // Reads the internal-DMA AXI destination buffer into a byte queue.
@@ -136,20 +136,25 @@ task {{ class_prefix }}transfer_seq::body();
     `uvm_info("DW_SPI_XFER", "building register configuration for transfer", UVM_DEBUG)
     config_builder.build(rq, cfg);
 {%- if internal_dma %}
-    if (rq.use_dma && command inside {UVM_TLM_WRITE_COMMAND, UVM_TLM_READ_COMMAND}) begin
+    if (rq.use_dma && command == UVM_TLM_WRITE_COMMAND) begin
         `uvm_info("DW_SPI_XFER", $sformatf(
-            "preparing internal DMA source buffer before controller start: command=%s axi_addr=0x%08h payload_bytes=%0d awlen=%0d arlen=%0d",
-            command.name(), rq.axi_addr, rq.payload.get_data_length(), rq.awlen, rq.arlen), UVM_HIGH)
-        cpu_write_dma_source_to_axi(rq, dma_ok);
+            "preparing internal DMA write payload before controller start: axi_addr=0x%08h payload_bytes=%0d arlen=%0d",
+            rq.axi_addr, rq.payload.get_data_length(), rq.arlen), UVM_HIGH)
+        cpu_write_dma_payload_to_axi(rq, dma_ok);
         if (!dma_ok) begin
             rs.ok = 1'b0;
             `uvm_error("DW_SPI_XFER", $sformatf(
-                "internal DMA source preparation failed: opcode=0x%02h command=%s axi_addr=0x%08h payload_bytes=%0d",
-                rq.opcode, command.name(), rq.axi_addr, rq.payload.get_data_length()))
-            `uvm_info("DW_SPI_XFER", "internal DMA source buffer preparation failed", UVM_HIGH)
+                "internal DMA write payload preparation failed: opcode=0x%02h axi_addr=0x%08h payload_bytes=%0d",
+                rq.opcode, rq.axi_addr, rq.payload.get_data_length()))
+            `uvm_info("DW_SPI_XFER", "internal DMA write payload preparation failed", UVM_HIGH)
             rsp = rs;
             return;
         end
+    end
+    else if (rq.use_dma && command == UVM_TLM_READ_COMMAND) begin
+        `uvm_info("DW_SPI_XFER",
+            "internal DMA read uses register-defined control phase; AXI destination buffer and DR0 remain unwritten before start",
+            UVM_HIGH)
     end
 {%- elif external_dma %}
     if (rq.use_dma) begin
@@ -733,13 +738,12 @@ endfunction
 
 {%- if internal_dma %}
 
-task {{ class_prefix }}transfer_seq::cpu_write_dma_source_to_axi(
+task {{ class_prefix }}transfer_seq::cpu_write_dma_payload_to_axi(
         input {{ class_prefix }}transfer_req rq,
         output bit ok);
     uvm_tlm_command_e command;
     byte unsigned gp_data[];
     bit [7:0] preview_data[$];
-    bit [31:0] control_items[$];
     bit [31:0] word;
     int index;
 
@@ -753,28 +757,10 @@ task {{ class_prefix }}transfer_seq::cpu_write_dma_source_to_axi(
             "internal DMA source axi_addr must be nonzero and 4-byte aligned: axi_addr=0x%08h",
             rq.axi_addr))
     command = rq.payload.get_command();
-    if (command == UVM_TLM_READ_COMMAND) begin
-        build_tx_items(rq, 1'b0, control_items);
-        if (control_items.size() == 0)
-            `uvm_fatal("DW_SPI_DMA", "internal DMA read source has no control items")
-        `uvm_info("DW_SPI_DMA", $sformatf(
-            "cpu writing internal DMA read control buffer: axi_addr=0x%08h control_words=%0d arlen=%0d",
-            rq.axi_addr, control_items.size(), rq.arlen), UVM_HIGH)
-        foreach (control_items[i]) begin
-            `uvm_info("DW_SPI_DMA", $sformatf(
-                "CPU write internal DMA read control word: addr=0x%0h word=0x%08h word_index=%0d",
-                {32'h0, rq.axi_addr + i * 4}, control_items[i], i), UVM_DEBUG)
-            p_sequencer.cpu_write(
-                {32'h0, rq.axi_addr + i * 4}, control_items[i], UVM_BACKDOOR);
-        end
-        `uvm_info("DW_SPI_DMA", $sformatf(
-            "cpu wrote internal DMA read control buffer: axi_addr=0x%08h control_words=%0d",
-            rq.axi_addr, control_items.size()), UVM_HIGH)
-        return;
-    end
     if (command != UVM_TLM_WRITE_COMMAND)
         `uvm_fatal("DW_SPI_DMA", $sformatf(
-            "unsupported internal DMA source command: %s", command.name()))
+            "internal DMA payload staging requires WRITE command: command=%s",
+            command.name()))
     rq.payload.get_data(gp_data);
     preview_data.delete();
     foreach (gp_data[i])

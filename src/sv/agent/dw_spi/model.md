@@ -57,7 +57,7 @@
 
 operation transfer req 还会携带 `instruction_lanes` 和 `address_lanes`，分别描述 instruction/address phase 线宽。这两个字段不是用户级默认配置，而是由 flash command packet 按 opcode 填入：QPP `0x32` 的 instruction/address 均为单线，只有 payload 为 4 线；`READ2X 0xBB` 使用单线 instruction、2 线 address；`READ4X 0xEB` 使用单线 instruction、4 线 address；其余当前内置指令使用单线 instruction。`register_config_builder` 根据两个相位线宽推导 `SPI_CTRLR0.TRANS_TYPE` 和 timeout。
 
-Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不生成 DMA 字段和 DMA 寄存器配置。内部 DMA operation req 的四位 `awlen/arlen` 固定为 15，表示允许单笔最多 16 beat，不作为 transfer configuration 或 kit 输入，也不随当前数据量变化。
+Python `internal_dma` 和 `external_dma` 互斥。两者都为 false 时，不生成 DMA 字段和 DMA 寄存器配置。内部 DMA operation req 的四位 `awlen/arlen` 固定为 15，表示允许单笔最多 16 beat，不作为 transfer configuration 或 kit 输入，也不随当前数据量变化。内部 DMA 的 READ2X/READ4X primitive request 使用 `RX_ONLY`；read 启动前不向 AXI buffer 写 opcode/address。
 
 ## `flash_command/*.sv`
 

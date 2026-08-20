@@ -6,6 +6,7 @@ class {{ class_prefix }}dma_test_seq extends {{ class_prefix }}base_seq;
     `uvm_object_utils_begin({{ class_prefix }}dma_test_seq)
         `uvm_field_int(address, UVM_ALL_ON | UVM_HEX)
         `uvm_field_queue_int(write_data, UVM_ALL_ON | UVM_HEX)
+        `uvm_field_int(speed_multiplier, UVM_ALL_ON | UVM_DEC)
         `uvm_field_object(configuration, UVM_ALL_ON)
         `uvm_field_int(ok, UVM_ALL_ON)
     `uvm_object_utils_end
@@ -13,18 +14,22 @@ class {{ class_prefix }}dma_test_seq extends {{ class_prefix }}base_seq;
 
     rand bit [31:0] address;
     rand bit [7:0] write_data[$];
+    rand int speed_multiplier;
     {{ class_prefix }}transfer_configuration configuration;
     bit ok;
 
     // Creates a DMA-forced flash read/write test scenario.
     function new(string name="{{ class_prefix }}dma_test_seq");
         super.new(name);
+        speed_multiplier = 1;
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
 
     constraint cst {
         soft address == '0;
         soft write_data.size() == {{ default_rw_data_bytes }};
+        soft speed_multiplier == 1;
+        speed_multiplier inside {1{% if max_speed_multiplier >= 2 %}, 2{% endif %}{% if max_speed_multiplier >= 4 %}, 4{% endif %}};
     }
 
     // Executes one read/write test with the generated DMA architecture enabled.
@@ -37,12 +42,20 @@ task {{ class_prefix }}dma_test_seq::body();
     if (configuration == null)
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     configuration.settings = p_sequencer.settings;
-    if (configuration.use_dma !== 1'b1) begin
-        if (!configuration.randomize() with { use_dma == 1'b1; })
+    if (configuration.use_dma !== 1'b1 ||
+            configuration.speed_multiplier !== speed_multiplier) begin
+        if (!configuration.randomize() with {
+                use_dma == 1'b1;
+                speed_multiplier == local::speed_multiplier;
+            })
             `uvm_fatal("DW_SPI_DMA_TEST", "dma_test failed to randomize configuration")
     end
     if (configuration.use_dma !== 1'b1)
         `uvm_fatal("DW_SPI_DMA_TEST", "dma_test requires use_dma=1")
+    if (configuration.speed_multiplier != speed_multiplier)
+        `uvm_fatal("DW_SPI_DMA_TEST", $sformatf(
+            "dma_test speed mismatch: requested=%0d configured=%0d",
+            speed_multiplier, configuration.speed_multiplier))
     if (write_data.size() == 0) begin
         if (!randomize(write_data) with {
                 write_data.size() == {{ default_rw_data_bytes }};

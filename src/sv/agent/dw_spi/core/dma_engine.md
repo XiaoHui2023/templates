@@ -14,7 +14,7 @@ sequence 层先把 operation 请求里的 DMA 意图转换成 register `configur
 
 | Task | 用途 |
 | --- | --- |
-| `cpu_write(addr, data, path)` | 内部 DMA 启动前写 AXI source buffer；写命令放 payload，读命令放控制项 |
+| `cpu_write(addr, data, path)` | 内部 DMA 写 transfer 启动前写 AXI source payload |
 | `cpu_read(addr, data, path)` | DMA 读传输完成后读 AXI destination buffer |
 
 `path` 是 `uvm_path_e`。内置 DMA buffer 准备和回读固定使用 `UVM_BACKDOOR`，与 `dw_emmc` 的 DMA buffer/descriptor 访问习惯一致。`UVM_FRONTDOOR` 预留给普通 CPU 总线访问扩展，不用于当前内置 DMA 快速 buffer 搬运。
@@ -29,9 +29,9 @@ sequence 层先把 operation 请求里的 DMA 意图转换成 register `configur
 
 内置 DMA 读传输：
 
-1. 根据指令包构造 opcode/address 控制项；standard 地址按 byte 展开，enhanced 地址使用一个 32-bit item。
-2. 每个控制项调用 `p_sequencer.cpu_write(addr, word, UVM_BACKDOOR)` 写入 `axi_addr`，内部 DMA 引擎从 AXI source buffer 取数；不写 `DR0`。
-3. `ARLEN/AWLEN` 均固定为 15，控制器根据控制项和接收 payload 的总量自动安排 burst。
+1. READ2X/READ4X 使用 `RX_ONLY`；`SPIDR.SPI_INST`、`SPIAR.SDAR` 和 `SPI_CTRLR0` 提供 instruction、address 和 wait phase。
+2. 启动前不通过 CPU callback 写 opcode/address，也不写 `DR0`。
+3. `ARLEN/AWLEN` 均固定为 15，控制器根据接收 payload 总量自动安排 burst。
 4. 控制器完成 DMA 后，从 `axi_addr` 按 32-bit little-endian word 读回数据。
 5. 每个 word 调用 `p_sequencer.cpu_read(addr, word, UVM_BACKDOOR)`。
 6. 读回 byte 作为 actual read data 交给 flow/test 和 scoreboard 比较。

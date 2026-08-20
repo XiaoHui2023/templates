@@ -6,7 +6,7 @@
 
 ## 传输配置入参
 
-flash 相关快捷入口可以输入单次传输配置。所有配置入参都有 Python model 生成的默认值。
+flash 相关快捷入口可以输入单次传输配置。默认值由 Python model 生成；`dma_test.speed_multiplier` 固定默认 1。
 
 | 参数 | 说明 |
 | --- | --- |
@@ -104,4 +104,4 @@ flash 便捷入口不要求用户声明挂载的 flash 类型。普通读写按�
 
 ### `dma_test`
 
-仅在 `internal_dma` 或 `external_dma` 开启时存在。参数与单次 `rw_test` 的传输配置一致，但不暴露 `use_dma`，入口始终强制 DMA。内部 DMA 额外接受 `axi_addr`，`awlen/arlen` 固定为 15。外部 DMA 的具体 mover 由 callback 注入。
+仅在 `internal_dma` 或 `external_dma` 开启时存在。每次只测试 `speed_multiplier` 指定的一种速度，默认 1x；入口强制 DMA，不暴露 `use_dma`。内部 DMA 额外接受 `axi_addr`，`awlen/arlen` 固定为 15。外部 DMA mover 由 callback 注入。

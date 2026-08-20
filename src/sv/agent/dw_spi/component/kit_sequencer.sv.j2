@@ -57,7 +57,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task dma_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
-        int speed_multiplier = {{ default_speed_multiplier }},
+        int speed_multiplier = 1,
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
         int cs_id = {{ default_cs }},
@@ -232,7 +232,7 @@ endtask
 task {{ class_prefix }}kit_sequencer::dma_test(
         bit [31:0] address = '0,
         bit [7:0] write_data[$] = '{},
-        int speed_multiplier = {{ default_speed_multiplier }},
+        int speed_multiplier = 1,
         int spi_mode = {{ default_spi_mode }},
         int data_frame_bits = {{ default_data_frame_bits }},
         int cs_id = {{ default_cs }},
@@ -243,6 +243,7 @@ task {{ class_prefix }}kit_sequencer::dma_test(
     seq = {{ class_prefix }}dma_test_seq::type_id::create("dma_test");
     seq.address = address;
     seq.write_data = write_data;
+    seq.speed_multiplier = speed_multiplier;
     seq.configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     seq.configuration.settings = settings;
     if (!seq.configuration.randomize() with {

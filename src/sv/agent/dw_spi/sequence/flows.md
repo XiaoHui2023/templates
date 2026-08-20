@@ -34,7 +34,7 @@
 
 1. `transfer_seq` 检查 req、payload、scoreboard。
 2. 生成本次寄存器 `configuration`。
-3. 内置 DMA transfer 在启动控制器前准备 AXI source buffer：写命令通过 callback 写 payload；读命令通过 callback 写 opcode/address 控制项。内部 DMA 不通过 PIO 写 `DR0` 喂控制项。
+3. 内置 DMA 写 transfer 在启动控制器前通过 callback 写 AXI source payload。内置 DMA 读 transfer 不预写 AXI buffer，也不通过 PIO 写 `DR0`。
 4. 调用 `register_access.apply_configuration()`。该阶段会关闭控制器、清中断、清 `SER`、配置寄存器、重新使能控制器，但不会选中片选。
 5. 非 DMA PIO 构造 DR0 item stream。standard flash 把 opcode、大端地址、dummy 逐 byte 放入 item；enhanced flash 把 opcode 和完整 address 各放入一个 32-bit control item，再追加 payload。命令-only 传输 payload 长度为 0，但 DR0 stream 仍包含 opcode。
    flash write/program 不使用 dummy clock；enhanced read 的 dummy/wait 通过 `SPI_CTRLR0.WAIT_CYCLES` 表达。
@@ -63,7 +63,7 @@
 2. 根据本次 configuration 创建一个 `model/flash_command` 指令包：1x 使用 standard `read1x_flash_command`，2x 使用 enhanced `read2x_flash_command`，4x 使用 enhanced `read4x_flash_command`。
 3. 用 configuration 约束 `addr_bytes`、`data_frame_bits`；`frame_mode` 由指令包的倍速约束派生，dummy cycle 由 opcode 指令包决定。
 4. 调用 `flash_command_adapter.create_transfer_req()` 生成通用 `transfer_req`，payload command 为 `UVM_TLM_READ_COMMAND`，address 为 flash 地址，data length 为读取长度。
-5. 指令包负责 opcode、`EEPROM_READ`、address phase 线宽和 data phase 线宽。`READ1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
+5. 指令包负责 opcode、PIO `EEPROM_READ`、address phase 线宽和 data phase 线宽。内部 DMA adapter 把 READ2X/READ4X 的 primitive transfer mode 改为 `RX_ONLY`。`READ1X` 是单线地址，`READ2X` 是 2 线地址，`READ4X` 是 4 线地址。
 6. Standard read 从 `DR0` 连续发送 opcode + address，然后控制器按 `CTRLR1.NDF` 自动切换到 RX。Enhanced read 由 `SPI_CTRLR0` 控制 instruction + address + dummy/wait phase，然后按 NDF 自动切换到 RX。
 7. 同一个 primitive transfer 内完成 opcode + address + dummy + read data，CS 不能在中间断开。
 8. 指令包的 `rx_skip_bytes` 非零时，transfer 按 `requested_length + rx_skip_bytes` 接收；flow 丢弃指定数量的前导 byte，再保存 `read_data` 并调用 scoreboard 比较。`READ2X` 丢弃 1 byte，`READ4X` 丢弃 3 byte。
@@ -98,7 +98,7 @@
 1. Python 通过 `internal_dma` / `external_dma` 选择生成内置 DMA、外部 DMA 或无 DMA，二者不能同时开启。
 2. 无 DMA 时不生成 `use_dma` 和 DMA 寄存器配置。
 3. 内置 DMA 时，per-transfer configuration 可设置 `use_dma` 和 `axi_addr`。adapter 固定设置 `AWLEN=15`、`ARLEN=15`，表示 AXI 读写单笔 burst 的最大值均为 16 beat；builder 将四位 `awlen/arlen` 直接写入对应 field，并配置 `AXIAR0.AXIAR0`。软件不根据本次数据量调整 LEN，实际 burst 由控制器自动决定。
-4. 内置 DMA 读 transfer 在配置控制器前，通过 CPU callback 把指令和地址控制项逐 32-bit word 写入 `axi_addr`。内部 DMA 引擎从 AXI source buffer 取控制项；该路径不写 `DR0`。
+4. 内置 DMA 的 READ2X/READ4X 使用 `RX_ONLY`。`SPIDR`、`SPIAR` 和 `SPI_CTRLR0` 提供 instruction、address 和 wait phase；启动前不写 AXI source control item 或 `DR0`。
 5. 内置 DMA 写 transfer 在启动前通过 CPU callback 写 AXI source payload；读 transfer 在 completion 且释放 CS 后，通过 CPU callback 从 AXI destination buffer 读取 actual data。
 6. 外部 DMA 仍在选择 CS 前向 TX FIFO 预填 read control items，并配置 `DMACR.RDMAE/TDMAE` 和 DMA threshold；外部 DMA engine 完成由环境补齐。
 7. 内置 DMA 是当前模板唯一使用 `ISR.DONES` 的完成中断路径。
@@ -126,4 +126,4 @@ AXI burst 切分不拆分 SPI transaction。以 256 字节 payload 为例，内�
 
 ## DMA Test
 
-`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。它复用一次完整 `rw_test`，但强制 `use_dma=1`。内部 DMA 通过 CPU callback 把写 payload 或读控制项放入 AXI source buffer，并从 AXI destination buffer 回读实际数据；不通过 PIO 预填 `DR0`。外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。无 DMA 配置不生成该类、kit 入口或 filelist 条目。
+`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。每次只按 `speed_multiplier` 运行一次完整 `rw_test`，默认 1x，并强制 `use_dma=1`。内部 DMA 只通过 CPU callback 写 program payload，并从 AXI destination buffer 回读实际数据；read 启动前不写 AXI buffer 或 `DR0`。外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。无 DMA 配置不生成该类、kit 入口或 filelist 条目。

@@ -31,7 +31,7 @@
 | `TMOD` | `3` | EEPROM read |
 | `DFS` | `data_frame_bits - 1` | 数据帧位宽 |
 
-Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/payload 都是 master 向 flash 发送，且写流程不使用 dummy clock。Flash read 使用 `TMOD=3 / EEPROM_READ`：standard 路径从 `DR0` 发送 opcode 和 address；enhanced 路径把 opcode/address 值作为 control item 预填到 `DR0`，由 `SPI_CTRLR0` 描述 instruction、address 和 wait phase。控制阶段结束后，控制器自动切换到 NDF 指定的 RX data phase。不要把 page-program 配成 `TX_AND_RX`。
+Flash page-program 使用 `TMOD=1 / TX_ONLY`，因为 opcode/address/payload 都是 master 向 flash 发送，且写流程不使用 dummy clock。PIO flash read 使用 `TMOD=3 / EEPROM_READ`：standard 路径从 `DR0` 发送 opcode 和 address；enhanced 路径把 opcode/address control item 预填到 `DR0`，由 `SPI_CTRLR0` 描述 instruction、address 和 wait phase。内部 DMA 的 READ2X/READ4X 使用 `TMOD=2 / RX_ONLY`，控制阶段由 `SPIDR`、`SPIAR` 和 `SPI_CTRLR0` 提供，不写 `DR0` 或 AXI source control item。接收数据帧数由 NDF 指定。Page-program 不能使用接收模式。
 
 `SSTE` 只描述标准 SPI 帧间分割行为。`SCPH=0` 且 `SSTE=1` 时，每帧数据之间 `ss_*_n` 会拉高再拉低，`SCLK` 停在默认电平；`SSTE=0` 时 `ss_n` 全程保持有效，`SCLK` 连续运行。该行为本质上是 frame 间分割，不等同于完整 SPI memory operation 的 CS window。当前模板每次 transfer 显式写 `CTRLR0.SSTE = 0`，避免收发数据时帧间片选 toggle 破坏连续性。
 
