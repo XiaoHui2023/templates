@@ -59,70 +59,17 @@ function automatic int {{ settings.class_prefix }}dto_ratio_to_step(int ratio);
     return int'(step_i);
 endfunction
 
-// MSB=1、LSB=0 单比特 pattern 下 div field 写入值 n
-function automatic int {{ settings.class_prefix }}div_reg_n_flip_msb(int width);
-    if (width <= 0)
-        `uvm_fatal("CLK_TREE", "div_reg_n_flip_msb: field width must be positive")
-    if (width == 1)
-        return 1;
-    return 1 << (width - 1);
-endfunction
-
-// MSB=0、LSB=1 单比特 pattern 下 div field 写入值 n
-function automatic int {{ settings.class_prefix }}div_reg_n_flip_lsb(int width);
-    return 1;
-endfunction
-
-// div field n 是否落在 f_div 位宽允许分频比内
-function automatic bit {{ settings.class_prefix }}div_flip_n_legal(
-        int n,
-        int max_ratio);
-    return n >= 1 && (n + 1) <= max_ratio;
-endfunction
-
-// 保留探测位，必要时 OR 低位辅助比特使 n 合法
-function automatic int {{ settings.class_prefix }}div_flip_n_legalize(
-        int n,
-        int width);
-    int mask;
-    int cand;
-    int b;
-    int max_ratio;
-    if (width <= 0)
-        `uvm_fatal("CLK_TREE", "div_flip_n_legalize: field width must be positive")
-    max_ratio = {{ settings.class_prefix }}div_max_ratio_for_width(width);
-    mask = (1 << width) - 1;
-    n = n & mask;
-    if ({{ settings.class_prefix }}div_flip_n_legal(n, max_ratio))
-        return n;
-    cand = n | (1 << 1);
-    if ({{ settings.class_prefix }}div_flip_n_legal(cand, max_ratio))
-        return cand;
-    for (b = 2; b < width - 1; b++) begin
-        cand = n | (1 << b);
-        if ({{ settings.class_prefix }}div_flip_n_legal(cand, max_ratio))
-            return cand;
-    end
-    `uvm_fatal("CLK_TREE", $sformatf(
-        "div_flip_n_legalize: cannot legalize n 0x%0h within width %0d",
-        n, width))
-endfunction
-
-// msb_one_lsb_zero 为真取 MSB 单比特，为假取 LSB 单比特
-function automatic int {{ settings.class_prefix }}div_ratio_for_reg_flip(
+// f_div 指定位写 1、其余位写 0 时对应的分频比
+function automatic int {{ settings.class_prefix }}div_ratio_for_reg_bit(
         {{ settings.class_prefix }}reg f_div,
-        bit msb_one_lsb_zero);
+        int bit_index);
     int width;
-    int n;
     width = {{ settings.class_prefix }}reg_field_width(f_div);
-    if (width <= 0)
-        `uvm_fatal("CLK_TREE", "div_ratio_for_reg_flip: field width must be positive")
-    if (msb_one_lsb_zero)
-        n = {{ settings.class_prefix }}div_reg_n_flip_msb(width);
-    else
-        n = {{ settings.class_prefix }}div_reg_n_flip_lsb(width);
-    n = {{ settings.class_prefix }}div_flip_n_legalize(n, width);
-    return n + 1;
+    if (bit_index < 0 || bit_index >= width)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "div_ratio_for_reg_bit: bit %0d outside width %0d",
+            bit_index, width))
+    return (1 << bit_index) + 1;
 endfunction
 
 // MSB=1、LSB=0 单比特 pattern 下 step field 写入值

@@ -5,7 +5,7 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
     {{ settings.class_prefix }}flip_check_req,
     {{ settings.class_prefix }}flip_check_rsp
 );
-    localparam int FLIP_STIM_FREQ_HZ = 800_000_000;
+    localparam int FLIP_STIM_FREQ_HZ = 1_000_000_000;
     localparam int MUX_STIM_START_FREQ_HZ = 900_000_000;
     localparam real MUX_STIM_SCALE = 20.0 / 21.0;
 
@@ -219,7 +219,9 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
     real out_freq_hz;
     real expected_freq_hz;
     real err_ratio;
+    int bit_idx;
     int ratio;
+    int width;
     bit passed;
 
     did_check = 1'b0;
@@ -239,29 +241,43 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
         return;
     end
 
-    ratio = 4;
+    width = {{ settings.class_prefix }}reg_field_width(div_nd.f_div);
     `uvm_info("CLK_TREE", $sformatf(
         "test_flip: test div %s", div_nd.get_name()), UVM_LOW)
 
     in_vif.start_clock(FLIP_STIM_FREQ_HZ);
-    cfg.config_reg_div_node_reg(div_nd, ratio);
-    #20ns;
-    expected_freq_hz = real'(FLIP_STIM_FREQ_HZ) / ratio;
-    measure_port_freq(
-        out_vif, {div_nd.get_name(), ".out"}, int'(expected_freq_hz),
-        out_freq_hz, passed);
-
-    if (!passed)
-        failures++;
-    else begin
-        err_ratio = (out_freq_hz > expected_freq_hz)
-            ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
-            : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
-        if (err_ratio > {{ settings.period_tolerance }}) begin
+    for (bit_idx = 0; bit_idx < width; bit_idx++) begin
+        ratio = {{ settings.class_prefix }}div_ratio_for_reg_bit(
+            div_nd.f_div, bit_idx);
+        cfg.config_reg_div_node_reg(div_nd, ratio);
+        #20ns;
+        expected_freq_hz = real'(FLIP_STIM_FREQ_HZ) / ratio;
+        if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: div %s output %0.2f Hz expected %0.2f Hz",
-                div_nd.get_name(), out_freq_hz, expected_freq_hz))
+                "test_flip: div %s bit %0d ratio %0d expected %0.2f Hz below measurable %0d Hz",
+                div_nd.get_name(), bit_idx, ratio, expected_freq_hz,
+                {{ settings.min_freq_hz }}))
+            continue;
+        end
+        measure_port_freq(
+            out_vif, $sformatf("%s.out bit %0d ratio %0d",
+                div_nd.get_name(), bit_idx, ratio),
+            int'(expected_freq_hz), out_freq_hz, passed);
+
+        if (!passed)
+            failures++;
+        else begin
+            err_ratio = (out_freq_hz > expected_freq_hz)
+                ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
+                : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
+            if (err_ratio > {{ settings.period_tolerance }}) begin
+                failures++;
+                `uvm_error("CLK_TREE", $sformatf(
+                    "test_flip: div %s bit %0d ratio %0d output %0.2f Hz expected %0.2f Hz",
+                    div_nd.get_name(), bit_idx, ratio,
+                    out_freq_hz, expected_freq_hz))
+            end
         end
     end
     in_vif.release_drive();
