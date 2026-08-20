@@ -5,9 +5,9 @@ module {{ class_prefix }}top(
     input wire clk,
     output wire rst_n
 );
-    parameter int PRE_RESET_CYCLES = {{ pre_reset_cycles }};
-    parameter int RESET_ASSERTED_CYCLES = {{ reset_asserted_cycles }};
-    parameter int POST_RESET_CYCLES = {{ post_reset_cycles }};
+    parameter int PRE_CYCLES = {{ pre_cycles }};
+    parameter int RESET_CYCLES = {{ reset_cycles }};
+    parameter int POST_CYCLES = {{ post_cycles }};
 
     {{ class_prefix }}interface rst_vif(clk, rst_n);
     {{ class_prefix }}env env;
@@ -15,19 +15,19 @@ module {{ class_prefix }}top(
     initial begin
         env = {{ class_prefix }}env::type_id::create("env", null);
         uvm_config_db#(virtual {{ class_prefix }}interface)::set(env, "", "rst_vif", rst_vif);
-        set(PRE_RESET_CYCLES, RESET_ASSERTED_CYCLES, POST_RESET_CYCLES);
+        set(PRE_CYCLES, RESET_CYCLES, POST_CYCLES);
     end
 
     // 设置三个复位时序区间。
-    // pre_reset_cycles — 复位拉低前的等待拍数
-    // reset_asserted_cycles — 复位拉低的维持拍数
-    // post_reset_cycles — 复位释放后的等待拍数
+    // pre_cycles — 复位拉低前的等待拍数
+    // reset_cycles — 复位拉低的维持拍数
+    // post_cycles — 复位释放后的等待拍数
     function automatic void set(
-        input int pre_reset_cycles,
-        input int reset_asserted_cycles,
-        input int post_reset_cycles
+        input int pre_cycles,
+        input int reset_cycles,
+        input int post_cycles
     );
-        env.set(pre_reset_cycles, reset_asserted_cycles, post_reset_cycles);
+        env.set(pre_cycles, reset_cycles, post_cycles);
     endfunction
 endmodule
 

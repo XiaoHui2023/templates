@@ -1,4 +1,4 @@
 class_prefix: reset_vip_
-pre_reset_cycles: 8
-reset_asserted_cycles: 12
-post_reset_cycles: 6
+pre_cycles: 8
+reset_cycles: 12
+post_cycles: 6

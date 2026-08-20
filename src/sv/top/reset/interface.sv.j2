@@ -3,23 +3,23 @@
 
 interface {{ class_prefix }}interface(input logic clk, output logic rst_n);
     // 按三个时序区间驱动低有效复位。
-    // pre_reset_cycles — 复位拉低前的等待拍数
-    // reset_asserted_cycles — 复位拉低的维持拍数
-    // post_reset_cycles — 复位释放后的等待拍数
+    // pre_cycles — 复位拉低前的等待拍数
+    // reset_cycles — 复位拉低的维持拍数
+    // post_cycles — 复位释放后的等待拍数
     task automatic drive_reset(
-        input int pre_reset_cycles,
-        input int reset_asserted_cycles,
-        input int post_reset_cycles
+        input int pre_cycles,
+        input int reset_cycles,
+        input int post_cycles
     );
-        repeat (pre_reset_cycles)
+        repeat (pre_cycles)
             @(posedge clk);
 
         rst_n <= 1'b0;
-        repeat (reset_asserted_cycles)
+        repeat (reset_cycles)
             @(posedge clk);
 
         rst_n <= 1'b1;
-        repeat (post_reset_cycles)
+        repeat (post_cycles)
             @(posedge clk);
     endtask
 
