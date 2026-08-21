@@ -152,6 +152,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
         rx_skip_bytes >= 0;
 {%- if internal_dma or external_dma %}
         soft use_dma == 1'b0;
+        if (use_dma) speed_multiplier > 1;
 {%- endif %}
 {%- if internal_dma %}
         soft awlen == '0;

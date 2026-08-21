@@ -51,6 +51,7 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}base_it
         soft addr_bytes == {{ default_addr_bytes }};
 {%- if internal_dma or external_dma %}
         soft use_dma == 1'b0;
+        if (use_dma) speed_multiplier > 1;
 {%- endif %}
 {%- if internal_dma %}
         soft axi_addr == 32'h1000_0000;

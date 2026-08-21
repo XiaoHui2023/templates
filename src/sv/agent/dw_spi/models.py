@@ -243,6 +243,8 @@ class Models(BaseModel):
             raise ValueError("at least one of support_general_spi or support_flash_spi must be enabled")
         if self.internal_dma and self.external_dma:
             raise ValueError("internal_dma and external_dma cannot both be enabled")
+        if (self.internal_dma or self.external_dma) and self.max_speed_multiplier == 1:
+            raise ValueError("DMA requires enhanced SPI with max_speed_multiplier of at least 2")
         return self
 
     @model_validator(mode="after")

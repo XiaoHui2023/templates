@@ -21,15 +21,15 @@ class {{ class_prefix }}dma_test_seq extends {{ class_prefix }}base_seq;
     // Creates a DMA-forced flash read/write test scenario.
     function new(string name="{{ class_prefix }}dma_test_seq");
         super.new(name);
-        speed_multiplier = 1;
+        speed_multiplier = {{ max_speed_multiplier }};
         configuration = {{ class_prefix }}host_configuration::type_id::create("configuration");
     endfunction
 
     constraint cst {
         soft address == '0;
         soft write_data.size() == {{ default_rw_data_bytes }};
-        soft speed_multiplier == 1;
-        speed_multiplier inside {1{% if max_speed_multiplier >= 2 %}, 2{% endif %}{% if max_speed_multiplier >= 4 %}, 4{% endif %}};
+        soft speed_multiplier == {{ max_speed_multiplier }};
+        speed_multiplier inside {2{% if max_speed_multiplier >= 4 %}, 4{% endif %}};
     }
 
     // Executes one read/write test with the generated DMA architecture enabled.

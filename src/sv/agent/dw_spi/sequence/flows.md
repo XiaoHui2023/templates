@@ -126,4 +126,4 @@ AXI burst 切分不拆分 SPI transaction。以 256 字节 payload 为例，内�
 
 ## DMA Test
 
-`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。每次只按 `speed_multiplier` 运行一次完整 `rw_test`，默认 1x，并强制 `use_dma=1`。内部 DMA 只通过 CPU callback 写 program payload，并从 AXI destination buffer 回读实际数据；read 启动前不写 AXI buffer 或 `DR0`。外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。无 DMA 配置不生成该类、kit 入口或 filelist 条目。
+`dma_test` 仅在 Python `internal_dma` 或 `external_dma` 开启时生成并进入 filelist。每次只按 `speed_multiplier` 运行一次完整 `rw_test`，默认使用 `max_speed_multiplier`，并强制 `use_dma=1`。DMA 只允许 2x 或 4x enhanced 传输；启用 DMA 时，`max_speed_multiplier` 至少为 2。内部 DMA 只通过 CPU callback 写 program payload，并从 AXI destination buffer 回读实际数据；read 启动前不写 AXI buffer 或 `DR0`。外部 DMA 在控制器选择 CS 前通过 `start_external_dma(transfer_req)` 完成配置与 arm，在控制器完成后通过 `finish_external_dma(transfer_req, read_data, ok)` 等待 DMA 并返回 DUT 实际读数据。无 DMA 配置不生成该类、kit 入口或 filelist 条目。
