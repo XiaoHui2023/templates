@@ -43,7 +43,7 @@ sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
 
 sequence 从 `p_sequencer.scoreboard` 发送 `uvm_tlm_generic_payload`。scoreboard 只处理地址、字节和文件加载。不放寄存器配置、命令发送、PIO/DMA 搬运策略。kit sequencer 不提供 scoreboard 快捷函数。
 
-Python 配置 `enable_dma: true` 后才生成 DMA 搬运字段和 kit `rw_test(..., use_dma)` 参数。mobile_storage 默认 `use_dma = 1`，mshc 默认 `use_dma = 0`。
+Python 配置 `enable_dma: true` 后才生成 DMA 搬运字段和 kit `rw_test(..., use_dma)` 参数。`use_dma` 默认是 0，需要 DMA 时显式打开。
 
 ## Callback
 

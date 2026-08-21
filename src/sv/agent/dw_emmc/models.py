@@ -337,12 +337,6 @@ class Models(BaseModel):
         self._create_monitored_clocks()
 
     def _set_regmodel_defaults(self):
-        if "enable_dma" in self.model_fields_set and not self.enable_dma:
-            if self.controller_ip == "mobile_storage":
-                raise ValueError("controller_ip mobile_storage requires enable_dma true")
-        if self.controller_ip == "mobile_storage":
-            self.enable_dma = True
-
         if not self.class_regmodel:
             self.class_regmodel = f"ral_sys_{self.regmodel_root}"
         if not self.class_regmodel_rm:

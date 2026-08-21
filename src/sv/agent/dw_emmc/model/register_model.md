@@ -63,6 +63,6 @@
 - mobile_storage 的 `CMD_R.READ_WRITE` 与 `data_xfer_dir_e` 枚举值相反。`XFER_WRITE` 枚举值保持 0，写 `CMD_R.READ_WRITE` 时取反。
 - mobile_storage 的 `RINTSTS_R` 同时包含普通中断和错误中断；`wait_interrupt` 清等待的普通中断位，`check_error` 只清错误位。
 - mobile_storage 普通命令写 `CMD_R.START_CMD` 前清本次等待的旧状态并配置 `INTMASK_R`；等待时先读 `MINTSTS_R` 消费已置位状态，不在等待入口全清 `RINTSTS_R`。
-- `mobile_storage` 自动启用 `enable_dma`；显式配置 `enable_dma: false` 会报错。
+- `mobile_storage` 不强制启用 DMA。`enable_dma` 默认关闭，打开后仍由 `dma_enable` / `use_dma` 决定单次传输是否使用 DMA。
 - `dma_enable == 1` 时必须有数据；有数据不能反向要求 `dma_enable == 1`，SDIO CMD53 允许非 DMA 数据传输。
 - `mobile_storage` 的 tuning 寄存器映射未确认前，`tune_en` 会直接 fatal。

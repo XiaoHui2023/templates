@@ -24,7 +24,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task tune_phase(bit[7:0] phase);
 
     // test shortcuts
-    extern task rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
+    extern task rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %});
 {% if is_emmc or is_sdcard %}
     extern task reg_test();
 {%- endif %}
@@ -185,7 +185,7 @@ task {{ class_prefix }}kit_sequencer::tune_phase(bit[7:0] phase);
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
+task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %});
     {{ class_prefix }}rw_test_seq seq;
 
     if(!write_enable && !read_enable)

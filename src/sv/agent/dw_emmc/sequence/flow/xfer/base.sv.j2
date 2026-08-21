@@ -74,13 +74,10 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
 
         soft abort == 0;
 {%- if enable_dma %}
-{%- if is_mobile_storage %}
-        soft dma_enable == 1;
-        soft dma_sel == ADMA2;
-        dma_enable -> dma_sel inside {ADMA2, ADMA2_3};
-{%- else %}
         soft dma_enable == 0;
         soft dma_sel == ADMA2;
+{%- if is_mobile_storage %}
+        dma_enable -> dma_sel inside {ADMA2, ADMA2_3};
 {%- endif %}
 {%- endif %}
         soft addr == 0;

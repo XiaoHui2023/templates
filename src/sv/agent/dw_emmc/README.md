@@ -45,7 +45,7 @@ monitored_clocks:
 | `class_regmodel_rm_vd1` | `str` | `""` | 空字符串时按 `controller_ip` 生成 vendor1 寄存器块类名 |
 | `clock_defaults` | `ClockDefaults` |  | 时钟默认值 |
 | `monitored_clocks` | `list[MonitoredClock]` |  | 时钟检查配置 |
-| `enable_dma` | `bool` | `false` | 内置 DMA；`mobile_storage` 会自动打开 |
+| `enable_dma` | `bool` | `false` | 内置 DMA |
 
 ### ClockDefaults
 
