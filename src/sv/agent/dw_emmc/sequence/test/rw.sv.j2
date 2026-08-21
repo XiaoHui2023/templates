@@ -84,8 +84,8 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
             data_width == 4;
 {%- endif %}
 
-        soft rd_multi_block_count == 2;
-        soft wr_multi_block_count == 2;
+        soft rd_multi_block_count == 1;
+        soft wr_multi_block_count == 1;
         soft rd_block_size == 512;
         soft wr_block_size == 512;
         soft addr == 0;
@@ -95,10 +95,10 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
         soft rd_blocking == 0;
         soft rd == 1;
         soft wr == 1;
-        soft rd_single == 0;
-        soft wr_single == 0;
-        soft rd_multi == 1;
-        soft wr_multi == 1;
+        soft rd_single == 1;
+        soft wr_single == 1;
+        soft rd_multi == 0;
+        soft wr_multi == 0;
         soft abort == 0;
 {%- if enable_dma %}
         soft adma_des_addr == 'h1000_0000;

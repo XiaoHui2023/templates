@@ -34,7 +34,7 @@ eMMC 按开关运行 `LEGACY`、`HIGH_SPEED_SDR`、`HIGH_SPEED_DDR`、`HS200`、
 
 SD/SDIO 按电压和能力位选择 `DS`、`HS`、`SDR12`、`SDR25`、`SDR50`、`DDR50`、`SDR104`，再按各速度的位宽开关运行。
 
-每个速度点都调用 `rw_test_seq`，固定执行多块写再多块读，并由 `rw_test_seq` 完成初始化、切总线和 scoreboard 比较。
+每个速度点都调用 `rw_test_seq`，固定执行单块写再单块读，并由 `rw_test_seq` 完成初始化、切总线和 scoreboard 比较。
 
 ## 关键点
 

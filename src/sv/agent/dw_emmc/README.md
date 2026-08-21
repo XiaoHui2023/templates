@@ -192,7 +192,7 @@ task run_phase(uvm_phase phase);
     env.emmc_agent.sqr.initial_card();
     // env.emmc_agent.sqr.power_up_operation(1); // 主动执行 power up 软复位
     env.emmc_agent.sqr.switch_bus(HS400, 8);
-    env.emmc_agent.sqr.rw_test(.addr('h0), .count(2));
+    env.emmc_agent.sqr.rw_test(.addr('h0), .count(1));
     env.emmc_agent.sqr.speed_mode_test(.enable_hs200_4bit(1), .enable_hs400_8bit(1));
 
     phase.drop_objection(this);

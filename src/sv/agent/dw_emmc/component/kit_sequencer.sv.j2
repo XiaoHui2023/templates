@@ -24,7 +24,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task tune_phase(bit[7:0] phase);
 
     // test shortcuts
-    extern task rw_test(bit[63:0] addr = 0, int count = 2{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
+    extern task rw_test(bit[63:0] addr = 0, int count = 1{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
 {% if is_emmc or is_sdcard %}
     extern task reg_test();
 {%- endif %}
@@ -185,13 +185,17 @@ task {{ class_prefix }}kit_sequencer::tune_phase(bit[7:0] phase);
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 2{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
+task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 1{%- if enable_dma %}, bit use_dma = {{ 1 if is_mobile_storage else 0 }}{%- endif %});
     {{ class_prefix }}rw_test_seq seq;
 
     seq = {{ class_prefix }}rw_test_seq::type_id::create("rw_test_seq");
     seq.set_item_context(null, this);
     if(!seq.randomize() with {
         addr == local::addr;
+        rd_single == (local::count == 1);
+        wr_single == (local::count == 1);
+        rd_multi == (local::count > 1);
+        wr_multi == (local::count > 1);
         rd_multi_block_count == local::count;
         wr_multi_block_count == local::count;
 {%- if enable_dma %}

@@ -47,12 +47,16 @@ HS400 + 8bit 的 CMD6 期望序列：
 - `addr == 0`
 - `rd == 1`
 - `wr == 1`
-- `rd_multi_block_count == 2`
-- `wr_multi_block_count == 2`
+- `rd_single == 1`
+- `wr_single == 1`
+- `rd_multi == 0`
+- `wr_multi == 0`
+- `rd_multi_block_count == 1`
+- `wr_multi_block_count == 1`
 - eMMC 默认 `rd_block_size == 512`、`wr_block_size == 512`
 - 默认分区配置为 NO，不发分区 CMD6
 
-默认 `rd_single/wr_single` 二选一，`rd_multi/wr_multi` 二选一。指定精确路径时必须用 `cst_case` 或 `uvm_do_with` 约束读写方向和 single/multi。
+默认执行 single 路径。指定精确路径时必须用 `cst_case` 或 `uvm_do_with` 约束读写方向和 single/multi。
 
 执行段：
 

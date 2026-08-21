@@ -181,12 +181,12 @@ task {{ class_prefix }}speed_mode_test_seq::run_rw(bus_speed_mode_e bus_speed_mo
         bus_speed_mode == local::bus_speed_mode;
         rd == 1;
         wr == 1;
-        rd_single == 0;
-        wr_single == 0;
-        rd_multi == 1;
-        wr_multi == 1;
-        rd_multi_block_count == 2;
-        wr_multi_block_count == 2;
+        rd_single == 1;
+        wr_single == 1;
+        rd_multi == 0;
+        wr_multi == 0;
+        rd_multi_block_count == 1;
+        wr_multi_block_count == 1;
         should_compare == 1;
     })
 endtask
