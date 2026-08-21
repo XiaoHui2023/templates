@@ -11,7 +11,7 @@
 | `rd_multi_block_count` / `wr_multi_block_count` | 多块读写块数，默认 1 |
 | `data_width` / `bus_speed_mode` | 传输前切换的总线位宽和速度 |
 | `dma_enable` / `dma_sel` | 数据搬运方式；仅 `enable_dma: true` 时生成 |
-| `should_compare` | 读数据是否与 scoreboard 比较 |
+| `should_compare` | 是否比较读数据；默认仅同时读写时打开 |
 | `wp` | 写保护场景；写命令不更新 scoreboard expected memory |
 
 ## 流程
@@ -19,7 +19,7 @@
 1. 未初始化时运行 `initial_seq`。
 2. 运行 `switch_bus_seq`。
 3. eMMC 分区配置非默认时发送 `switch_partition_config_command_seq`；SD/SDIO 不生成该命令。
-4. 按写路径先更新 scoreboard expected memory。
-5. 按读路径从 DUT 取数据并与 scoreboard memory 比较。
+4. 写路径完成后更新 scoreboard expected memory。
+5. 读路径完成后按 `should_compare` 决定是否与 scoreboard memory 比较。
 
-默认执行单块写，再执行单块读。只读场景需要先通过 `agent.scb` 加载初始镜像。
+默认执行单块写，再执行单块读并比较。只写、只读默认不比较；需要只读比较时显式约束 `should_compare == 1`。

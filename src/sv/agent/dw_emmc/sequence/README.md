@@ -53,6 +53,7 @@ HS400 + 8bit 的 CMD6 期望序列：
 - `wr_multi == 0`
 - `rd_multi_block_count == 1`
 - `wr_multi_block_count == 1`
+- `should_compare == 1`
 - eMMC 默认 `rd_block_size == 512`、`wr_block_size == 512`
 - 默认分区配置为 NO，不发分区 CMD6
 
@@ -65,11 +66,11 @@ HS400 + 8bit 的 CMD6 期望序列：
 3. eMMC 分区配置非默认时运行 `switch_partition_config_command_seq`；SD/SDIO 不生成该命令
 4. 按 `rd_single/rd_multi/wr_single/wr_multi/abort` 运行读写 transfer
 5. 写操作完成后向 scoreboard 发送 payload，更新 expected memory
-6. 读操作完成后向 scoreboard 发送 payload，自动与 expected memory 比较
+6. 读操作完成后按 `should_compare` 决定是否与 expected memory 比较
 
 `rw_test_seq` 默认先执行 write，再执行 read。scoreboard 可以先加载与 card 相同的初始文件；写操作会改变 expected memory；后续读操作必须对比写后的 expected memory，而不是旧 card VIP 内存。
 
-只读测试需要先通过 `agent.scb` 加载 scoreboard 初始内容。
+只写、只读默认不比较。需要只读比较时，先通过 `agent.scb` 加载 scoreboard 初始内容，再显式约束 `should_compare == 1`。
 
 指定可复现只读路径时约束这些字段：
 
@@ -80,6 +81,7 @@ rd_multi == 1;
 rd_single == 0;
 addr == 0;
 rd_multi_block_count == 2;
+should_compare == 0;
 ```
 
 ## 多块读
