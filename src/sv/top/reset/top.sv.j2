@@ -5,7 +5,7 @@ module {{ class_prefix }}top(
     input wire clk,
     output wire rst_n
 );
-    parameter string ENV_NAME = "";
+    parameter string ENV_NAME = "env";
     parameter int PRE_CYCLES = {{ pre_cycles }};
     parameter int RESET_CYCLES = {{ reset_cycles }};
     parameter int POST_CYCLES = {{ post_cycles }};
@@ -13,26 +13,13 @@ module {{ class_prefix }}top(
     {{ class_prefix }}interface rst_vif(clk, rst_n);
     {{ class_prefix }}env env;
 
-    // 将 module 实例路径转换为 UVM 组件名。
-    // scope_name — module 实例路径
-    function automatic string make_env_name(input string scope_name);
-        string env_name;
-
-        env_name = scope_name;
-        for (int i = 0; i < env_name.len(); i++) begin
-            if (env_name.getc(i) == 8'h2e)
-                env_name.putc(i, 8'h5f);
-        end
-        return {env_name, "_env"};
-    endfunction
-
     initial begin
         string env_name;
 
-        env_name = ENV_NAME;
-        if (env_name == "")
-            env_name = make_env_name($sformatf("%m"));
+        if (ENV_NAME == "")
+            `uvm_fatal("RESET_CFG", "ENV_NAME must not be empty")
 
+        env_name = $sformatf("%m.%s", ENV_NAME);
         env = {{ class_prefix }}env::type_id::create(env_name, null);
         uvm_config_db#(virtual {{ class_prefix }}interface)::set(env, "", "rst_vif", rst_vif);
         set(PRE_CYCLES, RESET_CYCLES, POST_CYCLES);
