@@ -33,6 +33,7 @@
 | 块数量 | `BLOCKCOUNT_R.BLOCK_CNT` | `BYTCNT_R.BYTE_COUNT`，按 `block_size * block_count` 写字节数 |
 | 命令参数 | `ARGUMENT_R.ARGUMENT` | `CMDARG_R.CMD_ARG` |
 | 传输模式 | `XFER_MODE_R` | 合并到 `CMD_R` |
+| 读写方向 | `XFER_MODE_R.DATA_XFER_DIR` 直接使用 `data_xfer_dir_e` | `CMD_R.READ_WRITE` 与 `data_xfer_dir_e` 相反，写寄存器时取反 |
 | 数据宽度 | `HOST_CTRL1_R.DAT_XFER_WIDTH` / `EXT_DAT_XFER` | `CTYPE_R.CARD_WIDTH` |
 | 高速模式 | `HOST_CTRL1_R.HIGH_SPEED_EN`、`HOST_CTRL2_R.UHS_MODE_SEL`、`HOST_CTRL2_R.SIGNALING_EN` | `UHS_REG_R` |
 | DMA 选择 | `HOST_CTRL1_R.DMA_SEL` | `CNTRL_R.user_internal_dmac`，RO，硬件固定 |
@@ -59,6 +60,7 @@
 - `freq_sel` 在 `mshc` 下拆成 `[9:8]` 和 `[7:0]`，在 `mobile_storage` 下整体写入 `CLKDIV_R.CLK_DIVIDER0[9:0]`。
 - mobile_storage 的 `CMDARG_R` 地址 `0x28`、`CMD_R` 地址 `0x2c`、`UPDATE_CLOCK_REGISTERS_ONLY` bit 21、`START_CMD` bit 31 只作为寄存器模型校对依据；模板代码通过 RAL 字段访问，不手写地址或位偏移。
 - mobile_storage 的 power up 会把 `CMD_R.UPDATE_CLOCK_REGISTERS_ONLY` 置 1，access 发普通命令前必须清 0。
+- mobile_storage 的 `CMD_R.READ_WRITE` 与 `data_xfer_dir_e` 枚举值相反。`XFER_WRITE` 枚举值保持 0，写 `CMD_R.READ_WRITE` 时取反。
 - mobile_storage 的 `RINTSTS_R` 同时包含普通中断和错误中断；`wait_interrupt` 清等待的普通中断位，`check_error` 只清错误位。
 - mobile_storage 普通命令写 `CMD_R.START_CMD` 前清本次等待的旧状态并配置 `INTMASK_R`；等待时先读 `MINTSTS_R` 消费已置位状态，不在等待入口全清 `RINTSTS_R`。
 - `mobile_storage` 自动启用 `enable_dma`；显式配置 `enable_dma: false` 会报错。

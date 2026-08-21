@@ -142,7 +142,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.CMD_R.RESPONSE_LENGTH.set(access_request.resp_type_select == access_request.RESP_LEN_136);
     rm.CMD_R.CHECK_RESPONSE_CRC.set(access_request.cmd_crc_chk_enable);
     rm.CMD_R.DATA_EXPECTED.set(access_request.data_present_sel);
-    rm.CMD_R.READ_WRITE.set(access_request.data_xfer_dir);
+    rm.CMD_R.READ_WRITE.set(!access_request.data_xfer_dir);
     rm.CMD_R.SEND_AUTO_STOP.set(access_request.auto_cmd_enable != AUTO_CMD_DISABLED);
     rm.CMD_R.WAIT_PRVDATA_COMPLETE.set(1);
     rm.CMD_R.CMD_INDEX.set(access_request.cmd_index);
