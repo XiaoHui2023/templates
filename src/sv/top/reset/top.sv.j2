@@ -11,19 +11,25 @@ module {{ class_prefix }}top(
     parameter int POST_CYCLES = {{ post_cycles }};
 
     {{ class_prefix }}interface rst_vif(clk, rst_n);
-    {{ class_prefix }}env env;
 
-    initial begin
-        string env_name;
+    // 创建并初始化复位环境。
+    // scope_name — 当前 module 实例路径
+    function automatic {{ class_prefix }}env create_env(input string scope_name);
+        {{ class_prefix }}env result;
 
         if (ENV_NAME == "")
             `uvm_fatal("RESET_CFG", "ENV_NAME must not be empty")
 
-        env_name = $sformatf("%m.%s", ENV_NAME);
-        env = {{ class_prefix }}env::type_id::create(env_name, null);
-        uvm_config_db#(virtual {{ class_prefix }}interface)::set(env, "", "rst_vif", rst_vif);
-        set(PRE_CYCLES, RESET_CYCLES, POST_CYCLES);
-    end
+        result = {{ class_prefix }}env::type_id::create(
+            $sformatf("%s.%s", scope_name, ENV_NAME),
+            null
+        );
+        result.rst_vif = rst_vif;
+        result.set(PRE_CYCLES, RESET_CYCLES, POST_CYCLES);
+        return result;
+    endfunction
+
+    {{ class_prefix }}env env = create_env($sformatf("%m"));
 
     // 设置三个复位时序区间。
     // pre_cycles — 复位拉低前的等待拍数
