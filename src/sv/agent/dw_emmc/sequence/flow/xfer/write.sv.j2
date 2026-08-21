@@ -25,8 +25,6 @@ class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
     }
 
     virtual task execute_command();
-        {{ class_prefix }}command_response cmd_response;
-
         {%- if is_emmc or is_sdcard %}
         {{ class_prefix }}write_block_command_seq write_block_seq;
         {{ class_prefix }}write_multiple_block_command_seq write_multiple_block_seq;
@@ -39,7 +37,6 @@ class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
                 cmd_request.block_count == local::count;
                 cmd_request.block_size == local::size;
                 cmd_request.addr == local::addr;
-                cmd_request.chk_err_request.should_fatal == !local::allow_failure;
 {%- if enable_dma %}
                 cmd_request.dma_enable == local::dma_enable;
                 cmd_request.dma_sel == local::dma_sel;
@@ -63,14 +60,12 @@ class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
                 foreach(local::wdata[j])
                     cmd_request.wdata[j] == local::wdata[j];
             })
-            cmd_response = write_multiple_block_seq.rsp;
         end
         else begin
             `uvm_do_with(write_block_seq, {
                 cmd_request.block_count == local::count;
                 cmd_request.block_size == local::size;
                 cmd_request.addr == local::addr;
-                cmd_request.chk_err_request.should_fatal == !local::allow_failure;
 {%- if enable_dma %}
                 cmd_request.dma_enable == local::dma_enable;
                 cmd_request.dma_sel == local::dma_sel;
@@ -94,18 +89,10 @@ class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
                 foreach(local::wdata[j])
                     cmd_request.wdata[j] == local::wdata[j];
             })
-            cmd_response = write_block_seq.rsp;
         end
         {%- elif is_sdio %}
         execute_sdio(wdata);
-        cmd_response = io_rw_extended_seq.rsp;
         {%- endif %}
-
-        if (cmd_response.failed) begin
-            failed = 1;
-            failure_reason = cmd_response.failure_reason;
-            return;
-        end
     endtask
 endclass
 

@@ -7,10 +7,8 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 ## 2026-08-20
 
-- 修正 `phase_debug_test` 调相阶段：eMMC 为 HS200 写、HS200 读、HS400 DAT STB 三段；SDCard/SDIO 为写、读两段。新增独立 callback 与可选 card memory 获取钩子。
-- 新增 `phase_debug_test`：通过 callback 逐轮外部调相；eMMC 分时钟相位和 DAT STB 相位，SDCard/SDIO 只调时钟相位；每轮允许读写失败并进入下一轮，普通 rw/test fatal 行为不变。
-- mobile_storage 生成 DMA 时，kit `rw_test()` 和 `phase_debug_test()` 默认 `use_dma = 1`，避免默认走不存在的 PIO 数据口；mshc 默认仍为 0。
 - mobile_storage SDIO 命令完成等待改为状态优先：access 写 `CMD_R.START_CMD` 前清 CMD complete 并配置 `INTMASK_R`；`wait_interrupt` 先消费已置位 `MINTSTS_R`，不再入口全清 `RINTSTS_R`；`check_error` 轮询降噪。
+- mobile_storage 生成 DMA 时，kit `rw_test()` 默认 `use_dma = 1`，避免默认走不存在的 PIO 数据口；mshc 默认仍为 0。
 - 修正 `command_request` 和 `access_request` 的 DMA 约束方向：保留 `dma_enable -> data_present_sel`，删除 `data_present_sel -> dma_enable`，允许 SDIO CMD53 非 DMA 数据传输；`mshc` 旧流程不改变。
 - 明确当前模板库的 mobile_storage 暂时只支持 SDIO：用户说 `mobile_storage` 时按 `controller_ip: mobile_storage` + `card_type: sdio` 验证；`mshc` 维持原有 eMMC/SDCard/SDIO 行为。
 

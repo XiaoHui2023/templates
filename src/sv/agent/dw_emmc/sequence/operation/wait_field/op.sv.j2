@@ -76,20 +76,10 @@ task {{ class_prefix }}wait_field_operation_seq::wait_field(uvm_reg_field f, int
         fork
             begin
                 p_sequencer.vif.wait_timeout(wait_field_request.timeout_us);
-                if (chk_err_request.should_fatal)
-                    `uvm_fatal("", $psprintf("wait field timeout:\n%s", wait_field_request.sprint()))
-                else begin
-                    rsp.failed = 1;
-                    rsp.failure_reason = "wait field timeout";
-                end
+                `uvm_fatal("", $psprintf("wait field timeout:\n%s", wait_field_request.sprint()))
             end
             forever begin
                 `uvm_rand_send(chk_err_seq)
-                if (chk_err_seq.rsp.is_error) begin
-                    rsp.failed = 1;
-                    rsp.failure_reason = "check error";
-                    break;
-                end
 
                 r.read(status, rdata);
                 `uvm_info("", $psprintf("wait field.rdata = 0x%0h", rdata), UVM_DEBUG)
@@ -114,20 +104,10 @@ task {{ class_prefix }}wait_field_operation_seq::wait_status_bit(int bit_idx, in
         fork
             begin
                 p_sequencer.vif.wait_timeout(wait_field_request.timeout_us);
-                if (chk_err_request.should_fatal)
-                    `uvm_fatal("", $psprintf("wait status timeout:\n%s", wait_field_request.sprint()))
-                else begin
-                    rsp.failed = 1;
-                    rsp.failure_reason = "wait status timeout";
-                end
+                `uvm_fatal("", $psprintf("wait status timeout:\n%s", wait_field_request.sprint()))
             end
             forever begin
                 `uvm_rand_send(chk_err_seq)
-                if (chk_err_seq.rsp.is_error) begin
-                    rsp.failed = 1;
-                    rsp.failure_reason = "check error";
-                    break;
-                end
 
                 rm.STATUS_R.read(status, rdata);
                 `uvm_info("", $psprintf("wait status.rdata = 0x%0h", rdata), UVM_DEBUG)

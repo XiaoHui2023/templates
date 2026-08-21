@@ -92,11 +92,6 @@ task {{ class_prefix }}access_operation_seq::execute_access();
         wait_field_request.cmd_uninhibit;
         wait_field_request.cmd_uninhibit_dat;
     })
-    if (wait_field_seq.rsp.failed) begin
-        rsp.failed = 1;
-        rsp.failure_reason = wait_field_seq.rsp.failure_reason;
-        return;
-    end
 
     // [0x00] 设置地址
 {%- if is_mobile_storage %}

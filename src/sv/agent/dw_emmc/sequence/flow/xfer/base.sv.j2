@@ -21,9 +21,6 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
                 {%- endif %}
         `uvm_field_int(abort,UVM_ALL_ON)
         `uvm_field_enum(data_xfer_dir_e,data_xfer_dir,UVM_ALL_ON)
-        `uvm_field_int(allow_failure, UVM_ALL_ON|(allow_failure?0:UVM_NOPRINT))
-        `uvm_field_int(failed, UVM_ALL_ON|(failed?0:UVM_NOPRINT))
-        `uvm_field_string(failure_reason, UVM_ALL_ON|(failed?0:UVM_NOPRINT))
     `uvm_object_utils_end
 
     rand bit[31:0] addr; // 地址
@@ -44,9 +41,6 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
 
     rand bit abort; // 是否ABORT模式
     rand data_xfer_dir_e data_xfer_dir; // 读写类型
-    rand bit allow_failure; // 允许失败返回
-    bit failed; // 当前传输是否失败
-    string failure_reason; // 当前传输失败原因
 
     function new(string name="{{ class_prefix }}xfer_base_seq");
         super.new(name);
@@ -79,7 +73,6 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
                 {%- endif %}
 
         soft abort == 0;
-        soft allow_failure == 0;
 {%- if enable_dma %}
 {%- if is_mobile_storage %}
         soft dma_enable == 1;
@@ -151,9 +144,6 @@ function void {{ class_prefix }}xfer_base_seq::pre_randomize();
 endfunction
 
 task {{ class_prefix }}xfer_base_seq::body();
-    failed = 0;
-    failure_reason = "";
-
 {%- if enable_dma %}
     write_adma_des();
 {%- endif %}
@@ -217,7 +207,6 @@ task {{ class_prefix }}xfer_base_seq::execute_sdio(bit[7:0] wdata[$]);
         cmd_request.block_size == local::size;
         cmd_request.block_count == local::count;
         cmd_request.addr == local::addr;
-        cmd_request.chk_err_request.should_fatal == !local::allow_failure;
 {%- if enable_dma %}
         cmd_request.dma_enable == local::dma_enable;
         cmd_request.dma_sel == local::dma_sel;
