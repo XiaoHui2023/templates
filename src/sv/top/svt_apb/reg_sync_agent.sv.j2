@@ -1,3 +1,4 @@
+{%- if reg_sync.is_enabled %}
 `ifndef {{ class_reg_sync_agent | upper }}
 `define {{ class_reg_sync_agent | upper }}
 
@@ -6,41 +7,47 @@ class {{ class_reg_sync_agent }} extends uvm_component;
 
     {{ class_config }} cfg;
 
-    function new(string name="{{ class_reg_sync_agent }}", uvm_component parent=null);
-        super.new(name,parent);
+    // 构造寄存器同步组件。
+    function new(string name = "{{ class_reg_sync_agent }}", uvm_component parent = null);
+        super.new(name, parent);
     endfunction
 
+    // 在每个 APB 时钟沿同步寄存器镜像值。
     extern task run_phase(uvm_phase phase);
 
     protected uvm_status_e status;
 
-    // 同步寄存器，将可写寄存器同步为对应值（仅 RO,WO,RW 寄存器）
+    // 同步寄存器块中的受支持寄存器。
     extern protected task sync_reg_block(uvm_reg_block blk);
 
-    // 同步单个reg
+    // 用后门读取值更新单个寄存器的镜像值。
     extern protected task sync_reg(uvm_reg r);
 
-    // 是否只读
+    // 判断寄存器是否含只读字段。
     extern protected function bit is_ro(uvm_reg r);
 
-    // 是否只写
+    // 判断寄存器是否含只写字段。
     extern protected function bit is_wo(uvm_reg r);
 
-    // 是否可读可写
+    // 判断寄存器是否含可读写字段。
     extern protected function bit is_rw(uvm_reg r);
 
-    // 是否有访问方式
-    extern protected function bit is_access(uvm_reg r,string access);
+    // 判断寄存器是否含指定访问类型的字段。
+    extern protected function bit is_access(uvm_reg r, string access);
 
-    // 是否被屏蔽
+    // 判断寄存器是否在屏蔽列表中。
     extern protected function bit is_masked(uvm_reg r);
 endclass
 
 task {{ class_reg_sync_agent }}::run_phase(uvm_phase phase);
     super.run_phase(phase);
 
-    if(!cfg.should_reg_sync)
+    if (cfg == null)
+        `uvm_fatal("APB_REG_SYNC", "cfg must be assigned before run_phase")
+    if (!cfg.should_reg_sync)
         return;
+    if (cfg.regmodel == null)
+        `uvm_fatal("APB_REG_SYNC", "regmodel is required when register sync is enabled")
 
     forever begin
         @(posedge cfg.vif.clk);
@@ -51,53 +58,51 @@ endtask
 task {{ class_reg_sync_agent }}::sync_reg_block(uvm_reg_block blk);
     uvm_reg regs[$];
 
-    // 读取
     blk.get_registers(regs);
 
-    // 遍历
-    foreach(regs[i])
+    foreach (regs[i])
         sync_reg(regs[i]);
 endtask
 
 task {{ class_reg_sync_agent }}::sync_reg(uvm_reg r);
-    bit[31:0] raw;
-    bit[31:0] rdata;
+    uvm_reg_data_t raw;
+    uvm_reg_data_t rdata;
 
-    if(is_masked(r))
+    if (is_masked(r))
         return;
-    if(!(is_wo(r) || is_rw(r) || is_ro(r)))
+    if (!(is_wo(r) || is_rw(r) || is_ro(r)))
         return;
 
     raw = r.get();
     r.peek(status, rdata);
-    if(status == UVM_NOT_OK)
-        `uvm_fatal("", $spsprintf("failed to peek '%s'",r.get_full_name()))
+    if (status == UVM_NOT_OK)
+        `uvm_fatal("APB_REG_SYNC", $sformatf("failed to peek '%s'", r.get_full_name()))
     r.set(rdata);
-    if(raw != rdata)
-        `uvm_info("", $spsprintf("sync '%s' -> 0x%0h",r.get_full_name(),rdata),UVM_LOW)
+    if (raw != rdata)
+        `uvm_info("APB_REG_SYNC", $sformatf("sync '%s' -> 0x%0h", r.get_full_name(), rdata), UVM_LOW)
 endtask
 
-function bit {{ class_reg_sync_agent }}::is_access(uvm_reg r,string access);
+function bit {{ class_reg_sync_agent }}::is_access(uvm_reg r, string access);
     uvm_reg_field fields[$];
 
     r.get_fields(fields);
-    foreach(fields[i])
-        if(fields[i].get_access() == access)
+    foreach (fields[i])
+        if (fields[i].get_access() == access)
             return 1;
 
     return 0;
 endfunction
 
 function bit {{ class_reg_sync_agent }}::is_ro(uvm_reg r);
-    return is_access(r,"RO");
+    return is_access(r, "RO");
 endfunction
 
 function bit {{ class_reg_sync_agent }}::is_wo(uvm_reg r);
-    return is_access(r,"WO");
+    return is_access(r, "WO");
 endfunction
 
 function bit {{ class_reg_sync_agent }}::is_rw(uvm_reg r);
-    return is_access(r,"RW");
+    return is_access(r, "RW");
 endfunction
 
 function bit {{ class_reg_sync_agent }}::is_masked(uvm_reg r);
@@ -105,3 +110,4 @@ function bit {{ class_reg_sync_agent }}::is_masked(uvm_reg r);
 endfunction
 
 `endif
+{%- endif %}

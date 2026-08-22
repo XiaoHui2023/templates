@@ -1,0 +1,7 @@
+class_prefix: apb_vip_
+monitor:
+  is_enabled: true
+reg_sync:
+  is_enabled: true
+report:
+  is_enabled: true

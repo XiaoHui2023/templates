@@ -6,29 +6,27 @@ class {{ class_slave_memory_seq }} extends svt_apb_slave_base_sequence;
     `svt_xvm_object_utils({{ class_slave_memory_seq }})
     `svt_xvm_declare_p_sequencer(svt_apb_slave_sequencer)
 
-    /** Slave memory. */
     svt_apb_memory apb_slave_mem;
 
-    function new(string name="{{ class_slave_memory_seq }}");
+    // 构造从设备存储响应序列。
+    function new(string name = "{{ class_slave_memory_seq }}");
         super.new(name);
     endfunction
 
+    // 持续接收 APB 请求并返回存储模型响应。
     virtual task body();
-        // Status bit for randomization
-        integer status;
+        bit status;
 
         // Container for pstrb value
-        bit[`SVT_APB_MAX_DATA_WIDTH/8 -1 :0] byteen;
+        bit [`SVT_APB_MAX_DATA_WIDTH/8 - 1:0] byteen;
 
         // Number of pstrb bits
         int byteen_bits;
 
         super.body();
 
-        //fork off a thread to pull the responses out of response queue
         sink_responses();
 
-        // Instantiate the slave memory
         create_apb_slave_mem();
 
         // 设初值，随机值填充
@@ -42,9 +40,8 @@ class {{ class_slave_memory_seq }} extends svt_apb_slave_base_sequence;
             req.ZERO_WAIT_CYCLES_wt = 1;
             req.SHORT_WAIT_CYCLES_wt = 1;
             req.LONG_WAIT_CYCLES_wt = 0;
-            if (req.cfg == null) begin
+            if (req.cfg == null)
                 req.cfg = cfg;
-            end
 
             if (req.xact_type != svt_apb_transaction::IDLE && !apb_slave_mem.is_in_bounds(req.address)) begin
                 `svt_xvm_warning("body", $sformatf("Attempted bus failed. Returning pslverr with this transaction.: %s", `SVT_APB_PRINT_PREFIX(req)));
@@ -58,36 +55,31 @@ class {{ class_slave_memory_seq }} extends svt_apb_slave_base_sequence;
             end
 
             status = req.randomize() with {
-                num_wait_cycles dist {0:=1,1:=1,[2:10]:=0};
+                num_wait_cycles dist {0 := 1, 1 := 1, [2:10] := 0};
             };
 
-            byteen_bits = req.cfg.sys_cfg.pdata_width/8;
+            byteen_bits = req.cfg.sys_cfg.pdata_width / 8;
 
-            if(req.cfg.sys_cfg.apb4_enable) begin
+            if (req.cfg.sys_cfg.apb4_enable) begin
                 byteen = req.pstrb;
             end
             else begin
-                byteen = ((1<< byteen_bits) -1);
+                byteen = (1 << byteen_bits) - 1;
             end
-            if(!status)
+            if (!status)
                 `svt_xvm_fatal("body", "Randomization of slave response failed");
             if (!req.pslverr_enable) begin
                 // For write transaction, put the write data to memory
-                if(req.xact_type == svt_apb_slave_transaction::WRITE) begin
+                if (req.xact_type == svt_apb_slave_transaction::WRITE) begin
                     `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0h.", `SVT_APB_PRINT_PREFIX(req), byteen));
                     void'(apb_slave_mem.write(req.address, req.data, byteen));
                 end
                 // For Read transaction, get the read data from memory
-                else if(req.xact_type == svt_apb_slave_transaction::READ)begin
+                else if (req.xact_type == svt_apb_slave_transaction::READ) begin
                     req.data = apb_slave_mem.read(req.address);
                     `svt_xvm_debug("body", $sformatf("Updating slave memory for %s byteen='h%0h.", `SVT_APB_PRINT_PREFIX(req), byteen));
 `ifdef SVT_APB_SLAVE_DRIVE_X_IF_MEMDATA_X
-                    // If the value read from apb slave mem contains X, set the following.
-                    // $isunknown(data) can be used, but using this for performance.
-                    req.read_data_contains_x = 0;
-                    if (^(apb_slave_mem.read(req.address)) === 1'bx) begin
-                        req.read_data_contains_x = 1;
-                    end
+                    req.read_data_contains_x = $isunknown(req.data);
 `endif
                 end
             end
@@ -100,6 +92,7 @@ class {{ class_slave_memory_seq }} extends svt_apb_slave_base_sequence;
         end
     endtask: body
 
+    // 获取或创建 sequencer 所属 slave agent 的存储模型。
     virtual function void create_apb_slave_mem();
         svt_apb_slave_agent slave_agent;
 
@@ -112,7 +105,7 @@ class {{ class_slave_memory_seq }} extends svt_apb_slave_base_sequence;
                                     cfg.sys_cfg.pdata_width, // Data width
                                     0,                      // Address region
                                     0,                      // Lower address bound
-                                    (1<<cfg.sys_cfg.paddr_width)-1); // Upper address bound
+                                    (64'd1 << cfg.sys_cfg.paddr_width) - 1); // Upper address bound
                 slave_agent.apb_slave_mem = apb_slave_mem;
             end
         end

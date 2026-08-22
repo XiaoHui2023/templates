@@ -1,45 +1,48 @@
+{%- if report.is_enabled %}
 `ifndef {{ class_reporter | upper }}
 `define {{ class_reporter | upper }}
-
-typedef class Data_packet;
 
 class {{ class_reporter }} extends uvm_component;
     `uvm_component_utils({{ class_reporter }})
     `uvm_analysis_imp_decl(_i)
-    uvm_analysis_imp_i #(Data_packet, {{ class_reporter }}) imp; // 输入 apb 转换后的数据
+    uvm_analysis_imp_i #(Data_packet, {{ class_reporter }}) imp;
 
-    function new(string name="{{ class_reporter }}", uvm_component parent=null);
-        super.new(name,parent);
+    // 构造事务文件记录组件。
+    function new(string name = "{{ class_reporter }}", uvm_component parent = null);
+        super.new(name, parent);
 
-        imp = new("imp",this);
+        imp = new("imp", this);
     endfunction
 
     {{ class_config }} cfg;
-    protected bit is_enabled; // 是否启用
-    bit has_written; // 是否写过
+    protected bit is_enabled;
+    bit has_written;
 
+    // 根据输出路径设置记录状态。
     extern function void build();
 
-    // 获取目录
+    // 返回路径中的目录部分。
     extern function string dir(string str);
 
-    // 记录内容
+    // 创建输出目录。
     extern function void mkdir();
 
-    // 写文本
+    // 将一行事务文本写入输出文件。
     extern function void write_content(string s);
 
-    // 写文件
-    extern function void file_write(string dst,string str,string op="a");
+    // 按指定模式写入文本文件。
+    extern function void file_write(string dst, string str, string op = "a");
 
-    // 写数据
+    // 将数据包格式化为事务记录。
     extern virtual function void write(Data_packet i);
 endclass
 
 function void {{ class_reporter }}::build();
     super.build();
 
-    is_enabled = cfg.log_path.len > 0;
+    if (cfg == null)
+        `uvm_fatal("APB_REPORT", "cfg must be assigned before build")
+    is_enabled = cfg.log_path.len() > 0;
 endfunction
 
 function void {{ class_reporter }}::write(Data_packet i);
@@ -47,22 +50,20 @@ function void {{ class_reporter }}::write(Data_packet i);
     string op;
     string s;
 
-    if(!is_enabled)
+    if (!is_enabled)
         return;
 
-    $cast(i,i.clone());
+    `uvm_info("APB_REPORT", $sformatf("input:\n%s", i.sprint()), UVM_DEBUG)
 
-    `uvm_info("",$spsprintf("i:\n%s",i.sprint()),UVM_DEBUG)
-
-    case(i.xact_type)
-        I_READ  : op = "R";
-        I_WRITE : op = "W";
-        default : `uvm_fatal("", "")
+    case (i.xact_type)
+        Data_packet::READ:  op = "R";
+        Data_packet::WRITE: op = "W";
+        default: `uvm_fatal("APB_REPORT", "unsupported packet transaction type")
     endcase
 
-    dat = $bits(dat)'(i.data);
+    dat = {<<8{i.data}};
 
-    s = $spsprintf("%s\t0x%h\t0x%h",op,i.addr,dat);
+    s = $sformatf("%s\t0x%h\t0x%h", op, i.addr, dat);
 
     write_content(s);
 endfunction
@@ -70,31 +71,31 @@ endfunction
 function void {{ class_reporter }}::write_content(string s);
     string op;
 
-    if(!has_written) begin
+    if (!has_written) begin
         op = "w";
         has_written = 1;
 
-        // 创建目录
         mkdir();
 
-        `uvm_info("",$spsprintf("output : `%s`",cfg.log_path),UVM_LOW)
+        `uvm_info("APB_REPORT", $sformatf("output: %s", cfg.log_path), UVM_LOW)
     end
     else begin
         op = "a";
     end
 
-    file_write(cfg.log_path,s,op);
+    file_write(cfg.log_path, s, op);
 endfunction
 
 function string {{ class_reporter }}::dir(string str);
-    string c;
+    byte c;
 
-    // 从末尾开始
-    for(int i=str.len()-1;i>=0;i--) begin
+    for (int i = str.len() - 1; i >= 0; i--) begin
         c = str.getc(i);
 
-        if(c == "/")
-            return str.substr(0,i-1);
+        if (c == 8'h2f && i == 0)
+            return "/";
+        if (c == 8'h2f)
+            return str.substr(0, i - 1);
     end
 
     return "";
@@ -105,23 +106,25 @@ function void {{ class_reporter }}::mkdir();
 
     base = dir(cfg.log_path);
 
-    if(!base.len)
+    if (!base.len())
         return;
 
-    $system($spsprintf("mkdir -p %s",base));
+    if ($system($sformatf("mkdir -p \"%s\"", base)) != 0)
+        `uvm_fatal("APB_REPORT", $sformatf("failed to create directory '%s'", base))
 endfunction
 
-function void {{ class_reporter }}::file_write(string dst,string str,string op);
+function void {{ class_reporter }}::file_write(string dst, string str, string op);
     int file;
 
-    // alias
-    if(op == "a")
-        str = {"\n",str};
+    if (op == "a")
+        str = {"\n", str};
 
-    // 写
-    file = $fopen(dst,op);
-    $fwrite(file,"%s",str);
+    file = $fopen(dst, op);
+    if (file == 0)
+        `uvm_fatal("APB_REPORT", $sformatf("failed to open '%s'", dst))
+    $fwrite(file, "%s", str);
     $fclose(file);
 endfunction
 
 `endif
+{%- endif %}

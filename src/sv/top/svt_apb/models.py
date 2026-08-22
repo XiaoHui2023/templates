@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
+
 class Monitor(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -8,15 +9,18 @@ class Monitor(BaseModel):
     output_read_port_name: str = Field("o_r_ap", description="读事务的输出端口名。")
     output_write_port_name: str = Field("o_w_ap", description="写事务的输出端口名。")
 
+
 class RegSync(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     is_enabled: bool = Field(False, description="启用寄存器镜像值同步。")
 
+
 class Report(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     is_enabled: bool = Field(False, description="启用 APB 事务文件记录。")
+
 
 class Models(BaseModel):
     model_config = ConfigDict(extra="ignore")

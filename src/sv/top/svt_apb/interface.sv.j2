@@ -1,7 +1,7 @@
 `ifndef {{ class_interface | upper }}
 `define {{ class_interface | upper }}
 
-`define assign(ID) \
+`define SVT_APB_CONNECT_SLAVE(ID) \
     assign ssel[ID] = svt_if.slave_if[ID].psel; \
     assign senable[ID] = svt_if.slave_if[ID].penable; \
     assign swrite[ID] = svt_if.slave_if[ID].pwrite; \
@@ -14,7 +14,7 @@
 interface {{ class_interface }}(
     input wire clk,
     input wire rst_n,
-    // master 0 bus相关
+    // Master 0 APB bus.
     input wire [`SVT_APB_MAX_NUM_SLAVES-1:0] msel,
     input wire menable,
     input wire mwrite,
@@ -31,7 +31,6 @@ interface {{ class_interface }}(
     input wire sready[`SVT_APB_MAX_NUM_SLAVES]
 );
 
-    // svt if
     svt_apb_if svt_if();
     assign svt_if.pclk = clk;
     assign svt_if.presetn = rst_n;
@@ -43,29 +42,23 @@ interface {{ class_interface }}(
     assign mrdata = svt_if.prdata;
     assign mready = svt_if.pready;
 
-    `assign(0)
-    `assign(1)
-    `assign(2)
-    `assign(3)
-    `assign(4)
-    `assign(5)
-    `assign(6)
-    `assign(7)
-    `assign(8)
-    `assign(9)
-    `assign(10)
-    `assign(11)
-    `assign(12)
-    `assign(13)
-    `assign(14)
-    `assign(15)
+    `SVT_APB_CONNECT_SLAVE(0)
+    `SVT_APB_CONNECT_SLAVE(1)
+    `SVT_APB_CONNECT_SLAVE(2)
+    `SVT_APB_CONNECT_SLAVE(3)
+    `SVT_APB_CONNECT_SLAVE(4)
+    `SVT_APB_CONNECT_SLAVE(5)
+    `SVT_APB_CONNECT_SLAVE(6)
+    `SVT_APB_CONNECT_SLAVE(7)
+    `SVT_APB_CONNECT_SLAVE(8)
+    `SVT_APB_CONNECT_SLAVE(9)
+    `SVT_APB_CONNECT_SLAVE(10)
+    `SVT_APB_CONNECT_SLAVE(11)
+    `SVT_APB_CONNECT_SLAVE(12)
+    `SVT_APB_CONNECT_SLAVE(13)
+    `SVT_APB_CONNECT_SLAVE(14)
+    `SVT_APB_CONNECT_SLAVE(15)
 endinterface
 
-`undef assign
+`undef SVT_APB_CONNECT_SLAVE
 `endif
-
-//  initial begin
-//      force svt_if.slave_if[0].pready = 1;
-//      force svt_if.slave_if[0].prdata = 0;
-//      release svt_if.slave_if[0].pready;
-//      release svt_if.slave_if[0].prdata;

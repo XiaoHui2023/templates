@@ -7,38 +7,33 @@ class {{ class_config }} extends uvm_sequence_item;
         `uvm_field_int(data_width,UVM_ALL_ON)
         `uvm_field_int(master_active,UVM_ALL_ON)
         `uvm_field_int(num_slave,UVM_ALL_ON)
+        `uvm_field_sarray_int(slave_active,UVM_ALL_ON)
 
-        {%- if reg_test.is_enabled %}
-        `uvm_field_int(should_reg_test,UVM_ALL_ON)
-        {%- endif %}
         {%- if reg_sync.is_enabled %}
         `uvm_field_int(should_reg_sync,UVM_ALL_ON)
         {%- endif %}
         {%- if report.is_enabled %}
-        `uvm_field_int(log_path,UVM_ALL_ON)
+        `uvm_field_string(log_path,UVM_ALL_ON)
         {%- endif %}
         `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
     `uvm_object_utils_end
 
-    virtual {{ class_interface }} vif; // 接口
-    uvm_reg_block regmodel; // 寄存器模型
+    virtual {{ class_interface }} vif;
+    uvm_reg_block regmodel;
     rand int addr_width;
     rand int data_width;
-    rand bit master_active; // 主设备是否active
-    rand int num_slave; // 从设备数量
-    rand bit slave_active[16]; // 从机是否active
+    rand bit master_active;
+    rand int num_slave;
+    rand bit slave_active[16];
 
-    {%- if reg_test.is_enabled %}
-    rand bit should_reg_test; // 是否需要寄存器测试
-    {%- endif %}
     {%- if reg_sync.is_enabled %}
-    rand bit should_reg_sync; // 是否需要寄存器同步
-    uvm_reg masked_regs[$]; // 屏蔽寄存器列表
+    rand bit should_reg_sync;
+    uvm_reg masked_regs[$];
     {%- endif %}
     {%- if report.is_enabled %}
-    string log_path; // 输出路径（报表和调试写入文件）
+    string log_path;
     {%- endif %}
-    rand bit has_randomized; // 是否随机过
+    rand bit has_randomized;
 
     constraint cst {
         has_randomized == 1;
@@ -50,15 +45,13 @@ class {{ class_config }} extends uvm_sequence_item;
             soft slave_active[i] == 0;
         num_slave inside {[0:16]};
 
-        {%- if reg_test.is_enabled %}
-        soft should_reg_test == 0;
-        {%- endif %}
         {%- if reg_sync.is_enabled %}
         soft should_reg_sync == 0;
         {%- endif %}
     }
 
-    function new(string name="{{ class_config }}");
+    // 构造 APB 环境配置对象。
+    function new(string name = "{{ class_config }}");
         super.new(name);
     endfunction
 

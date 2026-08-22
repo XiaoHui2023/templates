@@ -1,27 +1,26 @@
+{%- if is_adapt_enabled %}
 `ifndef {{ class_adapter | upper }}
 `define {{ class_adapter | upper }}
-
-typedef class Data_packet;
 
 class {{ class_adapter }} extends uvm_component;
     `uvm_component_utils({{ class_adapter }})
 
-    `uvm_analysis_imp_decl()
-    uvm_analysis_imp #(svt_apb_transaction, {{ class_adapter }}) imp; // 输入 apb 采样数据
+    uvm_analysis_imp #(svt_apb_transaction, {{ class_adapter }}) imp;
     uvm_analysis_port #(Data_packet) o_ap;
     uvm_analysis_port #(Data_packet) o_r_ap;
     uvm_analysis_port #(Data_packet) o_w_ap;
 
-    function new(string name="{{ class_adapter }}", uvm_component parent=null);
-        super.new(name,parent);
+    // 构造事务转换组件及其分析端口。
+    function new(string name = "{{ class_adapter }}", uvm_component parent = null);
+        super.new(name, parent);
 
-        imp = new("imp",this);
-        o_ap = new("o_ap",this);
-        o_r_ap = new("o_r_ap",this);
-        o_w_ap = new("o_w_ap",this);
+        imp = new("imp", this);
+        o_ap = new("o_ap", this);
+        o_r_ap = new("o_r_ap", this);
+        o_w_ap = new("o_w_ap", this);
     endfunction
 
-    // 写数据
+    // 将一笔 SVT APB 事务转换为通用数据包。
     extern virtual function void write(svt_apb_transaction i);
 endclass
 
@@ -30,33 +29,35 @@ function void {{ class_adapter }}::write(svt_apb_transaction i);
     Data_packet o_r;
     Data_packet o_w;
 
-    $cast(i,i.clone());
-    o = Data_packet::type_id::create({get_full_name(),".o"});
+    o = Data_packet::type_id::create({get_full_name(), ".o"});
 
-    `uvm_info("", $spsprintf("input:\n%s",i.sprint()),UVM_DEBUG)
+    `uvm_info("APB_ADAPT", $sformatf("input:\n%s", i.sprint()), UVM_DEBUG)
 
-    case(i.xact_type)
-        i.READ  : o.xact_type = o.READ;
-        i.WRITE : o.xact_type = o.WRITE;
-        default : `uvm_fatal("", "")
+    case (i.xact_type)
+        svt_apb_transaction::READ:  o.xact_type = Data_packet::READ;
+        svt_apb_transaction::WRITE: o.xact_type = Data_packet::WRITE;
+        default: `uvm_fatal("APB_ADAPT", "unsupported APB transaction type")
     endcase
 
     o.addr = i.address;
     o.data = {{'{<<8{{>>`SVT_APB_MAX_DATA_WIDTH{i.data}}}}'}};
-    o.len = 4;
-    o.data = o.data[0:o.len-1];
+    o.len = $bits(i.data) / 8;
+    o.data = o.data[0:o.len - 1];
 
-    `uvm_info("", $psprintf("output:\n%s", o.sprint()), UVM_DEBUG)
+    `uvm_info("APB_ADAPT", $sformatf("output:\n%s", o.sprint()), UVM_DEBUG)
 
     o_ap.write(o);
-    if(o.xact_type == o.READ) begin
-        $cast(o_r,o.clone());
+    if (o.xact_type == Data_packet::READ) begin
+        if (!$cast(o_r, o.clone()))
+            `uvm_fatal("APB_ADAPT", "failed to clone read packet")
         o_r_ap.write(o_r);
     end
-    if(o.xact_type == o.WRITE) begin
-        $cast(o_w,o.clone());
+    else begin
+        if (!$cast(o_w, o.clone()))
+            `uvm_fatal("APB_ADAPT", "failed to clone write packet")
         o_w_ap.write(o_w);
     end
 endfunction
 
 `endif
+{%- endif %}
