@@ -8,7 +8,7 @@ class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_conf
         `uvm_field_enum(capacity_type_e,capacity_type,UVM_ALL_ON)
         {%- endif %}
         `uvm_field_int(should_check_timing,UVM_ALL_ON)
-        `uvm_field_int(power_ramp_up_time_us,UVM_ALL_ON)
+        `uvm_field_int(power_ramp_up_time_ns,UVM_ALL_ON)
         `uvm_field_int(tsupply_rampup_min_ck,UVM_ALL_ON)
         `uvm_field_object(reg_cfg,UVM_ALL_ON)
     `uvm_object_utils_end
@@ -18,7 +18,7 @@ class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_conf
     rand capacity_type_e capacity_type; // 容量类型
     {%- endif %}
     rand bit should_check_timing; // 时序检查使能
-    rand int power_ramp_up_time_us; // Power-up acceleration: ramp-up wait time
+    rand int power_ramp_up_time_ns; // Power-up acceleration: ramp-up wait time
     rand int tsupply_rampup_min_ck; // Power-up acceleration: supply ramp-up clocks
     rand bit has_randomized; // 是否已随机化
     rand {{ class_prefix }}reg_configuration reg_cfg; // 寄存器配置
@@ -33,7 +33,7 @@ class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_conf
         has_randomized == 1;
 
         soft should_check_timing == 0;
-        soft power_ramp_up_time_us == {{ power_ramp_up_time_us }};
+        soft power_ramp_up_time_ns == {{ power_ramp_up_time_ns }};
         soft tsupply_rampup_min_ck == {{ tsupply_rampup_min_ck }};
         tsupply_rampup_min_ck > 0;
         {%- if is_emmc %}

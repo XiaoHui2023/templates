@@ -1,3 +1,3 @@
 card_type: emmc
-power_ramp_up_time_us: 1000
+power_ramp_up_time_ns: 1000
 tsupply_rampup_min_ck: 1
