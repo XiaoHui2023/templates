@@ -5,6 +5,12 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-08-24
+
+- `cpu_read` / `cpu_write` callback 默认实现改为 `uvm_fatal`，避免未重载时静默失败。
+- mobile_storage SDIO 非 DMA CMD53 数据传输改为通过 `default_map.get_base_addr() + 0x200` FIFO 窗口前门 CPU 读写；MSHC `BUF_DATA_R` 路径保持不变。
+- 纠正族级记录中的旧口径：mobile_storage 不强制启用 DMA，kit `rw_test()` 的 `use_dma` 默认仍为 0。
+
 ## 2026-08-20
 
 - mobile_storage SDIO 命令完成等待改为状态优先：access 写 `CMD_R.START_CMD` 前清 CMD complete 并配置 `INTMASK_R`；`wait_interrupt` 先消费已置位 `MINTSTS_R`，不再入口全清 `RINTSTS_R`；`check_error` 轮询降噪。

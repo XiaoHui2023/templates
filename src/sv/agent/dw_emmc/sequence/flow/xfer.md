@@ -52,14 +52,16 @@ SDIO 流程：
 普通 read：
 
 - `blocking == 0`。
-- 每个 block 都先等一次 `BUF_RD_READY`，然后立刻读走一个 block 的 `BUF_DATA_R`。
+- 每个 block 都先等一次 `BUF_RD_READY`，然后立刻读走一个 block。
+- MSHC 从 `BUF_DATA_R` 读取。
+- mobile_storage 从 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口前门读取 32-bit word。
 - 所有 block 读走后再等 `XFER_COMPLETE`。
 
 Blocked read：
 
 - `blocking == 1`。
 - 不逐块等待 `BUF_RD_READY`。
-- 先等 `XFER_COMPLETE`，再连续读取 `block_count` 个 block 的 `BUF_DATA_R`。
+- 先等 `XFER_COMPLETE`，再连续读取 `block_count` 个 block。
 - 仅用于需要延迟取数的专门场景；普通读写测试不要默认使用。
 
 eMMC/SD read 不支持 abort，约束 `abort == 0`。
@@ -83,6 +85,11 @@ SDIO 流程：
 1. 通过 CMD53 执行写。
 2. `wdata` 传入 CMD53 request。
 
+非 DMA 写：
+
+- MSHC 写 `BUF_DATA_R`。
+- mobile_storage 写 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口，每 4 字节按小端组一个 word，前门 CPU 写。
+
 ## DMA
 
 Python 配置 `enable_dma` 默认关闭。关闭时不生成 DMA enum、DMA request 字段、ADMA descriptor、DMA interrupt/error 处理和 kit `use_dma` 参数。
@@ -98,6 +105,6 @@ DMA 传输由读写命令触发，flow 只负责准备描述符和 request 字�
 ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA 模式下，命令寄存器使用数据地址 `addr`。
 `mobile_storage` 的 DMA 模式走 IDMAC 描述符链表：`DBADDR_R` 写 `adma_des.cmd_addr`，真实数据 buffer 地址写在描述符 `real_addr` 中，写完 `DBADDR_R` 后向 `PLDMND_R` 写 `32'h1` 触发 DMA；`0x84` 是 `PLDMND_R` 地址。
 
-DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写默认前门访问。
+DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写、mobile_storage 非 DMA FIFO 访问默认前门。
 
 读写流程不自己搬 DUT 侧数据。DUT 侧数据搬运由 CPU 访问或 DMA 决定，scoreboard 只接收最终期望和实际数据。

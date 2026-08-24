@@ -1,12 +1,15 @@
 `ifndef {{ class_prefix | upper }}COMMAND_OP_SEQ
 `define {{ class_prefix | upper }}COMMAND_OP_SEQ
 
-// 发送命令
 class {{ class_prefix }}command_operation_seq #(
     type CLASS_COMMAND_REQ = {{ class_prefix }}command_request
 ) extends {{ class_prefix }}base_operation_seq#({{ class_prefix }}command_response);
     `uvm_object_param_utils({{ class_prefix }}command_operation_seq#(CLASS_COMMAND_REQ))
 
+{%- if is_mobile_storage %}
+    localparam bit [63:0] FIFO_PORT_OFFSET = 64'h200;
+
+{%- endif %}
     rand CLASS_COMMAND_REQ cmd_request;
 
     {{ class_prefix }}access_operation_seq access_seq;
@@ -16,33 +19,58 @@ class {{ class_prefix }}command_operation_seq #(
     {{ class_prefix }}cpu_config_operation_seq cpu_cfg_seq;
 {%- endif %}
 
+    // Initializes the command operation object.
     function new(string name = "{{ class_prefix }}command_operation_seq");
         super.new(name);
     endfunction
 
+    // Builds child sequence requests before randomization.
     extern function void pre_randomize();
+    // Prints the command request before starting the operation.
     extern task pre_start();
+    // Executes the command transaction.
     extern task body();
+    // Finalizes the response after the operation.
     extern task post_start();
+    // Reads command response registers.
     extern task read_resp();
+    // Reads data payload for the current command.
     extern task read(ref bit [7:0] data[$]);
+    // Writes data payload for the current command.
     extern task write(bit [7:0] data[$]);
 {%- if enable_dma %}
+    // Prepares external memory for DMA write transfers.
     extern task init_memory();
+    // Writes byte payload to external memory.
     extern protected task write_memory(bit [7:0] data[$]);
 {%- endif %}
+    // Writes all requested blocks through the controller buffer.
     extern task write_buffer(bit [7:0] data[$]);
+    // Reads all requested blocks through the controller buffer.
     extern protected task read_buffer(ref bit [7:0] data[$]);
+    // Reads blocks after transfer completion.
     extern protected task read_buffer_blocked(ref bit [7:0] data[$]);
 {%- if enable_dma %}
+    // Reads byte payload from external memory.
     extern protected task read_memory(ref bit [7:0] data[$]);
 {%- endif %}
+{%- if is_mobile_storage %}
+    // Returns the FIFO window address.
+    extern protected function bit [63:0] fifo_port_addr();
+{%- endif %}
+    // Writes one block through the controller buffer.
     extern protected task write_buffer_one_block(ref bit [7:0] data[$]);
+    // Reads one block through the controller buffer.
     extern protected task read_buffer_one_block(ref bit [7:0] data[$]);
+    // Requests a block-gap abort when supported.
     extern protected task abort();
+    // Waits for command-complete interrupt status.
     extern task wait_cmd_complete();
+    // Waits for transfer-complete interrupt status.
     extern task wait_xfer_complete();
+    // Creates a wait-field operation sequence.
     extern function {{ class_prefix }}wait_field_operation_seq create_wait_field_seq();
+    // Creates a wait-interrupt operation sequence.
     extern function {{ class_prefix }}wait_interrupt_operation_seq create_wait_intr_seq();
 endclass
 
@@ -182,9 +210,38 @@ task {{ class_prefix }}command_operation_seq::read_buffer_blocked(ref bit [7:0] 
     `uvm_info("", "read buffer blocked done", UVM_LOW)
 endtask
 
+{% if is_mobile_storage -%}
+function bit [63:0] {{ class_prefix }}command_operation_seq::fifo_port_addr();
+    bit [63:0] base_addr;
+
+    base_addr = rm.default_map.get_base_addr();
+    return base_addr + FIFO_PORT_OFFSET;
+endfunction
+
+{% endif -%}
 task {{ class_prefix }}command_operation_seq::write_buffer_one_block(ref bit [7:0] data[$]);
 {%- if is_mobile_storage %}
-    `uvm_fatal("", "mobile_storage has no PIO data register; use DMA")
+    bit [63:0] addr;
+    bit [31:0] dat;
+    int byte_idx;
+    int byte_pos;
+    int word_idx;
+    int words;
+
+    addr = fifo_port_addr();
+    words = (cmd_request.block_size + 3) / 4;
+    for (word_idx = 0; word_idx < words; word_idx++) begin
+        dat = '0;
+        for (byte_idx = 0; byte_idx < 4; byte_idx++) begin
+            byte_pos = word_idx * 4 + byte_idx;
+            if (byte_pos < cmd_request.block_size) begin
+                if (data.size() == 0)
+                    `uvm_fatal("PIO_WRITE", "write buffer data underrun")
+                dat[byte_idx * 8 +: 8] = data.pop_front();
+            end
+        end
+        p_sequencer.cpu_write(addr + word_idx * 4, dat, UVM_FRONTDOOR);
+    end
 {%- else %}
     int words;
 
@@ -203,7 +260,24 @@ endtask
 
 task {{ class_prefix }}command_operation_seq::read_buffer_one_block(ref bit [7:0] data[$]);
 {%- if is_mobile_storage %}
-    `uvm_fatal("", "mobile_storage has no PIO data register; use DMA")
+    bit [63:0] addr;
+    bit [31:0] dat;
+    int byte_idx;
+    int byte_pos;
+    int word_idx;
+    int words;
+
+    addr = fifo_port_addr();
+    words = (cmd_request.block_size + 3) / 4;
+    `uvm_info("", $psprintf("read buffer one block words=%0d", words), UVM_LOW)
+    for (word_idx = 0; word_idx < words; word_idx++) begin
+        p_sequencer.cpu_read(addr + word_idx * 4, dat, UVM_FRONTDOOR);
+        for (byte_idx = 0; byte_idx < 4; byte_idx++) begin
+            byte_pos = word_idx * 4 + byte_idx;
+            if (byte_pos < cmd_request.block_size)
+                data.push_back(dat[byte_idx * 8 +: 8]);
+        end
+    end
 {%- else %}
     int words;
 

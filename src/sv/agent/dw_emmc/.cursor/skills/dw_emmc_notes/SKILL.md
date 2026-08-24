@@ -23,7 +23,8 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - access 写 `CMD_R.START_CMD` 前先清本次等待的旧状态并配置 `INTMASK_R`；等待阶段先读取 `MINTSTS_R`，消费已经置位的中断。
 - DMA 模式使用 IDMAC 描述符链表，`DBADDR_R` 写描述符地址，`PLDMND_R` 写 `32'h1` 触发。
 - 数据命令不反向强制打开 DMA；SDIO CMD53 允许 `data_present_sel == 1` 且 `dma_enable == 0`。
-- mobile_storage 没有 PIO 数据寄存器；生成 DMA 时，kit `rw_test()` 默认 `use_dma = 1`，mshc 默认仍为 0。
+- mobile_storage 没有 RAL `BUF_DATA_R`；非 DMA SDIO 通过 `default_map.get_base_addr() + 0x200` FIFO 窗口前门 CPU 访问。
+- mobile_storage 不强制启用 DMA；生成 DMA 时，kit `rw_test()` 默认 `use_dma = 0`，需要 DMA 时显式打开。
 
 ## 验收
 

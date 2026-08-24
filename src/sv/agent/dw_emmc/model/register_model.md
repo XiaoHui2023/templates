@@ -47,7 +47,7 @@
 | 块间隔控制 | `BGAP_CTRL_R` | 无 |
 | 唤醒控制 | `WUP_CTRL_R` | 无 |
 | 超时控制 | `TOUT_CTRL_R` | `TMOUT_R`，4-bit 变 32-bit |
-| PIO 数据口 | `BUF_DATA_R` | 无 `BUF_DATA_R` |
+| PIO 数据口 | `BUF_DATA_R` | 无 `BUF_DATA_R`；非 DMA SDIO 通过 `default_map.get_base_addr() + 0x200` FIFO 窗口前门 CPU 访问 |
 | 自动命令状态 | `AUTO_CMD_STAT_R` | 无 |
 
 ## 生成规则
@@ -65,4 +65,5 @@
 - mobile_storage 普通命令写 `CMD_R.START_CMD` 前清本次等待的旧状态并配置 `INTMASK_R`；等待时先读 `MINTSTS_R` 消费已置位状态，不在等待入口全清 `RINTSTS_R`。
 - `mobile_storage` 不强制启用 DMA。`enable_dma` 默认关闭，打开后仍由 `dma_enable` / `use_dma` 决定单次传输是否使用 DMA。
 - `dma_enable == 1` 时必须有数据；有数据不能反向要求 `dma_enable == 1`，SDIO CMD53 允许非 DMA 数据传输。
+- mobile_storage 非 DMA SDIO 数据传输不通过 RAL 数据寄存器；FIFO 窗口偏移 `0x200` 作为寄存器模型校对依据，代码用 `default_map.get_base_addr()` 计算窗口地址。
 - `mobile_storage` 的 tuning 寄存器映射未确认前，`tune_en` 会直接 fatal。

@@ -56,6 +56,7 @@ Python 配置 `enable_dma: true` 后才生成 DMA 搬运字段和 kit `rw_test(.
 | `cpu_write(addr, data, path)` | 按 `path` 写入 32-bit word |
 
 `path` 使用 `UVM_FRONTDOOR` 或 `UVM_BACKDOOR`。kit 手动 CPU 访问默认前门；启用 DMA 后，DMA buffer 和 ADMA descriptor 访问使用后门以提高效率。
+`cpu_read` 和 `cpu_write` 默认实现会 `uvm_fatal`，使用前必须重载。
 
 callback 只接收必要数据，不传 sequencer 句柄或 handled 标记。
 

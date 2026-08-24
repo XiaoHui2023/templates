@@ -6,12 +6,16 @@ typedef class {{ class_prefix }}sequencer;
 class {{ class_prefix }}callback extends uvm_callback;
     `uvm_object_utils({{ class_prefix }}callback)
 
+    // Initializes the callback object.
     function new(string name = "{{ class_prefix }}callback");
         super.new(name);
     endfunction
 
+    // Applies an external frequency setting.
     extern virtual task set_frequence(int frequence);
+    // Reads one 32-bit word from the external CPU path.
     extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
+    // Writes one 32-bit word through the external CPU path.
     extern virtual task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
 endclass
 
@@ -19,9 +23,12 @@ task {{ class_prefix }}callback::set_frequence(int frequence);
 endtask
 
 task {{ class_prefix }}callback::cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
+    data = 'x;
+    `uvm_fatal("CPU_CALLBACK", $sformatf("cpu_read callback must be overridden: addr=0x%h path=%0d", addr, path))
 endtask
 
 task {{ class_prefix }}callback::cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
+    `uvm_fatal("CPU_CALLBACK", $sformatf("cpu_write callback must be overridden: addr=0x%h data=0x%h path=%0d", addr, data, path))
 endtask
 
 `endif
