@@ -42,6 +42,11 @@ function void {{ class_prefix }}svt_configuration::configure({{ class_prefix }}s
     // Power-up acceleration: reduce long default ramp-up waits.
     this.timing_cfg.power_ramp_up_time_ns = sys_cfg.power_ramp_up_time_ns;
     this.timing_cfg.tSupply_rampup_min_ck = sys_cfg.tsupply_rampup_min_ck;
+    // Fixed timing defaults: avoid random SVT timing ranges.
+    this.timing_cfg.tNac_hs200_hs400_ck = sys_cfg.tNac_hs200_hs400_ck;
+    this.timing_cfg.tNac_max_ck = sys_cfg.tNac_max_ck;
+    this.timing_cfg.tNst_hs400_min_ck = sys_cfg.tNst_hs400_min_ck;
+    this.timing_cfg.tNst_hs400_max_ck = sys_cfg.tNst_hs400_max_ck;
 
     {%- if is_emmc %}
     load_emmc_config(sys_cfg,this.reg_cfg);
