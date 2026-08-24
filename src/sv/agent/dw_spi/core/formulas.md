@@ -49,7 +49,7 @@ f_sclk_out = f_ssi / (2 * SCKDV_reg)  for DMA
 
 当前内置 NOR-like read packet 使用 `03h=0`、`BBh=4`、`EBh=6` 个 SCLK cycle。`READ1X 03h` 固定为 standard 且不使用 dummy cycle；2x/4x enhanced 路径通过 `SPI_CTRLR0` 描述 instruction、address、dummy 和 data phase。
 
-接收前导丢弃量与 dummy cycle 分开建模：`transfer_length = requested_length + rx_skip_bytes`。控制器按 `transfer_length` 配置 NDF 并接收，flow 丢弃前 `rx_skip_bytes` 后，只把 `requested_length` 个实际数据 byte 交给 scoreboard。`READ2X` 使用 `rx_skip_bytes=1`，`READ4X` 使用 `rx_skip_bytes=3`。
+`transfer_req` 按最终控制器模式计算接收前导丢弃量：`EEPROM_READ` 使用 `rx_skip_bytes = dummy_cycles * io_lanes / 8`，其它模式使用 0。`transfer_length = requested_length + rx_skip_bytes`；flow 丢弃前导 byte 后，只把 `requested_length` 个实际数据交给 scoreboard。DMA read 使用 `RX_ONLY`，不丢弃数据。
 | **fifo_chunks** | `ceil(max(payload_bytes, 1) / fifo_depth_bytes)`。 |
 | **margin_percent** | Python 输入的 `interrupt_timeout_margin_percent`。 |
 | **extra_cycles** | Python 输入的 `interrupt_timeout_extra_ssi_clk_cycles`。 |

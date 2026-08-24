@@ -148,8 +148,10 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
         cs_id < {{ num_cs }};
         inst_bytes inside {[0:1]};
         addr_bytes inside {[0:4]};
-        soft rx_skip_bytes == 0;
-        rx_skip_bytes >= 0;
+        if (transfer_mode == EEPROM_READ)
+            rx_skip_bytes == dummy_cycles * io_lanes / 8;
+        else
+            rx_skip_bytes == 0;
 {%- if internal_dma or external_dma %}
         soft use_dma == 1'b0;
         if (use_dma) speed_multiplier > 1;

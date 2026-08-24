@@ -17,7 +17,7 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
             bit [31:0] addr,
             uvm_tlm_command_e payload_command,
             byte unsigned payload_data[],
-            int payload_length{% if internal_dma or external_dma %},
+            int requested_payload_length{% if internal_dma or external_dma %},
             bit use_dma{% endif %});
         {{ class_prefix }}transfer_req op_req;
 
@@ -27,13 +27,6 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
             `uvm_fatal("DW_SPI_FLASH", "transfer configuration is null")
 
         op_req = {{ class_prefix }}transfer_req::type_id::create(req_name);
-        op_req.payload = uvm_tlm_generic_payload::type_id::create({req_name, "_payload"});
-        op_req.payload.set_command(payload_command);
-        op_req.payload.set_address(addr);
-        if (payload_command == UVM_TLM_WRITE_COMMAND && payload_data.size() != 0)
-            op_req.payload.set_data(payload_data);
-        op_req.payload.set_data_length(payload_length);
-
         if (!$cast(op_req.host_mode, cfg.host_mode))
             `uvm_fatal("DW_SPI_FLASH", "failed to cast host_mode")
         if (!$cast(op_req.protocol, FLASH_SPI))
@@ -42,11 +35,11 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
             `uvm_fatal("DW_SPI_FLASH", "failed to cast frame_mode")
         if (!$cast(op_req.cs_control_mode, cfg.cs_control_mode))
             `uvm_fatal("DW_SPI_FLASH", "failed to cast cs_control_mode")
-{%- if internal_dma %}
+{%- if internal_dma or external_dma %}
         if (use_dma && payload_command == UVM_TLM_READ_COMMAND &&
                 command.speed_multiplier inside {2, 4}) begin
             if (!$cast(op_req.transfer_mode, RX_ONLY))
-                `uvm_fatal("DW_SPI_FLASH", "failed to cast internal DMA enhanced read transfer_mode")
+                `uvm_fatal("DW_SPI_FLASH", "failed to cast DMA enhanced read transfer_mode")
         end
         else if (!$cast(op_req.transfer_mode, command.transfer_mode))
             `uvm_fatal("DW_SPI_FLASH", "failed to cast transfer_mode")
@@ -65,7 +58,6 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
         op_req.inst_bytes = command.inst_bytes;
         op_req.addr_bytes = command.addr_bytes;
         op_req.dummy_cycles = command.dummy_cycles;
-        op_req.rx_skip_bytes = command.rx_skip_bytes;
         op_req.records_memory_write = command.records_memory_write;
 {%- if internal_dma or external_dma %}
         op_req.use_dma = use_dma;
@@ -88,6 +80,18 @@ class {{ class_prefix }}flash_command_adapter extends {{ class_prefix }}base_obj
                 op_req.awlen, op_req.arlen), UVM_DEBUG)
         end
 {%- endif %}
+        op_req.rand_mode(0);
+        op_req.rx_skip_bytes.rand_mode(1);
+        if (!op_req.randomize())
+            `uvm_fatal("DW_SPI_FLASH", "failed to derive transfer request fields")
+        op_req.rand_mode(1);
+
+        op_req.payload = uvm_tlm_generic_payload::type_id::create({req_name, "_payload"});
+        op_req.payload.set_command(payload_command);
+        op_req.payload.set_address(addr);
+        if (payload_command == UVM_TLM_WRITE_COMMAND && payload_data.size() != 0)
+            op_req.payload.set_data(payload_data);
+        op_req.payload.set_data_length(requested_payload_length + op_req.rx_skip_bytes);
         op_req.update_print_summary();
         return op_req;
     endfunction

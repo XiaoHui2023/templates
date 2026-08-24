@@ -27,7 +27,6 @@
 | `inst_bytes` | instruction phase 字节数；当前内置 flash command 默认 1 |
 | `addr_bytes` | address phase 字节数；command-only 指令可为 0，默认 NOR-like flow 使用 3，可配置为 4 |
 | `dummy_cycles` | dummy/wait cycles |
-| `rx_skip_bytes` | 接收完成后丢弃的前导 byte 数；默认 0 |
 | `payload_is_read` / `payload_is_write` | payload 方向 |
 | `records_memory_write` | 本指令完成后是否更新 scoreboard memory mirror |
 | `requires_qe` | 本指令是否要求 QE 已置位 |
@@ -44,8 +43,8 @@
 | `dual_page_program.sv` | `dual_page_program_flash_command` | `0xA2` | opcode/address 单线，payload 2 线，`TX_ONLY` |
 | `quad_page_program.sv` | `quad_page_program_flash_command` | `0x32` | `1S-1S-4S`：opcode/address 单线、payload 四线，`TX_ONLY`，需要 QE |
 | `read1x.sv` | `read1x_flash_command` | `0x03` | opcode/address 单线，payload 1 线，standard `EEPROM_READ` |
-| `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，PIO 使用 `EEPROM_READ`，内部 DMA 使用 `RX_ONLY`，接收后丢弃 1 byte |
-| `read4x.sv` | `read4x_flash_command` | `0xEB` | opcode 单线，address/data 4 线，PIO 使用 `EEPROM_READ`，内部 DMA 使用 `RX_ONLY`，要求 QE，接收后丢弃 3 byte |
+| `read2x.sv` | `read2x_flash_command` | `0xBB` | opcode 单线，address/data 2 线，PIO 使用 `EEPROM_READ`，DMA 使用 `RX_ONLY` |
+| `read4x.sv` | `read4x_flash_command` | `0xEB` | opcode 单线，address/data 4 线，PIO 使用 `EEPROM_READ`，DMA 使用 `RX_ONLY`，要求 QE |
 
 `DREAD 0x3B`、`QREAD 0x6B`、erase、RDSR/WIP polling、NAND page read/cache read/program load/program execute 等还没有进入当前可执行 flow。加入时应新增对应指令包，不把 opcode 和相位规则散写在 sequence 里。
 
@@ -72,7 +71,7 @@
 | Command | Opcode | Dummy SCLK cycles | Controller path |
 | --- | ---: | ---: | --- |
 | `READ1X` | `0x03` | 0 | standard 从 `DR0` 发送 opcode/address，随后进入 RX |
-| `READ2X` | `0xBB` | 4 | enhanced；PIO 为 `EEPROM_READ`，内部 DMA 为 `RX_ONLY`；`rx_skip_bytes=1` |
-| `READ4X` | `0xEB` | 6 | enhanced；PIO 为 `EEPROM_READ`，内部 DMA 为 `RX_ONLY`；`rx_skip_bytes=3` |
+| `READ2X` | `0xBB` | 4 | enhanced；PIO 为 `EEPROM_READ`，DMA 为 `RX_ONLY` |
+| `READ4X` | `0xEB` | 6 | enhanced；PIO 为 `EEPROM_READ`，DMA 为 `RX_ONLY` |
 
-这些值属于 opcode command packet，不属于 `transfer_configuration` 的全局默认值。
+这些值属于 opcode command packet，不属于 `transfer_configuration` 的全局默认值。最终 `transfer_req` 约束按 `transfer_mode` 计算 `rx_skip_bytes`：`EEPROM_READ` 为 `dummy_cycles * io_lanes / 8`，其它模式为 0。
