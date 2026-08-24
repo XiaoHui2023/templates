@@ -1,8 +1,11 @@
 `ifndef {{ path_macros_guard }}
 `define {{ path_macros_guard }}
-{% for signal in signal_rows %}
+{% for signal in signal_rows -%}
+{% set disable_macro = (settings.prefix | upper) ~ "DISABLE_" ~ (signal.name | upper | replace("$", "_")) -%}
+`ifndef {{ disable_macro }}
 `ifndef {{ signal.macro }}
 `define {{ signal.macro }} {{ signal.path }}
 `endif
-{% endfor %}
+`endif
+{% endfor -%}
 `endif

@@ -2,9 +2,12 @@
 `define {{ probe_if_guard }}
 
 interface {{ probe_if_name }};
-{% for signal in signal_rows %}
+{% for signal in signal_rows -%}
+{% set disable_macro = (settings.prefix | upper) ~ "DISABLE_" ~ (signal.name | upper | replace("$", "_")) -%}
+`ifndef {{ disable_macro }}
     {{ signal_if_name }} #(.FREQ({{ signal.freq }})) {{ signal.name }} (.sig(`{{ signal.macro }}));
-{% endfor %}
+`endif
+{% endfor -%}
 endinterface
 
 `endif

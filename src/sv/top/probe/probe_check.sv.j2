@@ -1,6 +1,7 @@
 `ifndef {{ check_guard }}
 `define {{ check_guard }}
 
+// Runs enabled signal checks in parallel and returns their aggregate result.
 task automatic {{ check_task_name }}(
         input virtual {{ probe_if_name }} probe,
         output bit pass);
@@ -20,9 +21,13 @@ task automatic {{ check_task_name }}(
             fork
                 begin
                     fork
-{% for signal in signal_rows %}                        begin
+{% for signal in signal_rows -%}
+{% set disable_macro = (settings.prefix | upper) ~ "DISABLE_" ~ (signal.name | upper | replace("$", "_")) -%}
+`ifndef {{ disable_macro }}
+                        begin
                             probe.{{ signal.name }}.check("{{ signal.name }}", signal_ok[{{ loop.index0 }}]);
                         end
+`endif
 {% endfor %}                    join
                     checks_done = 1'b1;
                 end
@@ -40,8 +45,15 @@ task automatic {{ check_task_name }}(
     end
 
     pass = 1'b1;
-{% for signal in signal_rows %}    pass &= signal_ok[{{ loop.index0 }}];
+    begin
+{% for signal in signal_rows -%}
+{% set disable_macro = (settings.prefix | upper) ~ "DISABLE_" ~ (signal.name | upper | replace("$", "_")) -%}
+`ifndef {{ disable_macro }}
+        pass &= signal_ok[{{ loop.index0 }}];
+`endif
 {% endfor %}
+    end
+
     if (!pass)
         $error("probe: failed");
     else

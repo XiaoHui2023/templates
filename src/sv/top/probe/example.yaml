@@ -3,6 +3,7 @@ signals:
     path: dut.u_top.cpu_clk
     freq: 100000000
 
+  # 编译时定义 PROBE_DISABLE_SLEEP_CLK 可禁用该节点。
   sleep_clk:
     path: dut.u_top.sleep_clk
 

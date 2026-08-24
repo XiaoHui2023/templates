@@ -89,6 +89,7 @@ probe_signal_if #(.FREQ(100000000)) cpu_clk (.sig(`PROBE_PATH_CPU_CLK));
 
 ```text
 PROBE_PATH_CPU_CLK
+PROBE_DISABLE_CPU_CLK
 probe_signal_if
 probe_if
 probe_check
@@ -98,6 +99,7 @@ probe_check
 
 ```text
 PLL0_PATH_CPU_CLK
+PLL0_DISABLE_CPU_CLK
 pll0_signal_if
 pll0_if
 pll0_check
@@ -118,3 +120,19 @@ pll0_check
 ```systemverilog
 `define PROBE_PATH_CPU_CLK tb.dut_alt.cpu_clk
 ```
+
+## 节点禁用
+
+为节点定义 `<PREFIX_UPPER>DISABLE_<SIGNAL_NAME>` 宏，可移除该节点的 RTL 路径引用、interface 实例和检查分支：
+
+```text
++define+PROBE_DISABLE_CPU_CLK
+```
+
+也可以在编译 `path_macros.sv` 前定义：
+
+```systemverilog
+`define PROBE_DISABLE_CPU_CLK
+```
+
+禁用节点不参与汇总。全部节点均被禁用时，`probe_check` 返回通过。
