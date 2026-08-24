@@ -32,7 +32,9 @@
 
 interface {{ settings.class_prefix }}tree_interface;
 {%- for slot in tree.connectable_slots %}
+`ifndef {{ (settings.class_prefix | upper) }}{{ slot.disable_macro_suffix }}
     `_{{ (settings.class_prefix ~ "tree_interface_slot") | upper }}({{ slot.instance_name }}, `{{ settings.class_prefix | upper }}PATH_{{ slot.path_macro }})
+`endif
 {%- endfor %}
 endinterface
 

@@ -292,6 +292,8 @@ endfunction
 
 生成的 `top/path_macros.sv` 会为每个 RTL path 定义默认宏。用户可在编译 `top/path_macros.sv` 前提前定义同名宏覆盖路径。
 
+编译前定义 `<CLASS_PREFIX_UPPER>DISABLE_<NODE>` 可关闭节点的全部 RTL 接口。例如 `` `define CLK_TREE_DISABLE_CLK_CPU`` 会省略 `clk_cpu` 的路径宏、interface 实例和 `connect` 绑定；节点模型与时钟树约束保持不变。彻底移除节点使用 Python 输入 `present: false`。
+
 | 端口 | 宏名示例 |
 | --- | --- |
 | source 输出 | `CLK_TREE_PATH_XTAL_OUT` |

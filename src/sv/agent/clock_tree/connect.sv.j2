@@ -9,6 +9,7 @@ function automatic void {{ settings.class_prefix }}connect(
     if (tree == null)
         `uvm_fatal("CLK_TREE", "connect: tree is null")
 {%- for slot in tree.connectable_slots %}
+`ifndef {{ (settings.class_prefix | upper) }}{{ slot.disable_macro_suffix }}
 {%- if slot.role == "in" and slot.port_key == "default" %}
     tree.{{ slot.access }}.in_vif = tree_if.{{ slot.instance_name }};
 {%- if tree.nodes[slot.node_key].kind in ["clk", "cell"] %}
@@ -22,6 +23,7 @@ function automatic void {{ settings.class_prefix }}connect(
 {%- else %}
     tree.{{ slot.access }}.out_vifs["{{ slot.port_key }}"] = tree_if.{{ slot.instance_name }};
 {%- endif %}
+`endif
 {%- endfor %}
 endfunction
 

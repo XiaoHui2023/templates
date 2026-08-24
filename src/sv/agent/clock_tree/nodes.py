@@ -141,6 +141,7 @@ class SvPortSlot:
     instance_name: str
     force_macro: str
     path_macro: str
+    disable_macro_suffix: str
 
 
 def _validate_sv_dot_path(value: Optional[str], *, field: str) -> Optional[str]:
@@ -1219,6 +1220,9 @@ class Tree(BaseModel):
                     instance_name=instance_name,
                     force_macro=force_macro,
                     path_macro="_".join(macro_parts).upper(),
+                    disable_macro_suffix=(
+                        f"DISABLE_{node_key}".upper().replace("$", "_")
+                    ),
                 )
             )
 
