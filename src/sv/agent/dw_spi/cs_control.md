@@ -5,9 +5,9 @@ DW SPI 模板显式区分两种片选控制模式。
 | 模式 | 枚举 | 默认 | 行为 |
 | --- | --- | --- | --- |
 | 硬件 CS | `HARDWARE_CS` | 是 | controller 通过 `SER.SER` 选择片选，sequence 不调用片选 callback。 |
-| 软件 CS | `SOFTWARE_CS` | 否 | sequence 在 primitive transfer 边界调用 `activate_chip_select()` / `release_chip_select()` callback，同时仍写 `SER.SER` 让控制器内部传输启动。 |
+| 软件 CS | `SOFTWARE_CS` | 否 | sequence 在 primitive transfer 边界调用 `set_chip_select(cs_id, selected)` callback，同时仍写 `SER.SER` 让控制器内部传输启动。 |
 
-`settings.default_cs_control_mode` 是全局默认值，默认 `HARDWARE_CS`。`transfer_configuration.cs_control_mode` 是单次传输配置，可显式覆盖。
+Python `software_cs` 默认关闭。关闭时不生成 `SOFTWARE_CS` 枚举、约束和 callback 代码；开启后 `settings.default_cs_control_mode` 仍默认为 `HARDWARE_CS`，`transfer_configuration.cs_control_mode` 可在单次传输中约束为软件控制。
 
 ## 支持矩阵
 
@@ -45,28 +45,24 @@ flash write 的非 DMA PIO flow 不按 FIFO 容量拆成多个 program transacti
 
 1. 配置寄存器并保持 `SER.SER = 0`。
 2. PIO 预填 DR0 或 DMA 准备完成。
-3. `SOFTWARE_CS` 时先调用 `activate_chip_select(cs_id)`。
+3. `SOFTWARE_CS` 时先调用 `set_chip_select(cs_id, 1'b1)`。
 4. 写 `SER.SER = cfg.ser` 启动/选择控制器内部传输。
 5. 完成传输并等待 idle 或 DMA done。
 6. 写 `SER.SER = 0`。
-7. `SOFTWARE_CS` 时调用 `release_chip_select(cs_id)`。
+7. `SOFTWARE_CS` 时调用 `set_chip_select(cs_id, 1'b0)`。
 
 ## Callback Override
 
-`dw_spi_callback` 的默认 `activate_chip_select()` / `release_chip_select()` 会 `uvm_fatal`，用于要求软件 CS 场景必须 override。
+`dw_spi_callback` 的默认 `set_chip_select()` 会 `uvm_fatal`，用于要求软件 CS 场景必须 override。
 
 ```systemverilog
 class my_spi_cb extends dw_spi_callback;
     `uvm_object_utils(my_spi_cb)
 
-    virtual task activate_chip_select(int cs_id);
-        // drive external CS active
-    endtask
-
-    virtual task release_chip_select(int cs_id);
-        // drive external CS inactive
+    virtual task set_chip_select(input int cs_id, input bit selected);
+        cs_driver.set_selected(cs_id, selected);
     endtask
 endclass
 ```
 
-UVM callback 列表为空时，callback 宏不会调用 base callback。因此使用 `SOFTWARE_CS` 时，环境必须注册一个 callback 实现类。
+UVM callback 列表为空时，callback 宏不会调用 base callback。因此 sequencer 在软件 CS dispatch 前显式检查列表；没有已注册 callback 时直接 `uvm_fatal`。

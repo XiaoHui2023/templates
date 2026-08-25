@@ -9,15 +9,22 @@ class {{ class_prefix }}callback extends uvm_callback;
         super.new(name);
     endfunction
 
-    // Activates one software-controlled chip select.
-    virtual task activate_chip_select(int cs_id);
-        `uvm_fatal("DW_SPI_CB", "activate_chip_select requires callback override when SOFTWARE_CS is used")
+{%- if software_cs %}
+    // Drives one software-controlled chip select to the requested selection state.
+    virtual task set_chip_select(input int cs_id, input bit selected);
+        `uvm_fatal("DW_SPI_CB", "set_chip_select requires callback override when SOFTWARE_CS is used")
     endtask
+{%- endif %}
 
-    // Releases one software-controlled chip select.
-    virtual task release_chip_select(int cs_id);
-        `uvm_fatal("DW_SPI_CB", "release_chip_select requires callback override when SOFTWARE_CS is used")
-    endtask
+{%- if byte_reorder %}
+    // Reorders one read or write data queue at the controller transport boundary.
+    virtual function void reorder_bytes(
+        input bit [7:0] data[$],
+        input bit is_read,
+        output bit [7:0] reordered_data[$]);
+        reordered_data = data;
+    endfunction
+{%- endif %}
 
 {%- if internal_dma %}
     // Reads one 32-bit CPU word from the selected access path.

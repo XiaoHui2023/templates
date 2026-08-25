@@ -39,13 +39,19 @@
 5. 非 DMA PIO 构造 DR0 item stream。standard flash 把 opcode、大端地址、dummy 逐 byte 放入 item；enhanced flash 把 opcode 和完整 address 各放入一个 32-bit control item，再追加 payload。命令-only 传输 payload 长度为 0，但 DR0 stream 仍包含 opcode。
    flash write/program 不使用 dummy clock；enhanced read 的 dummy/wait 通过 `SPI_CTRLR0.WAIT_CYCLES` 表达。
 6. PIO 在 `SER=0` 时先向 `DR0` 预填不超过 `settings.fifo_depth_bytes` 的 FIFO items。
-7. 到 transaction 边界时选中 CS：`HARDWARE_CS` 写 `SER.SER = cfg.ser`；`SOFTWARE_CS` 先调用 `p_sequencer.activate_chip_select(cs_id)`，再写 `SER.SER = cfg.ser`。
+7. 到 transaction 边界时选中 CS：`HARDWARE_CS` 写 `SER.SER = cfg.ser`；生成并选择 `SOFTWARE_CS` 时，先调用 `p_sequencer.set_chip_select(cs_id, 1'b1)`，再写 `SER.SER = cfg.ser`。
 8. PIO 写 transfer 如果还有 remaining byte，会在同一个 CS window 内继续等待 `SR.TFNF` 并补写 `DR0`。`TXFTLR` 是硬件 FIFO 阈值配置；当前 sequence 用 `SR.TFNF` 轮询驱动补 FIFO，不把 FIFO interrupt 当 completion。
 9. 按 `configuration.completion_mode` 等待 completion。内置 DMA 可用 top `intr` + `ISR.DONES`；非 DMA PIO 使用 `SR.TFE && !SR.BUSY`。
-10. 释放 CS：先写 `SER.SER = 0`，如果是 `SOFTWARE_CS` 再调用 `p_sequencer.release_chip_select(cs_id)`。
+10. 释放 CS：先写 `SER.SER = 0`，如果是 `SOFTWARE_CS` 再调用 `p_sequencer.set_chip_select(cs_id, 1'b0)`。
 11. 写传输在 CS 释放后仅对 flash memory program opcode（`0x02/0xA2/0x32`）更新 scoreboard expected data；`WREN/WRSR` 这类状态命令不更新 memory mirror。读传输把从 `DR0` 或 DMA buffer 得到的 actual data 放入 rsp。
 
 一个 primitive transfer 对应一个完整 SPI transaction 边界。需要连续的 read opcode + address + dummy + data 或 write opcode + address + data 必须放在同一个 primitive transfer 内，不能拆成多个 CS window。
+
+## Byte Ordering
+
+Python `byte_reorder=true` 时，primitive transfer 在控制器边界调用 `reorder_bytes()`：write 在 PIO/DMA 搬运前把逻辑 payload 转成线序，read 在 DR0/DMA actual data 返回后把线序转回逻辑顺序。callback 参数 `is_read` 区分方向。
+
+重排前后 byte 数必须相等。write generic payload 在 transfer 结束前恢复为逻辑顺序，scoreboard expected data 不受线序影响。read 的 `rx_skip_bytes` 前导区不参与重排，避免改变 EEPROM-read 路径的前导丢弃语义。关闭 Python 开关时不生成任何重排代码。
 
 ## Completion Rule
 

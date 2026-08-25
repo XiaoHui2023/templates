@@ -17,10 +17,17 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
 
     // Resolves shared settings, scoreboard, and interface handles.
     extern function void build_phase(uvm_phase phase);
-    // Dispatches software chip-select activation to registered callbacks.
-    extern task activate_chip_select(int cs_id);
-    // Dispatches software chip-select release to registered callbacks.
-    extern task release_chip_select(int cs_id);
+{%- if software_cs %}
+    // Dispatches one software chip-select state change to registered callbacks.
+    extern task set_chip_select(input int cs_id, input bit selected);
+{%- endif %}
+{%- if byte_reorder %}
+    // Dispatches byte ordering while preserving the input queue length.
+    extern function void reorder_bytes(
+        input bit [7:0] data[$],
+        input bit is_read,
+        output bit [7:0] reordered_data[$]);
+{%- endif %}
 {%- if internal_dma %}
     // Dispatches a CPU read request to registered callbacks.
     extern task cpu_read(input bit [63:0] addr, output bit [31:0] data, input uvm_path_e path);
@@ -53,13 +60,28 @@ function void {{ class_prefix }}sequencer::build_phase(uvm_phase phase);
         vif = settings.vif;
 endfunction
 
-task {{ class_prefix }}sequencer::activate_chip_select(int cs_id);
-    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, activate_chip_select(cs_id))
-endtask
+{%- if software_cs %}
+task {{ class_prefix }}sequencer::set_chip_select(input int cs_id, input bit selected);
+    uvm_callback_iter#({{ class_prefix }}sequencer, {{ class_prefix }}callback) iter;
 
-task {{ class_prefix }}sequencer::release_chip_select(int cs_id);
-    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this, release_chip_select(cs_id))
+    iter = new(this);
+    if (iter.first() == null)
+        `uvm_fatal("DW_SPI_CB", "set_chip_select requires a registered callback when SOFTWARE_CS is used")
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this,
+        set_chip_select(cs_id, selected))
 endtask
+{%- endif %}
+
+{%- if byte_reorder %}
+function void {{ class_prefix }}sequencer::reorder_bytes(
+        input bit [7:0] data[$],
+        input bit is_read,
+        output bit [7:0] reordered_data[$]);
+    reordered_data = data;
+    `uvm_do_obj_callbacks({{ class_prefix }}sequencer, {{ class_prefix }}callback, this,
+        reorder_bytes(data, is_read, reordered_data))
+endfunction
+{%- endif %}
 
 {%- if internal_dma %}
 

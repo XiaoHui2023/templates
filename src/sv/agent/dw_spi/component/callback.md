@@ -1,8 +1,17 @@
 # Callback
 
-`callback` 挂在 `dw_spi_sequencer` 上，用于注入软件片选行为和 DMA buffer 的 CPU 访问。默认硬件 CS 模式不调用片选 callback；只有 `SOFTWARE_CS` 才调用 `activate_chip_select()` / `release_chip_select()`。
+`callback` 挂在 `dw_spi_sequencer` 上，只承载环境相关行为。控制器寄存器仍由 operation/core 通过寄存器模型直接读写，不经过 callback。
 
-寄存器配置不使用 callback，也不通过 sequencer 封装通用寄存器读写。需要配置控制器寄存器时，operation/core 直接使用大写 REG/FIELD 句柄。
+## 生成开关
+
+| Python 字段 | 默认值 | 生成内容 |
+| --- | --- | --- |
+| `software_cs` | `false` | `SOFTWARE_CS` 枚举、约束、`set_chip_select()` callback 和调用路径 |
+| `byte_reorder` | `false` | `reorder_bytes()` callback 和 transfer 边界的数据转换路径 |
+| `internal_dma` | `false` | `cpu_read()` / `cpu_write()` callback |
+| `external_dma` | `false` | 外部 DMA start/finish callback |
+
+关闭开关时，对应类型、方法和调用代码均不生成。
 
 ## 注入方式
 
@@ -14,40 +23,45 @@ class my_spi_cb extends dw_spi_callback;
         super.new(name);
     endfunction
 
-    virtual task activate_chip_select(int cs_id);
-        // drive CS active
+    virtual task set_chip_select(input int cs_id, input bit selected);
+        cs_driver.set_selected(cs_id, selected);
     endtask
 
-    virtual task release_chip_select(int cs_id);
-        // drive CS inactive
-    endtask
-
-    virtual task cpu_read(input bit [63:0] addr, output bit [31:0] data, input uvm_path_e path);
-        if (path == UVM_BACKDOOR)
-            cpu_mem.peek32(addr, data);
-        else
-            cpu_bus.read32(addr, data);
-    endtask
-
-    virtual task cpu_write(input bit [63:0] addr, input bit [31:0] data, input uvm_path_e path);
-        if (path == UVM_BACKDOOR)
-            cpu_mem.poke32(addr, data);
-        else
-            cpu_bus.write32(addr, data);
-    endtask
+    virtual function void reorder_bytes(
+            input bit [7:0] data[$],
+            input bit is_read,
+            output bit [7:0] reordered_data[$]);
+        reordered_data = data;
+        reordered_data.reverse();
+    endfunction
 endclass
 
 my_spi_cb cb = my_spi_cb::type_id::create("cb");
 uvm_callbacks#(dw_spi_sequencer, dw_spi_callback)::add(sqr, cb);
 ```
 
-## Chip Select
+示例只展示同时开启 `software_cs` 和 `byte_reorder` 时的接口。实际生成结果由 Python 开关决定。
 
-`activate_chip_select(int cs_id)` 在 `SOFTWARE_CS` 模式的一次 primitive transfer 开始前调用，让指定 CS 进入有效态。
+## Software CS
 
-`release_chip_select(int cs_id)` 在 `SOFTWARE_CS` 模式的一次 primitive transfer 结束后调用，释放指定 CS。
+`set_chip_select(cs_id, selected)` 在一个 primitive transfer 的边界调用：`selected=1` 表示选中，`selected=0` 表示释放。`cs_id` 来自单次 transfer 配置包。
 
-基类默认 `uvm_fatal`，要求软件 CS 环境必须 override。硬件 CS 使用 `SER`，不调用这些 callback。
+软件 CS 默认关闭。开启生成开关后，单次配置包仍默认约束为 `HARDWARE_CS`；用户显式选择 `SOFTWARE_CS` 时才调用 callback。软件 CS 仅支持 master 1x standard 路径。
+
+基类实现会 `uvm_fatal`。sequencer 还会先检查 callback 列表；列表为空时同样 `uvm_fatal`，避免 UVM callback 宏在无注册对象时静默跳过。
+
+## Byte Reorder
+
+`reorder_bytes(data, is_read, reordered_data)` 的方向约定：
+
+| `is_read` | 输入 | 输出用途 |
+| --- | --- | --- |
+| `0` | 用户/scoreboard 逻辑写入顺序 | 送往 PIO 或 DMA 的控制器传输顺序 |
+| `1` | DUT 通过 DR0 或 DMA 返回的传输顺序 | flow 和 scoreboard 使用的逻辑读取顺序 |
+
+默认基类直接执行 `reordered_data = data`，未注册 callback 时 sequencer 也保持透传。重排只能改变顺序，不能改变队列长度；长度变化会 `uvm_fatal`。
+
+读取路径只重排有效 payload。`rx_skip_bytes` 指定的前导接收字节保持原样，由上层 flash flow 丢弃。写路径在传输结束前恢复 generic payload 的逻辑顺序，scoreboard 记录的也是逻辑数据，而不是线上的重排结果。
 
 ## CPU Access
 
@@ -55,20 +69,11 @@ CPU callback 用于内置 DMA 的系统内存 buffer 访问，不用于控制器
 
 | Task | 参数 | 说明 |
 | --- | --- | --- |
-| `cpu_read` | `addr, data, path` | 从 `addr` 读取 32-bit little-endian word 到 `data`。 |
-| `cpu_write` | `addr, data, path` | 向 `addr` 写入 32-bit little-endian word。 |
+| `cpu_read` | `addr, data, path` | 从 `addr` 读取 32-bit word 到 `data`。 |
+| `cpu_write` | `addr, data, path` | 向 `addr` 写入 32-bit word。 |
 
-`path` 使用 `uvm_path_e`：
-
-| Value | 用途 |
-| --- | --- |
-| `UVM_BACKDOOR` | DMA buffer 准备和回读。`dw_spi` 内置 DMA 当前固定使用这个路径。 |
-| `UVM_FRONTDOOR` | 普通 CPU 总线访问。当前 `dw_spi` 没有通用 CPU 访问 operation，保留给用户扩展。 |
-
-内置 DMA 写 transfer 启动前，sequence 用 `cpu_write(addr, word, UVM_BACKDOOR)` 准备 AXI source payload。内置 DMA 读 transfer 启动前不写 AXI buffer；完成后用 `cpu_read(addr, word, UVM_BACKDOOR)` 读取 destination payload。
+`path` 使用 `uvm_path_e`。内置 DMA 当前使用 `UVM_BACKDOOR` 准备 source buffer 和回读 destination buffer；环境可在 override 中映射到 CPU/AXI memory model。
 
 ## External DMA
 
-外部 DMA 配置生成 `start_external_dma(transfer_req)` 和 `finish_external_dma(transfer_req, read_data, ok)` callback。前者必须只完成 DMA engine 的配置与 arm 并返回，不能在 CS 尚未启动时阻塞等待完成；完整 `transfer_req` 提供 opcode、address、dummy、data、frame width 和方向，使 DMA 环境能维持同一个 CS window。后者等待 DMA engine 完成；read 返回来自 DUT 的实际字节，write 返回空队列并设置 `ok`。
-
-外部 flash read 同时开启 `DMACR.TDMAE` 和 `RDMAE`：TX handshake 负责 command/address/dummy 控制阶段，RX handshake 负责 payload。外部 write/command-only transfer 开启 `TDMAE`。未 override 这两个 callback 时，基类会 `uvm_fatal`。
+外部 DMA 配置生成 `start_external_dma(transfer_req)` 和 `finish_external_dma(transfer_req, read_data, ok)`。start 只负责配置并 arm DMA engine，不能在 CS 尚未启动时等待完成；finish 等待搬运完成并返回 DUT actual read bytes。未 override 时基类会 `uvm_fatal`。

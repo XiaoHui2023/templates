@@ -37,6 +37,8 @@
 
 `settings` 不保存单次传输协议形态，也不保存 flash size、page size、erase value。scoreboard mem 是动态 byte queue。
 
+Python `software_cs` 和 `byte_reorder` 均默认关闭。`software_cs=true` 才生成 `SOFTWARE_CS` 枚举、配置包约束和片选 callback；功能开启后，SV settings 与单次配置包仍默认选择 `HARDWARE_CS`。`byte_reorder=true` 才生成 transfer 边界的 byte queue 重排 callback；它不向 settings 增加运行期字段。
+
 ## `transfer_configuration.sv`
 
 `transfer_configuration` 是单次读写传输的协议形态配置包，作为 sequence req 传播。
@@ -53,7 +55,7 @@
 | `cs_id` | `SER` 和 callback 使用的片选编号 |
 | `addr_bytes` | flash address phase 字节数 |
 
-这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。用户只选择 `speed_multiplier`：1x 自动为 standard，2x/4x 自动为 enhanced；各协议阶段线宽由指令包给出。`SOFTWARE_CS` 只支持主机 1x。
+这些字段是 `rand`，默认值由 Python 配置生成 soft constraint。用户只选择 `speed_multiplier`：1x 自动为 standard，2x/4x 自动为 enhanced；各协议阶段线宽由指令包给出。生成软件 CS 能力后，`SOFTWARE_CS` 仍只支持主机 1x。
 
 operation transfer req 还会携带 `instruction_lanes` 和 `address_lanes`，分别描述 instruction/address phase 线宽。这两个字段不是用户级默认配置，而是由 flash command packet 按 opcode 填入：QPP `0x32` 的 instruction/address 均为单线，只有 payload 为 4 线；`READ2X 0xBB` 使用单线 instruction、2 线 address；`READ4X 0xEB` 使用单线 instruction、4 线 address；其余当前内置指令使用单线 instruction。`register_config_builder` 根据两个相位线宽推导 `SPI_CTRLR0.TRANS_TYPE` 和 timeout。
 

@@ -62,10 +62,12 @@ class {{ class_prefix }}transfer_configuration extends {{ class_prefix }}base_it
 {%- endif %}
 
         speed_multiplier inside {1{% if max_speed_multiplier >= 2 %}, 2{% endif %}{% if max_speed_multiplier >= 4 %}, 4{% endif %}};
+{%- if software_cs %}
         if (cs_control_mode == SOFTWARE_CS) {
             host_mode == MASTER;
             speed_multiplier == 1;
         }
+{%- endif %}
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
         cs_id < {{ num_cs }};

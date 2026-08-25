@@ -136,6 +136,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
         if (instruction_lanes != 1) instruction_lanes == speed_multiplier;
         if (addr_bytes == 0) address_lanes == 1;
         if (address_lanes != 1) address_lanes == speed_multiplier;
+{%- if software_cs %}
         if (cs_control_mode == SOFTWARE_CS) {
             host_mode == MASTER;
             frame_mode == STANDARD;
@@ -143,6 +144,7 @@ class {{ class_prefix }}transfer_req extends {{ class_prefix }}base_item;
             instruction_lanes == 1;
             address_lanes == 1;
         }
+{%- endif %}
         spi_mode inside {[0:3]};
         data_frame_bits inside {[4:32]};
         cs_id < {{ num_cs }};

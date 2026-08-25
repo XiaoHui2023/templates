@@ -150,6 +150,14 @@ class Models(BaseModel):
         True,
         description="Allow transfers to request receive sample delay.",
     )
+    software_cs: bool = Field(
+        False,
+        description="Generate software chip-select configuration and callback support.",
+    )
+    byte_reorder: bool = Field(
+        False,
+        description="Generate transfer byte-reordering callback support.",
+    )
     internal_dma: bool = Field(
         False,
         description="Generate internal DMA register programming and built-in DMA mover support.",
@@ -191,7 +199,7 @@ class Models(BaseModel):
             "typedef enum {STANDARD, ENHANCED} frame_mode_e;",
             "typedef enum {PSSI, HSSI} ssi_variant_e;",
             "typedef enum {TX_AND_RX, TX_ONLY, RX_ONLY, EEPROM_READ} transfer_mode_e;",
-            "typedef enum {HARDWARE_CS, SOFTWARE_CS} cs_control_mode_e;",
+            f"typedef enum {{HARDWARE_CS{', SOFTWARE_CS' if self.software_cs else ''}}} cs_control_mode_e;",
             "typedef enum {PREFER_INTERRUPT_COMPLETION, INTERRUPT_COMPLETION, POLLING_COMPLETION} completion_mode_e;",
             "",
             "localparam int CTRLR0_SPI_FRF_STANDARD = 0;",
@@ -243,6 +251,8 @@ class Models(BaseModel):
             raise ValueError("at least one of support_general_spi or support_flash_spi must be enabled")
         if self.internal_dma and self.external_dma:
             raise ValueError("internal_dma and external_dma cannot both be enabled")
+        if self.software_cs and not self.support_master:
+            raise ValueError("software_cs requires support_master")
         if (self.internal_dma or self.external_dma) and self.max_speed_multiplier == 1:
             raise ValueError("DMA requires enhanced SPI with max_speed_multiplier of at least 2")
         return self
@@ -258,6 +268,8 @@ class Models(BaseModel):
         if self.default_speed_multiplier > self.max_speed_multiplier:
             raise ValueError("default_speed_multiplier must not exceed max_speed_multiplier")
         if self.default_cs_control_mode == "SOFTWARE_CS":
+            if not self.software_cs:
+                raise ValueError("default_cs_control_mode SOFTWARE_CS requires software_cs")
             if not self.support_master:
                 raise ValueError("default_cs_control_mode SOFTWARE_CS requires support_master")
             if self.default_speed_multiplier != 1:
