@@ -91,12 +91,16 @@ class {{ class_prefix }}check_error_response extends {{ class_prefix }}base_resp
 {%- if enable_dma %}
         adma_status[2] == adma_len_err;
         (adma_status[1:0] == 0) -> adma_st_stop_err == 0;
+        (adma_status[1:0] == 0) -> adma_st_fds_err == 0;
+        (adma_status[1:0] == 0) -> adma_unused_err == 0;
+        (adma_status[1:0] == 0) -> adma_st_tfr_err == 0;
         (adma_status[1:0] == 1) -> adma_st_fds_err == 0;
         (adma_status[1:0] == 2) -> adma_unused_err == 0;
         (adma_status[1:0] == 3) -> adma_st_tfr_err == 0;
 {%- endif %}
     }
 
+    // Initializes the check-error response object.
     function new(string name="{{ class_prefix }}check_error_response");
         super.new(name);
     endfunction

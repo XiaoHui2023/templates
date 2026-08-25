@@ -8,25 +8,30 @@ class {{ class_prefix }}access_operation_seq extends {{ class_prefix }}base_oper
     rand {{ class_prefix }}reset_request rst_request;
     rand {{ class_prefix }}check_error_request chk_err_request;
 
+    // Initializes the access operation object.
     function new(string name="{{ class_prefix }}access_operation_seq");
         super.new(name);
     endfunction
 
     {{ class_prefix }}reset_operation_seq reset_seq;
 
+    // Builds child sequence requests before randomization.
     extern function void pre_randomize();
+    // Executes the access operation.
     extern task body();
 
-    // 传输命令。完成后，再等待 cmd complete, 后备类型为 RESP LEN 48B 时,还需要等待 xfer_complete
+    // Configures registers and starts the command.
     extern task execute_access();
 
-    // 配置测试模式
+    // Configures tuning mode when requested.
     extern task config_tune();
 
-    // 清空中断
+    // Clears stale interrupt status before command setup.
     extern task clear_interrupt_status();
 
+    // Creates a wait-field operation sequence.
     extern function {{ class_prefix }}wait_field_operation_seq create_wait_field_seq();
+    // Creates a wait-interrupt operation sequence.
     extern function {{ class_prefix }}wait_interrupt_operation_seq create_wait_intr_seq();
 endclass
 
@@ -134,7 +139,7 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.CMDARG_R.CMD_ARG.set(access_request.argument);
     rm.CMDARG_R.write(status, rm.CMDARG_R.get());
 
-    rm.RINTSTS_R.write(status, (1 << 2));
+    rm.RINTSTS_R.write(status, 32'hffff_ffff);
     rm.INTMASK_R.write(status, (1 << 2));
 
     rm.CMD_R.UPDATE_CLOCK_REGISTERS_ONLY.set(0);
@@ -208,7 +213,7 @@ endtask
 
 task {{ class_prefix }}access_operation_seq::clear_interrupt_status();
 {%- if is_mobile_storage %}
-    rm.RINTSTS_R.write(status, (1 << 2));
+    rm.RINTSTS_R.write(status, 32'hffff_ffff);
 {%- else %}
     rm.NORMAL_INT_STAT_R.write(status,'hffff_ffff);
 {%- endif %}

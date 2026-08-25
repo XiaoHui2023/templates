@@ -62,7 +62,7 @@
 - mobile_storage 的 power up 会把 `CMD_R.UPDATE_CLOCK_REGISTERS_ONLY` 置 1，access 发普通命令前必须清 0。
 - mobile_storage 的 `CMD_R.READ_WRITE` 与 `data_xfer_dir_e` 枚举值相反。`XFER_WRITE` 枚举值保持 0，写 `CMD_R.READ_WRITE` 时取反。
 - mobile_storage 的 `RINTSTS_R` 同时包含普通中断和错误中断；`wait_interrupt` 清等待的普通中断位，`check_error` 只清错误位。
-- mobile_storage 普通命令写 `CMD_R.START_CMD` 前清本次等待的旧状态并配置 `INTMASK_R`；等待时先读 `MINTSTS_R` 消费已置位状态，不在等待入口全清 `RINTSTS_R`。
+- mobile_storage 普通命令写 `CMD_R.START_CMD` 前全清 `RINTSTS_R` 并配置 `INTMASK_R`；等待时先读 `MINTSTS_R` 消费已置位状态，不在等待入口再次清状态。
 - `mobile_storage` 不强制启用 DMA。`enable_dma` 默认关闭，打开后仍由 `dma_enable` / `use_dma` 决定单次传输是否使用 DMA。
 - `dma_enable == 1` 时必须有数据；有数据不能反向要求 `dma_enable == 1`，SDIO CMD53 允许非 DMA 数据传输。
 - mobile_storage 非 DMA SDIO 数据传输不通过 RAL 数据寄存器；FIFO 窗口偏移 `0x200` 作为寄存器模型校对依据，代码用 `default_map.get_base_addr()` 计算窗口地址。

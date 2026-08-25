@@ -88,7 +88,7 @@ SDIO 流程：
 非 DMA 写：
 
 - MSHC 写 `BUF_DATA_R`。
-- mobile_storage 写 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口，每 4 字节按小端组一个 word，前门 CPU 写。
+- mobile_storage 在命令发出前写 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口，每 4 字节按小端组一个 word，前门 CPU 写；不等待 `CMD_COMPLETE` 后再写。
 
 ## DMA
 

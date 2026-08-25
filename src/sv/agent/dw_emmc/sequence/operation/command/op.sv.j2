@@ -93,6 +93,22 @@ task {{ class_prefix }}command_operation_seq::pre_start();
 endtask
 
 task {{ class_prefix }}command_operation_seq::body();
+{%- if is_mobile_storage %}
+    bit write_buffer_preloaded;
+
+    write_buffer_preloaded = 0;
+    if (cmd_request.data_present_sel && cmd_request.data_xfer_dir != cmd_request.XFER_READ) begin
+{%- if enable_dma %}
+        if (!cmd_request.dma_enable) begin
+            write_buffer(cmd_request.wdata);
+            write_buffer_preloaded = 1;
+        end
+{%- else %}
+        write_buffer(cmd_request.wdata);
+        write_buffer_preloaded = 1;
+{%- endif %}
+    end
+{%- endif %}
 {%- if enable_dma %}
     init_memory(); // 初始化内存
 {%- endif %}
@@ -102,8 +118,16 @@ task {{ class_prefix }}command_operation_seq::body();
     if (cmd_request.data_present_sel) begin
         if (cmd_request.data_xfer_dir == cmd_request.XFER_READ)
             read(rsp.data);
+{%- if is_mobile_storage %}
+        else begin
+            if (!write_buffer_preloaded) begin
+                write(cmd_request.wdata);
+            end
+        end
+{%- else %}
         else
             write(cmd_request.wdata);
+{%- endif %}
     end
     // 读答案
     if (cmd_request.access_request.resp_type_select != cmd_request.access_request.NO_RESP)
@@ -183,6 +207,10 @@ endtask
 {%- endif %}
 
 task {{ class_prefix }}command_operation_seq::write_buffer(bit [7:0] data[$]);
+{%- if is_mobile_storage %}
+    repeat (cmd_request.block_count)
+        write_buffer_one_block(data);
+{%- else %}
     repeat (cmd_request.block_count) begin
         // wait ready
         $cast(wait_intr_seq, create_wait_intr_seq());
@@ -190,6 +218,7 @@ task {{ class_prefix }}command_operation_seq::write_buffer(bit [7:0] data[$]);
         // write
         write_buffer_one_block(data);
     end
+{%- endif %}
 endtask
 
 task {{ class_prefix }}command_operation_seq::read_buffer(ref bit [7:0] data[$]);
