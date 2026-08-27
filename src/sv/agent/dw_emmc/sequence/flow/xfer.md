@@ -25,7 +25,7 @@
 关键约束：
 
 - `len == count * size`。
-- SDIO 地址 4 字节对齐，`function_number` 在 1 到 7。
+- SDIO 地址低 2 bit 为 0，`function_number` 在 1 到 7。
 - eMMC DDR/HS400 时 `size == 512`。
 - SDSC 不支持多 block，`count == 1`。
 - ADMA 描述符地址和数据地址不能重叠。
@@ -41,7 +41,7 @@ eMMC/SD 流程：
 
 1. `count > 1` 时先发 CMD23 设置 block count。
 2. `count > 1` 时发 CMD18，否则发 CMD17。
-3. 按 `blocking` 决定 host 侧从 buffer 取数的时机。
+3. 按 `blocking` 决定 host 从 buffer 取数的时机。
 4. 把 command response 的 `data` 保存到 `rdata`。
 
 SDIO 流程：
@@ -55,6 +55,7 @@ SDIO 流程：
 - 每个 block 都先等一次 `BUF_RD_READY`，然后立刻读走一个 block。
 - MSHC 从 `BUF_DATA_R` 读取。
 - mobile_storage 从 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口前门读取 32-bit word。
+- mobile_storage 读命令前开启读 FIFO 保护，阈值按当前 block size 配置。
 - 所有 block 读走后再等 `XFER_COMPLETE`。
 
 Blocked read：
@@ -107,4 +108,4 @@ ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA
 
 DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写、mobile_storage 非 DMA FIFO 访问默认前门。
 
-读写流程不自己搬 DUT 侧数据。DUT 侧数据搬运由 CPU 访问或 DMA 决定，scoreboard 只接收最终期望和实际数据。
+读写流程不自己搬 DUT 数据。DUT 数据搬运由 CPU 访问或 DMA 决定，scoreboard 只接收最终期望和实际数据。

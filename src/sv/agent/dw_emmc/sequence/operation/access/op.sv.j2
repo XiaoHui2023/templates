@@ -66,6 +66,8 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     bit[31:0] rdata;
 {%- if is_mobile_storage %}
     int card_width;
+    int rx_wmark;
+    string fatal_msg;
 {%- endif %}
     {{ class_prefix }}wait_field_operation_seq wait_field_seq;
 
@@ -126,6 +128,21 @@ task {{ class_prefix }}access_operation_seq::execute_access();
     rm.BLKSIZ_R.write(status, rm.BLKSIZ_R.get());
     rm.BYTCNT_R.BYTE_COUNT.set(access_request.xfer_block_size * access_request.sdmasa);
     rm.BYTCNT_R.write(status, rm.BYTCNT_R.get());
+    if(access_request.data_present_sel && access_request.data_xfer_dir == XFER_READ) begin
+        rx_wmark = access_request.xfer_block_size / 2;
+        if(rx_wmark <= 0) begin
+            fatal_msg = $sformatf("Invalid mobile_storage RX watermark from block size: %0d", access_request.xfer_block_size);
+            `uvm_fatal("", fatal_msg)
+        end
+
+        rm.CARDTHRCTL_R.read(status, rdata);
+        rm.CARDTHRCTL_R.CARD_RD_THR_EN.set(1);
+        rm.CARDTHRCTL_R.CARD_RD_THRESHOLD.set(access_request.xfer_block_size);
+        rm.CARDTHRCTL_R.write(status, rm.CARDTHRCTL_R.get());
+        rm.FIFOTH_R.read(status, rdata);
+        rm.FIFOTH_R.RX_WMARK.set(rx_wmark);
+        rm.FIFOTH_R.write(status, rm.FIFOTH_R.get());
+    end
 {%- else %}
     rm.BLOCKSIZE_R.XFER_BLOCK_SIZE.set(access_request.xfer_block_size); // 1 byte
 {%- if enable_dma %}

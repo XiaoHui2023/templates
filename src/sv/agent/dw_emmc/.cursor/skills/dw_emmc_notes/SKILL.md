@@ -25,6 +25,7 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - 数据命令不反向强制打开 DMA；SDIO CMD53 允许 `data_present_sel == 1` 且 `dma_enable == 0`。
 - mobile_storage 没有 RAL `BUF_DATA_R`；非 DMA SDIO 通过 `default_map.get_base_addr() + 0x200` FIFO 窗口前门 CPU 访问。
 - mobile_storage 非 DMA SDIO 写数据要在命令发出前预装 FIFO，不能等 `CMD_COMPLETE` 后才 PIO 搬数据。
+- mobile_storage 读数据命令前开启读 FIFO 保护：`CARDTHRCTL_R.CARD_RD_THR_EN = 1`，`CARD_RD_THRESHOLD = xfer_block_size`，`FIFOTH_R.RX_WMARK = xfer_block_size / 2`。
 - mobile_storage 不强制启用 DMA；生成 DMA 时，kit `rw_test()` 默认 `use_dma = 0`，需要 DMA 时显式打开。
 
 ## 验收

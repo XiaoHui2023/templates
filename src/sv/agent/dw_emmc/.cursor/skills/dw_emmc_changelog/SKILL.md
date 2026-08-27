@@ -5,17 +5,21 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
-## 2026-08-24
+## 2026-08-27
 
-- `cpu_read` / `cpu_write` callback 默认实现改为 `uvm_fatal`，避免未重载时静默失败。
-- mobile_storage SDIO 非 DMA CMD53 数据传输改为通过 `default_map.get_base_addr() + 0x200` FIFO 窗口前门 CPU 读写；MSHC `BUF_DATA_R` 路径保持不变。
-- 纠正族级记录中的旧口径：mobile_storage 不强制启用 DMA，kit `rw_test()` 的 `use_dma` 默认仍为 0。
+- mobile_storage SDIO 读数据命令前开启 FIFO 保护：配置 `CARDTHRCTL_R` 的读阈值和 `FIFOTH_R.RX_WMARK`，避免 CMD53 读传输 FIFO 溢出；MSHC 路径不变。
 
 ## 2026-08-25
 
 - mobile_storage SDIO 非 DMA 写数据改为命令发出前预装 FIFO，避免 `wait_cmd_complete` 后才搬数据导致卡等待数据。
 - mobile_storage access 前清状态改为全清 `RINTSTS_R`，等待入口继续由 `MINTSTS_R` 先消费已置位状态。
 - ADMA response 约束补齐 `adma_status[1:0] == 0` 时 `adma_st_fds_err`、`adma_unused_err`、`adma_st_tfr_err` 均为 0。
+
+## 2026-08-24
+
+- `cpu_read` / `cpu_write` callback 默认实现改为 `uvm_fatal`，避免未重载时静默失败。
+- mobile_storage SDIO 非 DMA CMD53 数据传输改为通过 `default_map.get_base_addr() + 0x200` FIFO 窗口前门 CPU 读写；MSHC `BUF_DATA_R` 路径保持不变。
+- 纠正族级记录中的旧口径：mobile_storage 不强制启用 DMA，kit `rw_test()` 的 `use_dma` 默认仍为 0。
 
 ## 2026-08-20
 
