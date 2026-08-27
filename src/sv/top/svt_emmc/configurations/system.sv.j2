@@ -10,6 +10,9 @@ class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_conf
         `uvm_field_int(should_check_timing,UVM_ALL_ON)
         `uvm_field_int(power_ramp_up_time_ns,UVM_ALL_ON)
         `uvm_field_int(tsupply_rampup_min_ck,UVM_ALL_ON)
+        {%- if is_emmc %}
+        `uvm_field_int(emmc_ocr_vdd_access_mode,UVM_ALL_ON)
+        {%- endif %}
         `uvm_field_int(tNac_hs200_hs400_ck,UVM_ALL_ON)
         `uvm_field_int(tNac_max_ck,UVM_ALL_ON)
         `uvm_field_int(tNst_hs400_min_ck,UVM_ALL_ON)
@@ -17,19 +20,22 @@ class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_conf
         `uvm_field_object(reg_cfg,UVM_ALL_ON)
     `uvm_object_utils_end
 
-    rand version_e version; // 版本号
+    rand version_e version; // Version
     {%- if is_sd %}
-    rand capacity_type_e capacity_type; // 容量类型
+    rand capacity_type_e capacity_type; // Capacity type
     {%- endif %}
-    rand bit should_check_timing; // 时序检查使能
+    rand bit should_check_timing; // Timing check enable
     rand int power_ramp_up_time_ns; // Power-up acceleration: ramp-up wait time
     rand int tsupply_rampup_min_ck; // Power-up acceleration: supply ramp-up clocks
+    {%- if is_emmc %}
+    rand bit [1:0] emmc_ocr_vdd_access_mode; // eMMC OCR access mode
+    {%- endif %}
     rand int tNac_hs200_hs400_ck; // Fixed timing: original random range 8 to 150
     rand int tNac_max_ck; // Fixed timing
     rand int tNst_hs400_min_ck; // Fixed timing: original random range 2 to 4
     rand int tNst_hs400_max_ck; // Fixed timing
-    rand bit has_randomized; // 是否已随机化
-    rand {{ class_prefix }}reg_configuration reg_cfg; // 寄存器配置
+    rand bit has_randomized; // Randomized flag
+    rand {{ class_prefix }}reg_configuration reg_cfg; // Register configuration
 
     function new(string name="{{ class_prefix }}system_configuration");
         super.new(name);
@@ -43,6 +49,9 @@ class {{ class_prefix }}system_configuration extends {{ class_prefix }}base_conf
         soft should_check_timing == 0;
         soft power_ramp_up_time_ns == {{ power_ramp_up_time_ns }};
         soft tsupply_rampup_min_ck == {{ tsupply_rampup_min_ck }};
+        {%- if is_emmc %}
+        soft emmc_ocr_vdd_access_mode == {{ emmc_ocr_vdd_access_mode }};
+        {%- endif %}
         soft tNac_hs200_hs400_ck == {{ tNac_hs200_hs400_ck }};
         soft tNac_max_ck == {{ tNac_max_ck }};
         soft tNst_hs400_min_ck == {{ tNst_hs400_min_ck }};

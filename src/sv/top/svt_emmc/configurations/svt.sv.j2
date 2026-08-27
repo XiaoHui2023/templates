@@ -133,7 +133,7 @@ function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ cla
     reg_cfg.set_emmc_emmc_reg_field(7'd0, svt_emmc_types::EMMC_OCR_REG_VDD_B14_B8_2PT0_2PT6);
     reg_cfg.set_emmc_emmc_reg_field(9'd511, svt_emmc_types::EMMC_OCR_REG_VDD_B23_B15_2PT7_3PT6);
     reg_cfg.set_emmc_emmc_reg_field(5'd0, svt_emmc_types::EMMC_OCR_REG_VDD_RSVD_B28_B24);
-    reg_cfg.set_emmc_emmc_reg_field(2'd2, svt_emmc_types::EMMC_OCR_REG_VDD_ACCESS_MODE_B30_B29);
+    reg_cfg.set_emmc_emmc_reg_field(sys_cfg.emmc_ocr_vdd_access_mode, svt_emmc_types::EMMC_OCR_REG_VDD_ACCESS_MODE_B30_B29);
     reg_cfg.set_emmc_emmc_reg_field(1'd0, svt_emmc_types::EMMC_OCR_REG_CARD_POWERUP_STATUS_B31);
 
     // Get field values from EXT_CSD register

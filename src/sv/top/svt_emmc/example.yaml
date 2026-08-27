@@ -1,6 +1,7 @@
 card_type: emmc
 power_ramp_up_time_ns: 1000
 tsupply_rampup_min_ck: 1
+emmc_ocr_vdd_access_mode: 0
 tNac_hs200_hs400_ck: 8
 tNac_max_ck: 8
 tNst_hs400_min_ck: 2
