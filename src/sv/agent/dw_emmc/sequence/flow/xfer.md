@@ -67,6 +67,13 @@ Blocked read：
 
 eMMC/SD read 不支持 abort，约束 `abort == 0`。
 
+### mobile_storage 非 DMA FIFO read
+
+- 块级唤醒仍使用 `BUF_RD_READY`。
+- 每个 word 读取前检查 `STATUS_R[2] == 0`。
+- FIFO 非空后读取 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口。
+- 轮询期间检查 `RINTSTS_R[11]`，出现 FIFO 下溢或上溢时 fatal。
+
 ## Write
 
 | 字段 | 作用 |

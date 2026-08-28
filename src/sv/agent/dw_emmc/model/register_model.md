@@ -1,5 +1,15 @@
 # Register Model
 
+## mobile_storage FIFO 状态
+
+| 对象 | 解释 |
+| --- | --- |
+| `STATUS_R[2]` | FIFO 空标志；非 DMA 读每个 word 前检查该位为 0 |
+| `RINTSTS_R[11]` | FIFO 下溢或上溢；轮询期间置位时 fatal |
+| `STATUS_R[29:17]` | FIFO 填充数量；只作为调试参考 |
+
+读命令前的阈值配置只决定 `RXDR` 触发条件。非 DMA 读不能在 `RXDR` 后连续读取整个 block，必须逐 word 检查 FIFO 非空。
+
 ## 产品
 
 | `controller_ip` | 寄存器模型 | 说明 |

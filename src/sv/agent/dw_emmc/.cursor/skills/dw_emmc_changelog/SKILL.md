@@ -5,6 +5,10 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-08-28
+
+- mobile_storage SDIO 非 DMA 读 FIFO 改为逐 word 状态检查：每次前门读 FIFO 窗口前先查 `STATUS_R[2] == 0`，并在轮询期间检查 `RINTSTS_R[11]`；`mshc` 读路径不变。
+
 ## 2026-08-27
 
 - mobile_storage SDIO 读数据命令前开启 FIFO 保护：配置 `CARDTHRCTL_R` 的读阈值和 `FIFOTH_R.RX_WMARK`，避免 CMD53 读传输 FIFO 溢出；MSHC 路径不变。

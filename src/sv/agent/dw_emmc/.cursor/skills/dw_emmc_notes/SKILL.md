@@ -33,3 +33,10 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - 改 `.sv.j2` 后渲染 eMMC、SDCard、SDIO 默认配置。
 - mobile_storage 相关修改要渲染 `controller_ip: mobile_storage`、`card_type: sdio` 且 `enable_dma: true`。
 - 检查生成物空行、保留字、参数方向和未展开 Jinja 标记。
+
+## mobile_storage FIFO read
+
+- `RXDR` 只作为块级唤醒。
+- 非 DMA 读 FIFO 时，每个 word 前读 `STATUS_R`，确认 `STATUS_R[2] == 0` 后再读 FIFO 窗口。
+- 轮询期间检查 `RINTSTS_R[11]`，出现 FIFO 下溢或上溢时 fatal。
+- `STATUS_R[29:17]` 只作为调试参考，不能替代 FIFO 空标志。

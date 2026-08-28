@@ -8,6 +8,9 @@ class {{ class_prefix }}command_operation_seq #(
 
 {%- if is_mobile_storage %}
     localparam bit [63:0] FIFO_PORT_OFFSET = 64'h200;
+    localparam int FIFO_EMPTY_BIT = 2;
+    localparam int FIFO_ERROR_BIT = 11;
+    localparam int FIFO_POLL_INTERVAL_US = 1;
 
 {%- endif %}
     rand CLASS_COMMAND_REQ cmd_request;
@@ -57,6 +60,8 @@ class {{ class_prefix }}command_operation_seq #(
 {%- if is_mobile_storage %}
     // Returns the FIFO window address.
     extern protected function bit [63:0] fifo_port_addr();
+    // Waits until one FIFO word can be read.
+    extern protected task wait_read_fifo_not_empty(input int word_idx);
 {%- endif %}
     // Writes one block through the controller buffer.
     extern protected task write_buffer_one_block(ref bit [7:0] data[$]);
@@ -247,6 +252,39 @@ function bit [63:0] {{ class_prefix }}command_operation_seq::fifo_port_addr();
     return base_addr + FIFO_PORT_OFFSET;
 endfunction
 
+task {{ class_prefix }}command_operation_seq::wait_read_fifo_not_empty(input int word_idx);
+    bit [31:0] interrupt_data;
+    bit [31:0] status_data;
+    string fatal_msg;
+    int waited_us;
+
+    waited_us = 0;
+    forever begin
+        rm.RINTSTS_R.read(status, interrupt_data);
+        rm.STATUS_R.read(status, status_data);
+
+        if (interrupt_data[FIFO_ERROR_BIT]) begin
+            fatal_msg = $sformatf(
+                "mobile_storage FIFO error before word %0d: status=0x%h rintsts=0x%h",
+                word_idx, status_data, interrupt_data);
+            `uvm_fatal("PIO_READ", fatal_msg)
+        end
+
+        if (!status_data[FIFO_EMPTY_BIT])
+            return;
+
+        if (waited_us >= cmd_request.pio_read_timeout_us) begin
+            fatal_msg = $sformatf(
+                "mobile_storage read FIFO empty timeout before word %0d: status=0x%h rintsts=0x%h",
+                word_idx, status_data, interrupt_data);
+            `uvm_fatal("PIO_READ", fatal_msg)
+        end
+
+        p_sequencer.vif.wait_timeout(FIFO_POLL_INTERVAL_US);
+        waited_us += FIFO_POLL_INTERVAL_US;
+    end
+endtask
+
 {% endif -%}
 task {{ class_prefix }}command_operation_seq::write_buffer_one_block(ref bit [7:0] data[$]);
 {%- if is_mobile_storage %}
@@ -300,6 +338,7 @@ task {{ class_prefix }}command_operation_seq::read_buffer_one_block(ref bit [7:0
     words = (cmd_request.block_size + 3) / 4;
     `uvm_info("", $psprintf("read buffer one block words=%0d", words), UVM_LOW)
     for (word_idx = 0; word_idx < words; word_idx++) begin
+        wait_read_fifo_not_empty(word_idx);
         p_sequencer.cpu_read(addr + word_idx * 4, dat, UVM_FRONTDOOR);
         for (byte_idx = 0; byte_idx < 4; byte_idx++) begin
             byte_pos = word_idx * 4 + byte_idx;

@@ -43,6 +43,9 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
             end
 {%- endif %}
         end
+{%- if is_mobile_storage %}
+        `uvm_field_int(pio_read_timeout_us, UVM_ALL_ON)
+{%- endif %}
         `uvm_field_object(access_request, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_object(chk_err_request, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_object(rst_request, UVM_ALL_ON | UVM_NOPRINT)
@@ -68,6 +71,9 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
     rand bit rd_blocking; // 是否读取阻塞（若不读，最后一个请求返回）
     rand bit[63:0] addr; // 传输数据地址
     rand bit[7:0] wdata[$]; // 写数据
+{%- if is_mobile_storage %}
+    rand int pio_read_timeout_us; // FIFO read timeout [us]
+{%- endif %}
     rand {{ class_prefix }}access_request access_request;
     rand {{ class_prefix }}check_error_request chk_err_request;
     rand {{ class_prefix }}reset_request rst_request;
@@ -83,6 +89,11 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
 {%- else %}
         soft dma_addr == addr;
 {%- endif %}
+{%- endif %}
+
+{%- if is_mobile_storage %}
+        soft pio_read_timeout_us == 1000;
+        pio_read_timeout_us > 0;
 {%- endif %}
 
         len == block_size * block_count;
