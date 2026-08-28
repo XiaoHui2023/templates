@@ -1,0 +1,269 @@
+{%- set class_name = class_prefix ~ "base" -%}
+{%- set needs_width_helpers = functions.from_twos_complement or functions.to_twos_complement or functions.cut or functions.slice or functions.resize or functions.pad or functions.reverse_bits -%}
+{%- set needs_twos_helpers = functions.from_twos_complement or functions.to_twos_complement or functions.resize -%}
+`ifndef {{ class_name | upper }}
+`define {{ class_name | upper }}
+
+class {{ class_name }} extends {{ base_class }};
+    `uvm_component_utils({{ class_name }})
+
+    typedef bit [{{ data_width - 1 }}:0] value_t;
+
+    // 创建可由其它 component 继承的计算基类。
+    function new(string name="{{ class_name }}", uvm_component parent=null);
+        super.new(name, parent);
+    endfunction
+{%- if needs_width_helpers %}
+
+    // 检查位宽是否在标量容器范围内。
+    // arg_name — 报错时显示的参数名
+    extern local function void check_width(int width, string arg_name);
+
+    // 返回低 width 位为 1 的掩码。
+    extern local function value_t width_mask(int width);
+{%- endif %}
+{%- if needs_twos_helpers %}
+
+    // 把指定位宽的补码编码扩展到标量容器宽度。
+    extern local function value_t decode_twos(value_t data, int width, bit is_signed);
+
+    // 把标量容器中的数值编码到指定位宽。
+    extern local function value_t encode_twos(
+        value_t data,
+        int width,
+        bit is_signed,
+        bit saturate
+    );
+{%- endif %}
+{%- if functions.from_twos_complement %}
+
+    // 把补码编码转换为零扩展或符号扩展的数值。
+    extern function value_t from_twos_complement(
+        value_t data,
+        int width,
+        bit is_signed=0
+    );
+{%- endif %}
+{%- if functions.to_twos_complement %}
+
+    // 把数值转换为指定位宽的补码编码。
+    extern function value_t to_twos_complement(
+        value_t data,
+        int width,
+        bit is_signed=0,
+        bit saturate=0
+    );
+{%- endif %}
+{%- if functions.cut %}
+
+    // 从 lsb 开始取 width 位并右移到 bit 0。
+    extern function value_t cut(value_t data, int width, int lsb=0);
+{%- endif %}
+{%- if functions.slice %}
+
+    // 取闭区间 msb 到 lsb 的位并右移到 bit 0。
+    extern function value_t slice(value_t data, int msb, int lsb=0);
+{%- endif %}
+{%- if functions.resize %}
+
+    // 按输入符号把数值重新编码到输出位宽。
+    extern function value_t resize(
+        value_t data,
+        int in_width,
+        int out_width,
+        bit is_signed=0,
+        bit saturate=0
+    );
+{%- endif %}
+{%- if functions.pad %}
+
+    // 截短数据或用 pad_bit 填充高位到输出位宽。
+    extern function value_t pad(
+        value_t data,
+        int in_width,
+        int out_width,
+        bit pad_bit=0
+    );
+{%- endif %}
+{%- if functions.reverse_bits %}
+
+    // 反转低 width 位的顺序并清零其它位。
+    extern function value_t reverse_bits(value_t data, int width);
+{%- endif %}
+endclass
+{%- if needs_width_helpers %}
+
+function void {{ class_name }}::check_width(int width, string arg_name);
+    if (width < 1 || width > {{ data_width }}) begin
+        $fatal(1, "%s=%0d is outside 1..{{ data_width }}", arg_name, width);
+    end
+endfunction
+
+function {{ class_name }}::value_t {{ class_name }}::width_mask(int width);
+    value_t mask;
+
+    check_width(width, "width");
+    mask = '1;
+    if (width < {{ data_width }}) begin
+        mask >>= {{ data_width }} - width;
+    end
+    return mask;
+endfunction
+{%- endif %}
+{%- if needs_twos_helpers %}
+
+function {{ class_name }}::value_t {{ class_name }}::decode_twos(
+    value_t data,
+    int width,
+    bit is_signed
+);
+    value_t mask;
+    value_t result;
+
+    mask = width_mask(width);
+    result = data & mask;
+    if (is_signed && result[width-1]) begin
+        result |= ~mask;
+    end
+    return result;
+endfunction
+
+function {{ class_name }}::value_t {{ class_name }}::encode_twos(
+    value_t data,
+    int width,
+    bit is_signed,
+    bit saturate
+);
+    value_t mask;
+    value_t max_bits;
+    value_t min_bits;
+    value_t result;
+    bit signed [{{ data_width - 1 }}:0] signed_data;
+    bit signed [{{ data_width - 1 }}:0] signed_max;
+    bit signed [{{ data_width - 1 }}:0] signed_min;
+
+    mask = width_mask(width);
+    result = data;
+    if (saturate && is_signed) begin
+        max_bits = mask >> 1;
+        min_bits = ~max_bits;
+        signed_data = data;
+        signed_max = max_bits;
+        signed_min = min_bits;
+        if (signed_data > signed_max) begin
+            result = max_bits;
+        end
+        else if (signed_data < signed_min) begin
+            result = min_bits;
+        end
+    end
+    else if (saturate && !is_signed && (data & ~mask) != '0) begin
+        result = mask;
+    end
+    return result & mask;
+endfunction
+{%- endif %}
+{%- if functions.from_twos_complement %}
+
+function {{ class_name }}::value_t {{ class_name }}::from_twos_complement(
+    value_t data,
+    int width,
+    bit is_signed
+);
+    return decode_twos(data, width, is_signed);
+endfunction
+{%- endif %}
+{%- if functions.to_twos_complement %}
+
+function {{ class_name }}::value_t {{ class_name }}::to_twos_complement(
+    value_t data,
+    int width,
+    bit is_signed,
+    bit saturate
+);
+    return encode_twos(data, width, is_signed, saturate);
+endfunction
+{%- endif %}
+{%- if functions.cut %}
+
+function {{ class_name }}::value_t {{ class_name }}::cut(
+    value_t data,
+    int width,
+    int lsb
+);
+    check_width(width, "width");
+    if (lsb < 0 || lsb > {{ data_width }} - width) begin
+        $fatal(1, "lsb=%0d and width=%0d exceed {{ data_width }} bits", lsb, width);
+    end
+    return (data >> lsb) & width_mask(width);
+endfunction
+{%- endif %}
+{%- if functions.slice %}
+
+function {{ class_name }}::value_t {{ class_name }}::slice(
+    value_t data,
+    int msb,
+    int lsb
+);
+    if (lsb < 0 || msb < lsb || msb >= {{ data_width }}) begin
+        $fatal(1, "invalid slice msb=%0d lsb=%0d for {{ data_width }} bits", msb, lsb);
+    end
+    return (data >> lsb) & width_mask(msb - lsb + 1);
+endfunction
+{%- endif %}
+{%- if functions.resize %}
+
+function {{ class_name }}::value_t {{ class_name }}::resize(
+    value_t data,
+    int in_width,
+    int out_width,
+    bit is_signed,
+    bit saturate
+);
+    value_t normalized;
+
+    check_width(in_width, "in_width");
+    check_width(out_width, "out_width");
+    normalized = decode_twos(data, in_width, is_signed);
+    return encode_twos(normalized, out_width, is_signed, saturate);
+endfunction
+{%- endif %}
+{%- if functions.pad %}
+
+function {{ class_name }}::value_t {{ class_name }}::pad(
+    value_t data,
+    int in_width,
+    int out_width,
+    bit pad_bit
+);
+    value_t result;
+
+    check_width(in_width, "in_width");
+    check_width(out_width, "out_width");
+    result = data & width_mask(in_width);
+    if (out_width < in_width) begin
+        result &= width_mask(out_width);
+    end
+    else if (out_width > in_width && pad_bit) begin
+        result |= width_mask(out_width) & ~width_mask(in_width);
+    end
+    return result;
+endfunction
+{%- endif %}
+{%- if functions.reverse_bits %}
+
+function {{ class_name }}::value_t {{ class_name }}::reverse_bits(
+    value_t data,
+    int width
+);
+    value_t result;
+
+    check_width(width, "width");
+    result = '0;
+    for (int i = 0; i < width; i++) begin
+        result[width-1-i] = data[i];
+    end
+    return result;
+endfunction
+{%- endif %}
+`endif

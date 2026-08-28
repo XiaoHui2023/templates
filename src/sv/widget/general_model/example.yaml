@@ -1,0 +1,15 @@
+class_prefix: compute_
+base_class: uvm_component
+data_width: 1024
+
+functions:
+  from_twos_complement: true
+  to_twos_complement: true
+  cut: true
+  slice: true
+  resize: true
+  pad: true
+  reverse_bits: true
+
+transpose:
+  enabled: true
