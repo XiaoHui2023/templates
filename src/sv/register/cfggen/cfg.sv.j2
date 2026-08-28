@@ -1,0 +1,123 @@
+`ifndef {{ design.guard }}
+`define {{ design.guard }}
+
+{%- for reg in design.registers %}
+class {{ reg.class_name }} extends uvm_sequence_item;
+    rand bit [{{ reg.value_width - 1 }}:0] {{ design.value_name }};
+    {%- for field in reg.fields %}
+    rand bit [{{ field.width - 1 }}:0] {{ field.name }};
+    {%- endfor %}
+    bit {{ design.rand_mode_lock_name }};
+
+    parameter bit [{{ reg.value_width - 1 }}:0] {{ design.reset_value_name }} = {{ reg.reset_literal }};
+
+    `uvm_object_utils_begin({{ reg.class_name }})
+        `uvm_field_int({{ design.value_name }}, UVM_HEX)
+    {%- for field in reg.fields %}
+        `uvm_field_int({{ field.name }}, UVM_HEX)
+    {%- endfor %}
+        `uvm_field_int({{ design.rand_mode_lock_name }}, UVM_NOPRINT)
+    `uvm_object_utils_end
+
+    constraint {{ design.constraint_name }} {
+    {%- for field in reg.fields %}
+        {{ design.value_name }}[{{ field.value_msb }}:{{ field.value_lsb }}] == {{ field.name }};
+    {%- endfor %}
+    }
+
+    // Initialize the configuration object with its UVM instance name.
+    function new(string name = "{{ reg.class_name }}");
+        super.new(name);
+    endfunction
+
+    // Preserve an explicitly synchronized packed value during randomization.
+    function void pre_randomize();
+        super.pre_randomize();
+        if ({{ design.rand_mode_lock_name }}) begin
+            {{ design.value_name }}.rand_mode(0);
+        end
+    endfunction
+    {%- if design.emit_ral_sync_methods %}
+
+    // Copy the configuration value into the matching ralgen register object.
+    function void {{ design.set_ral_method_name }}({{ reg.ral_type }} ral_model);
+        ral_model.set({{ design.value_name }});
+    endfunction
+
+    // Refresh fields and the packed value from the matching ralgen register object.
+    function void {{ design.get_ral_method_name }}({{ reg.ral_type }} ral_model);
+        {%- for field in reg.fields %}
+        {{ field.name }} = ral_model.{{ field.name }}.get();
+        {%- endfor %}
+        {{ design.value_name }} = ral_model.get();
+        {{ design.rand_mode_lock_name }} = 1'b1;
+    endfunction
+    {%- endif %}
+endclass
+
+{%- endfor %}
+{%- for container in design.containers %}
+class {{ container.class_name }} extends {{ design.base_class }};
+    {%- for child in container.children %}
+    {%- if child.is_array %}
+    rand {{ child.class_name }} {{ child.name }}[{{ child.count }}];
+    {%- else %}
+    rand {{ child.class_name }} {{ child.name }};
+    {%- endif %}
+    {%- endfor %}
+
+    `uvm_object_utils_begin({{ container.class_name }})
+    {%- for child in container.children %}
+    {%- if child.is_array %}
+        `uvm_field_sarray_object({{ child.name }}, UVM_DEFAULT)
+    {%- else %}
+        `uvm_field_object({{ child.name }}, UVM_DEFAULT)
+    {%- endif %}
+    {%- endfor %}
+    `uvm_object_utils_end
+
+    // Create the direct child configuration objects.
+    function new(string name = "{{ container.class_name }}");
+        super.new(name);
+        {%- for child in container.children %}
+        {%- if child.is_array %}
+        foreach ({{ child.name }}[i]) begin
+            {{ child.name }}[i] = {{ child.class_name }}::type_id::create($sformatf("{{ child.name }}[%0d]", i));
+        end
+        {%- else %}
+        {{ child.name }} = {{ child.class_name }}::type_id::create("{{ child.name }}");
+        {%- endif %}
+        {%- endfor %}
+    endfunction
+    {%- if design.emit_ral_sync_methods %}
+
+    // Recursively copy configuration values into the matching ralgen object.
+    function void {{ design.set_ral_method_name }}({{ container.ral_type }} ral_model);
+        {%- for child in container.children %}
+        {%- if child.is_array %}
+        foreach ({{ child.name }}[i]) begin
+            {{ child.name }}[i].{{ design.set_ral_method_name }}(ral_model.{{ child.name }}[i]);
+        end
+        {%- else %}
+        {{ child.name }}.{{ design.set_ral_method_name }}(ral_model.{{ child.name }});
+        {%- endif %}
+        {%- endfor %}
+    endfunction
+
+    // Recursively refresh configuration values from the matching ralgen object.
+    function void {{ design.get_ral_method_name }}({{ container.ral_type }} ral_model);
+        {%- for child in container.children %}
+        {%- if child.is_array %}
+        foreach ({{ child.name }}[i]) begin
+            {{ child.name }}[i].{{ design.get_ral_method_name }}(ral_model.{{ child.name }}[i]);
+        end
+        {%- else %}
+        {{ child.name }}.{{ design.get_ral_method_name }}(ral_model.{{ child.name }});
+        {%- endif %}
+        {%- endfor %}
+    endfunction
+    {%- endif %}
+endclass
+
+{%- endfor %}
+`endif

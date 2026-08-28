@@ -1,0 +1,3 @@
+ralf_file: example.ralf
+class_prefix: cfg_
+emit_ral_sync_methods: true

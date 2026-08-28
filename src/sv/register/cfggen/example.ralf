@@ -1,0 +1,5 @@
+source "example_blocks.ralf"
+
+system CHIP {
+  block peripherals = PERIPHERALS;
+}

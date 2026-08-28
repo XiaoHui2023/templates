@@ -1,0 +1,25 @@
+block UART {
+  bytes 4;
+  register CTRL @0 {
+    bytes 4;
+    field status @0 {
+      bits 1;
+      access ro;
+      reset 1'b0;
+    }
+    field enable @4 {
+      bits 1;
+      access rw;
+      reset 1'b1;
+    }
+    field mode @8 {
+      bits 3;
+      access rw;
+      reset 3'h3;
+    }
+  }
+}
+
+block PERIPHERALS {
+  block uart0 = UART;
+}
