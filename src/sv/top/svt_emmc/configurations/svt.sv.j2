@@ -4,16 +4,21 @@
 class {{ class_prefix }}svt_configuration extends svt_emmc_card_agent_configuration;
     `uvm_object_utils({{ class_prefix }}svt_configuration)
 
+    // Create the card agent configuration object.
     function new(string name="{{ class_prefix }}svt_configuration");
         super.new(name);
     endfunction
 
+    // Apply common card configuration and dispatch card-type-specific settings.
     extern function void configure({{ class_prefix }}system_configuration sys_cfg);
     {%- if is_emmc %}
+    // Load eMMC card type, timing, and register settings.
     extern function void load_emmc_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
     {%- elif is_sdio %}
+    // Load SDIO card type, timing, and register settings.
     extern function void load_sdio_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
     {%- elif is_sdcard %}
+    // Load SD card type, timing, and register settings.
     extern function void load_sd_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
     {%- endif %}
 endclass
@@ -60,6 +65,7 @@ endfunction
 {%- if is_emmc %}
 function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ class_prefix }}system_configuration sys_cfg, ref svt_emmc_register_configuration reg_cfg);
     this.card_type = svt_emmc_types::EMMC;
+    this.emmc_memory_size = svt_emmc_types::UPTO_2GB;
 
     // TODO: Once tPH & tVW capabilities are implemented from host side,
     // below variable usage will be removed from code in case of H5200 mode.
@@ -102,10 +108,6 @@ function void {{ class_prefix }}svt_configuration::load_emmc_config(input {{ cla
     reg_cfg.set_emmc_emmc_reg_field(12'd4095, svt_emmc_types::EMMC_CSD_REG_C_SIZE_B73_B62);
     reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_R_CURR_MIN_B61_B59);
     reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_R_CURR_MAX_B58_B56);
-
-
-
-
     reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_W_CURR_MIN_B55_B53);
     reg_cfg.set_emmc_emmc_reg_field(3'd0, svt_emmc_types::EMMC_CSD_REG_VDD_W_CURR_MAX_B52_B50);
     reg_cfg.set_emmc_emmc_reg_field(3'd6, svt_emmc_types::EMMC_CSD_REG_C_SIZE_MULT_B49_B47);
