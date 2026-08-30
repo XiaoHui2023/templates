@@ -20,7 +20,7 @@ flow 不直接做 scoreboard 比较。读写数据流由 `xfer_read_seq`、`xfer
 
 - 初始化前的低频分频不做 clock frequency check。
 - SD/SDIO 电压为 `V1_8` 时才走 CMD11。
-- eMMC CMD1 的 OCR 使用 `cmd_request.ocr` 约束，避免把 `==` 写成赋值。
+- eMMC CMD1 的 OCR 使用 `cmd_request.ocr` 约束，默认 `32'h00ff8080`。
 - `pre_switch_yield`、`post_switch_yield` 用于切状态前后留出回调插入点。
 
 ## Switch Bus

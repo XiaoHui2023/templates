@@ -18,7 +18,7 @@
 | 命令 | 类 | argument | response | 关键点 |
 | --- | --- | --- | --- | --- |
 | CMD0 | `go_idle_state_command_request` | `0` | NR | idle |
-| CMD1 | `send_op_cond_command_request` | `ocr` | R3 | eMMC OCR |
+| CMD1 | `send_op_cond_command_request` | `ocr` | R3 | eMMC OCR；initial flow 默认 `32'h00ff8080` |
 | CMD2 | `all_send_cid_command_request` | `0` | R2 | CID |
 | CMD3 | `set_relative_addr_command_request` | `rca << 16` | R1 | eMMC RCA 默认来自 `boot_cfg.relative_addr` |
 | CMD7 | `select_card_command_request` | `rca << 16` | R1/R1b | `busy == 1` 时 R1b |

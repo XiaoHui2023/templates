@@ -10,7 +10,7 @@ eMMC 初始化：
 2. `power_up_operation_seq`，默认不执行软复位；`enable_soft_reset == 1` 时先执行 CMD/DAT 软复位；mobile_storage 写 `CLKDIV_R`/`CLKENA_R` 后会发一次 update clock only 命令加载 CIU 时钟参数
 3. `check_clock_frequence_test_seq`
 4. CMD0 `go_idle_state`
-5. CMD1 `send_op_cond`，当前约束 `ocr == 32'h40ff8080`
+5. CMD1 `send_op_cond`，当前约束 `ocr == 32'h00ff8080`
 6. CMD2 `all_send_cid`
 7. CMD3 `set_relative_addr`
 8. `pre_switch_yield`

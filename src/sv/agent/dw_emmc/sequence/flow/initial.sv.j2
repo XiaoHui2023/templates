@@ -61,8 +61,7 @@ task {{ class_prefix }}initial_seq::execute_initial();
 
     // CMD1 查询OCR
     `uvm_do_with(send_op_cond_seq, {
-        //cmd_request.ocr == 'hc0ff8080;
-        cmd_request.ocr == 'h40ff8080;
+        cmd_request.ocr == 32'h00ff8080;
     })
 
     // CMD2 查询CID

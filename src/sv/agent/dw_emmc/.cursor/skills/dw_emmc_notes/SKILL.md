@@ -11,6 +11,7 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 
 - `controller_ip` 选择 `mshc` 或 `mobile_storage`。
 - 默认保持 `mshc`。
+- `mshc` eMMC initial flow 的 CMD1 OCR 默认使用 `32'h00ff8080`，请求 byte access；不要回退到 `32'h40ff8080` 的 sector access。
 - 新增寄存器差异时，在最小 operation 层做条件展开，不复制整棵模板目录。
 
 ## mobile_storage
