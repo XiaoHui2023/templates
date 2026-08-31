@@ -249,7 +249,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
     for (bit_idx = 0; bit_idx < width; bit_idx++) begin
         ratio = {{ settings.class_prefix }}div_ratio_for_reg_bit(
             div_nd.f_div, bit_idx);
-        cfg.config_reg_div_node_reg(div_nd, ratio);
+        cfg.config_reg_div_node_reg(div_nd, ratio, 1'b1);
         #20ns;
         expected_freq_hz = real'(FLIP_STIM_FREQ_HZ) / ratio;
         if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
@@ -399,7 +399,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
 
     foreach (mux_nd.to_source[k]) begin
         cfg.config_reg_mux_node_reg(mux_nd, k);
-        #50ns;
+        #70ns;
         measure_port_freq(
             out_vif, {mux_nd.get_name(), ".out"},
             int'(expected_freq_hz[k]), out_freq_hz, passed);

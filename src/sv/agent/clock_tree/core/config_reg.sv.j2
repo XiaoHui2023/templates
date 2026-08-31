@@ -38,9 +38,11 @@ class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefi
     // Configure div reset, load and ratio.
     extern task config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
     // Write an explicit div ratio without tree resolution.
+    // reset_before_config - force a reset pulse before writing ratio and load.
     extern task config_reg_div_node_reg(
         {{ settings.class_prefix }}div_div div_nd,
-        int reg_ratio);
+        int reg_ratio,
+        input bit reset_before_config = 1'b0);
     // Configure dto reset, bypass, load and step.
     extern task config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
     // Write an explicit dto ratio without tree resolution.
@@ -137,9 +139,11 @@ endtask
 
 task {{ settings.class_prefix }}config_reg_core::config_reg_div_node_reg(
         {{ settings.class_prefix }}div_div div_nd,
-        int reg_ratio);
+        int reg_ratio,
+        input bit reset_before_config);
     bit ratio_match;
     bit rst_released;
+    bit apply_reset;
 
     if (!div_nd.f_load.is_bound() || !div_nd.f_div.is_bound()
             || !div_nd.f_rst.is_bound())
@@ -148,7 +152,8 @@ task {{ settings.class_prefix }}config_reg_core::config_reg_div_node_reg(
         div_nd.f_rst, div_nd.f_div, reg_ratio, ratio_match);
     // A shared ratio field may feed multiple dividers with independent load bits.
     // Each owner must still receive its own load edge.
-    if (ratio_match && (div_nd.f_div.alias_count == 1
+    if (!reset_before_config && ratio_match
+            && (div_nd.f_div.alias_count == 1
             || (div_nd.has_configured_ratio
                 && div_nd.last_configured_ratio == reg_ratio))) begin
         if (!quiet)
@@ -157,31 +162,35 @@ task {{ settings.class_prefix }}config_reg_core::config_reg_div_node_reg(
                 div_nd.get_name(), reg_ratio), UVM_MEDIUM)
         return;
     end
+    apply_reset = reset_before_config;
 {%- if settings.should_reset_div %}
-    if (!quiet)
-        `uvm_info("CLK_TREE", $sformatf(
-            "config_reg: div %s ratio %0d reset pulse",
-            div_nd.get_name(), reg_ratio), UVM_MEDIUM)
-    tools.node.configure_div(
-        div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
-{%- else %}
-    tools.node.div_rst_released(div_nd.f_rst, rst_released);
-    if (rst_released) begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: div %s reg rst released, ratio %0d",
-                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
-        tools.node.configure_div_ratio(
-            div_nd.f_load, div_nd.f_div, reg_ratio);
-    end else begin
-        if (!quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: div %s reg rst active, ratio %0d",
-                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
-        tools.node.configure_div_direct(
-            div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
-    end
+    apply_reset = 1'b1;
 {%- endif %}
+    if (apply_reset) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: div %s ratio %0d reset pulse",
+                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
+        tools.node.configure_div(
+            div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
+    end else begin
+        tools.node.div_rst_released(div_nd.f_rst, rst_released);
+        if (rst_released) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: div %s reg rst released, ratio %0d",
+                    div_nd.get_name(), reg_ratio), UVM_MEDIUM)
+            tools.node.configure_div_ratio(
+                div_nd.f_load, div_nd.f_div, reg_ratio);
+        end else begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: div %s reg rst active, ratio %0d",
+                    div_nd.get_name(), reg_ratio), UVM_MEDIUM)
+            tools.node.configure_div_direct(
+                div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
+        end
+    end
     div_nd.last_configured_ratio = reg_ratio;
     div_nd.has_configured_ratio = 1'b1;
 endtask
