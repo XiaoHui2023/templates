@@ -27,6 +27,7 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - mobile_storage 没有 RAL `BUF_DATA_R`；非 DMA SDIO 通过 `default_map.get_base_addr() + 0x200` FIFO 窗口前门 CPU 访问。
 - mobile_storage 非 DMA SDIO 写数据要在命令发出前预装 FIFO，不能等 `CMD_COMPLETE` 后才 PIO 搬数据。
 - mobile_storage 读数据命令前开启读 FIFO 保护：`CARDTHRCTL_R.CARD_RD_THR_EN = 1`，`CARD_RD_THRESHOLD = xfer_block_size`，`FIFOTH_R.RX_WMARK = xfer_block_size / 2`。
+- mobile_storage SDIO `rw_test` 读默认走 blocked read：先等 DTO，也就是 `MINTSTS_R/RINTSTS_R[3]`，再读 FIFO；不要把 RXDR 当作最终完成条件。
 - mobile_storage 不强制启用 DMA；生成 DMA 时，kit `rw_test()` 默认 `use_dma = 0`，需要 DMA 时显式打开。
 
 ## 验收
@@ -38,6 +39,7 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 ## mobile_storage FIFO read
 
 - `RXDR` 只作为块级唤醒。
+- mobile_storage SDIO `rw_test` 读默认不等 `RXDR`，而是先等 DTO，再读 FIFO。
 - 非 DMA 读 FIFO 时，每个 word 前读 `STATUS_R`，确认 `STATUS_R[2] == 0` 后再读 FIFO 窗口。
 - 轮询期间检查 `RINTSTS_R[11]`，出现 FIFO 下溢或上溢时 fatal。
 - `STATUS_R[29:17]` 只作为调试参考，不能替代 FIFO 空标志。

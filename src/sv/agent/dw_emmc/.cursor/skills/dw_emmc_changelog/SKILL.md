@@ -5,6 +5,10 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-08-31
+
+- mobile_storage SDIO `rw_test` 的 read 默认改为 blocked read：先等 DTO，再读取 FIFO；single-read 分支也显式传递 `rd_blocking`。
+
 ## 2026-08-30
 
 - MSHC eMMC initial flow 的 CMD1 OCR 默认值从 `32'h40ff8080` 改为 `32'h00ff8080`，与 byte access 卡配置一致。

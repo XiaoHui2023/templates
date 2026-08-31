@@ -72,6 +72,7 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
     {{ class_prefix }}switch_partition_config_command_seq switch_part_cfg_seq;
 {%- endif %}
 
+    // Create the sequence instance.
     function new(string name = "{{ class_prefix }}rw_test_seq");
         super.new(name);
     endfunction
@@ -92,7 +93,11 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
 {%- if enable_dma %}
         soft dma_enable == 0;
 {%- endif %}
+{%- if is_mobile_storage %}
+        soft rd_blocking == 1;
+{%- else %}
         soft rd_blocking == 0;
+{%- endif %}
         soft rd == 1;
         soft wr == 1;
         soft rd_single == 1;
@@ -155,11 +160,17 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
     constraint cst_user {}
     constraint cst_case {}
 
+    // Execute the selected write and read transfers.
     extern task body();
+    // Print randomized control fields before execution.
     extern function void post_randomize();
+    // Compare read bytes against the expected memory.
     extern task compare_result(bit[7:0] rw_data[$]);
+    // Record effective write bytes in the expected memory.
     extern function void update_expected(bit[7:0] rw_data[$]);
+    // Build a payload for scoreboard memory access.
     extern function uvm_tlm_generic_payload create_scoreboard_payload(bit[7:0] rw_data[$], string name);
+    // Return the scoreboard address for the selected memory area.
     extern function bit[63:0] scoreboard_addr();
 endclass
 
@@ -241,6 +252,9 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == 1;
             size == local::rd_block_size;
+{%- if is_mobile_storage %}
+            blocking == local::rd_blocking;
+{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;

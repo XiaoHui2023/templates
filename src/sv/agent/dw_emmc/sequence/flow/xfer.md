@@ -63,7 +63,7 @@ Blocked read：
 - `blocking == 1`。
 - 不逐块等待 `BUF_RD_READY`。
 - 先等 `XFER_COMPLETE`，再连续读取 `block_count` 个 block。
-- 仅用于需要延迟取数的专门场景；普通读写测试不要默认使用。
+- mobile_storage SDIO 的 `rw_test` 默认使用该流程。
 
 eMMC/SD read 不支持 abort，约束 `abort == 0`。
 
