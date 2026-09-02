@@ -72,6 +72,8 @@ HS400 + 8bit 的 CMD6 期望序列：
 
 只写、只读默认不比较。需要只读比较时，先通过 `agent.scb` 加载 scoreboard 初始内容，再显式约束 `should_compare == 1`。
 
+`dma_test_seq` 继承 `rw_test_seq`，固定 `dma_enable == 1`，默认使用 ADMA2，默认写 1 块再读 1 块。
+
 指定可复现只读路径时约束这些字段：
 
 ```systemverilog

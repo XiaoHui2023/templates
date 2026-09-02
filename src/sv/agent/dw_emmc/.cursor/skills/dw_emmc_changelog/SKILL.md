@@ -5,6 +5,10 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-09-02
+
+- 新增 `dma_test_seq` 和 kit `dma_test()`：复用 `rw_test_seq`，固定 DMA 传输，默认 ADMA2、单块写后读；`rw_test()` 默认非 DMA 不变。mobile_storage SDIO 继续使用 IDMAC 描述符链表。
+
 ## 2026-08-31
 
 - mobile_storage SDIO `rw_test` 的 read 默认改为 blocked read：先等 DTO，再读取 FIFO；single-read 分支也显式传递 `rd_blocking`。

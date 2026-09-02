@@ -199,4 +199,4 @@ task run_phase(uvm_phase phase);
 endtask
 ```
 
-`initial_card()` 完成初始化流程；`switch_bus()` 执行切总线 flow；`rw_test()` 默认按地址先写后读。`write_enable` 和 `read_enable` 可关闭写或读；只写、只读默认不触发 scoreboard 比较。Python 配置 `enable_dma: true` 后，`rw_test()` 额外生成 `use_dma` 参数，`use_dma = 1` 时使用内置 DMA 搬运。kit sequencer 还提供 `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`reg_test()`、`speed_mode_test()`、`tune_test()`、`check_clock_frequence_test()`。
+`initial_card()` 完成初始化流程；`switch_bus()` 执行切总线 flow；`rw_test()` 默认按地址先写后读。`write_enable` 和 `read_enable` 可关闭写或读；只写、只读默认不触发 scoreboard 比较。Python 配置 `enable_dma: true` 后，`rw_test()` 额外生成 `use_dma` 参数，`use_dma = 1` 时使用内置 DMA 搬运，也可直接调用 `dma_test()`。kit sequencer 还提供 `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`reg_test()`、`speed_mode_test()`、`tune_test()`、`check_clock_frequence_test()`。

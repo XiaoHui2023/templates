@@ -25,6 +25,10 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
 
     // test shortcuts
     extern task rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %});
+{%- if enable_dma %}
+    // Starts a read/write test with DMA enabled.
+    extern task dma_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1);
+{%- endif %}
 {% if is_emmc or is_sdcard %}
     extern task reg_test();
 {%- endif %}
@@ -211,6 +215,32 @@ task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 1,
         `uvm_fatal("KIT", "rw_test_seq randomize failed")
     seq.start(this);
 endtask
+{%- if enable_dma %}
+// Starts a read/write test with DMA enabled.
+task {{ class_prefix }}kit_sequencer::dma_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1);
+    {{ class_prefix }}dma_test_seq seq;
+
+    if(!write_enable && !read_enable)
+        `uvm_fatal("KIT", "dma_test requires write_enable or read_enable")
+
+    seq = {{ class_prefix }}dma_test_seq::type_id::create("dma_test_seq");
+    seq.set_item_context(null, this);
+    if(!seq.randomize() with {
+        addr == local::addr;
+        rd == local::read_enable;
+        wr == local::write_enable;
+        rd_single == (local::read_enable && local::count == 1);
+        wr_single == (local::write_enable && local::count == 1);
+        rd_multi == (local::read_enable && local::count > 1);
+        wr_multi == (local::write_enable && local::count > 1);
+        rd_multi_block_count == local::count;
+        wr_multi_block_count == local::count;
+        should_compare == (local::read_enable && local::write_enable);
+    })
+        `uvm_fatal("KIT", "dma_test_seq randomize failed")
+    seq.start(this);
+endtask
+{%- endif %}
 {%- if is_emmc or is_sdcard %}
 task {{ class_prefix }}kit_sequencer::reg_test();
     {{ class_prefix }}reg_test_seq seq;

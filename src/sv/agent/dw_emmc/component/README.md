@@ -27,9 +27,10 @@ sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
 | --- | --- |
 | operation | `frequence_set_operation()`、`power_up_operation()`、`reset_operation()`、`cpu_read_bytes()`、`cpu_write_bytes()` |
 | flow | `initial_card()`、`switch_bus()`、`send_ext_csd()`、`tune_phase()` |
-| test | `rw_test()`、`reg_test()`、`speed_mode_test()`、eMMC `tune_test(data_width = 8)`、`check_clock_frequence_test()` |
+| test | `rw_test()`、`dma_test()`、`reg_test()`、`speed_mode_test()`、eMMC `tune_test(data_width = 8)`、`check_clock_frequence_test()` |
 
 `rw_test(addr, count, write_enable, read_enable)` 默认写 1 块再读 1 块。关闭 `write_enable` 或 `read_enable` 时，只执行剩余方向，默认不触发 scoreboard 比较。
+`dma_test(addr, count, write_enable, read_enable)` 默认写 1 块再读 1 块，并强制使用 DMA。
 
 ## Scoreboard
 
@@ -43,7 +44,7 @@ sequence 内只依赖基础 `sequencer`，不 `$cast` 到 kit。
 
 sequence 从 `p_sequencer.scoreboard` 发送 `uvm_tlm_generic_payload`。scoreboard 只处理地址、字节和文件加载。不放寄存器配置、命令发送、PIO/DMA 搬运策略。kit sequencer 不提供 scoreboard 快捷函数。
 
-Python 配置 `enable_dma: true` 后才生成 DMA 搬运字段和 kit `rw_test(..., use_dma)` 参数。`use_dma` 默认是 0，需要 DMA 时显式打开。
+DMA 搬运使用 `dma_test()`；`rw_test(..., use_dma)` 也可选择同一路径。`use_dma` 默认是 0。
 
 ## Callback
 

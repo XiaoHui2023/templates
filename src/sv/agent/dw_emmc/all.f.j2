@@ -133,6 +133,9 @@ sequence/flow/initial.sv
 sequence/flow/tune.sv
 
 sequence/test/rw.sv
+                                        {%- if enable_dma %}
+sequence/test/dma.sv
+                                        {%- endif %}
                                         {%- if is_emmc %}
 sequence/test/tune.sv
                                         {%- endif %}

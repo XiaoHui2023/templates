@@ -29,6 +29,7 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - mobile_storage 读数据命令前开启读 FIFO 保护：`CARDTHRCTL_R.CARD_RD_THR_EN = 1`，`CARD_RD_THRESHOLD = xfer_block_size`，`FIFOTH_R.RX_WMARK = xfer_block_size / 2`。
 - mobile_storage SDIO `rw_test` 读默认走 blocked read：先等 DTO，也就是 `MINTSTS_R/RINTSTS_R[3]`，再读 FIFO；不要把 RXDR 当作最终完成条件。
 - mobile_storage 不强制启用 DMA；生成 DMA 时，kit `rw_test()` 默认 `use_dma = 0`，需要 DMA 时显式打开。
+- 生成 DMA 时提供 `dma_test()`；它复用 `rw_test_seq`，固定 `dma_enable == 1`，默认 ADMA2 和单块写后读。`rw_test()` 默认非 DMA 不变。
 
 ## 验收
 
