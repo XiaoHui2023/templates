@@ -21,7 +21,7 @@
 
 ### mobile_storage
 
-SDIO 使用 IDMAC 描述符链表。`DBADDR_R` 写描述符地址，数据地址写在描述符内，`PLDMND_R` 写 `32'h1` 触发 DMA。
+SDIO 使用 IDMAC 描述符链表。`DBADDR_R` 写描述符地址，数据地址写在描述符内，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，`PLDMND_R` 写 `32'h1` 触发 DMA。
 
 ### 比较
 

@@ -5,6 +5,10 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-09-06
+
+- mobile_storage SDIO DMA access 补 `BMOD_R.SWR` 和 `BMOD_R.DE` 配置：先复位 IDMAC，再写 `DBADDR_R`，开启 IDMAC 后写 `PLDMND_R = 32'h1` 触发；MSHC DMA 路径不变。
+
 ## 2026-09-02
 
 - 新增 `dma_test_seq` 和 kit `dma_test()`：复用 `rw_test_seq`，固定 DMA 传输，默认 ADMA2、单块写后读；`rw_test()` 默认非 DMA 不变。mobile_storage SDIO 继续使用 IDMAC 描述符链表。

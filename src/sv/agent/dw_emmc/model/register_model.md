@@ -14,7 +14,7 @@
 
 | `controller_ip` | 寄存器模型 | 说明 |
 | --- | --- | --- |
-| `mshc` | `DWC_mshc` | 默认值，保持原模板行为 |
+| `mshc` | `DWC_mshc` | 默认值，保持原有行为 |
 | `mobile_storage` | `DWC_mobile_storage` | 生成 legacy mobile storage 寄存器访问 |
 
 ## 差异
@@ -38,7 +38,7 @@
 | 卡稳定 | `PSTATE_REG.CARD_STABLE` | 无 |
 | 数据活跃 | `PSTATE_REG.DAT_LINE_ACTIVE`、`RD_XFER_ACTIVE`、`WR_XFER_ACTIVE` | `STATUS_R[9] == 0` |
 | DMA 地址 | `SDMASA_R` / `ADMA_SA_LOW_R` | `DBADDR_R` 写 IDMAC 描述符链表地址；真实数据 buffer 地址在描述符里 |
-| DMA 触发 | 命令触发 SDMA/ADMA | 写 `DBADDR_R` 后向 `PLDMND_R` 写 `32'h1` 触发 IDMAC；`0x84` 是 `PLDMND_R` 地址 |
+| DMA 触发 | 命令触发 SDMA/ADMA | `BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，向 `PLDMND_R` 写 `32'h1` 触发；`0x84` 是 `PLDMND_R` 地址 |
 | 块大小 | `BLOCKSIZE_R.XFER_BLOCK_SIZE` | `BLKSIZ_R.BLOCK_SIZE` |
 | 块数量 | `BLOCKCOUNT_R.BLOCK_CNT` | `BYTCNT_R.BYTE_COUNT`，按 `block_size * block_count` 写字节数 |
 | 命令参数 | `ARGUMENT_R.ARGUMENT` | `CMDARG_R.CMD_ARG` |
@@ -69,13 +69,14 @@
 - 类名非空时，使用用户指定值。
 - 不存在的 mobile storage 字段不生成访问代码。
 - `freq_sel` 在 `mshc` 下拆成 `[9:8]` 和 `[7:0]`，在 `mobile_storage` 下整体写入 `CLKDIV_R.CLK_DIVIDER0[9:0]`。
-- mobile_storage 的 `CMDARG_R` 地址 `0x28`、`CMD_R` 地址 `0x2c`、`UPDATE_CLOCK_REGISTERS_ONLY` bit 21、`START_CMD` bit 31 只作为寄存器模型校对依据；模板代码通过 RAL 字段访问，不手写地址或位偏移。
+- mobile_storage 的 `CMDARG_R` 地址 `0x28`、`CMD_R` 地址 `0x2c`、`UPDATE_CLOCK_REGISTERS_ONLY` bit 21、`START_CMD` bit 31 只作为寄存器模型校对依据；代码通过 RAL 字段访问，不手写地址或位偏移。
 - mobile_storage 的 power up 会把 `CMD_R.UPDATE_CLOCK_REGISTERS_ONLY` 置 1，access 发普通命令前必须清 0。
 - mobile_storage 的 `CMD_R.READ_WRITE` 与 `data_xfer_dir_e` 枚举值相反。`XFER_WRITE` 枚举值保持 0，写 `CMD_R.READ_WRITE` 时取反。
 - mobile_storage 的 `RINTSTS_R` 同时包含普通中断和错误中断；`wait_interrupt` 清等待的普通中断位，`check_error` 只清错误位。
 - mobile_storage 普通命令写 `CMD_R.START_CMD` 前全清 `RINTSTS_R` 并配置 `INTMASK_R`；等待时先读 `MINTSTS_R` 消费已置位状态，不在等待入口再次清状态。
 - `mobile_storage` 不强制启用 DMA。`enable_dma` 默认关闭，打开后仍由 `dma_enable` / `use_dma` 决定单次传输是否使用 DMA。
 - `dma_enable == 1` 时必须有数据；有数据不能反向要求 `dma_enable == 1`，SDIO CMD53 允许非 DMA 数据传输。
+- mobile_storage DMA 启动顺序：`BMOD_R.SWR`、`DBADDR_R`、`BMOD_R.DE`、`PLDMND_R`。
 - mobile_storage 非 DMA SDIO 数据传输不通过 RAL 数据寄存器；FIFO 窗口偏移 `0x200` 作为寄存器模型校对依据，代码用 `default_map.get_base_addr()` 计算窗口地址。
 - mobile_storage 读数据命令前开启读 FIFO 保护。512B block 时，`CardRdThreshold` 写 `512`，`RX_WMARK` 写 `256`。
 - `mobile_storage` 的 tuning 寄存器映射未确认前，`tune_en` 会直接 fatal。

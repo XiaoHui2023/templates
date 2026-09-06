@@ -114,7 +114,15 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 {%- if is_mobile_storage %}
 {%- if enable_dma %}
     if(access_request.dma_enable) begin
+        // Reset IDMAC before loading the descriptor list.
+        rm.BMOD_R.read(status, rdata);
+        rm.BMOD_R.SWR.set(1);
+        rm.BMOD_R.write(status, rm.BMOD_R.get());
         rm.DBADDR_R.write(status, access_request.dma_addr);
+        rm.BMOD_R.read(status, rdata);
+        rm.BMOD_R.SWR.set(0);
+        rm.BMOD_R.DE.set(1);
+        rm.BMOD_R.write(status, rm.BMOD_R.get());
         rm.PLDMND_R.write(status, 32'h1);
     end
 {%- endif %}
