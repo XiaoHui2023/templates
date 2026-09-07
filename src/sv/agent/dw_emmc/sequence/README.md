@@ -1,6 +1,6 @@
 # Sequence
 
-sequence 使用 operation、flow、test 三层命名。operation 按子目录聚合，每个子目录固定包含 `req.sv`、`rsp.sv`、`op.sv`。flow 和 test 使用扁平 sequence 文件，输入字段直接放在 sequence 类里。不从外部注入 dependency sequence。
+sequence 使用 operation、flow、test 三层命名。operation 按子目录放在一起，每个子目录固定包含 `req.sv`、`rsp.sv`、`op.sv`。flow 和 test 使用扁平 sequence 文件，输入字段直接放在 sequence 类里。不从外部注入 dependency sequence。
 
 ## 初始化
 
@@ -145,8 +145,8 @@ PIO write：
 DMA write：
 
 1. `init_memory()` 在命令前把 `cmd_request.wdata` 写入 memory
-2. SDMA 使用数据 buffer 地址；ADMA 使用描述符地址 `cmd_request.dma_addr[31:0]`
-3. `mobile_storage` 使用 IDMAC 描述符链表：`DBADDR_R` 写描述符链表地址，真实数据 buffer 地址在描述符里，随后向 `PLDMND_R` 写 `32'h1`；`0x84` 是 `PLDMND_R` 地址
+2. SDMA 使用数据 buffer 地址；MSHC ADMA 使用 `adma_des.cmd_addr`
+3. `mobile_storage` 使用 IDMAC 描述符链表：`DBADDR_R` 写 `idmac_descriptor.descriptor_addr`，真实数据 buffer 地址在 DES2，`PLDMND_R` 写 `32'h1`；`0x84` 是 `PLDMND_R` 地址
 4. 命令发出后只等 `xfer_complete`
 
 DMA read：

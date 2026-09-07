@@ -21,7 +21,9 @@
 
 ### mobile_storage
 
-SDIO 使用 IDMAC 描述符链表。`DBADDR_R` 写描述符地址，数据地址写在描述符内，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，`PLDMND_R` 写 `32'h1` 触发 DMA。
+SDIO 使用 IDMAC 描述符链表，不使用 SD ADMA2 描述符格式，也不使用 `dma_sel` 写寄存器。`DBADDR_R` 写 `idmac_descriptor.descriptor_addr`，数据地址写在 DES2，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，`PLDMND_R` 写 `32'h1` 触发 DMA。
+
+单块 512B 写传输默认描述符：DES0 为 `32'h8000_000c`，DES1 为 `32'h0000_0200`，DES2 为数据 buffer 地址，DES3 为下一描述符地址。
 
 ### 比较
 

@@ -8,8 +8,9 @@
 | `count` | block 数 |
 | `size` | 每个 block 的字节数 |
 | `len` | 总字节数，约束为 `count * size` |
-| `dma_enable` / `dma_sel` | DMA 使能和类型；仅 `enable_dma: true` 时生成 |
-| `adma_des` | ADMA 描述符数据；仅 `enable_dma: true` 时生成 |
+| `dma_enable` / `dma_sel` | DMA 使能和类型；仅 `enable_dma: true` 时生成；mobile_storage 不使用 `dma_sel` 写寄存器 |
+| `adma_des` | MSHC ADMA 描述符数据；仅 `enable_dma: true` 且 `controller_ip: mshc` 时生成 |
+| `idmac_descriptor` | mobile_storage IDMAC 描述符数据；仅 `enable_dma: true` 且 `controller_ip: mobile_storage` 时生成 |
 | `abort` | 是否走 abort 场景 |
 | `data_xfer_dir` | `XFER_READ` 或 `XFER_WRITE` |
 | `function_number` | SDIO function number，默认 1 |
@@ -17,7 +18,7 @@
 
 公共流程：
 
-1. `enable_dma: true`、DMA 启用且类型为 ADMA2/ADMA2_3 时，先通过 `cpu_config_operation_seq` 写入 ADMA 描述符。
+1. `enable_dma: true` 且 DMA 启用时，通过 `cpu_config_operation_seq` 写入对应 DMA 描述符；MSHC 只在 ADMA2/ADMA2_3 时写描述符。
 2. 设置 block length。
 3. 执行具体读写命令。
 4. 按 `abort` 条件执行停止动作。
@@ -28,7 +29,8 @@
 - SDIO 地址低 2 bit 为 0，`function_number` 在 1 到 7。
 - eMMC DDR/HS400 时 `size == 512`。
 - SDSC 不支持多 block，`count == 1`。
-- ADMA 描述符地址和数据地址不能重叠。
+- DMA 描述符地址和数据地址不能重叠。
+- mobile_storage 单描述符长度不超过 8191 字节。
 
 ## Read
 
@@ -106,12 +108,13 @@ DMA 传输由读写命令触发，flow 只负责准备描述符和 request 字�
 
 | 条件 | 行为 |
 | --- | --- |
-| `dma_enable == 0` | 不写 ADMA 描述符 |
-| `dma_sel` 不是 ADMA2/ADMA2_3 | 不写 ADMA 描述符 |
-| `dma_enable == 1` 且 ADMA2/ADMA2_3 | 用 `cpu_config_operation_seq` 后门写描述符，命令 request 携带 `dma_enable`、`dma_sel` |
+| `dma_enable == 0` | 不写 DMA 描述符 |
+| MSHC `dma_sel` 不是 ADMA2/ADMA2_3 | 不写 DMA 描述符 |
+| MSHC `dma_enable == 1` 且 ADMA2/ADMA2_3 | 写 `adma_des`，命令 request 携带 `dma_enable`、`dma_sel` |
+| mobile_storage `dma_enable == 1` | 写 `idmac_descriptor`，命令 request 携带 `dma_enable` |
 
 ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA 模式下，命令寄存器使用数据地址 `addr`。
-`mobile_storage` 的 DMA 模式走 IDMAC 描述符链表：`DBADDR_R` 写 `adma_des.cmd_addr`，真实数据 buffer 地址写在描述符 `real_addr` 中，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，向 `PLDMND_R` 写 `32'h1` 触发 DMA；`0x84` 是 `PLDMND_R` 地址。
+`mobile_storage` 的 DMA 模式走 IDMAC 描述符链表：`DBADDR_R` 写 `idmac_descriptor.descriptor_addr`，真实数据 buffer 地址写在 `idmac_descriptor.data_addr` 中，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，向 `PLDMND_R` 写 `32'h1` 触发 DMA；`0x84` 是 `PLDMND_R` 地址。
 
 DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写、mobile_storage 非 DMA FIFO 访问默认前门。
 

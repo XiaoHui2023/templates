@@ -1,0 +1,122 @@
+{%- if enable_dma and is_mobile_storage -%}
+`ifndef {{ class_prefix | upper }}IDMAC_DESCRIPTOR_DATA
+`define {{ class_prefix | upper }}IDMAC_DESCRIPTOR_DATA
+
+class {{ class_prefix }}idmac_descriptor_data extends {{ class_prefix }}base_data;
+    `uvm_object_utils_begin({{ class_prefix }}idmac_descriptor_data)
+        `uvm_field_int(descriptor_addr, UVM_ALL_ON|UVM_NOPACK)
+        `uvm_field_int(data_addr, UVM_ALL_ON)
+        `uvm_field_int(next_descriptor_addr, UVM_ALL_ON)
+        `uvm_field_int(own, UVM_ALL_ON)
+        `uvm_field_int(end_of_ring, UVM_ALL_ON)
+        `uvm_field_int(second_address_chained, UVM_ALL_ON)
+        `uvm_field_int(first, UVM_ALL_ON)
+        `uvm_field_int(last, UVM_ALL_ON)
+        `uvm_field_int(dint, UVM_ALL_ON)
+        `uvm_field_int(dir, UVM_ALL_ON)
+        `uvm_field_int(buf1_size, UVM_ALL_ON)
+        `uvm_field_int(buf2_size, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    localparam int IDMAC_DESCRIPTOR_SIZE = 16;
+    localparam int DES0_OWN_BIT = 31;
+    localparam int DES0_END_OF_RING_BIT = 5;
+    localparam int DES0_SECOND_ADDRESS_CHAINED_BIT = 4;
+    localparam int DES0_FIRST_BIT = 3;
+    localparam int DES0_LAST_BIT = 2;
+    localparam int DES0_DINT_BIT = 1;
+    localparam int DES0_DIR_BIT = 0;
+    localparam int DES1_BUF2_MSB = 25;
+    localparam int DES1_BUF2_LSB = 13;
+    localparam int DES1_BUF1_MSB = 12;
+    localparam int DES1_BUF1_LSB = 0;
+
+    rand bit[31:0] descriptor_addr; // IDMAC描述符链表地址
+    rand bit[31:0] data_addr; // DMA数据buffer地址
+    rand bit[31:0] next_descriptor_addr; // 下一描述符地址
+
+    rand bit own;
+    rand bit end_of_ring;
+    rand bit second_address_chained;
+    rand bit first;
+    rand bit last;
+    rand bit dint;
+    rand bit dir;
+
+    rand bit[12:0] buf1_size;
+    rand bit[12:0] buf2_size;
+
+    function new(string name = "{{ class_prefix }}idmac_descriptor_data");
+        super.new(name);
+        sizeof = IDMAC_DESCRIPTOR_SIZE;
+    endfunction
+
+    constraint c_idmac_descriptor_default {
+        soft own == 1;
+        soft end_of_ring == 0;
+        soft second_address_chained == 0;
+        soft first == 1;
+        soft last == 1;
+        soft dint == 0;
+        soft dir == 0;
+        soft buf1_size == 0;
+        soft buf2_size == 0;
+        soft next_descriptor_addr == descriptor_addr + sizeof;
+    }
+
+    // 获取DES0控制字。
+    extern function bit[31:0] get_des0();
+    // 获取DES1长度字。
+    extern function bit[31:0] get_des1();
+    // 追加一个小端word。
+    extern function void push_word(ref {{ class_prefix }}bytes data, input bit[31:0] word_data);
+    // 构造16字节IDMAC描述符镜像。
+    extern function void to_bytes(ref {{ class_prefix }}bytes data);
+    // 保持描述符大小固定为16字节。
+    extern function void pre_randomize();
+endclass
+
+function bit[31:0] {{ class_prefix }}idmac_descriptor_data::get_des0();
+    bit[31:0] value;
+
+    value = '0;
+    value[DES0_OWN_BIT] = own;
+    value[DES0_END_OF_RING_BIT] = end_of_ring;
+    value[DES0_SECOND_ADDRESS_CHAINED_BIT] = second_address_chained;
+    value[DES0_FIRST_BIT] = first;
+    value[DES0_LAST_BIT] = last;
+    value[DES0_DINT_BIT] = dint;
+    value[DES0_DIR_BIT] = dir;
+    return value;
+endfunction
+
+function bit[31:0] {{ class_prefix }}idmac_descriptor_data::get_des1();
+    bit[31:0] value;
+
+    value = '0;
+    value[DES1_BUF2_MSB:DES1_BUF2_LSB] = buf2_size;
+    value[DES1_BUF1_MSB:DES1_BUF1_LSB] = buf1_size;
+    return value;
+endfunction
+
+function void {{ class_prefix }}idmac_descriptor_data::push_word(ref {{ class_prefix }}bytes data, input bit[31:0] word_data);
+    data.push_back(word_data[7:0]);
+    data.push_back(word_data[15:8]);
+    data.push_back(word_data[23:16]);
+    data.push_back(word_data[31:24]);
+endfunction
+
+function void {{ class_prefix }}idmac_descriptor_data::to_bytes(ref {{ class_prefix }}bytes data);
+    data.delete();
+    push_word(data, get_des0());
+    push_word(data, get_des1());
+    push_word(data, data_addr);
+    push_word(data, next_descriptor_addr);
+endfunction
+
+function void {{ class_prefix }}idmac_descriptor_data::pre_randomize();
+    sizeof = IDMAC_DESCRIPTOR_SIZE;
+endfunction
+
+`endif
+{%- endif %}

@@ -11,7 +11,11 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
         `uvm_field_int(dma_enable,UVM_ALL_ON)
         if(dma_enable) begin
             `uvm_field_enum(dma_sel_e,dma_sel,UVM_ALL_ON)
+{%- if is_mobile_storage %}
+            `uvm_field_object(idmac_descriptor,UVM_ALL_ON)
+{%- else %}
             `uvm_field_object(adma_des,UVM_ALL_ON)
+{%- endif %}
         end
 {%- endif %}
                 {%- if is_sdio %}
@@ -30,7 +34,11 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
 {%- if enable_dma %}
     rand bit dma_enable; // DMA使能
     rand dma_sel_e dma_sel; // DMA种类选择
+{%- if is_mobile_storage %}
+    rand {{ class_prefix }}idmac_descriptor_data idmac_descriptor; // IDMAC描述符
+{%- else %}
     rand {{ class_prefix }}adma_des_data adma_des; // adma描述
+{%- endif %}
 {%- endif %}
 
         {%- if is_sdio %}
@@ -76,14 +84,25 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
 {%- if enable_dma %}
         soft dma_enable == 0;
         soft dma_sel == ADMA2;
-{%- if is_mobile_storage %}
-        dma_enable -> dma_sel inside {ADMA2, ADMA2_3};
-{%- endif %}
 {%- endif %}
         soft addr == 0;
 
 {%- if enable_dma %}
         if(dma_enable) {
+{%- if is_mobile_storage %}
+            len <= 8191;
+            (longint'(idmac_descriptor.descriptor_addr) >= idmac_descriptor.data_addr + len) || (longint'(idmac_descriptor.data_addr) >= idmac_descriptor.descriptor_addr + idmac_descriptor.sizeof); // 描述符和数据不重叠
+            idmac_descriptor.data_addr == addr;
+            idmac_descriptor.own == 1;
+            idmac_descriptor.end_of_ring == 0;
+            idmac_descriptor.second_address_chained == 0;
+            idmac_descriptor.first == 1;
+            idmac_descriptor.last == 1;
+            idmac_descriptor.dint == 0;
+            idmac_descriptor.dir == (data_xfer_dir == XFER_READ);
+            idmac_descriptor.buf1_size == len[12:0];
+            idmac_descriptor.buf2_size == 0;
+{%- else %}
             (longint'(adma_des.cmd_addr) >= adma_des.real_addr + len) || (longint'(adma_des.real_addr) >= adma_des.cmd_addr + adma_des.sizeof); // 命令和数据不重叠
             adma_des.real_addr == addr;
             if(dma_sel inside {ADMA2, ADMA2_3}) {
@@ -96,6 +115,7 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
                 adma_des.len_lower == len[15:0];
                 adma_des.len_upper == len[25:16];
             }
+{%- endif %}
         }
 {%- endif %}
                 {%- if is_sd %}
@@ -108,8 +128,8 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
     extern task body();
 
 {%- if enable_dma %}
-    // 写adma的描述数据
-    extern virtual task write_adma_des();
+    // 写DMA描述符数据
+    extern virtual task write_dma_descriptor();
 {%- endif %}
 
         {%- if is_emmc or is_sdcard %}
@@ -136,13 +156,17 @@ function void {{ class_prefix }}xfer_base_seq::pre_randomize();
     super.pre_randomize();
 
 {%- if enable_dma %}
+{%- if is_mobile_storage %}
+    `uvm_create(idmac_descriptor)
+{%- else %}
     `uvm_create(adma_des)
+{%- endif %}
 {%- endif %}
 endfunction
 
 task {{ class_prefix }}xfer_base_seq::body();
 {%- if enable_dma %}
-    write_adma_des();
+    write_dma_descriptor();
 {%- endif %}
     set_block_length();
     execute_command();
@@ -150,25 +174,36 @@ task {{ class_prefix }}xfer_base_seq::body();
 endtask
 
 {%- if enable_dma %}
-task {{ class_prefix }}xfer_base_seq::write_adma_des();
-    bit[7:0] d[$];
+task {{ class_prefix }}xfer_base_seq::write_dma_descriptor();
+    {{ class_prefix }}bytes d;
 
     if(!dma_enable)
         return;
 
+{%- if is_mobile_storage %}
+    idmac_descriptor.to_bytes(d);
+{%- else %}
     if(!(dma_sel inside {ADMA2,ADMA2_3}))
         return;
 
-    // unpack
     d = adma_des.unpack();
+{%- endif %}
 
     if(d.size % 4 != 0)
         `uvm_fatal("","")
 
+{%- if is_mobile_storage %}
+    `uvm_info("",$psprintf("write idmac descriptor:%s\nunpack data=%p",idmac_descriptor.sprint(),d),UVM_LOW)
+{%- else %}
     `uvm_info("",$psprintf("write adma des:%s\nunpack data=%p",adma_des.sprint(),d),UVM_LOW)
+{%- endif %}
 
     `uvm_do_with(cpu_cfg_seq, {
+{%- if is_mobile_storage %}
+        cpu_cfg_request.addr == local::idmac_descriptor.descriptor_addr;
+{%- else %}
         cpu_cfg_request.addr == local::adma_des.cmd_addr;
+{%- endif %}
         cpu_cfg_request.wdata.size == local::d.size;
         foreach(local::d[j])
             cpu_cfg_request.wdata[j] == local::d[j];
@@ -209,7 +244,7 @@ task {{ class_prefix }}xfer_base_seq::execute_sdio(bit[7:0] wdata[$]);
         cmd_request.dma_sel == local::dma_sel;
 {%- if is_mobile_storage %}
         if(local::dma_enable)
-            cmd_request.dma_addr == local::adma_des.cmd_addr;
+            cmd_request.dma_addr == local::idmac_descriptor.descriptor_addr;
 {%- else %}
         if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
             cmd_request.dma_addr == local::adma_des.cmd_addr;

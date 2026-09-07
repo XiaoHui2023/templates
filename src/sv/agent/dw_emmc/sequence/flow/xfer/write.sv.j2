@@ -42,7 +42,7 @@ class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
                 cmd_request.dma_sel == local::dma_sel;
 {%- if is_mobile_storage %}
                 if(local::dma_enable)
-                    cmd_request.dma_addr == local::adma_des.cmd_addr;
+                    cmd_request.dma_addr == local::idmac_descriptor.descriptor_addr;
 {%- else %}
                 if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                     cmd_request.dma_addr == local::adma_des.cmd_addr;
@@ -71,7 +71,7 @@ class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
                 cmd_request.dma_sel == local::dma_sel;
 {%- if is_mobile_storage %}
                 if(local::dma_enable)
-                    cmd_request.dma_addr == local::adma_des.cmd_addr;
+                    cmd_request.dma_addr == local::idmac_descriptor.descriptor_addr;
 {%- else %}
                 if(local::dma_enable && local::dma_sel inside {ADMA2, ADMA2_3})
                     cmd_request.dma_addr == local::adma_des.cmd_addr;

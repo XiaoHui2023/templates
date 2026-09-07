@@ -1,4 +1,4 @@
-{%- if enable_dma %}
+{%- if enable_dma and not is_mobile_storage %}
 `ifndef {{ class_prefix | upper }}ADMA_DES_DATA
 `define {{ class_prefix | upper }}ADMA_DES_DATA
 

@@ -5,8 +5,9 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
-## 2026-09-06
+## 2026-09-07
 
+- mobile_storage SDIO DMA 描述符从 `adma_des_data` 切换为独立 `idmac_descriptor_data`：32 位模式下生成 DES0-DES3 四个 word，单块 512B 写传输默认 DES0=`32'h8000_000c`、DES1=`32'h0000_0200`；MSHC ADMA2/ADMA2_3 路径不变。
 - mobile_storage SDIO DMA access 补 `BMOD_R.SWR` 和 `BMOD_R.DE` 配置：先复位 IDMAC，再写 `DBADDR_R`，开启 IDMAC 后写 `PLDMND_R = 32'h1` 触发；MSHC DMA 路径不变。
 
 ## 2026-09-02

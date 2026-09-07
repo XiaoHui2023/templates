@@ -205,7 +205,11 @@ task {{ class_prefix }}rw_test_seq::body();
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+            idmac_descriptor.descriptor_addr == local::adma_des_addr;
+{%- else %}
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
 {%- endif %}
             write_protected == local::wp;
         })
@@ -222,7 +226,11 @@ task {{ class_prefix }}rw_test_seq::body();
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+            idmac_descriptor.descriptor_addr == local::adma_des_addr;
+{%- else %}
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
 {%- endif %}
             write_protected == local::wp;
         })
@@ -239,7 +247,11 @@ task {{ class_prefix }}rw_test_seq::body();
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+            idmac_descriptor.descriptor_addr == local::adma_des_addr;
+{%- else %}
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
 {%- endif %}
             write_protected == local::wp;
         })
@@ -258,7 +270,11 @@ task {{ class_prefix }}rw_test_seq::body();
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+            idmac_descriptor.descriptor_addr == local::adma_des_addr;
+{%- else %}
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
 {%- endif %}
         })
         compare_result(read_seq.rdata);
@@ -273,7 +289,11 @@ task {{ class_prefix }}rw_test_seq::body();
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+            idmac_descriptor.descriptor_addr == local::adma_des_addr;
+{%- else %}
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
 {%- endif %}
             blocking == local::rd_blocking;
         })
@@ -290,7 +310,11 @@ task {{ class_prefix }}rw_test_seq::body();
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
+{%- if is_mobile_storage %}
+            idmac_descriptor.descriptor_addr == local::adma_des_addr;
+{%- else %}
             adma_des.cmd_addr == local::adma_des_addr;
+{%- endif %}
 {%- endif %}
         })
         compare_result(read_seq.rdata);

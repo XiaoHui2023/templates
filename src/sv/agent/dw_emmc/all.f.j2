@@ -17,8 +17,11 @@ model/configuration/check_clock.sv
 model/settings.sv
 
 model/data/base.sv
-                                        {%- if enable_dma %}
+                                        {%- if enable_dma and not is_mobile_storage %}
 model/data/adma_des.sv
+                                        {%- endif %}
+                                        {%- if enable_dma and is_mobile_storage %}
+model/data/idmac_descriptor.sv
                                         {%- endif %}
 
 sequence/operation/base/req.sv
