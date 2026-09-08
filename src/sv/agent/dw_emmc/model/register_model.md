@@ -47,7 +47,7 @@
 | 数据宽度 | `HOST_CTRL1_R.DAT_XFER_WIDTH` / `EXT_DAT_XFER` | `CTYPE_R.CARD_WIDTH`，1-bit 写 `0`，4-bit 写 `1`，8-bit 写 `2` |
 | 读 FIFO 保护 | 控制器既有 buffer 机制 | 读数据命令前写 `CARDTHRCTL_R.CARD_RD_THR_EN = 1`、`CARDTHRCTL_R.CARD_RD_THRESHOLD = block_size`、`FIFOTH_R.RX_WMARK = block_size / 2` |
 | 高速模式 | `HOST_CTRL1_R.HIGH_SPEED_EN`、`HOST_CTRL2_R.UHS_MODE_SEL`、`HOST_CTRL2_R.SIGNALING_EN` | `UHS_REG_R` |
-| DMA 选择 | `HOST_CTRL1_R.DMA_SEL` | `CNTRL_R.user_internal_dmac`，RO，硬件固定 |
+| DMA 选择 | `HOST_CTRL1_R.DMA_SEL` | `CTRL_R.USE_INTERNAL_DMAC` |
 | Host 控制 | `HOST_CTRL1_R`、`HOST_CTRL2_R` 其他字段 | 无 |
 | 普通中断状态 | `NORMAL_INT_STAT_R` | `MINTSTS_R` + `RINTSTS_R` |
 | 错误中断状态 | `ERROR_INT_STAT_R` | `MINTSTS_R` + `RINTSTS_R` |
@@ -76,7 +76,7 @@
 - mobile_storage 普通命令写 `CMD_R.START_CMD` 前全清 `RINTSTS_R` 并配置 `INTMASK_R`；等待时先读 `MINTSTS_R` 消费已置位状态，不在等待入口再次清状态。
 - `mobile_storage` 不强制启用 DMA。`enable_dma` 默认关闭，打开后仍由 `dma_enable` / `use_dma` 决定单次传输是否使用 DMA。
 - `dma_enable == 1` 时必须有数据；有数据不能反向要求 `dma_enable == 1`，SDIO CMD53 允许非 DMA 数据传输。
-- mobile_storage DMA 启动顺序：`BMOD_R.SWR`、`DBADDR_R`、`BMOD_R.DE`、`PLDMND_R`。
+- mobile_storage DMA 启动顺序：`CTRL_R.USE_INTERNAL_DMAC`、`BMOD_R.SWR`、`DBADDR_R`、`BMOD_R.DE`、`PLDMND_R`。
 - mobile_storage 非 DMA SDIO 数据传输不通过 RAL 数据寄存器；FIFO 窗口偏移 `0x200` 作为寄存器模型校对依据，代码用 `default_map.get_base_addr()` 计算窗口地址。
 - mobile_storage 读数据命令前开启读 FIFO 保护。512B block 时，`CardRdThreshold` 写 `512`，`RX_WMARK` 写 `256`。
 - `mobile_storage` 的 tuning 寄存器映射未确认前，`tune_en` 会直接 fatal。

@@ -82,7 +82,11 @@ task {{ class_prefix }}access_operation_seq::execute_access();
 
     rm.CTYPE_R.CARD_WIDTH.set(card_width);
     rm.CTYPE_R.write(status, rm.CTYPE_R.get());
+    rm.CTRL_R.read(status, rdata);
     rm.CTRL_R.INT_ENABLE.set(1);
+{%- if enable_dma %}
+    rm.CTRL_R.USE_INTERNAL_DMAC.set(access_request.dma_enable);
+{%- endif %}
     rm.CTRL_R.write(status, rm.CTRL_R.get());
     rm.UHS_REG_R.write(status, access_request.uhs_mode_sel);
 {%- else %}

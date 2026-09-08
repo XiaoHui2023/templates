@@ -114,7 +114,7 @@ DMA 传输由读写命令触发，flow 只负责准备描述符和 request 字�
 | mobile_storage `dma_enable == 1` | 写 `idmac_descriptor`，命令 request 携带 `dma_enable` |
 
 ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA 模式下，命令寄存器使用数据地址 `addr`。
-`mobile_storage` 的 DMA 模式走 IDMAC 描述符链表：`DBADDR_R` 写 `idmac_descriptor.descriptor_addr`，真实数据 buffer 地址写在 `idmac_descriptor.data_addr` 中，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，向 `PLDMND_R` 写 `32'h1` 触发 DMA；`0x84` 是 `PLDMND_R` 地址。
+`mobile_storage` 的 DMA 模式走 IDMAC 描述符链表：`CTRL_R.USE_INTERNAL_DMAC` 选择 internal DMAC，`DBADDR_R` 写 `idmac_descriptor.descriptor_addr`，真实数据 buffer 地址写在 `idmac_descriptor.data_addr` 中，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，向 `PLDMND_R` 写 `32'h1` 触发 DMA；`0x84` 是 `PLDMND_R` 地址。
 
 DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写、mobile_storage 非 DMA FIFO 访问默认前门。
 
