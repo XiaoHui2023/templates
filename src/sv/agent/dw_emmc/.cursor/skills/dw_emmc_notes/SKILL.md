@@ -14,6 +14,12 @@ description: dw_emmc 模板族：当前有效的 DesignWare eMMC/SD/SDIO 生成�
 - `mshc` eMMC initial flow 的 CMD1 OCR 默认使用 `32'h00ff8080`，请求 byte access；不要回退到 `32'h40ff8080` 的 sector access。
 - 新增寄存器差异时，在最小 operation 层做条件展开，不复制整棵模板目录。
 
+## MSHC
+
+- `rw_test` 的 MSHC PIO 单块读和多块读都要把 `rd_blocking` 传入 `xfer_read_seq`。
+- `rw_test` 的 MSHC PIO 默认 `rd_blocking == 0`，按 `BUF_RD_READY` 读走 controller buffer 后再等传输完成；不要依赖 `xfer_read_seq` 的随机默认值。
+- SDCard 在 128B 边界出现数据比较问题时，先核对 CMD16 argument、`BLOCKSIZE_R.XFER_BLOCK_SIZE`、SVT SD CSD `READ_BL_LEN` / `WRITE_BL_LEN`，再判断是否需要改卡模型或 scoreboard。
+
 ## mobile_storage
 
 - 当前模板库暂时只支持 `controller_ip: mobile_storage` + `card_type: sdio`。

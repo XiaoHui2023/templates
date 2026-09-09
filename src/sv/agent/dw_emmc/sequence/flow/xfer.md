@@ -36,7 +36,7 @@
 
 | 字段 | 作用 |
 | --- | --- |
-| `blocking` | 是否先等读传输完成，再一次性从 controller buffer 取数 |
+| `blocking` | 读数据搬运顺序 |
 | `rdata` | 命令 response 中返回的数据 |
 
 eMMC/SD 流程：
@@ -59,6 +59,7 @@ SDIO 流程：
 - mobile_storage 从 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口前门读取 32-bit word。
 - mobile_storage 读命令前开启读 FIFO 保护，阈值按当前 block size 配置。
 - 所有 block 读走后再等 `XFER_COMPLETE`。
+- MSHC PIO 的 `rw_test` 默认使用该流程。
 
 Blocked read：
 
@@ -66,6 +67,7 @@ Blocked read：
 - 不逐块等待 `BUF_RD_READY`。
 - 先等 `XFER_COMPLETE`，再连续读取 `block_count` 个 block。
 - mobile_storage SDIO 的 `rw_test` 默认使用该流程。
+- MSHC PIO 的 `rw_test` 默认不使用该流程。
 
 eMMC/SD read 不支持 abort，约束 `abort == 0`。
 

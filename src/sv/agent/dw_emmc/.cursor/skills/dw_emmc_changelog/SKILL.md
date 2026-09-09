@@ -5,6 +5,10 @@ description: dw_emmc 模板族：按时间记录 DesignWare eMMC/SD/SDIO 生成�
 
 # dw_emmc 变更记录
 
+## 2026-09-09
+
+- MSHC `rw_test` 单块读分支显式传递 `rd_blocking`，SDIO、SDCard、eMMC 默认 PIO read 稳定走先读 buffer、再等传输完成的顺序；mobile_storage SDIO 默认 DTO 后读 FIFO 不变。
+
 ## 2026-09-08
 
 - mobile_storage SDIO DMA access 在写 `CTRL_R` 时根据 `dma_enable` 设置 `USE_INTERNAL_DMAC`，同时保留 `INT_ENABLE`；MSHC DMA 路径不变。

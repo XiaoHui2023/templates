@@ -264,9 +264,7 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == 1;
             size == local::rd_block_size;
-{%- if is_mobile_storage %}
             blocking == local::rd_blocking;
-{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
