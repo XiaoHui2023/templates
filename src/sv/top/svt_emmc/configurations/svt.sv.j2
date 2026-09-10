@@ -497,7 +497,6 @@ function void {{ class_prefix }}svt_configuration::load_sd_config(input {{ class
 
     this.allow_single_range_ocr_voltage_validation = sys_cfg.reg_cfg.allow_single_range_ocr_voltage_validation;
 
-
     // Default values for CID SD register configuration
     reg_cfg.set_emmc_sd_reg_field(8'd0, svt_emmc_types::SD_CID_REG_MID_B127_B120);
     reg_cfg.set_emmc_sd_reg_field(16'd0, svt_emmc_types::SD_CID_REG_OID_B119_B104);
@@ -508,7 +507,6 @@ function void {{ class_prefix }}svt_configuration::load_sd_config(input {{ class
     reg_cfg.set_emmc_sd_reg_field(12'd0, svt_emmc_types::SD_CID_REG_MDT_B19_B8);
     reg_cfg.set_emmc_sd_reg_field(7'd0, svt_emmc_types::SD_CID_REG_CRC_B7_B1);
     reg_cfg.set_emmc_sd_reg_field(1'd0, svt_emmc_types::SD_CID_REG_NOT_USED_B1);
-
 
     // Default values for RCA SD register configuration
     reg_cfg.set_emmc_sd_reg_field(16'd0, svt_emmc_types::SD_RCA_REG_B16_B0);
