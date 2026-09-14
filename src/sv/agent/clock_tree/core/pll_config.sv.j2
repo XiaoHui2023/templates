@@ -11,10 +11,12 @@ function automatic bit {{ settings.class_prefix }}inno_fbdiv_legal(int fbdiv);
 endfunction
 
 class {{ settings.class_prefix }}pll_cfg extends {{ settings.class_prefix }}base_object;
-    localparam int SC_FBDIV_HW_MIN = 1;
-    localparam int SC_FBDIV_HW_MAX = 4095;
-    localparam int SC_FBDIV_PREF_MIN = {{ settings.pll_sc_fbdiv_min }};
-    localparam int SC_FBDIV_PREF_MAX = {{ settings.pll_sc_fbdiv_max }};
+    localparam int SC_FBDIV_MIN = {{ settings.pll_sc_fbdiv_min }};
+    localparam int SC_FBDIV_MAX = {{ settings.pll_sc_fbdiv_max }};
+    localparam longint SC_PFD_MIN_HZ = 64'd{{ settings.pll_sc_pfd_min_hz }};
+    localparam longint SC_VCO_MIN_HZ = 64'd{{ settings.pll_sc_vco_min_hz }};
+    localparam longint SC_VCO_MAX_HZ = 64'd{{ settings.pll_sc_vco_max_hz }};
+    localparam real SC_FREQ_TOLERANCE = {{ settings.pll_sc_freq_tolerance }};
     localparam int DW_FBDIV_MIN = 1;
     localparam int DW_FBDIV_MAX = 1023;
     {{ settings.class_prefix }}reg_rw rw;
@@ -28,24 +30,36 @@ class {{ settings.class_prefix }}pll_cfg extends {{ settings.class_prefix }}base
 
     // 由 out_hz、ref_hz 算 TCI 分频系数
     extern function void tci_divisors(
-        longint out_hz,
-        longint ref_hz,
+        input longint out_hz,
+        input longint ref_hz,
         output int clkr,
         output int clkf,
         output int clkod,
         output int bwadj);
-    // 由 out_hz、ref_hz 搜 SC 分频，优先 fbdiv 配置区间
-    extern function void sc_divisors(
-        longint out_hz,
-        longint ref_hz,
+    // 搜索满足 SC 硬件频率范围的最优分频系数
+    extern function bit sc_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output int fbdiv,
+        output int refdiv,
+        output int postdiv1,
+        output int postdiv2,
+        output longint actual_hz,
+        output longint pfd_hz,
+        output longint vco_hz,
+        output real error_ratio);
+    // 返回满足硬件范围和输出容差的 SC 分频系数
+    extern function void resolve_sc_divisors(
+        input longint out_hz,
+        input longint ref_hz,
         output int fbdiv,
         output int refdiv,
         output int postdiv1,
         output int postdiv2);
     // 由 out_hz、ref_hz 搜 DW 分频
     extern function void dw_divisors(
-        longint out_hz,
-        longint ref_hz,
+        input longint out_hz,
+        input longint ref_hz,
         output int fbdiv,
         output int prediv,
         output int divvcop,
@@ -54,17 +68,17 @@ class {{ settings.class_prefix }}pll_cfg extends {{ settings.class_prefix }}base
         output int r);
     // Inno 组内共用 fbdiv、refdiv
     extern function void inno_shared_divisors(
-        longint out_hz,
-        longint ref_hz,
-        int fbdiv_max,
+        input longint out_hz,
+        input longint ref_hz,
+        input int fbdiv_max,
         output int fbdiv,
         output int refdiv);
     // 已知 fbdiv、refdiv 时搜 postdiv
     extern function void inno_postdivisors(
-        longint out_hz,
-        longint ref_hz,
-        int fbdiv,
-        int refdiv,
+        input longint out_hz,
+        input longint ref_hz,
+        input int fbdiv,
+        input int refdiv,
         output int postdiv1,
         output int postdiv2);
     // 按给定 TCI 系数写寄存器序列
@@ -178,67 +192,67 @@ class {{ settings.class_prefix }}pll_cfg extends {{ settings.class_prefix }}base
     extern task wait_lock({{ settings.class_prefix }}reg f_lock, time timeout);
     // out_hz、ref_hz — 读回 TCI 系数与运行态是否与目标一致
     extern task tci_regs_match_target(
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_pwrdn,
-        {{ settings.class_prefix }}reg f_reset,
-        {{ settings.class_prefix }}reg f_clkod,
-        {{ settings.class_prefix }}reg f_clkf,
-        {{ settings.class_prefix }}reg f_clkr,
-        {{ settings.class_prefix }}reg f_bwadj,
-        longint out_hz,
-        longint ref_hz,
-        bit active,
+        input {{ settings.class_prefix }}reg f_bypass,
+        input {{ settings.class_prefix }}reg f_pwrdn,
+        input {{ settings.class_prefix }}reg f_reset,
+        input {{ settings.class_prefix }}reg f_clkod,
+        input {{ settings.class_prefix }}reg f_clkf,
+        input {{ settings.class_prefix }}reg f_clkr,
+        input {{ settings.class_prefix }}reg f_bwadj,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit active,
         output bit match);
     // out_hz、ref_hz — 读回 SC 系数与运行态是否与目标一致
     extern task sc_regs_match_target(
-        {{ settings.class_prefix }}reg f_vocpd,
-        {{ settings.class_prefix }}reg f_postdivpd,
-        {{ settings.class_prefix }}reg f_dsmpd,
-        {{ settings.class_prefix }}reg f_pd,
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_refdiv,
-        {{ settings.class_prefix }}reg f_postdiv2,
-        {{ settings.class_prefix }}reg f_postdiv1,
-        {{ settings.class_prefix }}reg f_fbdiv,
-        longint out_hz,
-        longint ref_hz,
-        bit active,
+        input {{ settings.class_prefix }}reg f_vocpd,
+        input {{ settings.class_prefix }}reg f_postdivpd,
+        input {{ settings.class_prefix }}reg f_dsmpd,
+        input {{ settings.class_prefix }}reg f_pd,
+        input {{ settings.class_prefix }}reg f_bypass,
+        input {{ settings.class_prefix }}reg f_refdiv,
+        input {{ settings.class_prefix }}reg f_postdiv2,
+        input {{ settings.class_prefix }}reg f_postdiv1,
+        input {{ settings.class_prefix }}reg f_fbdiv,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit active,
         output bit match);
     // out_hz、ref_hz — 读回 DW 系数与运行态是否与目标一致
     extern task dw_regs_match_target(
-        {{ settings.class_prefix }}reg f_fbdiv,
-        {{ settings.class_prefix }}reg f_prediv,
-        {{ settings.class_prefix }}reg f_reset,
-        {{ settings.class_prefix }}reg f_pwron,
-        {{ settings.class_prefix }}reg f_shift,
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_divvcor,
-        {{ settings.class_prefix }}reg f_r,
-        {{ settings.class_prefix }}reg f_p,
-        {{ settings.class_prefix }}reg f_divvcop,
-        {{ settings.class_prefix }}reg f_enr,
-        {{ settings.class_prefix }}reg f_enp,
-        longint out_hz,
-        longint ref_hz,
-        bit active,
+        input {{ settings.class_prefix }}reg f_fbdiv,
+        input {{ settings.class_prefix }}reg f_prediv,
+        input {{ settings.class_prefix }}reg f_reset,
+        input {{ settings.class_prefix }}reg f_pwron,
+        input {{ settings.class_prefix }}reg f_shift,
+        input {{ settings.class_prefix }}reg f_bypass,
+        input {{ settings.class_prefix }}reg f_divvcor,
+        input {{ settings.class_prefix }}reg f_r,
+        input {{ settings.class_prefix }}reg f_p,
+        input {{ settings.class_prefix }}reg f_divvcop,
+        input {{ settings.class_prefix }}reg f_enr,
+        input {{ settings.class_prefix }}reg f_enp,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit active,
         output bit match);
     // write_shared — 为真时一并比对组内共用 pd、refdiv、fbdiv
     extern task inno_regs_match_target(
-        {{ settings.class_prefix }}reg f_pd,
-        {{ settings.class_prefix }}reg f_refdiv,
-        {{ settings.class_prefix }}reg f_fbdiv,
-        {{ settings.class_prefix }}reg f_postdiv1,
-        {{ settings.class_prefix }}reg f_postdiv2,
-        longint out_hz,
-        longint ref_hz,
-        bit write_shared,
-        bit active,
+        input {{ settings.class_prefix }}reg f_pd,
+        input {{ settings.class_prefix }}reg f_refdiv,
+        input {{ settings.class_prefix }}reg f_fbdiv,
+        input {{ settings.class_prefix }}reg f_postdiv1,
+        input {{ settings.class_prefix }}reg f_postdiv2,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit write_shared,
+        input bit active,
         output bit match);
 endclass
 
 function void {{ settings.class_prefix }}pll_cfg::tci_divisors(
-        longint out_hz,
-        longint ref_hz,
+        input longint out_hz,
+        input longint ref_hz,
         output int clkr,
         output int clkf,
         output int clkod,
@@ -252,74 +266,105 @@ function void {{ settings.class_prefix }}pll_cfg::tci_divisors(
     bwadj = clkf;
 endfunction
 
-function void {{ settings.class_prefix }}pll_cfg::sc_divisors(
-        longint out_hz,
-        longint ref_hz,
+function bit {{ settings.class_prefix }}pll_cfg::sc_divisors(
+        input longint out_hz,
+        input longint ref_hz,
         output int fbdiv,
         output int refdiv,
         output int postdiv1,
-        output int postdiv2);
+        output int postdiv2,
+        output longint actual_hz,
+        output longint pfd_hz,
+        output longint vco_hz,
+        output real error_ratio);
     int refdiv_try;
     int postdiv1_try;
     int postdiv2_try;
-    int fbdiv_i;
+    int neighbor;
+    int fbdiv_try;
+    int previous_fbdiv;
+    longint fbdiv_floor;
+    longint fbdiv_candidate;
+    longint legal_fbdiv_min;
+    longint legal_fbdiv_max;
     longint product;
-    longint actual_hz;
-    longint err;
-    longint best_err;
-    real fbdiv_r;
+    longint target_num;
+    longint actual_num;
+    longint error_num;
+    longint compare_lhs;
+    longint compare_rhs;
+    longint best_actual_num;
+    longint best_error_num;
+    longint best_product;
     bit have_best;
+    bit use_candidate;
     int best_refdiv;
     int best_postdiv1;
     int best_postdiv2;
     int best_fbdiv;
-    bit pref_only;
-    refdiv = 2;
-    postdiv1 = 1;
-    postdiv2 = 1;
-    fbdiv = 1;
+    fbdiv = 0;
+    refdiv = 0;
+    postdiv1 = 0;
+    postdiv2 = 0;
+    actual_hz = 0;
+    pfd_hz = 0;
+    vco_hz = 0;
+    error_ratio = 0.0;
     if (ref_hz <= 0 || out_hz <= 0)
-        return;
+        return 1'b0;
     have_best = 0;
-    pref_only = 1;
     for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
+        if (ref_hz < SC_PFD_MIN_HZ * refdiv_try)
+            continue;
+        legal_fbdiv_min = (SC_VCO_MIN_HZ * refdiv_try + ref_hz - 1) / ref_hz;
+        legal_fbdiv_max = (SC_VCO_MAX_HZ * refdiv_try) / ref_hz;
+        if (legal_fbdiv_min < SC_FBDIV_MIN)
+            legal_fbdiv_min = SC_FBDIV_MIN;
+        if (legal_fbdiv_max > SC_FBDIV_MAX)
+            legal_fbdiv_max = SC_FBDIV_MAX;
+        if (legal_fbdiv_min > legal_fbdiv_max)
+            continue;
         for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
             for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
                 product = refdiv_try * postdiv1_try * postdiv2_try;
-                fbdiv_r = real'(out_hz) * real'(product) / real'(ref_hz);
-                fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
-                if (fbdiv_i < SC_FBDIV_HW_MIN || fbdiv_i > SC_FBDIV_HW_MAX)
-                    continue;
-                if (pref_only && (fbdiv_i < SC_FBDIV_PREF_MIN || fbdiv_i > SC_FBDIV_PREF_MAX))
-                    continue;
-                actual_hz = (ref_hz * fbdiv_i) / product;
-                err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
-                if (!have_best || err < best_err) begin
-                    best_err = err;
-                    best_fbdiv = fbdiv_i;
-                    best_refdiv = refdiv_try;
-                    best_postdiv1 = postdiv1_try;
-                    best_postdiv2 = postdiv2_try;
-                    have_best = 1;
-                end
-            end
-        end
-    end
-    if (!have_best && pref_only) begin
-        pref_only = 0;
-        for (refdiv_try = 1; refdiv_try <= 63; refdiv_try++) begin
-            for (postdiv1_try = 1; postdiv1_try <= 7; postdiv1_try++) begin
-                for (postdiv2_try = 1; postdiv2_try <= 7; postdiv2_try++) begin
-                    product = refdiv_try * postdiv1_try * postdiv2_try;
-                    fbdiv_r = real'(out_hz) * real'(product) / real'(ref_hz);
-                    fbdiv_i = int'($rtoi(fbdiv_r + 0.5));
-                    if (fbdiv_i < SC_FBDIV_HW_MIN || fbdiv_i > SC_FBDIV_HW_MAX)
+                target_num = out_hz * product;
+                fbdiv_floor = target_num / ref_hz;
+                previous_fbdiv = -1;
+                for (neighbor = 0; neighbor <= 1; neighbor++) begin
+                    fbdiv_candidate = fbdiv_floor + neighbor;
+                    if (fbdiv_candidate < legal_fbdiv_min)
+                        fbdiv_candidate = legal_fbdiv_min;
+                    if (fbdiv_candidate > legal_fbdiv_max)
+                        fbdiv_candidate = legal_fbdiv_max;
+                    fbdiv_try = fbdiv_candidate;
+                    if (fbdiv_try == previous_fbdiv)
                         continue;
-                    actual_hz = (ref_hz * fbdiv_i) / product;
-                    err = out_hz >= actual_hz ? out_hz - actual_hz : actual_hz - out_hz;
-                    if (!have_best || err < best_err) begin
-                        best_err = err;
-                        best_fbdiv = fbdiv_i;
+                    previous_fbdiv = fbdiv_try;
+                    actual_num = ref_hz * fbdiv_try;
+                    error_num = target_num >= actual_num
+                        ? target_num - actual_num : actual_num - target_num;
+                    use_candidate = !have_best;
+                    if (have_best) begin
+                        compare_lhs = error_num * best_product;
+                        compare_rhs = best_error_num * product;
+                        use_candidate = compare_lhs < compare_rhs;
+                        if (compare_lhs == compare_rhs) begin
+                            use_candidate = refdiv_try < best_refdiv;
+                            if (refdiv_try == best_refdiv) begin
+                                use_candidate = actual_num > best_actual_num;
+                                if (actual_num == best_actual_num) begin
+                                    use_candidate = postdiv1_try < best_postdiv1;
+                                    if (postdiv1_try == best_postdiv1)
+                                        use_candidate = postdiv2_try < best_postdiv2;
+                                end
+                            end
+                        end
+                    end
+                    if (use_candidate) begin
+                        best_error_num = error_num;
+                        best_actual_num = actual_num;
+                        best_product = product;
+                        best_fbdiv = fbdiv_try;
                         best_refdiv = refdiv_try;
                         best_postdiv1 = postdiv1_try;
                         best_postdiv2 = postdiv2_try;
@@ -329,17 +374,53 @@ function void {{ settings.class_prefix }}pll_cfg::sc_divisors(
             end
         end
     end
-    if (have_best) begin
-        fbdiv = best_fbdiv;
-        refdiv = best_refdiv;
-        postdiv1 = best_postdiv1;
-        postdiv2 = best_postdiv2;
-    end
+    if (!have_best)
+        return 1'b0;
+    fbdiv = best_fbdiv;
+    refdiv = best_refdiv;
+    postdiv1 = best_postdiv1;
+    postdiv2 = best_postdiv2;
+    actual_hz = best_actual_num / best_product;
+    pfd_hz = ref_hz / best_refdiv;
+    vco_hz = best_actual_num / best_refdiv;
+    error_ratio = real'(best_error_num)
+        / (real'(out_hz) * real'(best_product));
+    return 1'b1;
+endfunction
+
+function void {{ settings.class_prefix }}pll_cfg::resolve_sc_divisors(
+        input longint out_hz,
+        input longint ref_hz,
+        output int fbdiv,
+        output int refdiv,
+        output int postdiv1,
+        output int postdiv2);
+    longint actual_hz;
+    longint pfd_hz;
+    longint vco_hz;
+    real error_ratio;
+    bit found;
+    found = sc_divisors(
+        out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2,
+        actual_hz, pfd_hz, vco_hz, error_ratio);
+    if (!found)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            {"pll_sc no legal divisors for out %0d Hz ref %0d Hz; ",
+             "pfd >= %0d Hz, vco [%0d:%0d] Hz, fbdiv [%0d:%0d]"},
+            out_hz, ref_hz, SC_PFD_MIN_HZ, SC_VCO_MIN_HZ, SC_VCO_MAX_HZ,
+            SC_FBDIV_MIN, SC_FBDIV_MAX))
+    else if (error_ratio > SC_FREQ_TOLERANCE)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            {"pll_sc best output %0d Hz for target %0d Hz ref %0d Hz ",
+             "exceeds tolerance %0.6f; pfd %0d Hz, vco %0d Hz, ",
+             "fbdiv %0d, refdiv %0d, postdiv %0d x %0d"},
+            actual_hz, out_hz, ref_hz, SC_FREQ_TOLERANCE, pfd_hz, vco_hz,
+            fbdiv, refdiv, postdiv1, postdiv2))
 endfunction
 
 function void {{ settings.class_prefix }}pll_cfg::dw_divisors(
-        longint out_hz,
-        longint ref_hz,
+        input longint out_hz,
+        input longint ref_hz,
         output int fbdiv,
         output int prediv,
         output int divvcop,
@@ -408,11 +489,7 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc_from_hz(
             active, 1, 1, 1, 1);
         return;
     end
-    sc_divisors(out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
-    if (fbdiv < SC_FBDIV_PREF_MIN || fbdiv > SC_FBDIV_PREF_MAX)
-        `uvm_error("CLK_TREE", $sformatf(
-            "pll_sc fbdiv %0d outside preferred [%0d:%0d] for out %0d Hz ref %0d Hz",
-            fbdiv, SC_FBDIV_PREF_MIN, SC_FBDIV_PREF_MAX, out_hz, ref_hz))
+    resolve_sc_divisors(out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2);
     configure_sc(
         f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
         f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv,
@@ -420,9 +497,9 @@ task {{ settings.class_prefix }}pll_cfg::configure_sc_from_hz(
 endtask
 
 function void {{ settings.class_prefix }}pll_cfg::inno_shared_divisors(
-        longint out_hz,
-        longint ref_hz,
-        int fbdiv_max,
+        input longint out_hz,
+        input longint ref_hz,
+        input int fbdiv_max,
         output int fbdiv,
         output int refdiv);
     int refdiv_try;
@@ -462,10 +539,10 @@ function void {{ settings.class_prefix }}pll_cfg::inno_shared_divisors(
 endfunction
 
 function void {{ settings.class_prefix }}pll_cfg::inno_postdivisors(
-        longint out_hz,
-        longint ref_hz,
-        int fbdiv,
-        int refdiv,
+        input longint out_hz,
+        input longint ref_hz,
+        input int fbdiv,
+        input int refdiv,
         output int postdiv1,
         output int postdiv2);
     int postdiv1_try;
@@ -730,16 +807,16 @@ task {{ settings.class_prefix }}pll_cfg::configure_dw(
 endtask
 
 task {{ settings.class_prefix }}pll_cfg::tci_regs_match_target(
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_pwrdn,
-        {{ settings.class_prefix }}reg f_reset,
-        {{ settings.class_prefix }}reg f_clkod,
-        {{ settings.class_prefix }}reg f_clkf,
-        {{ settings.class_prefix }}reg f_clkr,
-        {{ settings.class_prefix }}reg f_bwadj,
-        longint out_hz,
-        longint ref_hz,
-        bit active,
+        input {{ settings.class_prefix }}reg f_bypass,
+        input {{ settings.class_prefix }}reg f_pwrdn,
+        input {{ settings.class_prefix }}reg f_reset,
+        input {{ settings.class_prefix }}reg f_clkod,
+        input {{ settings.class_prefix }}reg f_clkf,
+        input {{ settings.class_prefix }}reg f_clkr,
+        input {{ settings.class_prefix }}reg f_bwadj,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit active,
         output bit match);
     int exp_clkr;
     int exp_clkf;
@@ -774,18 +851,18 @@ task {{ settings.class_prefix }}pll_cfg::tci_regs_match_target(
 endtask
 
 task {{ settings.class_prefix }}pll_cfg::sc_regs_match_target(
-        {{ settings.class_prefix }}reg f_vocpd,
-        {{ settings.class_prefix }}reg f_postdivpd,
-        {{ settings.class_prefix }}reg f_dsmpd,
-        {{ settings.class_prefix }}reg f_pd,
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_refdiv,
-        {{ settings.class_prefix }}reg f_postdiv2,
-        {{ settings.class_prefix }}reg f_postdiv1,
-        {{ settings.class_prefix }}reg f_fbdiv,
-        longint out_hz,
-        longint ref_hz,
-        bit active,
+        input {{ settings.class_prefix }}reg f_vocpd,
+        input {{ settings.class_prefix }}reg f_postdivpd,
+        input {{ settings.class_prefix }}reg f_dsmpd,
+        input {{ settings.class_prefix }}reg f_pd,
+        input {{ settings.class_prefix }}reg f_bypass,
+        input {{ settings.class_prefix }}reg f_refdiv,
+        input {{ settings.class_prefix }}reg f_postdiv2,
+        input {{ settings.class_prefix }}reg f_postdiv1,
+        input {{ settings.class_prefix }}reg f_fbdiv,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit active,
         output bit match);
     int exp_fbdiv;
     int exp_refdiv;
@@ -810,7 +887,8 @@ task {{ settings.class_prefix }}pll_cfg::sc_regs_match_target(
         match = 1'b0;
     if (!active)
         return;
-    sc_divisors(out_hz, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
+    resolve_sc_divisors(
+        out_hz, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
     rw.read(f_refdiv, act);
     if (act != exp_refdiv)
         match = 1'b0;
@@ -826,21 +904,21 @@ task {{ settings.class_prefix }}pll_cfg::sc_regs_match_target(
 endtask
 
 task {{ settings.class_prefix }}pll_cfg::dw_regs_match_target(
-        {{ settings.class_prefix }}reg f_fbdiv,
-        {{ settings.class_prefix }}reg f_prediv,
-        {{ settings.class_prefix }}reg f_reset,
-        {{ settings.class_prefix }}reg f_pwron,
-        {{ settings.class_prefix }}reg f_shift,
-        {{ settings.class_prefix }}reg f_bypass,
-        {{ settings.class_prefix }}reg f_divvcor,
-        {{ settings.class_prefix }}reg f_r,
-        {{ settings.class_prefix }}reg f_p,
-        {{ settings.class_prefix }}reg f_divvcop,
-        {{ settings.class_prefix }}reg f_enr,
-        {{ settings.class_prefix }}reg f_enp,
-        longint out_hz,
-        longint ref_hz,
-        bit active,
+        input {{ settings.class_prefix }}reg f_fbdiv,
+        input {{ settings.class_prefix }}reg f_prediv,
+        input {{ settings.class_prefix }}reg f_reset,
+        input {{ settings.class_prefix }}reg f_pwron,
+        input {{ settings.class_prefix }}reg f_shift,
+        input {{ settings.class_prefix }}reg f_bypass,
+        input {{ settings.class_prefix }}reg f_divvcor,
+        input {{ settings.class_prefix }}reg f_r,
+        input {{ settings.class_prefix }}reg f_p,
+        input {{ settings.class_prefix }}reg f_divvcop,
+        input {{ settings.class_prefix }}reg f_enr,
+        input {{ settings.class_prefix }}reg f_enp,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit active,
         output bit match);
     int exp_fbdiv;
     int exp_prediv;
@@ -893,15 +971,15 @@ task {{ settings.class_prefix }}pll_cfg::dw_regs_match_target(
 endtask
 
 task {{ settings.class_prefix }}pll_cfg::inno_regs_match_target(
-        {{ settings.class_prefix }}reg f_pd,
-        {{ settings.class_prefix }}reg f_refdiv,
-        {{ settings.class_prefix }}reg f_fbdiv,
-        {{ settings.class_prefix }}reg f_postdiv1,
-        {{ settings.class_prefix }}reg f_postdiv2,
-        longint out_hz,
-        longint ref_hz,
-        bit write_shared,
-        bit active,
+        input {{ settings.class_prefix }}reg f_pd,
+        input {{ settings.class_prefix }}reg f_refdiv,
+        input {{ settings.class_prefix }}reg f_fbdiv,
+        input {{ settings.class_prefix }}reg f_postdiv1,
+        input {{ settings.class_prefix }}reg f_postdiv2,
+        input longint out_hz,
+        input longint ref_hz,
+        input bit write_shared,
+        input bit active,
         output bit match);
     int fbdiv;
     int refdiv;

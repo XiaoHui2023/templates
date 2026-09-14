@@ -93,18 +93,27 @@ clkf = f / f_ref
 | 参数 | 说明 |
 | --- | --- |
 | **f_actual** | 由系数算出的输出频率 |
-| **fbdiv** | 反馈分频，1～4095，四舍五入取整 |
+| **f_pfd** | 鉴相频率 |
+| **f_vco** | VCO 频率 |
+| **fbdiv** | 反馈分频，**fbdiv_min**～**fbdiv_max** |
 | **refdiv** | 参考分频，1～63 |
 | **postdiv1** | 后分频 1，1～7 |
 | **postdiv2** | 后分频 2，1～7 |
-| **fbdiv_min** | 优先选取的 **fbdiv** 下限 |
-| **fbdiv_max** | 优先选取的 **fbdiv** 上限 |
+| **fbdiv_min** | **fbdiv** 下限 |
+| **fbdiv_max** | **fbdiv** 上限 |
+| **f_pfd_min** | 鉴相频率下限 |
+| **f_vco_min** | VCO 频率下限 |
+| **f_vco_max** | VCO 频率上限 |
 
 ```
-f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
+f_pfd = f_ref / refdiv
+f_vco = f_pfd × fbdiv
+f_actual = f_vco / postdiv1 / postdiv2
 ```
 
-在合法组合中使 **f_actual** 与 **f** 绝对误差最小；先在 **fbdiv_min**～**fbdiv_max** 内搜，无解再搜全硬件范围。
+仅保留 **f_pfd ≥ f_pfd_min**、**f_vco_min ≤ f_vco ≤ f_vco_max** 的组合。每组 **refdiv**、**postdiv1**、**postdiv2** 检查合法区间内最接近理想值的两个 **fbdiv**，按精确输出误差选取全局最优解；误差相同时优先较高鉴相频率，再优先较高 VCO 频率。
+
+最优合法解的相对误差超过允许值，或不存在合法组合时，在写寄存器前报错。
 
 ### inno
 

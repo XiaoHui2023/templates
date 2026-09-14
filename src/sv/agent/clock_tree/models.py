@@ -170,6 +170,30 @@ class Settings(BaseModel):
         ge=1,
         description="PLL lock 等待上限，微秒。",
     )
+    pll_sc_freq_tolerance: float = Field(
+        0.02,
+        ge=0.0,
+        lt=1.0,
+        description="PLL SC 实际输出频率相对目标频率的允许偏差。",
+    )
+    pll_sc_pfd_min_hz: int = Field(
+        19_000_000,
+        ge=1,
+        le=_MAX_FREQ_HZ,
+        description="PLL SC 鉴相频率下限，单位 Hz。",
+    )
+    pll_sc_vco_min_hz: int = Field(
+        800_000_000,
+        ge=1,
+        le=_MAX_FREQ_HZ,
+        description="PLL SC VCO 频率下限，单位 Hz。",
+    )
+    pll_sc_vco_max_hz: int = Field(
+        1_600_000_000,
+        ge=1,
+        le=_MAX_FREQ_HZ,
+        description="PLL SC VCO 频率上限，单位 Hz。",
+    )
     pll_sc_fbdiv_min: int = Field(
         16,
         ge=1,
@@ -241,12 +265,18 @@ class Settings(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _validate_pll_sc_fbdiv_range(self) -> Settings:
+    def _validate_pll_sc_ranges(self) -> Settings:
         if self.pll_sc_fbdiv_min > self.pll_sc_fbdiv_max:
             raise ValueError(
                 f"{ERR.field('pll_sc_fbdiv_min')} ({self.pll_sc_fbdiv_min}) "
                 f"须不大于 {ERR.field('pll_sc_fbdiv_max')} "
                 f"({self.pll_sc_fbdiv_max})"
+            )
+        if self.pll_sc_vco_min_hz > self.pll_sc_vco_max_hz:
+            raise ValueError(
+                f"{ERR.field('pll_sc_vco_min_hz')} ({self.pll_sc_vco_min_hz}) "
+                f"须不大于 {ERR.field('pll_sc_vco_max_hz')} "
+                f"({self.pll_sc_vco_max_hz})"
             )
         return self
 

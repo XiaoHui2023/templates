@@ -71,6 +71,10 @@ endfunction
 | `duty_max` | `float` | `67` | 允许占空比上限，百分数；闭区间端点计入合格。 |
 | `duty_tolerance_pct` | `float` | `0.05` | 占空比允许范围在 **duty_min**、**duty_max** 之外的容差，百分数点；合格区间为 **[duty_min − duty_tolerance_pct, duty_max + duty_tolerance_pct]**。 |
 | `pll_lock_timeout_us` | `int` | `100` | PLL lock 等待上限，微秒。 |
+| `pll_sc_freq_tolerance` | `float` | `0.02` | PLL SC 输出频率相对目标频率的允许偏差。 |
+| `pll_sc_pfd_min_hz` | `int` | `19000000` | PLL SC 鉴相频率下限，单位 Hz。 |
+| `pll_sc_vco_min_hz` | `int` | `800000000` | PLL SC VCO 频率下限，单位 Hz。 |
+| `pll_sc_vco_max_hz` | `int` | `1600000000` | PLL SC VCO 频率上限，单位 Hz。 |
 | `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
 | `pll_sc_fbdiv_max` | `int` | `84` | 允许 PLL SC FBDIV 上限。 |
 | `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。 |
