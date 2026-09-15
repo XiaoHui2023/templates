@@ -177,7 +177,7 @@ class Settings(BaseModel):
         description="PLL SC 实际输出频率相对目标频率的允许偏差。",
     )
     pll_sc_pfd_min_hz: int = Field(
-        19_000_000,
+        12_000_000,
         ge=1,
         le=_MAX_FREQ_HZ,
         description="PLL SC 鉴相频率下限，单位 Hz。",
@@ -201,7 +201,7 @@ class Settings(BaseModel):
         description="允许 PLL SC FBDIV 下限。",
     )
     pll_sc_fbdiv_max: int = Field(
-        84,
+        99,
         ge=1,
         le=4095,
         description="允许 PLL SC FBDIV 上限。",

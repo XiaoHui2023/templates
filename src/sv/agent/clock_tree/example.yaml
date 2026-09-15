@@ -33,7 +33,7 @@ nodes:
       kind: pll
       source: xtal
       pll_kind: sc
-      freq: 720000000
+      freq: 1188000000
       in_path: dut.pll_sc_ref
       out_path: dut.pll_sc_clk
       regs:
@@ -322,10 +322,10 @@ settings:
   min_freq_hz: 15000
   div_freq_tolerance: 0.01
   pll_sc_freq_tolerance: 0.02
-  pll_sc_pfd_min_hz: 19000000
+  pll_sc_pfd_min_hz: 12000000
   pll_sc_vco_min_hz: 800000000
   pll_sc_vco_max_hz: 1600000000
   pll_sc_fbdiv_min: 16
-  pll_sc_fbdiv_max: 84
+  pll_sc_fbdiv_max: 99
   duty_min: 48
   duty_max: 67
