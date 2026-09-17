@@ -94,6 +94,9 @@ def tokenize(text: str) -> list[Token]:
                 index += 1
             continue
         if char == "\\":
+            if index + 1 < len(text) and text[index + 1] in "\r\n":
+                index += 1
+                continue
             end = index + 1
             while end < len(text) and not text[end].isspace():
                 end += 1
@@ -208,8 +211,23 @@ def main() -> int:
         Process status code.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("paths", nargs="+", type=Path)
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("paths", nargs="*", type=Path)
     args = parser.parse_args()
+
+    if args.self_test:
+        good = """`define DRIVE(PATH) \\
+initial begin \\
+    forever begin \\
+        wait (sig); \\
+        if (sig) while (sig) break; \\
+    end \\
+end
+"""
+        bad = "class wait; endclass"
+        return 0 if not check_source(good, "good") and check_source(bad, "bad") else 1
+    if not args.paths:
+        parser.error("paths are required unless --self-test is used")
 
     errors: list[str] = []
     for path in iter_sv_files(args.paths):
