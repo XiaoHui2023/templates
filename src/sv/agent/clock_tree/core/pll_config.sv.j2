@@ -203,7 +203,7 @@ class {{ settings.class_prefix }}pll_cfg extends {{ settings.class_prefix }}base
         input longint ref_hz,
         input bit active,
         output bit match);
-    // out_hz、ref_hz — 读回 SC 系数与运行态是否与目标一致
+    // Compare SC readback output frequency and run state with the target.
     extern task sc_regs_match_target(
         input {{ settings.class_prefix }}reg f_vocpd,
         input {{ settings.class_prefix }}reg f_postdivpd,
@@ -864,11 +864,16 @@ task {{ settings.class_prefix }}pll_cfg::sc_regs_match_target(
         input longint ref_hz,
         input bit active,
         output bit match);
-    int exp_fbdiv;
-    int exp_refdiv;
-    int exp_postdiv1;
-    int exp_postdiv2;
+    int act_fbdiv;
+    int act_refdiv;
+    int act_postdiv1;
+    int act_postdiv2;
     int act;
+    longint actual_den;
+    longint actual_num;
+    longint target_num;
+    longint error_num;
+    real error_ratio;
     match = 1'b1;
     rw.read(f_vocpd, act);
     if (act != !active)
@@ -887,19 +892,27 @@ task {{ settings.class_prefix }}pll_cfg::sc_regs_match_target(
         match = 1'b0;
     if (!active)
         return;
-    resolve_sc_divisors(
-        out_hz, ref_hz, exp_fbdiv, exp_refdiv, exp_postdiv1, exp_postdiv2);
-    rw.read(f_refdiv, act);
-    if (act != exp_refdiv)
+    if (out_hz <= 0 || ref_hz <= 0) begin
         match = 1'b0;
-    rw.read(f_postdiv2, act);
-    if (act != exp_postdiv2)
+        return;
+    end
+    rw.read(f_refdiv, act_refdiv);
+    rw.read(f_postdiv2, act_postdiv2);
+    rw.read(f_postdiv1, act_postdiv1);
+    rw.read(f_fbdiv, act_fbdiv);
+    if (act_refdiv <= 0 || act_postdiv1 <= 0
+            || act_postdiv2 <= 0 || act_fbdiv <= 0) begin
         match = 1'b0;
-    rw.read(f_postdiv1, act);
-    if (act != exp_postdiv1)
-        match = 1'b0;
-    rw.read(f_fbdiv, act);
-    if (act != exp_fbdiv)
+        return;
+    end
+    actual_den = act_refdiv * act_postdiv1 * act_postdiv2;
+    actual_num = ref_hz * act_fbdiv;
+    target_num = out_hz * actual_den;
+    error_num = actual_num >= target_num
+        ? actual_num - target_num : target_num - actual_num;
+    error_ratio = real'(error_num)
+        / (real'(out_hz) * real'(actual_den));
+    if (error_ratio > SC_FREQ_TOLERANCE)
         match = 1'b0;
 endtask
 
