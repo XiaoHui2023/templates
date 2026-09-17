@@ -7,7 +7,8 @@ from pathlib import Path
 
 
 DECL_RE = re.compile(r"\b(?:extern\s+)?(?:task|function)\b[^;]*?\((.*?)\)", re.S)
-DIRECTION_RE = re.compile(r"\b(?:const\s+ref|input|output|inout|ref)\b")
+DIRS = ("input ", "output ", "inout ", "ref ", "const ref ")
+NON_INPUT_DIRS = ("output ", "inout ", "ref ", "const ref ")
 
 
 def split_params(params: str) -> list[str]:
@@ -41,7 +42,7 @@ def split_params(params: str) -> list[str]:
 
 
 def check_file(path: Path) -> list[str]:
-    """Checks that one formal does not declare contradictory directions.
+    """Checks explicit directions in mixed-direction formal lists.
 
     Args:
         path: SystemVerilog source or template path.
@@ -54,14 +55,16 @@ def check_file(path: Path) -> list[str]:
     for match in DECL_RE.finditer(text):
         raw_params = re.sub(r"//[^\n]*|/\*.*?\*/", " ", match.group(1), flags=re.S)
         params = " ".join(raw_params.split())
-        bad = []
-        for param in split_params(params):
-            directions = DIRECTION_RE.findall(param)
-            if len(directions) > 1:
-                bad.append(param)
+        if not any(direction in params for direction in NON_INPUT_DIRS):
+            continue
+        bad = [
+            param
+            for param in split_params(params)
+            if not param.startswith(DIRS)
+        ]
         if bad:
             line = text[: match.start()].count("\n") + 1
-            errors.append(f"{path}:{line}: parameters have contradictory directions: {bad}")
+            errors.append(f"{path}:{line}: parameters must all have explicit directions: {bad}")
     return errors
 
 
@@ -94,22 +97,8 @@ def main() -> int:
         Process status code.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--self-test", action="store_true")
-    parser.add_argument("paths", nargs="*", type=Path)
+    parser.add_argument("paths", nargs="+", type=Path)
     args = parser.parse_args()
-
-    if args.self_test:
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            good = root / "good.sv"
-            bad = root / "bad.sv"
-            good.write_text("function void f(string name, output bit ok); endfunction\n", encoding="utf-8")
-            bad.write_text("function void f(input output int value); endfunction\n", encoding="utf-8")
-            return 0 if not check_file(good) and check_file(bad) else 1
-    if not args.paths:
-        parser.error("paths are required unless --self-test is used")
 
     errors: list[str] = []
     for path in iter_sv_files(args.paths):
@@ -118,7 +107,6 @@ def main() -> int:
     if errors:
         print("\n".join(errors))
         return 1
-    print("SystemVerilog parameter direction scan ok")
     return 0
 
 
