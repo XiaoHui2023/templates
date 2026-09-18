@@ -27,12 +27,12 @@
 | **gate** | 1 GHz 输入下分别检查打开有频率、关闭无活动 |
 | **div** | 1 GHz 输入下逐 bit 写 **f_div** one-hot 编码并检查对应输出频率 |
 | **dto** | 1 GHz 输入和 ratio 4 下检查 250 MHz 输出 |
-| **mux** | 首路为 900 MHz，后续输入逐路约降低 5%，遍历全部选择值并核对输出频率 |
+| **mux** | 非原生时钟输入从 900 MHz 起逐路约降低 5%；直连 source 或 PLL 时使用其原生频率；遍历全部选择值并核对输出频率 |
 | **inv** | 按 **inv_reg_high_means_inverted** 极性遍历直通、反相配置和输入 0/1 |
 
-**div** 位宽由绑定的 **f_div** 自动获取；bit **i** 写入编码 **1 << i**，对应 ratio 为 **2 的 i 次方加 1**。每个 bit 配置都先产生 div 复位脉冲，再写分频值和 load。期望频率低于 **min_freq_hz** 时该 bit 报错。**dto** 使用代表 ratio 验证功能。PLL 不做功能检查，每个 PLL 打印 skip。
+**div** 位宽由绑定的 **f_div** 自动获取；bit **i** 写入编码 **1 << i**，对应 ratio 为 **2 的 i 次方加 1**。每个 bit 配置都先产生 div 复位脉冲，再写分频值和 load。等待 **flip_div_settle_ns** 后测量。期望频率低于 **min_freq_hz** 时该 bit 报错。**dto** 使用代表 ratio 验证功能，等待 **flip_dto_settle_ns** 后测量。PLL 不做功能检查，每个 PLL 打印 skip。
 
-**mux** 写选择寄存器后固定等待 70ns，再开始输出测量。该等待用于避开切换瞬态；频率测量仍按输入频率等待稳定边沿。
+**mux** 写选择寄存器后固定等待 70ns，再开始输出测量。直连 source 或 PLL 的输入不施加 drive，避免与 RTL 时钟竞争；其他输入继续使用独立激励。**inv** 写极性后等待 **flip_inv_config_settle_ns** 再采样输出。
 
 频率激励按期望值生成；活动检测下限取期望频率减去允许误差。最低频率只控制等待时限，不参与周期样本筛选。
 

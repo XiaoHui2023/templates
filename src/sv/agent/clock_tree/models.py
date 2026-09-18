@@ -238,6 +238,21 @@ class Settings(BaseModel):
         "为假时首次只将 rst 写为不复位电平并写 step、load 与 bypass，"
         "此后仅更新 step、load 与 bypass，不经复位脉冲。",
     )
+    flip_div_settle_ns: int = Field(
+        200,
+        ge=0,
+        description="flip 写 div 分频值和 load 后、测量前的等待时间，单位 ns。",
+    )
+    flip_dto_settle_ns: int = Field(
+        200,
+        ge=0,
+        description="flip 写 dto 配置后、测量前的等待时间，单位 ns。",
+    )
+    flip_inv_config_settle_ns: int = Field(
+        100,
+        ge=0,
+        description="flip 写 inv 极性后、采样输出前的等待时间，单位 ns。",
+    )
 
     @field_validator("duty_min", "duty_max", mode="before")
     @classmethod

@@ -36,6 +36,9 @@ class {{ settings.class_prefix }}flip_check_seq extends {{ settings.class_prefix
         input string label,
         input int expected_freq_hz,
         output bit passed);
+    // 判断前级是否保留 RTL 原生时钟。
+    extern function bit is_native_clock_source(
+        input {{ settings.class_prefix }}node_base node);
     // 验证 gate 开关功能
     extern task verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
@@ -137,6 +140,14 @@ task {{ settings.class_prefix }}flip_check_seq::check_port_inactive(
     end
     passed = 1'b1;
 endtask
+
+function bit {{ settings.class_prefix }}flip_check_seq::is_native_clock_source(
+        input {{ settings.class_prefix }}node_base node);
+    {{ settings.class_prefix }}source_base source_nd;
+    {{ settings.class_prefix }}pll_base pll_nd;
+
+    return $cast(source_nd, node) || $cast(pll_nd, node);
+endfunction
 
 task {{ settings.class_prefix }}flip_check_seq::verify_gate(
         input {{ settings.class_prefix }}config_reg_core cfg,
@@ -250,7 +261,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_div(
         ratio = {{ settings.class_prefix }}div_ratio_for_reg_bit(
             div_nd.f_div, bit_idx);
         cfg.config_reg_div_node_reg(div_nd, ratio, 1'b1);
-        #20ns;
+        #({{ settings.flip_div_settle_ns }}ns);
         expected_freq_hz = real'(FLIP_STIM_FREQ_HZ) / ratio;
         if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
             failures++;
@@ -321,7 +332,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_dto(
 
     in_vif.start_clock(FLIP_STIM_FREQ_HZ);
     cfg.config_reg_dto_node_reg(dto_nd, ratio);
-    #20ns;
+    #({{ settings.flip_dto_settle_ns }}ns);
     expected_freq_hz = real'(FLIP_STIM_FREQ_HZ) / ratio;
     measure_port_freq(
         out_vif, {dto_nd.get_name(), ".out"}, int'(expected_freq_hz),
@@ -392,9 +403,13 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     foreach (mux_nd.to_source[k]) begin
         in_key = $sformatf("%0d", k);
         in_vif = mux_nd.get_in_vif(in_key);
-        expected_freq_hz[k] = stim_freq_hz;
-        in_vif.start_clock(stim_freq_hz);
-        stim_freq_hz = int'(real'(stim_freq_hz) * MUX_STIM_SCALE);
+        if (is_native_clock_source(mux_nd.to_source[k]))
+            expected_freq_hz[k] = mux_nd.to_source[k]._resolved_freq;
+        else begin
+            expected_freq_hz[k] = stim_freq_hz;
+            in_vif.start_clock(stim_freq_hz);
+            stim_freq_hz = int'(real'(stim_freq_hz) * MUX_STIM_SCALE);
+        end
     end
 
     foreach (mux_nd.to_source[k]) begin
@@ -421,7 +436,7 @@ task {{ settings.class_prefix }}flip_check_seq::verify_mux(
     foreach (mux_nd.to_source[k]) begin
         in_key = $sformatf("%0d", k);
         in_vif = mux_nd.get_in_vif(in_key);
-        if (in_vif != null)
+        if (in_vif != null && !is_native_clock_source(mux_nd.to_source[k]))
             in_vif.release_drive();
     end
     did_check = 1'b1;
@@ -455,6 +470,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
         "test_flip: test inv %s", inv_nd.get_name()), UVM_LOW)
 
     cfg.config_reg_inv_node_reg(inv_nd, 1'b0);
+    // 等待寄存器极性提交后再采样输出。
+    #({{ settings.flip_inv_config_settle_ns }}ns);
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b0) begin
@@ -473,6 +490,8 @@ task {{ settings.class_prefix }}flip_check_seq::verify_inv(
     end
 
     cfg.config_reg_inv_node_reg(inv_nd, 1'b1);
+    // 等待寄存器极性提交后再采样输出。
+    #({{ settings.flip_inv_config_settle_ns }}ns);
     in_vif.drive_static(1'b0);
     #1ns;
     if (out_vif.in !== 1'b1) begin

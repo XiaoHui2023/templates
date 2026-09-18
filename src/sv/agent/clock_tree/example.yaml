@@ -327,5 +327,8 @@ settings:
   pll_sc_vco_max_hz: 1600000000
   pll_sc_fbdiv_min: 16
   pll_sc_fbdiv_max: 99
+  flip_div_settle_ns: 200
+  flip_dto_settle_ns: 200
+  flip_inv_config_settle_ns: 100
   duty_min: 48
   duty_max: 67

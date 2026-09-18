@@ -83,6 +83,9 @@ endfunction
 | `dto_reg_high_means_reset` | `bool` | `false` | 为真时 dto **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
 | `should_reset_div` | `bool` | `false` | 为真时每次 **config_reg** 写 div 都先拉 **rst** 复位再释放；为假时首次只写 **rst** 不复位并写 **div** 与 **load**，此后仅更新 **div** 与 **load**。 |
 | `should_reset_dto` | `bool` | `false` | 为真时每次 **config_reg** 写 dto 都先拉 **rst** 复位再释放；为假时首次只写 **rst** 不复位并写 **step**、**load** 与 **bypass**，此后仅更新这三项。 |
+| `flip_div_settle_ns` | `int` | `200` | flip 写 div 分频值和 load 后、测量前的等待时间，单位 ns。 |
+| `flip_dto_settle_ns` | `int` | `200` | flip 写 dto 配置后、测量前的等待时间，单位 ns。 |
+| `flip_inv_config_settle_ns` | `int` | `100` | flip 写 inv 极性后、采样输出前的等待时间，单位 ns。 |
 
 ### 配置值写法
 
