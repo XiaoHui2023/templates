@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "validator_id": "templates-source-validator",
+  "delivery_command": ["python3", "tools/check_source_submission.py"],
+  "delivery_command_windows": ["python", "tools/check_source_submission.py"],
+  "ready_receipt": ".codex/delivery-ready.json",
+  "artifact_paths": [
+    ".codex/quality-gate.json",
+    "tools/check_source_submission.py"
+  ],
+  "source_submission": {
+    "command": ["python3", "tools/check_source_submission.py"],
+    "command_windows": ["python", "tools/check_source_submission.py"],
+    "receipt": ".codex/source-ready.json",
+    "validator_id": "templates-source-validator",
+    "push_targets": [
+      {"remote": "origin", "branch": "main"}
+    ]
+  },
+  "timeout_seconds": 90
+}
