@@ -78,7 +78,7 @@
 | **frequence** | **longint** | 频率 |
 | **enabled** | **int** | 三态使能；负数表示不主动控制 |
 | **low_power** | **bit** | 为 0 时软开启，为 1 时软关闭；仅为 1 时打印 |
-| **stable** | **bit** | 锚定时钟；由树构造时按 YAML **stable** 写入 |
+| **stable** | **bit** | 锚定时钟；由树构造时按输入 **stable** 写入 |
 | **check_duty** | **bit** | 为真时 **check_measure** 检查占空比 |
 | **_resolved_freq** | **longint**，**rand** | 输出频率 |
 | **_resolved_active** | **bit**，**rand** | 活动状态 |

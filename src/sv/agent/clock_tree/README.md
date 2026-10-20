@@ -4,55 +4,34 @@
 
 ## 示例
 
-```yaml
-nodes:
-  osc:
-    kind: source
-    freq: 24000000
-  gate_cpu:
-    kind: gate
-    source: osc
-    reg: clk_ctrl.cpu_gate
-  clk_cpu:
-    kind: clk
-    source: gate_cpu
-    path: dut.clk_cpu
-    freq: 24000000
-settings:
-  class_prefix: chip_clk_
-  class_regmodel: chip_regmodel
+```json
+{
+  "settings": {
+    "class_prefix": "chip_clk_",
+    "class_regmodel": "chip_regmodel"
+  },
+  "osc": {"kind": "source", "freq": 24000000},
+  "gate_cpu": {
+    "kind": "gate",
+    "source": "osc",
+    "reg": "clk_ctrl.cpu_gate"
+  },
+  "clk_cpu": {
+    "kind": "clk",
+    "source": "gate_cpu",
+    "path": "dut.clk_cpu",
+    "freq": 24000000
+  }
+}
 ```
 
-
-纯寄存器配置可使用 `settings.direct_config: true`。该模式额外生成 `config.f` 与 `config.md`；`all.f` 仍为正常 agent filelist。配置入口为 `<class_prefix>config_reg(tree)`，用于不接 agent、只用 model 和必要 core 文件完成寄存器配置的场景。
-
-## Agent 使用
-
-完整 agent 模式会编译 model、core、sequence、component 与 top 文件。平台中创建 `agent` 与 `tree`，调用 `tree.build(regmodel)` 绑定寄存器并随机化；在顶层例化 `tree_interface`，再调用 `<class_prefix>connect(tree_if, tree)` 连接接口。
-
-```systemverilog
-<class_prefix>agent clk_agt;
-<class_prefix>kit_sequencer clk_sqr;
-<class_prefix>tree tree;
-
-function void build_phase(uvm_phase phase);
-    clk_agt = <class_prefix>agent::type_id::create("clk_agt", this);
-    tree = <class_prefix>tree::type_id::create("tree");
-    tree.build(your_regmodel);
-    <class_prefix>connect(your_top_module.clk_tree_if, tree);
-    $cast(clk_sqr, clk_agt.sqr);
-    uvm_config_db#(<class_prefix>tree)::set(this, "clk_agt", "tree", tree);
-endfunction
-```
-
-常用入口在 kit sequencer 上：只配置寄存器用 `clk_sqr.config_reg()`，只测量用 `clk_sqr.check_measure()`，配置后测量用 `clk_sqr.test_measure()`；低功耗或改频等配置先改 `tree` 中节点属性，再调用 `config_reg()` 应用。`low_power()` 会让非 stable 时钟尽量关闭。
 
 ## 数据结构
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
 | `settings` | `Settings` | | 全局选项。 |
+| `<节点名>` | `Node` | | 节点定义，`settings` 以外的每个根键都是节点名。 |
 
 ### Settings
 
@@ -101,7 +80,7 @@ endfunction
 
 #### 前级引用
 
-写 **nodes** 中的节点名；多路输出加 `[输出名]`，方括号内为字符串，与 **output_groups** 或 **regs** 内 `postdiv1[名字]` 一致。
+写根对象中的节点名；多路输出加 `[输出名]`，方括号内为字符串，与 **output_groups** 或 **regs** 内 `postdiv1[名字]` 一致。
 
 | 写法 | 含义 |
 | --- | --- |
@@ -109,9 +88,9 @@ endfunction
 | `pll0` | 单路输出前级 |
 | `pll0["0"]` 或 `pll0[0]` | 多路输出前级，输出名为 `0` |
 
-### Nodes
+### 根节点
 
-**nodes** 是顶层字段，键为节点名；节点值不可为 **null**。
+**settings** 以外的根键是节点名，节点值不可为 **null**；不支持 **nodes** 包装。
 
 所有节点都支持公共字段 **present**，默认 **true**。写 **present: false** 时，该节点不生成 SV 对象、不进入 tree；其它节点引用它作为 **source** 时不连接。
 

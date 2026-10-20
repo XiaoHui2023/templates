@@ -308,7 +308,7 @@ class Settings(BaseModel):
 
 
 class Models(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     _cache: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
@@ -324,20 +324,24 @@ class Models(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _normalize_drawclock_document(cls, data: Any) -> Any:
-        """Accept a direct node map with one reserved settings key.
+    def _parse_document(cls, data: Any) -> Any:
+        """Parses the canonical flat clock-tree document.
 
         Args:
-            data: Raw YAML or JSON document supplied to the template family.
+            data: Raw document supplied to the template family.
 
         Returns:
-            The established settings/nodes object shape.
+            The internal settings and node map.
 
         Raises:
-            ValueError: If the reserved settings value is not an object.
+            ValueError: If the document uses a reserved key incorrectly.
         """
-        if not isinstance(data, dict) or "nodes" in data:
-            return data
+        if not isinstance(data, dict):
+            raise ValueError("时钟树输入须为对象")
+        if "nodes" in data:
+            raise ValueError(
+                f"{ERR.field('nodes')} 不再支持；节点须直接位于根对象"
+            )
         settings = data.get("settings", {})
         if not isinstance(settings, dict):
             raise ValueError(f"{ERR.field('settings')} 须为对象")
