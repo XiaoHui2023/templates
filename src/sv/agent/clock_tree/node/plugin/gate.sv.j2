@@ -38,6 +38,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         fix_close -> !_resolved_open;
     }
 
+    // 初始化 gate 的自由开关状态。
     function new(string name = "");
         super.new(name);
         open = -1;
@@ -47,6 +48,29 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         f_reg = new();
         kind = "gate";
     endfunction
+
+    // 标记为需要下游时钟有效性筛选的控制节点。
+    virtual function bit is_control_node();
+        return 1'b1;
+    endfunction
+
+    // 支持 gate 自身功能翻转检查。
+    virtual function bit supports_flip();
+        return 1'b1;
+    endfunction
+
+    // 按开关阶段写入当前解析的 gate 状态。
+    virtual task configure_stage(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}node_config_api::stage_e stage,
+            output bit configured);
+        configured = 1'b0;
+        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_GATE_OPEN && _resolved_open) begin
+            cfg.configure_node(this, stage, configured);
+        end else if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_GATE_CLOSE && !_resolved_open) begin
+            cfg.configure_node(this, stage, configured);
+        end
+    endtask
 endclass
 
 `endif

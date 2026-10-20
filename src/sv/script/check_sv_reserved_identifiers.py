@@ -69,6 +69,10 @@ def tokenize(text: str) -> list[Token]:
         if char.isspace():
             index += 1
             continue
+        if char == "\\" and index + 1 < len(text) and text[index + 1] == "\n":
+            line += 1
+            index += 2
+            continue
         if text.startswith("//", index):
             end = text.find("\n", index + 2)
             index = len(text) if end < 0 else end

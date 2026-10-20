@@ -24,6 +24,7 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         fix_inverted -> inverted;
     }
 
+    // 初始化反相状态。
     function new(string name = "");
         super.new(name);
         inverted = 1'b1;
@@ -31,6 +32,21 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         f_reg = new();
         kind = "inv";
     endfunction
+
+    // 支持反相器自身功能翻转检查。
+    virtual function bit supports_flip();
+        return 1'b1;
+    endfunction
+
+    // 写入当前反相控制位。
+    virtual task configure_stage(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}node_config_api::stage_e stage,
+            output bit configured);
+        configured = 1'b0;
+        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_INV)
+            cfg.configure_node(this, stage, configured);
+    endtask
 endclass
 
 `endif

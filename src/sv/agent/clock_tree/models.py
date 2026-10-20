@@ -322,6 +322,30 @@ class Models(BaseModel):
         description="全局选项。",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_drawclock_document(cls, data: Any) -> Any:
+        """Accept a direct node map with one reserved settings key.
+
+        Args:
+            data: Raw YAML or JSON document supplied to the template family.
+
+        Returns:
+            The established settings/nodes object shape.
+
+        Raises:
+            ValueError: If the reserved settings value is not an object.
+        """
+        if not isinstance(data, dict) or "nodes" in data:
+            return data
+        settings = data.get("settings", {})
+        if not isinstance(settings, dict):
+            raise ValueError(f"{ERR.field('settings')} 须为对象")
+        return {
+            "settings": settings,
+            "nodes": {key: value for key, value in data.items() if key != "settings"},
+        }
+
     def _cached(self, key: str, factory: Callable[[], Any]) -> Any:
         if key not in self._cache:
             self._cache[key] = factory()

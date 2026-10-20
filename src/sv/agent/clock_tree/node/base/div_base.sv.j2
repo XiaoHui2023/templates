@@ -28,12 +28,33 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
         }
     }
 
+    // 初始化自由分频比。
     function new(string name = "");
         super.new(name);
         ratio = -1;
         unfix_ratio = 1'b1;
         kind = "div";
     endfunction
+
+    // 标记为需要下游时钟有效性筛选的控制节点。
+    virtual function bit is_control_node();
+        return 1'b1;
+    endfunction
+
+    // 支持分频器自身功能翻转检查。
+    virtual function bit supports_flip();
+        return 1'b1;
+    endfunction
+
+    // 分派 div 或 dto 的解析分频比配置。
+    virtual task configure_stage(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}node_config_api::stage_e stage,
+            output bit configured);
+        configured = 1'b0;
+        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_DIV)
+            cfg.configure_node(this, stage, configured);
+    endtask
 endclass
 
 `endif

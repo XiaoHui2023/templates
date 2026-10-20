@@ -1,0 +1,87 @@
+`ifndef {{ (settings.class_prefix ~ "mux") | upper }}
+`define {{ (settings.class_prefix ~ "mux") | upper }}
+
+class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}mux)
+        `uvm_field_int(_resolved_sel, UVM_ALL_ON)
+        `uvm_field_int(sel, UVM_ALL_ON)
+        `uvm_field_int(unfix_sel, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
+    `uvm_object_utils_end
+
+    int max_sel;
+    rand int _resolved_sel;
+    int sel;
+    bit unfix_sel;
+    {{ settings.class_prefix }}node_base to_source[int];
+    {{ settings.class_prefix }}reg f_reg;
+
+    constraint cst_mux {
+        _resolved_sel inside {[0:max_sel]};
+        !(unfix_sel || sel < 0) -> sel == _resolved_sel;
+    }
+
+    constraint cst_resolve_active_from_src {
+        to_source[_resolved_sel] != null -> _resolved_active == to_source[_resolved_sel]._resolved_active;
+    }
+
+    constraint cst_resolve_freq_from_src {
+        to_source[_resolved_sel] != null -> _resolved_freq == to_source[_resolved_sel]._resolved_freq;
+    }
+
+    // 初始化自由选择值。
+    function new(string name = "");
+        super.new(name);
+        sel = -1;
+        unfix_sel = 1'b1;
+        f_reg = new();
+        kind = "mux";
+    endfunction
+
+    // 同步选择值的固定标记。
+    function void post_randomize();
+        super.post_randomize();
+        if (to_source[_resolved_sel] != null)
+            source = to_source[_resolved_sel];
+    endfunction
+
+    // 收集全部 mux 输入来源。
+    virtual function void collect_source_nodes(
+            output {{ settings.class_prefix }}node_base source_nodes[$]);
+        source_nodes.delete();
+        foreach (to_source[key])
+            if (to_source[key] != null)
+                source_nodes.push_back(to_source[key]);
+    endfunction
+
+    // 返回由指定上游驱动的 mux 输入键。
+    virtual function void collect_input_keys_from_source(
+            input {{ settings.class_prefix }}node_base parent,
+            output string keys[$]);
+        keys.delete();
+        foreach (to_source[key])
+            if (to_source[key] == parent)
+                keys.push_back($sformatf("%0d", key));
+    endfunction
+
+    // 标记为需要下游时钟有效性筛选的控制节点。
+    virtual function bit is_control_node();
+        return 1'b1;
+    endfunction
+
+    // 支持 mux 自身功能翻转检查。
+    virtual function bit supports_flip();
+        return 1'b1;
+    endfunction
+
+    // 写入当前解析选择值。
+    virtual task configure_stage(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}node_config_api::stage_e stage,
+            output bit configured);
+        configured = 1'b0;
+        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_MUX)
+            cfg.configure_node(this, stage, configured);
+    endtask
+endclass
+
+`endif

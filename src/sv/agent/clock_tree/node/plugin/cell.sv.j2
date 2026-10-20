@@ -25,12 +25,23 @@ class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_ba
         !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};
     }
 
+    // 初始化直通 cell 的非强制频率与活动状态。
     function new(string name = "");
         super.new(name);
         cell_kind = "cell";
         frequence = -1;
         enabled = -1;
         kind = "cell";
+    endfunction
+
+    // cell 节点参与频率和活动检查。
+    virtual function bit supports_measure();
+        return 1'b1;
+    endfunction
+
+    // 标记为 cell 测量类别。
+    virtual function bit is_cell_node();
+        return 1'b1;
     endfunction
 endclass
 

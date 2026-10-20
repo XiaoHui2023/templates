@@ -30,11 +30,11 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
         output int checked,
         output int skipped,
         output int failed);
-    {{ settings.class_prefix }}mux mux_nd;
     virtual {{ settings.class_prefix }}interface out_vif;
     virtual {{ settings.class_prefix }}interface in_vif;
     virtual {{ settings.class_prefix }}interface in_vifs[$];
     string edge_names[$];
+    string input_keys[$];
     string in_key;
     string edge_name;
 
@@ -48,31 +48,14 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
     foreach (tree.nodes[i]) begin
         if (tree.nodes[i] == null)
             continue;
-        if ($cast(mux_nd, tree.nodes[i])) begin
-            foreach (mux_nd.to_source[k]) begin
-                if (mux_nd.to_source[k] != parent)
-                    continue;
-                in_key = $sformatf("%0d", k);
-                in_vif = mux_nd.get_in_vif(in_key);
-                edge_name = $sformatf("%s.out -> %s.in[%s]",
-                    parent.get_name(), mux_nd.get_name(), in_key);
-                if (out_vif == null || in_vif == null) begin
-                    skipped++;
-                    `uvm_info("CLK_TREE", $sformatf(
-                        "test_route: skip %s, missing %s%s%s",
-                        edge_name,
-                        out_vif == null ? "source out interface" : "",
-                        (out_vif == null && in_vif == null) ? " and " : "",
-                        in_vif == null ? "sink in interface" : ""), UVM_LOW)
-                end else begin
-                    in_vifs.push_back(in_vif);
-                    edge_names.push_back(edge_name);
-                end
-            end
-        end else if (tree.nodes[i].source == parent) begin
-            in_vif = tree.nodes[i].get_in_vif();
-            edge_name = $sformatf("%s.out -> %s.in",
-                parent.get_name(), tree.nodes[i].get_name());
+        tree.nodes[i].collect_input_keys_from_source(parent, input_keys);
+        foreach (input_keys[key_idx]) begin
+            in_key = input_keys[key_idx];
+            in_vif = tree.nodes[i].get_in_vif(in_key);
+            edge_name = in_key == ""
+                ? $sformatf("%s.out -> %s.in", parent.get_name(), tree.nodes[i].get_name())
+                : $sformatf("%s.out -> %s.in[%s]",
+                    parent.get_name(), tree.nodes[i].get_name(), in_key);
             if (out_vif == null || in_vif == null) begin
                 skipped++;
                 `uvm_info("CLK_TREE", $sformatf(
@@ -125,8 +108,8 @@ task {{ settings.class_prefix }}route_check_seq::body();
     {{ settings.class_prefix }}route_check_rsp rs;
     {{ settings.class_prefix }}tree_base tree;
     {{ settings.class_prefix }}config_reg_core cfg;
-    {{ settings.class_prefix }}mux mux_nd;
     {{ settings.class_prefix }}node_base parents[$];
+    {{ settings.class_prefix }}node_base source_nodes[$];
     int checked_counts[];
     int skipped_counts[];
     int failed_counts[];
@@ -163,16 +146,10 @@ task {{ settings.class_prefix }}route_check_seq::body();
     foreach (tree.nodes[i]) begin
         if (tree.nodes[i] == null)
             continue;
-        if ($cast(mux_nd, tree.nodes[i])) begin
-            foreach (mux_nd.to_source[k]) begin
-                if (mux_nd.to_source[k] == null)
-                    continue;
-                {{ settings.class_prefix }}append_unique_node(
-                    parents, mux_nd.to_source[k]);
-            end
-        end else if (tree.nodes[i].source != null) begin
+        tree.nodes[i].collect_source_nodes(source_nodes);
+        foreach (source_nodes[src_idx]) begin
             {{ settings.class_prefix }}append_unique_node(
-                parents, tree.nodes[i].source);
+                parents, source_nodes[src_idx]);
         end
     end
 

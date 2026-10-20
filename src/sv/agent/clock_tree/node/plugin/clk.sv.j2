@@ -34,6 +34,7 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         !_resolved_active || _resolved_freq <= {{ _max_freq_hz_lit }};
     }
 
+    // 初始化时钟的非强制频率与活动状态。
     function new(string name = "");
         super.new(name);
         frequence = -1;
@@ -44,6 +45,21 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         unfix_frequence = 1'b0;
         unfix_enabled = 1'b0;
         kind = "clk";
+    endfunction
+
+    // 时钟节点参与频率和活动检查。
+    virtual function bit supports_measure();
+        return 1'b1;
+    endfunction
+
+    // 标记为 clock 测量类别。
+    virtual function bit is_clock_node();
+        return 1'b1;
+    endfunction
+
+    // 按节点开关决定是否参与占空比检查。
+    virtual function bit supports_duty_check();
+        return check_duty;
     endfunction
 endclass
 

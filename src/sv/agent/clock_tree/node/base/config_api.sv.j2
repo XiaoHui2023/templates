@@ -1,0 +1,32 @@
+`ifndef {{ (settings.class_prefix ~ "node_config_api") | upper }}
+`define {{ (settings.class_prefix ~ "node_config_api") | upper }}
+
+class {{ settings.class_prefix }}node_config_api extends {{ settings.class_prefix }}base_object;
+    typedef enum int {
+        CONFIG_PLL,
+        CONFIG_DIV,
+        CONFIG_INV,
+        CONFIG_GATE_OPEN,
+        CONFIG_MUX,
+        CONFIG_GATE_CLOSE
+    } stage_e;
+
+    // 初始化节点配置 API。
+    function new(string name = "");
+        super.new(name);
+    endfunction
+
+    // 对一个节点执行其配置阶段。
+    virtual task configure_node(
+            input uvm_object node,
+            input stage_e stage,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // 等待一个节点的专属 lock 条件。
+    virtual task wait_for_node_lock(input uvm_object node);
+    endtask
+endclass
+
+`endif

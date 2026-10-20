@@ -184,11 +184,9 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
 );
     if (nd == null || nd.vif == null)
         return 1'b0;
-    if (nd.kind == "clk")
-        return check_clk;
-    if (nd.kind == "cell")
-        return check_cell;
-    return 1'b0;
+    return nd.supports_measure()
+        && ((nd.is_clock_node() && check_clk)
+            || (nd.is_cell_node() && check_cell));
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check(
@@ -199,11 +197,9 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check
 );
     if (nd == null || !check_freq)
         return 1'b0;
-    if (nd.kind == "clk")
-        return check_clk;
-    if (nd.kind == "cell")
-        return check_cell;
-    return 1'b0;
+    return nd.supports_measure()
+        && ((nd.is_clock_node() && check_clk)
+            || (nd.is_cell_node() && check_cell));
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check(
@@ -211,14 +207,11 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check
     bit check_clk,
     bit check_duty
 );
-    {{ settings.class_prefix }}clk clk_nd;
     if (nd == null || !check_duty)
         return 1'b0;
     if (!check_clk)
         return 1'b0;
-    if ($cast(clk_nd, nd) && !clk_nd.check_duty)
-        return 1'b0;
-    return nd.kind == "clk";
+    return nd.is_clock_node() && nd.supports_duty_check();
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_activity_ready(

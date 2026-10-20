@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "config_reg_core") | upper }}
 `define {{ (settings.class_prefix ~ "config_reg_core") | upper }}
 
-class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefix }}base_object;
+class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefix }}node_config_api;
     {{ settings.class_prefix }}core_tools tools;
     protected bit quiet;
 
@@ -22,6 +22,13 @@ class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefi
     extern task configure_low_power(
         {{ settings.class_prefix }}tree_base tree,
         bit quiet = 1'b0);
+    // Execute a plugin-requested node configuration stage.
+    extern virtual task configure_node(
+        input uvm_object node,
+        input {{ settings.class_prefix }}node_config_api::stage_e stage,
+        output bit configured);
+    // Wait for a plugin-requested node lock condition.
+    extern virtual task wait_for_node_lock(input uvm_object node);
     // Configure gate open state.
     extern task config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
     // Configure gate register with a requested logical open value.
@@ -82,6 +89,60 @@ class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefi
     // Configure mux nodes.
     extern task config_mux_nodes({{ settings.class_prefix }}tree_base tree);
 endclass
+
+// 将插件阶段分派到现有的寄存器配置实现。
+task {{ settings.class_prefix }}config_reg_core::configure_node(
+        input uvm_object node,
+        input {{ settings.class_prefix }}node_config_api::stage_e stage,
+        output bit configured);
+    {{ settings.class_prefix }}pll_base pll_nd;
+    {{ settings.class_prefix }}div_div div_nd;
+    {{ settings.class_prefix }}div_dto dto_nd;
+    {{ settings.class_prefix }}inv_base inv_nd;
+    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}mux mux_nd;
+
+    configured = 1'b0;
+    case (stage)
+        {{ settings.class_prefix }}node_config_api::CONFIG_PLL:
+            if ($cast(pll_nd, node))
+                config_reg_pll_node(pll_nd, configured);
+        {{ settings.class_prefix }}node_config_api::CONFIG_DIV:
+            if ($cast(div_nd, node)) begin
+                config_reg_div_node(div_nd);
+                configured = 1'b1;
+            end else if ($cast(dto_nd, node)) begin
+                config_reg_dto_node(dto_nd);
+                configured = 1'b1;
+            end
+        {{ settings.class_prefix }}node_config_api::CONFIG_INV:
+            if ($cast(inv_nd, node)) begin
+                config_reg_inv_node(inv_nd);
+                configured = 1'b1;
+            end
+        {{ settings.class_prefix }}node_config_api::CONFIG_GATE_OPEN,
+        {{ settings.class_prefix }}node_config_api::CONFIG_GATE_CLOSE:
+            if ($cast(gate_nd, node)) begin
+                config_reg_gate_node(gate_nd);
+                configured = 1'b1;
+            end
+        {{ settings.class_prefix }}node_config_api::CONFIG_MUX:
+            if ($cast(mux_nd, node)) begin
+                config_reg_mux_node(mux_nd);
+                configured = 1'b1;
+            end
+        default: ;
+    endcase
+endtask
+
+// 将插件 lock 请求分派到 PLL 的既有等待实现。
+task {{ settings.class_prefix }}config_reg_core::wait_for_node_lock(
+        input uvm_object node);
+    {{ settings.class_prefix }}pll_base pll_nd;
+
+    if ($cast(pll_nd, node))
+        wait_pll_lock_node(pll_nd);
+endtask
 
 // 写 gate 的开关控制
 task {{ settings.class_prefix }}config_reg_core::config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
@@ -552,10 +613,13 @@ task {{ settings.class_prefix }}config_reg_core::config_pll_nodes(
 
     plls.delete();
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(pll_nd, tree.nodes[i])) begin
+        if (tree.nodes[i] != null && tree.nodes[i].is_pll_node()) begin
             {{ settings.class_prefix }}pll_inno pll_inno_nd;
-            config_reg_pll_node(pll_nd, pll_cfg);
+            tree.nodes[i].configure_stage(this, {{ settings.class_prefix }}node_config_api::CONFIG_PLL, pll_cfg);
             if (pll_cfg) begin
+                if (!$cast(pll_nd, tree.nodes[i]))
+                    `uvm_fatal("CLK_TREE", $sformatf(
+                        "config_reg: pll hook node %s is not pll_base", tree.nodes[i].get_name()))
                 if ($cast(pll_inno_nd, pll_nd) && pll_inno_nd.group_id != "{{ inno_pll_primary_group }}")
                     continue;
                 plls.push_back(pll_nd);
@@ -567,7 +631,7 @@ endtask
 task {{ settings.class_prefix }}config_reg_core::wait_pll_nodes(
         {{ settings.class_prefix }}pll_base plls[$]);
     for (int i = 0; i < plls.size(); i++)
-        wait_pll_lock_node(plls[i]);
+        plls[i].wait_for_lock(this);
 endtask
 
 // 打印无下游 clk 的无效控制器件
@@ -578,8 +642,7 @@ task {{ settings.class_prefix }}config_reg_core::report_invalid_control_nodes(
     for (int i = 0; i < tree.nodes.size(); i++) begin
         if (tree.nodes[i] == null)
             continue;
-        if (!(tree.nodes[i].kind == "gate" || tree.nodes[i].kind == "mux"
-                || tree.nodes[i].kind == "div"))
+        if (!tree.nodes[i].is_control_node())
             continue;
         if ({{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
             continue;
@@ -592,22 +655,12 @@ endtask
 // 写入 div 与 dto 控制寄存器
 task {{ settings.class_prefix }}config_reg_core::config_div_dto_nodes(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}div_div div_div_nd;
-    {{ settings.class_prefix }}div_dto div_dto_nd;
+    bit configured;
 
     for (int i = 0; i < tree.nodes.size(); i++) begin
         if (!{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
             continue;
-        if ($cast(div_div_nd, tree.nodes[i])) begin
-            if (div_div_nd.f_rst.is_bound() && div_div_nd.f_load.is_bound()
-                    && div_div_nd.f_div.is_bound())
-                config_reg_div_node(div_div_nd);
-        end else if ($cast(div_dto_nd, tree.nodes[i])) begin
-            if (div_dto_nd.f_rst.is_bound() && div_dto_nd.f_load.is_bound()
-                    && div_dto_nd.f_bypass.is_bound()
-                    && div_dto_nd.f_step.is_bound())
-                config_reg_dto_node(div_dto_nd);
-        end
+        tree.nodes[i].configure_stage(this, {{ settings.class_prefix }}node_config_api::CONFIG_DIV, configured);
     end
 endtask
 
@@ -632,35 +685,37 @@ endtask
 // 写入 inv 控制寄存器
 task {{ settings.class_prefix }}config_reg_core::config_inv_nodes(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}inv_base inv_nd;
+    bit configured;
 
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(inv_nd, tree.nodes[i]) && inv_nd.f_reg.is_bound())
-            config_reg_inv_node(inv_nd);
+        if (tree.nodes[i] != null)
+            tree.nodes[i].configure_stage(this, {{ settings.class_prefix }}node_config_api::CONFIG_INV, configured);
 endtask
 
 // 按 open 状态写入 gate 控制寄存器
 task {{ settings.class_prefix }}config_reg_core::config_gate_nodes(
         {{ settings.class_prefix }}tree_base tree,
         bit open);
-    {{ settings.class_prefix }}gate gate_nd;
+    {{ settings.class_prefix }}node_config_stage_e stage;
+    bit configured;
 
+        stage = open ? {{ settings.class_prefix }}node_config_api::CONFIG_GATE_OPEN
+                     : {{ settings.class_prefix }}node_config_api::CONFIG_GATE_CLOSE;
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(gate_nd, tree.nodes[i]) && gate_nd.f_reg.is_bound()
-                && {{ settings.class_prefix }}control_node_is_valid(tree, gate_nd)
-                && gate_nd._resolved_open == open)
-            config_reg_gate_node(gate_nd);
+        if (tree.nodes[i] != null
+                && {{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
+            tree.nodes[i].configure_stage(this, stage, configured);
 endtask
 
 // 写入 mux 选择寄存器
 task {{ settings.class_prefix }}config_reg_core::config_mux_nodes(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}mux mux_nd;
+    bit configured;
 
     for (int i = 0; i < tree.nodes.size(); i++)
-        if ($cast(mux_nd, tree.nodes[i]) && mux_nd.f_reg.is_bound()
-                && {{ settings.class_prefix }}control_node_is_valid(tree, mux_nd))
-            config_reg_mux_node(mux_nd);
+        if (tree.nodes[i] != null
+                && {{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
+            tree.nodes[i].configure_stage(this, {{ settings.class_prefix }}node_config_api::CONFIG_MUX, configured);
 endtask
 
 // 按树节点顺序配置寄存器并返回结果

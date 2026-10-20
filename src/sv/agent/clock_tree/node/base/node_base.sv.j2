@@ -1,0 +1,145 @@
+`ifndef {{ (settings.class_prefix ~ "node_base") | upper }}
+`define {{ (settings.class_prefix ~ "node_base") | upper }}
+
+class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
+    `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
+        `uvm_field_int(_resolved_freq, UVM_DEFAULT|UVM_DEC|(_print_resolve?0:UVM_NOPRINT))
+        `uvm_field_int(_resolved_active, UVM_DEFAULT|(_print_resolve?0:UVM_NOPRINT))
+    `uvm_object_utils_end
+
+    string kind;
+    rand longint _resolved_freq;
+    rand bit _resolved_active;
+    bit _print_resolve;
+    bit _print_fix;
+    {{ settings.class_prefix }}node_base source;
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    virtual {{ settings.class_prefix }}interface vif;
+    virtual {{ settings.class_prefix }}interface in_vif;
+    virtual {{ settings.class_prefix }}interface out_vif;
+    virtual {{ settings.class_prefix }}interface in_vifs[string];
+    virtual {{ settings.class_prefix }}interface out_vifs[string];
+`endif
+
+    constraint cst_node_base {
+        (_resolved_freq > 0) == _resolved_active;
+    }
+
+    constraint cst_resolve_active_from_src {
+        source != null -> _resolved_active == source._resolved_active;
+    }
+
+    constraint cst_resolve_freq_from_src {
+        source != null -> _resolved_freq == source._resolved_freq;
+    }
+
+    // 初始化通用解析状态与打印选项。
+    function new(string name = "");
+        super.new(name);
+        _print_resolve = 0;
+        _print_fix = 0;
+    endfunction
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // 判断指定输入端是否已绑定。
+    function bit has_in_vif(string key = "");
+        if (key == "")
+            return in_vif != null;
+        return in_vifs.exists(key) && in_vifs[key] != null;
+    endfunction
+
+    // 判断指定输出端是否已绑定。
+    function bit has_out_vif(string key = "");
+        if (key == "")
+            return out_vif != null;
+        return out_vifs.exists(key) && out_vifs[key] != null;
+    endfunction
+
+    // 返回指定输入端接口。
+    virtual function {{ settings.class_prefix }}interface get_in_vif(string key = "");
+        if (key == "")
+            return in_vif;
+        if (!in_vifs.exists(key))
+            return null;
+        return in_vifs[key];
+    endfunction
+
+    // 返回指定输出端接口。
+    virtual function {{ settings.class_prefix }}interface get_out_vif(string key = "");
+        if (key == "")
+            return out_vif;
+        if (!out_vifs.exists(key))
+            return null;
+        return out_vifs[key];
+    endfunction
+`endif
+    // 指示该节点是否受控制器件有效性筛选。
+    virtual function bit is_control_node();
+        return 1'b0;
+    endfunction
+
+    // 指示该节点是否为需要 lock 等待的 PLL。
+    virtual function bit is_pll_node();
+        return 1'b0;
+    endfunction
+
+    // 指示该节点是否属于 clock 测量类别。
+    virtual function bit is_clock_node();
+        return 1'b0;
+    endfunction
+
+    // 指示该节点是否属于 cell 测量类别。
+    virtual function bit is_cell_node();
+        return 1'b0;
+    endfunction
+
+    // 指示该节点是否参与 check_measure。
+    virtual function bit supports_measure();
+        return 1'b0;
+    endfunction
+
+    // 指示该节点是否参与占空比检查。
+    virtual function bit supports_duty_check();
+        return 1'b0;
+    endfunction
+
+    // 指示该节点是否可以执行 flip 功能检查。
+    virtual function bit supports_flip();
+        return 1'b0;
+    endfunction
+
+    // 指示该节点是否可以参与 route 连线检查。
+    virtual function bit supports_route();
+        return 1'b1;
+    endfunction
+
+    // 收集所有直接上游节点。
+    virtual function void collect_source_nodes(
+            output {{ settings.class_prefix }}node_base source_nodes[$]);
+        source_nodes.delete();
+        if (source != null)
+            source_nodes.push_back(source);
+    endfunction
+
+    // 返回由指定上游驱动的输入端键。
+    virtual function void collect_input_keys_from_source(
+            input {{ settings.class_prefix }}node_base parent,
+            output string keys[$]);
+        keys.delete();
+        if (source == parent)
+            keys.push_back("");
+    endfunction
+
+    // 按配置阶段执行节点专属寄存器操作。
+    virtual task configure_stage(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}node_config_api::stage_e stage,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // 等待节点专属的 PLL lock 条件。
+    virtual task wait_for_lock(input {{ settings.class_prefix }}node_config_api cfg);
+    endtask
+endclass
+
+`endif
