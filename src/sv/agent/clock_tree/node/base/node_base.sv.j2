@@ -72,44 +72,24 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         return out_vifs[key];
     endfunction
 `endif
-    // 指示该节点是否受控制器件有效性筛选。
-    virtual function bit is_control_node();
+    // 返回全树配置排序优先级；负值表示该节点不写寄存器。
+    virtual function int configuration_priority();
+        return -1;
+    endfunction
+
+    // 返回节点配置时要调用的专属阶段。
+    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
+        return {{ settings.class_prefix }}node_config_api::CONFIG_NONE;
+    endfunction
+
+    // 指示配置前是否必须存在非 volatile 下游 clock。
+    virtual function bit requires_downstream_clock();
         return 1'b0;
     endfunction
 
-    // 指示该节点是否为需要 lock 等待的 PLL。
-    virtual function bit is_pll_node();
+    // 指示本节点配置后是否需要等待自身完成。
+    virtual function bit needs_configuration_wait();
         return 1'b0;
-    endfunction
-
-    // 指示该节点是否属于 clock 测量类别。
-    virtual function bit is_clock_node();
-        return 1'b0;
-    endfunction
-
-    // 指示该节点是否属于 cell 测量类别。
-    virtual function bit is_cell_node();
-        return 1'b0;
-    endfunction
-
-    // 指示该节点是否参与 check_measure。
-    virtual function bit supports_measure();
-        return 1'b0;
-    endfunction
-
-    // 指示该节点是否参与占空比检查。
-    virtual function bit supports_duty_check();
-        return 1'b0;
-    endfunction
-
-    // 指示该节点是否可以执行 flip 功能检查。
-    virtual function bit supports_flip();
-        return 1'b0;
-    endfunction
-
-    // 指示该节点是否可以参与 route 连线检查。
-    virtual function bit supports_route();
-        return 1'b1;
     endfunction
 
     // 收集所有直接上游节点。
@@ -137,7 +117,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         configured = 1'b0;
     endtask
 
-    // 等待节点专属的 PLL lock 条件。
+    // 等待节点专属配置完成条件。
     virtual task wait_for_lock(input {{ settings.class_prefix }}node_config_api cfg);
     endtask
 endclass

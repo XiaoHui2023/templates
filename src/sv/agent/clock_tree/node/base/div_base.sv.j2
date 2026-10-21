@@ -36,13 +36,18 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
         kind = "div";
     endfunction
 
-    // 标记为需要下游时钟有效性筛选的控制节点。
-    virtual function bit is_control_node();
-        return 1'b1;
+    // div/dto 在 PLL lock 后、反相器前配置。
+    virtual function int configuration_priority();
+        return 200;
     endfunction
 
-    // 支持分频器自身功能翻转检查。
-    virtual function bit supports_flip();
+    // 返回分频器配置阶段。
+    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
+        return {{ settings.class_prefix }}node_config_api::CONFIG_DIV;
+    endfunction
+
+    // 分频器只有驱动有效时才写配置。
+    virtual function bit requires_downstream_clock();
         return 1'b1;
     endfunction
 
@@ -53,7 +58,7 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
             output bit configured);
         configured = 1'b0;
         if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_DIV)
-            cfg.configure_node(this, stage, configured);
+            cfg.configure_div(this, configured);
     endtask
 endclass
 

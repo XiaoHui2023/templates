@@ -587,20 +587,20 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     foreach (tree.nodes[i]) begin
         if (tree.nodes[i] == null)
             continue;
-        if (tree.nodes[i].is_pll_node()) begin
+        if (tree.nodes[i].kind == "pll") begin
             `uvm_info("CLK_TREE", $sformatf(
                 "test_flip: skip pll %s, function test disabled",
                 tree.nodes[i].get_name()), UVM_LOW)
             continue;
         end
-        if (!tree.nodes[i].supports_flip())
+        if (!(tree.nodes[i].kind inside {"gate", "div", "inv", "mux"}))
             continue;
         subjects++;
         if (skip_stable_subject(tree.nodes[i], stable_nodes)) begin
             stable_skipped++;
             continue;
         end
-        if (tree.nodes[i].is_control_node()
+        if (tree.nodes[i].requires_downstream_clock()
                 && !{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i])) begin
             `uvm_info("CLK_TREE", $sformatf(
                 "test_flip: skip %s %s, no non-volatile clock downstream",

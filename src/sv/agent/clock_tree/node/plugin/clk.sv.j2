@@ -47,20 +47,6 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         kind = "clk";
     endfunction
 
-    // 时钟节点参与频率和活动检查。
-    virtual function bit supports_measure();
-        return 1'b1;
-    endfunction
-
-    // 标记为 clock 测量类别。
-    virtual function bit is_clock_node();
-        return 1'b1;
-    endfunction
-
-    // 按节点开关决定是否参与占空比检查。
-    virtual function bit supports_duty_check();
-        return check_duty;
-    endfunction
 endclass
 
 `endif

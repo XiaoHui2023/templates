@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Any, Callable, Dict, List, Literal, Optional, Union
 
 from pydantic import (
@@ -242,17 +243,16 @@ class NodeBase(BaseModel):
     )
     @property
     def sources(self) -> List[SourceRef]:
-        if self.kind == "mux":
+        source = getattr(self, "source", None)
+        if isinstance(source, dict):
             refs: List[SourceRef] = []
-            for key, peer in self.source.items():
-                device, out_group = parse_source_endpoint(peer, ctx="mux.source")
+            for key, peer in source.items():
+                device, out_group = parse_source_endpoint(str(peer), ctx="source")
                 refs.append(SourceRef(name=device, out_group=out_group, key=int(key)))
             return refs
-        if self.kind == "source":
+        if source is None:
             return []
-        if self.source is None:
-            return []
-        device, out_group = parse_source_endpoint(self.source, ctx="source")
+        device, out_group = parse_source_endpoint(str(source), ctx="source")
         return [SourceRef(name=device, out_group=out_group)]
 
     @computed_field(  # type: ignore[prop-decorator]
@@ -976,7 +976,7 @@ class MuxNode(NodeBase):
         return self
 
 
-Node = Annotated[
+KnownNode = Annotated[
     Union[
         GateNode,
         DivNode,
@@ -990,22 +990,58 @@ Node = Annotated[
     Field(discriminator="kind"),
 ]
 
-_node_adapter: TypeAdapter[Node] = TypeAdapter(Node)
-
-_NODE_KINDS_TEXT = "gate、div、inv、source、pll、cell、clk、mux"
+_known_node_adapter: TypeAdapter[KnownNode] = TypeAdapter(KnownNode)
 
 
-def _node_kind_diagnosis(item: Any) -> str:
-    if not isinstance(item, dict):
-        return f"应为对象，得到 {type(item).__name__}"
-    kind = item.get("kind")
-    if kind is None:
-        return f"缺少 {ERR.field('kind')} 字段"
-    return (
-        f"{ERR.field('kind')} 为 {kind!r} 无法识别，应为 {_NODE_KINDS_TEXT} 之一；"
-        f"分频旧写法可用 div、dto、div_r 作为 {ERR.field('kind')}"
-    )
+class GenericNode(NodeBase):
+    """Accepts an input node whose SV plugin is not known to Python.
 
+    Generic nodes keep only the common graph contract in Python.  A same-named
+    ``node/plugin/<kind>.sv.j2`` template decides whether the node becomes an
+    SV instance; plugin-specific fields stay in Pydantic's allowed extras.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    kind: str = Field(..., min_length=1)
+    source: Optional[Union[str, Dict[str, str]]] = Field(default=None)
+    in_path: Optional[str] = Field(default=None)
+    out_path: Optional[str] = Field(default=None)
+
+    @field_validator("kind")
+    @classmethod
+    def _validate_kind(cls, value: str) -> str:
+        if not _SV_ID.match(value):
+            raise ValueError(
+                f"{ERR.field('kind')} {value!r} 须为合法 SystemVerilog 名字"
+            )
+        return value
+
+    @field_validator("in_path", "out_path")
+    @classmethod
+    def _validate_generic_path(
+            cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return _validate_sv_dot_path(value, field=info.field_name or "path")
+
+    @model_validator(mode="after")
+    def _validate_generic_source(self) -> GenericNode:
+        if isinstance(self.source, dict):
+            for key, peer in self.source.items():
+                if not _GROUP_KEY_RE.match(str(key)):
+                    raise ValueError(
+                        f"{ERR.field('source')} 键 {key!r} 须为合法 SystemVerilog 名字"
+                    )
+                parse_source_endpoint(str(peer), ctx="source")
+        elif self.source is not None:
+            parse_source_endpoint(self.source, ctx="source")
+        return self
+
+
+Node = Union[KnownNode, GenericNode]
+
+_KNOWN_NODE_KINDS = frozenset({
+    "gate", "div", "inv", "source", "pll", "cell", "clk", "mux",
+})
 
 def _format_node_validation_error(
     node_key: str,
@@ -1013,11 +1049,6 @@ def _format_node_validation_error(
     exc: ValidationError,
 ) -> str:
     errors = exc.errors()
-    if len(errors) == 1 and errors[0].get("type") in (
-        "union_tag_not_found",
-        "union_tag_invalid",
-    ):
-        return f"nodes[{node_key!r}] {_node_kind_diagnosis(item)}"
     parts: list[str] = []
     for err in errors:
         loc = err.get("loc", ())
@@ -1029,7 +1060,13 @@ def _format_node_validation_error(
 
 def _validate_node_at_key(node_key: str, item: Any) -> Node:
     try:
-        return _node_adapter.validate_python(item, context={"node_name": node_key})
+        if not isinstance(item, dict):
+            raise ValueError(f"应为对象，得到 {type(item).__name__}")
+        kind = item.get("kind")
+        if kind in _KNOWN_NODE_KINDS:
+            return _known_node_adapter.validate_python(
+                item, context={"node_name": node_key})
+        return GenericNode.model_validate(item, context={"node_name": node_key})
     except ValidationError as exc:
         raise ValueError(
             _format_node_validation_error(node_key, item, exc)
@@ -1060,6 +1097,21 @@ class Tree(BaseModel):
         if key not in self._cache:
             self._cache[key] = factory()
         return self._cache[key]
+
+    @property
+    def plugin_kinds(self) -> frozenset[str]:
+        """Returns plugin file stems that may provide an SV node class."""
+        return self._cached(
+            "plugin_kinds",
+            lambda: frozenset(
+                path.name.removesuffix(".sv.j2")
+                for path in (Path(__file__).parent / "node" / "plugin").glob("*.sv.j2")
+            ),
+        )
+
+    def node_has_sv_plugin(self, node: Node) -> bool:
+        """Returns whether a node has a generated SV class implementation."""
+        return not isinstance(node, GenericNode) or node.kind in self.plugin_kinds
 
     @model_validator(mode="before")
     @classmethod
@@ -1141,6 +1193,28 @@ class Tree(BaseModel):
         )
 
     @computed_field(  # type: ignore[prop-decorator]
+        description="能够生成 SV 实例的已存在节点；YAML 不可传入。",
+    )
+    @property
+    def sv_nodes_ordered(self) -> List[Node]:
+        return self._cached(
+            "sv_nodes_ordered",
+            lambda: [
+                node for node in self.nodes_ordered if self.node_has_sv_plugin(node)
+            ],
+        )
+
+    @computed_field(  # type: ignore[prop-decorator]
+        description="能够生成 SV 实例的节点名集合；YAML 不可传入。",
+    )
+    @property
+    def sv_node_names(self) -> List[str]:
+        return self._cached(
+            "sv_node_names",
+            lambda: [node.name for node in self.sv_nodes_ordered],
+        )
+
+    @computed_field(  # type: ignore[prop-decorator]
         description="展开到 SV 的节点实例槽位；多路输出器件按路展开；YAML 不可传入。",
     )
     @property
@@ -1150,7 +1224,7 @@ class Tree(BaseModel):
     def _sv_slots(self) -> List[SvNodeSlot]:
         slots: List[SvNodeSlot] = []
         for key, node in self.nodes.items():
-            if not node.present:
+            if not node.present or not self.node_has_sv_plugin(node):
                 continue
             groups = node_output_groups(node)
             if not groups:
@@ -1343,17 +1417,8 @@ class Tree(BaseModel):
 
 
 def upstream_peer_names(node: Node) -> List[str]:
-    if node.kind == "mux":
-        return [
-            parse_source_endpoint(peer, ctx="mux.source")[0]
-            for peer in node.source.values()
-        ]
-    if node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-        if node.source is None:
-            return []
-        device, _out_group = parse_source_endpoint(node.source, ctx="source")
-        return [device]
-    return []
+    """Returns direct upstream names from the common source contract."""
+    return [ref.name for ref in node.sources]
 
 
 def build_children_map(nodes: Dict[str, Node]) -> Dict[str, List[str]]:
@@ -1423,17 +1488,11 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
                 f"{ERR.node('source', key)} 须填写 1～{_FREQ_HZ_U32_MAX} 的 "
                 f"{ERR.field('freq')}"
             )
-        if node.kind == "mux":
-            for mux_key, peer in node.source.items():
-                _validate_source_ref(
-                    peer,
-                    nodes,
-                    ctx=f"节点 {key!r} {ERR.field('mux.source')}[{mux_key!r}]",
-                )
-        elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-            if node.source is not None:
-                _validate_source_ref(
-                    node.source,
-                    nodes,
-                    ctx=f"节点 {key!r} {ERR.field('source')}",
-                )
+        for ref in node.sources:
+            raw = (f"{ref.name}[{ref.out_group}]" if ref.out_group else ref.name)
+            suffix = "" if ref.key is None else f"[{ref.key}]"
+            _validate_source_ref(
+                raw,
+                nodes,
+                ctx=f"节点 {key!r} {ERR.field('source')}{suffix}",
+            )

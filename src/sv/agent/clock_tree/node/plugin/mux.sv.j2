@@ -63,13 +63,18 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
                 keys.push_back($sformatf("%0d", key));
     endfunction
 
-    // 标记为需要下游时钟有效性筛选的控制节点。
-    virtual function bit is_control_node();
-        return 1'b1;
+    // mux 在打开上游 gate 后配置。
+    virtual function int configuration_priority();
+        return 500;
     endfunction
 
-    // 支持 mux 自身功能翻转检查。
-    virtual function bit supports_flip();
+    // 返回 mux 配置阶段。
+    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
+        return {{ settings.class_prefix }}node_config_api::CONFIG_MUX;
+    endfunction
+
+    // mux 只有驱动有效时才写配置。
+    virtual function bit requires_downstream_clock();
         return 1'b1;
     endfunction
 
@@ -80,7 +85,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             output bit configured);
         configured = 1'b0;
         if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_MUX)
-            cfg.configure_node(this, stage, configured);
+            cfg.configure_mux(this, configured);
     endtask
 endclass
 

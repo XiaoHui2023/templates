@@ -3,7 +3,7 @@
 
 class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}tree)
-{%- for node in tree.nodes_ordered %}
+{%- for node in tree.sv_nodes_ordered %}
 {%- if node.kind in ["clk", "pll", "source"] %}
 {%- set field_flags = "UVM_ALL_ON" %}
 {%- elif node.kind == "mux" %}
@@ -29,7 +29,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endfor %}
     `uvm_object_utils_end
 
-{%- for node in tree.nodes_ordered %}
+{%- for node in tree.sv_nodes_ordered %}
 {%- if node.kind == "pll" %}
 {%- if node.output_groups %}
     rand {{ settings.class_prefix }}{{ node.sv_pll_class }} {{ node.name }}[string];
@@ -62,7 +62,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
     // Create node objects, connect sources, and populate tree queues.
     function new(string name="{{ settings.class_prefix }}tree");
         super.new(name);
-{%- for node in tree.nodes_ordered %}
+{%- for node in tree.sv_nodes_ordered %}
 {%- if node.output_groups %}
 {%- if node.kind == "pll" %}
 {%- set sv_leaf_class = settings.class_prefix ~ node.sv_pll_class %}
@@ -114,9 +114,9 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
         {{ node.name }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}");
 {%- endif %}
 {%- endfor %}
-{%- for node in tree.nodes_ordered %}
+{%- for node in tree.sv_nodes_ordered %}
 {%- for src in node.sources %}
-{%- if src.name in tree.nodes and tree.nodes[src.name].present %}
+{%- if src.name in tree.sv_node_names %}
 {%- set peer = tree.nodes[src.name] %}
 {%- if peer.output_groups %}
 {%- set peer_access = src.name ~ '["' ~ src.out_group ~ '"]' %}
@@ -135,7 +135,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endfor %}
 {%- endfor %}
-{%- for node in tree.nodes_ordered %}
+{%- for node in tree.sv_nodes_ordered %}
 {%- if node.kind == "clk" %}
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
@@ -241,7 +241,7 @@ function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel 
         {{ binding.sv_access }}.{{ binding.member }}.alias_count = {{ binding.alias_count }};
 {%- endfor %}
     end
-{%- for node in tree.nodes_ordered %}
+{%- for node in tree.sv_nodes_ordered %}
 {%- if node.kind == "div" and node.div_kind == "div" and node.regs.get("div") %}
 {%- if node.output_groups %}
 {%- for g in node.output_groups %}
@@ -268,7 +268,11 @@ task {{ settings.class_prefix }}tree::configure(
         bit quiet);
     {{ settings.class_prefix }}core_tools tools;
     {{ settings.class_prefix }}config_reg_core cfg;
-    {{ settings.class_prefix }}pll_base plls[$];
+    {{ settings.class_prefix }}node_base ordered[$];
+    {{ settings.class_prefix }}node_base wait_nodes[$];
+    {{ settings.class_prefix }}node_base node_h;
+    int insert_at;
+    bit configured;
 
     require_built("tree.configure");
     if (low_power)
@@ -279,13 +283,34 @@ task {{ settings.class_prefix }}tree::configure(
     tools = new;
     cfg = new(tools, quiet);
     cfg.report_invalid_control_nodes(this);
-    cfg.config_pll_nodes(this, plls);
-    cfg.wait_pll_nodes(plls);
-    cfg.config_div_dto_nodes(this);
-    cfg.config_inv_nodes(this);
-    cfg.config_gate_nodes(this, 1'b1);
-    cfg.config_mux_nodes(this);
-    cfg.config_gate_nodes(this, 1'b0);
+    ordered.delete();
+    wait_nodes.delete();
+
+    // Stable insertion keeps input order for nodes with the same priority.
+    foreach (nodes[i]) begin
+        node_h = nodes[i];
+        if (node_h == null || node_h.configuration_priority() < 0)
+            continue;
+        if (node_h.requires_downstream_clock()
+                && !{{ settings.class_prefix }}control_node_is_valid(this, node_h))
+            continue;
+        insert_at = ordered.size();
+        for (int j = 0; j < ordered.size(); j++)
+            if (node_h.configuration_priority() < ordered[j].configuration_priority()) begin
+                insert_at = j;
+                break;
+            end
+        ordered.insert(insert_at, node_h);
+    end
+
+    foreach (ordered[i]) begin
+        configured = 1'b0;
+        ordered[i].configure_stage(cfg, ordered[i].configuration_stage(), configured);
+        if (configured && ordered[i].needs_configuration_wait())
+            wait_nodes.push_back(ordered[i]);
+    end
+    foreach (wait_nodes[i])
+        wait_nodes[i].wait_for_lock(cfg);
 endtask
 
 task automatic {{ settings.class_prefix }}config_reg(

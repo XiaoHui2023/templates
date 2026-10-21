@@ -33,9 +33,14 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         kind = "inv";
     endfunction
 
-    // 支持反相器自身功能翻转检查。
-    virtual function bit supports_flip();
-        return 1'b1;
+    // inv 在分频器之后、mux 之前配置。
+    virtual function int configuration_priority();
+        return 300;
+    endfunction
+
+    // 返回反相器配置阶段。
+    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
+        return {{ settings.class_prefix }}node_config_api::CONFIG_INV;
     endfunction
 
     // 写入当前反相控制位。
@@ -45,7 +50,7 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
             output bit configured);
         configured = 1'b0;
         if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_INV)
-            cfg.configure_node(this, stage, configured);
+            cfg.configure_inv(this, configured);
     endtask
 endclass
 

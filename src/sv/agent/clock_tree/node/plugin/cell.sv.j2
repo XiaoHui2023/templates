@@ -34,15 +34,6 @@ class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_ba
         kind = "cell";
     endfunction
 
-    // cell 节点参与频率和活动检查。
-    virtual function bit supports_measure();
-        return 1'b1;
-    endfunction
-
-    // 标记为 cell 测量类别。
-    virtual function bit is_cell_node();
-        return 1'b1;
-    endfunction
 endclass
 
 `endif

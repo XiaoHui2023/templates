@@ -5,25 +5,12 @@ node/base/config_api.sv
 node/base/node_base.sv
 node/base/reg.sv
 node/base/source_base.sv
-node/plugin/source.sv
-node/plugin/source_pad.sv
-node/plugin/clk.sv
 node/base/div_base.sv
-node/plugin/div_div.sv
-node/plugin/div_dto.sv
-node/plugin/div_div_r.sv
-node/plugin/gate.sv
-node/plugin/cell.sv
-node/plugin/mux.sv
 node/base/inv_base.sv
-node/plugin/inv.sv
-node/plugin/inv_mux.sv
-node/plugin/inv_cell.sv
 node/base/pll_base.sv
-node/plugin/pll_tci.sv
-node/plugin/pll_sc.sv
-node/plugin/pll_dw.sv
-node/plugin/pll_inno.sv
+{% for plugin_file in plugin_sv_files -%}
+node/plugin/{{ plugin_file }}
+{% endfor -%}
 node/base/tree_base.sv
 node/base/reg_access.sv
 node/base/node_ratio.sv

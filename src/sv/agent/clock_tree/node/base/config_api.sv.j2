@@ -1,8 +1,15 @@
 `ifndef {{ (settings.class_prefix ~ "node_config_api") | upper }}
 `define {{ (settings.class_prefix ~ "node_config_api") | upper }}
 
+typedef class {{ settings.class_prefix }}pll_base;
+typedef class {{ settings.class_prefix }}div_base;
+typedef class {{ settings.class_prefix }}inv_base;
+typedef class {{ settings.class_prefix }}gate;
+typedef class {{ settings.class_prefix }}mux;
+
 class {{ settings.class_prefix }}node_config_api extends {{ settings.class_prefix }}base_object;
     typedef enum int {
+        CONFIG_NONE = -1,
         CONFIG_PLL,
         CONFIG_DIV,
         CONFIG_INV,
@@ -16,16 +23,43 @@ class {{ settings.class_prefix }}node_config_api extends {{ settings.class_prefi
         super.new(name);
     endfunction
 
-    // 对一个节点执行其配置阶段。
-    virtual task configure_node(
-            input uvm_object node,
-            input stage_e stage,
+    // 配置一个 PLL 节点。
+    virtual task configure_pll(
+            input {{ settings.class_prefix }}pll_base node_h,
             output bit configured);
         configured = 1'b0;
     endtask
 
-    // 等待一个节点的专属 lock 条件。
-    virtual task wait_for_node_lock(input uvm_object node);
+    // 配置一个 div 或 dto 节点。
+    virtual task configure_div(
+            input {{ settings.class_prefix }}div_base node_h,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // 配置一个反相器节点。
+    virtual task configure_inv(
+            input {{ settings.class_prefix }}inv_base node_h,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // 配置一个 gate 节点。
+    virtual task configure_gate(
+            input {{ settings.class_prefix }}gate node_h,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // 配置一个 mux 节点。
+    virtual task configure_mux(
+            input {{ settings.class_prefix }}mux node_h,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // 等待一个 PLL 节点完成 lock。
+    virtual task wait_for_pll_lock(input {{ settings.class_prefix }}pll_base node_h);
     endtask
 endclass
 

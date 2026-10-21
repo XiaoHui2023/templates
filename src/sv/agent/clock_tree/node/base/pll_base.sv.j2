@@ -36,14 +36,19 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
         kind = "pll";
     endfunction
 
-    // 标记为需要 lock 等待的 PLL 节点。
-    virtual function bit is_pll_node();
-        return 1'b1;
+    // PLL 最先配置，供下游节点使用稳定输出。
+    virtual function int configuration_priority();
+        return 100;
     endfunction
 
-    // PLL 只执行 route 检查，不执行 flip 功能检查。
-    virtual function bit supports_flip();
-        return 1'b0;
+    // 返回 PLL 配置阶段。
+    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
+        return {{ settings.class_prefix }}node_config_api::CONFIG_PLL;
+    endfunction
+
+    // PLL 配置后需要等待 lock。
+    virtual function bit needs_configuration_wait();
+        return 1'b1;
     endfunction
 
     // 配置当前 PLL 并报告是否需要等待 lock。
@@ -53,12 +58,12 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
             output bit configured);
         configured = 1'b0;
         if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_PLL)
-            cfg.configure_node(this, stage, configured);
+            cfg.configure_pll(this, configured);
     endtask
 
     // 等待当前 PLL 的 lock 状态。
     virtual task wait_for_lock(input {{ settings.class_prefix }}node_config_api cfg);
-        cfg.wait_for_node_lock(this);
+        cfg.wait_for_pll_lock(this);
     endtask
 endclass
 

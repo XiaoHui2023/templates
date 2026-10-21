@@ -49,13 +49,19 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         kind = "gate";
     endfunction
 
-    // 标记为需要下游时钟有效性筛选的控制节点。
-    virtual function bit is_control_node();
-        return 1'b1;
+    // gate 在 mux 之前配置；关闭 gate 在最后配置。
+    virtual function int configuration_priority();
+        return _resolved_open ? 400 : 600;
     endfunction
 
-    // 支持 gate 自身功能翻转检查。
-    virtual function bit supports_flip();
+    // 返回 gate 的统一配置阶段。
+    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
+        return _resolved_open ? {{ settings.class_prefix }}node_config_api::CONFIG_GATE_OPEN
+                              : {{ settings.class_prefix }}node_config_api::CONFIG_GATE_CLOSE;
+    endfunction
+
+    // gate 只有驱动有效时才写配置。
+    virtual function bit requires_downstream_clock();
         return 1'b1;
     endfunction
 
@@ -66,9 +72,9 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
             output bit configured);
         configured = 1'b0;
         if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_GATE_OPEN && _resolved_open) begin
-            cfg.configure_node(this, stage, configured);
+            cfg.configure_gate(this, configured);
         end else if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_GATE_CLOSE && !_resolved_open) begin
-            cfg.configure_node(this, stage, configured);
+            cfg.configure_gate(this, configured);
         end
     endtask
 endclass
