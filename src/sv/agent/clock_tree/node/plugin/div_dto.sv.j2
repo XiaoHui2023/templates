@@ -20,6 +20,67 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_
         f_bypass = new();
         f_step = new();
     endfunction
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Declares an isolated DTO transition check.
+    virtual function bit has_transition_check();
+        return 1'b1;
+    endfunction
+
+    // Applies one representative DTO ratio under an independent input clock.
+    virtual task run_transition_check(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        virtual {{ settings.class_prefix }}interface in_vif;
+        virtual {{ settings.class_prefix }}interface out_vif;
+        real out_freq_hz;
+        real expected_freq_hz;
+        real err_ratio;
+        bit passed;
+        bit configured;
+        int ratio;
+
+        did_check = 1'b0;
+        did_skip = 1'b0;
+        failures = 0;
+        in_vif = get_in_vif();
+        out_vif = get_out_vif();
+        if (api == null || api.cfg == null || in_vif == null || out_vif == null
+                || !f_rst.is_bound() || !f_load.is_bound() || !f_bypass.is_bound()
+                || !f_step.is_bound()) begin
+            did_skip = 1'b1;
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip dto %s, missing interface or reg",
+                get_name()), UVM_LOW)
+            return;
+        end
+        ratio = 4;
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: test dto %s", get_name()), UVM_LOW)
+        in_vif.start_clock(1_000_000_000);
+        api.cfg.configure_transition_dto(this, ratio, configured);
+        #({{ settings.flip_dto_settle_ns }}ns);
+        expected_freq_hz = real'(1_000_000_000) / ratio;
+        api.measure_port_freq(out_vif, {get_name(), ".out"},
+            int'(expected_freq_hz), out_freq_hz, passed);
+        if (!passed)
+            failures++;
+        else begin
+            err_ratio = (out_freq_hz > expected_freq_hz)
+                ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
+                : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
+            if (err_ratio > {{ settings.period_tolerance }}) begin
+                failures++;
+                `uvm_error("CLK_TREE", $sformatf(
+                    "test_flip: dto %s output %0.2f Hz expected %0.2f Hz",
+                    get_name(), out_freq_hz, expected_freq_hz))
+            end
+        end
+        in_vif.release_drive();
+        did_check = 1'b1;
+    endtask
+`endif
 endclass
 
 `endif

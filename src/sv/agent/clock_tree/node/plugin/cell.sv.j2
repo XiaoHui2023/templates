@@ -33,6 +33,14 @@ class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_ba
         enabled = -1;
         kind = "cell";
     endfunction
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Selects this node when cell observations are enabled.
+    virtual function bit is_measure_selected(
+            input bit check_clk,
+            input bit check_cell);
+        return check_cell;
+    endfunction
+`endif
 
 endclass
 

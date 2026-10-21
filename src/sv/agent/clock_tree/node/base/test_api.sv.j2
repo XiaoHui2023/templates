@@ -1,0 +1,78 @@
+`ifndef {{ (settings.class_prefix ~ "node_test_api") | upper }}
+`define {{ (settings.class_prefix ~ "node_test_api") | upper }}
+
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix }}base_object;
+    {{ settings.class_prefix }}node_config_api cfg;
+
+    // Binds the register service used by one node transition check.
+    function new(
+            input {{ settings.class_prefix }}node_config_api cfg_h,
+            input string name = "");
+        super.new(name);
+        cfg = cfg_h;
+    endfunction
+
+    // Measures a driven output against its expected frequency.
+    virtual task measure_port_freq(
+            input virtual {{ settings.class_prefix }}interface vif,
+            input string label,
+            input int expected_freq_hz,
+            output real freq_hz,
+            output bit passed);
+        bit ok;
+        int min_freq_hz;
+
+        freq_hz = 0.0;
+        passed = 1'b0;
+        if (vif == null)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_flip: %s missing interface", label))
+        min_freq_hz = int'(real'(expected_freq_hz)
+            * (1.0 - {{ settings.period_tolerance }}));
+        vif.set_min_freq_hz(min_freq_hz);
+        vif.start_measure(1'b1, 1'b0);
+        vif.wait_measure_stable(1'b1, 1'b0, ok);
+        vif.stop_measure();
+        vif.set_min_freq_hz({{ settings.min_freq_hz }});
+        if (!ok || !vif.meas.last_valid) begin
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: %s frequency did not stabilize, expected %0d Hz",
+                label, expected_freq_hz))
+            return;
+        end
+        freq_hz = vif.meas.last_freq_hz;
+        passed = 1'b1;
+    endtask
+
+    // Confirms that a driven output has no activity.
+    virtual task check_port_inactive(
+            input virtual {{ settings.class_prefix }}interface vif,
+            input string label,
+            input int expected_freq_hz,
+            output bit passed);
+        bit ok;
+        int min_freq_hz;
+
+        passed = 1'b0;
+        if (vif == null)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "test_flip: %s missing interface", label))
+        min_freq_hz = int'(real'(expected_freq_hz)
+            * (1.0 - {{ settings.period_tolerance }}));
+        vif.set_min_freq_hz(min_freq_hz);
+        vif.start_measure(1'b0, 1'b0);
+        vif.wait_measure_stable(1'b0, 1'b0, ok);
+        vif.stop_measure();
+        vif.set_min_freq_hz({{ settings.min_freq_hz }});
+        if (ok) begin
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: %s expected inactive but active", label))
+            return;
+        end
+        passed = 1'b1;
+    endtask
+endclass
+`endif
+
+`endif

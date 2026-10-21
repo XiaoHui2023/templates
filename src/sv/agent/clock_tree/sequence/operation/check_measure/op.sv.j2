@@ -25,7 +25,7 @@ class {{ settings.class_prefix }}check_measure_seq extends {{ settings.class_pre
     );
     // 该节点是否参与频率比对
     // nd — 节点
-    // check_freq — 为真时按 kind 过滤
+    // check_freq — 为真时按观测能力过滤
     extern function bit node_needs_freq_check(
         {{ settings.class_prefix }}node_base nd,
         bit check_clk,
@@ -34,7 +34,7 @@ class {{ settings.class_prefix }}check_measure_seq extends {{ settings.class_pre
     );
     // 该节点是否参与占空比比对
     // nd - 节点
-    // check_duty - 为真时检查节点 check_duty 打开的 clk 占空比
+    // check_duty - 为真时检查节点允许的占空比
     extern function bit node_needs_duty_check(
         {{ settings.class_prefix }}node_base nd,
         bit check_clk,
@@ -132,7 +132,7 @@ class {{ settings.class_prefix }}check_measure_seq extends {{ settings.class_pre
     // activity_done — 活动阶段是否结束
     // freq_done — 频率比对是否结束
     // duty_done — 占空比比对是否结束
-    // check_freq — 为真时按 kind 过滤频率
+    // check_freq — 为真时按观测能力过滤频率
     // check_duty — 为真时检查占空比
     extern function string node_measure_stage_label(
         {{ settings.class_prefix }}node_base nd,
@@ -184,8 +184,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
 );
     if (nd == null || nd.vif == null)
         return 1'b0;
-    return ((nd.kind == "clk" && check_clk)
-            || (nd.kind == "cell" && check_cell));
+    return nd.is_measure_selected(check_clk, check_cell);
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check(
@@ -196,8 +195,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_freq_check
 );
     if (nd == null || !check_freq)
         return 1'b0;
-    return ((nd.kind == "clk" && check_clk)
-            || (nd.kind == "cell" && check_cell));
+    return node_needs_measure(nd, check_clk, check_cell);
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check(
@@ -209,12 +207,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_duty_check
         return 1'b0;
     if (!check_clk)
         return 1'b0;
-    if (nd.kind == "clk") begin
-        {{ settings.class_prefix }}clk clk_nd;
-        if ($cast(clk_nd, nd))
-            return clk_nd.check_duty;
-    end
-    return 1'b0;
+    return nd.check_measure_duty();
 endfunction
 
 function bit {{ settings.class_prefix }}check_measure_seq::node_activity_ready(
@@ -587,8 +580,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             duty_done[i] = 1'b1;
         if (!rq.quiet || rq.debug)
             `uvm_info("CLK_TREE", $sformatf(
-                "check_measure: node %s kind %s activity 1 freq %0b duty %0b expected %0d Hz active %0b",
-                nd.get_name(), nd.kind,
+                "check_measure: node %s activity 1 freq %0b duty %0b expected %0d Hz active %0b",
+                nd.get_name(),
                 node_needs_freq_check(nd, rq.check_clk, rq.check_cell,
                     rq.check_freq),
                 node_needs_duty_check(nd, rq.check_clk, rq.check_duty),

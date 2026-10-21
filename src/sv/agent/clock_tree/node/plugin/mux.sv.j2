@@ -87,6 +87,93 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_MUX)
             cfg.configure_mux(this, configured);
     endtask
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Declares an isolated mux selection transition check.
+    virtual function bit has_transition_check();
+        return 1'b1;
+    endfunction
+
+    // Drives independent inputs, then checks every selectable output path.
+    virtual task run_transition_check(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        virtual {{ settings.class_prefix }}interface in_vif;
+        virtual {{ settings.class_prefix }}interface out_vif;
+        real out_freq_hz;
+        real expected_freq_hz[int];
+        real err_ratio;
+        string in_key;
+        int stim_freq_hz;
+        bit passed;
+        bit configured;
+
+        did_check = 1'b0;
+        did_skip = 1'b0;
+        failures = 0;
+        out_vif = get_out_vif();
+        if (api == null || api.cfg == null || out_vif == null || !f_reg.is_bound()) begin
+            did_skip = 1'b1;
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip mux %s, missing out interface or reg",
+                get_name()), UVM_LOW)
+            return;
+        end
+        foreach (to_source[k]) begin
+            in_key = $sformatf("%0d", k);
+            in_vif = get_in_vif(in_key);
+            if (in_vif == null) begin
+                did_skip = 1'b1;
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_flip: skip mux %s input %s, missing interface",
+                    get_name(), in_key), UVM_LOW)
+                return;
+            end
+        end
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: test mux %s", get_name()), UVM_LOW)
+        stim_freq_hz = 900_000_000;
+        foreach (to_source[k]) begin
+            in_key = $sformatf("%0d", k);
+            in_vif = get_in_vif(in_key);
+            if (to_source[k] != null && to_source[k].uses_native_transition_input())
+                expected_freq_hz[k] = to_source[k]._resolved_freq;
+            else begin
+                expected_freq_hz[k] = stim_freq_hz;
+                in_vif.start_clock(stim_freq_hz);
+                stim_freq_hz = int'(real'(stim_freq_hz) * (20.0 / 21.0));
+            end
+        end
+        foreach (to_source[k]) begin
+            api.cfg.configure_transition_mux(this, k, configured);
+            #70ns;
+            api.measure_port_freq(out_vif, {get_name(), ".out"},
+                int'(expected_freq_hz[k]), out_freq_hz, passed);
+            if (!passed)
+                failures++;
+            else begin
+                err_ratio = (out_freq_hz > expected_freq_hz[k])
+                    ? ((out_freq_hz - expected_freq_hz[k]) / expected_freq_hz[k])
+                    : ((expected_freq_hz[k] - out_freq_hz) / expected_freq_hz[k]);
+                if (err_ratio > {{ settings.period_tolerance }}) begin
+                    failures++;
+                    `uvm_error("CLK_TREE", $sformatf(
+                        "test_flip: mux %s sel %0d output %0.2f Hz expected %0.2f Hz",
+                        get_name(), k, out_freq_hz, expected_freq_hz[k]))
+                end
+            end
+        end
+        foreach (to_source[k]) begin
+            in_key = $sformatf("%0d", k);
+            in_vif = get_in_vif(in_key);
+            if (in_vif != null && (to_source[k] == null
+                    || !to_source[k].uses_native_transition_input()))
+                in_vif.release_drive();
+        end
+        did_check = 1'b1;
+    endtask
+`endif
 endclass
 
 `endif

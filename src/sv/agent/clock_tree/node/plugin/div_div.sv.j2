@@ -27,6 +27,79 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
         f_load = new();
         f_div = new();
     endfunction
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Declares an isolated divider transition check.
+    virtual function bit has_transition_check();
+        return 1'b1;
+    endfunction
+
+    // Traverses each encoded divider ratio under an independent input clock.
+    virtual task run_transition_check(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        virtual {{ settings.class_prefix }}interface in_vif;
+        virtual {{ settings.class_prefix }}interface out_vif;
+        real out_freq_hz;
+        real expected_freq_hz;
+        real err_ratio;
+        int bit_idx;
+        int ratio;
+        int width;
+        bit passed;
+        bit configured;
+
+        did_check = 1'b0;
+        did_skip = 1'b0;
+        failures = 0;
+        in_vif = get_in_vif();
+        out_vif = get_out_vif();
+        if (api == null || api.cfg == null || in_vif == null || out_vif == null
+                || !f_rst.is_bound() || !f_load.is_bound() || !f_div.is_bound()) begin
+            did_skip = 1'b1;
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip div %s, missing interface or reg",
+                get_name()), UVM_LOW)
+            return;
+        end
+        width = {{ settings.class_prefix }}reg_field_width(f_div);
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: test div %s", get_name()), UVM_LOW)
+        in_vif.start_clock(1_000_000_000);
+        for (bit_idx = 0; bit_idx < width; bit_idx++) begin
+            ratio = {{ settings.class_prefix }}div_ratio_for_reg_bit(f_div, bit_idx);
+            api.cfg.configure_transition_div(this, ratio, configured);
+            #({{ settings.flip_div_settle_ns }}ns);
+            expected_freq_hz = real'(1_000_000_000) / ratio;
+            if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
+                failures++;
+                `uvm_error("CLK_TREE", $sformatf(
+                    "test_flip: div %s bit %0d ratio %0d expected below measurable %0d Hz",
+                    get_name(), bit_idx, ratio, {{ settings.min_freq_hz }}))
+                continue;
+            end
+            api.measure_port_freq(out_vif, $sformatf(
+                "%s.out bit %0d ratio %0d", get_name(), bit_idx, ratio),
+                int'(expected_freq_hz), out_freq_hz, passed);
+            if (!passed)
+                failures++;
+            else begin
+                err_ratio = (out_freq_hz > expected_freq_hz)
+                    ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
+                    : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
+                if (err_ratio > {{ settings.period_tolerance }}) begin
+                    failures++;
+                    `uvm_error("CLK_TREE", $sformatf(
+                        "test_flip: div %s bit %0d ratio %0d output %0.2f Hz expected %0.2f Hz",
+                        get_name(), bit_idx, ratio, out_freq_hz, expected_freq_hz))
+                end
+            end
+        end
+        in_vif.release_drive();
+        did_check = 1'b1;
+    endtask
+`endif
 endclass
 
 `endif

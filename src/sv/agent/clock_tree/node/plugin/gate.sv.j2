@@ -77,6 +77,55 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
             cfg.configure_gate(this, configured);
         end
     endtask
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Declares an isolated gate transition check.
+    virtual function bit has_transition_check();
+        return 1'b1;
+    endfunction
+
+    // Drives the input and checks both register-controlled gate states.
+    virtual task run_transition_check(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        virtual {{ settings.class_prefix }}interface in_vif;
+        virtual {{ settings.class_prefix }}interface out_vif;
+        real freq_hz;
+        bit passed;
+        bit configured;
+
+        did_check = 1'b0;
+        did_skip = 1'b0;
+        failures = 0;
+        in_vif = get_in_vif();
+        out_vif = get_out_vif();
+        if (api == null || api.cfg == null || in_vif == null || out_vif == null
+                || !f_reg.is_bound()) begin
+            did_skip = 1'b1;
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip gate %s, missing interface or reg",
+                get_name()), UVM_LOW)
+            return;
+        end
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: test gate %s", get_name()), UVM_LOW)
+        in_vif.start_clock(1_000_000_000);
+        api.cfg.configure_transition_gate(this, 1'b1, configured);
+        api.measure_port_freq(out_vif, {get_name(), ".out open"},
+            1_000_000_000, freq_hz, passed);
+        if (!passed)
+            failures++;
+        api.cfg.configure_transition_gate(this, 1'b0, configured);
+        #20ns;
+        api.check_port_inactive(out_vif, {get_name(), ".out close"},
+            1_000_000_000, passed);
+        if (!passed)
+            failures++;
+        in_vif.release_drive();
+        did_check = 1'b1;
+    endtask
+`endif
 endclass
 
 `endif

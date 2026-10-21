@@ -42,6 +42,31 @@ class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefi
         output bit configured);
     // Wait for the concrete PLL lock indication.
     extern virtual task wait_for_pll_lock(input {{ settings.class_prefix }}pll_base node_h);
+    // Apply an explicit gate state for one transition check.
+    extern virtual task configure_transition_gate(
+        input {{ settings.class_prefix }}gate node_h,
+        input bit open,
+        output bit configured);
+    // Apply an explicit div ratio with reset for one transition check.
+    extern virtual task configure_transition_div(
+        input {{ settings.class_prefix }}div_div node_h,
+        input int ratio,
+        output bit configured);
+    // Apply an explicit dto ratio for one transition check.
+    extern virtual task configure_transition_dto(
+        input {{ settings.class_prefix }}div_dto node_h,
+        input int ratio,
+        output bit configured);
+    // Apply an explicit mux selection for one transition check.
+    extern virtual task configure_transition_mux(
+        input {{ settings.class_prefix }}mux node_h,
+        input int sel,
+        output bit configured);
+    // Apply an explicit inverter polarity for one transition check.
+    extern virtual task configure_transition_inv(
+        input {{ settings.class_prefix }}inv_base node_h,
+        input bit inverted,
+        output bit configured);
     // Configure gate open state.
     extern task config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
     // Configure gate register with a requested logical open value.
@@ -146,6 +171,54 @@ endtask
 task {{ settings.class_prefix }}config_reg_core::wait_for_pll_lock(
         input {{ settings.class_prefix }}pll_base node_h);
     wait_pll_lock_node(node_h);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::configure_transition_gate(
+        input {{ settings.class_prefix }}gate node_h,
+        input bit open,
+        output bit configured);
+    configured = node_h != null && node_h.f_reg.is_bound();
+    if (configured)
+        config_reg_gate_node_reg(node_h, open);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::configure_transition_div(
+        input {{ settings.class_prefix }}div_div node_h,
+        input int ratio,
+        output bit configured);
+    configured = node_h != null && node_h.f_rst.is_bound()
+        && node_h.f_load.is_bound() && node_h.f_div.is_bound();
+    if (configured)
+        config_reg_div_node_reg(node_h, ratio, 1'b1);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::configure_transition_dto(
+        input {{ settings.class_prefix }}div_dto node_h,
+        input int ratio,
+        output bit configured);
+    configured = node_h != null && node_h.f_rst.is_bound()
+        && node_h.f_load.is_bound() && node_h.f_bypass.is_bound()
+        && node_h.f_step.is_bound();
+    if (configured)
+        config_reg_dto_node_reg(node_h, ratio);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::configure_transition_mux(
+        input {{ settings.class_prefix }}mux node_h,
+        input int sel,
+        output bit configured);
+    configured = node_h != null && node_h.f_reg.is_bound();
+    if (configured)
+        config_reg_mux_node_reg(node_h, sel);
+endtask
+
+task {{ settings.class_prefix }}config_reg_core::configure_transition_inv(
+        input {{ settings.class_prefix }}inv_base node_h,
+        input bit inverted,
+        output bit configured);
+    configured = node_h != null && node_h.f_reg.is_bound();
+    if (configured)
+        config_reg_inv_node_reg(node_h, inverted);
 endtask
 
 // 写 gate 的开关控制

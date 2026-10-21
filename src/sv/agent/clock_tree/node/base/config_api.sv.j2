@@ -6,6 +6,8 @@ typedef class {{ settings.class_prefix }}div_base;
 typedef class {{ settings.class_prefix }}inv_base;
 typedef class {{ settings.class_prefix }}gate;
 typedef class {{ settings.class_prefix }}mux;
+typedef class {{ settings.class_prefix }}div_div;
+typedef class {{ settings.class_prefix }}div_dto;
 
 class {{ settings.class_prefix }}node_config_api extends {{ settings.class_prefix }}base_object;
     typedef enum int {
@@ -60,6 +62,46 @@ class {{ settings.class_prefix }}node_config_api extends {{ settings.class_prefi
 
     // 等待一个 PLL 节点完成 lock。
     virtual task wait_for_pll_lock(input {{ settings.class_prefix }}pll_base node_h);
+    endtask
+
+    // Applies an explicit gate state for an isolated transition check.
+    virtual task configure_transition_gate(
+            input {{ settings.class_prefix }}gate node_h,
+            input bit open,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // Applies an explicit div ratio with its reset sequence.
+    virtual task configure_transition_div(
+            input {{ settings.class_prefix }}div_div node_h,
+            input int ratio,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // Applies an explicit dto ratio for an isolated transition check.
+    virtual task configure_transition_dto(
+            input {{ settings.class_prefix }}div_dto node_h,
+            input int ratio,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // Applies an explicit mux input selection.
+    virtual task configure_transition_mux(
+            input {{ settings.class_prefix }}mux node_h,
+            input int sel,
+            output bit configured);
+        configured = 1'b0;
+    endtask
+
+    // Applies an explicit inverter polarity.
+    virtual task configure_transition_inv(
+            input {{ settings.class_prefix }}inv_base node_h,
+            input bit inverted,
+            output bit configured);
+        configured = 1'b0;
     endtask
 endclass
 

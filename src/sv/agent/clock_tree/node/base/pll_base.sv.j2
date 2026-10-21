@@ -35,6 +35,12 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
         enabled = -1;
         kind = "pll";
     endfunction
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Keeps PLL timing under RTL control during transition checks.
+    virtual function bit uses_native_transition_input();
+        return 1'b1;
+    endfunction
+`endif
 
     // PLL 最先配置，供下游节点使用稳定输出。
     virtual function int configuration_priority();

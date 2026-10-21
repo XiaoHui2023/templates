@@ -120,6 +120,40 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     // 等待节点专属配置完成条件。
     virtual task wait_for_lock(input {{ settings.class_prefix }}node_config_api cfg);
     endtask
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Selects this node for the current measurement request.
+    virtual function bit is_measure_selected(
+            input bit check_clk,
+            input bit check_cell);
+        return 1'b0;
+    endfunction
+
+    // Selects whether this node permits duty-cycle observation.
+    virtual function bit check_measure_duty();
+        return 1'b0;
+    endfunction
+
+    // Identifies a source that must retain its RTL clock during transition tests.
+    virtual function bit uses_native_transition_input();
+        return 1'b0;
+    endfunction
+
+    // Declares whether the node provides an isolated state-transition check.
+    virtual function bit has_transition_check();
+        return 1'b0;
+    endfunction
+
+    // Runs this node's isolated state-transition check.
+    virtual task run_transition_check(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        did_check = 1'b0;
+        did_skip = 1'b0;
+        failures = 0;
+    endtask
+`endif
 endclass
 
 `endif

@@ -21,6 +21,12 @@ class {{ settings.class_prefix }}source_base extends {{ settings.class_prefix }}
         frequence = 0;
         kind = "source";
     endfunction
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Keeps source timing under RTL control during transition checks.
+    virtual function bit uses_native_transition_input();
+        return 1'b1;
+    endfunction
+`endif
 endclass
 
 `endif

@@ -52,6 +52,73 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_INV)
             cfg.configure_inv(this, configured);
     endtask
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Declares an isolated inverter transition check.
+    virtual function bit has_transition_check();
+        return 1'b1;
+    endfunction
+
+    // Checks direct and inverted levels after each polarity write.
+    virtual task run_transition_check(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        virtual {{ settings.class_prefix }}interface in_vif;
+        virtual {{ settings.class_prefix }}interface out_vif;
+        bit configured;
+
+        did_check = 1'b0;
+        did_skip = 1'b0;
+        failures = 0;
+        in_vif = get_in_vif();
+        out_vif = get_out_vif();
+        if (api == null || api.cfg == null || in_vif == null || out_vif == null
+                || !f_reg.is_bound()) begin
+            did_skip = 1'b1;
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip inv %s, missing interface or reg",
+                get_name()), UVM_LOW)
+            return;
+        end
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: test inv %s", get_name()), UVM_LOW)
+        api.cfg.configure_transition_inv(this, 1'b0, configured);
+        #({{ settings.flip_inv_config_settle_ns }}ns);
+        in_vif.drive_static(1'b0);
+        #1ns;
+        if (out_vif.in !== 1'b0) begin
+            failures++;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: inv %s direct input 0 output %0b", get_name(), out_vif.in))
+        end
+        in_vif.drive_static(1'b1);
+        #1ns;
+        if (out_vif.in !== 1'b1) begin
+            failures++;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: inv %s direct input 1 output %0b", get_name(), out_vif.in))
+        end
+        api.cfg.configure_transition_inv(this, 1'b1, configured);
+        #({{ settings.flip_inv_config_settle_ns }}ns);
+        in_vif.drive_static(1'b0);
+        #1ns;
+        if (out_vif.in !== 1'b1) begin
+            failures++;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: inv %s inverted input 0 output %0b", get_name(), out_vif.in))
+        end
+        in_vif.drive_static(1'b1);
+        #1ns;
+        if (out_vif.in !== 1'b0) begin
+            failures++;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: inv %s inverted input 1 output %0b", get_name(), out_vif.in))
+        end
+        in_vif.release_drive();
+        did_check = 1'b1;
+    endtask
+`endif
 endclass
 
 `endif

@@ -46,6 +46,19 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         unfix_enabled = 1'b0;
         kind = "clk";
     endfunction
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Selects this node when clock observations are enabled.
+    virtual function bit is_measure_selected(
+            input bit check_clk,
+            input bit check_cell);
+        return check_clk;
+    endfunction
+
+    // Returns the per-clock duty-cycle check selection.
+    virtual function bit check_measure_duty();
+        return check_duty;
+    endfunction
+`endif
 
 endclass
 
