@@ -22,12 +22,12 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated DTO transition check.
-    virtual function bit has_transition_check();
+    virtual function bit has_functional_contract();
         return 1'b1;
     endfunction
 
     // Applies one representative DTO ratio under an independent input clock.
-    virtual task run_transition_check(
+    virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -40,6 +40,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_
         bit passed;
         bit configured;
         int ratio;
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -59,8 +60,9 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test dto %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
-        api.cfg.configure_transition_dto(this, ratio, configured);
-        #({{ settings.flip_dto_settle_ns }}ns);
+        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
+        plugin_cfg.configure_transition_dto(this, ratio, configured);
+        #({{ plugin_value("div_dto", "settle_ns", 200) }}ns);
         expected_freq_hz = real'(1_000_000_000) / ratio;
         api.measure_port_freq(out_vif, {get_name(), ".out"},
             int'(expected_freq_hz), out_freq_hz, passed);

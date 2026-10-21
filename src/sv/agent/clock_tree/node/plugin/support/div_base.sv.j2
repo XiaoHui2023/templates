@@ -1,7 +1,6 @@
 `ifndef {{ (settings.class_prefix ~ "div_base") | upper }}
 `define {{ (settings.class_prefix ~ "div_base") | upper }}
-{%- set div_freq_tol_den = settings.div_freq_tolerance_den %}
-{%- set div_freq_tol_num = settings.div_freq_tolerance_num %}
+{%- set div_freq_tol_num, div_freq_tol_den = plugin_fraction("divider", "freq_tolerance", 0.01) %}
 {%- set div_freq_tol_lo = div_freq_tol_den - div_freq_tol_num %}
 {%- set div_freq_tol_hi = div_freq_tol_den + div_freq_tol_num %}
 
@@ -41,24 +40,18 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
         return 200;
     endfunction
 
-    // 返回分频器配置阶段。
-    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
-        return {{ settings.class_prefix }}node_config_api::CONFIG_DIV;
-    endfunction
-
-    // 分频器只有驱动有效时才写配置。
-    virtual function bit requires_downstream_clock();
+    // Skip only a branch which cannot reach an observable endpoint.
+    virtual function bit requires_observed_descendant();
         return 1'b1;
     endfunction
 
-    // 分派 div 或 dto 的解析分频比配置。
-    virtual task configure_stage(
+    // Delegate register encoding to the plugin service, not to the core API.
+    virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input {{ settings.class_prefix }}node_config_api::stage_e stage,
             output bit configured);
-        configured = 1'b0;
-        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_DIV)
-            cfg.configure_div(this, configured);
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
+        plugin_cfg = new(cfg.tools, cfg.quiet);
+        plugin_cfg.configure_div(this, configured);
     endtask
 endclass
 

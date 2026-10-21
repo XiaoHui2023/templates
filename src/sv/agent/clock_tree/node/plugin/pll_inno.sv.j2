@@ -5,9 +5,12 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll
     `uvm_object_utils_begin({{ settings.class_prefix }}pll_inno)
         `uvm_field_string(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
     `uvm_object_utils_end
-{%- for key in pll_reg_keys_by_kind['inno'] %}
-    {{ settings.class_prefix }}reg f_{{ key }};
-{%- endfor %}
+    {{ settings.class_prefix }}reg f_lock;
+    {{ settings.class_prefix }}reg f_pd;
+    {{ settings.class_prefix }}reg f_postdiv1;
+    {{ settings.class_prefix }}reg f_refdiv;
+    {{ settings.class_prefix }}reg f_postdiv2;
+    {{ settings.class_prefix }}reg f_fbdiv;
 
     string group_id;
     bit _print_group_id;
@@ -15,9 +18,12 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll
 
     function new(string name = "");
         super.new(name);
-{%- for key in pll_reg_keys_by_kind['inno'] %}
-        f_{{ key }} = new();
-{%- endfor %}
+        f_lock = new();
+        f_pd = new();
+        f_postdiv1 = new();
+        f_refdiv = new();
+        f_postdiv2 = new();
+        f_fbdiv = new();
         pll_kind = PLL_INNO;
         group_id = "";
         _print_group_id = 1;

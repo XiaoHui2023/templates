@@ -38,28 +38,22 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         return 300;
     endfunction
 
-    // 返回反相器配置阶段。
-    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
-        return {{ settings.class_prefix }}node_config_api::CONFIG_INV;
-    endfunction
-
-    // 写入当前反相控制位。
-    virtual task configure_stage(
+    // Delegate register encoding to the plugin service, not to the core API.
+    virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input {{ settings.class_prefix }}node_config_api::stage_e stage,
             output bit configured);
-        configured = 1'b0;
-        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_INV)
-            cfg.configure_inv(this, configured);
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
+        plugin_cfg = new(cfg.tools, cfg.quiet);
+        plugin_cfg.configure_inv(this, configured);
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated inverter transition check.
-    virtual function bit has_transition_check();
+    virtual function bit has_functional_contract();
         return 1'b1;
     endfunction
 
     // Checks direct and inverted levels after each polarity write.
-    virtual task run_transition_check(
+    virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -67,6 +61,7 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
         bit configured;
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -83,8 +78,9 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         end
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test inv %s", get_name()), UVM_LOW)
-        api.cfg.configure_transition_inv(this, 1'b0, configured);
-        #({{ settings.flip_inv_config_settle_ns }}ns);
+        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
+        plugin_cfg.configure_transition_inv(this, 1'b0, configured);
+        #({{ plugin_value("inverter", "settle_ns", 100) }}ns);
         in_vif.drive_static(1'b0);
         #1ns;
         if (out_vif.in !== 1'b0) begin
@@ -99,8 +95,8 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: inv %s direct input 1 output %0b", get_name(), out_vif.in))
         end
-        api.cfg.configure_transition_inv(this, 1'b1, configured);
-        #({{ settings.flip_inv_config_settle_ns }}ns);
+        plugin_cfg.configure_transition_inv(this, 1'b1, configured);
+        #({{ plugin_value("inverter", "settle_ns", 100) }}ns);
         in_vif.drive_static(1'b0);
         #1ns;
         if (out_vif.in !== 1'b1) begin

@@ -3,15 +3,35 @@
 
 class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}pll_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_dw)
-{%- for key in pll_reg_keys_by_kind['dw'] %}
-    {{ settings.class_prefix }}reg f_{{ key }};
-{%- endfor %}
+    {{ settings.class_prefix }}reg f_lock;
+    {{ settings.class_prefix }}reg f_fbdiv;
+    {{ settings.class_prefix }}reg f_prediv;
+    {{ settings.class_prefix }}reg f_reset;
+    {{ settings.class_prefix }}reg f_pwron;
+    {{ settings.class_prefix }}reg f_shift;
+    {{ settings.class_prefix }}reg f_bypass;
+    {{ settings.class_prefix }}reg f_divvcor;
+    {{ settings.class_prefix }}reg f_r;
+    {{ settings.class_prefix }}reg f_p;
+    {{ settings.class_prefix }}reg f_divvcop;
+    {{ settings.class_prefix }}reg f_enr;
+    {{ settings.class_prefix }}reg f_enp;
 
     function new(string name = "");
         super.new(name);
-{%- for key in pll_reg_keys_by_kind['dw'] %}
-        f_{{ key }} = new();
-{%- endfor %}
+        f_lock = new();
+        f_fbdiv = new();
+        f_prediv = new();
+        f_reset = new();
+        f_pwron = new();
+        f_shift = new();
+        f_bypass = new();
+        f_divvcor = new();
+        f_r = new();
+        f_p = new();
+        f_divvcop = new();
+        f_enr = new();
+        f_enp = new();
         pll_kind = PLL_DW;
     endfunction
 endclass

@@ -3,15 +3,25 @@
 
 class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}pll_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_tci)
-{%- for key in pll_reg_keys_by_kind['tci'] %}
-    {{ settings.class_prefix }}reg f_{{ key }};
-{%- endfor %}
+    {{ settings.class_prefix }}reg f_lock;
+    {{ settings.class_prefix }}reg f_bypass;
+    {{ settings.class_prefix }}reg f_pwrdn;
+    {{ settings.class_prefix }}reg f_reset;
+    {{ settings.class_prefix }}reg f_clkod;
+    {{ settings.class_prefix }}reg f_clkf;
+    {{ settings.class_prefix }}reg f_clkr;
+    {{ settings.class_prefix }}reg f_bwadj;
 
     function new(string name = "");
         super.new(name);
-{%- for key in pll_reg_keys_by_kind['tci'] %}
-        f_{{ key }} = new();
-{%- endfor %}
+        f_lock = new();
+        f_bypass = new();
+        f_pwrdn = new();
+        f_reset = new();
+        f_clkod = new();
+        f_clkf = new();
+        f_clkr = new();
+        f_bwadj = new();
         pll_kind = PLL_TCI;
     endfunction
 endclass

@@ -4,40 +4,22 @@
 class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}tree_base)
         `uvm_field_queue_object(nodes, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_queue_object(clock_nodes, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_queue_object(cell_nodes, UVM_ALL_ON | UVM_NOPRINT)
         `uvm_field_int(built, UVM_DEFAULT | UVM_NOPRINT)
     `uvm_object_utils_end
 
     {{ settings.class_prefix }}node_base nodes[$];
-    {{ settings.class_prefix }}clk clock_nodes[$];
-    {{ settings.class_prefix }}cell cell_nodes[$];
     bit built;
-    bit _print_mux;
-    bit _print_div;
-    bit _print_dto;
-    bit _print_gate;
-    bit _print_cell;
 
     function new(string name = "{{ settings.class_prefix }}tree_base");
         super.new(name);
         built = 1'b0;
-        _print_mux = 0;
-        _print_div = 0;
-        _print_dto = 0;
-        _print_gate = 0;
-        _print_cell = 0;
     endfunction
 
-    // 确认 tree.build 已执行
     extern function void require_built(string ctx);
-    // 将全部 clock_nodes 切换为软关闭，并释放非 stable 的显式开启
     extern function void low_power();
-    // 收集 stable 为真的 clk 节点
-    extern function void collect_stable_clk_nodes(
-        output {{ settings.class_prefix }}node_base collected[$]);
-    // 是否存在 stable 为真的 clk 节点
-    extern function bit has_stable_clk();
+    virtual task configure(bit low_power = 1'b0, bit quiet = 1'b0);
+        `uvm_fatal("CLK_TREE", "tree_base.configure: concrete tree implementation is required")
+    endtask
 endclass
 
 function void {{ settings.class_prefix }}tree_base::require_built(string ctx);
@@ -47,28 +29,9 @@ function void {{ settings.class_prefix }}tree_base::require_built(string ctx);
 endfunction
 
 function void {{ settings.class_prefix }}tree_base::low_power();
-    foreach (clock_nodes[i]) begin
-        clock_nodes[i].low_power = 1'b1;
-        if (!clock_nodes[i].stable && clock_nodes[i].enabled > 0)
-            clock_nodes[i].enabled = -1;
-    end
-endfunction
-
-function void {{ settings.class_prefix }}tree_base::collect_stable_clk_nodes(
-        output {{ settings.class_prefix }}node_base collected[$]);
-    collected.delete();
-    foreach (clock_nodes[i]) begin
-        if (clock_nodes[i].stable)
-            collected.push_back(clock_nodes[i]);
-    end
-endfunction
-
-function bit {{ settings.class_prefix }}tree_base::has_stable_clk();
-    foreach (clock_nodes[i]) begin
-        if (clock_nodes[i].stable)
-            return 1'b1;
-    end
-    return 1'b0;
+    foreach (nodes[i])
+        if (nodes[i] != null)
+            nodes[i].apply_low_power_preference();
 endfunction
 
 `endif

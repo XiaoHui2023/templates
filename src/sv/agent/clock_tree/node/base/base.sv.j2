@@ -4,8 +4,7 @@
 class {{ settings.class_prefix }}base_item extends uvm_sequence_item;
     `uvm_object_utils({{ settings.class_prefix }}base_item)
 
-{{ sv_family_declarations | indent(4, true) }}
-
+    // Constructs the plugin-neutral sequence item base.
     function new(string name = "");
         super.new(name);
     endfunction

@@ -34,11 +34,9 @@ class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_ba
         kind = "cell";
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
-    // Selects this node when cell observations are enabled.
-    virtual function bit is_measure_selected(
-            input bit check_clk,
-            input bit check_cell);
-        return check_cell;
+    // Exposes this node as a frequency-only measurement endpoint.
+    virtual function bit is_observable();
+        return vif != null;
     endfunction
 `endif
 

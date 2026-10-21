@@ -29,12 +29,12 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated divider transition check.
-    virtual function bit has_transition_check();
+    virtual function bit has_functional_contract();
         return 1'b1;
     endfunction
 
     // Traverses each encoded divider ratio under an independent input clock.
-    virtual task run_transition_check(
+    virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -49,6 +49,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
         int width;
         bit passed;
         bit configured;
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -67,10 +68,11 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test div %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
+        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
         for (bit_idx = 0; bit_idx < width; bit_idx++) begin
             ratio = {{ settings.class_prefix }}div_ratio_for_reg_bit(f_div, bit_idx);
-            api.cfg.configure_transition_div(this, ratio, configured);
-            #({{ settings.flip_div_settle_ns }}ns);
+            plugin_cfg.configure_transition_div(this, ratio, configured);
+            #({{ plugin_value("div_div", "settle_ns", 200) }}ns);
             expected_freq_hz = real'(1_000_000_000) / ratio;
             if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
                 failures++;

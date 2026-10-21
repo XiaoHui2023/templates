@@ -3,15 +3,29 @@
 
 class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}pll_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_sc)
-{%- for key in pll_reg_keys_by_kind['sc'] %}
-    {{ settings.class_prefix }}reg f_{{ key }};
-{%- endfor %}
+    {{ settings.class_prefix }}reg f_lock;
+    {{ settings.class_prefix }}reg f_vocpd;
+    {{ settings.class_prefix }}reg f_postdivpd;
+    {{ settings.class_prefix }}reg f_dsmpd;
+    {{ settings.class_prefix }}reg f_pd;
+    {{ settings.class_prefix }}reg f_bypass;
+    {{ settings.class_prefix }}reg f_refdiv;
+    {{ settings.class_prefix }}reg f_postdiv2;
+    {{ settings.class_prefix }}reg f_postdiv1;
+    {{ settings.class_prefix }}reg f_fbdiv;
 
     function new(string name = "");
         super.new(name);
-{%- for key in pll_reg_keys_by_kind['sc'] %}
-        f_{{ key }} = new();
-{%- endfor %}
+        f_lock = new();
+        f_vocpd = new();
+        f_postdivpd = new();
+        f_dsmpd = new();
+        f_pd = new();
+        f_bypass = new();
+        f_refdiv = new();
+        f_postdiv2 = new();
+        f_postdiv1 = new();
+        f_fbdiv = new();
         pll_kind = PLL_SC;
     endfunction
 endclass

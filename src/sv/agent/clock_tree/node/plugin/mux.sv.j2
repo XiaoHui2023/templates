@@ -21,11 +21,13 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     }
 
     constraint cst_resolve_active_from_src {
-        to_source[_resolved_sel] != null -> _resolved_active == to_source[_resolved_sel]._resolved_active;
+        to_source[_resolved_sel] != null
+            -> _resolved_active == to_source[_resolved_sel]._resolved_active;
     }
 
     constraint cst_resolve_freq_from_src {
-        to_source[_resolved_sel] != null -> _resolved_freq == to_source[_resolved_sel]._resolved_freq;
+        to_source[_resolved_sel] != null
+            -> _resolved_freq == to_source[_resolved_sel]._resolved_freq;
     }
 
     // 初始化自由选择值。
@@ -35,6 +37,15 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         unfix_sel = 1'b1;
         f_reg = new();
         kind = "mux";
+    endfunction
+
+    // Keeps the generic source graph and the integer mux selector map aligned.
+    virtual function void set_source(
+            input string key,
+            input {{ settings.class_prefix }}node_base parent);
+        super.set_source(key, parent);
+        if (key != "")
+            to_source[key.atoi()] = parent;
     endfunction
 
     // 同步选择值的固定标记。
@@ -68,33 +79,27 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         return 500;
     endfunction
 
-    // 返回 mux 配置阶段。
-    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
-        return {{ settings.class_prefix }}node_config_api::CONFIG_MUX;
-    endfunction
-
-    // mux 只有驱动有效时才写配置。
-    virtual function bit requires_downstream_clock();
+    // Skip only a branch which cannot reach an observable endpoint.
+    virtual function bit requires_observed_descendant();
         return 1'b1;
     endfunction
 
-    // 写入当前解析选择值。
-    virtual task configure_stage(
+    // Delegate register encoding to the plugin service.
+    virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input {{ settings.class_prefix }}node_config_api::stage_e stage,
             output bit configured);
-        configured = 1'b0;
-        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_MUX)
-            cfg.configure_mux(this, configured);
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
+        plugin_cfg = new(cfg.tools, cfg.quiet);
+        plugin_cfg.configure_mux(this, configured);
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated mux selection transition check.
-    virtual function bit has_transition_check();
+    virtual function bit has_functional_contract();
         return 1'b1;
     endfunction
 
     // Drives independent inputs, then checks every selectable output path.
-    virtual task run_transition_check(
+    virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -108,6 +113,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         int stim_freq_hz;
         bit passed;
         bit configured;
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -137,7 +143,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         foreach (to_source[k]) begin
             in_key = $sformatf("%0d", k);
             in_vif = get_in_vif(in_key);
-            if (to_source[k] != null && to_source[k].uses_native_transition_input())
+            if (to_source[k] != null && to_source[k].preserves_native_input())
                 expected_freq_hz[k] = to_source[k]._resolved_freq;
             else begin
                 expected_freq_hz[k] = stim_freq_hz;
@@ -145,8 +151,9 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
                 stim_freq_hz = int'(real'(stim_freq_hz) * (20.0 / 21.0));
             end
         end
+        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
         foreach (to_source[k]) begin
-            api.cfg.configure_transition_mux(this, k, configured);
+            plugin_cfg.configure_transition_mux(this, k, configured);
             #70ns;
             api.measure_port_freq(out_vif, {get_name(), ".out"},
                 int'(expected_freq_hz[k]), out_freq_hz, passed);
@@ -168,7 +175,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             in_key = $sformatf("%0d", k);
             in_vif = get_in_vif(in_key);
             if (in_vif != null && (to_source[k] == null
-                    || !to_source[k].uses_native_transition_input()))
+                    || !to_source[k].preserves_native_input()))
                 in_vif.release_drive();
         end
         did_check = 1'b1;

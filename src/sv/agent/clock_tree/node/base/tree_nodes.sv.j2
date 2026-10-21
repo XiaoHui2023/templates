@@ -1,7 +1,6 @@
 `ifndef {{ (settings.class_prefix ~ "tree_nodes") | upper }}
 `define {{ (settings.class_prefix ~ "tree_nodes") | upper }}
 
-// 判断节点是否已在队列中
 function automatic bit {{ settings.class_prefix }}node_in_queue(
         {{ settings.class_prefix }}node_base nd,
         {{ settings.class_prefix }}node_base q[$]);
@@ -11,411 +10,100 @@ function automatic bit {{ settings.class_prefix }}node_in_queue(
     return 1'b0;
 endfunction
 
-// 去重后追加到 dest
 function automatic void {{ settings.class_prefix }}append_unique_node(
         ref {{ settings.class_prefix }}node_base dest[$],
         input {{ settings.class_prefix }}node_base nd);
-    if (nd == null)
-        return;
-    if ({{ settings.class_prefix }}node_in_queue(nd, dest))
-        return;
-    dest.push_back(nd);
+    if (nd != null && !{{ settings.class_prefix }}node_in_queue(nd, dest))
+        dest.push_back(nd);
 endfunction
 
-// 判断节点是否在 tree.nodes 内
-function automatic bit {{ settings.class_prefix }}node_in_tree(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd);
-    if (tree == null || nd == null)
-        return 1'b0;
-    foreach (tree.nodes[i])
-        if (tree.nodes[i] == nd)
-            return 1'b1;
-    return 1'b0;
-endfunction
-
-// kind 为空则原样拷贝，否则按 kind 过滤
-function automatic void {{ settings.class_prefix }}filter_nodes_by_kind(
-        {{ settings.class_prefix }}node_base nodes[$],
-        string kind,
-        output {{ settings.class_prefix }}node_base filtered[$]);
-    filtered.delete();
-    if (kind == "")
-        filtered = nodes;
-    else
-        foreach (nodes[i])
-            if (nodes[i] != null && nodes[i].kind == kind)
-                filtered.push_back(nodes[i]);
-endfunction
-
-// 直接前级：mux 为各输入，其余为 source
 function automatic void {{ settings.class_prefix }}tree_upstream_peers(
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base peers[$]);
-    {{ settings.class_prefix }}mux mux_nd;
     peers.delete();
-    if (nd == null)
-        return;
-    if ($cast(mux_nd, nd)) begin
-        foreach (mux_nd.to_source[k])
-            if (mux_nd.to_source[k] != null)
-                {{ settings.class_prefix }}append_unique_node(peers, mux_nd.to_source[k]);
-    end else if (nd.source != null)
-        peers.push_back(nd.source);
+    if (nd != null)
+        nd.collect_source_nodes(peers);
 endfunction
 
-// 收集 stable 时钟及其全部结构上游节点。
-function automatic void {{ settings.class_prefix }}collect_stable_upstream_nodes(
-        input {{ settings.class_prefix }}tree_base tree,
-        output {{ settings.class_prefix }}node_base collected[$]);
-    {{ settings.class_prefix }}node_base wave[$];
-    {{ settings.class_prefix }}node_base peers[$];
-    int w;
-
-    collected.delete();
-    if (tree == null)
-        return;
-    foreach (tree.clock_nodes[i]) begin
-        if (!tree.clock_nodes[i].stable)
-            continue;
-        {{ settings.class_prefix }}append_unique_node(collected, tree.clock_nodes[i]);
-        {{ settings.class_prefix }}append_unique_node(wave, tree.clock_nodes[i]);
-    end
-    w = 0;
-    while (w < wave.size()) begin
-        {{ settings.class_prefix }}node_base cur;
-        cur = wave[w];
-        w++;
-        {{ settings.class_prefix }}tree_upstream_peers(cur, peers);
-        foreach (peers[i]) begin
-            if ({{ settings.class_prefix }}node_in_queue(peers[i], collected))
-                continue;
-            {{ settings.class_prefix }}append_unique_node(collected, peers[i]);
-            {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
-        end
-    end
-endfunction
-
-// 直接后级：引用 nd 为 source 或 mux 输入的节点
 function automatic void {{ settings.class_prefix }}tree_downstream_peers(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base peers[$]);
-    {{ settings.class_prefix }}mux mux_nd;
+    string keys[$];
     peers.delete();
     if (tree == null || nd == null)
         return;
     foreach (tree.nodes[i]) begin
         if (tree.nodes[i] == null)
             continue;
-        if ($cast(mux_nd, tree.nodes[i])) begin
-            foreach (mux_nd.to_source[k])
-                if (mux_nd.to_source[k] == nd)
-                    {{ settings.class_prefix }}append_unique_node(peers, tree.nodes[i]);
-        end else if (tree.nodes[i].source == nd)
+        tree.nodes[i].collect_input_keys_from_source(nd, keys);
+        if (keys.size() != 0)
             {{ settings.class_prefix }}append_unique_node(peers, tree.nodes[i]);
     end
 endfunction
 
-// 沿上游 BFS 收集 nd 之前的全部节点
-function automatic void {{ settings.class_prefix }}collect_tree_nodes_before(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
+function automatic void {{ settings.class_prefix }}collect_stable_upstream_nodes(
+        input {{ settings.class_prefix }}tree_base tree,
         output {{ settings.class_prefix }}node_base collected[$]);
-    {{ settings.class_prefix }}node_base seen[$];
     {{ settings.class_prefix }}node_base wave[$];
     {{ settings.class_prefix }}node_base peers[$];
-    int w;
+    int index;
     collected.delete();
-    if (tree == null || nd == null)
+    if (tree == null)
         return;
-    {{ settings.class_prefix }}tree_upstream_peers(nd, peers);
-    foreach (peers[i]) begin
-        {{ settings.class_prefix }}append_unique_node(seen, peers[i]);
-        {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
-    end
-    w = 0;
-    while (w < wave.size()) begin
-        {{ settings.class_prefix }}node_base cur;
-        cur = wave[w];
-        w++;
-        {{ settings.class_prefix }}append_unique_node(collected, cur);
-        {{ settings.class_prefix }}tree_upstream_peers(cur, peers);
-        foreach (peers[j]) begin
-            if (!{{ settings.class_prefix }}node_in_queue(peers[j], seen)) begin
-                {{ settings.class_prefix }}append_unique_node(seen, peers[j]);
-                {{ settings.class_prefix }}append_unique_node(wave, peers[j]);
-            end
+    foreach (tree.nodes[i])
+        if (tree.nodes[i] != null && tree.nodes[i].is_stability_anchor()) begin
+            {{ settings.class_prefix }}append_unique_node(collected, tree.nodes[i]);
+            {{ settings.class_prefix }}append_unique_node(wave, tree.nodes[i]);
         end
-    end
-endfunction
-
-// 沿下游 BFS 收集 nd 之后的全部节点
-function automatic void {{ settings.class_prefix }}collect_tree_nodes_after(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
-        output {{ settings.class_prefix }}node_base collected[$]);
-    {{ settings.class_prefix }}node_base seen[$];
-    {{ settings.class_prefix }}node_base wave[$];
-    {{ settings.class_prefix }}node_base peers[$];
-    int w;
-    collected.delete();
-    if (tree == null || nd == null)
-        return;
-    {{ settings.class_prefix }}tree_downstream_peers(tree, nd, peers);
-    foreach (peers[i]) begin
-        {{ settings.class_prefix }}append_unique_node(seen, peers[i]);
-        {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
-    end
-    w = 0;
-    while (w < wave.size()) begin
-        {{ settings.class_prefix }}node_base cur;
-        cur = wave[w];
-        w++;
-        {{ settings.class_prefix }}append_unique_node(collected, cur);
-        {{ settings.class_prefix }}tree_downstream_peers(tree, cur, peers);
-        foreach (peers[j]) begin
-            if (!{{ settings.class_prefix }}node_in_queue(peers[j], seen)) begin
-                {{ settings.class_prefix }}append_unique_node(seen, peers[j]);
-                {{ settings.class_prefix }}append_unique_node(wave, peers[j]);
+    index = 0;
+    while (index < wave.size()) begin
+        {{ settings.class_prefix }}tree_upstream_peers(wave[index], peers);
+        index++;
+        foreach (peers[i])
+            if (!{{ settings.class_prefix }}node_in_queue(peers[i], collected)) begin
+                {{ settings.class_prefix }}append_unique_node(collected, peers[i]);
+                {{ settings.class_prefix }}append_unique_node(wave, peers[i]);
             end
-        end
     end
 endfunction
 
-// nd 上游节点，可选按 kind 过滤
-function automatic void {{ settings.class_prefix }}get_nodes_before(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
-        output {{ settings.class_prefix }}node_base result[$],
-        input string kind = "");
-    {{ settings.class_prefix }}node_base raw[$];
-    if (!{{ settings.class_prefix }}node_in_tree(tree, nd))
-        `uvm_fatal("CLK_TREE", "get_nodes_before: node not in tree.nodes")
-    {{ settings.class_prefix }}collect_tree_nodes_before(tree, nd, raw);
-    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
-endfunction
-
-// nd 下游节点，可选按 kind 过滤
-function automatic void {{ settings.class_prefix }}get_nodes_after(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
-        output {{ settings.class_prefix }}node_base result[$],
-        input string kind = "");
-    {{ settings.class_prefix }}node_base raw[$];
-    if (!{{ settings.class_prefix }}node_in_tree(tree, nd))
-        `uvm_fatal("CLK_TREE", "get_nodes_after: node not in tree.nodes")
-    {{ settings.class_prefix }}collect_tree_nodes_after(tree, nd, raw);
-    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
-endfunction
-
-// Control nodes are useful only when they can reach at least one clk.
-function automatic bit {{ settings.class_prefix }}node_has_downstream_clk(
+function automatic bit {{ settings.class_prefix }}node_has_observed_descendant(
         {{ settings.class_prefix }}tree_base tree,
         {{ settings.class_prefix }}node_base nd);
-    {{ settings.class_prefix }}node_base downstream[$];
-    {{ settings.class_prefix }}clk clk_nd;
-    if (!{{ settings.class_prefix }}node_in_tree(tree, nd))
+    {{ settings.class_prefix }}node_base wave[$];
+    {{ settings.class_prefix }}node_base peers[$];
+    int index;
+    if (tree == null || nd == null)
         return 1'b0;
-    {{ settings.class_prefix }}get_nodes_after(tree, nd, downstream);
-    foreach (downstream[i])
-        if ($cast(clk_nd, downstream[i]))
+    {{ settings.class_prefix }}tree_downstream_peers(tree, nd, wave);
+    index = 0;
+    while (index < wave.size()) begin
+        if (wave[index].is_observable())
             return 1'b1;
+        {{ settings.class_prefix }}tree_downstream_peers(tree, wave[index], peers);
+        foreach (peers[i])
+            if (!{{ settings.class_prefix }}node_in_queue(peers[i], wave))
+                wave.push_back(peers[i]);
+        index++;
+    end
     return 1'b0;
 endfunction
 
-// gate/mux/div without connected downstream clk is ignored.
-function automatic bit {{ settings.class_prefix }}control_node_is_valid(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd);
-    if (nd == null)
-        return 1'b0;
-    if (nd.kind == "gate" || nd.kind == "mux" || nd.kind == "div")
-        return {{ settings.class_prefix }}node_has_downstream_clk(tree, nd);
-    return 1'b1;
-endfunction
-
-// Collect all writable register fields used while configuring one control node.
-function automatic void {{ settings.class_prefix }}collect_node_control_regs(
-        input {{ settings.class_prefix }}node_base nd,
-        output {{ settings.class_prefix }}reg regs[$]);
-    {{ settings.class_prefix }}gate gate_nd;
-    {{ settings.class_prefix }}div_div div_nd;
-    {{ settings.class_prefix }}div_dto dto_nd;
-    {{ settings.class_prefix }}mux mux_nd;
-    {{ settings.class_prefix }}inv_base inv_nd;
-    regs.delete();
-    if ($cast(gate_nd, nd))
-        regs.push_back(gate_nd.f_reg);
-    else if ($cast(div_nd, nd)) begin
-        regs.push_back(div_nd.f_rst);
-        regs.push_back(div_nd.f_load);
-        regs.push_back(div_nd.f_div);
-    end else if ($cast(dto_nd, nd)) begin
-        regs.push_back(dto_nd.f_rst);
-        regs.push_back(dto_nd.f_load);
-        regs.push_back(dto_nd.f_bypass);
-        regs.push_back(dto_nd.f_step);
-    end else if ($cast(mux_nd, nd))
-        regs.push_back(mux_nd.f_reg);
-    else if ($cast(inv_nd, nd))
-        regs.push_back(inv_nd.f_reg);
-endfunction
-
-// Register aliases are a full-test conflict, not only a write-time RMW conflict.
 function automatic bit {{ settings.class_prefix }}nodes_share_control_reg(
         input {{ settings.class_prefix }}node_base lhs,
         input {{ settings.class_prefix }}node_base rhs);
     {{ settings.class_prefix }}reg lhs_regs[$];
     {{ settings.class_prefix }}reg rhs_regs[$];
-    {{ settings.class_prefix }}collect_node_control_regs(lhs, lhs_regs);
-    {{ settings.class_prefix }}collect_node_control_regs(rhs, rhs_regs);
+    if (lhs == null || rhs == null)
+        return 1'b0;
+    lhs.collect_control_regs(lhs_regs);
+    rhs.collect_control_regs(rhs_regs);
     foreach (lhs_regs[i])
         foreach (rhs_regs[j])
-            if ({{ settings.class_prefix }}reg_bindings_overlap(
-                    lhs_regs[i], rhs_regs[j]))
+            if ({{ settings.class_prefix }}reg_bindings_overlap(lhs_regs[i], rhs_regs[j]))
                 return 1'b1;
     return 1'b0;
 endfunction
-
-// scope 内是否存在 nd 的直接前级
-function automatic bit {{ settings.class_prefix }}node_has_upstream_in_scope(
-        {{ settings.class_prefix }}node_base nd,
-        {{ settings.class_prefix }}node_base scope[$]);
-    {{ settings.class_prefix }}node_base peers[$];
-    if (nd == null)
-        return 1'b0;
-    {{ settings.class_prefix }}tree_upstream_peers(nd, peers);
-    foreach (peers[i])
-        if ({{ settings.class_prefix }}node_in_queue(peers[i], scope))
-            return 1'b1;
-    return 1'b0;
-endfunction
-
-// scope 内是否存在 nd 的直接后级
-function automatic bit {{ settings.class_prefix }}node_has_downstream_in_scope(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
-        {{ settings.class_prefix }}node_base scope[$]);
-    {{ settings.class_prefix }}node_base peers[$];
-    if (tree == null || nd == null)
-        return 1'b0;
-    {{ settings.class_prefix }}tree_downstream_peers(tree, nd, peers);
-    foreach (peers[i])
-        if ({{ settings.class_prefix }}node_in_queue(peers[i], scope))
-            return 1'b1;
-    return 1'b0;
-endfunction
-
-// scope 内无上游的节点作为子图头
-function automatic void {{ settings.class_prefix }}collect_subgraph_head_nodes(
-        {{ settings.class_prefix }}node_base scope[$],
-        output {{ settings.class_prefix }}node_base collected[$]);
-    collected.delete();
-    foreach (scope[i]) begin
-        if (scope[i] == null)
-            continue;
-        if (!{{ settings.class_prefix }}node_has_upstream_in_scope(scope[i], scope))
-            {{ settings.class_prefix }}append_unique_node(collected, scope[i]);
-    end
-endfunction
-
-// scope 内无下游的节点作为子图尾
-function automatic void {{ settings.class_prefix }}collect_subgraph_tail_nodes(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base scope[$],
-        output {{ settings.class_prefix }}node_base collected[$]);
-    collected.delete();
-    if (tree == null)
-        return;
-    foreach (scope[i]) begin
-        if (scope[i] == null)
-            continue;
-        if (!{{ settings.class_prefix }}node_has_downstream_in_scope(tree, scope[i], scope))
-            {{ settings.class_prefix }}append_unique_node(collected, scope[i]);
-    end
-endfunction
-
-// 整树子图头，可选按 kind 过滤
-function automatic void {{ settings.class_prefix }}get_tree_head_nodes(
-        {{ settings.class_prefix }}tree_base tree,
-        output {{ settings.class_prefix }}node_base result[$],
-        input string kind = "");
-    {{ settings.class_prefix }}node_base raw[$];
-    result.delete();
-    if (tree == null)
-        return;
-    {{ settings.class_prefix }}collect_subgraph_head_nodes(tree.nodes, raw);
-    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
-endfunction
-
-// 整树子图尾，可选按 kind 过滤
-function automatic void {{ settings.class_prefix }}get_tree_tail_nodes(
-        {{ settings.class_prefix }}tree_base tree,
-        output {{ settings.class_prefix }}node_base result[$],
-        input string kind = "");
-    {{ settings.class_prefix }}node_base raw[$];
-    result.delete();
-    if (tree == null)
-        return;
-    {{ settings.class_prefix }}collect_subgraph_tail_nodes(tree, tree.nodes, raw);
-    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
-endfunction
-
-// scope 子图尾，可选按 kind 过滤
-function automatic void {{ settings.class_prefix }}get_subgraph_tail_nodes(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base scope[$],
-        output {{ settings.class_prefix }}node_base result[$],
-        input string kind = "");
-    {{ settings.class_prefix }}node_base raw[$];
-    result.delete();
-    if (tree == null)
-        return;
-    {{ settings.class_prefix }}collect_subgraph_tail_nodes(tree, scope, raw);
-    {{ settings.class_prefix }}filter_nodes_by_kind(raw, kind, result);
-endfunction
-
-{%- set graph_kind_plurals = [
-    ("source", "sources"),
-    ("clk", "clks"),
-    ("pll", "plls"),
-    ("mux", "muxs"),
-    ("gate", "gates"),
-    ("cell", "cells"),
-    ("div", "divs"),
-    ("inv", "invs"),
-] %}
-{%- for k, plural in graph_kind_plurals %}
-// nd 上游 kind={{ k }} 节点
-function automatic void {{ settings.class_prefix }}get_{{ plural }}_before(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
-        output {{ settings.class_prefix }}node_base result[$]);
-    {{ settings.class_prefix }}get_nodes_before(tree, nd, result, "{{ k }}");
-endfunction
-
-// nd 下游 kind={{ k }} 节点
-function automatic void {{ settings.class_prefix }}get_{{ plural }}_after(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
-        output {{ settings.class_prefix }}node_base result[$]);
-    {{ settings.class_prefix }}get_nodes_after(tree, nd, result, "{{ k }}");
-endfunction
-
-// 整树子图头 kind={{ k }} 节点
-function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_head(
-        {{ settings.class_prefix }}tree_base tree,
-        output {{ settings.class_prefix }}node_base result[$]);
-    {{ settings.class_prefix }}get_tree_head_nodes(tree, result, "{{ k }}");
-endfunction
-
-// 整树子图尾 kind={{ k }} 节点
-function automatic void {{ settings.class_prefix }}get_{{ plural }}_at_tree_tail(
-        {{ settings.class_prefix }}tree_base tree,
-        output {{ settings.class_prefix }}node_base result[$]);
-    {{ settings.class_prefix }}get_tree_tail_nodes(tree, result, "{{ k }}");
-endfunction
-{%- endfor %}
 
 `endif

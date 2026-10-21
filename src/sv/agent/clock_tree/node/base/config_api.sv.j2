@@ -1,107 +1,33 @@
 `ifndef {{ (settings.class_prefix ~ "node_config_api") | upper }}
 `define {{ (settings.class_prefix ~ "node_config_api") | upper }}
 
-typedef class {{ settings.class_prefix }}pll_base;
-typedef class {{ settings.class_prefix }}div_base;
-typedef class {{ settings.class_prefix }}inv_base;
-typedef class {{ settings.class_prefix }}gate;
-typedef class {{ settings.class_prefix }}mux;
-typedef class {{ settings.class_prefix }}div_div;
-typedef class {{ settings.class_prefix }}div_dto;
-
 class {{ settings.class_prefix }}node_config_api extends {{ settings.class_prefix }}base_object;
-    typedef enum int {
-        CONFIG_NONE = -1,
-        CONFIG_PLL,
-        CONFIG_DIV,
-        CONFIG_INV,
-        CONFIG_GATE_OPEN,
-        CONFIG_MUX,
-        CONFIG_GATE_CLOSE
-    } stage_e;
+    {{ settings.class_prefix }}core_tools tools;
+    bit quiet;
 
-    // 初始化节点配置 API。
-    function new(string name = "");
+    function new(
+            input {{ settings.class_prefix }}core_tools tools_h,
+            input bit quiet = 1'b0,
+            input string name = "");
         super.new(name);
+        if (tools_h == null)
+            `uvm_fatal("CLK_TREE", "node_config_api: tools is null")
+        tools = tools_h;
+        this.quiet = quiet;
     endfunction
 
-    // 配置一个 PLL 节点。
-    virtual task configure_pll(
-            input {{ settings.class_prefix }}pll_base node_h,
-            output bit configured);
-        configured = 1'b0;
+    virtual task write_reg(input {{ settings.class_prefix }}reg field_h, input int value);
+        tools.rw.set_write(field_h, value);
     endtask
 
-    // 配置一个 div 或 dto 节点。
-    virtual task configure_div(
-            input {{ settings.class_prefix }}div_base node_h,
-            output bit configured);
-        configured = 1'b0;
+    virtual task read_reg(input {{ settings.class_prefix }}reg field_h, output int value);
+        tools.rw.read(field_h, value);
     endtask
 
-    // 配置一个反相器节点。
-    virtual task configure_inv(
-            input {{ settings.class_prefix }}inv_base node_h,
-            output bit configured);
-        configured = 1'b0;
-    endtask
-
-    // 配置一个 gate 节点。
-    virtual task configure_gate(
-            input {{ settings.class_prefix }}gate node_h,
-            output bit configured);
-        configured = 1'b0;
-    endtask
-
-    // 配置一个 mux 节点。
-    virtual task configure_mux(
-            input {{ settings.class_prefix }}mux node_h,
-            output bit configured);
-        configured = 1'b0;
-    endtask
-
-    // 等待一个 PLL 节点完成 lock。
-    virtual task wait_for_pll_lock(input {{ settings.class_prefix }}pll_base node_h);
-    endtask
-
-    // Applies an explicit gate state for an isolated transition check.
-    virtual task configure_transition_gate(
-            input {{ settings.class_prefix }}gate node_h,
-            input bit open,
-            output bit configured);
-        configured = 1'b0;
-    endtask
-
-    // Applies an explicit div ratio with its reset sequence.
-    virtual task configure_transition_div(
-            input {{ settings.class_prefix }}div_div node_h,
-            input int ratio,
-            output bit configured);
-        configured = 1'b0;
-    endtask
-
-    // Applies an explicit dto ratio for an isolated transition check.
-    virtual task configure_transition_dto(
-            input {{ settings.class_prefix }}div_dto node_h,
-            input int ratio,
-            output bit configured);
-        configured = 1'b0;
-    endtask
-
-    // Applies an explicit mux input selection.
-    virtual task configure_transition_mux(
-            input {{ settings.class_prefix }}mux node_h,
-            input int sel,
-            output bit configured);
-        configured = 1'b0;
-    endtask
-
-    // Applies an explicit inverter polarity.
-    virtual task configure_transition_inv(
-            input {{ settings.class_prefix }}inv_base node_h,
-            input bit inverted,
-            output bit configured);
-        configured = 1'b0;
+    virtual task write_regs(
+            input {{ settings.class_prefix }}reg fields[$],
+            input int values[$]);
+        tools.rw.apply(fields, values);
     endtask
 endclass
 

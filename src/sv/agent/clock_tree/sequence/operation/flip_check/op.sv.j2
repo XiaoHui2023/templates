@@ -85,14 +85,14 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     {{ settings.class_prefix }}collect_stable_upstream_nodes(tree, stable_nodes);
 
     foreach (tree.nodes[i]) begin
-        if (tree.nodes[i] == null || !tree.nodes[i].has_transition_check())
+        if (tree.nodes[i] == null || !tree.nodes[i].has_functional_contract())
             continue;
         subjects++;
         if (skip_stable_subject(tree.nodes[i], stable_nodes)) begin
             stable_skipped++;
             continue;
         end
-        if (tree.nodes[i].requires_downstream_clock()
+        if (tree.nodes[i].requires_observed_descendant()
                 && !{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i])) begin
             `uvm_info("CLK_TREE", $sformatf(
                 "test_flip: skip %s, no non-volatile clock downstream",
@@ -108,7 +108,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
         `uvm_fatal("CLK_TREE", "test_flip: no subject checked")
 
     foreach (test_subjects[i]) begin
-        test_subjects[i].run_transition_check(api, did_check, did_skip, failure_count);
+        test_subjects[i].run_functional_contract(api, did_check, did_skip, failure_count);
         if (did_check == did_skip)
             `uvm_fatal("CLK_TREE", $sformatf(
                 "test_flip: subject %s returned invalid check/skip status",

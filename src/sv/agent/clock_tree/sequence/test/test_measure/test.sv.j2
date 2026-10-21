@@ -17,8 +17,7 @@ class {{ settings.class_prefix }}test_measure_seq extends {{ settings.class_pref
         {{ settings.class_prefix }}tree_base tree, bit quiet);
     extern task run_check_measure(
         {{ settings.class_prefix }}tree_base tree,
-        bit check_clk,
-        bit check_cell,
+        bit check_observation,
         bit check_freq,
         bit check_duty,
         bit quiet,
@@ -27,19 +26,14 @@ endclass
 
 task {{ settings.class_prefix }}test_measure_seq::run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
-    {{ settings.class_prefix }}tree typed_tree;
-
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null for config_reg")
-    if (!$cast(typed_tree, tree))
-        `uvm_fatal("CLK_TREE", "test_measure: tree is not tree")
-    typed_tree.configure(.quiet(quiet));
+    tree.configure(.quiet(quiet));
 endtask
 
 task {{ settings.class_prefix }}test_measure_seq::run_check_measure(
         {{ settings.class_prefix }}tree_base tree,
-        bit check_clk,
-        bit check_cell,
+        bit check_observation,
         bit check_freq,
         bit check_duty,
         bit quiet,
@@ -50,14 +44,13 @@ task {{ settings.class_prefix }}test_measure_seq::run_check_measure(
 
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null for check_measure")
-    if (!check_clk && !check_cell)
+    if (!check_observation)
         `uvm_fatal("CLK_TREE", "test_measure: no enabled check target")
     meas_req = {{ settings.class_prefix }}check_measure_req::type_id::create("meas_req");
     meas_req.tree = tree;
     meas_req.quiet = quiet;
     meas_req.debug = debug;
-    meas_req.check_clk = check_clk;
-    meas_req.check_cell = check_cell;
+    meas_req.check_observation = check_observation;
     meas_req.check_freq = check_freq;
     meas_req.check_duty = check_duty;
     meas_seq = {{ settings.class_prefix }}check_measure_seq::type_id::create("check_measure");
@@ -81,17 +74,17 @@ task {{ settings.class_prefix }}test_measure_seq::body();
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null")
     tree.require_built("test_measure");
-    if (!rq.check_clk && !rq.check_cell)
+    if (!rq.check_observation)
         `uvm_fatal("CLK_TREE", "test_measure: no enabled check target")
 
     if (!rq.quiet || rq.debug)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_measure: begin tree %s clk %0b cell %0b freq %0b duty %0b debug %0b",
-            tree.get_name(), rq.check_clk, rq.check_cell,
+            "test_measure: begin tree %s observe %0b freq %0b duty %0b debug %0b",
+            tree.get_name(), rq.check_observation,
             rq.check_freq, rq.check_duty, rq.debug), UVM_LOW)
 
     run_config_reg(tree, rq.quiet);
-    run_check_measure(tree, rq.check_clk, rq.check_cell,
+    run_check_measure(tree, rq.check_observation,
         rq.check_freq, rq.check_duty, rq.quiet, rq.debug);
 
     rs = {{ settings.class_prefix }}test_measure_rsp::type_id::create("rsp");

@@ -23,7 +23,7 @@ class {{ settings.class_prefix }}source_base extends {{ settings.class_prefix }}
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Keeps source timing under RTL control during transition checks.
-    virtual function bit uses_native_transition_input();
+    virtual function bit preserves_native_input();
         return 1'b1;
     endfunction
 `endif

@@ -1,0 +1,694 @@
+`ifndef {{ (settings.class_prefix ~ "plugin_configuration") | upper }}
+`define {{ (settings.class_prefix ~ "plugin_configuration") | upper }}
+
+class {{ settings.class_prefix }}plugin_configuration extends {{ settings.class_prefix }}node_config_api;
+    {{ settings.class_prefix }}core_tools tools;
+    {{ settings.class_prefix }}node_cfg node;
+    {{ settings.class_prefix }}pll_cfg pll;
+
+    // 绑定寄存器工具并设置日志模式。
+    function new(
+            {{ settings.class_prefix }}core_tools core_tools_h,
+            bit quiet = 1'b0);
+        super.new(core_tools_h, quiet, "{{ settings.class_prefix }}plugin_configuration");
+        if (core_tools_h == null)
+            `uvm_fatal("CLK_TREE", "plugin_configuration: tools is null")
+        tools = core_tools_h;
+        node = new(tools.rw);
+        pll = new(tools.rw);
+    endfunction
+
+    // Configure the concrete PLL encoding selected by its plugin.
+    extern virtual task configure_pll(
+        input {{ settings.class_prefix }}pll_base node_h,
+        output bit configured);
+    // Configure the concrete div or dto encoding selected by its plugin.
+    extern virtual task configure_div(
+        input {{ settings.class_prefix }}div_base node_h,
+        output bit configured);
+    // Configure an inverter node.
+    extern virtual task configure_inv(
+        input {{ settings.class_prefix }}inv_base node_h,
+        output bit configured);
+    // Configure a gate node.
+    extern virtual task configure_gate(
+        input {{ settings.class_prefix }}gate node_h,
+        output bit configured);
+    // Configure a mux node.
+    extern virtual task configure_mux(
+        input {{ settings.class_prefix }}mux node_h,
+        output bit configured);
+    // Wait for the concrete PLL lock indication.
+    extern virtual task wait_for_pll_lock(input {{ settings.class_prefix }}pll_base node_h);
+    // Apply an explicit gate state for one transition check.
+    extern virtual task configure_transition_gate(
+        input {{ settings.class_prefix }}gate node_h,
+        input bit open,
+        output bit configured);
+    // Apply an explicit div ratio with reset for one transition check.
+    extern virtual task configure_transition_div(
+        input {{ settings.class_prefix }}div_div node_h,
+        input int ratio,
+        output bit configured);
+    // Apply an explicit dto ratio for one transition check.
+    extern virtual task configure_transition_dto(
+        input {{ settings.class_prefix }}div_dto node_h,
+        input int ratio,
+        output bit configured);
+    // Apply an explicit mux selection for one transition check.
+    extern virtual task configure_transition_mux(
+        input {{ settings.class_prefix }}mux node_h,
+        input int sel,
+        output bit configured);
+    // Apply an explicit inverter polarity for one transition check.
+    extern virtual task configure_transition_inv(
+        input {{ settings.class_prefix }}inv_base node_h,
+        input bit inverted,
+        output bit configured);
+    // Configure gate open state.
+    extern task config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
+    // Configure gate register with a requested logical open value.
+    // reg_open — logical open state before polarity conversion by node_cfg
+    extern task config_reg_gate_node_reg(
+        {{ settings.class_prefix }}gate gate_nd,
+        bit reg_open);
+    // Configure mux select.
+    extern task config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
+    // Write an explicit mux select without tree resolution.
+    extern task config_reg_mux_node_reg(
+        {{ settings.class_prefix }}mux mux_nd,
+        int reg_sel);
+    // Configure div reset, load and ratio.
+    extern task config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
+    // Write an explicit div ratio without tree resolution.
+    // reset_before_config - force a reset pulse before writing ratio and load.
+    extern task config_reg_div_node_reg(
+        {{ settings.class_prefix }}div_div div_nd,
+        int reg_ratio,
+        input bit reset_before_config = 1'b0);
+    // Configure dto reset, bypass, load and step.
+    extern task config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
+    // Write an explicit dto ratio without tree resolution.
+    extern task config_reg_dto_node_reg(
+        {{ settings.class_prefix }}div_dto dto_nd,
+        int reg_ratio);
+    // Configure inv state.
+    extern task config_reg_inv_node({{ settings.class_prefix }}inv_base inv_nd);
+    // Write an explicit inv state without tree resolution.
+    extern task config_reg_inv_node_reg(
+        {{ settings.class_prefix }}inv_base inv_nd,
+        bit reg_inverted);
+    // Dispatch PLL configuration by concrete type.
+    extern task config_reg_pll_node({{ settings.class_prefix }}pll_base pll_nd, output bit configured);
+    // Configure SC PLL target.
+    extern task config_reg_pll_sc_node({{ settings.class_prefix }}pll_sc pll_sc_nd, output bit configured);
+    // Configure DW PLL target.
+    extern task config_reg_pll_dw_node({{ settings.class_prefix }}pll_dw pll_dw_nd, output bit configured);
+    // Configure Inno PLL target.
+    extern task config_reg_pll_inno_node({{ settings.class_prefix }}pll_inno pll_inno_nd, output bit configured);
+    // Wait for one PLL lock.
+    extern task wait_pll_lock_node({{ settings.class_prefix }}pll_base pll_nd);
+endclass
+
+// 配置 PLL；具体 IP 编码仍由 PLL helper 处理。
+task {{ settings.class_prefix }}plugin_configuration::configure_pll(
+        input {{ settings.class_prefix }}pll_base node_h,
+        output bit configured);
+    config_reg_pll_node(node_h, configured);
+endtask
+
+// 配置 div 或 dto；只在同一基础器件家族内区分寄存器编码。
+task {{ settings.class_prefix }}plugin_configuration::configure_div(
+        input {{ settings.class_prefix }}div_base node_h,
+        output bit configured);
+    {{ settings.class_prefix }}div_div div_nd;
+    {{ settings.class_prefix }}div_dto dto_nd;
+
+    configured = 1'b0;
+    if ($cast(div_nd, node_h)) begin
+        config_reg_div_node(div_nd);
+        configured = 1'b1;
+    end else if ($cast(dto_nd, node_h)) begin
+        config_reg_dto_node(dto_nd);
+        configured = 1'b1;
+    end
+endtask
+
+// 配置反相器。
+task {{ settings.class_prefix }}plugin_configuration::configure_inv(
+        input {{ settings.class_prefix }}inv_base node_h,
+        output bit configured);
+    config_reg_inv_node(node_h);
+    configured = 1'b1;
+endtask
+
+// 配置 gate。
+task {{ settings.class_prefix }}plugin_configuration::configure_gate(
+        input {{ settings.class_prefix }}gate node_h,
+        output bit configured);
+    config_reg_gate_node(node_h);
+    configured = 1'b1;
+endtask
+
+// 配置 mux。
+task {{ settings.class_prefix }}plugin_configuration::configure_mux(
+        input {{ settings.class_prefix }}mux node_h,
+        output bit configured);
+    config_reg_mux_node(node_h);
+    configured = 1'b1;
+endtask
+
+// 等待 PLL 的既有 lock 条件。
+task {{ settings.class_prefix }}plugin_configuration::wait_for_pll_lock(
+        input {{ settings.class_prefix }}pll_base node_h);
+    wait_pll_lock_node(node_h);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::configure_transition_gate(
+        input {{ settings.class_prefix }}gate node_h,
+        input bit open,
+        output bit configured);
+    configured = node_h != null && node_h.f_reg.is_bound();
+    if (configured)
+        config_reg_gate_node_reg(node_h, open);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::configure_transition_div(
+        input {{ settings.class_prefix }}div_div node_h,
+        input int ratio,
+        output bit configured);
+    configured = node_h != null && node_h.f_rst.is_bound()
+        && node_h.f_load.is_bound() && node_h.f_div.is_bound();
+    if (configured)
+        config_reg_div_node_reg(node_h, ratio, 1'b1);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::configure_transition_dto(
+        input {{ settings.class_prefix }}div_dto node_h,
+        input int ratio,
+        output bit configured);
+    configured = node_h != null && node_h.f_rst.is_bound()
+        && node_h.f_load.is_bound() && node_h.f_bypass.is_bound()
+        && node_h.f_step.is_bound();
+    if (configured)
+        config_reg_dto_node_reg(node_h, ratio);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::configure_transition_mux(
+        input {{ settings.class_prefix }}mux node_h,
+        input int sel,
+        output bit configured);
+    configured = node_h != null && node_h.f_reg.is_bound();
+    if (configured)
+        config_reg_mux_node_reg(node_h, sel);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::configure_transition_inv(
+        input {{ settings.class_prefix }}inv_base node_h,
+        input bit inverted,
+        output bit configured);
+    configured = node_h != null && node_h.f_reg.is_bound();
+    if (configured)
+        config_reg_inv_node_reg(node_h, inverted);
+endtask
+
+// 写 gate 的开关控制
+task {{ settings.class_prefix }}plugin_configuration::config_reg_gate_node({{ settings.class_prefix }}gate gate_nd);
+    if (!gate_nd.f_reg.is_bound())
+        return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: gate %s open %0b", gate_nd.get_name(), gate_nd._resolved_open), UVM_MEDIUM)
+    node.configure_gate(gate_nd.f_reg, gate_nd._resolved_open);
+endtask
+
+// 向寄存器写入指定 gate 开关
+task {{ settings.class_prefix }}plugin_configuration::config_reg_gate_node_reg(
+        {{ settings.class_prefix }}gate gate_nd,
+        bit reg_open);
+    if (!gate_nd.f_reg.is_bound())
+        return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: gate %s reg open %0b", gate_nd.get_name(), reg_open), UVM_MEDIUM)
+    node.configure_gate(gate_nd.f_reg, reg_open);
+endtask
+
+// 写 mux 的选择控制
+task {{ settings.class_prefix }}plugin_configuration::config_reg_mux_node({{ settings.class_prefix }}mux mux_nd);
+    config_reg_mux_node_reg(mux_nd, mux_nd._resolved_sel);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::config_reg_mux_node_reg(
+        {{ settings.class_prefix }}mux mux_nd,
+        int reg_sel);
+    bit sel_match;
+
+    if (!mux_nd.f_reg.is_bound())
+        return;
+    node.mux_sel_matches(
+        mux_nd.f_reg, reg_sel, sel_match);
+    if (sel_match) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: mux %s skip reg sel %0d",
+                mux_nd.get_name(), reg_sel), UVM_MEDIUM)
+        return;
+    end
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: mux %s sel %0d", mux_nd.get_name(), reg_sel), UVM_MEDIUM)
+    node.configure_mux(mux_nd.f_reg, reg_sel);
+endtask
+
+// 写 div 的复位、load 与分频比
+task {{ settings.class_prefix }}plugin_configuration::config_reg_div_node({{ settings.class_prefix }}div_div div_nd);
+    config_reg_div_node_reg(div_nd, div_nd._resolved_ratio);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::config_reg_div_node_reg(
+        {{ settings.class_prefix }}div_div div_nd,
+        int reg_ratio,
+        input bit reset_before_config);
+    bit ratio_match;
+    bit rst_released;
+    bit apply_reset;
+
+    if (!div_nd.f_load.is_bound() || !div_nd.f_div.is_bound()
+            || !div_nd.f_rst.is_bound())
+        return;
+    node.div_regs_match_ratio(
+        div_nd.f_rst, div_nd.f_div, reg_ratio, ratio_match);
+    // A shared ratio field may feed multiple dividers with independent load bits.
+    // Each owner must still receive its own load edge.
+    if (!reset_before_config && ratio_match
+            && (div_nd.f_div.alias_count == 1
+            || (div_nd.has_configured_ratio
+                && div_nd.last_configured_ratio == reg_ratio))) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: div %s skip reg ratio %0d",
+                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
+        return;
+    end
+    apply_reset = reset_before_config;
+{%- if plugin_value("div_div", "reset_on_config", false) %}
+    apply_reset = 1'b1;
+{%- endif %}
+    if (apply_reset) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: div %s ratio %0d reset pulse",
+                div_nd.get_name(), reg_ratio), UVM_MEDIUM)
+        node.configure_div(
+            div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
+    end else begin
+        node.div_rst_released(div_nd.f_rst, rst_released);
+        if (rst_released) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: div %s reg rst released, ratio %0d",
+                    div_nd.get_name(), reg_ratio), UVM_MEDIUM)
+            node.configure_div_ratio(
+                div_nd.f_load, div_nd.f_div, reg_ratio);
+        end else begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: div %s reg rst active, ratio %0d",
+                    div_nd.get_name(), reg_ratio), UVM_MEDIUM)
+            node.configure_div_direct(
+                div_nd.f_rst, div_nd.f_load, div_nd.f_div, reg_ratio);
+        end
+    end
+    div_nd.last_configured_ratio = reg_ratio;
+    div_nd.has_configured_ratio = 1'b1;
+endtask
+
+// 写 dto 的复位、bypass、load 与 step
+task {{ settings.class_prefix }}plugin_configuration::config_reg_dto_node({{ settings.class_prefix }}div_dto dto_nd);
+    config_reg_dto_node_reg(dto_nd, dto_nd._resolved_ratio);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::config_reg_dto_node_reg(
+        {{ settings.class_prefix }}div_dto dto_nd,
+        int reg_ratio);
+    bit rst_released;
+
+    if (!dto_nd.f_load.is_bound() || !dto_nd.f_bypass.is_bound()
+            || !dto_nd.f_step.is_bound() || !dto_nd.f_rst.is_bound())
+        return;
+{%- if plugin_value("div_dto", "reset_on_config", false) %}
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: dto %s ratio %0d reset pulse",
+            dto_nd.get_name(), reg_ratio), UVM_MEDIUM)
+    node.configure_dto(
+        dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, reg_ratio);
+{%- else %}
+    node.dto_rst_released(dto_nd.f_rst, rst_released);
+    if (rst_released) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: dto %s reg rst released, ratio %0d",
+                dto_nd.get_name(), reg_ratio), UVM_MEDIUM)
+        node.configure_dto_ratio(
+            dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, reg_ratio);
+    end else begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: dto %s reg rst active, ratio %0d",
+                dto_nd.get_name(), reg_ratio), UVM_MEDIUM)
+        node.configure_dto_direct(
+            dto_nd.f_rst, dto_nd.f_load, dto_nd.f_bypass, dto_nd.f_step, reg_ratio);
+    end
+{%- endif %}
+endtask
+
+// 按 SC PLL 目标频率写配置
+task {{ settings.class_prefix }}plugin_configuration::config_reg_pll_sc_node({{ settings.class_prefix }}pll_sc pll_sc_nd, output bit configured);
+    longint ref_hz;
+    bit active;
+    bit reg_match;
+
+    configured = 1'b0;
+    active = pll_sc_nd._resolved_active;
+    if (active && pll_sc_nd.source == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_sc %s has no source for ref frequency", pll_sc_nd.get_name()))
+    if (active && pll_sc_nd.frequence <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_sc %s frequence must be positive", pll_sc_nd.get_name()))
+    ref_hz = active ? pll_sc_nd.source._resolved_freq : 0;
+    if (active && ref_hz <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_sc %s source %s frequence must be positive",
+            pll_sc_nd.get_name(), pll_sc_nd.source.get_name()))
+    if (!pll_sc_nd.f_vocpd.is_bound() || !pll_sc_nd.f_postdivpd.is_bound()
+            || !pll_sc_nd.f_dsmpd.is_bound() || !pll_sc_nd.f_pd.is_bound()
+            || !pll_sc_nd.f_bypass.is_bound() || !pll_sc_nd.f_refdiv.is_bound()
+            || !pll_sc_nd.f_postdiv2.is_bound() || !pll_sc_nd.f_postdiv1.is_bound()
+            || !pll_sc_nd.f_fbdiv.is_bound())
+        return;
+    pll.sc_regs_match_target(
+        pll_sc_nd.f_vocpd, pll_sc_nd.f_postdivpd, pll_sc_nd.f_dsmpd, pll_sc_nd.f_pd,
+        pll_sc_nd.f_bypass, pll_sc_nd.f_refdiv, pll_sc_nd.f_postdiv2, pll_sc_nd.f_postdiv1,
+        pll_sc_nd.f_fbdiv, pll_sc_nd.frequence, ref_hz, active, reg_match);
+    if (reg_match) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_sc %s skip reg match out %0d Hz ref %0d Hz",
+                pll_sc_nd.get_name(), pll_sc_nd.frequence, ref_hz), UVM_MEDIUM)
+        return;
+    end
+    if (!active) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_sc %s active 0", pll_sc_nd.get_name()), UVM_MEDIUM)
+        pll.configure_sc_from_hz(
+            pll_sc_nd.f_vocpd, pll_sc_nd.f_postdivpd, pll_sc_nd.f_dsmpd, pll_sc_nd.f_pd,
+            pll_sc_nd.f_bypass, pll_sc_nd.f_refdiv, pll_sc_nd.f_postdiv2,
+            pll_sc_nd.f_postdiv1, pll_sc_nd.f_fbdiv, active, pll_sc_nd.frequence, ref_hz);
+        return;
+    end
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: pll_sc %s out %0d Hz ref %s %0d Hz",
+            pll_sc_nd.get_name(), pll_sc_nd.frequence, pll_sc_nd.source.get_name(), ref_hz),
+            UVM_MEDIUM)
+    pll.configure_sc_from_hz(
+        pll_sc_nd.f_vocpd, pll_sc_nd.f_postdivpd, pll_sc_nd.f_dsmpd, pll_sc_nd.f_pd,
+        pll_sc_nd.f_bypass, pll_sc_nd.f_refdiv, pll_sc_nd.f_postdiv2, pll_sc_nd.f_postdiv1,
+        pll_sc_nd.f_fbdiv, active, pll_sc_nd.frequence, ref_hz);
+    configured = active;
+endtask
+
+// 按 DW PLL 目标频率写配置
+task {{ settings.class_prefix }}plugin_configuration::config_reg_pll_dw_node({{ settings.class_prefix }}pll_dw pll_dw_nd, output bit configured);
+    longint ref_hz;
+    bit active;
+    bit reg_match;
+
+    configured = 1'b0;
+    active = pll_dw_nd._resolved_active;
+    if (active && pll_dw_nd.source == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_dw %s has no source for ref frequency", pll_dw_nd.get_name()))
+    if (active && pll_dw_nd.frequence <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_dw %s frequence must be positive", pll_dw_nd.get_name()))
+    ref_hz = active ? pll_dw_nd.source._resolved_freq : 0;
+    if (active && ref_hz <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_dw %s source %s frequence must be positive",
+            pll_dw_nd.get_name(), pll_dw_nd.source.get_name()))
+    if (!pll_dw_nd.f_fbdiv.is_bound() || !pll_dw_nd.f_prediv.is_bound()
+            || !pll_dw_nd.f_reset.is_bound() || !pll_dw_nd.f_pwron.is_bound()
+            || !pll_dw_nd.f_shift.is_bound() || !pll_dw_nd.f_bypass.is_bound()
+            || !pll_dw_nd.f_divvcor.is_bound() || !pll_dw_nd.f_r.is_bound()
+            || !pll_dw_nd.f_p.is_bound() || !pll_dw_nd.f_divvcop.is_bound()
+            || !pll_dw_nd.f_enr.is_bound() || !pll_dw_nd.f_enp.is_bound())
+        return;
+    pll.dw_regs_match_target(
+        pll_dw_nd.f_fbdiv, pll_dw_nd.f_prediv, pll_dw_nd.f_reset, pll_dw_nd.f_pwron,
+        pll_dw_nd.f_shift, pll_dw_nd.f_bypass, pll_dw_nd.f_divvcor, pll_dw_nd.f_r,
+        pll_dw_nd.f_p, pll_dw_nd.f_divvcop, pll_dw_nd.f_enr, pll_dw_nd.f_enp,
+        pll_dw_nd.frequence, ref_hz, active, reg_match);
+    if (reg_match) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_dw %s skip reg match out %0d Hz ref %0d Hz",
+                pll_dw_nd.get_name(), pll_dw_nd.frequence, ref_hz), UVM_MEDIUM)
+        return;
+    end
+    if (!active) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_dw %s active 0", pll_dw_nd.get_name()), UVM_MEDIUM)
+        pll.configure_dw_from_hz(
+            pll_dw_nd.f_fbdiv, pll_dw_nd.f_prediv, pll_dw_nd.f_reset, pll_dw_nd.f_pwron,
+            pll_dw_nd.f_shift, pll_dw_nd.f_bypass, pll_dw_nd.f_divvcor, pll_dw_nd.f_r,
+            pll_dw_nd.f_p, pll_dw_nd.f_divvcop, pll_dw_nd.f_enr, pll_dw_nd.f_enp,
+            active, pll_dw_nd.frequence, ref_hz);
+        return;
+    end
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: pll_dw %s out %0d Hz ref %s %0d Hz",
+            pll_dw_nd.get_name(), pll_dw_nd.frequence, pll_dw_nd.source.get_name(), ref_hz),
+            UVM_MEDIUM)
+    pll.configure_dw_from_hz(
+        pll_dw_nd.f_fbdiv, pll_dw_nd.f_prediv, pll_dw_nd.f_reset, pll_dw_nd.f_pwron,
+        pll_dw_nd.f_shift, pll_dw_nd.f_bypass, pll_dw_nd.f_divvcor, pll_dw_nd.f_r,
+        pll_dw_nd.f_p, pll_dw_nd.f_divvcop, pll_dw_nd.f_enr, pll_dw_nd.f_enp,
+        active, pll_dw_nd.frequence, ref_hz);
+    configured = active;
+endtask
+
+// 按 Inno PLL 目标频率写配置
+task {{ settings.class_prefix }}plugin_configuration::config_reg_pll_inno_node({{ settings.class_prefix }}pll_inno pll_inno_nd, output bit configured);
+    longint ref_hz;
+    bit write_shared;
+    bit active;
+    bit reg_match;
+
+    configured = 1'b0;
+    active = pll_inno_nd._resolved_active;
+    if (active && pll_inno_nd.source == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_inno %s has no source for ref frequency", pll_inno_nd.get_name()))
+    if (active && pll_inno_nd.frequence <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_inno %s frequence must be positive", pll_inno_nd.get_name()))
+    ref_hz = active ? pll_inno_nd.source._resolved_freq : 0;
+    if (active && ref_hz <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll_inno %s source %s frequence must be positive",
+            pll_inno_nd.get_name(), pll_inno_nd.source.get_name()))
+    if (!pll_inno_nd.f_pd.is_bound() || !pll_inno_nd.f_lock.is_bound()
+            || !pll_inno_nd.f_refdiv.is_bound() || !pll_inno_nd.f_fbdiv.is_bound()
+            || !pll_inno_nd.f_postdiv1.is_bound() || !pll_inno_nd.f_postdiv2.is_bound())
+        return;
+    write_shared = pll_inno_nd.group_id == "{{ plugin_value("pll_inno", "primary_group", "0") }}";
+    pll.inno_regs_match_target(
+        pll_inno_nd.f_pd, pll_inno_nd.f_refdiv, pll_inno_nd.f_fbdiv,
+        pll_inno_nd.f_postdiv1, pll_inno_nd.f_postdiv2,
+        pll_inno_nd.frequence, ref_hz, write_shared, active, reg_match);
+    if (reg_match) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_inno %s skip reg match out %0d Hz ref %0d Hz",
+                pll_inno_nd.get_name(), pll_inno_nd.frequence, ref_hz), UVM_MEDIUM)
+        return;
+    end
+    if (!active) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_inno %s active 0", pll_inno_nd.get_name()), UVM_MEDIUM)
+        pll.configure_inno_from_hz(
+            pll_inno_nd.f_pd, pll_inno_nd.f_refdiv, pll_inno_nd.f_fbdiv,
+            pll_inno_nd.f_postdiv1, pll_inno_nd.f_postdiv2,
+            active, pll_inno_nd.frequence, ref_hz, write_shared);
+        return;
+    end
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: pll_inno %s out %0d Hz ref %s %0d Hz group %0d",
+            pll_inno_nd.get_name(), pll_inno_nd.frequence, pll_inno_nd.source.get_name(),
+            ref_hz, pll_inno_nd.group_id), UVM_MEDIUM)
+    pll.configure_inno_from_hz(
+        pll_inno_nd.f_pd, pll_inno_nd.f_refdiv, pll_inno_nd.f_fbdiv,
+        pll_inno_nd.f_postdiv1, pll_inno_nd.f_postdiv2,
+        active, pll_inno_nd.frequence, ref_hz, write_shared);
+    configured = active;
+endtask
+
+// 按具体 PLL 类型分派配置流程
+task {{ settings.class_prefix }}plugin_configuration::config_reg_pll_node({{ settings.class_prefix }}pll_base pll_nd, output bit configured);
+    longint ref_hz;
+    int clkr;
+    int clkf;
+    int clkod;
+    int bwadj;
+    {{ settings.class_prefix }}pll_tci pll_tci_nd;
+    {{ settings.class_prefix }}pll_sc pll_sc_nd;
+    {{ settings.class_prefix }}pll_dw pll_dw_nd;
+    {{ settings.class_prefix }}pll_inno pll_inno_nd;
+
+    configured = 1'b0;
+    if (!pll_nd._resolved_active && pll_nd.enabled != 0) begin
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s skip not valid", pll_nd.get_name()), UVM_MEDIUM)
+        return;
+    end
+    if ($cast(pll_inno_nd, pll_nd)) begin
+        config_reg_pll_inno_node(pll_inno_nd, configured);
+        return;
+    end
+    if ($cast(pll_sc_nd, pll_nd)) begin
+        config_reg_pll_sc_node(pll_sc_nd, configured);
+        return;
+    end
+    if ($cast(pll_dw_nd, pll_nd)) begin
+        config_reg_pll_dw_node(pll_dw_nd, configured);
+        return;
+    end
+    if (pll_nd._resolved_active && pll_nd.source == null)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll %s has no source for ref frequency", pll_nd.get_name()))
+    if (pll_nd._resolved_active && pll_nd.frequence <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll %s frequence must be positive", pll_nd.get_name()))
+    ref_hz = pll_nd._resolved_active ? pll_nd.source._resolved_freq : 0;
+    if (pll_nd._resolved_active && ref_hz <= 0)
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll %s source %s frequence must be positive",
+            pll_nd.get_name(), pll_nd.source.get_name()))
+    if ($cast(pll_tci_nd, pll_nd)) begin
+        bit reg_match;
+        if (!pll_tci_nd.f_bypass.is_bound() || !pll_tci_nd.f_pwrdn.is_bound()
+                || !pll_tci_nd.f_reset.is_bound() || !pll_tci_nd.f_clkod.is_bound()
+                || !pll_tci_nd.f_clkf.is_bound() || !pll_tci_nd.f_clkr.is_bound()
+                || !pll_tci_nd.f_bwadj.is_bound())
+            return;
+        pll.tci_regs_match_target(
+            pll_tci_nd.f_bypass, pll_tci_nd.f_pwrdn, pll_tci_nd.f_reset, pll_tci_nd.f_clkod,
+            pll_tci_nd.f_clkf, pll_tci_nd.f_clkr, pll_tci_nd.f_bwadj,
+            pll_tci_nd.frequence, ref_hz, pll_nd._resolved_active, reg_match);
+        if (reg_match) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_tci %s skip reg match out %0d Hz ref %0d Hz",
+                    pll_tci_nd.get_name(), pll_tci_nd.frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
+        if (!pll_nd._resolved_active) begin
+            if (!quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: pll_tci %s active 0", pll_tci_nd.get_name()), UVM_MEDIUM)
+            pll.configure_tci(
+                pll_tci_nd.f_bypass, pll_tci_nd.f_pwrdn, pll_tci_nd.f_reset,
+                pll_tci_nd.f_clkod, pll_tci_nd.f_clkf, pll_tci_nd.f_clkr,
+                pll_tci_nd.f_bwadj, 1'b0, 1, 1, 1, 1);
+            return;
+        end
+        pll.tci_divisors(
+            pll_tci_nd.frequence, ref_hz, clkr, clkf, clkod, bwadj);
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_tci %s out %0d Hz ref %s %0d Hz clkr %0d clkf %0d clkod %0d bwadj %0d",
+                pll_tci_nd.get_name(), pll_tci_nd.frequence, pll_nd.source.get_name(), ref_hz,
+                clkr, clkf, clkod, bwadj), UVM_MEDIUM)
+        pll.configure_tci(
+            pll_tci_nd.f_bypass, pll_tci_nd.f_pwrdn, pll_tci_nd.f_reset, pll_tci_nd.f_clkod,
+            pll_tci_nd.f_clkf, pll_tci_nd.f_clkr, pll_tci_nd.f_bwadj,
+            pll_nd._resolved_active, clkr, clkf, clkod, bwadj);
+        configured = pll_nd._resolved_active;
+    end else
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll %s is not pll_tci, pll_sc, pll_dw, or pll_inno", pll_nd.get_name()))
+endtask
+
+// 等待单个 PLL 锁定
+task {{ settings.class_prefix }}plugin_configuration::wait_pll_lock_node({{ settings.class_prefix }}pll_base pll_nd);
+    {{ settings.class_prefix }}pll_tci pll_tci_nd;
+    {{ settings.class_prefix }}pll_sc pll_sc_nd;
+    {{ settings.class_prefix }}pll_dw pll_dw_nd;
+    {{ settings.class_prefix }}pll_inno pll_inno_nd;
+
+    if ($cast(pll_inno_nd, pll_nd)) begin
+        if (pll_inno_nd.group_id != "{{ plugin_value("pll_inno", "primary_group", "0") }}")
+            return;
+        if (!pll_inno_nd.f_lock.is_bound())
+            return;
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
+        pll.wait_lock(pll_inno_nd.f_lock, {{ plugin_value("pll", "lock_timeout_us", 100) }}us);
+    end else if ($cast(pll_tci_nd, pll_nd)) begin
+        if (!pll_tci_nd.f_lock.is_bound())
+            return;
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
+        pll.wait_lock(pll_tci_nd.f_lock, {{ plugin_value("pll", "lock_timeout_us", 100) }}us);
+    end else if ($cast(pll_sc_nd, pll_nd)) begin
+        if (!pll_sc_nd.f_lock.is_bound())
+            return;
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
+        pll.wait_lock(pll_sc_nd.f_lock, {{ plugin_value("pll", "lock_timeout_us", 100) }}us);
+    end else if ($cast(pll_dw_nd, pll_nd)) begin
+        if (!pll_dw_nd.f_lock.is_bound())
+            return;
+        if (!quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s wait lock", pll_nd.get_name()), UVM_MEDIUM)
+        pll.wait_lock(pll_dw_nd.f_lock, {{ plugin_value("pll", "lock_timeout_us", 100) }}us);
+    end else
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "config_reg: pll %s is not pll_tci, pll_sc, pll_dw, or pll_inno", pll_nd.get_name()))
+    pll_nd.locked = 1'b1;
+endtask
+
+// 写 inv 的反相/直通控制
+task {{ settings.class_prefix }}plugin_configuration::config_reg_inv_node(
+        {{ settings.class_prefix }}inv_base inv_nd);
+    config_reg_inv_node_reg(inv_nd, inv_nd.inverted);
+endtask
+
+task {{ settings.class_prefix }}plugin_configuration::config_reg_inv_node_reg(
+        {{ settings.class_prefix }}inv_base inv_nd,
+        bit reg_inverted);
+    if (!inv_nd.f_reg.is_bound())
+        return;
+    if (!quiet)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: inv %s inverted %0b", inv_nd.get_name(), reg_inverted),
+            UVM_MEDIUM)
+    node.configure_inv(inv_nd.f_reg, reg_inverted);
+endtask
+
+// 按节点优先级配置一个闭区间，保留输入队列的同优先级顺序。
+`endif

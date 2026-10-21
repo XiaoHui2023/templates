@@ -54,37 +54,27 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         return _resolved_open ? 400 : 600;
     endfunction
 
-    // 返回 gate 的统一配置阶段。
-    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
-        return _resolved_open ? {{ settings.class_prefix }}node_config_api::CONFIG_GATE_OPEN
-                              : {{ settings.class_prefix }}node_config_api::CONFIG_GATE_CLOSE;
-    endfunction
-
-    // gate 只有驱动有效时才写配置。
-    virtual function bit requires_downstream_clock();
+    // Skip only a branch which cannot reach an observable endpoint.
+    virtual function bit requires_observed_descendant();
         return 1'b1;
     endfunction
 
-    // 按开关阶段写入当前解析的 gate 状态。
-    virtual task configure_stage(
+    // Delegate register encoding to the plugin service.
+    virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input {{ settings.class_prefix }}node_config_api::stage_e stage,
             output bit configured);
-        configured = 1'b0;
-        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_GATE_OPEN && _resolved_open) begin
-            cfg.configure_gate(this, configured);
-        end else if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_GATE_CLOSE && !_resolved_open) begin
-            cfg.configure_gate(this, configured);
-        end
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
+        plugin_cfg = new(cfg.tools, cfg.quiet);
+        plugin_cfg.configure_gate(this, configured);
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated gate transition check.
-    virtual function bit has_transition_check();
+    virtual function bit has_functional_contract();
         return 1'b1;
     endfunction
 
     // Drives the input and checks both register-controlled gate states.
-    virtual task run_transition_check(
+    virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -94,6 +84,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         real freq_hz;
         bit passed;
         bit configured;
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -111,12 +102,13 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test gate %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
-        api.cfg.configure_transition_gate(this, 1'b1, configured);
+        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
+        plugin_cfg.configure_transition_gate(this, 1'b1, configured);
         api.measure_port_freq(out_vif, {get_name(), ".out open"},
             1_000_000_000, freq_hz, passed);
         if (!passed)
             failures++;
-        api.cfg.configure_transition_gate(this, 1'b0, configured);
+        plugin_cfg.configure_transition_gate(this, 1'b0, configured);
         #20ns;
         api.check_port_inactive(out_vif, {get_name(), ".out close"},
             1_000_000_000, passed);

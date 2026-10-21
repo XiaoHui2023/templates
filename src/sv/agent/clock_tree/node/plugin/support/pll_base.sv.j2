@@ -37,7 +37,7 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Keeps PLL timing under RTL control during transition checks.
-    virtual function bit uses_native_transition_input();
+    virtual function bit preserves_native_input();
         return 1'b1;
     endfunction
 `endif
@@ -47,29 +47,25 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
         return 100;
     endfunction
 
-    // 返回 PLL 配置阶段。
-    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
-        return {{ settings.class_prefix }}node_config_api::CONFIG_PLL;
-    endfunction
-
     // PLL 配置后需要等待 lock。
-    virtual function bit needs_configuration_wait();
+    virtual function bit waits_after_configuration();
         return 1'b1;
     endfunction
 
-    // 配置当前 PLL 并报告是否需要等待 lock。
-    virtual task configure_stage(
+    // Delegate PLL encoding to the plugin service.
+    virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input {{ settings.class_prefix }}node_config_api::stage_e stage,
             output bit configured);
-        configured = 1'b0;
-        if (stage == {{ settings.class_prefix }}node_config_api::CONFIG_PLL)
-            cfg.configure_pll(this, configured);
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
+        plugin_cfg = new(cfg.tools, cfg.quiet);
+        plugin_cfg.configure_pll(this, configured);
     endtask
 
     // 等待当前 PLL 的 lock 状态。
-    virtual task wait_for_lock(input {{ settings.class_prefix }}node_config_api cfg);
-        cfg.wait_for_pll_lock(this);
+    virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
+        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
+        plugin_cfg = new(cfg.tools, cfg.quiet);
+        plugin_cfg.wait_for_pll_lock(this);
     endtask
 endclass
 

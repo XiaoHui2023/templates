@@ -47,17 +47,18 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         kind = "clk";
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
-    // Selects this node when clock observations are enabled.
-    virtual function bit is_measure_selected(
-            input bit check_clk,
-            input bit check_cell);
-        return check_clk;
+    // Exposes this node as a generic measurement endpoint.
+    virtual function bit is_observable();
+        return vif != null;
     endfunction
 
-    // Returns the per-clock duty-cycle check selection.
-    virtual function bit check_measure_duty();
+    // Keeps the per-endpoint duty-cycle selection local to the plugin.
+    virtual function bit supports_duty_observation();
         return check_duty;
     endfunction
+
+    virtual function bit is_stability_anchor(); return stable; endfunction
+    virtual function void apply_low_power_preference(); low_power = 1'b1; endfunction
 `endif
 
 endclass

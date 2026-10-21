@@ -3,8 +3,8 @@
 
 class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
-        `uvm_field_int(_resolved_freq, UVM_DEFAULT|UVM_DEC|(_print_resolve?0:UVM_NOPRINT))
-        `uvm_field_int(_resolved_active, UVM_DEFAULT|(_print_resolve?0:UVM_NOPRINT))
+        `uvm_field_int(_resolved_freq, UVM_DEFAULT|UVM_DEC|(_print_resolve ? 0 : UVM_NOPRINT))
+        `uvm_field_int(_resolved_active, UVM_DEFAULT|(_print_resolve ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     string kind;
@@ -13,6 +13,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     bit _print_resolve;
     bit _print_fix;
     {{ settings.class_prefix }}node_base source;
+    {{ settings.class_prefix }}node_base sources[string];
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     virtual {{ settings.class_prefix }}interface vif;
     virtual {{ settings.class_prefix }}interface in_vif;
@@ -21,130 +22,98 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     virtual {{ settings.class_prefix }}interface out_vifs[string];
 `endif
 
-    constraint cst_node_base {
-        (_resolved_freq > 0) == _resolved_active;
-    }
+    constraint cst_node_base { (_resolved_freq > 0) == _resolved_active; }
+    constraint cst_resolve_active_from_src { source != null -> _resolved_active == source._resolved_active; }
+    constraint cst_resolve_freq_from_src { source != null -> _resolved_freq == source._resolved_freq; }
 
-    constraint cst_resolve_active_from_src {
-        source != null -> _resolved_active == source._resolved_active;
-    }
-
-    constraint cst_resolve_freq_from_src {
-        source != null -> _resolved_freq == source._resolved_freq;
-    }
-
-    // 初始化通用解析状态与打印选项。
     function new(string name = "");
         super.new(name);
         _print_resolve = 0;
         _print_fix = 0;
     endfunction
-`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
-    // 判断指定输入端是否已绑定。
-    function bit has_in_vif(string key = "");
+
+    // Binds one generic upstream edge. Empty key is the default input.
+    virtual function void set_source(input string key, input {{ settings.class_prefix }}node_base parent);
         if (key == "")
-            return in_vif != null;
-        return in_vifs.exists(key) && in_vifs[key] != null;
+            source = parent;
+        else
+            sources[key] = parent;
     endfunction
 
-    // 判断指定输出端是否已绑定。
-    function bit has_out_vif(string key = "");
+    virtual function {{ settings.class_prefix }}node_base get_source(string key = "");
         if (key == "")
-            return out_vif != null;
-        return out_vifs.exists(key) && out_vifs[key] != null;
+            return source;
+        if (sources.exists(key))
+            return sources[key];
+        return null;
     endfunction
 
-    // 返回指定输入端接口。
-    virtual function {{ settings.class_prefix }}interface get_in_vif(string key = "");
-        if (key == "")
-            return in_vif;
-        if (!in_vifs.exists(key))
-            return null;
-        return in_vifs[key];
-    endfunction
-
-    // 返回指定输出端接口。
-    virtual function {{ settings.class_prefix }}interface get_out_vif(string key = "");
-        if (key == "")
-            return out_vif;
-        if (!out_vifs.exists(key))
-            return null;
-        return out_vifs[key];
-    endfunction
-`endif
-    // 返回全树配置排序优先级；负值表示该节点不写寄存器。
-    virtual function int configuration_priority();
-        return -1;
-    endfunction
-
-    // 返回节点配置时要调用的专属阶段。
-    virtual function {{ settings.class_prefix }}node_config_api::stage_e configuration_stage();
-        return {{ settings.class_prefix }}node_config_api::CONFIG_NONE;
-    endfunction
-
-    // 指示配置前是否必须存在非 volatile 下游 clock。
-    virtual function bit requires_downstream_clock();
-        return 1'b0;
-    endfunction
-
-    // 指示本节点配置后是否需要等待自身完成。
-    virtual function bit needs_configuration_wait();
-        return 1'b0;
-    endfunction
-
-    // 收集所有直接上游节点。
-    virtual function void collect_source_nodes(
-            output {{ settings.class_prefix }}node_base source_nodes[$]);
+    virtual function void collect_source_nodes(output {{ settings.class_prefix }}node_base source_nodes[$]);
         source_nodes.delete();
         if (source != null)
             source_nodes.push_back(source);
+        foreach (sources[key])
+            if (sources[key] != null && sources[key] != source)
+                source_nodes.push_back(sources[key]);
     endfunction
 
-    // 返回由指定上游驱动的输入端键。
     virtual function void collect_input_keys_from_source(
             input {{ settings.class_prefix }}node_base parent,
             output string keys[$]);
         keys.delete();
         if (source == parent)
             keys.push_back("");
+        foreach (sources[key])
+            if (sources[key] == parent)
+                keys.push_back(key);
     endfunction
 
-    // 按配置阶段执行节点专属寄存器操作。
-    virtual task configure_stage(
-            input {{ settings.class_prefix }}node_config_api cfg,
-            input {{ settings.class_prefix }}node_config_api::stage_e stage,
-            output bit configured);
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    virtual function bit has_in_vif(string key = "");
+        return key == "" ? in_vif != null : in_vifs.exists(key) && in_vifs[key] != null;
+    endfunction
+    virtual function bit has_out_vif(string key = "");
+        return key == "" ? out_vif != null : out_vifs.exists(key) && out_vifs[key] != null;
+    endfunction
+    virtual function {{ settings.class_prefix }}interface get_in_vif(string key = "");
+        if (key == "")
+            return in_vif;
+        if (in_vifs.exists(key))
+            return in_vifs[key];
+        return null;
+    endfunction
+    virtual function {{ settings.class_prefix }}interface get_out_vif(string key = "");
+        if (key == "")
+            return out_vif;
+        if (out_vifs.exists(key))
+            return out_vifs[key];
+        return null;
+    endfunction
+`endif
+
+    // Configuration is a generic node capability. Plugins own its semantics.
+    virtual function int configuration_priority(); return -1; endfunction
+    virtual function bit requires_observed_descendant(); return 1'b0; endfunction
+    virtual function bit waits_after_configuration(); return 1'b0; endfunction
+    virtual task apply_configuration(input {{ settings.class_prefix }}node_config_api cfg, output bit configured);
         configured = 1'b0;
     endtask
+    virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg); endtask
+    virtual function void post_register_bind(); endfunction
+    virtual function void collect_control_regs(output {{ settings.class_prefix }}reg regs[$]);
+        regs.delete();
+    endfunction
 
-    // 等待节点专属配置完成条件。
-    virtual task wait_for_lock(input {{ settings.class_prefix }}node_config_api cfg);
-    endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
-    // Selects this node for the current measurement request.
-    virtual function bit is_measure_selected(
-            input bit check_clk,
-            input bit check_cell);
-        return 1'b0;
-    endfunction
+    // Observation describes a physical endpoint, independent of node identity.
+    virtual function bit is_observable(); return vif != null; endfunction
+    virtual function bit supports_duty_observation(); return 1'b0; endfunction
+    virtual function bit is_stability_anchor(); return 1'b0; endfunction
+    virtual function void apply_low_power_preference(); endfunction
 
-    // Selects whether this node permits duty-cycle observation.
-    virtual function bit check_measure_duty();
-        return 1'b0;
-    endfunction
-
-    // Identifies a source that must retain its RTL clock during transition tests.
-    virtual function bit uses_native_transition_input();
-        return 1'b0;
-    endfunction
-
-    // Declares whether the node provides an isolated state-transition check.
-    virtual function bit has_transition_check();
-        return 1'b0;
-    endfunction
-
-    // Runs this node's isolated state-transition check.
-    virtual task run_transition_check(
+    // A functional contract drives only this node's declared ports and controls.
+    virtual function bit has_functional_contract(); return 1'b0; endfunction
+    virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -153,6 +122,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         did_skip = 1'b0;
         failures = 0;
     endtask
+    virtual function bit preserves_native_input(); return 1'b0; endfunction
 `endif
 endclass
 

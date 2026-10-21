@@ -11,12 +11,12 @@ function automatic bit {{ settings.class_prefix }}inno_fbdiv_legal(int fbdiv);
 endfunction
 
 class {{ settings.class_prefix }}pll_cfg extends {{ settings.class_prefix }}base_object;
-    localparam int SC_FBDIV_MIN = {{ settings.pll_sc_fbdiv_min }};
-    localparam int SC_FBDIV_MAX = {{ settings.pll_sc_fbdiv_max }};
-    localparam longint SC_PFD_MIN_HZ = 64'd{{ settings.pll_sc_pfd_min_hz }};
-    localparam longint SC_VCO_MIN_HZ = 64'd{{ settings.pll_sc_vco_min_hz }};
-    localparam longint SC_VCO_MAX_HZ = 64'd{{ settings.pll_sc_vco_max_hz }};
-    localparam real SC_FREQ_TOLERANCE = {{ settings.pll_sc_freq_tolerance }};
+    localparam int SC_FBDIV_MIN = {{ plugin_value("pll_sc", "fbdiv_min", 16) }};
+    localparam int SC_FBDIV_MAX = {{ plugin_value("pll_sc", "fbdiv_max", 99) }};
+    localparam longint SC_PFD_MIN_HZ = 64'd{{ plugin_value("pll_sc", "pfd_min_hz", 12000000) }};
+    localparam longint SC_VCO_MIN_HZ = 64'd{{ plugin_value("pll_sc", "vco_min_hz", 800000000) }};
+    localparam longint SC_VCO_MAX_HZ = 64'd{{ plugin_value("pll_sc", "vco_max_hz", 1600000000) }};
+    localparam real SC_FREQ_TOLERANCE = {{ plugin_value("pll_sc", "freq_tolerance", 0.02) }};
     localparam int DW_FBDIV_MIN = 1;
     localparam int DW_FBDIV_MAX = 1023;
     {{ settings.class_prefix }}reg_rw rw;
