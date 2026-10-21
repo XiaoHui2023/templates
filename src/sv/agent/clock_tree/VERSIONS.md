@@ -10,7 +10,7 @@
 
 - 输入：保留 v1；JSON 也可将节点直接放在根对象，`settings` 为保留键。
 - 代码：`node/base/` 提供通用节点和配置 API，`node/plugin/` 提供节点类型。
-- 配置：节点以 hook 声明配置阶段、测量、flip、route 与 PLL lock 行为；`config_reg_core` 实现通用配置 API。
+- 配置：节点以 hook 声明配置优先级、配置动作与完成等待；`tree.configure` 统一调度，具体 sequence 自行选择测量、flip、route 的对象。
 - 轻量配置：`config.f` 只引入节点、寄存器配置和 `tree.configure` / `config_reg` 入口。
 
 ## v3 单一输入协议
@@ -24,3 +24,9 @@
 - 配置：`tree.configure` 是唯一实现入口；`config_reg(tree)` 与 kit 的 `config_reg` 只委托给它。
 - 低功耗：`tree.configure(.low_power(1))` 先改变时钟求解偏好，再走完整配置。
 - 边界：删除配置 operation；`config.f` 不加载 `top/`、`component/` 或 `sequence/`。
+
+## v5 显式插件注册
+
+- 输入：所有 `present` 节点都生成 SV 类型与实例；未知 `kind` 不由 Python 过滤。
+- 插件：`node/plugin/` 只放扩展类实现；`all.f` 与 `config.f` 显式列出要编译的插件，不扫描目录自动注册。
+- 诊断：缺少对应 SV 类或遗漏 filelist 条目时，由最终 SV 编译直接报错。

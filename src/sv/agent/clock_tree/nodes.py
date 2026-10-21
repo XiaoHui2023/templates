@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Annotated, Any, Callable, Dict, List, Literal, Optional, Union
 
 from pydantic import (
@@ -994,11 +993,11 @@ _known_node_adapter: TypeAdapter[KnownNode] = TypeAdapter(KnownNode)
 
 
 class GenericNode(NodeBase):
-    """Accepts an input node whose SV plugin is not known to Python.
+    """Accepts an input node whose SV class is not known to Python.
 
-    Generic nodes keep only the common graph contract in Python.  A same-named
-    ``node/plugin/<kind>.sv.j2`` template decides whether the node becomes an
-    SV instance; plugin-specific fields stay in Pydantic's allowed extras.
+    Generic nodes keep only the common graph contract in Python and always
+    render when present. Plugin-specific fields stay in Pydantic's allowed
+    extras; a missing SV class is intentionally a final compile-time error.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -1098,21 +1097,6 @@ class Tree(BaseModel):
             self._cache[key] = factory()
         return self._cache[key]
 
-    @property
-    def plugin_kinds(self) -> frozenset[str]:
-        """Returns plugin file stems that may provide an SV node class."""
-        return self._cached(
-            "plugin_kinds",
-            lambda: frozenset(
-                path.name.removesuffix(".sv.j2")
-                for path in (Path(__file__).parent / "node" / "plugin").glob("*.sv.j2")
-            ),
-        )
-
-    def node_has_sv_plugin(self, node: Node) -> bool:
-        """Returns whether a node has a generated SV class implementation."""
-        return not isinstance(node, GenericNode) or node.kind in self.plugin_kinds
-
     @model_validator(mode="before")
     @classmethod
     def _normalize_nodes_input(cls, data: Any) -> Any:
@@ -1193,19 +1177,17 @@ class Tree(BaseModel):
         )
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="能够生成 SV 实例的已存在节点；YAML 不可传入。",
+        description="所有 present 节点；YAML 不可传入。",
     )
     @property
     def sv_nodes_ordered(self) -> List[Node]:
         return self._cached(
             "sv_nodes_ordered",
-            lambda: [
-                node for node in self.nodes_ordered if self.node_has_sv_plugin(node)
-            ],
+            lambda: self.nodes_ordered,
         )
 
     @computed_field(  # type: ignore[prop-decorator]
-        description="能够生成 SV 实例的节点名集合；YAML 不可传入。",
+        description="生成 SV 实例的节点名集合；YAML 不可传入。",
     )
     @property
     def sv_node_names(self) -> List[str]:
@@ -1224,7 +1206,7 @@ class Tree(BaseModel):
     def _sv_slots(self) -> List[SvNodeSlot]:
         slots: List[SvNodeSlot] = []
         for key, node in self.nodes.items():
-            if not node.present or not self.node_has_sv_plugin(node):
+            if not node.present:
                 continue
             groups = node_output_groups(node)
             if not groups:

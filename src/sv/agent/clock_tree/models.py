@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 import re
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional
@@ -355,18 +354,6 @@ class Models(BaseModel):
         if key not in self._cache:
             self._cache[key] = factory()
         return self._cache[key]
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def plugin_sv_files(self) -> List[str]:
-        """Lists node plugin outputs in deterministic filelist order."""
-        return self._cached(
-            "plugin_sv_files",
-            lambda: sorted(
-                path.name.removesuffix(".j2")
-                for path in (Path(__file__).parent / "node" / "plugin").glob("*.sv.j2")
-            ),
-        )
 
     @computed_field  # type: ignore[prop-decorator]
     @property

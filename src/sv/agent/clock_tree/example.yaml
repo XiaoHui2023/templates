@@ -11,13 +11,13 @@ pad_xtal:
   freq: 24000000
   out_path: dut.pad_xtal_clk
 
-# Python 保留未知类型；未提供同名 SV 插件时不实例化、不进入 tree。
+# Python 对未知类型同样生成 SV 实例；没有对应类时由最终编译报错。
 future_node:
   kind: future_node
   source: xtal
   calibration: vendor_defined
 
-# 同名插件文件即可让通用节点进入 SV tree；插件自行定义其运行时行为。
+# 已注册的 source_pad 类型仍由其插件类提供运行时行为。
 pad_extension:
   kind: source_pad
 
