@@ -41,24 +41,15 @@ endclass
 
 task {{ settings.class_prefix }}kit_sequencer::config_reg(
         {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}config_reg_req req;
-    {{ settings.class_prefix }}config_reg_rsp seq_rsp;
-    {{ settings.class_prefix }}config_reg_seq seq;
+    {{ settings.class_prefix }}tree typed_tree;
 
     if (tree == null)
         tree = this.tree;
     if (tree == null)
         `uvm_fatal("CLK_TREE", "config_reg: tree is null")
-
-    req = {{ settings.class_prefix }}config_reg_req::type_id::create("req");
-    req.tree = tree;
-
-    seq = {{ settings.class_prefix }}config_reg_seq::type_id::create("config_reg");
-    seq.req = req;
-    seq.start(this);
-    seq_rsp = seq.rsp;
-    if (seq_rsp != null && !seq_rsp.ok)
-        `uvm_fatal("CLK_TREE", "config_reg: operation failed")
+    if (!$cast(typed_tree, tree))
+        `uvm_fatal("CLK_TREE", "config_reg: tree is not tree")
+    typed_tree.configure();
 endtask
 
 task {{ settings.class_prefix }}kit_sequencer::check_measure(

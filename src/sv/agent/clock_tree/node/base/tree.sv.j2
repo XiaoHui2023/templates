@@ -221,6 +221,10 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
     endfunction
     // Bind register fields, then randomize tree nodes.
     extern function void build({{ settings.class_regmodel }} regmodel = null);
+    // Resolve and write this tree. low_power first changes clock preferences.
+    extern task configure(
+        bit low_power = 1'b0,
+        bit quiet = 1'b0);
 endclass
 
 function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel }} regmodel);
@@ -258,4 +262,35 @@ function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel 
         `uvm_fatal("CLK_TREE", "build: tree randomize failed")
     built = 1'b1;
 endfunction
+
+task {{ settings.class_prefix }}tree::configure(
+        bit low_power,
+        bit quiet);
+    {{ settings.class_prefix }}core_tools tools;
+    {{ settings.class_prefix }}config_reg_core cfg;
+    {{ settings.class_prefix }}pll_base plls[$];
+
+    require_built("tree.configure");
+    if (low_power)
+        this.low_power();
+    if (!randomize())
+        `uvm_fatal("CLK_TREE", "tree.configure: tree randomize failed")
+
+    tools = new;
+    cfg = new(tools, quiet);
+    cfg.report_invalid_control_nodes(this);
+    cfg.config_pll_nodes(this, plls);
+    cfg.wait_pll_nodes(plls);
+    cfg.config_div_dto_nodes(this);
+    cfg.config_inv_nodes(this);
+    cfg.config_gate_nodes(this, 1'b1);
+    cfg.config_mux_nodes(this);
+    cfg.config_gate_nodes(this, 1'b0);
+endtask
+
+task automatic {{ settings.class_prefix }}config_reg(
+        {{ settings.class_prefix }}tree tree,
+        bit quiet = 1'b0);
+    tree.configure(.quiet(quiet));
+endtask
 `endif

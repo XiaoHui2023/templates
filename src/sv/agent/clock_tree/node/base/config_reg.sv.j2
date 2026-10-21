@@ -16,8 +16,6 @@ class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefi
         this.quiet = quiet;
     endfunction
 
-    // Run tree randomize and apply all register configuration.
-    extern task configure({{ settings.class_prefix }}tree_base tree, bit quiet = 1'b0);
     // Apply only gate and mux states needed by low-power tests.
     extern task configure_low_power(
         {{ settings.class_prefix }}tree_base tree,
@@ -716,30 +714,6 @@ task {{ settings.class_prefix }}config_reg_core::config_mux_nodes(
         if (tree.nodes[i] != null
                 && {{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i]))
             tree.nodes[i].configure_stage(this, {{ settings.class_prefix }}node_config_api::CONFIG_MUX, configured);
-endtask
-
-// 按树节点顺序配置寄存器并返回结果
-task {{ settings.class_prefix }}config_reg_core::configure(
-        {{ settings.class_prefix }}tree_base tree,
-        bit quiet);
-    {{ settings.class_prefix }}pll_base plls[$];
-
-    if (tree == null)
-        `uvm_fatal("CLK_TREE", "config_reg: tree is null")
-    tree.require_built("config_reg");
-    if (!tree.randomize())
-        `uvm_fatal("CLK_TREE", "config_reg: tree randomize failed")
-
-    this.quiet = quiet;
-
-    report_invalid_control_nodes(tree);
-    config_pll_nodes(tree, plls);
-    wait_pll_nodes(plls);
-    config_div_dto_nodes(tree);
-    config_inv_nodes(tree);
-    config_gate_nodes(tree, 1'b1);
-    config_mux_nodes(tree);
-    config_gate_nodes(tree, 1'b0);
 endtask
 
 // 只应用低功耗所需的 gate 与 mux，不等待实际时钟。

@@ -28,7 +28,7 @@ tree.build(path-to-your-regmodel);
 
 ```systemverilog
 // 尽可能关闭全部时钟
-tree.low_power();
+tree.configure(.low_power(1));
 ```
 
 ## 配置
@@ -54,7 +54,7 @@ tree.{{ first_pll_access }}.enabled = 0;
 {% endif -%}
 
 // 应用配置
-{{ settings.class_prefix }}config_reg(tree);
+tree.configure();
 ```
 
 {% if configurable_clks -%}
