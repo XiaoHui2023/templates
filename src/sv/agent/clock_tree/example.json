@@ -3,17 +3,16 @@
     "class_prefix": "clk_tree_",
     "class_regmodel": "regmodel_t",
     "direct_config": true,
-    "inv_reg_high_means_inverted": false
+    "plugin": {}
   },
   "osc": {
     "kind": "source",
-    "freq": 24000000
+    "config": {"frequence": 24000000}
   },
   "pll_tci": {
-    "kind": "pll",
+    "kind": "pll_tci",
     "source": "osc",
-    "pll_kind": "tci",
-    "freq": 48000000,
+    "config": {"frequence": 48000000},
     "regs": {
       "lock": "blk_pll_tci.lock",
       "bypass": "blk_pll_tci.bypass",
@@ -31,7 +30,8 @@
       "0": "osc",
       "1": "pll_tci"
     },
-    "reg": "blk_mux0.sel"
+    "reg": "blk_mux0.sel",
+    "config": {"max_sel": 1}
   },
   "gate0": {
     "kind": "gate",
@@ -39,7 +39,7 @@
     "reg": "blk_gate0.en"
   },
   "div0": {
-    "kind": "div",
+    "kind": "div_div",
     "source": "gate0",
     "regs": {
       "rst": "blk_div0.rst",

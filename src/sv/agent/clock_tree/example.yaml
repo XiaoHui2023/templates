@@ -1,13 +1,15 @@
 # Canonical plugin-first input. Each present kind maps directly to one SV plugin class.
 xtal:
   kind: source
-  frequence: 24000000
+  config:
+    frequence: 24000000
   out_path: dut.xtal_clk
 
 pll_sc0:
   kind: pll_sc
   source: xtal
-  frequence: 1188000000
+  config:
+    frequence: 1188000000
   in_path: dut.pll_sc_ref
   out_path: dut.pll_sc_clk
   regs:
@@ -25,7 +27,8 @@ pll_sc0:
 gate0:
   kind: gate
   source: pll_sc0
-  open: 1
+  config:
+    open: 1
   in_path: dut.gate0_i
   out_path: dut.gate0_o
   reg: blk_gate0.en
@@ -33,7 +36,8 @@ gate0:
 div0:
   kind: div_div
   source: gate0
-  ratio: 3
+  config:
+    ratio: 3
   in_path: dut.div0_i
   out_path: dut.div0_o
   regs:
@@ -44,8 +48,9 @@ div0:
 clk_cpu:
   kind: clk
   source: div0
-  frequence: 396000000
-  enabled: 1
+  config:
+    frequence: 396000000
+    enabled: 1
   path: dut.clk_cpu
 
 cell_cpu:
@@ -59,7 +64,8 @@ future_extension:
   kind: vendor_extension
   present: false
   source: xtal
-  calibration: 7
+  config:
+    calibration: 7
 
 settings:
   class_regmodel: regmodel_t

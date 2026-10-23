@@ -1,290 +1,104 @@
 # clock_tree
 
-![](images/data_tree_task.drawio.svg)
-
 ## 示例
 
-```json
-{
-  "settings": {
-    "class_prefix": "chip_clk_",
-    "class_regmodel": "chip_regmodel"
-  },
-  "osc": {"kind": "source", "freq": 24000000},
-  "gate_cpu": {
-    "kind": "gate",
-    "source": "osc",
-    "reg": "clk_ctrl.cpu_gate"
-  },
-  "clk_cpu": {
-    "kind": "clk",
-    "source": "gate_cpu",
-    "path": "dut.clk_cpu",
-    "freq": 24000000
-  }
-}
-```
+```yaml
+osc:
+  kind: source
+  config:
+    frequence: 24000000
 
+gate_cpu:
+  kind: gate
+  source: osc
+  reg: clk_ctrl.cpu_gate
+  config:
+    open: 1
+
+clk_cpu:
+  kind: clk
+  source: gate_cpu
+  path: dut.clk_cpu
+  config:
+    frequence: 24000000
+    enabled: 1
+
+settings:
+  class_regmodel: chip_regmodel
+```
 
 ## 数据结构
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `settings` | `Settings` | | 全局选项。 |
-| `<节点名>` | `Node` | | 节点定义，`settings` 以外的每个根键都是节点名。 |
+| `<节点名>` | `Node` | | 节点定义。 |
 
 ### Settings
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `class_prefix` | `str` | `clk_tree_` | 命名前缀。 |
+| `class_prefix` | `str` | `clk_tree_` | 类型名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `direct_config` | `bool` | `false` | 为真时额外生成轻量配置 filelist 和直接寄存器配置入口。 |
-| `min_freq_hz` | `int` | `15000` | 测量接口与 check_measure 默认最低频率，单位 Hz。 |
-| `max_freq_hz` | `int` | `5000000000` | **clk/cell** 节点 randomize 后允许的最高频率，单位 Hz。 |
-| `active_cycles` | `int` | `1` | 判定时钟有活动所需连续上升沿个数；超过一个最低频率周期仍无边沿则 inactive。 |
-| `stable_cycles` | `int` | `3` | 活动确认后频率或占空比各自连续稳定所需周期数；中途失稳则重新计数。 |
-| `period_tolerance` | `float` | `0.02` | 相邻周期相对偏差上限。 |
-| `div_freq_tolerance` | `float` | `0.01` | 分频器解析频率相对容差。 |
-| `duty_min` | `float` | `48` | 允许占空比下限，百分数；闭区间端点计入合格。 |
-| `duty_max` | `float` | `67` | 允许占空比上限，百分数；闭区间端点计入合格。 |
-| `duty_tolerance_pct` | `float` | `0.05` | 占空比允许范围在 **duty_min**、**duty_max** 之外的容差，百分数点；合格区间为 **[duty_min − duty_tolerance_pct, duty_max + duty_tolerance_pct]**。 |
-| `pll_lock_timeout_us` | `int` | `100` | PLL lock 等待上限，微秒。 |
-| `pll_sc_freq_tolerance` | `float` | `0.02` | PLL SC 输出频率相对目标频率的允许偏差。 |
-| `pll_sc_pfd_min_hz` | `int` | `12000000` | PLL SC 鉴相频率下限，单位 Hz。 |
-| `pll_sc_vco_min_hz` | `int` | `800000000` | PLL SC VCO 频率下限，单位 Hz。 |
-| `pll_sc_vco_max_hz` | `int` | `1600000000` | PLL SC VCO 频率上限，单位 Hz。 |
-| `pll_sc_fbdiv_min` | `int` | `16` | 允许 PLL SC FBDIV 下限。 |
-| `pll_sc_fbdiv_max` | `int` | `99` | 允许 PLL SC FBDIV 上限。 |
-| `gate_reg_high_means_open` | `bool` | `false` | 为真时门控寄存器位 1 表示打开；为假时 1 表示关闭。 |
-| `inv_reg_high_means_inverted` | `bool` | `true` | 为真时 inv 寄存器位 1 表示反相输出；为假时 1 表示直通。 |
-| `div_reg_high_means_reset` | `bool` | `false` | 为真时 div **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
-| `dto_reg_high_means_reset` | `bool` | `false` | 为真时 dto **rst** 位 1 表示复位、0 不复位；为假时 0 表示复位、1 不复位。 |
-| `should_reset_div` | `bool` | `false` | 为真时每次 **config_reg** 写 div 都先拉 **rst** 复位再释放；为假时首次只写 **rst** 不复位并写 **div** 与 **load**，此后仅更新 **div** 与 **load**。 |
-| `should_reset_dto` | `bool` | `false` | 为真时每次 **config_reg** 写 dto 都先拉 **rst** 复位再释放；为假时首次只写 **rst** 不复位并写 **step**、**load** 与 **bypass**，此后仅更新这三项。 |
-| `flip_div_settle_ns` | `int` | `200` | flip 写 div 分频值和 load 后、测量前的等待时间，单位 ns。 |
-| `flip_dto_settle_ns` | `int` | `200` | flip 写 dto 配置后、测量前的等待时间，单位 ns。 |
-| `flip_inv_config_settle_ns` | `int` | `100` | flip 写 inv 极性后、采样输出前的等待时间，单位 ns。 |
+| `direct_config` | `bool` | `false` | 生成轻量配置入口。 |
+| `min_freq_hz` | `int` | `15000` | 允许最低频率，单位 Hz。 |
+| `max_freq_hz` | `int` | `5000000000` | 允许最高频率，单位 Hz。 |
+| `active_cycles` | `int` | `1` | 活动判定周期数。 |
+| `stable_cycles` | `int` | `3` | 稳定判定周期数。 |
+| `period_tolerance` | `float` | `0.02` | 周期相对误差。 |
+| `duty_min` | `float` | `48.0` | 占空比下限。 |
+| `duty_max` | `float` | `67.0` | 占空比上限。 |
+| `duty_tolerance_pct` | `float` | `0.05` | 占空比容差。 |
+| `plugin` | `dict[str, dict]` | `{}` | 节点插件的全局选项。 |
 
-### 配置值写法
+`settings.plugin.<作用域>` 由注册插件校验；例如 `settings.plugin.pll_sc.fbdiv_max`。
+节点私有字段只写在 `config` 或 `output_config`，不再写到节点顶层。
 
-#### 寄存器模型路径
-
-寄存器路径按 `.` 分隔，可指定比特范围。
+### 前级引用
 
 | 写法 | 含义 |
 | --- | --- |
-| `blk.field` | 整个 field |
-| `blk.field[1]` | 仅 bit 1 |
-| `blk.field[3:0]` | 从 bit 0 起连续 4 位 |
+| `pll_cpu` | 单输出前级。 |
+| `pll_cpu[core]` | 多输出节点的 `core` 输出组。 |
+| `{ "0": "xtal", "1": "pll_cpu" }` | 按输入端口键指定多个前级。 |
 
-#### 前级引用
-
-写根对象中的节点名；多路输出加 `[输出名]`，方括号内为字符串，与 **output_groups** 或 **regs** 内 `postdiv1[名字]` 一致。
+### 寄存器模型路径
 
 | 写法 | 含义 |
 | --- | --- |
-| `osc` | 通常写法，单路输出前级 |
-| `pll0` | 单路输出前级 |
-| `pll0["0"]` 或 `pll0[0]` | 多路输出前级，输出名为 `0` |
+| `blk.field` | 整个字段。 |
+| `blk.field[1]` | 单个比特。 |
+| `blk.field[7:0]` | 连续位段。 |
 
-### 根节点
+### Node
 
-**settings** 以外的根键是节点名，节点值不可为 **null**；不支持 **nodes** 包装。
-
-所有节点都支持公共字段 **present**，默认 **true**。写 **present: false** 时，该节点不生成 SV 对象、不进入 tree；其它节点引用它作为 **source** 时不连接。
-
-### Node - source
+#### 公共字段
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `kind` | `str` | `source` | |
-| `source_kind` | `str` | `source` | 取 `source`、`pad`。 |
-| `freq` | `int` | | 典型频率，单位 Hz。 |
-| `out_path` | `str` | | 输出端 RTL path，可省略。 |
+| `kind` | `str` | | 节点插件名。 |
+| `present` | `bool` | `true` | 是否生成节点。 |
+| `source` | `str | dict[str, str]` | | 前级引用。 |
+| `outputs` | `list[str]` | `[]` | 输出组。 |
+| `path` | `str` | | 观测路径。 |
+| `in_path`、`out_path` | `str` | | 默认输入、输出路径。 |
+| `in_paths`、`out_paths` | `dict[str, str]` | `{}` | 具名端口路径。 |
+| `reg` | `str` | | 默认寄存器模型路径。 |
+| `regs` | `dict[str, str]` | `{}` | 具名寄存器模型路径。 |
+| `output_regs` | `dict[str, dict[str, str]]` | `{}` | 按输出组覆盖的寄存器路径。 |
+| `config` | `dict` | `{}` | 节点插件配置。 |
+| `output_config` | `dict[str, dict]` | `{}` | 按输出组覆盖的插件配置。 |
 
-**source_kind** 为 `pad` 时字段与上表相同，仅型号不同。
+#### 插件配置
 
-### Node - pll
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `pll` | |
-| `freq` | `int` | | 典型频率，单位 Hz。 |
-| `source` | `str` | | 参考时钟前级引用；省略或空表示无前级。 |
-| `pll_kind` | `str` | | 取 `tci`、`sc`、`dw`、`inno`。`inno` 固定两路输出。 |
-| `in_path` | `str` | | 参考输入端 RTL path，可省略。 |
-| `out_path` | `str` | | 单输出 PLL 输出端 RTL path，可省略。 |
-| `out_paths` | `dict[str, str]` | | 多输出 PLL 输出端 RTL path，可省略。 |
-
-#### tci
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `regs.lock` | `str` | | PLL lock 状态位。 |
-| `regs.bypass` | `str` | | bypass 开关。 |
-| `regs.pwrdn` | `str` | | 掉电控制。 |
-| `regs.reset` | `str` | | 复位控制。 |
-| `regs.clkod` | `str` | | 输出分频系数。 |
-| `regs.clkf` | `str` | | 反馈倍频系数。 |
-| `regs.clkr` | `str` | | 参考分频系数。 |
-| `regs.bwadj` | `str` | | 环路带宽调节。 |
-
-#### sc
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `regs.lock` | `str` | | PLL lock 状态位。 |
-| `regs.vocpd` | `str` | | VCO 掉电。 |
-| `regs.postdivpd` | `str` | | 后级分频掉电。 |
-| `regs.dsmpd` | `str` | | ΔΣ 调制掉电。 |
-| `regs.pd` | `str` | | 掉电控制。 |
-| `regs.bypass` | `str` | | bypass 开关。 |
-| `regs.refdiv` | `str` | | 参考分频系数。 |
-| `regs.postdiv2` | `str` | | 后级分频 2 系数。 |
-| `regs.postdiv1` | `str` | | 后级分频 1 系数。 |
-| `regs.fbdiv` | `str` | | 反馈分频系数。 |
-
-#### dw
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `regs.lock` | `str` | | PLL lock 状态位。 |
-| `regs.fbdiv` | `str` | | 反馈分频系数。 |
-| `regs.prediv` | `str` | | 前级分频系数。 |
-| `regs.reset` | `str` | | 复位控制。 |
-| `regs.pwron` | `str` | | 上电控制。 |
-| `regs.shift` | `str` | | 频点偏移。 |
-| `regs.bypass` | `str` | | bypass 开关。 |
-| `regs.divvcor` | `str` | | VCO 分频系数。 |
-| `regs.r` | `str` | | R 分频系数。 |
-| `regs.p` | `str` | | P 分频系数。 |
-| `regs.divvcop` | `str` | | VCO 后级分频系数。 |
-| `regs.enr` | `str` | | R 通道使能。 |
-| `regs.enp` | `str` | | P 通道使能。 |
-
-#### inno
-
-固定两路输出，组内共用 **lock**、**pd**、**refdiv**、**fbdiv**，每路各有 **postdiv1**、**postdiv2**。
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `regs.lock` | `str` | | PLL lock 状态位。 |
-| `regs.pd` | `str` | | 掉电控制。 |
-| `regs.refdiv` | `str` | | 参考分频系数。 |
-| `regs.fbdiv` | `str` | | 反馈分频系数。 |
-| `regs.postdiv1[0]` | `str` | | 第 0 路后级分频 1 系数。 |
-| `regs.postdiv2[0]` | `str` | | 第 0 路后级分频 2 系数。 |
-| `regs.postdiv1[1]` | `str` | | 第 1 路后级分频 1 系数。 |
-| `regs.postdiv2[1]` | `str` | | 第 1 路后级分频 2 系数。 |
-
-### Node - clk
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `clk` | |
-| `path` | `str` | | RTL 层次路径，按 `.` 分隔；**present** 为真时必填。 |
-| `freq` | `int` | | 典型频率，单位 Hz；省略则不指定频率；正数指定打开时的目标频率，`active: false` 时可保留该目标值但不约束当前解析频率；负值仅放宽输出频率随机范围。 |
-| `active` | `bool` | `true` | 期望运行态是否有时钟；为假时仍生成 SV 对象并检查 inactive。 |
-| `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `stable` | `bool` | `false` | 锚定时钟：低功耗下不关断。为真时应给出正整数 **freq**，tree 锁定 **frequence** 与 **enabled**。 |
-| `check_duty` | `bool` | `true` | 为真时 `check_measure` 检查占空比；为假时只检查频率。 |
-
-### Node - gate
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `gate` | |
-| `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `open` | `int` | | 门控开关；0 关闭、1 打开；省略则参与随机化。 |
-| `reg` | `str` | `""` | 门控寄存器模型路径。 |
-| `in_path` | `str` | | 输入端 RTL path，可省略。 |
-| `out_path` | `str` | | 输出端 RTL path，可省略。 |
-
-### Node - cell
-
-直通单元，未指定时输出频率与活动状态与前级相同；各 **cell_kind** 共用同一仿真类。`check_measure` 只检查频率。
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `cell` | |
-| `path` | `str` | | RTL 层次路径，按 `.` 分隔；**present** 为真时必填。 |
-| `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
-| `freq` | `int` | | 典型频率，单位 Hz；省略则不指定频率。 |
-| `active` | `bool` | | 期望运行态是否有时钟；省略则不指定活动状态；为 `false` 时表示关闭。 |
-| `source` | `str` | | 前级引用；省略或空表示无前级。 |
-
-### Node - div
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `div` | |
-| `div_kind` | `str` | `div` | 可填 `div`。 |
-| `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `ratio` | `int` | | 固定分频比。 |
-| `in_path` | `str` | | 输入端 RTL path，可省略。 |
-| `out_path` | `str` | | 输出端 RTL path，可省略。 |
-| `regs.rst` | `str` | | 复位位。 |
-| `regs.load` | `str` | | 加载位。 |
-| `regs.div` | `str` | | 分频系数。 |
-
-### Node - div_r
-
-固定分频，无寄存器；配置 **ratio** 后仿真分频比恒为该值。
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `div_r` | 等价于 `kind: div` 且 `div_kind: div_r`。 |
-| `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `ratio` | `int` | | 固定分频比，大于 0。 |
-| `in_path` | `str` | | 输入端 RTL path，可省略。 |
-| `out_path` | `str` | | 输出端 RTL path，可省略。 |
-
-### Node - dto
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `dto` | |
-| `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `in_path` | `str` | | 输入端 RTL path，可省略。 |
-| `out_path` | `str` | | 输出端 RTL path，可省略。 |
-| `regs.rst` | `str` | | 复位位。 |
-| `regs.load` | `str` | | 加载位。 |
-| `regs.bypass` | `str` | | bypass 位。 |
-| `regs.step` | `str` | | 步进控制。 |
-
-### Node - inv
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `inv` | |
-| `inv_kind` | `str` | `inv` | 取 `inv`、`inv_mux`、`inv_cell`；`inv_cell` 与 `inv` 仿真行为相同。 |
-| `source` | `str` | | 前级引用；省略或空表示无前级。 |
-| `reg` | `str` | `""` | 反相/直通控制寄存器模型路径。 |
-| `in_path` | `str` | | 输入端 RTL path，可省略。 |
-| `out_path` | `str` | | 输出端 RTL path，可省略。 |
-
-### Node - mux
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | `mux` | |
-| `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
-| `reg` | `str` | `""` | 选择寄存器模型路径。 |
-| `in_paths` | `dict[str, str]` | | 输入端 RTL path，键对应 **source**，可省略。 |
-| `out_path` | `str` | | 输出端 RTL path，可省略。 |
-
-## Path 宏
-
-生成的 `top/path_macros.sv` 会为每个 RTL path 定义默认宏。用户可在编译 `top/path_macros.sv` 前提前定义同名宏覆盖路径。
-
-编译前定义 `<CLASS_PREFIX_UPPER>DISABLE_<NODE>` 可关闭节点的全部 RTL 接口。例如 `` `define CLK_TREE_DISABLE_CLK_CPU`` 会省略 `clk_cpu` 的路径宏、interface 实例和 `connect` 绑定；节点模型与时钟树约束保持不变。彻底移除节点使用 Python 输入 `present: false`。
-
-| 端口 | 宏名示例 |
+| `kind` | `config` 字段 |
 | --- | --- |
-| source 输出 | `CLK_TREE_PATH_XTAL_OUT` |
-| pll 输入 | `CLK_TREE_PATH_PLL0_IN` |
-| pll 输出 | `CLK_TREE_PATH_PLL0_OUT` |
-| inno pll 第 0 路输出 | `CLK_TREE_PATH_PLL_INNO_0_OUT` |
-| mux 第 1 路输入 | `CLK_TREE_PATH_MUX0_IN_1` |
-| clk / cell | `CLK_TREE_PATH_CLK_CPU_IN` |
+| `source`、`source_pad` | `frequence` |
+| `pll_sc`、`pll_dw`、`pll_inno`、`pll_tci` | `frequence`、`enabled`；`pll_inno` 还支持 `group_id` |
+| `clk` | `frequence`、`enabled`、`low_power`、`stable`、`check_duty`、`unfix_frequence`、`unfix_enabled` |
+| `cell` | `cell_kind`、`frequence`、`enabled` |
+| `gate` | `open`、`unfix_open`、`fix_open`、`fix_close` |
+| `mux` | `max_sel`、`sel`、`unfix_sel` |
+| `div_div` | `ratio`、`unfix_ratio` |
+| `div_div_r`、`div_dto` | `ratio`、`unfix_ratio` |
+| `inv`、`inv_cell`、`inv_mux` | `inverted`、`fix_inverted` |

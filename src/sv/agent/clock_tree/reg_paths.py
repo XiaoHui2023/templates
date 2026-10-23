@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
-    from nodes import Tree
+    from node.python.base import Tree
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _REG_BIT_SUFFIX = re.compile(r"\[(?P<body>[^\]]+)\]$")

@@ -6,7 +6,8 @@ from typing import Any, Callable, Dict, List
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, computed_field, field_validator, model_validator
 
-from nodes import Node, Tree, validate_nodes_graph
+from node.python.base import Node, Tree, validate_nodes_graph
+from node.python.registry import parse_plugin_settings
 from reg_paths import RegBindingRow, analyze_reg_bindings, any_reg_configured
 from schema_error import ERR
 
@@ -34,6 +35,17 @@ class Settings(BaseModel):
     duty_max: float = Field(67.0, ge=0.0, le=100.0)
     duty_tolerance_pct: float = Field(0.05, ge=0.0, le=10.0)
     plugin: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+
+    @field_validator("plugin")
+    @classmethod
+    def _plugin_settings_are_valid(cls, value: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        return {
+            scope: settings.model_dump(exclude_unset=True, exclude_none=True)
+            for scope, settings in (
+                (scope, parse_plugin_settings(scope, fields))
+                for scope, fields in value.items()
+            )
+        }
 
     @field_validator("class_prefix")
     @classmethod

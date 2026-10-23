@@ -2,56 +2,80 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, computed_field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationInfo, computed_field, field_validator, model_validator
 
 from schema_error import ERR
+
+from .config import NodePluginConfig
+from .registry import parse_plugin_config
 
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 _PORT_KEY = re.compile(r"^[A-Za-z0-9_]+$")
 _ENDPOINT = re.compile(r"^(?P<name>[A-Za-z_][A-Za-z0-9_$]*)(?:\[(?P<output>[^\]]+)\])?$")
 
 
-def _require_sv_id(value: str, *, field: str) -> str:
+def require_sv_id(value: str, *, field: str) -> str:
+    """验证一个 SystemVerilog 标识符。
+
+    Args:
+        value: 用户提供的名称
+        field: 报错中显示的配置字段
+
+    Returns:
+        str: 原始名称
+
+    Raises:
+        ValueError: 名称不是合法标识符
+    """
     if not _SV_ID.match(value):
         raise ValueError(f"{ERR.field(field)} {value!r} 须为合法 SystemVerilog 名字")
     return value
 
 
-def _require_port_key(value: str, *, field: str) -> str:
-    """Validate a rendered port key without imposing an SV identifier shape.
+def require_port_key(value: str, *, field: str) -> str:
+    """验证端口键。
 
-    Numeric keys are valid labels for indexed ports. They are rendered only
-    into strings and generated macro suffixes.
+    Args:
+        value: 端口键
+        field: 报错中显示的配置字段
+
+    Returns:
+        str: 原始端口键
+
+    Raises:
+        ValueError: 端口键为空或包含不支持的字符
     """
     if not _PORT_KEY.match(value):
         raise ValueError(f"{ERR.field(field)} {value!r} 须为非空字母数字端口键")
     return value
 
 
-def _validate_dot_path(value: str, *, field: str) -> str:
+def validate_dot_path(value: str, *, field: str) -> str:
+    """验证层次 SystemVerilog 路径。
+
+    Args:
+        value: 点分层次路径
+        field: 报错中显示的配置字段
+
+    Returns:
+        str: 原始路径
+
+    Raises:
+        ValueError: 路径为空或含非法层级名
+    """
     if not value:
         raise ValueError(f"{ERR.field(field)} 不得为空")
     for part in value.split("."):
-        _require_sv_id(part, field=field)
+        require_sv_id(part, field=field)
     return value
-
-
-def _sv_literal(value: Any) -> str:
-    if isinstance(value, bool):
-        return "1'b1" if value else "1'b0"
-    if isinstance(value, int):
-        return str(value)
-    if isinstance(value, float):
-        return repr(value)
-    if isinstance(value, str):
-        return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-    raise ValueError(f"属性值 {value!r} 须为 bool、int、float 或 str")
 
 
 @dataclass(frozen=True)
 class SourceRef:
+    """一个解析后的上游引用。"""
+
     name: str
     output: str = ""
     input_key: str = ""
@@ -59,6 +83,8 @@ class SourceRef:
 
 @dataclass(frozen=True)
 class SvNodeSlot:
+    """一个展开后的 SV 节点实例。"""
+
     node_key: str
     output: str
     access: str
@@ -66,6 +92,8 @@ class SvNodeSlot:
 
 @dataclass(frozen=True)
 class SvPortSlot:
+    """一个需要生成 interface 绑定的端口。"""
+
     node_key: str
     output: str
     access: str
@@ -82,14 +110,14 @@ SourceValue = Optional[Union[str, Dict[str, str]]]
 
 
 class Node(BaseModel):
-    """Plugin-neutral graph, port, property and register declaration."""
+    """插件无关的图、端口与寄存器声明。"""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    kind: str = Field(..., min_length=1, description="SV 插件类名")
+    kind: str = Field(..., min_length=1, description="对应的 SystemVerilog 节点插件名")
     present: bool = Field(default=True, description="是否生成该节点实例")
     source: SourceValue = Field(default=None, description="默认或具名上游节点引用")
-    outputs: List[str] = Field(default_factory=list, description="需要展开为数组实例的输出组")
+    outputs: List[str] = Field(default_factory=list, description="展开为数组实例的输出组")
     path: Optional[str] = Field(default=None, description="无功能端点的观测路径")
     in_path: Optional[str] = Field(default=None, description="默认输入端口路径")
     out_path: Optional[str] = Field(default=None, description="默认输出端口路径")
@@ -98,22 +126,24 @@ class Node(BaseModel):
     reg: Optional[str] = Field(default=None, description="默认寄存器字段路径")
     regs: Dict[str, str] = Field(default_factory=dict, description="具名寄存器字段路径")
     output_regs: Dict[str, Dict[str, str]] = Field(default_factory=dict, description="按输出组覆盖的寄存器字段")
-    properties: Dict[str, Any] = Field(default_factory=dict, description="写入全部实例的插件属性")
-    output_properties: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="写入指定输出实例的插件属性")
+    config: Dict[str, object] = Field(default_factory=dict, description="由节点插件定义的显式配置")
+    output_config: Dict[str, Dict[str, object]] = Field(default_factory=dict, description="按输出组覆盖的插件配置")
 
     _name: str = PrivateAttr(default="")
+    _plugin_config: NodePluginConfig = PrivateAttr()
+    _output_plugin_configs: Dict[str, NodePluginConfig] = PrivateAttr(default_factory=dict)
 
     @field_validator("kind")
     @classmethod
     def _kind_is_sv_type(cls, value: str) -> str:
-        return _require_sv_id(value, field="kind")
+        return require_sv_id(value, field="kind")
 
     @field_validator("outputs")
     @classmethod
     def _outputs_are_unique_ids(cls, value: List[str]) -> List[str]:
         seen: set[str] = set()
         for item in value:
-            _require_sv_id(item, field="outputs")
+            require_sv_id(item, field="outputs")
             if item in seen:
                 raise ValueError(f"{ERR.field('outputs')} 含重复输出 {item!r}")
             seen.add(item)
@@ -121,15 +151,15 @@ class Node(BaseModel):
 
     @field_validator("path", "in_path", "out_path")
     @classmethod
-    def _path_is_dot_path(cls, value: Optional[str], info: Any) -> Optional[str]:
-        return None if value is None else _validate_dot_path(value, field=info.field_name)
+    def _path_is_dot_path(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
+        return None if value is None else validate_dot_path(value, field=info.field_name)
 
     @field_validator("in_paths", "out_paths")
     @classmethod
-    def _path_map_is_valid(cls, value: Dict[str, str], info: Any) -> Dict[str, str]:
+    def _path_map_is_valid(cls, value: Dict[str, str], info: ValidationInfo) -> Dict[str, str]:
         for key, path in value.items():
-            _require_port_key(str(key), field=info.field_name)
-            _validate_dot_path(path, field=info.field_name)
+            require_port_key(str(key), field=info.field_name)
+            validate_dot_path(path, field=info.field_name)
         return {str(key): path for key, path in value.items()}
 
     @field_validator("source")
@@ -140,50 +170,46 @@ class Node(BaseModel):
         items = value.items() if isinstance(value, dict) else [("", value)]
         for key, endpoint in items:
             if key:
-                _require_port_key(str(key), field="source")
+                require_port_key(str(key), field="source")
             if not isinstance(endpoint, str) or not _ENDPOINT.match(endpoint.strip()):
                 raise ValueError(f"{ERR.field('source')} 前级引用 {endpoint!r} 须为器件名或器件名[输出名]")
         return value
 
     @model_validator(mode="after")
-    def _normalize_properties(self) -> "Node":
-        core = set(type(self).model_fields)
-        extras = self.__pydantic_extra__ or {}
-        merged = dict(self.properties)
-        for key, value in extras.items():
-            if key not in core:
-                _require_sv_id(key, field="properties")
-                if key in merged:
-                    raise ValueError(f"{ERR.field('properties')} 与顶层属性重复: {key!r}")
-                merged[key] = value
-        for key, value in merged.items():
-            _require_sv_id(key, field="properties")
-            _sv_literal(value)
-        for output, values in self.output_properties.items():
-            _require_sv_id(output, field="output_properties")
-            for key, value in values.items():
-                _require_sv_id(key, field="output_properties")
-                _sv_literal(value)
+    def _parse_plugin_configs(self) -> "Node":
+        unknown_outputs = set(self.output_config) | set(self.output_regs)
+        unknown_outputs.difference_update(self.outputs)
+        if unknown_outputs:
+            raise ValueError(f"输出组不存在: {sorted(unknown_outputs)!r}")
+        self._plugin_config = parse_plugin_config(self.kind, self.config)
+        self._output_plugin_configs = {
+            output: parse_plugin_config(self.kind, values)
+            for output, values in self.output_config.items()
+        }
         return self
 
     @computed_field
     @property
     def name(self) -> str:
+        """返回由父级节点字典键绑定的名称。"""
         return self._name
 
     @computed_field
     @property
     def output_groups(self) -> List[str]:
+        """返回输出组名称。"""
         return list(self.outputs)
 
     @computed_field
     @property
     def sv_is_array(self) -> bool:
+        """返回是否展开为关联数组节点。"""
         return bool(self.output_groups)
 
     @computed_field
     @property
     def sources(self) -> List[SourceRef]:
+        """将输入 source 归一为上游引用列表。"""
         if self.source is None:
             return []
         entries = self.source.items() if isinstance(self.source, dict) else [("", self.source)]
@@ -194,36 +220,36 @@ class Node(BaseModel):
             result.append(SourceRef(match.group("name"), match.group("output") or "", str(key)))
         return result
 
-    @computed_field
-    @property
-    def common_assignments(self) -> List[tuple[str, str]]:
-        values = dict(self.properties)
-        for key, value in (self.__pydantic_extra__ or {}).items():
-            if key not in type(self).model_fields:
-                values.setdefault(key, value)
-        return [(key, _sv_literal(value)) for key, value in sorted(values.items())]
-
     def assignments_for_output(self, output: str) -> List[tuple[str, str]]:
-        """Return literal assignments for one generated node instance.
+        """合并节点公共配置与输出组覆盖配置。
 
         Args:
-            output: Optional output group for an array-backed node.
+            output: 输出组名称；非数组节点传空字符串
 
         Returns:
-            Common assignments followed by output-local assignments.
+            list[tuple[str, str]]: 按成员名排序的 SystemVerilog 赋值
         """
-        values = list(self.common_assignments)
-        values.extend((key, _sv_literal(value)) for key, value in sorted(self.output_properties.get(output, {}).items()))
-        return values
+        values = dict(self._plugin_config.sv_assignments())
+        if output in self._output_plugin_configs:
+            values.update(self._output_plugin_configs[output].sv_assignments())
+        return sorted(values.items())
 
     @computed_field
     @property
     def sv_assignments_by_output(self) -> Dict[str, List[tuple[str, str]]]:
-        """Expose rendered assignments without requiring Jinja method calls."""
+        """为每个展开实例提供已整理的成员赋值。"""
         outputs = self.output_groups or [""]
         return {output: self.assignments_for_output(output) for output in outputs}
 
     def regs_for_output(self, output: str) -> Dict[str, str]:
+        """返回一个输出实例使用的寄存器字段。
+
+        Args:
+            output: 输出组名称；非数组节点传空字符串
+
+        Returns:
+            Dict[str, str]: 按输出组覆盖后的寄存器字段
+        """
         values = dict(self.regs)
         if self.reg:
             values.setdefault("reg", self.reg)
@@ -233,6 +259,7 @@ class Node(BaseModel):
     @computed_field
     @property
     def port_paths(self) -> List[tuple[str, str, str]]:
+        """返回所有声明了 RTL 路径的端口。"""
         ports: List[tuple[str, str, str]] = []
         if self.path:
             ports.append(("tap", "default", self.path))
@@ -246,6 +273,8 @@ class Node(BaseModel):
 
 
 class Tree(BaseModel):
+    """按输入顺序管理节点图与可复用的 SV 展开数据。"""
+
     model_config = ConfigDict(extra="forbid")
 
     nodes: Dict[str, Node] = Field(description="按输入顺序保存的通用节点声明")
@@ -253,24 +282,26 @@ class Tree(BaseModel):
     @model_validator(mode="after")
     def _name_nodes(self) -> "Tree":
         for name, node in self.nodes.items():
-            _require_sv_id(name, field="nodes")
+            require_sv_id(name, field="nodes")
             node._name = name
         return self
 
     @computed_field
     @property
     def nodes_ordered(self) -> List[Node]:
+        """返回需要生成的节点，顺序与输入一致。"""
         return [node for node in self.nodes.values() if node.present]
 
     @computed_field
     @property
     def sv_nodes_ordered(self) -> List[Node]:
-        """Return the present nodes in source declaration order for templates."""
+        """返回模板使用的已生成节点序列。"""
         return self.nodes_ordered
 
     @computed_field
     @property
     def sv_slots(self) -> List[SvNodeSlot]:
+        """展开所有节点实例访问表达式。"""
         slots: List[SvNodeSlot] = []
         for node in self.nodes_ordered:
             if node.output_groups:
@@ -282,11 +313,13 @@ class Tree(BaseModel):
     @computed_field
     @property
     def sv_node_names(self) -> set[str]:
+        """返回会出现在 SV tree 中的节点名。"""
         return {node.name for node in self.nodes_ordered}
 
     @computed_field
     @property
     def connectable_slots(self) -> List[SvPortSlot]:
+        """展开所有需要 RTL interface 的端口。"""
         slots: List[SvPortSlot] = []
         for node in self.nodes_ordered:
             for output in node.output_groups or [""]:
@@ -300,6 +333,14 @@ class Tree(BaseModel):
 
 
 def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
+    """验证已生成节点之间的 source 引用。
+
+    Args:
+        nodes: 根输入中解析出的节点映射
+
+    Raises:
+        ValueError: source 指向不存在、未生成或不存在的输出组
+    """
     tree = Tree(nodes=nodes)
     present = tree.sv_node_names
     for node in tree.nodes_ordered:

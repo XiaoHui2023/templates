@@ -1,12 +1,13 @@
 osc:
   kind: source
-  freq: 24000000
+  config:
+    frequence: 24000000
 
 pll_tci:
-  kind: pll
+  kind: pll_tci
   source: osc
-  pll_kind: tci
-  freq: 48000000
+  config:
+    frequence: 48000000
   regs:
     lock: blk_pll_tci.lock
     bypass: blk_pll_tci.bypass
@@ -22,6 +23,8 @@ mux0:
   source:
     "0": osc
     "1": pll_tci
+  config:
+    max_sel: 1
   reg: blk_mux0.sel
 
 gate0:
@@ -30,8 +33,7 @@ gate0:
   reg: blk_gate0.en
 
 div0:
-  kind: div
-  div_kind: div
+  kind: div_div
   source: gate0
   regs:
     rst: blk_div0.rst
@@ -47,4 +49,6 @@ settings:
   class_prefix: clk_tree_
   class_regmodel: regmodel_t
   direct_config: true
-  inv_reg_high_means_inverted: false
+  plugin:
+    inverter:
+      reg_high_means_inverted: false
