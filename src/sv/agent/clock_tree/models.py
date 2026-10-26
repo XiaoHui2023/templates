@@ -15,11 +15,7 @@ _SV_TYPE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 
 class Settings(BaseModel):
-    """Core settings plus opaque plugin-owned settings.
-
-    The core intentionally does not inspect plugin values.  A plugin reads only
-    its own entry from ``plugin`` while rendering its independent file.
-    """
+    """全局设置与插件命名空间。"""
 
     model_config = ConfigDict(extra="forbid")
 

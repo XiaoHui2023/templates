@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "pll_inno") | upper }}
 `define {{ (settings.class_prefix ~ "pll_inno") | upper }}
 
-class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll_base;
+class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}frequency_synth_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}pll_inno)
         `uvm_field_string(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
     `uvm_object_utils_end
@@ -24,7 +24,7 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll
         f_refdiv = new();
         f_postdiv2 = new();
         f_fbdiv = new();
-        pll_kind = PLL_INNO;
+        kind = "pll_inno";
         group_id = "";
         _print_group_id = 1;
     endfunction
@@ -34,7 +34,7 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
-        {{ settings.class_prefix }}pll_cfg encoder;
+        {{ settings.class_prefix }}frequency_encoder encoder;
         longint ref_hz;
         bit active;
         bit write_shared;

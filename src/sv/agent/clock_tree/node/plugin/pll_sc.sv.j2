@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "pll_sc") | upper }}
 `define {{ (settings.class_prefix ~ "pll_sc") | upper }}
 
-class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}pll_base;
+class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}frequency_synth_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_sc)
     {{ settings.class_prefix }}reg f_lock;
     {{ settings.class_prefix }}reg f_vocpd;
@@ -26,7 +26,7 @@ class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}pll_b
         f_postdiv2 = new();
         f_postdiv1 = new();
         f_fbdiv = new();
-        pll_kind = PLL_SC;
+        kind = "pll_sc";
     endfunction
 
     virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
@@ -34,7 +34,7 @@ class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}pll_b
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
-        {{ settings.class_prefix }}pll_cfg encoder;
+        {{ settings.class_prefix }}frequency_encoder encoder;
         longint ref_hz;
         bit active;
         bit reg_match;
@@ -55,7 +55,14 @@ class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}pll_b
                 || !f_pd.is_bound() || !f_bypass.is_bound() || !f_refdiv.is_bound()
                 || !f_postdiv2.is_bound() || !f_postdiv1.is_bound() || !f_fbdiv.is_bound())
             return;
-        encoder = new(cfg.tools.rw);
+        encoder = new(
+            cfg.tools.rw,
+            {{ plugin_value("pll_sc", "fbdiv_min", 16) }},
+            {{ plugin_value("pll_sc", "fbdiv_max", 99) }},
+            64'd{{ plugin_value("pll_sc", "pfd_min_hz", 12000000) }},
+            64'd{{ plugin_value("pll_sc", "vco_min_hz", 800000000) }},
+            64'd{{ plugin_value("pll_sc", "vco_max_hz", 1600000000) }},
+            {{ plugin_value("pll_sc", "freq_tolerance", 0.02) }});
         encoder.sc_regs_match_target(f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
             f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv, frequence, ref_hz, active, reg_match);
         if (reg_match) begin

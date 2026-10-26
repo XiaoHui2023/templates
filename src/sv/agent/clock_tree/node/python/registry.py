@@ -24,7 +24,6 @@ from .plugins._families import DividerSettings, InverterSettings, PllSettings
 PluginConfigType: TypeAlias = type[NodePluginConfig]
 PluginSettingsType: TypeAlias = type[NodePluginSettings]
 
-# Explicit imports make the supported Python configuration surface auditable.
 PLUGIN_CONFIGS: dict[str, PluginConfigType] = {
     "cell": CellConfig,
     "clk": ClkConfig,
@@ -44,7 +43,6 @@ PLUGIN_CONFIGS: dict[str, PluginConfigType] = {
     "source_pad": SourcePadConfig,
 }
 
-# Global namespaces are owned by the leaf plugin or its shared plugin family.
 PLUGIN_SETTINGS: dict[str, PluginSettingsType] = {
     "divider": DividerSettings,
     "div_div": DivDivSettings,

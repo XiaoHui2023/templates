@@ -1,15 +1,14 @@
-`ifndef {{ (settings.class_prefix ~ "pll_base") | upper }}
-`define {{ (settings.class_prefix ~ "pll_base") | upper }}
+`ifndef {{ (settings.class_prefix ~ "frequency_synth_base") | upper }}
+`define {{ (settings.class_prefix ~ "frequency_synth_base") | upper }}
 
-class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}node_base;
-    `uvm_object_utils_begin({{ settings.class_prefix }}pll_base)
+class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}frequency_synth_base)
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(enabled, UVM_ALL_ON | (enabled >= 0 ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     longint frequence;
     int enabled;
-    pll_kind_e pll_kind;
     bit locked;
 
     constraint cst_pll {
@@ -28,33 +27,33 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
     constraint cst_resolve_active_from_src {
     }
 
-    // 初始化 PLL 的非强制活动状态。
+    // Starts with activity determined by graph constraints.
     function new(string name = "");
         super.new(name);
         frequence = 0;
         enabled = -1;
-        kind = "pll";
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
-    // Keeps PLL timing under RTL control during transition checks.
+    // Retains native timing during transition checks.
     virtual function bit preserves_native_input();
         return 1'b1;
     endfunction
 `endif
 
-    // PLL 最先配置，供下游节点使用稳定输出。
+    // Configures before downstream nodes.
     virtual function int configuration_priority();
         return 100;
     endfunction
 
-    // PLL 配置后需要等待 lock；具体插件提供自己的 lock 字段。
+    // Waits for a plugin-provided lock field.
     virtual function bit waits_after_configuration();
         return 1'b1;
     endfunction
 
+    // Returns the optional lock field.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return null; endfunction
 
-    // 等待插件声明的 lock 字段，不分派具体 PLL 类型。
+    // Polls the declared lock field within the configured timeout.
     virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
         {{ settings.class_prefix }}reg field_h;
         time elapsed;
@@ -64,7 +63,7 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
             return;
         if (!cfg.quiet)
             `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: pll %s wait lock", get_name()), UVM_MEDIUM)
+                "config_reg: %s wait lock", get_name()), UVM_MEDIUM)
         elapsed = 0;
         while (elapsed < {{ plugin_value("pll", "lock_timeout_us", 100) }}us) begin
             cfg.read_reg(field_h, lock_value);

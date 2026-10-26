@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "div_dto") | upper }}
 `define {{ (settings.class_prefix ~ "div_dto") | upper }}
 
-class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_base;
+class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}ratio_base;
     `uvm_object_utils({{ settings.class_prefix }}div_dto)
     {{ settings.class_prefix }}reg f_rst;
     {{ settings.class_prefix }}reg f_load;
@@ -15,6 +15,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}div_
 
     function new(string name = "");
         super.new(name);
+        kind = "div_dto";
         f_rst = new();
         f_load = new();
         f_bypass = new();

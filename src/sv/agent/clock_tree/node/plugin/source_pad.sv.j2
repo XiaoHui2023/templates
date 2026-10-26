@@ -1,12 +1,12 @@
 `ifndef {{ (settings.class_prefix ~ "source_pad") | upper }}
 `define {{ (settings.class_prefix ~ "source_pad") | upper }}
 
-class {{ settings.class_prefix }}source_pad extends {{ settings.class_prefix }}source_base;
+class {{ settings.class_prefix }}source_pad extends {{ settings.class_prefix }}origin_base;
     `uvm_object_utils({{ settings.class_prefix }}source_pad)
 
     function new(string name = "");
         super.new(name);
-        source_kind = PAD;
+        kind = "source_pad";
     endfunction
 endclass
 

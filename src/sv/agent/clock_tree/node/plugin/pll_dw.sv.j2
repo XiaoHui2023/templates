@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "pll_dw") | upper }}
 `define {{ (settings.class_prefix ~ "pll_dw") | upper }}
 
-class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}pll_base;
+class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}frequency_synth_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_dw)
     {{ settings.class_prefix }}reg f_lock;
     {{ settings.class_prefix }}reg f_fbdiv;
@@ -32,7 +32,7 @@ class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}pll_b
         f_divvcop = new();
         f_enr = new();
         f_enp = new();
-        pll_kind = PLL_DW;
+        kind = "pll_dw";
     endfunction
 
     virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
@@ -40,7 +40,7 @@ class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}pll_b
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
-        {{ settings.class_prefix }}pll_cfg encoder;
+        {{ settings.class_prefix }}frequency_encoder encoder;
         longint ref_hz;
         bit active;
         bit reg_match;

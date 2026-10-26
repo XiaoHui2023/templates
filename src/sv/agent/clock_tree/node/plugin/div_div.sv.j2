@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "div_div") | upper }}
 `define {{ (settings.class_prefix ~ "div_div") | upper }}
 
-class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_base;
+class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}ratio_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}div_div)
         `uvm_field_int(max_ratio, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
@@ -20,6 +20,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
 
     function new(string name = "");
         super.new(name);
+        kind = "div_div";
         max_ratio = 64;
         last_configured_ratio = 0;
         has_configured_ratio = 1'b0;

@@ -1,12 +1,12 @@
 `ifndef {{ (settings.class_prefix ~ "inv") | upper }}
 `define {{ (settings.class_prefix ~ "inv") | upper }}
 
-class {{ settings.class_prefix }}inv extends {{ settings.class_prefix }}inv_base;
+class {{ settings.class_prefix }}inv extends {{ settings.class_prefix }}polarity_base;
     `uvm_object_utils({{ settings.class_prefix }}inv)
 
     function new(string name = "");
         super.new(name);
-        inv_kind = INV;
+        kind = "inv";
     endfunction
 endclass
 

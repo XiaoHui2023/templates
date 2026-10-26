@@ -1,7 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "pll_tci") | upper }}
 `define {{ (settings.class_prefix ~ "pll_tci") | upper }}
 
-class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}pll_base;
+class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}frequency_synth_base;
     `uvm_object_utils({{ settings.class_prefix }}pll_tci)
     {{ settings.class_prefix }}reg f_lock;
     {{ settings.class_prefix }}reg f_bypass;
@@ -22,7 +22,7 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}pll_
         f_clkf = new();
         f_clkr = new();
         f_bwadj = new();
-        pll_kind = PLL_TCI;
+        kind = "pll_tci";
     endfunction
 
     virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
@@ -30,7 +30,7 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}pll_
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
-        {{ settings.class_prefix }}pll_cfg encoder;
+        {{ settings.class_prefix }}frequency_encoder encoder;
         longint ref_hz;
         bit active;
         bit reg_match;

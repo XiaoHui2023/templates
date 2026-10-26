@@ -18,7 +18,7 @@ function automatic void {{ settings.class_prefix }}append_unique_node(
 endfunction
 
 function automatic void {{ settings.class_prefix }}tree_upstream_peers(
-        {{ settings.class_prefix }}node_base nd,
+        input {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base peers[$]);
     peers.delete();
     if (nd != null)
@@ -26,8 +26,8 @@ function automatic void {{ settings.class_prefix }}tree_upstream_peers(
 endfunction
 
 function automatic void {{ settings.class_prefix }}tree_downstream_peers(
-        {{ settings.class_prefix }}tree_base tree,
-        {{ settings.class_prefix }}node_base nd,
+        input {{ settings.class_prefix }}tree_base tree,
+        input {{ settings.class_prefix }}node_base nd,
         output {{ settings.class_prefix }}node_base peers[$]);
     string keys[$];
     peers.delete();

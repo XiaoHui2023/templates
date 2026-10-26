@@ -1,17 +1,16 @@
-`ifndef {{ (settings.class_prefix ~ "div_base") | upper }}
-`define {{ (settings.class_prefix ~ "div_base") | upper }}
+`ifndef {{ (settings.class_prefix ~ "ratio_base") | upper }}
+`define {{ (settings.class_prefix ~ "ratio_base") | upper }}
 {%- set div_freq_tol_num, div_freq_tol_den = plugin_fraction("divider", "freq_tolerance", 0.01) %}
 {%- set div_freq_tol_lo = div_freq_tol_den - div_freq_tol_num %}
 {%- set div_freq_tol_hi = div_freq_tol_den + div_freq_tol_num %}
 
-class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}node_base;
-    `uvm_object_utils_begin({{ settings.class_prefix }}div_base)
+class {{ settings.class_prefix }}ratio_base extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}ratio_base)
         `uvm_field_int(_resolved_ratio, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ratio, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(unfix_ratio, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
     `uvm_object_utils_end
 
-    div_kind_e div_kind;
     rand int _resolved_ratio;
     int ratio;
     bit unfix_ratio;
@@ -27,20 +26,19 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
         }
     }
 
-    // 初始化自由分频比。
+    // Starts with an unconstrained ratio.
     function new(string name = "");
         super.new(name);
         ratio = -1;
         unfix_ratio = 1'b1;
-        kind = "div";
     endfunction
 
-    // div/dto 在 PLL lock 后、反相器前配置。
+    // Configures after frequency synthesis.
     virtual function int configuration_priority();
         return 200;
     endfunction
 
-    // Skip only a branch which cannot reach an observable endpoint.
+    // Skips branches without an observable descendant.
     virtual function bit requires_observed_descendant();
         return 1'b1;
     endfunction

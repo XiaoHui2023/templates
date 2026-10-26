@@ -1,13 +1,12 @@
-`ifndef {{ (settings.class_prefix ~ "inv_base") | upper }}
-`define {{ (settings.class_prefix ~ "inv_base") | upper }}
+`ifndef {{ (settings.class_prefix ~ "polarity_base") | upper }}
+`define {{ (settings.class_prefix ~ "polarity_base") | upper }}
 
-class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}node_base;
-    `uvm_object_utils_begin({{ settings.class_prefix }}inv_base)
+class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils_begin({{ settings.class_prefix }}polarity_base)
         `uvm_field_int(inverted, UVM_ALL_ON)
         `uvm_field_int(fix_inverted, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
     `uvm_object_utils_end
 
-    inv_kind_e inv_kind;
     rand bit inverted;
     bit fix_inverted;
     {{ settings.class_prefix }}reg f_reg;
@@ -24,16 +23,15 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         fix_inverted -> inverted;
     }
 
-    // 初始化反相状态。
+    // Starts in the inverted state.
     function new(string name = "");
         super.new(name);
         inverted = 1'b1;
         fix_inverted = 0;
         f_reg = new();
-        kind = "inv";
     endfunction
 
-    // inv 在分频器之后、mux 之前配置。
+    // Configures after ratio transforms and before selection.
     virtual function int configuration_priority();
         return 300;
     endfunction
@@ -46,7 +44,7 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
             return;
         if (!cfg.quiet)
             `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: inv %s inverted %0b", get_name(), inverted), UVM_MEDIUM)
+                "config_reg: %s inverted %0b", get_name(), inverted), UVM_MEDIUM)
 {%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
         cfg.write_reg(f_reg, inverted);
 {%- else %}
@@ -78,12 +76,12 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
                 || !f_reg.is_bound()) begin
             did_skip = 1'b1;
             `uvm_info("CLK_TREE", $sformatf(
-                "test_flip: skip inv %s, missing interface or reg",
+                "test_flip: skip %s, missing interface or reg",
                 get_name()), UVM_LOW)
             return;
         end
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: test inv %s", get_name()), UVM_LOW)
+            "test_flip: test %s", get_name()), UVM_LOW)
 {%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
         api.cfg.write_reg(f_reg, 1'b0);
 {%- else %}
@@ -95,14 +93,14 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         if (out_vif.in !== 1'b0) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: inv %s direct input 0 output %0b", get_name(), out_vif.in))
+                "test_flip: %s direct input 0 output %0b", get_name(), out_vif.in))
         end
         in_vif.drive_static(1'b1);
         #1ns;
         if (out_vif.in !== 1'b1) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: inv %s direct input 1 output %0b", get_name(), out_vif.in))
+                "test_flip: %s direct input 1 output %0b", get_name(), out_vif.in))
         end
 {%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
         api.cfg.write_reg(f_reg, 1'b1);
@@ -115,14 +113,14 @@ class {{ settings.class_prefix }}inv_base extends {{ settings.class_prefix }}nod
         if (out_vif.in !== 1'b1) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: inv %s inverted input 0 output %0b", get_name(), out_vif.in))
+                "test_flip: %s inverted input 0 output %0b", get_name(), out_vif.in))
         end
         in_vif.drive_static(1'b1);
         #1ns;
         if (out_vif.in !== 1'b0) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: inv %s inverted input 1 output %0b", get_name(), out_vif.in))
+                "test_flip: %s inverted input 1 output %0b", get_name(), out_vif.in))
         end
         in_vif.release_drive();
         did_check = 1'b1;

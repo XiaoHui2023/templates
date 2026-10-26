@@ -48,9 +48,9 @@ class {{ settings.class_prefix }}reg_rw extends {{ settings.class_prefix }}base_
     // 若尚未总线读则先 read
     extern task ensure_read({{ settings.class_prefix }}reg rb);
     // 前门读整寄存器
-    extern task read_reg(uvm_reg r, output int rdata);
+    extern task read_reg(input uvm_reg r, output int rdata);
     // 前门读父寄存器并解析 field 切片
-    extern task read({{ settings.class_prefix }}reg rb, output int value);
+    extern task read(input {{ settings.class_prefix }}reg rb, output int value);
     // 将 field 镜像写回总线
     extern task write_reg(uvm_reg r);
     // ensure_read 后写父寄存器
@@ -104,7 +104,7 @@ function void {{ settings.class_prefix }}reg_rw::set({{ settings.class_prefix }}
             "set: %s set 0x%0h failed", rb.field.get_full_name(), value))
 endfunction
 
-task {{ settings.class_prefix }}reg_rw::read_reg(uvm_reg r, output int rdata);
+task {{ settings.class_prefix }}reg_rw::read_reg(input uvm_reg r, output int rdata);
     uvm_status_e status;
     if (r == null)
         `uvm_fatal("CLK_TREE", "read_reg: reg is null")
@@ -120,7 +120,7 @@ task {{ settings.class_prefix }}reg_rw::ensure_read({{ settings.class_prefix }}r
         read(rb, dummy);
 endtask
 
-task {{ settings.class_prefix }}reg_rw::read({{ settings.class_prefix }}reg rb, output int value);
+task {{ settings.class_prefix }}reg_rw::read(input {{ settings.class_prefix }}reg rb, output int value);
     uvm_reg r;
     int reg_rdata;
     if (rb.field == null)
