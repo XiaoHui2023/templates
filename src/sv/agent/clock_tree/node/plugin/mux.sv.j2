@@ -84,13 +84,24 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         return 1'b1;
     endfunction
 
-    // Delegate register encoding to the plugin service.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
-        plugin_cfg = new(cfg.tools, cfg.quiet);
-        plugin_cfg.configure_mux(this, configured);
+        int current_sel;
+        configured = f_reg.is_bound();
+        if (!configured)
+            return;
+        cfg.read_reg(f_reg, current_sel);
+        if (current_sel == _resolved_sel) begin
+            if (!cfg.quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: mux %s skip reg sel %0d", get_name(), _resolved_sel), UVM_MEDIUM)
+            return;
+        end
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: mux %s sel %0d", get_name(), _resolved_sel), UVM_MEDIUM)
+        cfg.write_reg(f_reg, _resolved_sel);
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated mux selection transition check.
@@ -113,7 +124,6 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         int stim_freq_hz;
         bit passed;
         bit configured;
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -151,9 +161,8 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
                 stim_freq_hz = int'(real'(stim_freq_hz) * (20.0 / 21.0));
             end
         end
-        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
         foreach (to_source[k]) begin
-            plugin_cfg.configure_transition_mux(this, k, configured);
+            api.cfg.write_reg(f_reg, k);
             #70ns;
             api.measure_port_freq(out_vif, {get_name(), ".out"},
                 int'(expected_freq_hz[k]), out_freq_hz, passed);

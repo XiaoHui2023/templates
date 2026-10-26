@@ -59,13 +59,20 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         return 1'b1;
     endfunction
 
-    // Delegate register encoding to the plugin service.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
-        plugin_cfg = new(cfg.tools, cfg.quiet);
-        plugin_cfg.configure_gate(this, configured);
+        configured = f_reg.is_bound();
+        if (!configured)
+            return;
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: gate %s open %0b", get_name(), _resolved_open), UVM_MEDIUM)
+{%- if plugin_value("gate", "reg_high_means_open", false) %}
+        cfg.write_reg(f_reg, _resolved_open);
+{%- else %}
+        cfg.write_reg(f_reg, !_resolved_open);
+{%- endif %}
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated gate transition check.
@@ -84,7 +91,6 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         real freq_hz;
         bit passed;
         bit configured;
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -102,13 +108,21 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test gate %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
-        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
-        plugin_cfg.configure_transition_gate(this, 1'b1, configured);
+        configured = 1'b1;
+{%- if plugin_value("gate", "reg_high_means_open", false) %}
+        api.cfg.write_reg(f_reg, 1'b1);
+{%- else %}
+        api.cfg.write_reg(f_reg, 1'b0);
+{%- endif %}
         api.measure_port_freq(out_vif, {get_name(), ".out open"},
             1_000_000_000, freq_hz, passed);
         if (!passed)
             failures++;
-        plugin_cfg.configure_transition_gate(this, 1'b0, configured);
+{%- if plugin_value("gate", "reg_high_means_open", false) %}
+        api.cfg.write_reg(f_reg, 1'b0);
+{%- else %}
+        api.cfg.write_reg(f_reg, 1'b1);
+{%- endif %}
         #20ns;
         api.check_port_inactive(out_vif, {get_name(), ".out close"},
             1_000_000_000, passed);

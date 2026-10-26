@@ -24,6 +24,51 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}pll_
         f_bwadj = new();
         pll_kind = PLL_TCI;
     endfunction
+
+    virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
+
+    virtual task apply_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            output bit configured);
+        {{ settings.class_prefix }}pll_cfg encoder;
+        longint ref_hz;
+        bit active;
+        bit reg_match;
+        int clkr;
+        int clkf;
+        int clkod;
+        int bwadj;
+        configured = 1'b0;
+        active = _resolved_active;
+        if (active && source == null)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_tci %s has no source for ref frequency", get_name()))
+        if (active && frequence <= 0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_tci %s frequence must be positive", get_name()))
+        ref_hz = active ? source._resolved_freq : 0;
+        if (active && ref_hz <= 0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_tci %s source %s frequence must be positive", get_name(), source.get_name()))
+        if (!f_bypass.is_bound() || !f_pwrdn.is_bound() || !f_reset.is_bound() || !f_clkod.is_bound()
+                || !f_clkf.is_bound() || !f_clkr.is_bound() || !f_bwadj.is_bound())
+            return;
+        encoder = new(cfg.tools.rw);
+        encoder.tci_regs_match_target(f_bypass, f_pwrdn, f_reset, f_clkod, f_clkf, f_clkr,
+            f_bwadj, frequence, ref_hz, active, reg_match);
+        if (reg_match) begin
+            if (!cfg.quiet)
+                `uvm_info("CLK_TREE", $sformatf("config_reg: pll_tci %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
+        if (active)
+            encoder.tci_divisors(frequence, ref_hz, clkr, clkf, clkod, bwadj);
+        else begin
+            clkr = 1; clkf = 1; clkod = 1; bwadj = 1;
+        end
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_tci %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_MEDIUM)
+        encoder.configure_tci(f_bypass, f_pwrdn, f_reset, f_clkod, f_clkf, f_clkr, f_bwadj,
+            active, clkr, clkf, clkod, bwadj);
+        configured = active;
+    endtask
 endclass
 
 `endif

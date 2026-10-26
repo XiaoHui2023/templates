@@ -47,25 +47,37 @@ class {{ settings.class_prefix }}pll_base extends {{ settings.class_prefix }}nod
         return 100;
     endfunction
 
-    // PLL 配置后需要等待 lock。
+    // PLL 配置后需要等待 lock；具体插件提供自己的 lock 字段。
     virtual function bit waits_after_configuration();
         return 1'b1;
     endfunction
 
-    // Delegate PLL encoding to the plugin service.
-    virtual task apply_configuration(
-            input {{ settings.class_prefix }}node_config_api cfg,
-            output bit configured);
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
-        plugin_cfg = new(cfg.tools, cfg.quiet);
-        plugin_cfg.configure_pll(this, configured);
-    endtask
+    virtual function {{ settings.class_prefix }}reg lock_reg(); return null; endfunction
 
-    // 等待当前 PLL 的 lock 状态。
+    // 等待插件声明的 lock 字段，不分派具体 PLL 类型。
     virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
-        plugin_cfg = new(cfg.tools, cfg.quiet);
-        plugin_cfg.wait_for_pll_lock(this);
+        {{ settings.class_prefix }}reg field_h;
+        time elapsed;
+        int lock_value;
+        field_h = lock_reg();
+        if (field_h == null || !field_h.is_bound())
+            return;
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll %s wait lock", get_name()), UVM_MEDIUM)
+        elapsed = 0;
+        while (elapsed < {{ plugin_value("pll", "lock_timeout_us", 100) }}us) begin
+            cfg.read_reg(field_h, lock_value);
+            if (lock_value == 1) begin
+                locked = 1'b1;
+                return;
+            end
+            #2us;
+            elapsed += 2us;
+        end
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "wait_lock: %s lock not 1 within %0t",
+            field_h.field.get_full_name(), {{ plugin_value("pll", "lock_timeout_us", 100) }}us))
     endtask
 endclass
 

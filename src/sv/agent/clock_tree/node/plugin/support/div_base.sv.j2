@@ -45,14 +45,6 @@ class {{ settings.class_prefix }}div_base extends {{ settings.class_prefix }}nod
         return 1'b1;
     endfunction
 
-    // Delegate register encoding to the plugin service, not to the core API.
-    virtual task apply_configuration(
-            input {{ settings.class_prefix }}node_config_api cfg,
-            output bit configured);
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
-        plugin_cfg = new(cfg.tools, cfg.quiet);
-        plugin_cfg.configure_div(this, configured);
-    endtask
 endclass
 
 `endif

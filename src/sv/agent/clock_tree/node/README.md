@@ -37,6 +37,17 @@ pll_cpu:
 | 功能 | `has_functional_contract`、`run_functional_contract` | 端口激励与输出检查 |
 | 原生输入 | `preserves_native_input` | 禁止驱动的原生时钟输入 |
 
+## 所有权
+
+`node/base`、tree、component、sequence 和 top 只能保存通用图遍历与基类 hook 调用，不能按
+节点名分支或向具体节点 `$cast`。`node/plugin/support` 只允许节点家族共享的字段、约束和不
+绑定任何节点实例的算法服务；不能保存具体节点的寄存器绑定、配置分派或等待分派。叶插件负责
+选择算法、绑定自身字段并决定是否跳过写入。
+
+每个 `node/plugin/<kind>.sv.j2` 负责该节点的寄存器字段、配置、读回匹配、完成等待和功能
+契约。通用配置 API 仅提供寄存器读写，不解释 gate、divider、PLL 等节点语义。唯一允许列出
+全部节点的文件是 `node/plugin.f.j2` 和 `node/python/registry.py`。
+
 ## 扩展
 
 添加节点时同时添加以下文件，并在各自清单中显式登记：
@@ -47,5 +58,6 @@ node/python/plugins/<kind>.py
 ```
 
 Python 插件声明可填写的 `config` 与 `settings.plugin.<作用域>` 字段；后者也在
-`node/python/registry.py` 显式登记。SV 插件声明约束、寄存器编码和能力 hook。未知
-`kind` 仍会保留配置并生成对应 SV 类型，缺少 SV 插件时由编译报错。
+`node/python/registry.py` 显式登记。SV 插件声明约束、寄存器编码和能力 hook。新增或迁移
+节点后必须检查核心和 support 未出现该节点类名、`$cast` 或 kind 分派，再渲染样例检查
+filelist 顺序。未知 `kind` 仍会保留配置并生成对应 SV 类型，缺少 SV 插件时由编译报错。

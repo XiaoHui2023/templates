@@ -34,6 +34,43 @@ class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}pll_b
         f_enp = new();
         pll_kind = PLL_DW;
     endfunction
+
+    virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
+
+    virtual task apply_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            output bit configured);
+        {{ settings.class_prefix }}pll_cfg encoder;
+        longint ref_hz;
+        bit active;
+        bit reg_match;
+        configured = 1'b0;
+        active = _resolved_active;
+        if (active && source == null)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_dw %s has no source for ref frequency", get_name()))
+        if (active && frequence <= 0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_dw %s frequence must be positive", get_name()))
+        ref_hz = active ? source._resolved_freq : 0;
+        if (active && ref_hz <= 0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_dw %s source %s frequence must be positive", get_name(), source.get_name()))
+        if (!f_fbdiv.is_bound() || !f_prediv.is_bound() || !f_reset.is_bound() || !f_pwron.is_bound()
+                || !f_shift.is_bound() || !f_bypass.is_bound() || !f_divvcor.is_bound() || !f_r.is_bound()
+                || !f_p.is_bound() || !f_divvcop.is_bound() || !f_enr.is_bound() || !f_enp.is_bound())
+            return;
+        encoder = new(cfg.tools.rw);
+        encoder.dw_regs_match_target(f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
+            f_divvcor, f_r, f_p, f_divvcop, f_enr, f_enp, frequence, ref_hz, active, reg_match);
+        if (reg_match) begin
+            if (!cfg.quiet)
+                `uvm_info("CLK_TREE", $sformatf("config_reg: pll_dw %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_dw %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_MEDIUM)
+        encoder.configure_dw_from_hz(f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
+            f_divvcor, f_r, f_p, f_divvcop, f_enr, f_enp, active, frequence, ref_hz);
+        configured = active;
+    endtask
 endclass
 
 `endif

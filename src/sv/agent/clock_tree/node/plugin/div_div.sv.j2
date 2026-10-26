@@ -27,6 +27,51 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
         f_load = new();
         f_div = new();
     endfunction
+
+    virtual task apply_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            output bit configured);
+        int rst_value;
+        int div_value;
+        int current_rst;
+        int current_div;
+        bit same_ratio;
+        configured = f_rst.is_bound() && f_load.is_bound() && f_div.is_bound();
+        if (!configured)
+            return;
+        div_value = {{ settings.class_prefix }}div_ratio_to_n(f_div, _resolved_ratio);
+        cfg.read_reg(f_rst, current_rst);
+        cfg.read_reg(f_div, current_div);
+{%- if plugin_value("div_div", "reg_high_means_reset", false) %}
+        rst_value = 0;
+{%- else %}
+        rst_value = 1;
+{%- endif %}
+        same_ratio = current_rst == rst_value && current_div == div_value;
+        if (same_ratio && (f_div.alias_count == 1
+                || (has_configured_ratio && last_configured_ratio == _resolved_ratio))) begin
+            if (!cfg.quiet)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: div %s skip reg ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
+            return;
+        end
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: div %s ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
+{%- if plugin_value("div_div", "reset_on_config", false) %}
+{%- if plugin_value("div_div", "reg_high_means_reset", false) %}
+        cfg.write_reg(f_rst, 1);
+{%- else %}
+        cfg.write_reg(f_rst, 0);
+{%- endif %}
+{%- endif %}
+        cfg.write_reg(f_rst, rst_value);
+        cfg.write_reg(f_div, div_value);
+        cfg.write_reg(f_load, 0);
+        cfg.write_reg(f_load, 1);
+        last_configured_ratio = _resolved_ratio;
+        has_configured_ratio = 1'b1;
+    endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated divider transition check.
     virtual function bit has_functional_contract();
@@ -49,7 +94,6 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
         int width;
         bit passed;
         bit configured;
-        {{ settings.class_prefix }}plugin_configuration plugin_cfg;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -68,10 +112,18 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}div_
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test div %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
-        plugin_cfg = new(api.cfg.tools, api.cfg.quiet);
         for (bit_idx = 0; bit_idx < width; bit_idx++) begin
             ratio = {{ settings.class_prefix }}div_ratio_for_reg_bit(f_div, bit_idx);
-            plugin_cfg.configure_transition_div(this, ratio, configured);
+{%- if plugin_value("div_div", "reg_high_means_reset", false) %}
+            api.cfg.write_reg(f_rst, 1);
+            api.cfg.write_reg(f_rst, 0);
+{%- else %}
+            api.cfg.write_reg(f_rst, 0);
+            api.cfg.write_reg(f_rst, 1);
+{%- endif %}
+            api.cfg.write_reg(f_div, {{ settings.class_prefix }}div_ratio_to_n(f_div, ratio));
+            api.cfg.write_reg(f_load, 0);
+            api.cfg.write_reg(f_load, 1);
             #({{ plugin_value("div_div", "settle_ns", 200) }}ns);
             expected_freq_hz = real'(1_000_000_000) / ratio;
             if (expected_freq_hz < {{ settings.min_freq_hz }}) begin

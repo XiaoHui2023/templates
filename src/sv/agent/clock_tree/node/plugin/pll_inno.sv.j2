@@ -28,6 +28,50 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}pll
         group_id = "";
         _print_group_id = 1;
     endfunction
+
+    virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
+
+    virtual task apply_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            output bit configured);
+        {{ settings.class_prefix }}pll_cfg encoder;
+        longint ref_hz;
+        bit active;
+        bit write_shared;
+        bit reg_match;
+        configured = 1'b0;
+        active = _resolved_active;
+        if (active && source == null)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_inno %s has no source for ref frequency", get_name()))
+        if (active && frequence <= 0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_inno %s frequence must be positive", get_name()))
+        ref_hz = active ? source._resolved_freq : 0;
+        if (active && ref_hz <= 0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_inno %s source %s frequence must be positive", get_name(), source.get_name()))
+        if (!f_pd.is_bound() || !f_lock.is_bound() || !f_refdiv.is_bound() || !f_fbdiv.is_bound()
+                || !f_postdiv1.is_bound() || !f_postdiv2.is_bound())
+            return;
+        write_shared = group_id == "{{ plugin_value("pll_inno", "primary_group", "0") }}";
+        encoder = new(cfg.tools.rw);
+        encoder.inno_regs_match_target(f_pd, f_refdiv, f_fbdiv, f_postdiv1, f_postdiv2,
+            frequence, ref_hz, write_shared, active, reg_match);
+        if (reg_match) begin
+            if (!cfg.quiet)
+                `uvm_info("CLK_TREE", $sformatf("config_reg: pll_inno %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_MEDIUM)
+            return;
+        end
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_inno %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz group %s", frequence, ref_hz, group_id) : "active 0"), UVM_MEDIUM)
+        encoder.configure_inno_from_hz(f_pd, f_refdiv, f_fbdiv, f_postdiv1, f_postdiv2,
+            active, frequence, ref_hz, write_shared);
+        configured = active;
+    endtask
+
+    virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
+        if (group_id != "{{ plugin_value("pll_inno", "primary_group", "0") }}")
+            return;
+        super.await_configuration(cfg);
+    endtask
 endclass
 
 `endif
