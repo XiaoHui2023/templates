@@ -93,9 +93,9 @@ task {{ settings.class_prefix }}flip_check_seq::body();
             continue;
         end
         if (tree.nodes[i].requires_observed_descendant()
-                && !{{ settings.class_prefix }}control_node_is_valid(tree, tree.nodes[i])) begin
+                && !{{ settings.class_prefix }}node_has_observed_descendant(tree, tree.nodes[i])) begin
             `uvm_info("CLK_TREE", $sformatf(
-                "test_flip: skip %s, no non-volatile clock downstream",
+                "test_flip: skip %s, no observable endpoint downstream",
                 tree.nodes[i].get_name()), UVM_LOW)
             continue;
         end

@@ -28,7 +28,7 @@ task {{ settings.class_prefix }}test_measure_seq::run_config_reg(
         {{ settings.class_prefix }}tree_base tree, bit quiet);
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null for config_reg")
-    tree.configure(.quiet(quiet));
+    tree.configure(.low_power(1'b0), .quiet(quiet));
 endtask
 
 task {{ settings.class_prefix }}test_measure_seq::run_check_measure(

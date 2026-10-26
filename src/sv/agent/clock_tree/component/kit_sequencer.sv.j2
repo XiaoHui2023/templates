@@ -43,7 +43,7 @@ if (tree == null)
         tree = this.tree;
     if (tree == null)
         `uvm_fatal("CLK_TREE", "config_reg: tree is null")
-    tree.configure();
+    tree.configure(.low_power(1'b0), .quiet(1'b0));
 endtask
 
 task {{ settings.class_prefix }}kit_sequencer::check_measure(

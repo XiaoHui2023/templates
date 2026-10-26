@@ -291,31 +291,31 @@ function bit {{ settings.class_prefix }}frequency_encoder::sc_divisors(
         output longint pfd_hz,
         output longint vco_hz,
         output real error_ratio);
-    input int refdiv_try;
-    input int postdiv1_try;
-    input int postdiv2_try;
-    input int neighbor;
-    input int fbdiv_try;
-    input int previous_fbdiv;
-    input longint fbdiv_floor;
-    input longint fbdiv_candidate;
-    input longint legal_fbdiv_min;
-    input longint legal_fbdiv_max;
-    input longint product;
-    input longint target_num;
-    input longint actual_num;
-    input longint error_num;
-    input longint compare_lhs;
-    input longint compare_rhs;
-    input longint best_actual_num;
-    input longint best_error_num;
-    input longint best_product;
-    input bit have_best;
-    input bit use_candidate;
-    input int best_refdiv;
-    input int best_postdiv1;
-    input int best_postdiv2;
-    input int best_fbdiv;
+    int refdiv_try;
+    int postdiv1_try;
+    int postdiv2_try;
+    int neighbor;
+    int fbdiv_try;
+    int previous_fbdiv;
+    longint fbdiv_floor;
+    longint fbdiv_candidate;
+    longint legal_fbdiv_min;
+    longint legal_fbdiv_max;
+    longint product;
+    longint target_num;
+    longint actual_num;
+    longint error_num;
+    longint compare_lhs;
+    longint compare_rhs;
+    longint best_actual_num;
+    longint best_error_num;
+    longint best_product;
+    bit have_best;
+    bit use_candidate;
+    int best_refdiv;
+    int best_postdiv1;
+    int best_postdiv2;
+    int best_fbdiv;
     fbdiv = 0;
     refdiv = 0;
     postdiv1 = 0;
@@ -409,11 +409,11 @@ function void {{ settings.class_prefix }}frequency_encoder::resolve_sc_divisors(
         output int refdiv,
         output int postdiv1,
         output int postdiv2);
-    input longint actual_hz;
-    input longint pfd_hz;
-    input longint vco_hz;
-    input real error_ratio;
-    input bit found;
+    longint actual_hz;
+    longint pfd_hz;
+    longint vco_hz;
+    real error_ratio;
+    bit found;
     found = sc_divisors(
         out_hz, ref_hz, fbdiv, refdiv, postdiv1, postdiv2,
         actual_hz, pfd_hz, vco_hz, error_ratio);
@@ -441,15 +441,15 @@ function void {{ settings.class_prefix }}frequency_encoder::dw_divisors(
         output int p,
         output int divvcor,
         output int r);
-    input int p_try;
-    input int fbdiv_i;
-    input longint actual_hz;
-    input longint err;
-    input longint best_err;
-    input real fbdiv_r;
-    input bit have_best;
-    input int best_p;
-    input int best_fbdiv;
+    int p_try;
+    int fbdiv_i;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+    int best_p;
+    int best_fbdiv;
     prediv = 0;
     divvcop = 0;
     divvcor = 0;
@@ -492,10 +492,10 @@ task {{ settings.class_prefix }}frequency_encoder::configure_sc_from_hz(
         input bit active,
         input longint out_hz,
         input longint ref_hz);
-    input int fbdiv;
-    input int refdiv;
-    input int postdiv1;
-    input int postdiv2;
+    int fbdiv;
+    int refdiv;
+    int postdiv1;
+    int postdiv2;
     if (!active) begin
         configure_sc(
             f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
@@ -516,15 +516,15 @@ function void {{ settings.class_prefix }}frequency_encoder::inno_shared_divisors
         input int fbdiv_max,
         output int fbdiv,
         output int refdiv);
-    input int refdiv_try;
-    input int fbdiv_i;
-    input longint actual_hz;
-    input longint err;
-    input longint best_err;
-    input real fbdiv_r;
-    input bit have_best;
-    input int best_refdiv;
-    input int best_fbdiv;
+    int refdiv_try;
+    int fbdiv_i;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    real fbdiv_r;
+    bit have_best;
+    int best_refdiv;
+    int best_fbdiv;
     refdiv = 1;
     fbdiv = 1;
     if (ref_hz <= 0 || out_hz <= 0)
@@ -559,15 +559,15 @@ function void {{ settings.class_prefix }}frequency_encoder::inno_postdivisors(
         input int refdiv,
         output int postdiv1,
         output int postdiv2);
-    input int postdiv1_try;
-    input int postdiv2_try;
-    input longint product;
-    input longint actual_hz;
-    input longint err;
-    input longint best_err;
-    input bit have_best;
-    input int best_postdiv1;
-    input int best_postdiv2;
+    int postdiv1_try;
+    int postdiv2_try;
+    longint product;
+    longint actual_hz;
+    longint err;
+    longint best_err;
+    bit have_best;
+    int best_postdiv1;
+    int best_postdiv2;
     postdiv1 = 1;
     postdiv2 = 1;
     if (ref_hz <= 0 || out_hz <= 0 || fbdiv < 1 || refdiv < 1)
@@ -601,8 +601,8 @@ task {{ settings.class_prefix }}frequency_encoder::configure_inno_shared(
         input bit active,
         input int fbdiv,
         input int refdiv);
-    input {{ settings.class_prefix }}reg binds[$];
-    input int vals[$];
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
 
     if (!active) begin
         rw.set_write(f_pd, 1);
@@ -620,8 +620,8 @@ task {{ settings.class_prefix }}frequency_encoder::configure_inno_postdiv(
         input {{ settings.class_prefix }}reg f_postdiv2,
         input int postdiv1,
         input int postdiv2);
-    input {{ settings.class_prefix }}reg binds[$];
-    input int vals[$];
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
 
     binds = '{f_postdiv1, f_postdiv2};
     vals = '{postdiv1 - 1, postdiv2 - 1};
@@ -638,10 +638,10 @@ task {{ settings.class_prefix }}frequency_encoder::configure_inno_from_hz(
         input longint out_hz,
         input longint ref_hz,
         input bit write_shared);
-    input int fbdiv;
-    input int refdiv;
-    input int postdiv1;
-    input int postdiv2;
+    int fbdiv;
+    int refdiv;
+    int postdiv1;
+    int postdiv2;
     if (!active) begin
         if (write_shared)
             configure_inno_shared(f_pd, f_refdiv, f_fbdiv, active, 1, 1);
@@ -676,12 +676,12 @@ task {{ settings.class_prefix }}frequency_encoder::configure_dw_from_hz(
         input bit active,
         input longint out_hz,
         input longint ref_hz);
-    input int fbdiv;
-    input int prediv;
-    input int divvcop;
-    input int p;
-    input int divvcor;
-    input int r;
+    int fbdiv;
+    int prediv;
+    int divvcop;
+    int p;
+    int divvcor;
+    int r;
     if (!active) begin
         configure_dw(
             f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
@@ -709,8 +709,8 @@ task {{ settings.class_prefix }}frequency_encoder::configure_tci(
         input int clkf,
         input int clkod,
         input int bwadj);
-    input {{ settings.class_prefix }}reg binds[$];
-    input int vals[$];
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
 
     if (!active) begin
         binds = '{f_bypass, f_pwrdn, f_reset};
@@ -745,8 +745,8 @@ task {{ settings.class_prefix }}frequency_encoder::configure_sc(
         input int refdiv,
         input int postdiv1,
         input int postdiv2);
-    input {{ settings.class_prefix }}reg binds[$];
-    input int vals[$];
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
 
     if (!active) begin
         binds = '{f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass};
@@ -785,8 +785,8 @@ task {{ settings.class_prefix }}frequency_encoder::configure_dw(
         input int p,
         input int divvcor,
         input int r);
-    input {{ settings.class_prefix }}reg binds[$];
-    input int vals[$];
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
 
     if (!active) begin
         binds = '{f_reset, f_pwron, f_shift, f_bypass, f_enr, f_enp};
@@ -832,11 +832,11 @@ task {{ settings.class_prefix }}frequency_encoder::tci_regs_match_target(
         input longint ref_hz,
         input bit active,
         output bit match);
-    input int exp_clkr;
-    input int exp_clkf;
-    input int exp_clkod;
-    input int exp_bwadj;
-    input int act;
+    int exp_clkr;
+    int exp_clkf;
+    int exp_clkod;
+    int exp_bwadj;
+    int act;
     match = 1'b1;
     rw.read(f_bypass, act);
     if (act != 0)
@@ -878,16 +878,16 @@ task {{ settings.class_prefix }}frequency_encoder::sc_regs_match_target(
         input longint ref_hz,
         input bit active,
         output bit match);
-    input int act_fbdiv;
-    input int act_refdiv;
-    input int act_postdiv1;
-    input int act_postdiv2;
-    input int act;
-    input longint actual_den;
-    input longint actual_num;
-    input longint target_num;
-    input longint error_num;
-    input real error_ratio;
+    int act_fbdiv;
+    int act_refdiv;
+    int act_postdiv1;
+    int act_postdiv2;
+    int act;
+    longint actual_den;
+    longint actual_num;
+    longint target_num;
+    longint error_num;
+    real error_ratio;
     match = 1'b1;
     rw.read(f_vocpd, act);
     if (act != !active)
@@ -947,13 +947,13 @@ task {{ settings.class_prefix }}frequency_encoder::dw_regs_match_target(
         input longint ref_hz,
         input bit active,
         output bit match);
-    input int exp_fbdiv;
-    input int exp_prediv;
-    input int exp_divvcop;
-    input int exp_p;
-    input int exp_divvcor;
-    input int exp_r;
-    input int act;
+    int exp_fbdiv;
+    int exp_prediv;
+    int exp_divvcop;
+    int exp_p;
+    int exp_divvcor;
+    int exp_r;
+    int act;
     match = 1'b1;
     rw.read(f_reset, act);
     if (act != !active)
@@ -1008,13 +1008,13 @@ task {{ settings.class_prefix }}frequency_encoder::inno_regs_match_target(
         input bit write_shared,
         input bit active,
         output bit match);
-    input int fbdiv;
-    input int refdiv;
-    input int exp_fbdiv;
-    input int exp_refdiv;
-    input int exp_postdiv1;
-    input int exp_postdiv2;
-    input int act;
+    int fbdiv;
+    int refdiv;
+    int exp_fbdiv;
+    int exp_refdiv;
+    int exp_postdiv1;
+    int exp_postdiv2;
+    int act;
     match = 1'b1;
     rw.read(f_pd, act);
     if (act != !active)
@@ -1049,8 +1049,8 @@ task {{ settings.class_prefix }}frequency_encoder::inno_regs_match_target(
 endtask
 
 task {{ settings.class_prefix }}frequency_encoder::wait_lock({{ settings.class_prefix }}reg f_lock, time timeout);
-    input time elapsed;
-    input int lock_val;
+    time elapsed;
+    int lock_val;
 
     if (f_lock.field == null)
         `uvm_fatal("CLK_TREE", "wait_lock: f_lock not bound")

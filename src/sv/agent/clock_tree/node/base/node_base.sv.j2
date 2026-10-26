@@ -104,13 +104,19 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         regs.delete();
     endfunction
 
-`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Observation describes a physical endpoint, independent of node identity.
-    virtual function bit is_observable(); return vif != null; endfunction
+    virtual function bit is_observable();
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+        return vif != null;
+`else
+        return 1'b0;
+`endif
+    endfunction
     virtual function bit supports_duty_observation(); return 1'b0; endfunction
     virtual function bit is_stability_anchor(); return 1'b0; endfunction
     virtual function void apply_low_power_preference(); endfunction
 
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // A functional contract drives only this node's declared ports and controls.
     virtual function bit has_functional_contract(); return 1'b0; endfunction
     virtual task run_functional_contract(

@@ -89,7 +89,7 @@ endtask
 task automatic {{ settings.class_prefix }}config_reg(
         {{ settings.class_prefix }}tree tree,
         bit quiet = 1'b0);
-    tree.configure(.quiet(quiet));
+    tree.configure(.low_power(1'b0), .quiet(quiet));
 endtask
 
 `endif

@@ -46,10 +46,13 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         unfix_enabled = 1'b0;
         kind = "clk";
     endfunction
-`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Exposes this node as a generic measurement endpoint.
     virtual function bit is_observable();
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
         return vif != null;
+`else
+        return 1'b0;
+`endif
     endfunction
 
     // Keeps the per-endpoint duty-cycle selection local to the plugin.
@@ -59,7 +62,6 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
 
     virtual function bit is_stability_anchor(); return stable; endfunction
     virtual function void apply_low_power_preference(); low_power = 1'b1; endfunction
-`endif
 
 endclass
 
