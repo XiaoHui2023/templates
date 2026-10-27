@@ -19,7 +19,7 @@ class {{ class_prefix }}driver extends uvm_component;
 
     // Obtain the interface supplied through config_db.
     extern function void build_phase(uvm_phase phase);
-    // Transmit a write payload atomically with respect to other senders.
+    // Execute a write payload: address 0 sends bytes; address 1 sets baud from four little-endian bytes.
     extern task put(input uvm_tlm_generic_payload packet);
     // Publish one fresh payload per received frame while transmission runs independently.
     extern task run_phase(uvm_phase phase);
@@ -33,6 +33,7 @@ endfunction
 
 task {{ class_prefix }}driver::put(input uvm_tlm_generic_payload packet);
     byte unsigned bytes[];
+    bit [31:0] rate;
 
     if (packet == null) begin
         `uvm_error("UART_TX", "null payload")
@@ -49,9 +50,27 @@ task {{ class_prefix }}driver::put(input uvm_tlm_generic_payload packet);
         packet.set_response_status(UVM_TLM_BURST_ERROR_RESPONSE);
         return;
     end
+    if (packet.get_address() > 1) begin
+        packet.set_response_status(UVM_TLM_ADDRESS_ERROR_RESPONSE);
+        return;
+    end
+    if (packet.get_address() == 1) begin
+        if (bytes.size() != 4) begin
+            packet.set_response_status(UVM_TLM_BURST_ERROR_RESPONSE);
+            return;
+        end
+        rate = {bytes[3], bytes[2], bytes[1], bytes[0]};
+        if (rate < 1 || rate > 100000000) begin
+            packet.set_response_status(UVM_TLM_GENERIC_ERROR_RESPONSE);
+            return;
+        end
+    end
     tx_lock.get(1);
-    foreach (bytes[i])
-        vif.send_byte(bytes[i]);
+    if (packet.get_address() == 1)
+        void'(vif.set_baud_rate(int'(rate)));
+    else
+        foreach (bytes[i])
+            vif.send_byte(bytes[i]);
     tx_lock.put(1);
     packet.set_response_status(UVM_TLM_OK_RESPONSE);
 endtask

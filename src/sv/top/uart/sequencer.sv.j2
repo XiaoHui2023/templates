@@ -14,15 +14,60 @@ class {{ class_prefix }}sequencer extends uvm_sequencer #(uvm_tlm_generic_payloa
         rx_fifo = new("rx_fifo", this);
     endfunction
 
+    // Set both receive and transmit baud rates after any current transmit packet finishes.
+    extern task set_baud_rate(input int baud_rate);
     // Send all bytes and return when the final stop bit has finished.
     extern task send(input bit [7:0] data[$]);
     // Send a single byte and wait for transmission to finish.
     extern task send_byte(input bit [7:0] data);
+    // Send a 32-bit word, least significant byte first.
+    extern task send_word(input bit [31:0] data);
+    // Send the characters without adding a terminator or newline.
+    extern task send_string(input string text);
+    // Send a binary or hexadecimal file in its stored byte order.
+    extern task send_file(input string filename);
+    // Consume one received byte, blocking until it is available.
+    extern task recv_byte(output bit [7:0] data);
+    // Consume four bytes and assemble a little-endian word.
+    extern task recv_word(output bit [31:0] data);
+    // Consume exactly length bytes; zero returns an empty queue.
+    extern task recv_bytes(input int length, output bit [7:0] data[$]);
+    // Consume the expected number of characters and report any mismatch.
+    extern task recv_string(input string expected);
+    // Read the complete file before transmitting; .bin preserves every byte.
+    extern protected function bit read_file(input string filename, output bit [7:0] data[$]);
+    // Decode byte pairs independently of line length, allowing prefixes and comments.
+    extern protected function bit decode_hex(input bit [7:0] raw[$], output bit [7:0] data[$]);
+    // Return a hexadecimal digit value, or -1 for other characters.
+    extern protected function int hex_value(input bit [7:0] ch);
     // Wait for a received frame, including frames with an error status.
     extern task recv(output uvm_tlm_generic_payload packet);
     // Return immediately, indicating whether a received frame was available.
     extern function bit try_recv(output uvm_tlm_generic_payload packet);
 endclass
+
+task {{ class_prefix }}sequencer::set_baud_rate(input int baud_rate);
+    uvm_tlm_generic_payload packet;
+    byte unsigned bytes[];
+
+    if (baud_rate < 1 || baud_rate > 100000000) begin
+        `uvm_error("UART_BAUD", "baud rate must be in 1..100000000 bit/s")
+        return;
+    end
+    packet = uvm_tlm_generic_payload::type_id::create("baud_packet");
+    bytes = new[4];
+    foreach (bytes[i])
+        bytes[i] = (baud_rate >> (8 * i)) & 'hff;
+    packet.set_command(UVM_TLM_WRITE_COMMAND);
+    packet.set_address(1);
+    packet.set_data(bytes);
+    packet.set_data_length(bytes.size());
+    packet.set_streaming_width(bytes.size());
+    packet.set_response_status(UVM_TLM_INCOMPLETE_RESPONSE);
+    o_port.put(packet);
+    if (packet.get_response_status() != UVM_TLM_OK_RESPONSE)
+        `uvm_error("UART_BAUD", packet.sprint())
+endtask
 
 task {{ class_prefix }}sequencer::send(input bit [7:0] data[$]);
     uvm_tlm_generic_payload packet;
@@ -50,6 +95,211 @@ task {{ class_prefix }}sequencer::send_byte(input bit [7:0] data);
     bytes.push_back(data);
     send(bytes);
 endtask
+
+task {{ class_prefix }}sequencer::send_word(input bit [31:0] data);
+    bit [7:0] bytes[$];
+
+    for (int i = 0; i < 4; i++)
+        bytes.push_back(data[8*i +: 8]);
+    send(bytes);
+endtask
+
+task {{ class_prefix }}sequencer::send_string(input string text);
+    bit [7:0] bytes[$];
+
+    for (int i = 0; i < text.len(); i++)
+        bytes.push_back(text.getc(i));
+    send(bytes);
+endtask
+
+task {{ class_prefix }}sequencer::send_file(input string filename);
+    bit [7:0] bytes[$];
+
+    if (read_file(filename, bytes))
+        send(bytes);
+endtask
+
+task {{ class_prefix }}sequencer::recv_byte(output bit [7:0] data);
+    uvm_tlm_generic_payload packet;
+    byte unsigned bytes[];
+
+    recv(packet);
+    packet.get_data(bytes);
+    data = '0;
+    if (packet.get_data_length() != 1 || bytes.size() != 1) begin
+        `uvm_error("UART_RX", "receive payload must contain exactly one byte")
+        return;
+    end
+    data = bytes[0];
+    if (packet.get_response_status() != UVM_TLM_OK_RESPONSE)
+        `uvm_error("UART_RX", packet.sprint())
+endtask
+
+task {{ class_prefix }}sequencer::recv_word(output bit [31:0] data);
+    bit [7:0] bytes[$];
+
+    recv_bytes(4, bytes);
+    data = '0;
+    foreach (bytes[i])
+        data[8*i +: 8] = bytes[i];
+endtask
+
+task {{ class_prefix }}sequencer::recv_bytes(input int length, output bit [7:0] data[$]);
+    bit [7:0] value;
+
+    data.delete();
+    if (length < 0) begin
+        `uvm_error("UART_RX", "receive length must be non-negative")
+        return;
+    end
+    repeat (length) begin
+        recv_byte(value);
+        data.push_back(value);
+    end
+endtask
+
+task {{ class_prefix }}sequencer::recv_string(input string expected);
+    bit [7:0] bytes[$];
+
+    recv_bytes(expected.len(), bytes);
+    foreach (bytes[i]) begin
+        if (bytes[i] != expected.getc(i)) begin
+            `uvm_error("UART_STRING", $sformatf("character %0d: expected 0x%02h, received 0x%02h", i, expected.getc(i), bytes[i]))
+            return;
+        end
+    end
+endtask
+
+function int {{ class_prefix }}sequencer::hex_value(input bit [7:0] ch);
+    if (ch >= "0" && ch <= "9")
+        return ch - "0";
+    if (ch >= "a" && ch <= "f")
+        return ch - "a" + 10;
+    if (ch >= "A" && ch <= "F")
+        return ch - "A" + 10;
+    return -1;
+endfunction
+
+function bit {{ class_prefix }}sequencer::decode_hex(input bit [7:0] raw[$], output bit [7:0] data[$]);
+    int high_nibble;
+    int value;
+    int start_index;
+    bit line_comment;
+    bit block_comment;
+
+    data.delete();
+    high_nibble = -1;
+    line_comment = 0;
+    block_comment = 0;
+    start_index = 0;
+    if (raw.size() >= 3 && raw[0] == 8'hef && raw[1] == 8'hbb && raw[2] == 8'hbf)
+        start_index = 3;
+    for (int i = start_index; i < raw.size(); i++) begin
+        if (line_comment) begin
+            if (raw[i] == 10 || raw[i] == 13)
+                line_comment = 0;
+            continue;
+        end
+        if (block_comment) begin
+            if (raw[i] == "*" && i+1 < raw.size() && raw[i+1] == "/") begin
+                block_comment = 0;
+                i++;
+            end
+            continue;
+        end
+        if (raw[i] inside {8'd9, 8'd10, 8'd13, 8'd32}) begin
+            if (high_nibble != -1)
+                return 0;
+            continue;
+        end
+        if (raw[i] == "_")
+            continue;
+        if (high_nibble == -1) begin
+            if (raw[i] == "#" || raw[i] == ";") begin
+                line_comment = 1;
+                continue;
+            end
+            if (raw[i] == "/" && i+1 < raw.size()) begin
+                if (raw[i+1] == "/") begin
+                    line_comment = 1;
+                    i++;
+                    continue;
+                end
+                if (raw[i+1] == "*") begin
+                    block_comment = 1;
+                    i++;
+                    continue;
+                end
+            end
+            if (raw[i] == "0" && i+1 < raw.size() && (raw[i+1] == "x" || raw[i+1] == "X")) begin
+                if (i+2 >= raw.size() || hex_value(raw[i+2]) < 0)
+                    return 0;
+                i++;
+                continue;
+            end
+        end
+        value = hex_value(raw[i]);
+        if (value < 0)
+            return 0;
+        if (high_nibble == -1)
+            high_nibble = value;
+        else begin
+            data.push_back((high_nibble << 4) | value);
+            high_nibble = -1;
+        end
+    end
+    return high_nibble == -1 && !block_comment;
+endfunction
+
+function bit {{ class_prefix }}sequencer::read_file(input string filename, output bit [7:0] data[$]);
+    int file;
+    int ch;
+    string suffix;
+    string message;
+    bit [7:0] raw[$];
+    bit [7:0] decoded[$];
+
+    data.delete();
+    file = $fopen(filename, "rb");
+    if (!file) begin
+        `uvm_error("UART_FILE", $sformatf("cannot open file: %s", filename))
+        return 0;
+    end
+    ch = $fgetc(file);
+    while (ch != -1) begin
+        raw.push_back(ch[7:0]);
+        ch = $fgetc(file);
+    end
+    if ($ferror(file, message) != 0) begin
+        $fclose(file);
+        `uvm_error("UART_FILE", $sformatf("cannot read %s: %s", filename, message))
+        return 0;
+    end
+    $fclose(file);
+    suffix = "";
+    for (int i = filename.len()-1; i >= 0; i--) begin
+        if (filename.getc(i) == ".") begin
+            suffix = filename.substr(i, filename.len()-1).tolower();
+            break;
+        end
+        if (filename.getc(i) == 8'h2f || filename.getc(i) == 8'h5c)
+            break;
+    end
+    if (suffix == ".bin" || suffix == ".binary") begin
+        data = raw;
+        return 1;
+    end
+    if (decode_hex(raw, decoded)) begin
+        data = decoded;
+        return 1;
+    end
+    if (suffix == ".hex" || suffix == ".mem" || suffix == ".memh" || suffix == ".txt") begin
+        `uvm_error("UART_FILE", $sformatf("invalid hexadecimal byte stream: %s", filename))
+        return 0;
+    end
+    data = raw;
+    return 1;
+endfunction
 
 task {{ class_prefix }}sequencer::recv(output uvm_tlm_generic_payload packet);
     rx_fifo.get(packet);

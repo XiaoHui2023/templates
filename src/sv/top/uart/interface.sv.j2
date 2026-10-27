@@ -1,43 +1,59 @@
 `ifndef {{ class_prefix | upper }}INTERFACE
 `define {{ class_prefix | upper }}INTERFACE
 
-interface {{ class_prefix }}interface(input logic rx, output logic tx);
+interface {{ class_prefix }}interface(inout tri1 rx, output bit tx);
     timeunit 1ns;
     timeprecision 1ps;
 
-    localparam realtime BIT_PERIOD = 1s / {{ baud_rate }};
+    int baud_rate = {{ baud_rate }};
+    realtime bit_period = 1s / {{ baud_rate }};
 
     initial tx = 1'b1;
 
+    // Change the rate for frames that have not started; reject rates outside 1..100000000 bit/s.
+    function automatic bit set_baud_rate(input int rate);
+        if (rate < 1 || rate > 100000000)
+            return 0;
+        baud_rate = rate;
+        bit_period = 1s / rate;
+        return 1;
+    endfunction
+
     // Send one 8N1 frame, least significant bit first.
     task automatic send_byte(input bit [7:0] data);
+        realtime frame_period;
+
+        frame_period = bit_period;
         tx = 1'b0;
-        #(BIT_PERIOD);
+        #(frame_period);
         for (int i = 0; i < 8; i++) begin
             tx = data[i];
-            #(BIT_PERIOD);
+            #(frame_period);
         end
         tx = 1'b1;
-        #(BIT_PERIOD);
+        #(frame_period);
     endtask
 
     // Receive one 8N1 frame after rejecting short start pulses.
-    // valid - Clear for unknown data samples or an invalid stop bit.
+    // valid — Clear for unknown data samples or an invalid stop bit.
     task automatic recv_byte(output bit [7:0] data, output bit valid);
+        realtime frame_period;
+
         forever begin
             @(negedge rx);
-            #(BIT_PERIOD / 2.0);
+            frame_period = bit_period;
+            #(frame_period / 2.0);
             if (rx !== 1'b0)
                 continue;
             data = '0;
             valid = 1;
             for (int i = 0; i < 8; i++) begin
-                #(BIT_PERIOD);
+                #(frame_period);
                 if ($isunknown(rx))
                     valid = 0;
                 data[i] = rx;
             end
-            #(BIT_PERIOD);
+            #(frame_period);
             if (rx !== 1'b1)
                 valid = 0;
             return;
