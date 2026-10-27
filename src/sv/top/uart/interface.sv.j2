@@ -1,0 +1,48 @@
+`ifndef {{ class_prefix | upper }}INTERFACE
+`define {{ class_prefix | upper }}INTERFACE
+
+interface {{ class_prefix }}interface(input logic rx, output logic tx);
+    timeunit 1ns;
+    timeprecision 1ps;
+
+    localparam realtime BIT_PERIOD = 1s / {{ baud_rate }};
+
+    initial tx = 1'b1;
+
+    // Send one 8N1 frame, least significant bit first.
+    task automatic send_byte(input bit [7:0] data);
+        tx = 1'b0;
+        #(BIT_PERIOD);
+        for (int i = 0; i < 8; i++) begin
+            tx = data[i];
+            #(BIT_PERIOD);
+        end
+        tx = 1'b1;
+        #(BIT_PERIOD);
+    endtask
+
+    // Receive one 8N1 frame after rejecting short start pulses.
+    // valid - Clear for unknown data samples or an invalid stop bit.
+    task automatic recv_byte(output bit [7:0] data, output bit valid);
+        forever begin
+            @(negedge rx);
+            #(BIT_PERIOD / 2.0);
+            if (rx !== 1'b0)
+                continue;
+            data = '0;
+            valid = 1;
+            for (int i = 0; i < 8; i++) begin
+                #(BIT_PERIOD);
+                if ($isunknown(rx))
+                    valid = 0;
+                data[i] = rx;
+            end
+            #(BIT_PERIOD);
+            if (rx !== 1'b1)
+                valid = 0;
+            return;
+        end
+    endtask
+endinterface
+
+`endif

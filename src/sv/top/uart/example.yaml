@@ -1,0 +1,2 @@
+class_prefix: uart_
+baud_rate: 115200

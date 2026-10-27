@@ -1,0 +1,27 @@
+`ifndef {{ class_prefix | upper }}AGENT
+`define {{ class_prefix | upper }}AGENT
+
+class {{ class_prefix }}agent extends uvm_agent;
+    `uvm_component_utils({{ class_prefix }}agent)
+
+    {{ class_prefix }}sequencer sqr;
+    {{ class_prefix }}driver drv;
+
+    // Construct the public sequencer handle and its driver.
+    function new(string name = "{{ class_prefix }}agent", uvm_component parent = null);
+        super.new(name, parent);
+        sqr = {{ class_prefix }}sequencer::type_id::create("sqr", this);
+        drv = {{ class_prefix }}driver::type_id::create("drv", this);
+    endfunction
+
+    // Bind transmit calls and received frames to the sequencer storage.
+    extern function void connect_phase(uvm_phase phase);
+endclass
+
+function void {{ class_prefix }}agent::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    sqr.o_port.connect(drv.imp);
+    drv.o_ap.connect(sqr.rx_fifo.analysis_export);
+endfunction
+
+`endif

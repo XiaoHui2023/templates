@@ -1,0 +1,63 @@
+`ifndef {{ class_prefix | upper }}SEQUENCER
+`define {{ class_prefix | upper }}SEQUENCER
+
+class {{ class_prefix }}sequencer extends uvm_sequencer #(uvm_tlm_generic_payload);
+    `uvm_component_utils({{ class_prefix }}sequencer)
+
+    uvm_blocking_put_port #(uvm_tlm_generic_payload) o_port;
+    uvm_tlm_analysis_fifo #(uvm_tlm_generic_payload) rx_fifo;
+
+    // Construct the transmit port and receive storage.
+    function new(string name = "{{ class_prefix }}sequencer", uvm_component parent = null);
+        super.new(name, parent);
+        o_port = new("o_port", this);
+        rx_fifo = new("rx_fifo", this);
+    endfunction
+
+    // Send all bytes and return when the final stop bit has finished.
+    extern task send(input bit [7:0] data[$]);
+    // Send a single byte and wait for transmission to finish.
+    extern task send_byte(input bit [7:0] data);
+    // Wait for a received frame, including frames with an error status.
+    extern task recv(output uvm_tlm_generic_payload packet);
+    // Return immediately, indicating whether a received frame was available.
+    extern function bit try_recv(output uvm_tlm_generic_payload packet);
+endclass
+
+task {{ class_prefix }}sequencer::send(input bit [7:0] data[$]);
+    uvm_tlm_generic_payload packet;
+    byte unsigned bytes[];
+
+    if (data.size() == 0)
+        return;
+    packet = uvm_tlm_generic_payload::type_id::create("tx_packet");
+    bytes = new[data.size()];
+    foreach (data[i])
+        bytes[i] = data[i];
+    packet.set_command(UVM_TLM_WRITE_COMMAND);
+    packet.set_data(bytes);
+    packet.set_data_length(bytes.size());
+    packet.set_streaming_width(bytes.size());
+    packet.set_response_status(UVM_TLM_INCOMPLETE_RESPONSE);
+    o_port.put(packet);
+    if (packet.get_response_status() != UVM_TLM_OK_RESPONSE)
+        `uvm_error("UART_TX", packet.sprint())
+endtask
+
+task {{ class_prefix }}sequencer::send_byte(input bit [7:0] data);
+    bit [7:0] bytes[$];
+
+    bytes.push_back(data);
+    send(bytes);
+endtask
+
+task {{ class_prefix }}sequencer::recv(output uvm_tlm_generic_payload packet);
+    rx_fifo.get(packet);
+endtask
+
+function bit {{ class_prefix }}sequencer::try_recv(output uvm_tlm_generic_payload packet);
+    packet = null;
+    return rx_fifo.try_get(packet);
+endfunction
+
+`endif

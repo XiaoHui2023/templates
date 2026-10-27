@@ -1,0 +1,82 @@
+`ifndef {{ class_prefix | upper }}DRIVER
+`define {{ class_prefix | upper }}DRIVER
+
+class {{ class_prefix }}driver extends uvm_component;
+    `uvm_component_utils({{ class_prefix }}driver)
+
+    virtual {{ class_prefix }}interface vif;
+    uvm_blocking_put_imp #(uvm_tlm_generic_payload, {{ class_prefix }}driver) imp;
+    uvm_analysis_port #(uvm_tlm_generic_payload) o_ap;
+    protected semaphore tx_lock;
+
+    // Construct transport endpoints and serialize complete transmit packets.
+    function new(string name = "{{ class_prefix }}driver", uvm_component parent = null);
+        super.new(name, parent);
+        imp = new("imp", this);
+        o_ap = new("o_ap", this);
+        tx_lock = new(1);
+    endfunction
+
+    // Obtain the interface supplied through config_db.
+    extern function void build_phase(uvm_phase phase);
+    // Transmit a write payload atomically with respect to other senders.
+    extern task put(input uvm_tlm_generic_payload packet);
+    // Publish one fresh payload per received frame while transmission runs independently.
+    extern task run_phase(uvm_phase phase);
+endclass
+
+function void {{ class_prefix }}driver::build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if (!uvm_config_db #(virtual {{ class_prefix }}interface)::get(this, "", "vif", vif) || vif == null)
+        `uvm_fatal("UART_VIF", "config_db requires a non-null vif")
+endfunction
+
+task {{ class_prefix }}driver::put(input uvm_tlm_generic_payload packet);
+    byte unsigned bytes[];
+
+    if (packet == null) begin
+        `uvm_error("UART_TX", "null payload")
+        return;
+    end
+    packet.set_response_status(UVM_TLM_INCOMPLETE_RESPONSE);
+    if (packet.get_command() != UVM_TLM_WRITE_COMMAND) begin
+        packet.set_response_status(UVM_TLM_COMMAND_ERROR_RESPONSE);
+        return;
+    end
+    packet.get_data(bytes);
+    if (packet.get_data_length() != bytes.size() || packet.get_byte_enable_length() != 0 ||
+        packet.get_streaming_width() < bytes.size()) begin
+        packet.set_response_status(UVM_TLM_BURST_ERROR_RESPONSE);
+        return;
+    end
+    tx_lock.get(1);
+    foreach (bytes[i])
+        vif.send_byte(bytes[i]);
+    tx_lock.put(1);
+    packet.set_response_status(UVM_TLM_OK_RESPONSE);
+endtask
+
+task {{ class_prefix }}driver::run_phase(uvm_phase phase);
+    uvm_tlm_generic_payload packet;
+    byte unsigned bytes[];
+    bit [7:0] data;
+    bit valid;
+
+    forever begin
+        vif.recv_byte(data, valid);
+        packet = uvm_tlm_generic_payload::type_id::create("rx_packet");
+        bytes = new[1];
+        bytes[0] = data;
+        packet.set_command(UVM_TLM_READ_COMMAND);
+        packet.set_data(bytes);
+        packet.set_data_length(1);
+        packet.set_streaming_width(1);
+        packet.set_response_status(valid ? UVM_TLM_OK_RESPONSE : UVM_TLM_GENERIC_ERROR_RESPONSE);
+        o_ap.write(packet);
+        // Resume edge detection only after a malformed frame releases the line.
+        if (!valid)
+            wait (vif.rx === 1'b1);
+    end
+endtask
+
+`endif
