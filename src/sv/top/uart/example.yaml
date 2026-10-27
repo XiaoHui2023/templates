@@ -3,3 +3,4 @@ baud_rate: 115200
 # Runtime changes: agent.sqr.set_baud_rate(9600);
 # sqr shortcuts: send_byte, send_word, send, send_file, send_string
 # Blocking reads: recv_byte, recv_word, recv_bytes, recv_string
+# Wait through unrelated input: agent.sqr.wait_string("READY");

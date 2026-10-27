@@ -34,6 +34,9 @@ class {{ class_prefix }}sequencer extends uvm_sequencer #(uvm_tlm_generic_payloa
     extern task recv_bytes(input int length, output bit [7:0] data[$]);
     // Consume the expected number of characters and report any mismatch.
     extern task recv_string(input string expected);
+    // Consume bytes until the expected string appears consecutively; mismatches keep waiting.
+    // Empty strings return immediately, and invalid frames restart the match.
+    extern task wait_string(input string expected);
     // Read the complete file before transmitting; .bin preserves every byte.
     extern protected function bit read_file(input string filename, output bit [7:0] data[$]);
     // Decode byte pairs independently of line length, allowing prefixes and comments.
@@ -167,6 +170,42 @@ task {{ class_prefix }}sequencer::recv_string(input string expected);
             `uvm_error("UART_STRING", $sformatf("character %0d: expected 0x%02h, received 0x%02h", i, expected.getc(i), bytes[i]))
             return;
         end
+    end
+endtask
+
+task {{ class_prefix }}sequencer::wait_string(input string expected);
+    int prefix[];
+    int matched;
+    uvm_tlm_generic_payload packet;
+    byte unsigned bytes[];
+
+    if (expected.len() == 0)
+        return;
+    prefix = new[expected.len()];
+    prefix[0] = 0;
+    matched = 0;
+    for (int i = 1; i < expected.len(); i++) begin
+        while (matched > 0 && expected.getc(i) != expected.getc(matched))
+            matched = prefix[matched-1];
+        if (expected.getc(i) == expected.getc(matched))
+            matched++;
+        prefix[i] = matched;
+    end
+    matched = 0;
+    forever begin
+        recv(packet);
+        packet.get_data(bytes);
+        if (packet.get_response_status() != UVM_TLM_OK_RESPONSE ||
+            packet.get_data_length() != 1 || bytes.size() != 1) begin
+            matched = 0;
+            continue;
+        end
+        while (matched > 0 && bytes[0] != expected.getc(matched))
+            matched = prefix[matched-1];
+        if (bytes[0] == expected.getc(matched))
+            matched++;
+        if (matched == expected.len())
+            return;
     end
 endtask
 

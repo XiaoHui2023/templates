@@ -83,6 +83,9 @@ task {{ class_prefix }}driver::run_phase(uvm_phase phase);
 
     forever begin
         vif.recv_byte(data, valid);
+        `uvm_info("UART_RX", $sformatf("RX %02h%s%s", data,
+            data inside {[8'h20:8'h7e]} ? $sformatf(" '%c'", data) : "",
+            valid ? "" : " (frame error)"), UVM_LOW)
         packet = uvm_tlm_generic_payload::type_id::create("rx_packet");
         bytes = new[1];
         bytes[0] = data;
