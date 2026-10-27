@@ -11,8 +11,8 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         `uvm_field_int(enabled, UVM_ALL_ON | (enabled >= 0 ? 0 : UVM_NOPRINT))
         `uvm_field_int(low_power, UVM_DEFAULT | (low_power ? 0 : UVM_NOPRINT))
         `uvm_field_int(check_duty, UVM_ALL_ON | (check_duty ? UVM_NOPRINT : 0))
-        `uvm_field_int(unfix_frequence, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
-        `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
+        `uvm_field_int(unfix_frequence, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
+        `uvm_field_int(unfix_enabled, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     longint frequence;
@@ -60,7 +60,9 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         return check_duty;
     endfunction
 
+    // Reports whether this clock anchors stability checks.
     virtual function bit is_stability_anchor(); return stable; endfunction
+    // Requests the soft inactive preference for this clock.
     virtual function void apply_low_power_preference(); low_power = 1'b1; endfunction
 
 endclass

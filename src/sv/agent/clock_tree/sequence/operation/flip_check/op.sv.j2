@@ -55,6 +55,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     int skipped;
     int subjects;
     int stable_skipped;
+    int policy_skipped;
     int failed;
 
     if (req == null)
@@ -73,6 +74,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     skipped = 0;
     subjects = 0;
     stable_skipped = 0;
+    policy_skipped = 0;
     failed = 0;
     if (!rq.quiet || rq.debug)
         `uvm_info("CLK_TREE", $sformatf(
@@ -88,6 +90,12 @@ task {{ settings.class_prefix }}flip_check_seq::body();
         if (tree.nodes[i] == null || !tree.nodes[i].has_functional_contract())
             continue;
         subjects++;
+        if (!tree.nodes[i]._should_check) begin
+            policy_skipped++;
+            `uvm_info("CLK_TREE", $sformatf(
+                "test_flip: skip %s, checking disabled", tree.nodes[i].get_name()), UVM_LOW)
+            continue;
+        end
         if (skip_stable_subject(tree.nodes[i], stable_nodes)) begin
             stable_skipped++;
             continue;
@@ -104,7 +112,7 @@ task {{ settings.class_prefix }}flip_check_seq::body();
 
     if (subjects == 0)
         `uvm_fatal("CLK_TREE", "test_flip: no node provides a transition check")
-    if (test_subjects.size() == 0 && stable_skipped != subjects)
+    if (test_subjects.size() == 0 && stable_skipped + policy_skipped != subjects)
         `uvm_fatal("CLK_TREE", "test_flip: no subject checked")
 
     foreach (test_subjects[i]) begin
@@ -124,8 +132,8 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     rs.ok = failed == 0;
     if (!rq.quiet || failed != 0)
         `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: complete, %0d tested, %0d skipped, %0d stable upstream skipped, %0d failed",
-            checked, skipped, stable_skipped, failed), UVM_LOW)
+            "test_flip: complete, %0d tested, %0d skipped, %0d checking disabled, %0d stable upstream skipped, %0d failed",
+            checked, skipped, policy_skipped, stable_skipped, failed), UVM_LOW)
     rsp = rs;
 endtask
 

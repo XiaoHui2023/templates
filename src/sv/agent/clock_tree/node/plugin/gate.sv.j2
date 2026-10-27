@@ -5,9 +5,9 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     `uvm_object_utils_begin({{ settings.class_prefix }}gate)
         `uvm_field_int(_resolved_open, UVM_ALL_ON)
         `uvm_field_int(open, UVM_ALL_ON)
-        `uvm_field_int(unfix_open, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
-        `uvm_field_int(fix_open, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
-        `uvm_field_int(fix_close, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
+        `uvm_field_int(unfix_open, UVM_DEFAULT|UVM_DEC|(_should_print ? 0 : UVM_NOPRINT))
+        `uvm_field_int(fix_open, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
+        `uvm_field_int(fix_close, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     rand bit _resolved_open;
@@ -59,6 +59,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         return 1'b1;
     endfunction
 
+    // Writes the resolved gate state when its register is bound.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);

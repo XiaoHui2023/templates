@@ -5,7 +5,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     `uvm_object_utils_begin({{ settings.class_prefix }}mux)
         `uvm_field_int(_resolved_sel, UVM_ALL_ON)
         `uvm_field_int(sel, UVM_ALL_ON)
-        `uvm_field_int(unfix_sel, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
+        `uvm_field_int(unfix_sel, UVM_DEFAULT|UVM_DEC|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     int max_sel;
@@ -84,6 +84,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         return 1'b1;
     endfunction
 
+    // Writes the resolved source selector when its register is bound.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);

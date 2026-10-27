@@ -43,6 +43,12 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
     failed = 0;
     if (tree == null || parent == null)
         return;
+    if (!parent._should_check) begin
+        skipped = 1;
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_route: skip %s, checking disabled", parent.get_name()), UVM_LOW)
+        return;
+    end
 
     out_vif = parent.get_out_vif();
     foreach (tree.nodes[i]) begin
@@ -51,6 +57,13 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
         tree.nodes[i].collect_input_keys_from_source(parent, input_keys);
         foreach (input_keys[key_idx]) begin
             in_key = input_keys[key_idx];
+            if (!tree.nodes[i]._should_check) begin
+                skipped++;
+                `uvm_info("CLK_TREE", $sformatf(
+                    "test_route: skip %s.out -> %s.in, checking disabled",
+                    parent.get_name(), tree.nodes[i].get_name()), UVM_LOW)
+                continue;
+            end
             in_vif = tree.nodes[i].get_in_vif(in_key);
             edge_name = in_key == ""
                 ? $sformatf("%s.out -> %s.in", parent.get_name(), tree.nodes[i].get_name())
@@ -179,7 +192,7 @@ task {{ settings.class_prefix }}route_check_seq::body();
                 tree.nodes.size()))
         else
             `uvm_fatal("CLK_TREE", $sformatf(
-                "test_route: all %0d route edge(s) skipped due to missing interface",
+                "test_route: all %0d route edge(s) skipped by node policy or missing interface",
                 skipped))
     end
 

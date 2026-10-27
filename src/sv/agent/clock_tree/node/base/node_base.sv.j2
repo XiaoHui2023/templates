@@ -3,15 +3,15 @@
 
 class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}node_base)
-        `uvm_field_int(_resolved_freq, UVM_DEFAULT|UVM_DEC|(_print_resolve ? 0 : UVM_NOPRINT))
-        `uvm_field_int(_resolved_active, UVM_DEFAULT|(_print_resolve ? 0 : UVM_NOPRINT))
+        `uvm_field_int(_resolved_freq, UVM_DEFAULT|UVM_DEC|(_should_print ? 0 : UVM_NOPRINT))
+        `uvm_field_int(_resolved_active, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     string kind;
     rand longint _resolved_freq;
     rand bit _resolved_active;
-    bit _print_resolve;
-    bit _print_fix;
+    bit _should_print;
+    bit _should_check;
     {{ settings.class_prefix }}node_base source;
     {{ settings.class_prefix }}node_base sources[string];
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
@@ -29,8 +29,8 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     // Initializes the common node state.
     function new(string name = "");
         super.new(name);
-        _print_resolve = 0;
-        _print_fix = 0;
+        _should_print = 1'b0;
+        _should_check = 1'b1;
     endfunction
 
     // Binds one generic upstream edge. Empty key is the default input.

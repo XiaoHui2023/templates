@@ -8,7 +8,7 @@ class {{ settings.class_prefix }}ratio_base extends {{ settings.class_prefix }}n
     `uvm_object_utils_begin({{ settings.class_prefix }}ratio_base)
         `uvm_field_int(_resolved_ratio, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(ratio, UVM_ALL_ON | UVM_DEC)
-        `uvm_field_int(unfix_ratio, UVM_DEFAULT|UVM_DEC|(_print_fix?0:UVM_NOPRINT))
+        `uvm_field_int(unfix_ratio, UVM_DEFAULT|UVM_DEC|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     rand int _resolved_ratio;

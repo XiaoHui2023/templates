@@ -3,7 +3,7 @@
 
 class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}frequency_synth_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}pll_inno)
-        `uvm_field_string(group_id, UVM_DEFAULT|(_print_group_id?0:UVM_NOPRINT))
+        `uvm_field_string(group_id, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
     {{ settings.class_prefix }}reg f_lock;
     {{ settings.class_prefix }}reg f_pd;
@@ -13,9 +13,9 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}fre
     {{ settings.class_prefix }}reg f_fbdiv;
 
     string group_id;
-    bit _print_group_id;
     {{ settings.class_prefix }}pll_inno to_group[string];
 
+    // Initializes PLL register handles and group membership.
     function new(string name = "");
         super.new(name);
         f_lock = new();
@@ -26,11 +26,12 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}fre
         f_fbdiv = new();
         kind = "pll_inno";
         group_id = "";
-        _print_group_id = 1;
     endfunction
 
+    // Returns the lock-status register.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
 
+    // Applies the shared PLL configuration when register bindings exist.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
@@ -67,6 +68,7 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}fre
         configured = active;
     endtask
 
+    // Waits for the primary PLL group to lock.
     virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
         if (group_id != "{{ plugin_value("pll_inno", "primary_group", "0") }}")
             return;

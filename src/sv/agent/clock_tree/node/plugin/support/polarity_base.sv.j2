@@ -4,7 +4,7 @@
 class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix }}node_base;
     `uvm_object_utils_begin({{ settings.class_prefix }}polarity_base)
         `uvm_field_int(inverted, UVM_ALL_ON)
-        `uvm_field_int(fix_inverted, UVM_DEFAULT|(_print_fix?0:UVM_NOPRINT))
+        `uvm_field_int(fix_inverted, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
     rand bit inverted;
@@ -36,6 +36,7 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
         return 300;
     endfunction
 
+    // Writes the selected polarity when its register is bound.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);

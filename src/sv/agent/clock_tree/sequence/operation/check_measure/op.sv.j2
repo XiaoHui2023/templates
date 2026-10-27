@@ -8,11 +8,14 @@ class {{ settings.class_prefix }}check_measure_seq extends {{ settings.class_pre
     `uvm_object_utils({{ settings.class_prefix }}check_measure_seq)
     `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
+    // Constructs the measurement operation sequence.
     function new(string name = "{{ settings.class_prefix }}check_measure_seq");
         super.new(name);
     endfunction
 
+    // Runs the requested measurement checks.
     extern virtual task body();
+    // Reports whether the node is eligible for this measurement request.
     extern function bit node_needs_measure(
         {{ settings.class_prefix }}node_base nd,
         bit check_observation
@@ -176,7 +179,7 @@ function bit {{ settings.class_prefix }}check_measure_seq::node_needs_measure(
     {{ settings.class_prefix }}node_base nd,
     bit check_observation
 );
-    if (nd == null || nd.vif == null)
+    if (nd == null || !nd._should_check || nd.vif == null)
         return 1'b0;
     return check_observation && nd.is_observable();
 endfunction
