@@ -26,6 +26,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     constraint cst_resolve_active_from_src { source != null -> _resolved_active == source._resolved_active; }
     constraint cst_resolve_freq_from_src { source != null -> _resolved_freq == source._resolved_freq; }
 
+    // Initializes the common node state.
     function new(string name = "");
         super.new(name);
         _print_resolve = 0;
@@ -40,6 +41,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
             sources[key] = parent;
     endfunction
 
+    // Returns the upstream edge selected by key.
     virtual function {{ settings.class_prefix }}node_base get_source(string key = "");
         if (key == "")
             return source;
@@ -48,6 +50,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         return null;
     endfunction
 
+    // Collects distinct upstream nodes across all input slots.
     virtual function void collect_source_nodes(output {{ settings.class_prefix }}node_base source_nodes[$]);
         source_nodes.delete();
         if (source != null)
@@ -57,6 +60,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
                 source_nodes.push_back(sources[key]);
     endfunction
 
+    // Collects this node's input slots connected to parent.
     virtual function void collect_input_keys_from_source(
             input {{ settings.class_prefix }}node_base parent,
             output string keys[$]);
@@ -69,20 +73,24 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     endfunction
 
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Reports whether the selected input interface is bound.
     virtual function bit has_in_vif(string key = "");
         return key == "" ? in_vif != null : in_vifs.exists(key) && in_vifs[key] != null;
     endfunction
+    // Reports whether the selected output interface is bound.
     virtual function bit has_out_vif(string key = "");
         return key == "" ? out_vif != null : out_vifs.exists(key) && out_vifs[key] != null;
     endfunction
-    virtual function {{ settings.class_prefix }}interface get_in_vif(string key = "");
+    // Returns the selected input interface handle.
+    virtual function virtual {{ settings.class_prefix }}interface get_in_vif(string key = "");
         if (key == "")
             return in_vif;
         if (in_vifs.exists(key))
             return in_vifs[key];
         return null;
     endfunction
-    virtual function {{ settings.class_prefix }}interface get_out_vif(string key = "");
+    // Returns the selected output interface handle.
+    virtual function virtual {{ settings.class_prefix }}interface get_out_vif(string key = "");
         if (key == "")
             return out_vif;
         if (out_vifs.exists(key))
@@ -91,20 +99,26 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     endfunction
 `endif
 
-    // Configuration is a generic node capability. Plugins own its semantics.
+    // Returns the plugin's configuration order.
     virtual function int configuration_priority(); return -1; endfunction
+    // Reports whether configuration requires an observed descendant.
     virtual function bit requires_observed_descendant(); return 1'b0; endfunction
+    // Reports whether this node has a post-write wait.
     virtual function bit waits_after_configuration(); return 1'b0; endfunction
+    // Applies this node's configuration through cfg.
     virtual task apply_configuration(input {{ settings.class_prefix }}node_config_api cfg, output bit configured);
         configured = 1'b0;
     endtask
+    // Waits for this node's declared post-write condition.
     virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg); endtask
+    // Finalizes plugin state after register binding.
     virtual function void post_register_bind(); endfunction
+    // Collects control registers owned by this node.
     virtual function void collect_control_regs(output {{ settings.class_prefix }}reg regs[$]);
         regs.delete();
     endfunction
 
-    // Observation describes a physical endpoint, independent of node identity.
+    // Reports whether this node exposes a measurement endpoint.
     virtual function bit is_observable();
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
         return vif != null;
@@ -112,13 +126,17 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         return 1'b0;
 `endif
     endfunction
+    // Reports whether duty-cycle measurement is meaningful.
     virtual function bit supports_duty_observation(); return 1'b0; endfunction
+    // Reports whether this node anchors stability checks.
     virtual function bit is_stability_anchor(); return 1'b0; endfunction
+    // Applies this node's low-power preference.
     virtual function void apply_low_power_preference(); endfunction
 
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
-    // A functional contract drives only this node's declared ports and controls.
+    // Reports whether this node supplies a functional check.
     virtual function bit has_functional_contract(); return 1'b0; endfunction
+    // Runs this node's functional check through api.
     virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
@@ -128,6 +146,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         did_skip = 1'b0;
         failures = 0;
     endtask
+    // Reports whether functional checks preserve native inputs.
     virtual function bit preserves_native_input(); return 1'b0; endfunction
 `endif
 endclass
