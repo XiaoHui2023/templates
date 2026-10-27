@@ -19,6 +19,14 @@ class {{ class_prefix }}engine;
         input int bytes_per_line
     );
 
+    // 跳过空白、行注释和块注释，读取下一个地址或数据项
+    // unterminated — 文件结束时块注释仍未闭合
+    extern local function bit read_memh_token(
+        input int file,
+        output string token,
+        output bit unterminated
+    );
+
     // 读 memh 文件，把内容放进 dst；clear_first 为真则先把 dst 清空
     extern function bit read_into_map(input string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
     // 从存储 src 里按地址从 start_addr 起连续取字节放进 q：len 为负时遇到第一个没有数据的地址就停；len 非负时这一段必须每个地址都有数据，否则失败并清空 q
@@ -110,13 +118,67 @@ function void {{ class_prefix }}engine::emit_memh_run(
     end
 endfunction
 
+function bit {{ class_prefix }}engine::read_memh_token(
+    input int file,
+    output string token,
+    output bit unterminated
+);
+    int ch;
+    int next_ch;
+    int previous_ch;
+    token = "";
+    unterminated = 0;
+    ch = $fgetc(file);
+    while (ch != -1) begin
+        if (ch == 8'h2f) begin
+            next_ch = $fgetc(file);
+            if (next_ch == 8'h2f) begin
+                do begin
+                    ch = $fgetc(file);
+                end while (ch != -1 && ch != 8'h0a && ch != 8'h0d);
+                if (token.len())
+                    return 1;
+                ch = $fgetc(file);
+                continue;
+            end
+            if (next_ch == 8'h2a) begin
+                previous_ch = 0;
+                ch = $fgetc(file);
+                while (ch != -1) begin
+                    if (previous_ch == 8'h2a && ch == 8'h2f)
+                        break;
+                    previous_ch = ch;
+                    ch = $fgetc(file);
+                end
+                if (ch == -1) begin
+                    unterminated = 1;
+                    return 0;
+                end
+                if (token.len())
+                    return 1;
+                ch = $fgetc(file);
+                continue;
+            end
+            if (next_ch != -1)
+                void'($ungetc(next_ch, file));
+        end
+        if (ch == 8'h20 || (ch >= 8'h09 && ch <= 8'h0d)) begin
+            if (token.len())
+                return 1;
+        end else begin
+            token = {token, 8'(ch)};
+        end
+        ch = $fgetc(file);
+    end
+    return token.len() != 0;
+endfunction
+
 function bit {{ class_prefix }}engine::read_into_map(input string filename, ref bit [7:0] dst[bit [63:0]], input bit clear_first);
     int file;
-    int code;
+    bit unterminated;
     int value;
     bit [63:0] addr;
     string token;
-    string rest_of_line;
 
     if (clear_first)
         dst.delete();
@@ -128,21 +190,7 @@ function bit {{ class_prefix }}engine::read_into_map(input string filename, ref 
     end
 
     addr = '0;
-    while (!$feof(file)) begin
-        code = $fscanf(file, "%s", token);
-        if (code != 1) begin
-            void'($fgets(rest_of_line, file));
-            continue;
-        end
-
-        if (!token.len())
-            continue;
-
-        if (token.len() >= 2 && token.substr(0, 1) == "//") begin
-            void'($fgets(rest_of_line, file));
-            continue;
-        end
-
+    while (read_memh_token(file, token, unterminated)) begin
         if (token.substr(0, 0) == "@") begin
             if (token.len() <= 1 || $sscanf(token.substr(1, token.len() - 1), "%h", addr) != 1) begin
                 `uvm_error("", $sformatf("invalid memh address token '%s' in %s", token, filename))
@@ -158,6 +206,12 @@ function bit {{ class_prefix }}engine::read_into_map(input string filename, ref 
             dst[addr] = value[7:0];
             addr++;
         end
+    end
+
+    if (unterminated) begin
+        `uvm_error("", $sformatf("unterminated memh block comment in %s", filename))
+        $fclose(file);
+        return 0;
     end
 
     $fclose(file);

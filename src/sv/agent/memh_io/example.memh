@@ -1,0 +1,6 @@
+/* Memory initialization */
+@1000/* base */12/* byte */34
+/* multiple
+   lines, ignored @FFFF FF // text */
+AB CD // line comment
+@2000/**/EF/* tail */01
