@@ -115,7 +115,7 @@ class Node(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: str = Field(..., min_length=1, description="对应的 SystemVerilog 节点插件名")
-    generate: bool = Field(default=True, description="是否生成该节点及其接口和寄存器绑定")
+    exclude: bool = Field(default=False, description="排除该节点，不生成实例、接口和寄存器绑定")
     source: SourceValue = Field(default=None, description="默认或具名上游节点引用")
     outputs: List[str] = Field(default_factory=list, description="展开为数组实例的输出组")
     path: Optional[str] = Field(default=None, description="无功能端点的观测路径")
@@ -291,7 +291,7 @@ class Tree(BaseModel):
     @property
     def nodes_ordered(self) -> List[Node]:
         """返回需要生成的节点，顺序与输入一致。"""
-        return [node for node in self.nodes.values() if node.generate]
+        return [node for node in self.nodes.values() if not node.exclude]
 
     @computed_field
     @property

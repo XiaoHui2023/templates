@@ -3,7 +3,7 @@
 ## v6 分组输入与共享输出
 
 - 输入：根对象使用 settings 和 nodes，nodes 可从独立文件导入；不再接受扁平节点输入。
-- 生成：present 改为 generate，与时钟 enabled 分开。
+- 节点排除：exclude 默认为 false，为 true 时不生成节点，与时钟 enabled 分开。
 - stable：省略 enabled 时补 1，显式关闭时报错。
 - 插件：增加 clk_div_with_clken，三个输出共用分频状态和配置。
 

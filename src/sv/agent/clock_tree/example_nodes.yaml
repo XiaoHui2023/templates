@@ -98,7 +98,7 @@ bus_hclken:
 
 future_extension:
   kind: vendor_extension
-  generate: false
+  exclude: true
   source: xtal
   config:
     calibration: 7

@@ -79,7 +79,7 @@ nodes:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | | 节点插件名。 |
-| `generate` | `bool` | `true` | 是否生成节点及其接口和寄存器绑定。 |
+| `exclude` | `bool` | `false` | 排除该节点，不生成实例、接口和寄存器绑定。 |
 | `source` | `str` / `dict[str, str]` | | 前级引用。 |
 | `outputs` | `list[str]` | `[]` | 输出组。 |
 | `path` | `str` | | 观测路径。 |
@@ -106,7 +106,7 @@ nodes:
 | `clk_div_with_clken` | `ratio`、`unfix_ratio`，ratio 为 2、3、4 或 6 |
 | `inv`、`inv_cell`、`inv_mux` | `inverted`、`fix_inverted` |
 
-`stable: true` 且省略 enabled 时补 1；显式 enabled 小于等于 0 会报错。`generate: false` 不等于关闭时钟；生成的节点不能引用未生成的节点。
+`stable: true` 且省略 enabled 时补 1；显式 enabled 小于等于 0 会报错。`exclude: true` 不等于关闭时钟；保留的节点不能引用被排除的节点。
 
 ### clk_div_with_clken
 
