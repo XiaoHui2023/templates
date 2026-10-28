@@ -36,5 +36,6 @@ task main_phase(uvm_phase phase);
     ...
     clk_sqr.test_measure();
     ...
+    phase.drop_objection(this);
 endtask
 ```

@@ -19,7 +19,7 @@
 
 ## 设计
 
-test 不直接访问寄存器或 interface，候选筛选、激励、测量、并发控制和清理都由 operation 负责。operation 没有返回 response 时按一次失败处理。
+test 不直接访问寄存器或 interface。operation 没有返回 response 时按一次失败处理，其余结果原样转交。
 
 ## rsp
 

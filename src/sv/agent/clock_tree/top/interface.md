@@ -1,165 +1,76 @@
 # 接口
 
-![](../images/interface_structure.drawio.svg)
+`tree_interface` 包含节点端口的接口实例，`connect(interface, tree)` 将句柄分配给节点。`interface` 负责驱动和转交测量请求，内部的 `meas` 为 `measure_interface`。两者均使用 `timeunit 1ns`、`timeprecision 1fs`。
 
-## interface
+## 端口与路径
 
-| 项 | 值 |
+`interface` 和 `measure_interface` 都以 `input wire in` 读取 RTL 信号。`interface` 没有输出端口，驱动通过 `drive_en`、`drive_value` 交给 `tree_interface` 中的 force/release 逻辑。
+
+`path_macros.sv` 为 RTL 路径提供带 `ifndef` 的默认宏定义，可在编译前定义同名宏来替换路径。
+
+## 参数
+
+两个接口使用相同参数；外层将参数传入 `meas`。
+
+| 参数 | 类型 | 含义 |
+| --- | --- | --- |
+| `MIN_FREQ_HZ` | `int` | 活动和稳定超时的最低频率基准，Hz |
+| `ACTIVE_CYCLES` | `int` | 确认活动所需的上升沿数 |
+| `STABLE_CYCLES` | `int` | 连续稳定周期数 |
+| `PERIOD_TOL` | `real` | 相邻周期的相对偏差上限 |
+| `DUTY_MIN_PCT`、`DUTY_MAX_PCT` | `real` | 占空比范围，百分数 |
+| `DUTY_TOL_PCT` | `real` | 占空比边界容差，百分数点 |
+
+## 驱动
+
+| task | 作用 |
 | --- | --- |
-| **timeunit** | **1ns** |
-| **timeprecision** | **1fs** |
+| `drive_static(value)` | 停止时钟激励，持续驱动 0 或 1 |
+| `start_clock(freq_hz)` | 产生指定频率的时钟，单位 Hz；非正值不改变驱动 |
+| `release_drive()` | 关闭驱动并释放 RTL 信号 |
+| `stop_clock()` | 与 release_drive 相同 |
 
-### 端口
+驱动持续到显式释放。所有正常退出和可继续错误路径都要释放驱动。
 
-| 端口 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **in** | input | wire | RTL 时钟 |
+## 测量
 
-### parameter
+以下方法由 `interface` 转交给 `meas`，也可直接通过 `measure_interface` 调用。
 
-| 名字 | 类型 | 说明 |
-| --- | --- | --- |
-| **MIN_FREQ_HZ** | int | 测量最低频率与活动、稳定阶段超时时限基准，Hz |
-| **ACTIVE_CYCLES** | int | 判定时钟有活动所需连续上升沿个数 |
-| **STABLE_CYCLES** | int | 活动确认后频率或占空比各自连续稳定所需周期数 |
-| **PERIOD_TOL** | real | 相邻周期相对偏差上限 |
-| **DUTY_MIN_PCT** | real | 允许占空比下限，百分数 |
-| **DUTY_MAX_PCT** | real | 允许占空比上限，百分数 |
-| **DUTY_TOL_PCT** | real | 占空比允许范围在 **DUTY_MIN_PCT**、**DUTY_MAX_PCT** 之外的容差，百分数点 |
-
-### 成员
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **meas** | **measure_interface** | 边沿频率、占空比与相位测量 |
-
-### set_measure_en
-
-写测量开关；关时写入 **last_*** 快照并清零当前测量结果。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **en** | input | bit | 测量开关 |
-
-### start_measure
-
-清零当前测量结果后开启测量，并声明本次需要稳定的测量项。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **need_freq** | input | bit | 是否等待频率稳定，默认 1 |
-| **need_duty** | input | bit | 是否等待占空比稳定，默认 1 |
-
-### stop_measure
-
-关闭测量并写入 **last_*** 快照。
-
-### set_min_freq_hz
-
-写可测量的最低频率。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **hz** | input | int | 最低频率，Hz |
-
-### measure_freq_hz
-
-一次完成频率测量：调用 **start_measure**、**wait_measure_stable** 仅等待 **freq_stable**，再 **stop_measure**。最低频率与超时由 **MIN_FREQ_HZ** 参数及 agent 已写入的 **set_min_freq_hz** 决定。频率读 **last_freq_hz**，是否有效读 **last_valid**；失败时 **inactive** 或 **timed_out** 为 1。
-
-### wait_measure_stable
-
-事件驱动等待 **activity_ok** 或 **inactive**，再等待本次请求的 **freq_stable/duty_stable**。最低频率只用于活动与稳定阶段的截止时间，不过滤已采到的合法周期。截止时刻仍属于有效窗口；超时按待采周期数保留 **timeprecision** 量化余量，并跨入截止时间后的时间槽判定，避免边沿处理与超时处理竞争。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **need_freq** | input | bit | 为真时等待 **freq_stable** |
-| **need_duty** | input | bit | 为真时等待 **duty_stable** |
-| **ok** | output | bit | 为真表示活动已确认且在稳定时限内达到所需稳定 |
-
-## measure_interface
-
-| 项 | 值 |
+| 方法 | 作用 |
 | --- | --- |
-| **timeunit** | **1ns** |
-| **timeprecision** | **1fs** |
+| `set_min_freq_hz(hz)` | 设置超时基准，不低于 MIN_FREQ_HZ |
+| `start_measure(need_freq=1, need_duty=1)` | 清零当前结果，启动本次测量 |
+| `wait_measure_stable(need_freq, need_duty, ok)` | 先等待活动确认，再等待指定项稳定；关闭测量或超时也会返回 |
+| `stop_measure()` | 保存有效活动读数，关闭并清零当前结果 |
+| `set_measure_en(en)` | 控制测量开关；关闭时保存读数并清零 |
+| `measure_freq_hz()` | 启动、等待频率稳定、停止；不等待占空比 |
 
-### 端口
+仅检查活动时，将两个 need 参数均置 0。开始和等待阶段应使用相同的选择。
 
-| 端口 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **in** | input | wire | RTL 时钟 |
+## 测量结果
 
-### parameter
+以下成员位于 `meas`。
 
-| 名字 | 类型 | 说明 |
-| --- | --- | --- |
-| **MIN_FREQ_HZ** | int | 测量最低频率与活动、稳定阶段超时时限基准，Hz |
-| **ACTIVE_CYCLES** | int | 判定时钟有活动所需连续上升沿个数 |
-| **STABLE_CYCLES** | int | 活动确认后频率或占空比各自连续稳定所需周期数 |
-| **PERIOD_TOL** | real | 相邻周期相对偏差上限 |
-| **DUTY_MIN_PCT** | real | 允许占空比下限，百分数 |
-| **DUTY_MAX_PCT** | real | 允许占空比上限，百分数 |
-| **DUTY_TOL_PCT** | real | 占空比允许范围在 **DUTY_MIN_PCT**、**DUTY_MAX_PCT** 之外的容差，百分数点 |
+| 成员 | 含义 |
+| --- | --- |
+| `meas_en` | 测量已开启 |
+| `active`、`activity_ok` | 已采够活动上升沿 |
+| `inactive` | 活动阶段未通过 |
+| `freq_hz` | 当前频率，Hz |
+| `duty` | 当前占空比，0～1 |
+| `duty_ok` | 占空比在允许范围内 |
+| `freq_stable`、`duty_stable` | 对应项目达到连续稳定要求 |
+| `timed_out` | 活动已确认，但指定项未及时稳定 |
+| `phase_frac` | 相对本次首个上升沿的周期内位置，0～1，不含 1 |
+| `last_freq_hz`、`last_duty`、`last_phase_frac` | 最近保存的活动读数 |
+| `last_valid` | 曾保存有效活动读数，不表示频率或占空比已稳定 |
 
-### 成员
+停止测量会清零当前状态；停止前读取 `ok` 和错误状态，停止后读取 `last_*`。未确认活动时不会覆盖旧快照，因此不能单凭 `last_valid` 判断本次成功。
 
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **meas_en** | bit | 测量开关 |
-| **active** | logic | 与 **activity_ok** 同义，已连续 **ACTIVE_CYCLES** 个上升沿 |
-| **activity_ok** | logic | 活动阶段通过 |
-| **inactive** | logic | 活动阶段结束：自测量起点或上一边沿起超过一个最低频率周期仍无边沿，或已见边沿但未采够 **ACTIVE_CYCLES** 个上升沿 |
-| **freq_hz** | real | 当前测得频率，Hz |
-| **duty** | real | 当前占空比，0～1 |
-| **duty_ok** | logic | 当前占空比在 **[DUTY_MIN_PCT − DUTY_TOL_PCT, DUTY_MAX_PCT + DUTY_TOL_PCT]** 内 |
-| **freq_stable** | logic | 活动确认后频率已连续 **STABLE_CYCLES** 个周期稳定 |
-| **duty_stable** | logic | 活动确认后占空比已连续 **STABLE_CYCLES** 个周期在允许范围内 |
-| **timed_out** | logic | 活动已确认但在稳定阶段时限内未达到 **STABLE_CYCLES** 稳定 |
-| **phase_frac** | real | 当前相位，取值 0 以上且小于 1；频率稳定后有效 |
-| **last_freq_hz** | real | 最近一次测量结束时的频率，Hz |
-| **last_duty** | real | 最近一次测量结束时的占空比 |
-| **last_phase_frac** | real | 最近一次测量结束时的相位 |
-| **last_valid** | logic | **last_*** 快照是否有效 |
+## 超时与稳定
 
-### set_measure_en
+1. 活动阶段在最低频率对应的 ACTIVE_CYCLES 个周期内采够上升沿。
+2. 活动确认后，频率和占空比分别累计连续稳定周期；失稳时各自重新计数。
+3. 稳定预算为 STABLE_CYCLES + 1 个最低频率周期，额外一个周期用于建立频率基准。
 
-写测量开关；关时写入 **last_*** 快照并清零当前测量结果。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **en** | input | bit | 测量开关 |
-
-### start_measure
-
-清零当前测量结果后开启测量，并声明本次需要稳定的测量项。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **need_freq** | input | bit | 是否等待频率稳定，默认 1 |
-| **need_duty** | input | bit | 是否等待占空比稳定，默认 1 |
-
-### stop_measure
-
-关闭测量并写入 **last_*** 快照。
-
-### set_min_freq_hz
-
-写可测量的最低频率。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **hz** | input | int | 最低频率，Hz |
-
-### measure_freq_hz
-
-一次完成频率测量：调用 **start_measure**、**wait_measure_stable** 仅等待 **freq_stable**，再 **stop_measure**。最低频率与超时由 **MIN_FREQ_HZ** 参数及 agent 已写入的 **set_min_freq_hz** 决定。频率读 **last_freq_hz**，是否有效读 **last_valid**；失败时 **inactive** 或 **timed_out** 为 1。
-
-### wait_measure_stable
-
-事件驱动等待 **activity_ok** 或 **inactive**，再等待本次请求的 **freq_stable/duty_stable**。最低频率只用于活动与稳定阶段的截止时间，不过滤已采到的合法周期。截止时刻仍属于有效窗口；超时按待采周期数保留 **timeprecision** 量化余量，并跨入截止时间后的时间槽判定，避免边沿处理与超时处理竞争。
-
-| 参数 | 方向 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| **need_freq** | input | bit | 为真时等待 **freq_stable** |
-| **need_duty** | input | bit | 为真时等待 **duty_stable** |
-| **ok** | output | bit | 为真表示活动已确认且在稳定时限内达到所需稳定 |
+最低频率只决定超时，不丢弃已采到的正周期。截止时间包含仿真精度余量，并在截止时间槽结束后判断，避免与最后一个边沿竞争。

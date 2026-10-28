@@ -72,7 +72,7 @@ tree.clk_cpu._should_check = 0;
 | `collect_input_keys_from_source` | 返回连接指定上游的输入键 |
 | `get_in_vif`、`get_out_vif` | 返回指定端口的 virtual interface |
 
-`route_check` 通过拓扑钩子找出前级输出和后级输入，逐个前级驱动 0、1 并检查全部扇出，然后释放驱动。它使用前级默认输出 `get_out_vif()`；多输入由输入键区分。
+`route_check` 通过拓扑钩子找出前级输出和后级输入，逐个前级驱动 0、1 并检查全部下游输入，然后释放驱动。它使用前级默认输出 `get_out_vif()`；多输入由输入键区分。
 
 ## 扩展
 
@@ -82,4 +82,4 @@ tree.clk_cpu._should_check = 0;
 
 `config` 由 Python 插件校验，`output_config` 覆盖单个输出组。未知 `kind` 仍生成对应 SV 类型，缺少实现时由 SV 编译报错。
 
-通用 tree 和 sequence 通过 `node_base` 调用虚方法；节点专属逻辑写在叶插件，可复用的能力写在 support 基类。
+通用 tree 和 sequence 通过 `node_base` 调用虚方法；节点专属逻辑写在对应插件，可复用的能力写在 support 基类。

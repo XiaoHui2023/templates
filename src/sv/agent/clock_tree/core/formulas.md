@@ -2,64 +2,63 @@
 
 - **f** — 本节点输出频率
 - **f_ref** — 前级节点频率
+- **f_actual** — 寄存器编码对应的实际输出频率
 - 单位 — Hz
+
+## 分频频率与容差
+
+| 参数 | 说明 |
+| --- | --- |
+| **f_hw** | 前级频率除以分频比后的整数商 |
+| **epsilon** | 分频约束的相对容差 |
+
+```text
+f_hw = floor(f_ref / ratio)
+floor(f_hw × (1 - epsilon)) <= f <= floor(f_hw × (1 + epsilon))
+```
+
+此范围用于分频约束，不改变寄存器对应的实际输出频率，也不代替测量误差范围。
 
 ## div
 
 | 参数 | 说明 |
 | --- | --- |
-| **f** | 本节点输出频率 |
-| **f_ref** | 前级节点频率 |
-| **ratio** | 分频比，允许 1～64 |
+| **ratio** | 分频比，1～max_ratio |
+| **max_ratio** | 节点允许的最大分频比 |
 | **N** | **div** 寄存器写入值 |
 
 ```
-f_hw = f_ref / ratio
+f_actual = f_ref / ratio
+N = ratio - 1
 ```
 
-整数除法，**f_hw** 为寄存器按 **ratio** 配置后硅片输出频率。model 里 **\_resolved_freq** 按 **settings.div_freq_tolerance** 落在 **f_hw** 附近；**period_tolerance** 只用于测量稳定与 **check_measure** 结果验收。
-
-```
-f_hw * (1 - div_freq_tolerance) <= _resolved_freq <= f_hw * (1 + div_freq_tolerance)
-```
-
-**N** 与 **ratio**：**N** 为 0 时 **ratio** 为 1；**N** 大于 0 时 **ratio** 为 **N + 1**。反之 **ratio** 不大于 1 时 **N** 为 0，否则 **N** 为 **ratio − 1**。
+位宽为 **w** 的寄存器可编码 1～2^w 的分频比；节点的 **max_ratio** 还会进一步限制选择范围。
 
 ## div_r
 
-硅片固定分频，无寄存器；**ratio** 由配置指定，只要求大于 0，不受上一节 64 上限。
+固定分频，无寄存器。
 
 | 参数 | 说明 |
 | --- | --- |
-| **f** | 本节点输出频率 |
-| **f_ref** | 前级节点频率 |
 | **ratio** | 固定分频比，大于 0 |
 
 ```
-f_hw = f_ref / ratio
+f_actual = f_ref / ratio
 ```
-
-model 里 **\_resolved_freq** 按 **settings.div_freq_tolerance** 落在 **f_hw** 附近。
 
 ## dto
 
 | 参数 | 说明 |
 | --- | --- |
-| **f** | 本节点输出频率 |
-| **f_ref** | 前级节点频率 |
 | **ratio** | 分频比，大于 0 且不超过 2^25 |
 | **step** | **step** 寄存器写入值；旁通时为 0，分频时为 1～2^25−1 |
 | **bypass** | 旁通开关；**ratio** 为 1 时写 1，否则写 0 |
 
-```
-f_hw = f_ref / ratio
-```
-
-model 里 **\_resolved_freq** 按 **settings.div_freq_tolerance** 落在 **f_hw** 附近。
+分频比大于 1 时：
 
 ```
-step = 2^25 / ratio
-ratio = 2^25 / step
+step = floor(2^25 / ratio)
+f_actual = f_ref × step / 2^25
 ```
 
 **ratio** 为 1 时旁通：**bypass**=1，**step**=0，**load**=1。
@@ -83,7 +82,7 @@ ratio = 2^25 / step
 | **bwadj** | 带宽调节，等于 **clkf** |
 
 ```
-clkf = f / f_ref
+clkf = floor(f / f_ref)
 ```
 
 输出近似 **f_ref × clkf**。
@@ -137,21 +136,6 @@ f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 
 在合法组合中使 **f_actual** 与 **f** 绝对误差最小。先视 **postdiv1**、**postdiv2** 均为 1，在 **refdiv** 1～63 与合法 **fbdiv** 范围内搜共用系数；**fbdiv** 跳过 0～7 与 11；再固定已定的 **fbdiv**、**refdiv**，在 **postdiv1**、**postdiv2** 各 1～7 内为该路搜后级分频。
 
-## 测量相位
-
-| 参数 | 说明 |
-| --- | --- |
-| **t_rise** | 当前上升沿时刻 |
-| **t_ref** | 本次 **start_measure** 后第一个上升沿时刻，作为该路 0 时刻 |
-| **T** | 当前测得周期 |
-| **phase_frac** | 归一化相位，取值 0 以上且小于 1 |
-
-```
-phase_frac = fmod(t_rise - t_ref, T) / T
-```
-
-**phase_frac** 为 **real**，表示周期内位置；频率达到 **freq_stable** 后读数有效。测量分两阶段：在最低频率对应的 **ACTIVE_CYCLES** 个周期内采够上升沿确认有活动；活动确认后占空比与频率并行采样，各自独立计数 **STABLE_CYCLES** 个连续稳定周期，中途失稳则对应计数清零。最低频率只计算截止时间，不过滤已采到的正周期。频率稳定需要先采一个基准周期，因此稳定截止时间按 **STABLE_CYCLES + 1** 个最低频率周期计算；超时按待采周期数保留 **timeprecision** 量化余量，并在截止时间槽结束后判定。测量结束可通过 **last_freq_hz**、**last_duty**、**last_phase_frac** 读取最近一次结果。
-
 ### dw
 
 | 参数 | 说明 |
@@ -161,8 +145,23 @@ phase_frac = fmod(t_rise - t_ref, T) / T
 | **p** | 后分频索引，0～7 |
 | **postdiv** | **p + 1** |
 
-```
+```text
 f_actual = f_ref × fbdiv / postdiv
 ```
 
 在 **p** 为 0～7 范围内搜索，使 **f_actual** 与 **f** 绝对误差最小。
+
+## 测量相位
+
+| 参数 | 说明 |
+| --- | --- |
+| **t_rise** | 当前上升沿时刻 |
+| **t_ref** | 本次测量第一个上升沿时刻 |
+| **T** | 当前测得周期 |
+| **phase_frac** | 归一化相位，取值 0 以上且小于 1 |
+
+```
+phase_frac = fmod(t_rise - t_ref, T) / T
+```
+
+这是本路时钟相对自身首个上升沿的位置，不是两路时钟的相位差。

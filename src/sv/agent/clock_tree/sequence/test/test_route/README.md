@@ -19,11 +19,11 @@
 
 ## 设计
 
-test 不直接驱动 interface 或写寄存器，连线分组、low_power、force/release 和错误聚合都由 operation 负责。个别缺少接口的连线允许跳过；一条连线都未检查时 operation 报错。operation 没有返回 response 时按一次失败处理。
+test 不直接驱动 interface 或写寄存器。operation 没有返回 response 时按一次失败处理，其余结果原样转交。
 
 ## rsp
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | **ok** | **bit** | 连线检查通过 |
-| **failed** | **int** | 失败连线数 |
+| **failed** | **int** | 失败比较次数 |

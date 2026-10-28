@@ -1,4 +1,5 @@
 {% if settings.direct_config -%}
+
 # 时钟树
 
 ## 导入
@@ -24,7 +25,7 @@ tree.build(path-to-your-regmodel);
 
 ## 低功耗
 
-按节点插件定义的低功耗偏好配置。
+尽可能关闭时钟以加速仿真。stable 或显式要求开启的时钟仍保持开启；此操作不会主动关闭 PLL。
 
 ```systemverilog
 tree.configure(.low_power(1));
@@ -32,9 +33,15 @@ tree.configure(.low_power(1));
 
 ## 配置
 
-在节点实例上设置由其插件定义的属性。
+以 clk 节点为例，开启时钟并指定频率，然后应用配置。将 `your_clk` 替换为节点名。
+
 ```systemverilog
+tree.your_clk.low_power = 0;
+tree.your_clk.enabled = 1;
+tree.your_clk.frequence = 123456000; // 目标频率 123.456 MHz
 // 应用配置
 tree.configure();
 ```
+
+频率和开关必须满足前级连接，否则随机化失败。共用寄存器的节点要设置相容的控制值，避免相互覆盖。
 {% endif -%}

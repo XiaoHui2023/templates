@@ -78,7 +78,7 @@ settings:
 | --- | --- | --- | --- |
 | `kind` | `str` | | 节点插件名。 |
 | `present` | `bool` | `true` | 是否生成节点。 |
-| `source` | `str | dict[str, str]` | | 前级引用。 |
+| `source` | `str` / `dict[str, str]` | | 前级引用。 |
 | `outputs` | `list[str]` | `[]` | 输出组。 |
 | `path` | `str` | | 观测路径。 |
 | `in_path`、`out_path` | `str` | | 默认输入、输出路径。 |
