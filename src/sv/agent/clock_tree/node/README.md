@@ -1,63 +1,85 @@
 # 节点
 
-## 配置
+`tree.nodes` 是 `node_base` 句柄队列，包含全部节点实例。多输出节点的每个输出组各占一项。
 
-```yaml
-gate_cpu:
-  kind: gate
-  source: pll_cpu
-  reg: clk_ctrl.cpu_gate
-  config:
-    open: 1
-```
+## 控制
 
-节点通用字段由树处理，`config` 由 `kind` 对应的 Python 插件校验。多输出节点可用 `output_config` 覆盖单个输出组。
-
-```yaml
-pll_cpu:
-  kind: pll_inno
-  outputs: [core, bus]
-  config:
-    enabled: 1
-  output_config:
-    core:
-      frequence: 1000000000
-    bus:
-      frequence: 500000000
-```
-
-## 契约
-
-| 能力 | 基础 hook | 节点插件负责内容 |
+| 成员 | 默认值 | 作用 |
 | --- | --- | --- |
-| 拓扑 | `set_source`、`collect_source_nodes`、`collect_input_keys_from_source` | 上游与端口键 |
-| 配置 | `configuration_priority`、`apply_configuration`、`await_configuration` | 配置顺序、寄存器动作、完成条件 |
-| 观测 | `is_observable`、`supports_duty_observation`、`is_stability_anchor` | 可测端点、占空比、稳定性 |
-| 低功耗 | `apply_low_power_preference` | 节点低功耗偏好 |
-| 功能 | `has_functional_contract`、`run_functional_contract` | 端口激励与输出检查 |
-| 原生输入 | `preserves_native_input` | 禁止驱动的原生时钟输入 |
+| `_should_print` | `0` | 打印解析结果、固定约束和分组等诊断字段 |
+| `_should_check` | `1` | 允许 measure、flip 和 route 检查该节点 |
 
-## 所有权
+`_should_print` 不隐藏节点对象或普通字段，也不控制检查日志。`_should_check` 不改变连接、约束或寄存器配置；route 的任一端关闭检查时，该连线跳过。
 
-`node/base`、tree、component、sequence 和 top 只能保存通用图遍历与基类 hook 调用，不能按
-节点名分支或向具体节点 `$cast`。`node/plugin/support` 只允许节点家族共享的字段、约束和不
-绑定任何节点实例的算法服务；不能保存具体节点的寄存器绑定、配置分派或等待分派。叶插件负责
-选择算法、绑定自身字段并决定是否跳过写入。
+```systemverilog
+foreach (tree.nodes[i]) begin
+    tree.nodes[i]._should_print = 1;
+end
+tree.clk_cpu._should_check = 0;
+```
 
-每个 `node/plugin/<kind>.sv.j2` 负责该节点的寄存器字段、配置、读回匹配、完成等待和功能
-契约。通用配置 API 仅提供寄存器读写，不解释 gate、divider、PLL 等节点语义。唯一允许列出
-全部节点的文件是 `node/plugin.f.j2` 和 `node/python/registry.py`。
+## 配置钩子
+
+| 钩子 | 插件提供的行为 |
+| --- | --- |
+| `post_register_bind` | 寄存器绑定完成后的初始化 |
+| `configuration_priority` | 配置优先级，负数表示不参与，数值小的优先 |
+| `requires_observed_descendant` | 是否要求下游存在可测量节点 |
+| `apply_configuration` | 写入本节点寄存器，并返回 `configured` |
+| `waits_after_configuration` | 是否需要配置完成等待 |
+| `await_configuration` | 等待锁定等完成条件 |
+| `apply_low_power_preference` | 设置本节点的低功耗偏好 |
+| `collect_control_regs` | 返回控制寄存器，用于识别共享字段 |
+
+`tree.configure` 的执行顺序：
+
+1. 检查 build 状态，按参数应用低功耗偏好，然后随机化。
+2. 筛选配置优先级非负且满足下游要求的节点。
+3. 按优先级升序调用 `apply_configuration`；同优先级保持队列顺序。
+4. 对 `configured` 为真且声明需要等待的节点调用 `await_configuration`。
+
+寄存器编码、读回比较和重复配置判断由插件实现。
+
+## 测量钩子
+
+| 钩子或成员 | 用途 |
+| --- | --- |
+| `is_observable` | 是否提供可测量端点 |
+| `supports_duty_observation` | 是否检查占空比 |
+| `vif` | 测量接口 |
+| `_resolved_active` | 期望有无时钟 |
+| `_resolved_freq` | 期望频率，单位 Hz |
+
+`check_measure` 遍历 `tree.nodes`，按检查请求、`_should_check`、接口和测量能力选择节点。活动检查通过后，按请求检查频率；请求与节点均允许时检查占空比。节点共用接口时共用测量状态。
+
+## 功能钩子
+
+| 钩子 | 用途 |
+| --- | --- |
+| `has_functional_contract` | 是否提供功能检查 |
+| `run_functional_contract` | 施加激励、配置寄存器、检查输出并释放驱动 |
+| `is_stability_anchor` | 是否需要保护该节点及其上游 |
+| `preserves_native_input` | 是否保留原生输入时钟 |
+
+`flip_check` 串行调用选中节点的 `run_functional_contract`，传入提供寄存器访问和测量服务的 `node_test_api`。插件返回 `did_check`、`did_skip` 和失败数；前两个结果必须恰有一个为真。
+
+## 连线钩子
+
+| 钩子 | 用途 |
+| --- | --- |
+| `set_source` | 绑定上游节点与输入键 |
+| `collect_source_nodes` | 返回全部上游节点 |
+| `collect_input_keys_from_source` | 返回连接指定上游的输入键 |
+| `get_in_vif`、`get_out_vif` | 返回指定端口的 virtual interface |
+
+`route_check` 通过拓扑钩子找出前级输出和后级输入，逐个前级驱动 0、1 并检查全部扇出，然后释放驱动。它使用前级默认输出 `get_out_vif()`；多输入由输入键区分。
 
 ## 扩展
 
-添加节点时同时添加以下文件，并在各自清单中显式登记：
+1. 添加 `node/python/plugins/<kind>.py`，声明节点 `config` 和可选全局设置。
+2. 在 `node/python/registry.py` 登记 Python 插件与设置。
+3. 添加 `node/plugin/<kind>.sv.j2`，实现字段、约束和需要的钩子，并加入 `node/plugin.f.j2`。
 
-```text
-node/plugin/<kind>.sv.j2
-node/python/plugins/<kind>.py
-```
+`config` 由 Python 插件校验，`output_config` 覆盖单个输出组。未知 `kind` 仍生成对应 SV 类型，缺少实现时由 SV 编译报错。
 
-Python 插件声明可填写的 `config` 与 `settings.plugin.<作用域>` 字段；后者也在
-`node/python/registry.py` 显式登记。SV 插件声明约束、寄存器编码和能力 hook。新增或迁移
-节点后必须检查核心和 support 未出现该节点类名、`$cast` 或 kind 分派，再渲染样例检查
-filelist 顺序。未知 `kind` 仍会保留配置并生成对应 SV 类型，缺少 SV 插件时由编译报错。
+通用 tree 和 sequence 通过 `node_base` 调用虚方法；节点专属逻辑写在叶插件，可复用的能力写在 support 基类。
