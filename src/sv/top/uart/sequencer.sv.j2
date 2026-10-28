@@ -27,16 +27,21 @@ class {{ class_prefix }}sequencer extends uvm_sequencer #(uvm_tlm_generic_payloa
     // Send a binary or hexadecimal file in its stored byte order.
     extern task send_file(input string filename);
     // Consume one received byte, blocking until it is available.
-    extern task recv_byte(output bit [7:0] data);
+    // timeout — Total call budget; zero waits indefinitely, expiry reports UART_TIMEOUT fatal.
+    extern task recv_byte(output bit [7:0] data, input realtime timeout = 0);
     // Consume four bytes and assemble a little-endian word.
-    extern task recv_word(output bit [31:0] data);
+    // timeout — Total call budget; zero waits indefinitely, expiry reports UART_TIMEOUT fatal.
+    extern task recv_word(output bit [31:0] data, input realtime timeout = 0);
     // Consume exactly length bytes; zero returns an empty queue.
-    extern task recv_bytes(input int length, output bit [7:0] data[$]);
+    // timeout — Total call budget; zero waits indefinitely, expiry reports UART_TIMEOUT fatal.
+    extern task recv_bytes(input int length, output bit [7:0] data[$], input realtime timeout = 0);
     // Consume the expected number of characters and report any mismatch.
-    extern task recv_string(input string expected);
+    // timeout — Total call budget; zero waits indefinitely, expiry reports UART_TIMEOUT fatal.
+    extern task recv_string(input string expected, input realtime timeout = 0);
     // Consume bytes until the expected string appears consecutively; mismatches keep waiting.
     // Empty strings return immediately, and invalid frames restart the match.
-    extern task wait_string(input string expected);
+    // timeout — Total call budget; zero waits indefinitely, expiry reports UART_TIMEOUT fatal.
+    extern task wait_string(input string expected, input realtime timeout = 0);
     // Read the complete file before transmitting; .bin preserves every byte.
     extern protected function bit read_file(input string filename, output bit [7:0] data[$]);
     // Decode byte pairs independently of line length, allowing prefixes and comments.
@@ -44,7 +49,16 @@ class {{ class_prefix }}sequencer extends uvm_sequencer #(uvm_tlm_generic_payloa
     // Return a hexadecimal digit value, or -1 for other characters.
     extern protected function int hex_value(input bit [7:0] ch);
     // Wait for a received frame, including frames with an error status.
-    extern task recv(output uvm_tlm_generic_payload packet);
+    // timeout — Total call budget; zero waits indefinitely, expiry reports UART_TIMEOUT fatal.
+    extern task recv(output uvm_tlm_generic_payload packet, input realtime timeout = 0);
+    // Fetch one frame before an absolute deadline; timeout waits never consume a cancelled frame.
+    extern protected task recv_until(
+        output uvm_tlm_generic_payload packet,
+        input realtime deadline,
+        input bit bounded
+    );
+    // Decode a received byte and report payload or framing errors.
+    extern protected function void decode_rx_byte(input uvm_tlm_generic_payload packet, output bit [7:0] data);
     // Return immediately, indicating whether a received frame was available.
     extern function bit try_recv(output uvm_tlm_generic_payload packet);
 endclass
@@ -122,11 +136,18 @@ task {{ class_prefix }}sequencer::send_file(input string filename);
         send(bytes);
 endtask
 
-task {{ class_prefix }}sequencer::recv_byte(output bit [7:0] data);
+task {{ class_prefix }}sequencer::recv_byte(output bit [7:0] data, input realtime timeout = 0);
     uvm_tlm_generic_payload packet;
+
+    data = '0;
+    recv(packet, timeout);
+    if (packet != null)
+        decode_rx_byte(packet, data);
+endtask
+
+function void {{ class_prefix }}sequencer::decode_rx_byte(input uvm_tlm_generic_payload packet, output bit [7:0] data);
     byte unsigned bytes[];
 
-    recv(packet);
     packet.get_data(bytes);
     data = '0;
     if (packet.get_data_length() != 1 || bytes.size() != 1) begin
@@ -136,35 +157,47 @@ task {{ class_prefix }}sequencer::recv_byte(output bit [7:0] data);
     data = bytes[0];
     if (packet.get_response_status() != UVM_TLM_OK_RESPONSE)
         `uvm_error("UART_RX", packet.sprint())
-endtask
+endfunction
 
-task {{ class_prefix }}sequencer::recv_word(output bit [31:0] data);
+task {{ class_prefix }}sequencer::recv_word(output bit [31:0] data, input realtime timeout = 0);
     bit [7:0] bytes[$];
 
-    recv_bytes(4, bytes);
+    recv_bytes(4, bytes, timeout);
     data = '0;
     foreach (bytes[i])
         data[8*i +: 8] = bytes[i];
 endtask
 
-task {{ class_prefix }}sequencer::recv_bytes(input int length, output bit [7:0] data[$]);
+task {{ class_prefix }}sequencer::recv_bytes(input int length, output bit [7:0] data[$], input realtime timeout = 0);
     bit [7:0] value;
+    uvm_tlm_generic_payload packet;
+    realtime deadline;
 
     data.delete();
+    if (timeout < 0) begin
+        `uvm_fatal("UART_TIMEOUT", "timeout must be non-negative")
+        return;
+    end
     if (length < 0) begin
         `uvm_error("UART_RX", "receive length must be non-negative")
         return;
     end
+    deadline = $realtime + timeout;
     repeat (length) begin
-        recv_byte(value);
+        recv_until(packet, deadline, timeout > 0);
+        if (packet == null)
+            return;
+        decode_rx_byte(packet, value);
         data.push_back(value);
     end
 endtask
 
-task {{ class_prefix }}sequencer::recv_string(input string expected);
+task {{ class_prefix }}sequencer::recv_string(input string expected, input realtime timeout = 0);
     bit [7:0] bytes[$];
 
-    recv_bytes(expected.len(), bytes);
+    recv_bytes(expected.len(), bytes, timeout);
+    if (bytes.size() != expected.len())
+        return;
     foreach (bytes[i]) begin
         if (bytes[i] != expected.getc(i)) begin
             `uvm_error("UART_STRING", $sformatf("character %0d: expected 0x%02h, received 0x%02h", i, expected.getc(i), bytes[i]))
@@ -173,12 +206,18 @@ task {{ class_prefix }}sequencer::recv_string(input string expected);
     end
 endtask
 
-task {{ class_prefix }}sequencer::wait_string(input string expected);
+task {{ class_prefix }}sequencer::wait_string(input string expected, input realtime timeout = 0);
     int prefix[];
     int matched;
+    realtime deadline;
     uvm_tlm_generic_payload packet;
     byte unsigned bytes[];
 
+    if (timeout < 0) begin
+        `uvm_fatal("UART_TIMEOUT", "timeout must be non-negative")
+        return;
+    end
+    deadline = $realtime + timeout;
     if (expected.len() == 0)
         return;
     prefix = new[expected.len()];
@@ -193,7 +232,9 @@ task {{ class_prefix }}sequencer::wait_string(input string expected);
     end
     matched = 0;
     forever begin
-        recv(packet);
+        recv_until(packet, deadline, timeout > 0);
+        if (packet == null)
+            return;
         packet.get_data(bytes);
         if (packet.get_response_status() != UVM_TLM_OK_RESPONSE ||
             packet.get_data_length() != 1 || bytes.size() != 1) begin
@@ -340,8 +381,58 @@ function bit {{ class_prefix }}sequencer::read_file(input string filename, outpu
     return 1;
 endfunction
 
-task {{ class_prefix }}sequencer::recv(output uvm_tlm_generic_payload packet);
-    rx_fifo.get(packet);
+task {{ class_prefix }}sequencer::recv(output uvm_tlm_generic_payload packet, input realtime timeout = 0);
+    packet = null;
+    if (timeout < 0) begin
+        `uvm_fatal("UART_TIMEOUT", "timeout must be non-negative")
+        return;
+    end
+    recv_until(packet, $realtime + timeout, timeout > 0);
+endtask
+
+task {{ class_prefix }}sequencer::recv_until(
+    output uvm_tlm_generic_payload packet,
+    input realtime deadline,
+    input bit bounded
+);
+    uvm_tlm_generic_payload available;
+    realtime remaining;
+    bit expired;
+
+    packet = null;
+    if (!bounded) begin
+        rx_fifo.get(packet);
+        return;
+    end
+    forever begin
+        if (rx_fifo.try_get(packet))
+            return;
+        remaining = deadline - $realtime;
+        if (remaining <= 0) begin
+            `uvm_fatal("UART_TIMEOUT", "UART receive timed out")
+            return;
+        end
+        expired = 0;
+        // Isolate cancellation to a non-consuming peek and its timer.
+        fork
+            begin
+                fork
+                    rx_fifo.peek(available);
+                    begin
+                        #(remaining);
+                        expired = 1;
+                    end
+                join_any
+                disable fork;
+            end
+        join
+        if (expired) begin
+            if (rx_fifo.try_get(packet))
+                return;
+            `uvm_fatal("UART_TIMEOUT", "UART receive timed out")
+            return;
+        end
+    end
 endtask
 
 function bit {{ class_prefix }}sequencer::try_recv(output uvm_tlm_generic_payload packet);
