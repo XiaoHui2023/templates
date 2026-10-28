@@ -5,6 +5,7 @@ from typing import TypeAlias
 from .config import NodePluginConfig, NodePluginSettings, OpaqueNodePluginConfig, OpaqueNodePluginSettings
 from .plugins.cell import CellConfig
 from .plugins.clk import ClkConfig
+from .plugins.clk_div_with_clken import ClkDivWithClkenConfig, ClkDivWithClkenSettings
 from .plugins.div_div import DivDivConfig, DivDivSettings
 from .plugins.div_div_r import DivDivRConfig
 from .plugins.div_dto import DivDtoConfig, DivDtoSettings
@@ -27,6 +28,7 @@ PluginSettingsType: TypeAlias = type[NodePluginSettings]
 PLUGIN_CONFIGS: dict[str, PluginConfigType] = {
     "cell": CellConfig,
     "clk": ClkConfig,
+    "clk_div_with_clken": ClkDivWithClkenConfig,
     "div_div": DivDivConfig,
     "div_div_r": DivDivRConfig,
     "div_dto": DivDtoConfig,
@@ -44,6 +46,7 @@ PLUGIN_CONFIGS: dict[str, PluginConfigType] = {
 }
 
 PLUGIN_SETTINGS: dict[str, PluginSettingsType] = {
+    "clk_div_with_clken": ClkDivWithClkenSettings,
     "divider": DividerSettings,
     "div_div": DivDivSettings,
     "div_dto": DivDtoSettings,

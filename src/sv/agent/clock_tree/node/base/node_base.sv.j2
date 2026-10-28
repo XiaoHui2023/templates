@@ -8,6 +8,8 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     `uvm_object_utils_end
 
     string kind;
+    string output_name;
+    {{ settings.class_prefix }}node_base output_peers[string];
     rand longint _resolved_freq;
     rand bit _resolved_active;
     bit _should_print;
@@ -31,6 +33,11 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         super.new(name);
         _should_print = 1'b0;
         _should_check = 1'b1;
+    endfunction
+
+    // Binds another output of the same physical node.
+    virtual function void set_output_peer(string key, {{ settings.class_prefix }}node_base peer);
+        output_peers[key] = peer;
     endfunction
 
     // Binds one generic upstream edge. Empty key is the default input.
@@ -73,6 +80,9 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     endfunction
 
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Finalizes interface handles after all ports are connected.
+    virtual function void interfaces_connected(); endfunction
+
     // Reports whether the selected input interface is bound.
     virtual function bit has_in_vif(string key = "");
         return key == "" ? in_vif != null : in_vifs.exists(key) && in_vifs[key] != null;

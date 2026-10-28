@@ -46,6 +46,19 @@ N = ratio - 1
 f_actual = f_ref / ratio
 ```
 
+## clk_div_with_clken
+
+| 参数 | 说明 |
+| --- | --- |
+| **code** | 四位寄存器值 |
+| **ratio** | code 为 0～1、2～3、4～7、8～15 时，分别为 2、3、4、6 |
+
+```text
+f_clk_arm_core = f_ref
+f_hclk = f_ref / ratio
+f_hclken = f_hclk
+```
+
 ## dto
 
 | 参数 | 说明 |

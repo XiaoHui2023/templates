@@ -112,18 +112,6 @@ class Models(BaseModel):
     nodes: Dict[str, Node] = Field(..., min_length=1)
     settings: Settings = Field(default_factory=Settings)
 
-    @model_validator(mode="before")
-    @classmethod
-    def _parse_document(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            raise ValueError("时钟树输入须为对象")
-        if "nodes" in data:
-            raise ValueError(f"{ERR.field('nodes')} 不再支持；节点须直接位于根对象")
-        settings = data.get("settings", {})
-        if not isinstance(settings, dict):
-            raise ValueError(f"{ERR.field('settings')} 须为对象")
-        return {"settings": settings, "nodes": {key: value for key, value in data.items() if key != "settings"}}
-
     def _cached(self, key: str, factory: Callable[[], Any]) -> Any:
         if key not in self._cache:
             self._cache[key] = factory()

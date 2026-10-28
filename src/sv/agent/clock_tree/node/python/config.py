@@ -36,6 +36,30 @@ class NodePluginConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    def normalize_outputs(self, outputs: list[str]) -> list[str]:
+        """返回插件支持的输出组。
+
+        Args:
+            outputs: 用户声明的输出组
+
+        Returns:
+            list[str]: 校验后的输出组，默认保持原值
+        """
+        return outputs
+
+    def port_paths_for_output(
+            self, output: str, ports: list[tuple[str, str, str]]) -> list[tuple[str, str, str]]:
+        """返回一个输出组的端口路径。
+
+        Args:
+            output: 输出组名字
+            ports: 节点声明的端口路径
+
+        Returns:
+            list[tuple[str, str, str]]: 角色、端口键和路径
+        """
+        return ports
+
     def sv_assignments(self) -> list[tuple[str, str]]:
         """导出用户明确填写的成员赋值。"""
         return [

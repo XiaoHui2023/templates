@@ -1,0 +1,199 @@
+`ifndef {{ (settings.class_prefix ~ "clk_div_with_clken") | upper }}
+`define {{ (settings.class_prefix ~ "clk_div_with_clken") | upper }}
+{%- set tol_num, tol_den = plugin_fraction("divider", "freq_tolerance", 0.01) %}
+
+class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_prefix }}ratio_base;
+    `uvm_object_utils({{ settings.class_prefix }}clk_div_with_clken)
+    {{ settings.class_prefix }}reg f_div;
+    {{ settings.class_prefix }}reg f_reg;
+    {{ settings.class_prefix }}reg f_rst;
+    {{ settings.class_prefix }}reg f_load;
+    {{ settings.class_prefix }}clk_div_with_clken controller;
+    bit has_configured_ratio;
+    int last_configured_ratio;
+
+    constraint cst_div {
+        _resolved_ratio inside {2, 3, 4, 6};
+        controller != null -> _resolved_ratio == controller._resolved_ratio;
+    }
+    constraint cst_resolve_freq_from_src {
+        if (source != null) {
+            if (output_name == "clk_arm_core")
+                _resolved_freq == source._resolved_freq;
+            else {
+                _resolved_freq >= (source._resolved_freq / _resolved_ratio) * {{ tol_den - tol_num }} / {{ tol_den }};
+                _resolved_freq <= (source._resolved_freq / _resolved_ratio) * {{ tol_den + tol_num }} / {{ tol_den }};
+            }
+        }
+        controller != null && output_name == "hclken" -> _resolved_freq == controller._resolved_freq;
+    }
+
+    // Initializes one output of the shared divider.
+    function new(string name = "");
+        super.new(name);
+        kind = "clk_div_with_clken";
+        unfix_ratio = 1'b0;
+        f_div = new();
+        f_reg = f_div;
+        f_rst = new();
+        f_load = new();
+    endfunction
+
+    // Links every output to the shared divider state.
+    virtual function void set_output_peer(string key, {{ settings.class_prefix }}node_base peer);
+        super.set_output_peer(key, peer);
+        if (key == "hclk" && !$cast(controller, peer))
+            `uvm_fatal("CLK_TREE", "output peer has incompatible type")
+    endfunction
+
+    // Validates the four-bit shared register binding.
+    virtual function void post_register_bind();
+        if (controller == null)
+            `uvm_fatal("CLK_TREE", "missing hclk output")
+        if (!f_div.is_bound() || f_div.width != 4)
+            `uvm_fatal("CLK_TREE", "divider register must bind a four-bit slice")
+        if (f_div.field != controller.f_div.field || f_div.offset != controller.f_div.offset)
+            `uvm_fatal("CLK_TREE", "all outputs must share the same divider register slice")
+    endfunction
+
+    // Configures the physical divider once through its hclk output.
+    virtual function int configuration_priority();
+        return output_name == "hclk" ? 200 : -1;
+    endfunction
+
+    // Allows register-only configuration without measurement interfaces.
+    virtual function bit requires_observed_descendant(); return 1'b0; endfunction
+
+    // Reports the physical control field for shared-register protection.
+    virtual function void collect_control_regs(output {{ settings.class_prefix }}reg regs[$]);
+        regs.delete();
+        regs.push_back(f_div);
+        if (f_rst.is_bound()) regs.push_back(f_rst);
+        if (f_load.is_bound()) regs.push_back(f_load);
+    endfunction
+
+    // Decodes all sixteen encodings, including don't-care bits.
+    function int decode_ratio(int value);
+        if (value & 8) return 6;
+        if (value & 4) return 4;
+        if (value & 2) return 3;
+        return 2;
+    endfunction
+
+    // Returns a canonical encoding for a legal divider ratio.
+    function int encode_ratio(int value);
+        case (value)
+            2: return 0;
+            3: return 2;
+            4: return 4;
+            6: return 8;
+            default: begin
+                `uvm_fatal("CLK_TREE", "unsupported divider ratio")
+                return 0;
+            end
+        endcase
+    endfunction
+
+    // Applies one encoding with optional reset and load strobes.
+    task program_ratio(input {{ settings.class_prefix }}node_config_api cfg, input int value);
+        has_configured_ratio = 1'b0;
+        if (f_rst.is_bound()) begin
+            cfg.write_reg(f_rst, {{ 1 if plugin_value("clk_div_with_clken", "reg_high_means_reset", false) else 0 }});
+            cfg.write_reg(f_rst, {{ 0 if plugin_value("clk_div_with_clken", "reg_high_means_reset", false) else 1 }});
+        end
+        cfg.write_reg(f_div, value);
+        if (f_load.is_bound()) begin
+            cfg.write_reg(f_load, 0);
+            cfg.write_reg(f_load, 1);
+        end
+    endtask
+
+    // Skips equivalent encodings when the divider is already released.
+    virtual task apply_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            output bit configured);
+        int current_value;
+        int current_reset;
+        bit reset_released;
+        configured = 1'b0;
+        cfg.read_reg(f_div, current_value);
+        reset_released = 1'b1;
+        if (f_rst.is_bound()) begin
+            cfg.read_reg(f_rst, current_reset);
+            reset_released = current_reset == {{ 0 if plugin_value("clk_div_with_clken", "reg_high_means_reset", false) else 1 }};
+        end
+        if (decode_ratio(current_value) == _resolved_ratio && reset_released
+                && (!f_load.is_bound() || (has_configured_ratio && last_configured_ratio == _resolved_ratio))) begin
+            if (!cfg.quiet)
+                `uvm_info("CLK_TREE", $sformatf("config_reg: %s skip ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
+            return;
+        end
+        if (!cfg.quiet)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: %s ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
+        program_ratio(cfg, encode_ratio(_resolved_ratio));
+        has_configured_ratio = 1'b1;
+        last_configured_ratio = _resolved_ratio;
+        configured = 1'b1;
+    endtask
+
+`ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Exposes the output for activity and frequency measurement.
+    virtual function void interfaces_connected(); vif = out_vif; endfunction
+
+    // Checks the physical divider once, not once per output.
+    virtual function bit has_functional_contract(); return output_name == "hclk"; endfunction
+
+    // Exercises every encoding and measures all three outputs.
+    virtual task run_functional_contract(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        virtual {{ settings.class_prefix }}interface input_vif;
+        virtual {{ settings.class_prefix }}interface output_vif;
+        real measured;
+        real expected;
+        real error_ratio;
+        bit passed;
+        did_check = 1'b0;
+        did_skip = 1'b0;
+        failures = 0;
+        input_vif = get_in_vif();
+        if (api == null || api.cfg == null || input_vif == null) begin
+            did_skip = 1'b1;
+            `uvm_info("CLK_TREE", $sformatf("test_flip: skip %s, missing input interface or API", get_name()), UVM_LOW)
+            return;
+        end
+        foreach (output_peers[key]) begin
+            if (output_peers[key].get_out_vif() == null) begin
+                did_skip = 1'b1;
+                `uvm_info("CLK_TREE", $sformatf("test_flip: skip %s, missing %s output interface", get_name(), key), UVM_LOW)
+                return;
+            end
+        end
+        `uvm_info("CLK_TREE", $sformatf("test_flip: test %s", get_name()), UVM_LOW)
+        input_vif.start_clock(1_000_000_000);
+        for (int value = 0; value < 16; value++) begin
+            program_ratio(api.cfg, value);
+            #({{ plugin_value("clk_div_with_clken", "settle_ns", 200) }}ns);
+            foreach (output_peers[key]) begin
+                output_vif = output_peers[key].get_out_vif();
+                expected = key == "clk_arm_core" ? 1.0e9 : 1.0e9 / decode_ratio(value);
+                api.measure_port_freq(output_vif, {get_name(), ".", key}, int'(expected), measured, passed);
+                if (passed) begin
+                    error_ratio = measured > expected ? (measured - expected) / expected : (expected - measured) / expected;
+                    if (error_ratio > {{ settings.period_tolerance }}) begin
+                        passed = 1'b0;
+                        `uvm_error("CLK_TREE", $sformatf("test_flip: %s %s encoding %0h measured %0f Hz expected %0f Hz", get_name(), key, value, measured, expected))
+                    end
+                end
+                if (!passed) failures++;
+            end
+        end
+        input_vif.release_drive();
+        did_check = 1'b1;
+    endtask
+`endif
+endclass
+
+`endif

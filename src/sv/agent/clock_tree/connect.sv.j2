@@ -1,6 +1,7 @@
 `ifndef {{ (settings.class_prefix ~ "connect") | upper }}
 `define {{ (settings.class_prefix ~ "connect") | upper }}
 
+// Binds interface instances to the tree and finalizes endpoint handles.
 function automatic void {{ settings.class_prefix }}connect(
         virtual {{ settings.class_prefix }}tree_interface tree_if,
         {{ settings.class_prefix }}tree tree);
@@ -29,6 +30,8 @@ function automatic void {{ settings.class_prefix }}connect(
 {%- endif %}
 `endif
 {%- endfor %}
+    foreach (tree.nodes[i])
+        tree.nodes[i].interfaces_connected();
 endfunction
 
 `endif

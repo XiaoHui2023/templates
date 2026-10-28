@@ -115,7 +115,7 @@ class Node(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: str = Field(..., min_length=1, description="对应的 SystemVerilog 节点插件名")
-    present: bool = Field(default=True, description="是否生成该节点实例")
+    generate: bool = Field(default=True, description="是否生成该节点及其接口和寄存器绑定")
     source: SourceValue = Field(default=None, description="默认或具名上游节点引用")
     outputs: List[str] = Field(default_factory=list, description="展开为数组实例的输出组")
     path: Optional[str] = Field(default=None, description="无功能端点的观测路径")
@@ -177,13 +177,14 @@ class Node(BaseModel):
 
     @model_validator(mode="after")
     def _parse_plugin_configs(self) -> "Node":
+        self._plugin_config = parse_plugin_config(self.kind, self.config)
+        self.outputs = self._plugin_config.normalize_outputs(self.outputs)
         unknown_outputs = set(self.output_config) | set(self.output_regs)
         unknown_outputs.difference_update(self.outputs)
         if unknown_outputs:
             raise ValueError(f"输出组不存在: {sorted(unknown_outputs)!r}")
-        self._plugin_config = parse_plugin_config(self.kind, self.config)
         self._output_plugin_configs = {
-            output: parse_plugin_config(self.kind, values)
+            output: parse_plugin_config(self.kind, self.config | values)
             for output, values in self.output_config.items()
         }
         return self
@@ -290,7 +291,7 @@ class Tree(BaseModel):
     @property
     def nodes_ordered(self) -> List[Node]:
         """返回需要生成的节点，顺序与输入一致。"""
-        return [node for node in self.nodes.values() if node.present]
+        return [node for node in self.nodes.values() if node.generate]
 
     @computed_field
     @property
@@ -324,7 +325,7 @@ class Tree(BaseModel):
         for node in self.nodes_ordered:
             for output in node.output_groups or [""]:
                 access = f'{node.name}["{output}"]' if output else node.name
-                for role, port_key, path in node.port_paths:
+                for role, port_key, path in node._plugin_config.port_paths_for_output(output, node.port_paths):
                     suffix = "_".join(item.upper() for item in (node.name, output, role, port_key) if item)
                     instance = "_".join(item for item in (node.name, output, role, port_key) if item)
                     slots.append(SvPortSlot(node.name, output, access, role, port_key, path, instance,
@@ -342,11 +343,11 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
         ValueError: source 指向不存在、未生成或不存在的输出组
     """
     tree = Tree(nodes=nodes)
-    present = tree.sv_node_names
+    generated = tree.sv_node_names
     for node in tree.nodes_ordered:
         for source in node.sources:
-            if source.name not in present:
-                raise ValueError(f"节点 {node.name!r} 的 source 引用不存在或未 present: {source.name!r}")
+            if source.name not in generated:
+                raise ValueError(f"节点 {node.name!r} 的 source 引用不存在或未生成: {source.name!r}")
             peer = tree.nodes[source.name]
             if source.output and source.output not in peer.output_groups:
                 raise ValueError(f"节点 {node.name!r} 的 source 输出不存在: {source.name}[{source.output}]")

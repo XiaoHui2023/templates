@@ -20,6 +20,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endfor %}
 
+    // Creates node instances and binds graph and output relationships.
     function new(string name = "{{ settings.class_prefix }}tree");
         super.new(name);
 {%- for node in tree.sv_nodes_ordered %}
@@ -27,8 +28,18 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- set access = node.name ~ '["' ~ output ~ '"]' if output else node.name %}
         {{ access }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}{% if output %}[{{ output }}]{% endif %}");
         {{ access }}.kind = "{{ node.kind }}";
+{%- if output %}
+        {{ access }}.output_name = "{{ output }}";
+{%- endif %}
 {%- for field, value in node.sv_assignments_by_output[output] %}
         {{ access }}.{{ field }} = {{ value }};
+{%- endfor %}
+{%- endfor %}
+{%- endfor %}
+{%- for node in tree.sv_nodes_ordered if node.output_groups %}
+{%- for output in node.output_groups %}
+{%- for peer in node.output_groups %}
+        {{ node.name }}["{{ output }}"].set_output_peer("{{ peer }}", {{ node.name }}["{{ peer }}"]);
 {%- endfor %}
 {%- endfor %}
 {%- endfor %}
@@ -47,7 +58,9 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endfor %}
     endfunction
 
+    // Binds registers and resolves the initial graph state.
     extern function void build({{ settings.class_regmodel }} regmodel = null);
+    // Resolves requested state and applies node configuration.
     extern virtual task configure(bit low_power = 1'b0, bit quiet = 1'b0);
 endclass
 

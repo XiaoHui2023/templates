@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +70,11 @@ def tokenize(text: str) -> list[Token]:
         if char.isspace():
             index += 1
             continue
+        if char == "`":
+            directive = re.match(r"`(?:ifdef|ifndef|elsif|else|endif)\b[^\n]*", text[index:])
+            if directive:
+                index += len(directive.group())
+                continue
         if char == "\\" and index + 1 < len(text) and text[index + 1] == "\n":
             line += 1
             index += 2

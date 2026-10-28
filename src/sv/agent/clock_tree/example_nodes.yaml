@@ -1,0 +1,104 @@
+xtal:
+  kind: source
+  config:
+    frequence: 24000000
+  out_path: dut.xtal_clk
+
+pll_sc0:
+  kind: pll_sc
+  source: xtal
+  config:
+    frequence: 1188000000
+  in_path: dut.pll_sc_ref
+  out_path: dut.pll_sc_clk
+  regs:
+    lock: blk_pll_sc.lock
+    vocpd: blk_pll_sc.vocpd
+    postdivpd: blk_pll_sc.postdivpd
+    dsmpd: blk_pll_sc.dsmpd
+    pd: blk_pll_sc.pd
+    bypass: blk_pll_sc.bypass
+    refdiv: blk_pll_sc.refdiv
+    postdiv2: blk_pll_sc.postdiv2
+    postdiv1: blk_pll_sc.postdiv1
+    fbdiv: blk_pll_sc.fbdiv
+
+gate0:
+  kind: gate
+  source: pll_sc0
+  config:
+    open: 1
+  in_path: dut.gate0_i
+  out_path: dut.gate0_o
+  reg: blk_gate0.en
+
+div0:
+  kind: div_div
+  source: gate0
+  config:
+    ratio: 3
+  in_path: dut.div0_i
+  out_path: dut.div0_o
+  regs:
+    rst: blk_div0.rst
+    load: blk_div0.load
+    div: blk_div0.value[7:0]
+
+clk_cpu:
+  kind: clk
+  source: div0
+  config:
+    frequence: 396000000
+    enabled: 1
+  path: dut.clk_cpu
+
+cell_cpu:
+  kind: cell
+  source: clk_cpu
+  path: dut.cell_cpu
+
+clk_stable:
+  kind: clk
+  source: xtal
+  path: dut.clk_stable
+  config:
+    stable: true
+
+bus_div:
+  kind: clk_div_with_clken
+  source: pll_sc0
+  in_path: dut.bus_div_i
+  out_paths:
+    clk_arm_core: dut.clk_arm_core
+    hclk: dut.hclk
+    hclken: dut.hclken
+  regs:
+    div: blk_bus_div.value[3:0]
+    rst: blk_bus_div.rst
+    load: blk_bus_div.load
+  config:
+    ratio: 3
+
+bus_core:
+  kind: clk
+  source: bus_div[clk_arm_core]
+  path: dut.bus_core
+
+bus_hclk:
+  kind: clk
+  source: bus_div[hclk]
+  path: dut.bus_hclk
+
+bus_hclken:
+  kind: clk
+  source: bus_div[hclken]
+  path: dut.bus_hclken
+  config:
+    check_duty: false
+
+future_extension:
+  kind: vendor_extension
+  generate: false
+  source: xtal
+  config:
+    calibration: 7

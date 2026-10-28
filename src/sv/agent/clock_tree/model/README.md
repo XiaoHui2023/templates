@@ -27,6 +27,8 @@
 | `kind` | `string` | 插件名 |
 | `source` | `node_base` | 默认输入的前级 |
 | `sources[string]` | `node_base` 关联数组 | 具名输入的前级 |
+| `output_name` | `string` | 当前输出组名，单输出时为空 |
+| `output_peers[string]` | `node_base` 关联数组 | 同一物理器件的全部输出实例 |
 | `_should_print` | `bit` | 打印诊断字段，默认 0 |
 | `_should_check` | `bit` | 允许检查，默认 1 |
 | `_resolved_freq` | `rand longint` | 解析后的频率，单位 Hz |
@@ -55,11 +57,14 @@
 | `mux` | `sel`、`unfix_sel`、`max_sel` | 选择要求及选择范围 |
 | `div_div`、`div_div_r`、`div_dto` | `ratio`、`unfix_ratio` | 分频比要求及固定控制 |
 | `div_div` | `max_ratio` | 分频比上限，构造默认 64 |
+| `clk_div_with_clken` | `ratio`、`unfix_ratio` | 三输出共用的分频要求，合法值为 2、3、4、6 |
 | `inv`、`inv_cell`、`inv_mux` | `inverted`、`fix_inverted` | 反相状态及固定控制 |
 
 gate、mux 和分频器随机化的是 `_resolved_open`、`_resolved_sel`、`_resolved_ratio`，不是 `open`、`sel`、`ratio`。反相器的 `inverted` 本身为 rand。
 
 clk 在 enabled 大于 0 且未解除频率要求时使用指定频率；enabled 为 0 时可保留 frequence 供下次开启。stable 强制开启。低功耗只改变软偏好，不覆盖显式开关，也不清除频率要求。
+
+输入 stable 为 true 且省略 enabled 时，插件初始化 enabled 为 1；显式冲突在输入阶段报错。
 
 ## 寄存器绑定
 

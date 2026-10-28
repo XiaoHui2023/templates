@@ -23,6 +23,7 @@ tree.clk_cpu._should_check = 0;
 | 钩子 | 插件提供的行为 |
 | --- | --- |
 | `post_register_bind` | 寄存器绑定完成后的初始化 |
+| `set_output_peer` | 连接同一物理器件的其它输出实例 |
 | `configuration_priority` | 配置优先级，负数表示不参与，数值小的优先 |
 | `requires_observed_descendant` | 是否要求下游存在可测量节点 |
 | `apply_configuration` | 写入本节点寄存器，并返回 `configured` |
@@ -71,6 +72,7 @@ tree.clk_cpu._should_check = 0;
 | `collect_source_nodes` | 返回全部上游节点 |
 | `collect_input_keys_from_source` | 返回连接指定上游的输入键 |
 | `get_in_vif`、`get_out_vif` | 返回指定端口的 virtual interface |
+| `interfaces_connected` | 全部接口绑定后的初始化 |
 
 `route_check` 通过拓扑钩子找出前级输出和后级输入，逐个前级驱动 0、1 并检查全部下游输入，然后释放驱动。它使用前级默认输出 `get_out_vif()`；多输入由输入键区分。
 
@@ -81,5 +83,7 @@ tree.clk_cpu._should_check = 0;
 3. 添加 `node/plugin/<kind>.sv.j2`，实现字段、约束和需要的钩子，并加入 `node/plugin.f.j2`。
 
 `config` 由 Python 插件校验，`output_config` 覆盖单个输出组。未知 `kind` 仍生成对应 SV 类型，缺少实现时由 SV 编译报错。
+
+Python 插件可重载 `normalize_outputs` 提供固定输出组，重载 `port_paths_for_output` 分配每组端口；公共层不判断具体节点类型。
 
 通用 tree 和 sequence 通过 `node_base` 调用虚方法；节点专属逻辑写在对应插件，可复用的能力写在 support 基类。
