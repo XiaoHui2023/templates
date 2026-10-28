@@ -28,6 +28,8 @@ class RegBindingRow:
     node_name: str
     role: str
     alias_count: int = 1
+    encoding: Optional[str] = None
+    """插件提供的稳态字段编码，复位和触发字段为空。"""
 
     @property
     def identity(self) -> tuple[str, Optional[int], Optional[int]]:
@@ -68,6 +70,17 @@ def any_reg_configured(tree: Tree) -> bool:
 
 
 def analyze_reg_bindings(tree: Tree) -> tuple[List[RegBindingRow], list[tuple[str, str]]]:
+    """整理寄存器绑定，并约束共享字段的编码一致。
+
+    Args:
+        tree: 已完成节点插件校验的时钟树
+
+    Returns:
+        tuple: 带别名数量的绑定列表，以及共享编码的等式两端
+
+    Raises:
+        ValueError: 路径无效、切片重叠或共享字段缺少编码定义
+    """
     rows: List[RegBindingRow] = []
     for node in tree.nodes_ordered:
         for output in node.output_groups or [""]:
@@ -77,7 +90,7 @@ def analyze_reg_bindings(tree: Tree) -> tuple[List[RegBindingRow], list[tuple[st
                     raise ValueError(f"节点 {node.name!r} 的 regs 键 {key!r} 须为合法 SystemVerilog 名字")
                 spec = parse_reg_path(raw_path, ctx=f"节点 {node.name!r} regs[{key!r}]")
                 rows.append(RegBindingRow(access, f"f_{key}", spec.path, spec.offset, spec.width,
-                    node.name, key))
+                    node.name, key, encoding=node.register_encoding(output, key, access)))
     groups: dict[tuple[str, Optional[int], Optional[int]], list[RegBindingRow]] = {}
     by_path: dict[str, list[RegBindingRow]] = {}
     for row in rows:
@@ -94,5 +107,13 @@ def analyze_reg_bindings(tree: Tree) -> tuple[List[RegBindingRow], list[tuple[st
                 rhs_hi = rhs.offset + rhs.width - 1
                 if lhs.offset <= rhs_hi and rhs.offset <= lhs_hi:
                     raise ValueError(f"寄存器字段 {lhs.path} 存在重叠切片: {lhs.node_name}.{lhs.member} 与 {rhs.node_name}.{rhs.member}")
+    constraints: list[tuple[str, str]] = []
+    for group in groups.values():
+        encoded = [row.encoding for row in group if row.encoding is not None]
+        if encoded and len(encoded) != len(group):
+            raise ValueError(f"共享字段 {group[0].path!r} 的部分节点没有提供寄存器编码")
+        if len(encoded) > 1:
+            anchor = encoded[0]
+            constraints.extend((anchor, value) for value in encoded[1:] if value != anchor)
     return [RegBindingRow(row.sv_access, row.member, row.path, row.offset, row.width,
-        row.node_name, row.role, len(groups[row.identity])) for row in rows], []
+        row.node_name, row.role, len(groups[row.identity]), row.encoding) for row in rows], constraints

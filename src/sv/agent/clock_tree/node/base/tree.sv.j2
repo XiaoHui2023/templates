@@ -20,6 +20,14 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- endif %}
 {%- endfor %}
 
+{%- if shared_reg_constraints %}
+    constraint cst_shared_registers {
+{%- for lhs, rhs in shared_reg_constraints %}
+        {{ lhs }} == {{ rhs }};
+{%- endfor %}
+    }
+
+{%- endif %}
     // Creates node instances and binds graph and output relationships.
     function new(string name = "{{ settings.class_prefix }}tree");
         super.new(name);
@@ -99,6 +107,7 @@ task {{ settings.class_prefix }}tree::configure(bit low_power, bit quiet);
     cfg.configure_tree(this);
 endtask
 
+// Applies the tree's current configuration requests.
 task automatic {{ settings.class_prefix }}config_reg(
         {{ settings.class_prefix }}tree tree,
         bit quiet = 1'b0);

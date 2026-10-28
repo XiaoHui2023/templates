@@ -93,3 +93,55 @@ future_extension:
   exclude: true
   source: xtal
   calibration: 7
+
+div_shared:
+  kind: div_div
+  source: gate0
+  in_path: dut.div_shared_i
+  out_path: dut.div_shared_o
+  regs:
+    div: blk_div0.value[7:0]
+    rst: blk_div_shared.rst
+    load: blk_div_shared.load
+
+clk_shared:
+  kind: clk
+  source: div_shared
+  path: dut.clk_shared
+  frequence: 396000000
+  enabled: 1
+
+dto0:
+  kind: div_dto
+  source: xtal
+  in_path: dut.dto0_i
+  out_path: dut.dto0_o
+  ratio: 4
+  regs:
+    rst: blk_dto0.rst
+    load: blk_dto0.load
+    step: blk_dto0.step
+    bypass: blk_dto0.bypass
+
+clk_dto:
+  kind: clk
+  source: dto0
+  path: dut.clk_dto
+  frequence: 6000000
+
+mux_sparse:
+  kind: mux
+  source:
+    "2": xtal
+    "5": pll_sc0
+  in_paths:
+    "2": dut.mux_sparse_xtal
+    "5": dut.mux_sparse_pll
+  out_path: dut.mux_sparse_o
+  reg: blk_mux_sparse.sel
+
+clk_mux:
+  kind: clk
+  source: mux_sparse
+  path: dut.clk_mux
+  frequence: 1188000000

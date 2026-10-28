@@ -279,6 +279,20 @@ class Node(BaseModel):
         values.update(self.output_regs.get(output, {}))
         return values
 
+    def register_encoding(self, output: str, role: str, access: str) -> str | None:
+        """由对应输出组的插件提供共享配置位编码。
+
+        Args:
+            output: 输出组名字，单输出为空字符串
+            role: 寄存器字段名字
+            access: 节点实例的 SV 访问表达式
+
+        Returns:
+            str | None: 插件提供的编码表达式
+        """
+        config = self._output_plugin_configs.get(output, self._plugin_config)
+        return config.register_encoding(role, access)
+
     @computed_field
     @property
     def port_paths(self) -> List[tuple[str, str, str]]:

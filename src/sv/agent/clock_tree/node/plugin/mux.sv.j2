@@ -13,10 +13,13 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     int sel;
     bit unfix_sel;
     {{ settings.class_prefix }}node_base to_source[int];
+    int input_keys[$];
     {{ settings.class_prefix }}reg f_reg;
 
     constraint cst_mux {
-        _resolved_sel inside {[0:max_sel]};
+        _resolved_sel >= 0;
+        input_keys.size() > 0 -> _resolved_sel inside {input_keys};
+        max_sel >= 0 -> _resolved_sel <= max_sel;
         !(unfix_sel || sel < 0) -> sel == _resolved_sel;
     }
 
@@ -33,6 +36,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     // 初始化自由选择值。
     function new(string name = "");
         super.new(name);
+        max_sel = -1;
         sel = -1;
         unfix_sel = 1'b1;
         f_reg = new();
@@ -43,16 +47,24 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     virtual function void set_source(
             input string key,
             input {{ settings.class_prefix }}node_base parent);
+        int index;
+        index = 0;
+        if (key != "" && ($sscanf(key, "%d", index) != 1
+                || index < 0 || key != $sformatf("%0d", index)))
+            `uvm_fatal("CLK_TREE", $sformatf("mux %s invalid input key %s", get_name(), key))
         super.set_source(key, parent);
-        if (key != "")
-            to_source[key.atoi()] = parent;
+        if (!to_source.exists(index))
+            input_keys.push_back(index);
+        to_source[index] = parent;
     endfunction
 
     // 同步选择值的固定标记。
     function void post_randomize();
         super.post_randomize();
-        if (to_source[_resolved_sel] != null)
+        if (to_source.exists(_resolved_sel))
             source = to_source[_resolved_sel];
+        else
+            source = null;
     endfunction
 
     // 收集全部 mux 输入来源。
@@ -71,7 +83,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         keys.delete();
         foreach (to_source[key])
             if (to_source[key] == parent)
-                keys.push_back($sformatf("%0d", key));
+                keys.push_back(sources.num() == 0 ? "" : $sformatf("%0d", key));
     endfunction
 
     // mux 在打开上游 gate 后配置。
@@ -105,6 +117,13 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         cfg.write_reg(f_reg, _resolved_sel);
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Maps the sole default input to selector zero.
+    virtual function virtual {{ settings.class_prefix }}interface get_in_vif(string key = "");
+        if (key == "0" && sources.num() == 0 && !in_vifs.exists(key))
+            return in_vif;
+        return super.get_in_vif(key);
+    endfunction
+
     // Declares an isolated mux selection transition check.
     virtual function bit has_functional_contract();
         return 1'b1;

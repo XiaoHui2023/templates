@@ -67,6 +67,18 @@ class NodePluginConfig(BaseModel):
             for field, value in sorted(self.model_dump(exclude_unset=True, exclude_none=True).items())
         ]
 
+    def register_encoding(self, role: str, access: str) -> str | None:
+        """返回一个稳态配置字段的 SV 编码表达式。
+
+        Args:
+            role: regs 中的字段名字
+            access: 节点实例的 SV 访问表达式
+
+        Returns:
+            str | None: 可参与约束的表达式；复位、触发等字段返回 None
+        """
+        return None
+
 
 class OpaqueNodePluginConfig(NodePluginConfig):
     """未在 Python 注册的节点保留其显式配置并交给 SV 编译检查。"""

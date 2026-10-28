@@ -12,3 +12,4 @@ settings:
       settle_ns: 200
     div_dto:
       settle_ns: 200
+      sync_wait_ns: 200

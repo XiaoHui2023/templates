@@ -13,6 +13,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         _resolved_ratio <= (1 << 25);
     }
 
+    // Initializes the DTO control fields.
     function new(string name = "");
         super.new(name);
         kind = "div_dto";
@@ -22,61 +23,57 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         f_step = new();
     endfunction
 
-    virtual task apply_configuration(
+    // Programs data before the load edge and allows control synchronization.
+    task program_ratio(
             input {{ settings.class_prefix }}node_config_api cfg,
-            output bit configured);
+            input int value,
+            input bit reset);
         int rst_value;
-        int load_value;
         int step_value;
-        int current_rst;
-        bit rst_released;
-        configured = f_rst.is_bound() && f_load.is_bound() && f_bypass.is_bound()
-            && f_step.is_bound();
-        if (!configured)
-            return;
+        int control_value;
+        bit bypass_value;
 {%- if plugin_value("div_dto", "reg_high_means_reset", false) %}
         rst_value = 0;
 {%- else %}
         rst_value = 1;
 {%- endif %}
-        cfg.read_reg(f_load, load_value);
-        if (load_value != 0)
-            cfg.write_reg(f_load, 0);
-{%- if plugin_value("div_dto", "reset_on_config", false) %}
-{%- if plugin_value("div_dto", "reg_high_means_reset", false) %}
-        cfg.write_reg(f_rst, 1);
-{%- else %}
-        cfg.write_reg(f_rst, 0);
-{%- endif %}
-        rst_released = 1'b0;
-{%- else %}
-        cfg.read_reg(f_rst, current_rst);
-        rst_released = current_rst == rst_value;
-        if (!rst_released) begin
-            cfg.write_reg(f_rst, rst_value);
-            rst_released = 1'b1;
+        bypass_value = {{ settings.class_prefix }}dto_ratio_is_bypass(value);
+        step_value = bypass_value ? 0 : {{ settings.class_prefix }}dto_ratio_to_step(value);
+        // Refresh control fields before the write service checks their mirrors.
+        cfg.read_reg(f_rst, control_value);
+        cfg.read_reg(f_load, control_value);
+        if (reset) begin
+            cfg.write_reg(f_rst, !rst_value);
+            #({{ plugin_value("div_dto", "sync_wait_ns", 200) }}ns);
         end
-{%- endif %}
+        cfg.write_reg(f_load, 0);
+        cfg.write_reg(f_step, step_value);
+        cfg.write_reg(f_bypass, bypass_value);
+        cfg.write_reg(f_rst, rst_value);
+        #({{ plugin_value("div_dto", "sync_wait_ns", 200) }}ns);
+        cfg.write_reg(f_load, 1);
+        #({{ plugin_value("div_dto", "sync_wait_ns", 200) }}ns);
+    endtask
+
+    // Configures a bound DTO and waits for its control synchronization budget.
+    virtual task apply_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            output bit configured);
+        configured = f_rst.is_bound() && f_load.is_bound() && f_bypass.is_bound()
+            && f_step.is_bound();
+        if (!configured)
+            return;
         if ({{ settings.class_prefix }}dto_ratio_is_bypass(_resolved_ratio)) begin
             if (!cfg.quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "config_reg: dto %s bypass", get_name()), UVM_MEDIUM)
-            if (!rst_released)
-                cfg.write_reg(f_rst, rst_value);
-            cfg.write_reg(f_load, 1);
-            cfg.write_reg(f_bypass, 1);
-            cfg.write_reg(f_step, 0);
         end else begin
-            step_value = {{ settings.class_prefix }}dto_ratio_to_step(_resolved_ratio);
             if (!cfg.quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "config_reg: dto %s ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
-            if (!rst_released)
-                cfg.write_reg(f_rst, rst_value);
-            cfg.write_reg(f_load, 1);
-            cfg.write_reg(f_bypass, 0);
-            cfg.write_reg(f_step, step_value);
         end
+        program_ratio(cfg, _resolved_ratio,
+            {{ "1'b1" if plugin_value("div_dto", "reset_on_config", false) else "1'b0" }});
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated DTO transition check.
@@ -96,7 +93,6 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         real expected_freq_hz;
         real err_ratio;
         bit passed;
-        bit configured;
         int ratio;
 
         did_check = 1'b0;
@@ -117,17 +113,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test dto %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
-{%- if plugin_value("div_dto", "reg_high_means_reset", false) %}
-        api.cfg.write_reg(f_rst, 1);
-        api.cfg.write_reg(f_rst, 0);
-{%- else %}
-        api.cfg.write_reg(f_rst, 0);
-        api.cfg.write_reg(f_rst, 1);
-{%- endif %}
-        api.cfg.write_reg(f_load, 0);
-        api.cfg.write_reg(f_bypass, 0);
-        api.cfg.write_reg(f_step, {{ settings.class_prefix }}dto_ratio_to_step(ratio));
-        api.cfg.write_reg(f_load, 1);
+        program_ratio(api.cfg, ratio, 1'b1);
         #({{ plugin_value("div_dto", "settle_ns", 200) }}ns);
         expected_freq_hz = real'(1_000_000_000) / ratio;
         api.measure_port_freq(out_vif, {get_name(), ".out"},

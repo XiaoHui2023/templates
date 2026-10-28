@@ -15,6 +15,13 @@ class ClkDivWithClkenConfig(DividerConfig):
 
     ratio: Literal[2, 3, 4, 6] | None = Field(default=None, description="分频比，2、3、4 或 6")
 
+    def register_encoding(self, role: str, access: str) -> str | None:
+        """返回分频字段的规范编码，默认 reg 与 div 指向同一字段。"""
+        if role not in {"reg", "div"}:
+            return None
+        ratio = f"{access}._resolved_ratio"
+        return f"({ratio} == 2 ? 0 : {ratio} == 3 ? 2 : {ratio} == 4 ? 4 : 8)"
+
     def normalize_outputs(self, outputs: list[str]) -> list[str]:
         """提供固定输出组，拒绝拼错或缺少的输出。
 
