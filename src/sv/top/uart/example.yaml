@@ -4,7 +4,8 @@ baud_rate: 115200
 # sqr shortcuts: send_byte, send_word, send, send_file, send_string
 # Blocking reads: recv_byte, recv_word, recv_bytes, recv_string
 # Wait through unrelated input: agent.sqr.wait_string("READY");
-# Optional whole-call timeout (zero or omitted waits indefinitely):
-# agent.sqr.recv_byte(data, 1ms);
-# agent.sqr.recv_bytes(16, data_queue, 2ms);
-# agent.sqr.wait_string("READY", 100ms);
+# Optional whole-call timeout_ns in nanoseconds (zero or omitted waits indefinitely):
+# agent.sqr.recv_byte(data, .timeout_ns(100_000)); // 100us
+# agent.sqr.recv_bytes(16, data_queue, .timeout_ns(2_000_000)); // 2ms
+# With timeprecision 1ns or finer, a unit ratio is also supported:
+# agent.sqr.wait_string("READY", .timeout_ns(100ms / 1ns));
