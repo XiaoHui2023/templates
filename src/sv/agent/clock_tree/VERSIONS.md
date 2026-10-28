@@ -4,6 +4,7 @@
 
 - 输入：根对象使用 settings 和 nodes，nodes 可从独立文件导入；不再接受扁平节点输入。
 - 节点排除：exclude 默认为 false，为 true 时不生成节点，与时钟 enabled 分开。
+- 插件属性：与公共字段平级，不再使用 config 容器；output_config 保留按输出组覆盖。
 - stable：省略 enabled 时补 1，显式关闭时报错。
 - 插件：增加 clk_div_with_clken，三个输出共用分频状态和配置。
 

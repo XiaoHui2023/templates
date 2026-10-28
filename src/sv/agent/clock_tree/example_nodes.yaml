@@ -1,14 +1,12 @@
 xtal:
   kind: source
-  config:
-    frequence: 24000000
+  frequence: 24000000
   out_path: dut.xtal_clk
 
 pll_sc0:
   kind: pll_sc
   source: xtal
-  config:
-    frequence: 1188000000
+  frequence: 1188000000
   in_path: dut.pll_sc_ref
   out_path: dut.pll_sc_clk
   regs:
@@ -26,8 +24,7 @@ pll_sc0:
 gate0:
   kind: gate
   source: pll_sc0
-  config:
-    open: 1
+  open: 1
   in_path: dut.gate0_i
   out_path: dut.gate0_o
   reg: blk_gate0.en
@@ -35,8 +32,7 @@ gate0:
 div0:
   kind: div_div
   source: gate0
-  config:
-    ratio: 3
+  ratio: 3
   in_path: dut.div0_i
   out_path: dut.div0_o
   regs:
@@ -47,9 +43,8 @@ div0:
 clk_cpu:
   kind: clk
   source: div0
-  config:
-    frequence: 396000000
-    enabled: 1
+  frequence: 396000000
+  enabled: 1
   path: dut.clk_cpu
 
 cell_cpu:
@@ -61,8 +56,7 @@ clk_stable:
   kind: clk
   source: xtal
   path: dut.clk_stable
-  config:
-    stable: true
+  stable: true
 
 bus_div:
   kind: clk_div_with_clken
@@ -76,8 +70,7 @@ bus_div:
     div: blk_bus_div.value[3:0]
     rst: blk_bus_div.rst
     load: blk_bus_div.load
-  config:
-    ratio: 3
+  ratio: 3
 
 bus_core:
   kind: clk
@@ -93,12 +86,10 @@ bus_hclken:
   kind: clk
   source: bus_div[hclken]
   path: dut.bus_hclken
-  config:
-    check_duty: false
+  check_duty: false
 
 future_extension:
   kind: vendor_extension
   exclude: true
   source: xtal
-  config:
-    calibration: 7
+  calibration: 7

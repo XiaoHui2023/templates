@@ -8,16 +8,12 @@
     "nodes": {
         "osc": {
             "kind": "source",
-            "config": {
-                "frequence": 24000000
-            }
+            "frequence": 24000000
         },
         "pll_tci": {
             "kind": "pll_tci",
             "source": "osc",
-            "config": {
-                "frequence": 48000000
-            },
+            "frequence": 48000000,
             "regs": {
                 "lock": "blk_pll_tci.lock",
                 "bypass": "blk_pll_tci.bypass",
@@ -36,9 +32,7 @@
                 "1": "pll_tci"
             },
             "reg": "blk_mux0.sel",
-            "config": {
-                "max_sel": 1
-            }
+            "max_sel": 1
         },
         "gate0": {
             "kind": "gate",

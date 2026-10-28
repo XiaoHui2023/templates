@@ -112,7 +112,7 @@ SourceValue = Optional[Union[str, Dict[str, str]]]
 class Node(BaseModel):
     """插件无关的图、端口与寄存器声明。"""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     kind: str = Field(..., min_length=1, description="对应的 SystemVerilog 节点插件名")
     exclude: bool = Field(default=False, description="排除该节点，不生成实例、接口和寄存器绑定")
@@ -126,7 +126,6 @@ class Node(BaseModel):
     reg: Optional[str] = Field(default=None, description="默认寄存器字段路径")
     regs: Dict[str, str] = Field(default_factory=dict, description="具名寄存器字段路径")
     output_regs: Dict[str, Dict[str, str]] = Field(default_factory=dict, description="按输出组覆盖的寄存器字段")
-    config: Dict[str, object] = Field(default_factory=dict, description="由节点插件定义的显式配置")
     output_config: Dict[str, Dict[str, object]] = Field(default_factory=dict, description="按输出组覆盖的插件配置")
 
     _name: str = PrivateAttr(default="")
@@ -175,17 +174,40 @@ class Node(BaseModel):
                 raise ValueError(f"{ERR.field('source')} 前级引用 {endpoint!r} 须为器件名或器件名[输出名]")
         return value
 
+    def _parse_plugin_values(self, values: Dict[str, object]) -> NodePluginConfig:
+        """校验插件属性，避免覆盖公共成员。
+
+        Args:
+            values: 节点属性或合并后的输出组属性
+
+        Returns:
+            NodePluginConfig: 插件校验后的属性
+
+        Raises:
+            ValueError: 属性无效或与公共成员重名
+        """
+        for field in values:
+            if field.startswith("_") or field in type(self).model_fields or hasattr(type(self), field):
+                raise ValueError(f"{ERR.field(field)} 不能覆盖节点公共成员")
+        config = parse_plugin_config(self.kind, values)
+        for field in type(config).model_fields:
+            if field in type(self).model_fields or hasattr(type(self), field):
+                raise ValueError(f"插件字段 {ERR.field(field)} 与节点公共成员重名")
+        return config
+
     @model_validator(mode="after")
     def _parse_plugin_configs(self) -> "Node":
-        self._plugin_config = parse_plugin_config(self.kind, self.config)
+        """将公共字段之外的顶层属性交给节点插件校验。"""
+        values = self.__pydantic_extra__ or {}
+        self._plugin_config = self._parse_plugin_values(values)
         self.outputs = self._plugin_config.normalize_outputs(self.outputs)
         unknown_outputs = set(self.output_config) | set(self.output_regs)
         unknown_outputs.difference_update(self.outputs)
         if unknown_outputs:
             raise ValueError(f"输出组不存在: {sorted(unknown_outputs)!r}")
         self._output_plugin_configs = {
-            output: parse_plugin_config(self.kind, self.config | values)
-            for output, values in self.output_config.items()
+            output: self._parse_plugin_values(values | overrides)
+            for output, overrides in self.output_config.items()
         }
         return self
 

@@ -78,11 +78,35 @@ tree.clk_cpu._should_check = 0;
 
 ## 扩展
 
-1. 添加 `node/python/plugins/<kind>.py`，声明节点 `config` 和可选全局设置。
+1. 添加 `node/python/plugins/<kind>.py`，继承 `NodePluginConfig`，声明节点属性、校验规则和可选全局设置。
 2. 在 `node/python/registry.py` 登记 Python 插件与设置。
 3. 添加 `node/plugin/<kind>.sv.j2`，实现字段、约束和需要的钩子，并加入 `node/plugin.f.j2`。
 
-`config` 由 Python 插件校验，`output_config` 覆盖单个输出组。未知 `kind` 仍生成对应 SV 类型，缺少实现时由 SV 编译报错。
+节点输入中，插件属性与公共字段平级。基础模型处理连接、路径和寄存器声明，其余属性交给对应 Python 插件校验；公共模型不声明具体插件属性。`output_config` 与节点属性合并后，由同一插件校验每个输出组。
+
+Python 插件不能声明与公共字段、只读属性或方法同名的字段。已注册插件拒绝未知属性；未知 `kind` 保留合法的标量属性并生成对应 SV 类型，缺少实现时由 SV 编译报错。
+
+```python
+from pydantic import Field
+
+from ..config import NodePluginConfig
+
+
+class CustomConfig(NodePluginConfig):
+    """自定义节点属性。"""
+
+    ratio: int | None = Field(default=None, ge=1, description="输入与输出的分频比")
+```
+
+```yaml
+nodes:
+  custom0:
+    kind: custom
+    source: osc
+    ratio: 4
+```
+
+新增属性只修改该 Python 插件；`sv_assignments` 默认将显式填写的属性转换为 SV 成员赋值。需要改变名字、编码或默认行为时，在插件中重载该方法。
 
 Python 插件可重载 `normalize_outputs` 提供固定输出组，重载 `port_paths_for_output` 分配每组端口；公共层不判断具体节点类型。
 

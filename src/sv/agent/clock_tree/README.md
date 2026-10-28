@@ -9,22 +9,19 @@ settings:
 nodes:
   osc:
     kind: source
-    config:
-      frequence: 24000000
+    frequence: 24000000
 
   gate_cpu:
     kind: gate
     source: osc
     reg: clk_ctrl.cpu_gate
-    config:
-      open: 1
+    open: 1
 
   clk_cpu:
     kind: clk
     source: gate_cpu
     path: dut.clk_cpu
-    config:
-      stable: true
+    stable: true
 ```
 
 ## 数据结构
@@ -54,7 +51,6 @@ nodes:
 | `plugin` | `dict[str, dict]` | `{}` | 节点插件的全局选项。 |
 
 `settings.plugin.<作用域>` 由注册插件校验；例如 `settings.plugin.pll_sc.fbdiv_max`。
-节点私有字段只写在 `config` 或 `output_config`，不再写到节点顶层。
 
 ### 前级引用
 
@@ -88,12 +84,13 @@ nodes:
 | `reg` | `str` | | 默认寄存器模型路径。 |
 | `regs` | `dict[str, str]` | `{}` | 具名寄存器模型路径。 |
 | `output_regs` | `dict[str, dict[str, str]]` | `{}` | 按输出组覆盖的寄存器路径。 |
-| `config` | `dict` | `{}` | 节点插件配置。 |
 | `output_config` | `dict[str, dict]` | `{}` | 按输出组覆盖的插件配置。 |
 
 #### 插件配置
 
-| `kind` | `config` 字段 |
+插件字段与公共字段平级，由对应 Python 插件定义和校验。已注册插件的字段拼错或多写会报错。不再使用 `config` 容器。
+
+| `kind` | 字段 |
 | --- | --- |
 | `source`、`source_pad` | `frequence` |
 | `pll_sc`、`pll_dw`、`pll_inno`、`pll_tci` | `frequence`、`enabled`；`pll_inno` 还支持 `group_id` |
@@ -107,6 +104,19 @@ nodes:
 | `inv`、`inv_cell`、`inv_mux` | `inverted`、`fix_inverted` |
 
 `stable: true` 且省略 enabled 时补 1；显式 enabled 小于等于 0 会报错。`exclude: true` 不等于关闭时钟；保留的节点不能引用被排除的节点。
+
+多输出节点用 `output_config` 覆盖指定输出组，未覆盖的字段沿用节点顶层值。
+
+```yaml
+nodes:
+  pll_audio:
+    kind: pll_inno
+    outputs: [fast, slow]
+    frequence: 480000000
+    output_config:
+      slow:
+        frequence: 240000000
+```
 
 ### clk_div_with_clken
 
@@ -124,8 +134,7 @@ nodes:
       div: clk_ctrl.divider[3:0]
       rst: clk_ctrl.reset
       load: clk_ctrl.load
-    config:
-      ratio: 3
+    ratio: 3
 ```
 
 三个输出名固定，无需填写 outputs。clk_arm_core 直通输入，hclk 和 hclken 共用分频。div 绑定四位字段，rst 和 load 可省略；仅有分频字段时也可使用 reg。全局 `settings.plugin.clk_div_with_clken` 支持 `reg_high_means_reset` 和 `settle_ns`，默认分别为 false 和 200。
