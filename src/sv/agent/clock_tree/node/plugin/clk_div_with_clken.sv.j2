@@ -136,12 +136,10 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
         end
         if (decode_ratio(current_value) == _resolved_ratio && reset_released
                 && (!f_load.is_bound() || (has_configured_ratio && last_configured_ratio == _resolved_ratio))) begin
-            if (!cfg.quiet)
-                `uvm_info("CLK_TREE", $sformatf("config_reg: %s skip ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: %s skip ratio %0d", get_name(), _resolved_ratio), UVM_HIGH)
             return;
         end
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf("config_reg: %s ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf("config_reg: %s ratio %0d", get_name(), _resolved_ratio), UVM_LOW)
         program_ratio(cfg, encode_ratio(_resolved_ratio));
         has_configured_ratio = 1'b1;
         last_configured_ratio = _resolved_ratio;

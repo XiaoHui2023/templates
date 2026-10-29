@@ -4,8 +4,6 @@
 class {{ settings.class_prefix }}check_measure_req extends {{ settings.class_prefix }}base_item;
     `uvm_object_utils_begin({{ settings.class_prefix }}check_measure_req)
         `uvm_field_object(tree, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_int(quiet, UVM_ALL_ON)
-        `uvm_field_int(debug, UVM_ALL_ON)
         `uvm_field_int(check_observation, UVM_ALL_ON)
         `uvm_field_int(check_freq, UVM_ALL_ON)
         `uvm_field_int(check_duty, UVM_ALL_ON)
@@ -14,14 +12,13 @@ class {{ settings.class_prefix }}check_measure_req extends {{ settings.class_pre
     `uvm_object_utils_end
 
     {{ settings.class_prefix }}tree_base tree;
-    bit quiet;
-    bit debug;
     bit check_observation;
     bit check_freq;
     bit check_duty;
     int min_freq_hz;
     {{ settings.class_prefix }}node_base skip_nodes[$];
 
+    // Enables endpoint activity, frequency and duty checks by default.
     function new(string name = "{{ settings.class_prefix }}check_measure_req");
         super.new(name);
         check_observation = 1'b1;

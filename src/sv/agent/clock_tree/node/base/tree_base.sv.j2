@@ -10,14 +10,18 @@ class {{ settings.class_prefix }}tree_base extends {{ settings.class_prefix }}ba
     {{ settings.class_prefix }}node_base nodes[$];
     bit built;
 
+    // Creates an unbuilt node collection.
     function new(string name = "{{ settings.class_prefix }}tree_base");
         super.new(name);
         built = 1'b0;
     endfunction
 
+    // Rejects use before register binding and initialization.
     extern function void require_built(string ctx);
+    // Applies each node's low-power preference.
     extern function void low_power();
-    virtual task configure(bit low_power = 1'b0, bit quiet = 1'b0);
+    // Applies requested state through the concrete tree implementation.
+    virtual task configure();
         `uvm_fatal("CLK_TREE", "tree_base.configure: concrete tree implementation is required")
     endtask
 endclass

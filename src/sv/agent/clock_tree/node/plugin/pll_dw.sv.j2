@@ -68,12 +68,10 @@ class {{ settings.class_prefix }}pll_dw extends {{ settings.class_prefix }}frequ
         encoder.dw_regs_match_target(f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
             f_divvcor, f_r, f_p, f_divvcop, f_enr, f_enp, frequence, ref_hz, active, reg_match);
         if (reg_match) begin
-            if (!cfg.quiet)
-                `uvm_info("CLK_TREE", $sformatf("config_reg: pll_dw %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_dw %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_HIGH)
             return;
         end
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_dw %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf("config_reg: pll_dw %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_LOW)
         encoder.configure_dw_from_hz(f_fbdiv, f_prediv, f_reset, f_pwron, f_shift, f_bypass,
             f_divvcor, f_r, f_p, f_divvcop, f_enr, f_enp, active, frequence, ref_hz);
         configured = active;

@@ -41,9 +41,8 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
         configured = f_reg.is_bound();
         if (!configured)
             return;
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: %s inverted %0b", get_name(), inverted), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: %s inverted %0b", get_name(), inverted), UVM_LOW)
 {%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
         cfg.write_reg(f_reg, inverted);
 {%- else %}

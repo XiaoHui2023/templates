@@ -76,13 +76,12 @@ task {{ settings.class_prefix }}flip_check_seq::body();
     stable_skipped = 0;
     policy_skipped = 0;
     failed = 0;
-    if (!rq.quiet || rq.debug)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: begin tree %s", tree.get_name()), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: begin tree %s", tree.get_name()), UVM_LOW)
 
     tree.low_power();
-    cfg = new(p_sequencer.tools, 1'b1);
-    cfg.configure_low_power(tree, rq.quiet);
+    tree.configure();
+    cfg = new(p_sequencer.tools);
     api = new(cfg, "flip_node_api");
     {{ settings.class_prefix }}collect_stable_upstream_nodes(tree, stable_nodes);
 
@@ -130,10 +129,9 @@ task {{ settings.class_prefix }}flip_check_seq::body();
 
     rs.failed = failed;
     rs.ok = failed == 0;
-    if (!rq.quiet || failed != 0)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: complete, %0d tested, %0d skipped, %0d checking disabled, %0d stable upstream skipped, %0d failed",
-            checked, skipped, policy_skipped, stable_skipped, failed), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_flip: complete, %0d tested, %0d skipped, %0d checking disabled, %0d stable upstream skipped, %0d failed",
+        checked, skipped, policy_skipped, stable_skipped, failed), UVM_LOW)
     rsp = rs;
 endtask
 

@@ -8,10 +8,12 @@ class {{ settings.class_prefix }}test_route_seq extends {{ settings.class_prefix
     `uvm_object_utils({{ settings.class_prefix }}test_route_seq)
     `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
+    // Creates the route test wrapper.
     function new(string name = "{{ settings.class_prefix }}test_route_seq");
         super.new(name);
     endfunction
 
+    // Runs the port-connectivity operation.
     extern virtual task body();
 endclass
 
@@ -27,8 +29,6 @@ task {{ settings.class_prefix }}test_route_seq::body();
     rq = req;
     op_req = {{ settings.class_prefix }}route_check_req::type_id::create("op_req");
     op_req.tree = rq.tree;
-    op_req.quiet = rq.quiet;
-    op_req.debug = rq.debug;
 
     op_seq = {{ settings.class_prefix }}route_check_seq::type_id::create("route_check");
     op_seq.req = op_req;

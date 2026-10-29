@@ -132,9 +132,8 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         field_h = lock_reg();
         if (field_h == null || !field_h.is_bound())
             return;
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: %s wait lock", get_name()), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: %s wait lock", get_name()), UVM_HIGH)
         elapsed = 0;
         while (elapsed < {{ plugin_value("pll", "lock_timeout_us", 100) }}us) begin
             cfg.read_reg(field_h, lock_value);

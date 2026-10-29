@@ -7,8 +7,6 @@
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
 | `tree` | `tree_base` | 时钟树 |
-| `quiet` | `bit` | 静默打印 |
-| `debug` | `bit` | 打印测量进度 |
 | `check_observation` | `bit` | 启用节点测量 |
 | `check_freq` | `bit` | 检查频率 |
 | `check_duty` | `bit` | 检查占空比 |

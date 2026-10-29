@@ -120,7 +120,6 @@ task {{ settings.class_prefix }}route_check_seq::body();
     {{ settings.class_prefix }}route_check_req rq;
     {{ settings.class_prefix }}route_check_rsp rs;
     {{ settings.class_prefix }}tree_base tree;
-    {{ settings.class_prefix }}config_reg_core cfg;
     {{ settings.class_prefix }}node_base parents[$];
     {{ settings.class_prefix }}node_base source_nodes[$];
     int checked_counts[];
@@ -146,15 +145,13 @@ task {{ settings.class_prefix }}route_check_seq::body();
     skipped = 0;
     failed = 0;
 
-    if (!rq.quiet || rq.debug)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_route: begin tree %s", tree.get_name()), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_route: begin tree %s", tree.get_name()), UVM_LOW)
 
     tree.low_power();
     if (p_sequencer.tools == null)
         `uvm_fatal("CLK_TREE", "test_route: sequencer tools not built")
-    cfg = new(p_sequencer.tools, 1'b1);
-    cfg.configure_low_power(tree, rq.quiet);
+    tree.configure();
 
     foreach (tree.nodes[i]) begin
         if (tree.nodes[i] == null)
@@ -198,10 +195,9 @@ task {{ settings.class_prefix }}route_check_seq::body();
 
     rs.failed = failed;
     rs.ok = failed == 0;
-    if (!rq.quiet || failed != 0)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_route: complete, %0d edge(s), %0d skipped, %0d failed",
-            checked, skipped, failed), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_route: complete, %0d edge(s), %0d skipped, %0d failed",
+        checked, skipped, failed), UVM_LOW)
 
     rsp = rs;
 endtask

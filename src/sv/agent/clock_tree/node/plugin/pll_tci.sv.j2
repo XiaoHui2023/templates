@@ -61,8 +61,7 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}freq
         encoder.tci_regs_match_target(f_bypass, f_pwrdn, f_reset, f_clkod, f_clkf, f_clkr,
             f_bwadj, frequence, ref_hz, active, reg_match);
         if (reg_match) begin
-            if (!cfg.quiet)
-                `uvm_info("CLK_TREE", $sformatf("config_reg: pll_tci %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_tci %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_HIGH)
             return;
         end
         if (active)
@@ -70,8 +69,7 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}freq
         else begin
             clkr = 1; clkf = 1; clkod = 1; bwadj = 1;
         end
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_tci %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf("config_reg: pll_tci %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_LOW)
         encoder.configure_tci(f_bypass, f_pwrdn, f_reset, f_clkod, f_clkf, f_clkr, f_bwadj,
             active, clkr, clkf, clkod, bwadj);
         configured = active;

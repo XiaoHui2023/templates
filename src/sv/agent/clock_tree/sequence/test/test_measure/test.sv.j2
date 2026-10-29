@@ -8,36 +8,36 @@ class {{ settings.class_prefix }}test_measure_seq extends {{ settings.class_pref
     `uvm_object_utils({{ settings.class_prefix }}test_measure_seq)
     `uvm_declare_p_sequencer({{ settings.class_prefix }}sequencer)
 
+    // Creates the configure-and-measure test.
     function new(string name = "{{ settings.class_prefix }}test_measure_seq");
         super.new(name);
     endfunction
 
+    // Configures the tree and checks its observable endpoints.
     extern virtual task body();
+    // Applies the requested tree configuration.
     extern task run_config_reg(
-        {{ settings.class_prefix }}tree_base tree, bit quiet);
+        {{ settings.class_prefix }}tree_base tree);
+    // Checks endpoint activity and the selected waveform properties.
     extern task run_check_measure(
         {{ settings.class_prefix }}tree_base tree,
         bit check_observation,
         bit check_freq,
-        bit check_duty,
-        bit quiet,
-        bit debug);
+        bit check_duty);
 endclass
 
 task {{ settings.class_prefix }}test_measure_seq::run_config_reg(
-        {{ settings.class_prefix }}tree_base tree, bit quiet);
+        {{ settings.class_prefix }}tree_base tree);
     if (tree == null)
         `uvm_fatal("CLK_TREE", "test_measure: tree is null for config_reg")
-    tree.configure(.low_power(1'b0), .quiet(quiet));
+    tree.configure();
 endtask
 
 task {{ settings.class_prefix }}test_measure_seq::run_check_measure(
         {{ settings.class_prefix }}tree_base tree,
         bit check_observation,
         bit check_freq,
-        bit check_duty,
-        bit quiet,
-        bit debug);
+        bit check_duty);
     {{ settings.class_prefix }}check_measure_req meas_req;
     {{ settings.class_prefix }}check_measure_rsp meas_rsp;
     {{ settings.class_prefix }}check_measure_seq meas_seq;
@@ -48,8 +48,6 @@ task {{ settings.class_prefix }}test_measure_seq::run_check_measure(
         `uvm_fatal("CLK_TREE", "test_measure: no enabled check target")
     meas_req = {{ settings.class_prefix }}check_measure_req::type_id::create("meas_req");
     meas_req.tree = tree;
-    meas_req.quiet = quiet;
-    meas_req.debug = debug;
     meas_req.check_observation = check_observation;
     meas_req.check_freq = check_freq;
     meas_req.check_duty = check_duty;
@@ -77,21 +75,19 @@ task {{ settings.class_prefix }}test_measure_seq::body();
     if (!rq.check_observation)
         `uvm_fatal("CLK_TREE", "test_measure: no enabled check target")
 
-    if (!rq.quiet || rq.debug)
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_measure: begin tree %s observe %0b freq %0b duty %0b debug %0b",
-            tree.get_name(), rq.check_observation,
-            rq.check_freq, rq.check_duty, rq.debug), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "test_measure: begin tree %s observe %0b freq %0b duty %0b",
+        tree.get_name(), rq.check_observation,
+        rq.check_freq, rq.check_duty), UVM_LOW)
 
-    run_config_reg(tree, rq.quiet);
+    run_config_reg(tree);
     run_check_measure(tree, rq.check_observation,
-        rq.check_freq, rq.check_duty, rq.quiet, rq.debug);
+        rq.check_freq, rq.check_duty);
 
     rs = {{ settings.class_prefix }}test_measure_rsp::type_id::create("rsp");
     rs.ok = 1'b1;
 
-    if (!rq.quiet)
-        `uvm_info("CLK_TREE", "test_measure: passed", UVM_LOW)
+    `uvm_info("CLK_TREE", "test_measure: passed", UVM_LOW)
 
     rsp = rs;
 endtask

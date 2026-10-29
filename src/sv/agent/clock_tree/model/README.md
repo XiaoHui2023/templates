@@ -15,10 +15,10 @@
 | --- | --- |
 | `build(regmodel)` | 绑定寄存器，调用节点初始化钩子，随机化；成功后置位 built |
 | `low_power()` | 向所有节点设置低功耗偏好，不写寄存器 |
-| `configure(low_power=0, quiet=0)` | 可选设置低功耗偏好，重新随机化并配置寄存器 |
+| `configure()` | 按当前请求重新随机化并配置寄存器 |
 | `require_built(ctx)` | 未 build 时终止并打印调用位置 |
 
-`config_reg(tree, quiet=0)` 是 `tree.configure()` 的全局 task 入口，不是 sequence。配置需要在 task 上下文调用。
+`config_reg(tree)` 是 `tree.configure()` 的全局 task 入口，不是 sequence。配置需要在 task 上下文调用。
 
 ## 公共成员
 
@@ -62,7 +62,7 @@
 
 gate、mux 和分频器随机化的是 `_resolved_open`、`_resolved_sel`、`_resolved_ratio`，不是 `open`、`sel`、`ratio`。反相器的 `inverted` 本身为 rand。
 
-clk 在 enabled 大于 0 且未解除频率要求时使用指定频率；enabled 为 0 时可保留 frequence 供下次开启。stable 强制开启。低功耗只改变软偏好，不覆盖显式开关，也不清除频率要求。
+clk 显式填写正频率且未填写 enabled 时默认开启；显式 enabled 优先。enabled 大于 0 且未解除频率要求时使用指定频率；enabled 为 0 时可保留 frequence 供下次开启。stable 强制开启。低功耗只改变软偏好，不覆盖显式开关，也不清除频率要求。
 
 输入 stable 为 true 且省略 enabled 时，插件初始化 enabled 为 1；显式冲突在输入阶段报错。
 

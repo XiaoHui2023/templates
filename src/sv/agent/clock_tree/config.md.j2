@@ -25,10 +25,10 @@ tree.build(path-to-your-regmodel);
 
 ## 低功耗
 
-尽可能关闭时钟以加速仿真。stable 或显式要求开启的时钟仍保持开启；此操作不会主动关闭 PLL。
+设置尽可能关闭时钟的偏好，不写寄存器。随后可手动开启需要的时钟，最后统一应用配置。stable 或显式要求开启的时钟仍保持开启；此操作不会主动关闭 PLL。
 
 ```systemverilog
-tree.configure(.low_power(1));
+tree.low_power();
 ```
 
 ## 配置

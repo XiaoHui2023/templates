@@ -5,6 +5,7 @@ src/c/pll_mini/bin/**
 *.pyc
 .cursor/
 **/.jinja-build-out*/
+**/.jinja-build-before-config-semantics-*/
 **/.jinja-build-probe-out*/
 **/.jinja-build-direct-config-out*/
 **/.jinja-debug-out*/

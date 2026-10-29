@@ -3,27 +3,28 @@
 
 class {{ settings.class_prefix }}node_config_api extends {{ settings.class_prefix }}base_object;
     {{ settings.class_prefix }}core_tools tools;
-    bit quiet;
 
+    // Binds the register access service.
     function new(
             input {{ settings.class_prefix }}core_tools tools_h,
-            input bit quiet = 1'b0,
             input string name = "");
         super.new(name);
         if (tools_h == null)
             `uvm_fatal("CLK_TREE", "node_config_api: tools is null")
         tools = tools_h;
-        this.quiet = quiet;
     endfunction
 
+    // Writes one field slice.
     virtual task write_reg(input {{ settings.class_prefix }}reg field_h, input int value);
         tools.rw.set_write(field_h, value);
     endtask
 
+    // Reads one field slice.
     virtual task read_reg(input {{ settings.class_prefix }}reg field_h, output int value);
         tools.rw.read(field_h, value);
     endtask
 
+    // Applies field updates with shared-register merging.
     virtual task write_regs(
             input {{ settings.class_prefix }}reg fields[$],
             input int values[$]);

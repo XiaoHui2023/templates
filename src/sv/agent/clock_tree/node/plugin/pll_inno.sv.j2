@@ -61,12 +61,10 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}fre
         encoder.inno_regs_match_target(f_pd, f_refdiv, f_fbdiv, f_postdiv1, f_postdiv2,
             frequence, ref_hz, write_shared, active, reg_match);
         if (reg_match) begin
-            if (!cfg.quiet)
-                `uvm_info("CLK_TREE", $sformatf("config_reg: pll_inno %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_inno %s skip reg match out %0d Hz ref %0d Hz", get_name(), frequence, ref_hz), UVM_HIGH)
             return;
         end
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf("config_reg: pll_inno %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz group %s", frequence, ref_hz, group_id) : "active 0"), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf("config_reg: pll_inno %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz group %s", frequence, ref_hz, group_id) : "active 0"), UVM_LOW)
         encoder.configure_inno_from_hz(f_pd, f_refdiv, f_fbdiv, f_postdiv1, f_postdiv2,
             active, frequence, ref_hz, write_shared);
         configured = active;

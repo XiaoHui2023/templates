@@ -37,5 +37,4 @@ nodes:
     kind: clk
     source: select_input
     frequence: 100000000
-    enabled: 1
     path: dut.clock_out

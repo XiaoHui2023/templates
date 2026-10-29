@@ -304,7 +304,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_activity(
     end
 
     `uvm_info("CLK_TREE", $sformatf(
-        "check_measure: node %s activity passed", nd.get_name()), UVM_LOW)
+        "check_measure: node %s activity passed", nd.get_name()), UVM_HIGH)
 endtask
 
 task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
@@ -346,7 +346,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_freq(
     end
 
     `uvm_info("CLK_TREE", $sformatf(
-        "check_measure: node %s freq passed", nd.get_name()), UVM_LOW)
+        "check_measure: node %s freq passed", nd.get_name()), UVM_HIGH)
 endtask
 
 task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
@@ -378,7 +378,7 @@ task {{ settings.class_prefix }}check_measure_seq::evaluate_node_duty(
     end
 
     `uvm_info("CLK_TREE", $sformatf(
-        "check_measure: node %s duty passed", nd.get_name()), UVM_LOW)
+        "check_measure: node %s duty passed", nd.get_name()), UVM_HIGH)
 endtask
 
 function bit {{ settings.class_prefix }}check_measure_seq::vif_has_other_pending(
@@ -469,7 +469,7 @@ function void {{ settings.class_prefix }}check_measure_seq::log_measure_progress
 
     `uvm_info("CLK_TREE", $sformatf(
         "check_measure progress: pending %0d elapsed %0d ns / %0d ns",
-        pending, elapsed_ns, meas_timeout_ns), UVM_LOW)
+        pending, elapsed_ns, meas_timeout_ns), UVM_DEBUG)
     foreach (nodes_to_check[i]) begin
         if (node_done[i])
             continue;
@@ -482,7 +482,7 @@ function void {{ settings.class_prefix }}check_measure_seq::log_measure_progress
                 rq.check_freq, rq.check_duty),
             nd.vif.meas.meas_en, nd.vif.meas.activity_ok, nd.vif.meas.inactive,
             nd.vif.meas.freq_stable, nd.vif.meas.duty_stable, nd.vif.meas.timed_out),
-            UVM_LOW)
+            UVM_DEBUG)
     end
 endfunction
 
@@ -558,32 +558,33 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     pending = nodes_to_check.size();
     last_progress_ns = -progress_interval_ns;
 
-    if (rq.debug)
-        `uvm_info("CLK_TREE", $sformatf(
-            "check_measure progress: begin %0d node(s) timeout %0d ns min_freq %0d Hz",
-            checked, meas_timeout_ns, meas_min_freq_hz), UVM_LOW)
+    `uvm_info("CLK_TREE", $sformatf(
+        "check_measure progress: begin %0d node(s) timeout %0d ns min_freq %0d Hz",
+        checked, meas_timeout_ns, meas_min_freq_hz), UVM_DEBUG)
 
     foreach (nodes_to_check[i]) begin
         nd = nodes_to_check[i];
+        `uvm_info("CLK_TREE", $sformatf(
+            "check_measure: test node %s", nd.get_name()), UVM_LOW)
         if (!node_needs_freq_check(nd, rq.check_observation, rq.check_freq))
             freq_done[i] = 1'b1;
         if (!node_needs_duty_check(nd, rq.check_observation, rq.check_duty))
             duty_done[i] = 1'b1;
-        if (!rq.quiet || rq.debug)
-            `uvm_info("CLK_TREE", $sformatf(
-                "check_measure: node %s activity 1 freq %0b duty %0b expected %0d Hz active %0b",
-                nd.get_name(),
-                node_needs_freq_check(nd, rq.check_observation,
-                    rq.check_freq),
-                node_needs_duty_check(nd, rq.check_observation, rq.check_duty),
-                nd._resolved_freq, nd._resolved_active), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf(
+            "check_measure: node %s activity 1 freq %0b duty %0b expected %0d Hz active %0b",
+            nd.get_name(),
+            node_needs_freq_check(nd, rq.check_observation,
+                rq.check_freq),
+            node_needs_duty_check(nd, rq.check_observation, rq.check_duty),
+            nd._resolved_freq, nd._resolved_active), UVM_HIGH)
         start_measure_if_new_vif(nd, i, nodes_arr, meas_min_freq_hz,
             rq.check_observation, rq.check_freq, rq.check_duty);
     end
 
     elapsed_ns = 0;
     while (pending > 0 && elapsed_ns < meas_timeout_ns) begin
-        if (rq.debug && (elapsed_ns - last_progress_ns >= progress_interval_ns)) begin
+        if (uvm_report_enabled(UVM_DEBUG, UVM_INFO, "CLK_TREE")
+                && elapsed_ns - last_progress_ns >= progress_interval_ns) begin
             log_measure_progress(rq, nodes_to_check, node_done, activity_done,
                 freq_done, duty_done, pending, elapsed_ns, meas_timeout_ns);
             last_progress_ns = elapsed_ns;
@@ -616,9 +617,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
                 stop_measure_if_vif_idle(nd, i, nodes_arr, node_done);
                 node_done[i] = 1'b1;
                 pending--;
-                if (rq.debug)
-                    `uvm_info("CLK_TREE", $sformatf(
-                        "check_measure progress: node %s done", nd.get_name()), UVM_LOW)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "check_measure progress: node %s done", nd.get_name()), UVM_DEBUG)
             end
         end
         if (pending > 0) begin
@@ -631,7 +631,7 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     if (pending > 0)
         #1step;
 
-    if (rq.debug && pending > 0)
+    if (pending > 0 && uvm_report_enabled(UVM_DEBUG, UVM_INFO, "CLK_TREE"))
         log_measure_progress(rq, nodes_to_check, node_done, activity_done,
             freq_done, duty_done, pending, elapsed_ns, meas_timeout_ns);
 
@@ -659,7 +659,7 @@ task {{ settings.class_prefix }}check_measure_seq::body();
         stop_measure_if_vif_idle(nd, i, nodes_arr, node_done);
     end
 
-    if (rs.ok && !rq.quiet)
+    if (rs.ok)
         `uvm_info("CLK_TREE", $sformatf(
             "check_measure: passed, %0d node(s)", checked), UVM_LOW)
 

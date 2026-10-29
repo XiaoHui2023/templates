@@ -79,13 +79,11 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         if (!configured)
             return;
         if ({{ settings.class_prefix }}dto_ratio_is_bypass(_resolved_ratio)) begin
-            if (!cfg.quiet)
-                `uvm_info("CLK_TREE", $sformatf(
-                    "config_reg: dto %s bypass", get_name()), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: dto %s bypass", get_name()), UVM_LOW)
         end else begin
-            if (!cfg.quiet)
-                `uvm_info("CLK_TREE", $sformatf(
-                    "config_reg: dto %s ratio %0d", get_name(), _resolved_ratio), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: dto %s ratio %0d", get_name(), _resolved_ratio), UVM_LOW)
         end
         program_ratio(cfg, _resolved_ratio,
             {{ "1'b1" if plugin_value("div_dto", "reset_on_config", false) else "1'b0" }});

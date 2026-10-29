@@ -69,7 +69,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
     // Binds registers and resolves the initial graph state.
     extern function void build({{ settings.class_regmodel }} regmodel = null);
     // Resolves requested state and applies node configuration.
-    extern virtual task configure(bit low_power = 1'b0, bit quiet = 1'b0);
+    extern virtual task configure();
 endclass
 
 function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel }} regmodel);
@@ -94,25 +94,22 @@ function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel 
     built = 1'b1;
 endfunction
 
-task {{ settings.class_prefix }}tree::configure(bit low_power, bit quiet);
+task {{ settings.class_prefix }}tree::configure();
     {{ settings.class_prefix }}core_tools tools;
     {{ settings.class_prefix }}config_reg_core cfg;
 
     require_built("tree.configure");
-    if (low_power)
-        this.low_power();
     if (!randomize())
         `uvm_fatal("CLK_TREE", "tree.configure: tree randomize failed")
     tools = new;
-    cfg = new(tools, quiet);
+    cfg = new(tools);
     cfg.configure_tree(this);
 endtask
 
 // Applies the tree's current configuration requests.
 task automatic {{ settings.class_prefix }}config_reg(
-        {{ settings.class_prefix }}tree tree,
-        bit quiet = 1'b0);
-    tree.configure(.low_power(1'b0), .quiet(quiet));
+        {{ settings.class_prefix }}tree tree);
+    tree.configure();
 endtask
 
 `endif

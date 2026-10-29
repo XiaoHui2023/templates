@@ -218,9 +218,8 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             return;
         current_sel = observed_sel(context_h);
         if (current_sel == _resolved_sel) begin
-            if (!context_h.io.quiet)
-                `uvm_info("CLK_TREE", $sformatf(
-                    "config_reg: mux %s skip reg sel %0d", get_name(), _resolved_sel), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: mux %s skip reg sel %0d", get_name(), _resolved_sel), UVM_HIGH)
             return;
         end
         old_hz = to_source[current_sel].clock_rate_hz();
@@ -231,10 +230,9 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         case (token)
             1: begin
                 #(switch_delay_ns(slow_hz, 1) * 1ns);
-                if (!context_h.io.quiet)
-                    `uvm_info("CLK_TREE", $sformatf(
-                        "config_reg: mux %s sel %0d -> %0d, wait %0.0f ns (%0d cycles at %0.3f Hz)",
-                        get_name(), current_sel, _resolved_sel, delay_ns, switch_cycles, slow_hz), UVM_MEDIUM)
+                `uvm_info("CLK_TREE", $sformatf(
+                    "config_reg: mux %s sel %0d -> %0d, wait %0.0f ns (%0d cycles at %0.3f Hz)",
+                    get_name(), current_sel, _resolved_sel, delay_ns, switch_cycles, slow_hz), UVM_LOW)
                 context_h.io.write_reg(f_reg, _resolved_sel);
             end
             0: #(delay_ns * 1ns);

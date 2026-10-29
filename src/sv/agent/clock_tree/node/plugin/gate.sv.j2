@@ -125,9 +125,8 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         configured = f_reg.is_bound();
         if (!configured)
             return;
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: gate %s open %0b", get_name(), _resolved_open), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: gate %s open %0b", get_name(), _resolved_open), UVM_LOW)
 {%- if plugin_value("gate", "reg_high_means_open", false) %}
         cfg.write_reg(f_reg, _resolved_open);
 {%- else %}

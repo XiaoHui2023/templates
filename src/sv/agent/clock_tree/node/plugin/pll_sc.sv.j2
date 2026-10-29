@@ -73,15 +73,13 @@ class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}frequ
         encoder.sc_regs_match_target(f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
             f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv, frequence, ref_hz, active, reg_match);
         if (reg_match) begin
-            if (!cfg.quiet)
-                `uvm_info("CLK_TREE", $sformatf(
-                    "config_reg: pll_sc %s skip reg match out %0d Hz ref %0d Hz",
-                    get_name(), frequence, ref_hz), UVM_MEDIUM)
+            `uvm_info("CLK_TREE", $sformatf(
+                "config_reg: pll_sc %s skip reg match out %0d Hz ref %0d Hz",
+                get_name(), frequence, ref_hz), UVM_HIGH)
             return;
         end
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: pll_sc %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_MEDIUM)
+        `uvm_info("CLK_TREE", $sformatf(
+            "config_reg: pll_sc %s %s", get_name(), active ? $sformatf("out %0d Hz ref %0d Hz", frequence, ref_hz) : "active 0"), UVM_LOW)
         encoder.configure_sc_from_hz(f_vocpd, f_postdivpd, f_dsmpd, f_pd, f_bypass,
             f_refdiv, f_postdiv2, f_postdiv1, f_fbdiv, active, frequence, ref_hz);
         configured = active;

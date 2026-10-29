@@ -19,11 +19,11 @@ class ClkConfig(NodePluginConfig):
     unfix_enabled: bool | None = Field(default=None, description="解除使能固定约束")
 
     @model_validator(mode="after")
-    def _stable_requires_enabled(self) -> "ClkConfig":
-        """稳定时钟默认开启，拒绝矛盾的显式开关。"""
+    def _normalize_enabled(self) -> "ClkConfig":
+        """频率或稳定属性默认开启，保留显式开关。"""
+        if self.enabled is None and (self.stable or (self.frequence is not None and self.frequence > 0)):
+            self.enabled = 1
         if self.stable:
-            if self.enabled is None:
-                self.enabled = 1
-            elif self.enabled <= 0:
+            if self.enabled <= 0:
                 raise ValueError(f"{ERR.field('stable')} 为 true 时 {ERR.field('enabled')} 必须大于 0")
         return self
