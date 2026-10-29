@@ -54,12 +54,26 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
             {{ settings.class_prefix }}config_context context_h,
             {{ settings.class_prefix }}config_lease lease_h);
         {{ settings.class_prefix }}reg field_h;
+        {{ settings.class_prefix }}config_action program_h;
+        {{ settings.class_prefix }}config_action wait_h;
+        {{ settings.class_prefix }}config_lease reference_h;
         field_h = lock_reg();
         if (!configuration_is_bound() || frequence <= 0 || field_h == null || !field_h.is_bound()) begin
             context_h.fail($sformatf("%s cannot satisfy availability requirement", get_name()));
             return;
         end
         super.plan_requirement(context_h, lease_h);
+        if (context_h.has_failed() || (lease_h.has_target && _resolved_active)) return;
+        program_h = context_h.add_action(this, 2, {get_name(), ".temporary_program"});
+        wait_h = context_h.add_action(this, 3, {get_name(), ".temporary_lock"});
+        context_h.defer_action(wait_h);
+        context_h.after_action(wait_h, program_h);
+        context_h.after_action(lease_h.ready, wait_h);
+        if (source != null) begin
+            reference_h = context_h.require_available(source, lease_h.release_action);
+            if (context_h.has_failed()) return;
+            context_h.after_action(program_h, reference_h.ready);
+        end
     endfunction
 
     // Requires a running reference while programming an active target.
@@ -67,9 +81,15 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
             {{ settings.class_prefix }}config_context context_h,
             {{ settings.class_prefix }}config_action target);
         {{ settings.class_prefix }}config_lease reference_h;
-        if (_resolved_active && source != null) begin
+        {{ settings.class_prefix }}config_action program_h;
+        if (!_resolved_active) return;
+        program_h = context_h.add_action(this, 1, {get_name(), ".program"});
+        context_h.after_action(target, program_h);
+        context_h.defer_action(target);
+        if (source != null) begin
             reference_h = context_h.require_available(source, target);
-            context_h.after_action(target, reference_h.ready);
+            if (context_h.has_failed()) return;
+            context_h.after_action(program_h, reference_h.ready);
         end
     endfunction
 
@@ -80,16 +100,46 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         program_configuration(cfg, _resolved_active, configured);
     endtask
 
-    // Confirms active targets even when register values already match.
+    // Starts active programming or applies the final inactive state.
     virtual task execute_configuration(
             input {{ settings.class_prefix }}config_context context_h,
             input int token);
         bit configured;
-        if (token != 0)
-            `uvm_fatal("CLK_TREE", "unknown synthesis configuration action")
-        apply_configuration(context_h.io, configured);
-        if (_resolved_active)
-            await_configuration(context_h.io);
+        uvm_queue#(real) state;
+        if (token == 0 && !_resolved_active) begin
+            apply_configuration(context_h.io, configured);
+            return;
+        end
+        if (!(token inside {1, 2})) begin
+            context_h.fail("unknown synthesis programming action");
+            return;
+        end
+        program_configuration(context_h.io, 1'b1, configured);
+        if (context_h.has_failed()) return;
+        locked = 1'b0;
+        state = new();
+        state.push_back($realtime / 1ns + real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0);
+        context_h.set_runtime_state(this, state);
+    endtask
+
+    // Samples lock against the deadline captured when programming returned.
+    virtual task poll_configuration(
+            input {{ settings.class_prefix }}config_context context_h,
+            input int token,
+            output bit complete,
+            output real retry_ns);
+        uvm_queue#(real) state;
+        complete = 1'b0;
+        retry_ns = 0.0;
+        if (!(token inside {0, 3}) || !$cast(state, context_h.runtime_state(this))) begin
+            context_h.fail($sformatf("%s missing synthesis completion state", get_name()));
+            return;
+        end
+        if (state.size() != 1) begin
+            context_h.fail($sformatf("%s invalid synthesis completion state", get_name()));
+            return;
+        end
+        poll_lock(context_h.io, state.get(0), complete, retry_ns);
     endtask
 
     // Programs hardware-specific frequency and power controls.
@@ -101,21 +151,6 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         `uvm_fatal("CLK_TREE", "frequency provider has no programming implementation")
     endtask
 
-    // Makes the programmed output available until its lease ends.
-    virtual task acquire_requirement(
-            input {{ settings.class_prefix }}config_context context_h,
-            input {{ settings.class_prefix }}config_lease lease_h);
-        bit configured;
-        {{ settings.class_prefix }}reg field_h;
-        field_h = lock_reg();
-        if (field_h == null || !field_h.is_bound())
-            `uvm_fatal("CLK_TREE", $sformatf("%s cannot confirm frequency-provider readiness", get_name()))
-        if (lease_h.has_target && _resolved_active)
-            return;
-        program_configuration(context_h.io, 1'b1, configured);
-        await_configuration(context_h.io);
-    endtask
-
     // A synthesizer owns its rate and cannot inherit its reference rate.
     virtual function real clock_rate_hz();
         return real'(frequence);
@@ -124,29 +159,52 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     // Returns the optional lock field.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return null; endfunction
 
-    // Polls the declared lock field within the configured timeout.
-    virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
+    // Samples lock once without extending the original completion deadline.
+    task poll_lock(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input real deadline_ns,
+            output bit complete,
+            output real retry_ns);
         {{ settings.class_prefix }}reg field_h;
-        time elapsed;
         int lock_value;
+        real now_ns;
+        complete = 1'b0;
+        retry_ns = 0.0;
         field_h = lock_reg();
-        if (field_h == null || !field_h.is_bound())
+        if (field_h == null || !field_h.is_bound()) begin
+            complete = 1'b1;
             return;
-        `uvm_info("CLK_TREE", $sformatf(
-            "config_reg: %s wait lock", get_name()), UVM_HIGH)
-        elapsed = 0;
-        while (elapsed < {{ plugin_value("pll", "lock_timeout_us", 100) }}us) begin
+        end
+        now_ns = $realtime / 1ns;
+        if (now_ns <= deadline_ns)
             cfg.read_reg(field_h, lock_value);
-            if (lock_value == 1) begin
-                locked = 1'b1;
-                return;
-            end
-            #2us;
-            elapsed += 2us;
+        now_ns = $realtime / 1ns;
+        if (now_ns <= deadline_ns && lock_value == 1) begin
+            locked = 1'b1;
+            complete = 1'b1;
+            return;
+        end
+        if (now_ns < deadline_ns) begin
+            retry_ns = deadline_ns - now_ns;
+            if (retry_ns > 2000.0) retry_ns = 2000.0;
+            return;
         end
         `uvm_fatal("CLK_TREE", $sformatf(
             "wait_lock: %s lock not 1 within %0t",
             field_h.field.get_full_name(), {{ plugin_value("pll", "lock_timeout_us", 100) }}us))
+    endtask
+
+    // Waits synchronously when called outside a configuration plan.
+    virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
+        bit complete;
+        real retry_ns;
+        real deadline_ns;
+        deadline_ns = $realtime / 1ns + real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0;
+        do begin
+            poll_lock(cfg, deadline_ns, complete, retry_ns);
+            if (complete || retry_ns <= 0.0) return;
+            #(retry_ns * 1ns);
+        end while (!complete);
     endtask
 endclass
 

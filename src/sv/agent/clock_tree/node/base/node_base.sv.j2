@@ -168,6 +168,17 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     virtual task release_requirement(
             input {{ settings.class_prefix }}config_context context_h,
             input {{ settings.class_prefix }}config_lease lease_h); endtask
+    // Checks one completion condition without waiting between attempts.
+    // retry_ns is the delay before another check when complete is false.
+    virtual task poll_configuration(
+            input {{ settings.class_prefix }}config_context context_h,
+            input int token,
+            output bit complete,
+            output real retry_ns);
+        complete = 1'b0;
+        retry_ns = 0.0;
+        context_h.fail($sformatf("%s has no completion check for action %0d", get_name(), token));
+    endtask
     // Applies the default target operation and its completion condition.
     virtual task execute_configuration(
             input {{ settings.class_prefix }}config_context context_h,

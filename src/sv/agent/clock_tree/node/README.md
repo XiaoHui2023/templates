@@ -34,6 +34,7 @@ tree.clk_cpu._should_check = 0;
 | `plan_requirement` | 声明满足外部临时需求的依赖 |
 | `acquire_requirement`、`release_requirement` | 建立和释放临时状态 |
 | `execute_configuration` | 执行插件内部动作 token，默认 0 为最终配置 |
+| `poll_configuration` | 分次检查延迟完成条件，返回是否完成和下一次检查间隔 |
 | `configuration_owner`、`availability_key` | 标识多输出或别名共享的控制资源 |
 | `configuration_signature` | 比较共用控制标识的最终编码 |
 | `configuration_preserves_availability` | 最终状态是否允许临时使用 |
@@ -45,7 +46,7 @@ tree.clk_cpu._should_check = 0;
 1. 检查 build 状态，按用户已设置的请求随机化。低功耗偏好由之前独立调用的 `tree.low_power()` 设置。
 2. 登记提供配置且满足下游要求的节点，读取实际状态。
 3. 插件声明动作与临时需求，公共上下文合并共享使用并检查整个依赖图。
-4. 确认无环后串行执行；每个动作返回时已完成自身等待。
+4. 确认无环后由单执行器运行；长等待拆为启动与分次完成检查，后继只在完成时放行。
 
 寄存器编码、读回比较和重复配置判断由插件实现。
 
@@ -56,7 +57,7 @@ tree.clk_cpu._should_check = 0;
 1. mux 读回旧 sel；与目标相同则跳过写入和等待。
 2. 声明旧、新输入需要保持运行，直到切换等待完成。
 3. 输入提供者声明自己的准备动作；两端就绪后，等一个最慢输入周期，再写 sel。
-4. 等待 `switch_cycles` 个最慢输入周期，之后才释放输入使用。
+4. 用延迟完成动作等待 `switch_cycles` 个最慢输入周期；期间继续执行其它已就绪动作，完成后才释放输入使用。
 5. 共享输入等全部使用结束后，再应用关闭目标；没有最终目标的临时 gate 恢复读回值。
 
 mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的临时使用钩子提供运行状态；公共配置代码只管理动作、依赖及共享使用。具体结构见[配置计划](base/config/README.md)。

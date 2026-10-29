@@ -12,6 +12,8 @@ class {{ settings.class_prefix }}config_action;
     {{ settings.class_prefix }}node_base owner;
     kind_t action_kind;
     string lease_key;
+    bit deferred;
+    real next_poll_ns;
     int prerequisites[$];
     int followers[$];
 

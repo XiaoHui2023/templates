@@ -181,6 +181,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         context_h.after_action(select_action, old_input.ready);
         context_h.after_action(select_action, new_input.ready);
         context_h.after_action(target, select_action);
+        context_h.defer_action(target);
     endfunction
 
     // Keeps the selected output running for its downstream consumers.
@@ -205,7 +206,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             `uvm_fatal("CLK_TREE", $sformatf("mux %s missing selector register", get_name()))
     endtask
 
-    // Writes selection after input readiness, then waits before releasing inputs.
+    // Writes selection and records when its completion can be confirmed.
     virtual task execute_configuration(
             input {{ settings.class_prefix }}config_context context_h,
             input int token);
@@ -234,10 +235,21 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
                     "config_reg: mux %s sel %0d -> %0d, wait %0.0f ns (%0d cycles at %0.3f Hz)",
                     get_name(), current_sel, _resolved_sel, delay_ns, switch_cycles, slow_hz), UVM_LOW)
                 context_h.io.write_reg(f_reg, _resolved_sel);
+                context_h.target(this).next_poll_ns = $realtime / 1ns + delay_ns;
             end
-            0: #(delay_ns * 1ns);
+            0: context_h.fail("mux completion action was not deferred");
             default: `uvm_fatal("CLK_TREE", "unknown mux configuration action")
         endcase
+    endtask
+    // Confirms the switch budget after the scheduler's wake-up time.
+    virtual task poll_configuration(
+            input {{ settings.class_prefix }}config_context context_h,
+            input int token,
+            output bit complete,
+            output real retry_ns);
+        complete = token == 0;
+        retry_ns = 0.0;
+        if (!complete) context_h.fail("unknown mux completion action");
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Maps the sole default input to selector zero.

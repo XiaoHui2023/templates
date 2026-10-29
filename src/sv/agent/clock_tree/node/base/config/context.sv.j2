@@ -8,6 +8,7 @@ class {{ settings.class_prefix }}config_context;
     local {{ settings.class_prefix }}config_lease leases[string];
     local bit planned_providers[string];
     local uvm_object observations[int];
+    local uvm_object runtime_states[int];
     local bit sealed;
     local bit failed;
     local uvm_report_server reports;
@@ -52,6 +53,24 @@ class {{ settings.class_prefix }}config_context;
         action_h = new(actions.size(), owner, token, label);
         actions.push_back(action_h);
         return action_h;
+    endfunction
+
+    // Marks an owned action as a resumable completion check.
+    function void defer_action({{ settings.class_prefix }}config_action action_h);
+        if (!require_open()) return;
+        if (action_h == null) begin
+            fail("deferred configuration action is null");
+            return;
+        end
+        if (action_h.id < 0 || action_h.id >= actions.size()) begin
+            fail("deferred configuration action belongs to another plan");
+            return;
+        end
+        if (actions[action_h.id] != action_h || action_h.action_kind != {{ settings.class_prefix }}config_action::EXECUTE) begin
+            fail("only an owned plugin action can be deferred");
+            return;
+        end
+        action_h.deferred = 1'b1;
     endfunction
 
     // Adds one dependency, rejecting foreign actions and duplicate edges.
@@ -105,6 +124,23 @@ class {{ settings.class_prefix }}config_context;
     function uvm_object observation({{ settings.class_prefix }}node_base node_h);
         if (observations.exists(node_h.get_inst_id()))
             return observations[node_h.get_inst_id()];
+        return null;
+    endfunction
+
+    // Stores plugin-owned execution state separately from planning readback.
+    function void set_runtime_state({{ settings.class_prefix }}node_base node_h, uvm_object state);
+        if (has_failed()) return;
+        if (node_h == null) begin
+            fail("configuration runtime state has no owner");
+            return;
+        end
+        runtime_states[node_h.get_inst_id()] = state;
+    endfunction
+
+    // Returns the state captured by this execution's programming action.
+    function uvm_object runtime_state({{ settings.class_prefix }}node_base node_h);
+        if (node_h != null && runtime_states.exists(node_h.get_inst_id()))
+            return runtime_states[node_h.get_inst_id()];
         return null;
     endfunction
 
@@ -214,18 +250,99 @@ class {{ settings.class_prefix }}config_context;
         return 1'b1;
     endfunction
 
-    // Executes serially; failed actions cannot release unconfirmed resources.
+    // Releases successor actions only after their last prerequisite completes.
+    local function void complete_action(
+            input {{ settings.class_prefix }}config_action action_h,
+            ref int incoming[$],
+            ref {{ settings.class_prefix }}config_action runnable[$],
+            ref int completed);
+        completed++;
+        foreach (action_h.followers[i]) begin
+            incoming[action_h.followers[i]]--;
+            if (incoming[action_h.followers[i]] == 0)
+                runnable.push_back(actions[action_h.followers[i]]);
+        end
+    endfunction
+
+    // Runs ready work serially and overlaps plugin-owned completion waits.
     task execute();
         {{ settings.class_prefix }}config_action ordered[$];
+        {{ settings.class_prefix }}config_action runnable[$];
+        {{ settings.class_prefix }}config_action pending[$];
+        {{ settings.class_prefix }}config_action action_h;
+        int incoming[$];
+        int cursor;
+        int completed;
+        int checks;
+        bit complete;
+        real retry_ns;
+        real wake_ns;
+        real now_ns;
         if (!execution_order(ordered)) return;
-        foreach (ordered[i]) begin
-            case (ordered[i].action_kind)
-                {{ settings.class_prefix }}config_action::EXECUTE: ordered[i].owner.execute_configuration(this, ordered[i].token);
-                {{ settings.class_prefix }}config_action::ACQUIRE: ordered[i].owner.acquire_requirement(this, leases[ordered[i].lease_key]);
-                {{ settings.class_prefix }}config_action::RELEASE: ordered[i].owner.release_requirement(this, leases[ordered[i].lease_key]);
-                default: fail("invalid configuration action kind");
-            endcase
-            if (has_failed()) return;
+        foreach (actions[i]) begin
+            incoming.push_back(actions[i].prerequisites.size());
+            if (incoming[i] == 0) runnable.push_back(actions[i]);
+        end
+        cursor = 0;
+        completed = 0;
+        while (completed < actions.size()) begin
+            while (cursor < runnable.size()) begin
+                action_h = runnable[cursor++];
+                if (action_h.deferred) begin
+                    pending.push_back(action_h);
+                    continue;
+                end
+                case (action_h.action_kind)
+                    {{ settings.class_prefix }}config_action::EXECUTE: action_h.owner.execute_configuration(this, action_h.token);
+                    {{ settings.class_prefix }}config_action::ACQUIRE: action_h.owner.acquire_requirement(this, leases[action_h.lease_key]);
+                    {{ settings.class_prefix }}config_action::RELEASE: action_h.owner.release_requirement(this, leases[action_h.lease_key]);
+                    default: fail("invalid configuration action kind");
+                endcase
+                if (has_failed()) return;
+                complete_action(action_h, incoming, runnable, completed);
+            end
+            checks = pending.size();
+            repeat (checks) begin
+                action_h = pending.pop_front();
+                now_ns = $realtime / 1ns;
+                if (action_h.next_poll_ns > now_ns) begin
+                    pending.push_back(action_h);
+                    continue;
+                end
+                action_h.owner.poll_configuration(this, action_h.token, complete, retry_ns);
+                if (has_failed()) return;
+                if (complete)
+                    complete_action(action_h, incoming, runnable, completed);
+                else begin
+                    if (!(retry_ns > 0.0)) begin
+                        fail($sformatf("%s returned a nonpositive completion retry", action_h.label));
+                        return;
+                    end
+                    action_h.next_poll_ns = $realtime / 1ns + retry_ns;
+                    if (!(action_h.next_poll_ns > $realtime / 1ns)) begin
+                        fail($sformatf("%s completion retry cannot advance time", action_h.label));
+                        return;
+                    end
+                    pending.push_back(action_h);
+                end
+                if (cursor < runnable.size()) break;
+            end
+            if (completed == actions.size() || cursor < runnable.size()) continue;
+            if (pending.size() == 0) begin
+                fail("configuration plan has no runnable or pending action");
+                return;
+            end
+            wake_ns = pending[0].next_poll_ns;
+            foreach (pending[i])
+                if (pending[i].next_poll_ns < wake_ns) wake_ns = pending[i].next_poll_ns;
+            now_ns = $realtime / 1ns;
+            if (wake_ns > now_ns) begin
+                #((wake_ns - now_ns) * 1ns);
+                if ($realtime / 1ns <= now_ns) begin
+                    fail("configuration completion retry is below timeprecision");
+                    return;
+                end
+            end
         end
     endtask
 endclass
