@@ -69,8 +69,7 @@ def _ensure_executable(path: Path) -> None:
 def _missing_tool_error(tool: str, url: str, exe: Path) -> FileNotFoundError:
     bindir = bin_dir()
     return FileNotFoundError(
-        f"找不到 {tool} 可执行文件: {exe}\n"
-        f"请从 {url} 下载，将可执行文件放到 {bindir}"
+        f"找不到 {tool} 可执行文件: {exe}\n请从 {url} 下载，将可执行文件放到 {bindir}"
     )
 
 
@@ -135,9 +134,7 @@ def run_ralfconv_flat(
     )
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
-        raise RuntimeError(
-            f"ralfconv 退出码 {proc.returncode}: {detail or '无输出'}"
-        )
+        raise RuntimeError(f"ralfconv 退出码 {proc.returncode}: {detail or '无输出'}")
     return proc.stdout
 
 
@@ -194,22 +191,40 @@ def _solve_smt2_text_json(
         if timeout_ms is not None:
             cmd.extend(["--timeout-ms", str(timeout_ms)])
 
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
             errors="replace",
-            check=False,
         )
+        try:
+            stdout, stderr = proc.communicate(
+                timeout=(timeout_ms / 1000 + 5) if timeout_ms is not None else None
+            )
+        except subprocess.TimeoutExpired as exc:
+            # The packaged Windows executable may own a worker subprocess.
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                    capture_output=True,
+                    check=False,
+                    timeout=5,
+                )
+            else:
+                proc.kill()
+            proc.communicate()
+            raise RuntimeError(
+                f"consolver process timeout: {timeout_ms} ms + startup grace"
+            ) from exc
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
 
     if proc.returncode != 0:
-        detail = proc.stderr.strip() or proc.stdout.strip()
+        detail = stderr.strip() or stdout.strip()
         raise RuntimeError(
-            f"consolver failed with code {proc.returncode}: "
-            f"{detail or 'no output'}"
+            f"consolver failed with code {proc.returncode}: {detail or 'no output'}"
         )
-    return proc.stdout
+    return stdout

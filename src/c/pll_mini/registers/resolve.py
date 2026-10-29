@@ -1,209 +1,124 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Dict
 
-from .fit_pll import fit_pll_vars
-from .pll_cfg import pll_cfg_from_solved
-from model.consolver import solve_tree_with_consolver
+from model.consolver import _SmtBuilder, solve_tree_with_consolver
+from model.freq_graph import output_ports
+from model.nodes import Tree
 from model.solve_model import SolveModel
-from load.tools import log_stage_done, log_stage_start
 from model.verify import raise_on_verify_issues, verify_solve_model
-
-from model.nodes import (
-    DivNode,
-    GateNode,
-    MuxNode,
-    PllNode,
-    Tree,
-)
-from model.freq_graph import Port, output_ports
 
 
 @dataclass(frozen=True)
 class ResolvedNode:
+    """插件参数与已解端口频率，供寄存器规划读取。"""
+
     name: str
     kind: str
     resolved_freq: int
-    port_freqs: Dict[str, int]
-    ratio: int
-    mux_sel: int
-    gate_open: bool
-    pll_cfg: Dict[str, int]
+    port_freqs: dict[str, int]
+    values: dict[str, object] = field(default_factory=dict)
+
+    def __getattr__(self, name: str) -> object:
+        """读取插件提供的寄存器规划状态。"""
+        try:
+            return self.values[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
 
 
 @dataclass(frozen=True)
 class TreeResolve:
-    by_name: Dict[str, ResolvedNode]
-    clk_names: tuple[str, ...]
+    """图求解及插件参数解析结果。"""
+
+    by_name: dict[str, ResolvedNode]
+    target_names: tuple[str, ...]
     solve_model: SolveModel
-
-
-def _primary_port_freq(
-    node: object,
-    port_freqs: Dict[str, int],
-) -> int:
-    groups = getattr(node, "output_groups", None) or []
-    for group in groups:
-        if group in port_freqs:
-            return port_freqs[group]
-    if "" in port_freqs:
-        return port_freqs[""]
-    if port_freqs:
-        return next(iter(port_freqs.values()))
-    return 0
-
-
-def _default_ratio(node: DivNode, solved_ratio: int) -> int:
-    if node.ratio is not None:
-        return node.ratio
-    if solved_ratio > 0:
-        return solved_ratio
-    return 2 if node.div_kind in ("dto", "dto_n") else 1
-
-
-def _default_mux_sel(node: MuxNode, solved_sel: int) -> int:
-    if node.sel is not None:
-        return node.sel
-    if str(solved_sel) in node.source:
-        return solved_sel
-    return int(sorted(node.source.keys(), key=lambda item: int(item))[0])
 
 
 def resolve_tree(
     tree: Tree,
     *,
-    pll_sc_fbdiv_min: int,
-    pll_sc_fbdiv_max: int,
     period_tolerance: float,
     solve_timeout_ms: int | None = None,
     debug_consolver_smt_path: Path | None = None,
-    reg_index: object | None = None,
+    reg_index=None,
+    plugin_settings=None,
 ) -> TreeResolve:
-    _ = reg_index
-    clk_nodes = [n for n in tree.nodes_ordered if n.kind == "clk"]
-    if not clk_nodes:
-        raise ValueError("tree 须至少含一个 kind 为 clk 的节点")
+    """求解频率图、调用插件参数推算并回放验证。
 
+    Raises:
+        ValueError: 没有目标节点或公式回放失败。
+        RuntimeError: 图无解、工具失败或插件参数无法配置。
+    """
+    targets = [node.name for node in tree.nodes_ordered if node.is_target]
+    if not targets:
+        raise ValueError("nodes 须至少含一个声明频率目标的插件节点")
     model = solve_tree_with_consolver(
         tree,
-        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
         timeout_ms=solve_timeout_ms,
         debug_smt_path=debug_consolver_smt_path,
         reg_index=reg_index,
     )
+    if plugin_settings is None:
+        from node.registry import default_plugin_settings
 
-    fit_started_at = log_stage_start(
-        "resolve",
-        "fit",
-        "pll coefficients",
-        nodes=len(tree.nodes),
-    )
-    model = fit_pll_vars(
-        tree,
-        model,
-        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
-        period_tolerance=period_tolerance,
-    )
-    log_stage_done(
-        "resolve",
-        "fit",
-        "pll coefficients",
-        fit_started_at,
-        pll=len(model.pll_vars),
-    )
+        plugin_settings = default_plugin_settings(period_tolerance=period_tolerance)
 
-    verify_started_at = log_stage_start(
-        "resolve",
-        "verify",
-        "formula replay",
-        nodes=len(tree.nodes),
-    )
-    issues = verify_solve_model(
-        tree, model, period_tolerance=period_tolerance
-    )
-    raise_on_verify_issues(tree, issues)
-    log_stage_done(
-        "resolve",
-        "verify",
-        "formula replay",
-        verify_started_at,
-        issues=0,
-    )
+    def failure_artifact(stage, error, **details):
+        builder = _SmtBuilder(
+            tree, period_tolerance=period_tolerance, reg_index=reg_index
+        )
+        path = builder.failure_path(debug_consolver_smt_path)
+        builder.write_debug(
+            path,
+            {
+                "status": stage,
+                "error": str(error),
+                "active": model.active,
+                "port_freq": [
+                    {"node": port.node, "group": port.group, "hz": hz}
+                    for port, hz in model.port_freq.items()
+                ],
+                "node_values": model.node_values,
+                **details,
+            },
+        )
+        return f"SMT: {path}\n映射: {path.with_suffix('.json')}"
 
-    resolve_started_at = log_stage_start(
-        "resolve",
-        "nodes",
-        "tree",
-        nodes=len(tree.nodes),
-    )
-    resolved: Dict[str, ResolvedNode] = {}
-    for node_name, node in tree.nodes.items():
-        ratio = model.ratios.get(node_name, 0)
-        if isinstance(node, DivNode):
-            ratio = _default_ratio(node, ratio)
-        sel = model.mux_sel.get(node_name, 0)
-        if isinstance(node, MuxNode):
-            sel = _default_mux_sel(node, sel)
-        gate_is_open = True if isinstance(node, GateNode) else model.gate_open.get(node_name, False)
-
-        pll_cfg: Dict[str, int] = {}
-        if isinstance(node, PllNode) and node.regs:
-            vars_map = model.pll_vars.get(node_name, {})
-            if vars_map:
-                pll_cfg = pll_cfg_from_solved(
-                    node.pll_kind,
-                    vars_map,
-                    output_groups=node.output_groups,
-                )
-
-        port_freqs: Dict[str, int] = {}
-        for port in output_ports(tree, node_name):
-            hz = model.port_hz(port)
-            if hz <= 0:
-                fixed_hz = _fixed_port_freq(node, port.group)
-                if fixed_hz is not None:
-                    hz = fixed_hz
-            key = port.group if port.group else ""
-            port_freqs[key] = hz
-        primary = _primary_port_freq(node, port_freqs)
-        if isinstance(node, PllNode):
-            primary_hz = node.freq_for_group(node.primary_output_group)
-            if primary_hz is not None:
-                primary = primary_hz
-
-        resolved[node_name] = ResolvedNode(
-            name=node_name,
+    for node in tree.nodes_ordered:
+        try:
+            node.fit(tree, model, plugin_settings)
+        except (ValueError, RuntimeError) as exc:
+            artifact = failure_artifact("fit_error", exc, node=node.name)
+            raise RuntimeError(
+                f"[fit] nodes[{node.name!r}] kind={node.kind}: {exc}\n{artifact}"
+            ) from exc
+    issues = verify_solve_model(tree, model, period_tolerance=period_tolerance)
+    if issues:
+        artifact = failure_artifact(
+            "verify_error",
+            "formula replay failed",
+            issues=[asdict(issue) for issue in issues],
+        )
+        try:
+            raise_on_verify_issues(tree, issues)
+        except ValueError as exc:
+            raise ValueError(f"[verify] {exc}\n{artifact}") from exc
+    resolved = {}
+    for name, node in tree.nodes.items():
+        ports = {
+            port.group: model.port_hz(port) or node.fixed_hz(port.group) or 0
+            for port in output_ports(tree, name)
+        }
+        primary = ports.get(node.primary_output_group, next(iter(ports.values()), 0))
+        resolved[name] = ResolvedNode(
+            name=name,
             kind=node.kind,
             resolved_freq=primary,
-            port_freqs=port_freqs,
-            ratio=ratio,
-            mux_sel=sel,
-            gate_open=gate_is_open,
-            pll_cfg=pll_cfg,
+            port_freqs=ports,
+            values=node.resolved_values(model),
         )
-
-    log_stage_done(
-        "resolve",
-        "nodes",
-        "tree",
-        resolve_started_at,
-        nodes=len(resolved),
-    )
-
-    return TreeResolve(
-        by_name=resolved,
-        clk_names=tuple(n.name for n in clk_nodes),
-        solve_model=model,
-    )
-
-
-def _fixed_port_freq(node: object, group: str = "") -> int | None:
-    if isinstance(node, PllNode):
-        return node.freq_for_group(group)
-    fixed = getattr(node, "freq", None)
-    return fixed if isinstance(fixed, int) else None
+    return TreeResolve(resolved, tuple(targets), model)

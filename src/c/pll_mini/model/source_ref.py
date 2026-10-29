@@ -14,11 +14,7 @@ _GROUP_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 class _PeerNode(Protocol):
     kind: str
 
-    @property
-    def div_kind(self) -> str: ...
-
-    @property
-    def pll_kind(self) -> str: ...
+    is_target: bool
 
 
 def normalize_source_endpoint_input(raw: Any, *, ctx: str) -> str:
@@ -32,27 +28,19 @@ def parse_source_endpoint(raw: Any, *, ctx: str) -> tuple[str, str]:
     text = normalize_source_endpoint_input(raw, ctx=ctx)
     match = _SOURCE_ENDPOINT.match(text)
     if not match:
-        raise ValueError(
-            f"{ctx} 前级引用 {raw!r} 应为器件名或 器件名[输出名] 形式"
-        )
+        raise ValueError(f"{ctx} 前级引用 {raw!r} 应为器件名或 器件名[输出名] 形式")
     device = match.group("device")
     group_text = match.group("group")
     out_group = group_text if group_text is not None else ""
     if out_group and not _GROUP_KEY_RE.match(out_group):
         raise ValueError(
-            f"{ctx} 前级引用 {raw!r} 中输出名 {out_group!r} "
-            f"应为合法 SystemVerilog 名字"
+            f"{ctx} 前级引用 {raw!r} 中输出名 {out_group!r} 应为合法 SystemVerilog 名字"
         )
     return device, out_group
 
 
 def _peer_kind_label(peer: _PeerNode) -> str:
-    kind = peer.kind
-    if kind == "div":
-        return f"div({peer.div_kind})"
-    if kind == "pll":
-        return f"pll({peer.pll_kind})"
-    return kind
+    return peer.kind
 
 
 def _format_allowed_outputs(groups: list[str]) -> str:
@@ -68,15 +56,11 @@ def _output_name_confusion_hint(
     if out_group not in nodes or out_group == device:
         return ""
     other = nodes[out_group]
-    if other.kind == "clk":
+    if other.is_target:
         return (
-            f"；nodes 中有 clk 节点 {out_group!r}，"
-            f"不能当作 {device!r} 的输出名或前级"
+            f"；nodes 中有 clk 节点 {out_group!r}，不能当作 {device!r} 的输出名或前级"
         )
-    return (
-        f"；nodes 中有节点 {out_group!r}（{other.kind}），"
-        f"这不是 {device!r} 的输出名"
-    )
+    return f"；nodes 中有节点 {out_group!r}（{other.kind}），这不是 {device!r} 的输出名"
 
 
 def validate_source_ref(
@@ -92,7 +76,7 @@ def validate_source_ref(
     peer = nodes[device]
     label = _peer_kind_label(peer)
 
-    if peer.kind == "clk":
+    if peer.is_target:
         raise ValueError(
             f"{ctx} 引用 {raw!r}：节点 {device!r} 为 clk，"
             f"只做频率终点、无输出，不可作为其它节点的前级"
@@ -131,20 +115,8 @@ def validate_nodes_source_refs(
     for key, node in nodes.items():
         name = getattr(node, "name", key)
         if name != key:
-            raise ValueError(
-                f"nodes[{key!r}] 的 name 字段 {name!r} 应与字典键一致"
+            raise ValueError(f"nodes[{key!r}] 的 name 字段 {name!r} 应与字典键一致")
+        for input_key, peer in node.input_refs().items():
+            validate_source_ref(
+                peer, node_map, ctx=f"nodes[{name!r}].source[{input_key!r}]"
             )
-        if node.kind == "mux":
-            for mux_key, peer in node.source.items():
-                validate_source_ref(
-                    peer,
-                    node_map,
-                    ctx=f"节点 {name!r} mux.source[{mux_key!r}]",
-                )
-        elif node.kind in ("gate", "div", "inv", "cell", "clk", "pll"):
-            if node.source.strip():
-                validate_source_ref(
-                    node.source,
-                    node_map,
-                    ctx=f"节点 {name!r} source",
-                )

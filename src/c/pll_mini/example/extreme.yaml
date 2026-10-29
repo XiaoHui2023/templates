@@ -65,6 +65,7 @@ nodes:
     reg: blk_mux_ref_tail.sel.sel
 
   gate_ref:
+    freq: 24000000
     kind: gate
     source: mux_ref_tail
     reg: blk_gate_ref.en.en
@@ -390,6 +391,7 @@ nodes:
     kind: div
     div_kind: div
     source: dto_stress_ref
+    freq: 1000000
     regs:
       rst: blk_div_stress_ref.ctrl.rst
       load: blk_div_stress_ref.ctrl.load
@@ -442,6 +444,7 @@ nodes:
     kind: div
     div_kind: dto_n
     source: mux_stress_dto_n
+    freq: 4000
     regs:
       rst: blk_dto_n_stress_ref.ctrl.rst
       load: blk_dto_n_stress_ref.ctrl.load
@@ -486,6 +489,7 @@ nodes:
     kind: div
     div_kind: dto
     source: mux_stress_inno_ref
+    freq: 12000000
     regs:
       rst: blk_dto_stress_inno.ctrl.rst
       load: blk_dto_stress_inno.ctrl.load

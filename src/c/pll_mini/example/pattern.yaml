@@ -601,7 +601,6 @@ nodes:
   ca7_mbist_fa_mode:
     kind: gate
     source: ca7_mbist_fa_sel
-    open: 0
   ca7_mbist_fa_sel:
     kind: mux
     source:
@@ -610,7 +609,6 @@ nodes:
     sel: 0
   ca7_mbist_mode:
     kind: gate
-    open: 0
   chip_sys_cfg_hclk:
     kind: clk
     source: chip_sys_cfg_hclk_bist_clk_cell

@@ -33,7 +33,7 @@ settings:
 | `ralf` | `str` | | RALF 文件路径。 |
 | `ralf_include_dirs` | `list[str]` | `[]` | RALF 引用其它文件时的额外搜索目录。 |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
-| `extra_regs` | `list[ExtraRegEntry]` | `[]` | PLL 锁定等待之后、普通器件 steps 之前写入的寄存器 field。 |
+| `extra_regs` | `list[ExtraRegEntry]` | `[]` | 合入普通 steps；没有同寄存器项可合并的条目放在数组最前面。 |
 | `settings` | `Settings` | 见下表 | 全局选项。 |
 
 ### Settings
@@ -75,6 +75,10 @@ settings:
 
 ### Nodes
 
+类型直接使用插件名：`source`、`source_pad`、`pll_tci`、`pll_sc`、`pll_dw`、`pll_inno`、`div_div`、`div_dto`、`div_div_r`、`inv`、`inv_mux`、`inv_cell`、`gate`、`mux`、`cell`、`clk`、`clk_div_with_clken`。原有 family 加子类型的节点写法仍可用；不支持旧 `tree` 外层。
+
+节点字段严格校验。`exclude: true` 与 `null` 一样省略节点；其它节点不能引用被省略的节点。
+
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名；某键值为 **null** 时跳过该节点，不参与约束求解与寄存器回填；其它节点仍引用该名字时会 **model_validate** 失败。 |
@@ -87,9 +91,7 @@ settings:
 | --- | --- | --- | --- |
 | `path` | `str` | | 寄存器模型路径，按 `.` 分隔，可带比特范围。 |
 | `value` | `int` | | 写入该 field 的整数值，须在 field 位宽范围内。 |
-| `solo` | `bool` | `false` | 为真时本条单独成一步读改写，不与前后同寄存器项合并。 |
-
-同寄存器且列表中相邻、且均未设 `solo` 的项会合并为一次读改写。
+同一寄存器的所有 field 合并成一个地址/值数组项，不要求列表中相邻。共享节点的控制值由约束统一；`extra_regs` 覆盖同字段的普通配置。PLL 多阶段配置不受此合并规则影响。
 
 ### Node - source
 
@@ -179,6 +181,8 @@ settings:
 
 ### Node - gate
 
+gate 在本工具中必定开启，不接受 `open` 字段；寄存器开启极性由 `gate_reg_high_means_open` 指定。
+
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `gate` | |
@@ -240,3 +244,9 @@ settings:
 | `kind` | `str` | `cell` | |
 | `cell_kind` | `str` | `cell` | 任意非空字符串，仅作配置记录。 |
 | `source` | `str` | | 前级引用。 |
+
+### Node - clk_div_with_clken
+
+三个输出为 `clk_arm_core`、`hclk`、`hclken`。核心输出与 `source` 同频；后两路同频，共用分频比 `ratio`，取 2、3、4、6，可省略交给求解器。寄存器编码分别为 0、2、4、8。
+
+`reg` 可指定分频控制字段；或使用 `regs.div` 并可选 `regs.rst`、`regs.load`。`reg` 与 `regs.div` 同时填写时必须相同。引用输出示例：`bus[hclk]`。本工具不执行 clock_tree 的运行时 gate 开关操作。

@@ -21,7 +21,6 @@ from model.consolver import build_tree_smt2
 from registers.plan import (
     ConfigPlan,
     HeaderAddressPlan,
-    SettingsView,
     build_config_plan,
     build_header_address_plan,
     collect_used_regs,
@@ -42,7 +41,18 @@ _CONSOLVER_SMT_CACHE: dict[_ModelCacheKey, str] = {}
 
 
 class Settings(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="after")
+    def _parse_plugin_settings(self):
+        from node.registry import parse_plugin_settings
+
+        object.__setattr__(
+            self,
+            "__pydantic_extra__",
+            parse_plugin_settings(self.__pydantic_extra__ or {}),
+        )
+        return self
 
     main_fn: str = Field(
         "pll_mini_config",
@@ -58,30 +68,6 @@ class Settings(BaseModel):
         "PLL_MINI_C",
         min_length=1,
         description="源文件 include guard 宏名，避免被多次 include。",
-    )
-    gate_reg_high_means_open: bool = Field(
-        False,
-        description="为真时门控寄存器写 1 表示打开；为假时写 1 表示关闭。",
-    )
-    div_reg_high_means_reset: bool = Field(
-        False,
-        description="为真时 div 的 rst 写 1 表示复位；为假时写 0 表示复位。",
-    )
-    dto_reg_high_means_reset: bool = Field(
-        False,
-        description="为真时 dto 的 rst 写 1 表示复位；为假时写 0 表示复位。",
-    )
-    pll_sc_fbdiv_min: int = Field(
-        16,
-        ge=1,
-        le=4095,
-        description="允许 PLL SC FBDIV 下限。",
-    )
-    pll_sc_fbdiv_max: int = Field(
-        84,
-        ge=1,
-        le=4095,
-        description="允许 PLL SC FBDIV 上限。",
     )
     solve_timeout_ms: int | None = Field(
         None,
@@ -113,15 +99,6 @@ class Settings(BaseModel):
         ):
             if not _C_IDENT.match(value):
                 raise ValueError(f"{name} {value!r} 须为合法 C 标识符")
-        return self
-
-    @model_validator(mode="after")
-    def _validate_pll_sc_fbdiv_range(self) -> Settings:
-        if self.pll_sc_fbdiv_min > self.pll_sc_fbdiv_max:
-            raise ValueError(
-                f"pll_sc_fbdiv_min ({self.pll_sc_fbdiv_min}) 须不大于 "
-                f"pll_sc_fbdiv_max ({self.pll_sc_fbdiv_max})"
-            )
         return self
 
 
@@ -235,10 +212,9 @@ class Models(BaseModel):
             try:
                 result = resolve_tree(
                     self.tree,
-                    pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
-                    pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
                     solve_timeout_ms=s.solve_timeout_ms,
                     period_tolerance=s.period_tolerance,
+                    plugin_settings=s,
                     debug_consolver_smt_path=self._resolve_debug_path(
                         s.debug_consolver_smt_path
                     ),
@@ -286,11 +262,7 @@ class Models(BaseModel):
             result = build_config_plan(
                 self.tree,
                 RegModelIndex(self.regmodel),
-                SettingsView(
-                    gate_reg_high_means_open=s.gate_reg_high_means_open,
-                    div_reg_high_means_reset=s.div_reg_high_means_reset,
-                    dto_reg_high_means_reset=s.dto_reg_high_means_reset,
-                ),
+                s,
                 self.tree_resolve,
                 self.extra_regs,
             )
@@ -299,8 +271,8 @@ class Models(BaseModel):
                 "compute",
                 "config_plan",
                 started_at,
-                pll_instances=len(result.pll_instances),
-                dev_steps=len(result.dev_steps),
+                instances=len(result.instances),
+                steps=len(result.steps),
             )
             _CONFIG_PLAN_CACHE[key] = result
             self._config_plan = result
@@ -368,8 +340,6 @@ class Models(BaseModel):
             s = self.settings
             result = build_tree_smt2(
                 self.tree,
-                pll_sc_fbdiv_min=s.pll_sc_fbdiv_min,
-                pll_sc_fbdiv_max=s.pll_sc_fbdiv_max,
                 period_tolerance=s.period_tolerance,
                 reg_index=RegModelIndex(self.regmodel),
             )

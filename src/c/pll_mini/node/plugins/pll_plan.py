@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence
+from typing import Sequence
 
-from model.nodes import PllNode, Tree
-from .plan import (
+from load.regmodel import FieldRef, RegModelIndex
+from model.nodes import Tree
+from reg_paths import reg_key_to_c_ident
+from registers.resolve import TreeResolve
+
+from node.plugins.pll import PllNode
+
+from .pll_writes import (
     PLL_DW_ORDER,
     PLL_SC_DIV_KEYS,
     PLL_SC_PD_KEYS,
@@ -12,9 +18,6 @@ from .plan import (
     PLL_TCI_DIV_KEYS,
     _pll_lock_view,
 )
-from load.regmodel import FieldRef, RegModelIndex
-from reg_paths import reg_key_to_c_ident
-from .resolve import TreeResolve
 
 PllGroupKey = str
 
@@ -56,7 +59,7 @@ class PllWriteTemplate:
     @property
     def value_var(self) -> str:
         if self.addr_param.endswith("_addr"):
-            return f"{self.addr_param[:-len('_addr')]}_value"
+            return f"{self.addr_param[: -len('_addr')]}_value"
         return f"{self.addr_param}_value"
 
     @classmethod
@@ -80,10 +83,7 @@ class PllWriteTemplate:
         """同寄存器多 field 合并为一条读改写赋值；set 侧按 field 换行，见 pll_mini_notes。"""
         var = self.value_var
         clear_mask = self._combined_clear_mask_hex(self.parts)
-        set_parts = [
-            (self._part_set_term(part), part.comment)
-            for part in self.parts
-        ]
+        set_parts = [(self._part_set_term(part), part.comment) for part in self.parts]
         if not set_parts:
             comments = ", ".join(part.comment for part in self.parts if part.comment)
             suffix = f" // {comments}" if comments else ""
@@ -127,7 +127,7 @@ class PllKindPlan:
     @property
     def addr_value_vars(self) -> tuple[str, ...]:
         return tuple(
-            f"{name[:-len('_addr')]}_value"
+            f"{name[: -len('_addr')]}_value"
             if name.endswith("_addr")
             else f"{name}_value"
             for name in self.addr_params
@@ -151,7 +151,7 @@ class PllInstancePlan:
 
 @dataclass(frozen=True)
 class PllPlanBundle:
-    kind_plans: tuple[PllKindPlan, ...]
+    function_plans: tuple[PllKindPlan, ...]
     instances: tuple[PllInstancePlan, ...]
 
 
@@ -314,7 +314,7 @@ def _kind_write_slot_specs(
             for idx, reg_path in enumerate(reg_paths_order)
         )
     if pll_kind == "inno":
-        from reg_paths import inno_postdiv_reg_keys
+        from .config_paths import inno_postdiv_reg_keys
 
         specs: list[PllSlotSpec] = [
             ("inno_pd", ("pd",)),
@@ -517,7 +517,7 @@ def _inno_write_templates(
     index: RegModelIndex,
     template_node: PllNode,
 ) -> tuple[PllWriteTemplate, ...]:
-    from reg_paths import inno_postdiv_reg_keys
+    from .config_paths import inno_postdiv_reg_keys
 
     templates: list[PllWriteTemplate] = []
     pd_ref = index.resolve(
@@ -565,9 +565,7 @@ def _inno_write_templates(
         )
     )
     if not output_groups:
-        raise ValueError(
-            f"pll_kind inno 须有两路输出，output_groups 为空"
-        )
+        raise ValueError("pll_kind inno 须有两路输出，output_groups 为空")
     for group_id in output_groups:
         p1_key, p2_key = inno_postdiv_reg_keys(group_id)
         templates.extend(
@@ -601,7 +599,7 @@ def _cfg_var_names_for_kind(
         return tuple(k for k in PLL_DW_ORDER if k in keys)
     if pll_kind == "inno":
         ordered: list[str] = ["refdiv", "fbdiv"]
-        from reg_paths import inno_postdiv_reg_keys
+        from .config_paths import inno_postdiv_reg_keys
 
         for group_id in output_groups:
             ordered.extend(inno_postdiv_reg_keys(group_id))
@@ -779,17 +777,33 @@ def build_pll_plan(
     resolved: TreeResolve,
 ) -> PllPlanBundle:
     configured = _collect_configured_pll_nodes(tree, resolved)
-    groups: dict[PllGroupKey, list[PllNode]] = {}
+    groups: dict[tuple[str, int], list[PllNode]] = {}
     for node in configured:
-        key = node.pll_kind
-        groups.setdefault(key, []).append(node)
+        layout = (_pll_field_specs(node, index), _pll_reg_grouping(node, index))
+        state = resolved.by_name[node.name]
+        subgroup = 1
+        while (node.pll_kind, subgroup) in groups:
+            peers = groups[node.pll_kind, subgroup]
+            peer_layout = (
+                _pll_field_specs(peers[0], index),
+                _pll_reg_grouping(peers[0], index),
+            )
+            conflicts = any(
+                resolved.by_name[peer.name].resolved_freq == state.resolved_freq
+                and resolved.by_name[peer.name].pll_cfg != state.pll_cfg
+                for peer in peers
+            )
+            if layout == peer_layout and not conflicts:
+                break
+            subgroup += 1
+        groups.setdefault((node.pll_kind, subgroup), []).append(node)
 
     kind_plans: list[PllKindPlan] = []
     instances: list[PllInstancePlan] = []
 
     for group_key in sorted(groups.keys()):
         nodes = groups[group_key]
-        pll_kind = group_key
+        pll_kind, subgroup = group_key
         _validate_pll_group_layout(group_key, nodes, index)
         cfg_by_freq = _validate_pll_freq_cfg(group_key, nodes, resolved)
         template_node = nodes[0]
@@ -805,15 +819,11 @@ def build_pll_plan(
                 pll_kind, write_templates_raw, nodes, index, slot_specs
             )
         )
-        cfg_logical_keys = _cfg_var_names_for_kind(
-            pll_kind, output_groups, cfg_by_freq
-        )
-        cfg_var_names = tuple(
-            reg_key_to_c_ident(name) for name in cfg_logical_keys
-        )
+        cfg_logical_keys = _cfg_var_names_for_kind(pll_kind, output_groups, cfg_by_freq)
+        cfg_var_names = tuple(reg_key_to_c_ident(name) for name in cfg_logical_keys)
         slot_ids = tuple(spec[0] for spec in slot_specs)
         _, lock_mask_hex = _pll_lock_view(index, template_node)
-        fn_name = _pll_kind_fn_name(pll_kind)
+        fn_name = _pll_kind_fn_name(pll_kind) + (f"_{subgroup}" if subgroup > 1 else "")
         kind_plans.append(
             PllKindPlan(
                 pll_kind=pll_kind,
@@ -850,6 +860,6 @@ def build_pll_plan(
             )
 
     return PllPlanBundle(
-        kind_plans=tuple(kind_plans),
+        function_plans=tuple(kind_plans),
         instances=tuple(instances),
     )

@@ -5,7 +5,7 @@
 #   pll        sc / tci / dw / inno
 #   div        div / div_n / div_r / dto / dto_n
 #   mux        mux_ref 可搜索 sel；其余 mux 预填 sel
-#   gate       寄存器门控；gate_hclk 透传链；gate_mbist open=0
+#   gate       寄存器门控；gate_hclk 透传链；gate_mbist 固定开启
 #   inv        inv / inv_mux / inv_cell
 #   cell       buf
 #   clk        有频率 / 无频率
@@ -214,8 +214,6 @@ nodes:
   gate_mbist:
     kind: gate
     source: div0
-    open: 0
-
   div_r_dw:
     kind: div
     div_kind: div_r

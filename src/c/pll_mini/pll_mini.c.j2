@@ -4,7 +4,7 @@
 #include "pll_mini.h"
 
 static const pll_mini_config_step_t pll_mini_config_steps[] = {
-{% for step in config_plan.dev_steps -%}
+{% for step in config_plan.steps -%}
 {{ step.c_config_step_lines }}
 {% endfor -%}
 };
@@ -29,7 +29,7 @@ static void pll_mini_wait_lock(unsigned long addr, unsigned int lock_mask)
 }
 {% endif -%}
 
-{% for kind in config_plan.pll_kind_plans -%}
+{% for kind in config_plan.function_plans -%}
 static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 {
 {%- for name in kind.cfg_var_names %}
@@ -63,12 +63,12 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 void {{ settings.main_fn }}(void)
 {
     unsigned int i;
-{%- for inst in config_plan.pll_instances %}
+{%- for inst in config_plan.instances %}
     {{ inst.fn_name }}({{ inst.c_call_args }});
 {%- endfor %}
 {% if config_plan.has_wait_lock_instances %}
 
-{%- for inst in config_plan.pll_instances if inst.wait_lock %}
+{%- for inst in config_plan.instances if inst.wait_lock %}
     pll_mini_wait_lock({% if config_plan.fixed_wait_lock_mask_hex %}{{ inst.lock_addr_macro }}{% else %}{{ inst.lock_addr_macro }}, {{ inst.lock_mask_hex }}{% endif %});
 {%- endfor %}
 {% endif %}

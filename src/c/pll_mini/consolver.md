@@ -1,66 +1,31 @@
 # consolver 约束求解
 
-## 外部程序
+## 工具调用
 
-`pll_mini` 通过 `bin/consolver.exe` 调用 Z3。可执行文件不提交；缺失时直接报错，提示从 `https://github.com/XiaoHui2023/consolver` 下载并放入 `src/c/pll_mini/bin`。
+`bin/consolver.exe` 是外部工具，不提交二进制。缺失时错误包含预期路径与 [下载入口](https://github.com/XiaoHui2023/consolver)。Python 写入临时 SMT 文件，调用 `consolver solve <file> --format json --timeout-ms <ms>`，读取 JSON 后删除临时输入。正式求解只有一次；失败诊断可以在独立预算内做额外检查。
 
-调用形态固定为：
+每个断言使用唯一标签 `c000000` 等，另存节点、规则、输入字段和表达式映射。调试导出与正常求解使用相同 builder，不改变求解选项或模型。
 
-```bash
-consolver solve clock_tree.smt2 --format json --timeout-ms <ms>
-```
+## 失败阶段
 
-Python flow receives SMT-LIB text in memory, writes it to a temporary `.smt2` file, calls `consolver solve <temp>.smt2 --format json`, and returns JSON text. Logs still show `consolver solve start: input-text` because callers do not manage the temporary file.
+| 前缀 | 含义 |
+| --- | --- |
+| 输入校验路径 | 未知插件、字段、端口、mux 选择或环路，尚未调用求解器。 |
+| `[solve/unsat]` | 已证实图无解，附冲突节点、字段及共享硬件编码。 |
+| `[solve/unknown]` | 超时或求解器不能判定，不宣称配置冲突。 |
+| `[solve/tool_error]` | 缺少程序、进程异常、无效 JSON 或无效状态。 |
+| `[solve/model_error]` | SAT 输出缺少必要变量或变量类型无效。 |
+| `[fit]` | 图已求解，但插件无法计算可配置的器件参数。 |
+| `[verify]` | 已拟合参数的公式回放不符合目标。 |
 
-`sat` 返回模型，`unsat` 或 `unknown` 直接失败。失败信息保留命名约束，读者可以从约束名定位到节点、端口和关系。
+## 冲突缩减
 
-调试时设置 `settings.debug_consolver_smt_path`。Python 约束层会在调用 consolver 前直接把 SMT-LIB 文本写到该路径，用于查看传给 consolver 的实际约束；即使后续求解返回 `unsat`，该文件也已保存到该路径。不要通过 `.j2` 模板输出 SMT 调试文件，避免求解失败时模板渲染阶段拿不到约束输入。
+当前工具接口不提供可靠的 unsat-core 结果，不能仅启用 `produce-unsat-cores` 后假设可用。对已经证实 UNSAT 的完整集合采用删除式缩减：只有子集再次返回 UNSAT 时才移除断言。SAT、UNKNOWN、工具异常都不能作为删除依据。
 
-## 约束文件
+诊断最多 24 次检查、8 秒调度预算，单次求解最多 1 秒且不超过正式预算；进程启动/退出另有有限宽限。达到预算保留已证实无解的较大集合。只有完整逐项删除检查结束且无未知或异常时才标记 `minimal=true`；不承诺最小基数。完整输入始终保留，不用缩减子集替换正式 SMT。
 
-整个 clock tree 渲染为一份 SMT-LIB 文件，只调用一次 consolver。每个节点有一个有效性变量，每个输出端口有一个整数频率变量；mux 有 `sel`，div/dto 有 `ratio`。
+## 复现文件
 
-约束名按节点和作用命名，例如：
+设置 `settings.debug_consolver_smt_path` 可指定 SMT 路径，相对路径按 YAML 所在目录解析。同名 `.json` 保存完整节点配置、断言来源、共享字段、状态、诊断预算和 SMT SHA-256，并给出 replay 命令。未设置时，失败自动保存到独立临时目录并打印位置。
 
-- `clk_x__target_freq`
-- `mux_a__arm_0__freq`
-- `div_b__freq_div`
-- `pll_c__pll_freq__out`
-
-## 频率关系
-
-source 和单输出 pll 的 `freq` 是必填频率锚点，直接用于传播；它们本身不是输出频率求解目标。clk 以及其他节点的 `freq` 是可选锚点，填写时才约束输出频率。
-
-PLL 频率锚点来自节点自身的 `freq`。多输出 `inno` 可用 dict 指定每个输出组，也可用整数表示所有输出组同频；这些输出端口在 SMT 求解前已经有固定目标频率。
-
-gate、cell、inv 只做频率透传。pll_mini 阶段认为 gate 常开，不把 gate 寄存器配置状态放进 SMT。
-
-div/dto 使用整数除法：
-
-```text
-f_out = div(f_in, ratio)
-```
-
-普通 div 的 `ratio` 下限为 1。dto/dto_n 的 `ratio` 下限为 2，因为 `ratio=1` 无法写成合法 `step`。
-
-## PLL 可实现性
-
-TCI 的整数倍频关系轻量，直接进 SMT：
-
-```text
-f_out = f_ref * clkf
-```
-
-SC、DW、INNO 不把完整寄存器公式作为非线性大约束塞进 SMT。约束层把 PLL 当作固定频率源，按节点配置固定输出端口频率并向下游传播；PLL 参考频率与寄存器系数在求解后按已定频率计算。
-
-这样做避免 Z3 在全树上处理大面积 `div(* ref fbdiv, * refdiv postdiv...)` 非线性表达式。需要新增 PLL 类型时，先写清候选参考频率，再写求解后的寄存器换算。
-
-## 失败信息
-
-求解失败时不猜原因，只显示：
-
-- consolver 状态：`unsat` 或 `unknown`
-- `unknown` 原因
-- 相关命名约束
-
-不要吞掉 consolver 输出，也不要只报“求解失败”。失败信息必须能让人继续分析具体节点和约束。
+拟合和回放失败也保存端口频率、插件状态、失败节点或公式问题。控制台可能省略大型冲突集合的逐条表达式，JSON 不截断。

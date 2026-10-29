@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
-from .nodes import MuxNode, Tree, parse_source_endpoint
-from .freq_graph import parent_port_for_child
+from .nodes import Tree, parse_source_endpoint
 
 
 @dataclass
@@ -23,19 +22,12 @@ class TreeTopology:
         for name in tree.nodes:
             kids: List[str] = []
             for other_name, other in tree.nodes.items():
-                if other_name == name or other.kind == "source":
+                if other_name == name:
                     continue
-                if isinstance(other, MuxNode):
-                    for arm in other.source.values():
-                        arm_name, _ = parse_source_endpoint(arm, ctx="child")
-                        if arm_name == name:
-                            kids.append(other_name)
-                    continue
-                try:
-                    parent = parent_port_for_child(tree, other_name)
-                except ValueError:
-                    continue
-                if parent.node == name:
+                if any(
+                    parse_source_endpoint(raw, ctx=other_name)[0] == name
+                    for raw in other.input_refs().values()
+                ):
                     kids.append(other_name)
             children[name] = tuple(sorted(kids))
         return cls(children=children)

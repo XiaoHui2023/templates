@@ -1,497 +1,328 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import tempfile
+import hashlib
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List
 
-from load.tools import log_stage_done, log_stage_start, run_consolver_solve
 from load.regmodel import RegModelIndex
-from registers.formulas import DTO_MAX_RATIO
-from registers.formulas import (
-    freq_tolerance_bounds,
-)
+from load.tools import consolver_path, run_consolver_solve
+from model.arithmetic import freq_tolerance_bounds
 
-from .freq_graph import Port, output_ports, parent_port_for_child
-from .nodes import ClkNode, DivNode, GateNode, MuxNode, PllNode, Tree
+from .freq_graph import Port, output_ports, parse_port_ref
+from .nodes import Tree
+from .smt import act as _act, freq as _freq, safe_name, symbol
 from .solve_model import SolveModel
 
 
 @dataclass(frozen=True)
 class NamedConstraint:
+    """一个断言及其配置来源。"""
+
     name: str
     expr: str
+    node: str = ""
+    rule: str = ""
+    paths: tuple[str, ...] = ()
 
 
 def solve_tree_with_consolver(
     tree: Tree,
     *,
-    pll_sc_fbdiv_min: int,
-    pll_sc_fbdiv_max: int,
     period_tolerance: float,
     timeout_ms: int | None = None,
     debug_smt_path: Path | None = None,
     reg_index: RegModelIndex | None = None,
 ) -> SolveModel:
+    """求解插件生成的频率图，并在失败时保存可复现诊断。"""
     builder = _SmtBuilder(
         tree,
-        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
         reg_index=reg_index,
     )
     smt2 = builder.render()
     if debug_smt_path is not None:
-        debug_started_at = log_stage_start(
-            "resolve",
-            "smt",
-            "debug",
-            path=debug_smt_path,
-        )
-        debug_smt_path.parent.mkdir(parents=True, exist_ok=True)
-        debug_smt_path.write_text(smt2, encoding="utf-8")
-        log_stage_done(
-            "resolve",
-            "smt",
-            "debug",
-            debug_started_at,
-            bytes=debug_smt_path.stat().st_size,
-        )
-
-    started_at = log_stage_start(
-        "resolve",
-        "smt",
-        "build",
-        constraints=len(builder.constraints),
-    )
-    log_stage_done(
-        "resolve",
-        "smt",
-        "build",
-        started_at,
-        constraints=len(builder.constraints),
-    )
-    raw = run_consolver_solve(smt2, timeout_ms=timeout_ms)
-
-    data = json.loads(raw)
-    status = data.get("status")
+        builder.write_debug(debug_smt_path)
+    try:
+        raw = run_consolver_solve(smt2, timeout_ms=timeout_ms)
+        data = json.loads(raw)
+        if not isinstance(data, dict) or data.get("status") not in {
+            "sat",
+            "unsat",
+            "unknown",
+        }:
+            raise ValueError(f"invalid solver result: {data!r}")
+    except (RuntimeError, OSError, ValueError) as exc:
+        path = builder.failure_path(debug_smt_path)
+        builder.write_debug(path, {"status": "tool_error", "error": str(exc)})
+        raise RuntimeError(
+            f"[solve/tool_error] {exc}\nSMT: {path}\n映射: {path.with_suffix('.json')}"
+        ) from exc
+    status = data["status"]
     if status != "sat":
-        detail = _format_unsolved(status, data, builder.constraints)
-        raise RuntimeError(detail)
-    model = data.get("model")
-    if not isinstance(model, dict):
-        raise RuntimeError("consolver 输出缺少 model 对象")
-    return builder.to_solve_model(model)
+        from report.constraints import diagnose_constraints
+
+        path = builder.failure_path(debug_smt_path)
+        report = diagnose_constraints(builder, data, timeout_ms=timeout_ms)
+        builder.write_debug(path, report)
+        raise RuntimeError(
+            report["message"] + f"\nSMT: {path}\n映射: {path.with_suffix('.json')}"
+        )
+    raw_model = data.get("model")
+    try:
+        if not isinstance(raw_model, dict):
+            raise ValueError("consolver 输出缺少 model 对象")
+        return builder.to_solve_model(raw_model)
+    except (TypeError, ValueError) as exc:
+        path = builder.failure_path(debug_smt_path)
+        builder.write_debug(
+            path, {"status": "model_error", "error": str(exc), "solver": data}
+        )
+        raise RuntimeError(f"[solve/model_error] {exc}\nSMT: {path}") from exc
 
 
 def build_tree_smt2(
     tree: Tree,
     *,
-    pll_sc_fbdiv_min: int,
-    pll_sc_fbdiv_max: int,
     period_tolerance: float,
     reg_index: RegModelIndex | None = None,
 ) -> str:
-    builder = _SmtBuilder(
+    """生成与正式求解相同的 SMT-LIB 输入。"""
+    return _SmtBuilder(
         tree,
-        pll_sc_fbdiv_min=pll_sc_fbdiv_min,
-        pll_sc_fbdiv_max=pll_sc_fbdiv_max,
         period_tolerance=period_tolerance,
         reg_index=reg_index,
-    )
-    return builder.render()
+    ).render()
 
 
 class _SmtBuilder:
+    """调度插件并管理公共符号、来源映射与共享字段。"""
+
     def __init__(
         self,
         tree: Tree,
         *,
-        pll_sc_fbdiv_min: int,
-        pll_sc_fbdiv_max: int,
         period_tolerance: float,
         reg_index: RegModelIndex | None,
     ) -> None:
+        """绑定图、容差及可选寄存器索引。"""
         self.tree = tree
-        self.pll_sc_fbdiv_min = pll_sc_fbdiv_min
-        self.pll_sc_fbdiv_max = pll_sc_fbdiv_max
         self.tol_lo, self.tol_hi, self.tol_den = freq_tolerance_bounds(period_tolerance)
         self.reg_index = reg_index
-        self.ratio_vars: Dict[str, str] = {}
-        self.sel_vars: Dict[str, str] = {}
-        self.constraints: List[NamedConstraint] = []
-        self.decls: Dict[str, str] = {}
-        self._build_shared_control_vars()
+        self.constraints: list[NamedConstraint] = []
+        self.decls: dict[str, str] = {}
+        self.controls: list[dict[str, object]] = []
+        self.shared_control_nodes: set[str] = set()
+        self.current_node = ""
         self._build()
 
-    def render(self) -> str:
+    def render(self, constraints=None) -> str:
+        """渲染全部或诊断子集断言，保持声明一致。"""
+        selected = self.constraints if constraints is None else constraints
         lines = ["(set-logic ALL)", "(set-option :produce-models true)"]
-        for name in sorted(self.decls):
-            lines.append(f"(declare-const {name} {self.decls[name]})")
-        for item in self.constraints:
-            lines.append(f"(assert (! {item.expr} :named {item.name}))")
-        lines.extend(["(check-sat)", "(get-model)", ""])
-        return "\n".join(lines)
+        lines.extend(
+            f"(declare-const {name} {typ})" for name, typ in sorted(self.decls.items())
+        )
+        lines.extend(
+            f"(assert (! {item.expr} :named {item.name}))" for item in selected
+        )
+        return "\n".join([*lines, "(check-sat)", "(get-model)", ""])
 
-    def to_solve_model(self, model: dict[str, object]) -> SolveModel:
-        active: Dict[str, bool] = {}
-        port_freq: Dict[Port, int] = {}
-        ratios: Dict[str, int] = {}
-        mux_sel: Dict[str, int] = {}
-        gate_open: Dict[str, bool] = {}
-        pll_vars: Dict[str, Dict[str, int]] = {}
-
-        for name, node in self.tree.nodes.items():
-            active[name] = bool(model.get(_act(name), False))
-            if isinstance(node, DivNode):
-                ratios[name] = int(model.get(self._ratio_var(name), node.ratio or 0))
-            if isinstance(node, MuxNode):
-                mux_sel[name] = int(model.get(self._sel_var(name), node.sel or 0))
-            if isinstance(node, GateNode):
-                gate_open[name] = active[name]
-            if isinstance(node, PllNode) and active[name]:
-                keys = _pll_var_keys(node)
-                if keys and all(_pll_var(name, key) in model for key in keys):
-                    pll_vars[name] = {
-                    key: int(model.get(_pll_var(name, key), 0))
-                    for key in _pll_var_keys(node)
-                    }
-            for port in output_ports(self.tree, name):
-                port_freq[port] = int(model.get(_freq(port), 0))
-
-        return SolveModel(
-            active=active,
-            port_freq=port_freq,
-            ratios=ratios,
-            mux_sel=mux_sel,
-            gate_open=gate_open,
-            pll_vars=pll_vars,
+    def failure_path(self, configured: Path | None) -> Path:
+        """未配置调试路径时保留独立临时目录。"""
+        return (
+            configured
+            or Path(tempfile.mkdtemp(prefix="pll_mini_debug_")) / "problem.smt2"
         )
 
+    def write_debug(self, path: Path, result=None) -> None:
+        """保存完整 SMT、节点配置、约束来源和求解结果。"""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(self.render(), encoding="utf-8")
+        data = {
+            "schema": 1,
+            "nodes": {
+                name: node.model_dump(mode="json")
+                for name, node in self.tree.nodes.items()
+            },
+            "constraints": [asdict(item) for item in self.constraints],
+            "controls": self.controls,
+            "result": result,
+            "replay": [str(consolver_path()), "solve", str(path), "--format", "json"],
+            "smt_sha256": hashlib.sha256(self.render().encode("utf-8")).hexdigest(),
+        }
+        path.with_suffix(".json").write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    def to_solve_model(self, raw: dict[str, object]) -> SolveModel:
+        """解码公共变量，并由插件读取自有变量。"""
+        model = SolveModel(active={}, port_freq={})
+        for name, typ in self.decls.items():
+            expected = {"Bool": bool, "Int": int}.get(typ)
+            if name in raw and expected is not None and type(raw[name]) is not expected:
+                raise ValueError(
+                    f"missing/invalid {typ} variable {name}={raw.get(name)!r}"
+                )
+        for name, node in self.tree.nodes.items():
+            active = raw.get(_act(name))
+            if type(active) is not bool:
+                raise ValueError(
+                    f"nodes[{name!r}]: missing/invalid {_act(name)}={active!r}"
+                )
+            model.active[name] = active
+            for port in output_ports(self.tree, name):
+                value = raw.get(_freq(port))
+                if type(value) is not int or value < 0:
+                    raise ValueError(
+                        f"nodes[{name!r}]: missing/invalid {_freq(port)}={value!r}"
+                    )
+                model.port_freq[port] = value
+            node.read_solution(self, raw, model)
+        return model
+
     def _build(self) -> None:
+        if self.reg_index is not None:
+            self._shared_register_constraints(collect_only=True)
         for name in self.tree.nodes:
             self._declare(_act(name), "Bool")
             for port in output_ports(self.tree, name):
                 self._declare(_freq(port), "Int")
-
         for name, node in self.tree.nodes.items():
+            self.current_node = name
             self._common_node_constraints(name)
-            if node.kind == "source":
-                self._source_constraints(name)
-            elif isinstance(node, ClkNode):
-                self._single_input_equal_constraints(name, target=True)
-            elif isinstance(node, GateNode):
-                self._single_input_equal_constraints(name)
-            elif node.kind in ("inv", "cell"):
-                self._single_input_equal_constraints(name)
-            elif isinstance(node, DivNode):
-                self._div_constraints(name, node)
-            elif isinstance(node, PllNode):
-                self._pll_constraints(name, node)
-            elif isinstance(node, MuxNode):
-                self._mux_constraints(name, node)
+            node.add_constraints(self)
+        if self.reg_index is not None:
+            self._shared_register_constraints()
 
     def _common_node_constraints(self, name: str) -> None:
         node = self.tree.nodes[name]
         act = _act(name)
         for port in output_ports(self.tree, name):
             freq = _freq(port)
-            self._add(f"{name}__freq_non_negative__{_port_suffix(port)}", f"(>= {freq} 0)")
-            self._add(f"{name}__inactive_zero__{_port_suffix(port)}", f"(=> (not {act}) (= {freq} 0))")
-            if not (isinstance(node, PllNode) and port.group):
-                self._add(f"{name}__active_positive__{_port_suffix(port)}", f"(=> {act} (> {freq} 0))")
-            elif port.group and node.freq is None:
-                consumers = self._port_consumer_exprs(port)
-                if consumers:
-                    self._add(
-                        f"{name}__unused_zero__{_port_suffix(port)}",
-                        f"(=> (not (or {' '.join(consumers)})) (= {freq} 0))",
-                    )
-                else:
-                    self._add(
-                        f"{name}__unused_zero__{_port_suffix(port)}",
-                        f"(= {freq} 0)",
-                    )
-            fixed = _fixed_port_freq(node, port.group)
-            if fixed is not None and (not port.group or isinstance(node, PllNode)):
-                self._add(
-                    f"{name}__fixed_freq__{_port_suffix(port)}",
-                    f"(=> {act} (= {freq} {fixed}))",
-                )
-
-    def _source_constraints(self, name: str) -> None:
-        node = self.tree.nodes[name]
-        fixed = getattr(node, "freq", None)
-        if fixed is not None:
-            self._add(name + "__source_freq", f"(=> {_act(name)} (= {_freq(Port(name, ''))} {fixed}))")
-
-    def _single_input_equal_constraints(self, name: str, *, target: bool = False) -> None:
-        act = _act(name)
-        port = Port(name, "")
-        try:
-            parent = parent_port_for_child(self.tree, name)
-        except ValueError:
-            if target:
-                node = self.tree.nodes[name]
-                if getattr(node, "freq", None) is not None:
-                    self._add(f"{name}__target_active", act)
-            return
-        self._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
-        self._add(f"{name}__freq_equal_parent", f"(=> {act} (= {_freq(port)} {_freq(parent)}))")
-        node = self.tree.nodes[name]
-        if target and isinstance(node, ClkNode) and node.freq is not None and node.freq > 0:
-            self._add(f"{name}__target_active", act)
-            self._add(f"{name}__target_freq", f"(= {_freq(port)} {node.freq})")
-
-    def _div_constraints(self, name: str, node: DivNode) -> None:
-        act = _act(name)
-        ratio = self._ratio_var(name)
-        self._declare(ratio, "Int")
-        try:
-            parent = parent_port_for_child(self.tree, name)
-        except ValueError:
-            self._add(f"{name}__no_source_inactive", f"(not {act})")
-            return
-        out = _freq(Port(name, ""))
-        self._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
-        min_ratio = 2 if node.div_kind in ("dto", "dto_n") else 1
-        self._add(f"{name}__ratio_min", f"(=> {act} (>= {ratio} {min_ratio}))")
-        if node.ratio is not None:
-            self._add(f"{name}__ratio_fixed", f"(=> {act} (= {ratio} {node.ratio}))")
-        elif node.div_kind in ("dto", "dto_n"):
-            self._add(f"{name}__ratio_max", f"(=> {act} (<= {ratio} {DTO_MAX_RATIO}))")
-        else:
-            self._add(f"{name}__ratio_max", f"(=> {act} (<= {ratio} 64))")
-        hw = f"(div {_freq(parent)} {ratio})"
-        self._add(
-            f"{name}__freq_div",
-            (
-                f"(=> {act} (and "
-                f"(<= (* {out} {self.tol_lo}) (* {hw} {self.tol_den})) "
-                f"(>= (* {out} {self.tol_hi}) (* {hw} {self.tol_den}))"
-                f"))"
-            ),
-        )
-
-    def _pll_constraints(self, name: str, node: PllNode) -> None:
-        act = _act(name)
-        fixed_ports = [
-            port
-            for port in output_ports(self.tree, name)
-            if _fixed_port_freq(node, port.group) is not None
-        ]
-        if fixed_ports:
-            self._add(f"{name}__fixed_freq_active", act)
-        if node.regs:
-            try:
-                parent = parent_port_for_child(self.tree, name)
-            except ValueError:
-                parent = None
-            if parent is not None:
-                self._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
-        if node.freq is not None:
-            for port in output_ports(self.tree, name):
-                fixed = _fixed_port_freq(node, port.group)
-                if fixed is None:
-                    continue
-                self._add(
-                    f"{name}__pll_freq__{_port_suffix(port)}",
-                    f"(=> {act} (= {_freq(port)} {fixed}))",
-                )
-
-    def _mux_constraints(self, name: str, node: MuxNode) -> None:
-        act = _act(name)
-        sel = self._sel_var(name)
-        self._declare(sel, "Int")
-        source_by_sel = {int(key): value for key, value in node.source.items()}
-        keys = sorted(source_by_sel)
-        if not keys:
-            self._add(f"{name}__no_source_inactive", f"(not {act})")
-            return
-        if node.sel is not None:
-            self._add(f"{name}__sel_fixed", f"(=> {act} (= {sel} {node.sel}))")
-        else:
-            choices = " ".join(f"(= {sel} {key})" for key in keys)
-            self._add(f"{name}__sel_inside", f"(=> {act} (or {choices}))")
-        for key in keys:
-            parent = parent_port_for_child_ref(self.tree, source_by_sel[key], f"{name}.source[{key}]")
-            when = f"(and {act} (= {sel} {key}))"
-            self._add(f"{name}__arm_{key}__parent_active", f"(=> {when} {_act(parent.node)})")
+            suffix = port.group or "out"
+            self._add(f"{name}__freq_non_negative__{suffix}", f"(>= {freq} 0)")
             self._add(
-                f"{name}__arm_{key}__freq",
-                f"(=> {when} (= {_freq(Port(name, ''))} {_freq(parent)}))",
+                f"{name}__inactive_zero__{suffix}", f"(=> (not {act}) (= {freq} 0))"
+            )
+            if not (node.independent_outputs and port.group):
+                self._add(
+                    f"{name}__active_positive__{suffix}", f"(=> {act} (> {freq} 0))"
+                )
+            elif node.fixed_hz(port.group) is None:
+                consumers = self._port_consumer_exprs(port)
+                condition = f"(or {' '.join(consumers)})" if consumers else "false"
+                self._add(
+                    f"{name}__unused_zero__{suffix}",
+                    f"(=> (not {condition}) (= {freq} 0))",
+                )
+            fixed = node.fixed_hz(port.group)
+            if fixed is not None:
+                self._add(
+                    f"{name}__fixed_freq__{suffix}",
+                    f"(=> {act} (= {freq} {fixed}))",
+                    paths=(f"nodes[{name!r}].freq",),
+                )
+
+    def _single_input_equal_constraints(
+        self, name: str, *, target: bool = False
+    ) -> None:
+        act = _act(name)
+        raw = self.tree.nodes[name].input_refs().get("")
+        if raw:
+            parent = parse_port_ref(raw, ctx=f"nodes[{name!r}].source")
+            self._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
+            self._add(
+                f"{name}__freq_equal_parent",
+                f"(=> {act} (= {_freq(Port(name))} {_freq(parent)}))",
+            )
+        node = self.tree.nodes[name]
+        if target and (node.fixed_hz() or 0) > 0:
+            self._add(f"{name}__target_active", act)
+            self._add(
+                f"{name}__target_freq",
+                f"(= {_freq(Port(name))} {node.fixed_hz()})",
+                paths=(f"nodes[{name!r}].freq",),
             )
 
     def _declare(self, name: str, typ: str) -> None:
+        if name in self.decls and self.decls[name] != typ:
+            raise ValueError(f"symbol type collision: {name}")
         self.decls[name] = typ
 
-    def _add(self, name: str, expr: str) -> None:
-        safe = _safe_name(name)
-        self.constraints.append(NamedConstraint(safe, expr))
-
-    def _port_consumer_exprs(self, port: Port) -> list[str]:
-        consumers: list[str] = []
-        for child_name, child in self.tree.nodes.items():
-            if isinstance(child, MuxNode):
-                for key, raw in child.source.items():
-                    ref = parent_port_for_child_ref(
-                        self.tree,
-                        raw,
-                        f"{child_name}.source[{key}]",
-                    )
-                    if ref == port:
-                        consumers.append(f"(and {_act(child_name)} (= {self._sel_var(child_name)} {int(key)}))")
-                continue
-            if child.kind == "source":
-                continue
-            try:
-                ref = parent_port_for_child(self.tree, child_name)
-            except ValueError:
-                continue
-            if ref == port:
-                consumers.append(_act(child_name))
-        return consumers
-
-    def _build_shared_control_vars(self) -> None:
-        if self.reg_index is None:
-            return
-
-        ratio_vars_by_field: dict[tuple[str, str, int, int], str] = {}
-        sel_vars_by_field: dict[tuple[str, str, int, int], str] = {}
-        for name, node in self.tree.nodes.items():
-            if isinstance(node, DivNode):
-                path = _div_ratio_reg_path(node)
-                if not path:
-                    continue
-                key = self._control_field_key(path, f"{name}.regs")
-                self.ratio_vars[name] = ratio_vars_by_field.setdefault(
-                    key,
-                    _shared_control_var("ratio", key),
-                )
-            elif isinstance(node, MuxNode) and node.reg:
-                key = self._control_field_key(node.reg, f"{name}.reg")
-                self.sel_vars[name] = sel_vars_by_field.setdefault(
-                    key,
-                    _shared_control_var("sel", key),
-                )
-
-    def _control_field_key(
-        self,
-        raw_path: str,
-        ctx: str,
-    ) -> tuple[str, str, int, int]:
-        if self.reg_index is None:
-            raise RuntimeError("reg_index is required to resolve control fields")
-        ref = self.reg_index.resolve(raw_path, ctx=ctx)
-        return (
-            ref.reg.path,
-            ref.field.name,
-            ref.effective_lsb,
-            ref.effective_width,
+    def _add(self, rule: str, expr: str, *, paths: tuple[str, ...] = ()) -> None:
+        label = f"c{len(self.constraints):06d}"
+        node = self.tree.nodes[self.current_node]
+        self.constraints.append(
+            NamedConstraint(
+                label,
+                expr,
+                self.current_node,
+                rule,
+                paths or node.constraint_paths(rule),
+            )
         )
 
-    def _ratio_var(self, node_name: str) -> str:
-        return self.ratio_vars.get(node_name, _ratio(node_name))
+    def _port_consumer_exprs(self, port: Port) -> list[str]:
+        consumers = []
+        for name, node in self.tree.nodes.items():
+            for key, raw in node.input_refs().items():
+                if parse_port_ref(raw, ctx=name) == port:
+                    consumers.append(
+                        f"(and {_act(name)} {node.input_condition(self, key)})"
+                    )
+        return consumers
 
-    def _sel_var(self, node_name: str) -> str:
-        return self.sel_vars.get(node_name, _sel(node_name))
+    def variable(self, name: str, role: str, typ: str = "Int") -> str:
+        """声明插件自有变量，公共层不解释变量角色。"""
+        name = symbol("plugin", role, name)
+        self._declare(name, typ)
+        return name
 
-
-def parent_port_for_child_ref(tree: Tree, raw: str, ctx: str) -> Port:
-    from .freq_graph import parse_port_ref
-
-    port = parse_port_ref(raw, ctx=ctx)
-    if port.node not in tree.nodes:
-        raise ValueError(f"{ctx} 引用不存在的节点 {port.node!r}")
-    return port
-
-
-def _format_unsolved(
-    status: object,
-    data: dict[str, object],
-    constraints: Iterable[NamedConstraint],
-) -> str:
-    reason = data.get("reason")
-    lines = [f"consolver 求解失败: status={status}"]
-    if reason:
-        lines.append(f"reason={reason}")
-    lines.append("相关命名约束:")
-    for item in list(constraints)[:80]:
-        lines.append(f"- {item.name}: {item.expr}")
-    return "\n".join(lines)
-
-
-def _act(node: str) -> str:
-    return _safe_name(f"act__{node}")
-
-
-def _ratio(node: str) -> str:
-    return _safe_name(f"ratio__{node}")
-
-
-def _sel(node: str) -> str:
-    return _safe_name(f"sel__{node}")
-
-
-def _div_ratio_reg_path(node: DivNode) -> str:
-    if node.ratio is not None or not node.regs:
-        return ""
-    if node.div_kind in ("dto", "dto_n"):
-        return node.regs.get("step", "")
-    return node.regs.get("div", "")
-
-
-def _shared_control_var(
-    kind: str,
-    key: tuple[str, str, int, int],
-) -> str:
-    reg_path, field_name, lsb, width = key
-    return _safe_name(
-        f"{kind}__shared__{reg_path}__{field_name}__{lsb}__{width}"
-    )
-
-
-def _pll_var(node: str, key: str) -> str:
-    return _safe_name(f"pll__{node}__{key}")
-
-
-def _pll_var_keys(node: PllNode) -> tuple[str, ...]:
-    if node.pll_kind == "tci":
-        return ("clkf",)
-    if node.pll_kind == "sc":
-        return ("fbdiv", "refdiv", "postdiv1", "postdiv2")
-    if node.pll_kind == "dw":
-        return ("fbdiv", "p")
-    if node.pll_kind == "inno":
-        keys = ["refdiv", "fbdiv"]
-        for group in node.output_groups:
-            keys.append(f"postdiv1_{group}")
-            keys.append(f"postdiv2_{group}")
-        return tuple(keys)
-    return ()
-
-
-def _fixed_port_freq(node: object, group: str = "") -> int | None:
-    if isinstance(node, PllNode):
-        return node.freq_for_group(group)
-    fixed = getattr(node, "freq", None)
-    return fixed if isinstance(fixed, int) else None
-
-
-def _freq(port: Port) -> str:
-    suffix = port.group if port.group else "out"
-    return _safe_name(f"freq__{port.node}__{suffix}")
-
-
-def _port_suffix(port: Port) -> str:
-    return port.group if port.group else "out"
-
-
-def _safe_name(raw: str) -> str:
-    out = []
-    for ch in raw:
-        if ch.isalnum() or ch == "_":
-            out.append(ch)
-        else:
-            out.append("_")
-    return "".join(out)
+    def _shared_register_constraints(self, *, collect_only: bool = False) -> None:
+        self.controls.clear()
+        by_symbol = {}
+        for name, node in self.tree.nodes.items():
+            self.current_node = name
+            for role, (path, expr) in node.control_encodings(self).items():
+                ref = self.reg_index.resolve(path, ctx=f"nodes[{name!r}].regs.{role}")
+                key = (
+                    ref.reg.path,
+                    ref.field.name,
+                    ref.effective_lsb,
+                    ref.effective_width,
+                )
+                symbol = "register__" + safe_name(repr(key))
+                control = {
+                    "node": name,
+                    "role": role,
+                    "path": path,
+                    "symbol": symbol,
+                    "encoding": expr,
+                }
+                self.controls.append(control)
+                by_symbol.setdefault(symbol, []).append(control)
+        self.shared_control_nodes = {
+            item["node"]
+            for controls in by_symbol.values()
+            if len(controls) > 1
+            for item in controls
+        }
+        if collect_only:
+            return
+        for symbol, controls in by_symbol.items():
+            if len(controls) < 2:
+                continue
+            self._declare(symbol, "Int")
+            for control in controls:
+                name, role, expr = control["node"], control["role"], control["encoding"]
+                self.current_node = name
+                field_path = f"nodes[{name!r}]." + (
+                    "reg" if role == "reg" else f"regs.{role}"
+                )
+                self._add(
+                    f"{name}__register_encoding__{role}",
+                    f"(= {symbol} {expr})",
+                    paths=(field_path,),
+                )

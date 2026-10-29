@@ -12,10 +12,11 @@ class SolveModel:
 
     active: Dict[str, bool]
     port_freq: Dict[Port, int]
-    ratios: Dict[str, int]
-    mux_sel: Dict[str, int]
-    gate_open: Dict[str, bool]
-    pll_vars: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    node_values: Dict[str, dict[str, object]] = field(default_factory=dict)
+
+    def values(self, node_name: str) -> dict[str, object]:
+        """返回由该节点插件管理的求解状态。"""
+        return self.node_values.setdefault(node_name, {})
 
     def port_hz(self, port: Port) -> int:
         return self.port_freq.get(port, 0)

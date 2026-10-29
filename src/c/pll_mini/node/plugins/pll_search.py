@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
-from .formulas import (
+from model.arithmetic import freq_within_tolerance
+
+from node.plugins.pll_math import (
     DW_FBDIV_MAX,
     DW_FBDIV_MIN,
-    freq_within_tolerance,
     inno_fbdiv_legal,
     pll_dw_actual_hz,
     pll_inno_actual_hz,
@@ -15,9 +16,7 @@ from .formulas import (
 )
 
 POSTDIV_PAIRS = tuple(
-    (postdiv1, postdiv2)
-    for postdiv1 in range(1, 8)
-    for postdiv2 in range(1, 8)
+    (postdiv1, postdiv2) for postdiv1 in range(1, 8) for postdiv2 in range(1, 8)
 )
 
 
@@ -63,14 +62,12 @@ class PllSearchDiagnosis:
             lines.append(f"目标端口：{target_text}")
         if self.missing_single_groups:
             lines.append(
-                "单输出也无合法候选的端口："
-                + ", ".join(self.missing_single_groups)
+                "单输出也无合法候选的端口：" + ", ".join(self.missing_single_groups)
             )
         if self.best_shared:
             first = self.best_shared[0]
             lines.append(
-                "最接近的共用候选："
-                f"refdiv={first.refdiv}, fbdiv={first.fbdiv}"
+                f"最接近的共用候选：refdiv={first.refdiv}, fbdiv={first.fbdiv}"
             )
             for item in self.best_shared:
                 lines.append(
@@ -145,9 +142,7 @@ def _search_pll_sc_uncached(
         for postdiv1 in range(1, 8):
             for postdiv2 in range(1, 8):
                 for fbdiv in range(fbdiv_min, fbdiv_max + 1):
-                    actual = pll_sc_actual_hz(
-                        ref_hz, fbdiv, refdiv, postdiv1, postdiv2
-                    )
+                    actual = pll_sc_actual_hz(ref_hz, fbdiv, refdiv, postdiv1, postdiv2)
                     if freq_within_tolerance(
                         out_hz,
                         actual,
@@ -223,9 +218,7 @@ def search_pll_inno(
 ) -> dict[str, int] | None:
     if ref_hz <= 0:
         return None
-    active_groups = {
-        group: hz for group, hz in group_out_hz.items() if hz > 0
-    }
+    active_groups = {group: hz for group, hz in group_out_hz.items() if hz > 0}
     if not active_groups:
         return None
 
@@ -312,9 +305,7 @@ def _diagnose_pll_inno(
     tol_hi: int,
     tol_den: int,
 ) -> PllSearchDiagnosis:
-    active_groups = {
-        group: hz for group, hz in group_out_hz.items() if hz > 0
-    }
+    active_groups = {group: hz for group, hz in group_out_hz.items() if hz > 0}
     if ref_hz <= 0:
         return PllSearchDiagnosis(
             pll_kind="inno",
@@ -395,9 +386,7 @@ def _inno_group_candidates(
             for fbdiv in range(max(1, fbdiv_min), min(4095, fbdiv_max) + 1):
                 if not inno_fbdiv_legal(fbdiv):
                     continue
-                actual = pll_inno_actual_hz(
-                    ref_hz, fbdiv, refdiv, postdiv1, postdiv2
-                )
+                actual = pll_inno_actual_hz(ref_hz, fbdiv, refdiv, postdiv1, postdiv2)
                 if not freq_within_tolerance(
                     target_hz,
                     actual,

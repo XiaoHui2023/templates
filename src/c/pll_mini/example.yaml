@@ -65,6 +65,7 @@ nodes:
     reg: blk_mux_ref_tail.sel.sel
 
   gate_ref:
+    freq: 24000000
     kind: gate
     source: mux_ref_tail
     reg: blk_gate_ref.en.en
@@ -390,6 +391,7 @@ nodes:
     kind: div
     div_kind: div
     source: dto_stress_ref
+    freq: 1000000
     regs:
       rst: blk_div_stress_ref.ctrl.rst
       load: blk_div_stress_ref.ctrl.load
@@ -442,6 +444,7 @@ nodes:
     kind: div
     div_kind: dto_n
     source: mux_stress_dto_n
+    freq: 4000
     regs:
       rst: blk_dto_n_stress_ref.ctrl.rst
       load: blk_dto_n_stress_ref.ctrl.load
@@ -486,6 +489,7 @@ nodes:
     kind: div
     div_kind: dto
     source: mux_stress_inno_ref
+    freq: 12000000
     regs:
       rst: blk_dto_stress_inno.ctrl.rst
       load: blk_dto_stress_inno.ctrl.load
@@ -1191,6 +1195,44 @@ nodes:
     kind: clk
     source: gate_dual_out_7
     freq: 10000000
+
+  plugin_shared_a:
+    kind: div_div
+    source: xtal
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.div
+  plugin_shared_b:
+    kind: div_div
+    source: xtal
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.div
+  clk_plugin_shared_a:
+    kind: clk
+    source: plugin_shared_a
+    freq: 12000000
+  clk_plugin_shared_b:
+    kind: clk
+    source: plugin_shared_b
+    freq: 12000000
+  plugin_bus:
+    kind: clk_div_with_clken
+    source: xtal
+  clk_plugin_core:
+    kind: clk
+    source: plugin_bus[clk_arm_core]
+    freq: 24000000
+  clk_plugin_bus:
+    kind: clk
+    source: plugin_bus[hclk]
+    freq: 8000000
+  clk_plugin_enable:
+    kind: clk
+    source: plugin_bus[hclken]
+    freq: 8000000
 
 settings:
   main_fn: chip_pll_config_extreme
