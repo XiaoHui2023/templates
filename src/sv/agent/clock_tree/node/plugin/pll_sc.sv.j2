@@ -14,6 +14,7 @@ class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}frequ
     {{ settings.class_prefix }}reg f_postdiv1;
     {{ settings.class_prefix }}reg f_fbdiv;
 
+    // Initializes the synthesis and power control handles.
     function new(string name = "");
         super.new(name);
         f_lock = new();
@@ -29,31 +30,37 @@ class {{ settings.class_prefix }}pll_sc extends {{ settings.class_prefix }}frequ
         kind = "pll_sc";
     endfunction
 
+    // Returns the lock-status field.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
 
-    virtual task apply_configuration(
+    // Requires the full synthesis and power control set.
+    virtual function bit configuration_is_bound();
+        return f_vocpd.is_bound() && f_postdivpd.is_bound() && f_dsmpd.is_bound()
+            && f_pd.is_bound() && f_bypass.is_bound() && f_refdiv.is_bound()
+            && f_postdiv2.is_bound() && f_postdiv1.is_bound() && f_fbdiv.is_bound();
+    endfunction
+
+    // Applies one explicit power state using the same readback optimization.
+    virtual task program_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
+            input bit active,
             output bit configured);
         {{ settings.class_prefix }}frequency_encoder encoder;
         longint ref_hz;
-        bit active;
         bit reg_match;
         configured = 1'b0;
-        active = _resolved_active;
         if (active && source == null)
             `uvm_fatal("CLK_TREE", $sformatf(
                 "config_reg: pll_sc %s has no source for ref frequency", get_name()))
         if (active && frequence <= 0)
             `uvm_fatal("CLK_TREE", $sformatf(
                 "config_reg: pll_sc %s frequence must be positive", get_name()))
-        ref_hz = active ? source._resolved_freq : 0;
+        ref_hz = active ? longint'(source.clock_rate_hz()) : 0;
         if (active && ref_hz <= 0)
             `uvm_fatal("CLK_TREE", $sformatf(
                 "config_reg: pll_sc %s source %s frequence must be positive",
                 get_name(), source.get_name()))
-        if (!f_vocpd.is_bound() || !f_postdivpd.is_bound() || !f_dsmpd.is_bound()
-                || !f_pd.is_bound() || !f_bypass.is_bound() || !f_refdiv.is_bound()
-                || !f_postdiv2.is_bound() || !f_postdiv1.is_bound() || !f_fbdiv.is_bound())
+        if (!configuration_is_bound())
             return;
         encoder = new(
             cfg.tools.rw,

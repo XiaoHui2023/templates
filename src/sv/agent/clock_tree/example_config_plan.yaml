@@ -1,0 +1,41 @@
+settings:
+  class_regmodel: regmodel_t
+  direct_config: true
+  plugin:
+    mux:
+      switch_cycles: 8
+      switch_timeout_ns: 1000000
+
+nodes:
+  slow:
+    kind: source
+    frequence: 24000000
+  fast:
+    kind: source
+    frequence: 100000000
+  old_input:
+    kind: gate
+    source: slow
+    open: 0
+    unfix_open: false
+    reg: clock_control.old_enable
+  new_input:
+    kind: gate
+    source: fast
+    open: 1
+    unfix_open: false
+    reg: clock_control.new_enable
+  select_input:
+    kind: mux
+    source:
+      "0": old_input
+      "1": new_input
+    sel: 1
+    unfix_sel: false
+    reg: clock_control.select_input
+  clock_out:
+    kind: clk
+    source: select_input
+    frequence: 100000000
+    enabled: 1
+    path: dut.clock_out

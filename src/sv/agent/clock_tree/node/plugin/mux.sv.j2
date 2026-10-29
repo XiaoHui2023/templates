@@ -90,10 +90,17 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
                 keys.push_back(sources.num() == 0 ? "" : $sformatf("%0d", key));
     endfunction
 
-    // mux 在打开上游 gate 后配置。
-    virtual function int configuration_priority();
-        return 500;
+    // Provides a selectable final input.
+    virtual function bit has_configuration(); return f_reg.is_bound(); endfunction
+
+    // Shares a selector field while preserving all logical input requirements.
+    virtual function string availability_key();
+        if (!f_reg.is_bound()) return super.availability_key();
+        return $sformatf("mux-control:%0d:%0d:%0d", f_reg.field.get_inst_id(), f_reg.offset, f_reg.width);
     endfunction
+
+    // Compares the encoded selector across register aliases.
+    virtual function string configuration_signature(); return $sformatf("%0d", _resolved_sel); endfunction
 
     // Skip only a branch which cannot reach an observable endpoint.
     virtual function bit requires_observed_descendant();
@@ -110,71 +117,129 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     // Rounds the slowest input's cycle budget up to whole nanoseconds.
     function real switch_delay_ns(input real slow_hz, input int cycles);
         real delay_ns;
-        if (slow_hz <= 0.0 || cycles <= 0 || switch_timeout_ns <= 0)
+        if (slow_hz <= 0.0 || cycles <= 0 || switch_timeout_ns <= 0) begin
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: mux %s invalid switch rate or budget", get_name()))
+            return 0.0;
+        end
         delay_ns = $ceil(1.0e9 * real'(cycles) / slow_hz);
-        if (delay_ns > real'(switch_timeout_ns))
+        if (delay_ns > real'(switch_timeout_ns)) begin
             `uvm_fatal("CLK_TREE", $sformatf(
                 "config_reg: mux %s switch wait %0.0f ns exceeds %0d ns at %0.3f Hz",
                 get_name(), delay_ns, switch_timeout_ns, slow_hz))
+            return 0.0;
+        end
         return delay_ns;
     endfunction
 
-    // Completes an upstream selection before exposing its clock to a consumer.
-    virtual task prepare_clock(input {{ settings.class_prefix }}node_config_api cfg);
-        bit configured;
-        if (_preparing_clock)
-            `uvm_fatal("CLK_TREE", $sformatf("config_reg: clock dependency cycle at %s", get_name()))
-        _preparing_clock = 1'b1;
+    // Captures the actual selector before dependencies are planned.
+    virtual task observe_configuration(input {{ settings.class_prefix }}config_context context_h);
+        uvm_queue#(int) state;
+        int current_sel;
         if (!f_reg.is_bound())
-            `uvm_fatal("CLK_TREE", $sformatf("config_reg: mux %s missing selector register", get_name()))
-        apply_configuration(cfg, configured);
-        if (!configured && to_source.exists(_resolved_sel) && to_source[_resolved_sel] != null)
-            to_source[_resolved_sel].prepare_clock(cfg);
-        if (clock_rate_hz() <= 0.0)
-            `uvm_fatal("CLK_TREE", $sformatf("config_reg: mux %s cannot provide a running clock", get_name()))
-        _preparing_clock = 1'b0;
+            return;
+        context_h.io.read_reg(f_reg, current_sel);
+        state = new();
+        state.push_back(current_sel);
+        context_h.set_observation(this, state);
     endtask
 
-    // Writes the resolved source selector when its register is bound.
-    virtual task apply_configuration(
-            input {{ settings.class_prefix }}node_config_api cfg,
-            output bit configured);
+    // Retrieves the selector from this transaction's readback.
+    function int observed_sel({{ settings.class_prefix }}config_context context_h);
+        uvm_queue#(int) state;
+        if (!$cast(state, context_h.observation(this)) || state.size() != 1) begin
+            context_h.fail($sformatf("mux %s missing selector observation", get_name()));
+            return -1;
+        end
+        return state.get(0);
+    endfunction
+
+    // Holds old and new inputs until the selection transition completes.
+    virtual function void plan_configuration(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_action target);
+        {{ settings.class_prefix }}config_action select_action;
+        {{ settings.class_prefix }}config_lease old_input;
+        {{ settings.class_prefix }}config_lease new_input;
+        int current_sel;
+        if (!f_reg.is_bound())
+            return;
+        current_sel = observed_sel(context_h);
+        if (current_sel == _resolved_sel)
+            return;
+        if (!to_source.exists(current_sel) || to_source[current_sel] == null
+                || !to_source.exists(_resolved_sel) || to_source[_resolved_sel] == null) begin
+            context_h.fail($sformatf(
+                "config_reg: mux %s missing old/new input %0d -> %0d",
+                get_name(), current_sel, _resolved_sel));
+            return;
+        end
+        select_action = context_h.add_action(this, 1, {get_name(), ".select"});
+        old_input = context_h.require_available(to_source[current_sel], target);
+        if (context_h.has_failed()) return;
+        new_input = context_h.require_available(to_source[_resolved_sel], target);
+        if (context_h.has_failed()) return;
+        context_h.after_action(select_action, old_input.ready);
+        context_h.after_action(select_action, new_input.ready);
+        context_h.after_action(target, select_action);
+    endfunction
+
+    // Keeps the selected output running for its downstream consumers.
+    virtual function void plan_requirement(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_lease lease_h);
+        {{ settings.class_prefix }}config_lease selected_input;
+        if (!to_source.exists(_resolved_sel) || to_source[_resolved_sel] == null) begin
+            context_h.fail($sformatf("mux %s has no selected provider", get_name()));
+            return;
+        end
+        selected_input = context_h.require_available(to_source[_resolved_sel], lease_h.release_action);
+        if (context_h.has_failed()) return;
+        context_h.after_action(lease_h.ready, selected_input.ready);
+    endfunction
+
+    // Rejects availability claims for an uncontrolled selector.
+    virtual task acquire_requirement(
+            input {{ settings.class_prefix }}config_context context_h,
+            input {{ settings.class_prefix }}config_lease lease_h);
+        if (!f_reg.is_bound())
+            `uvm_fatal("CLK_TREE", $sformatf("mux %s missing selector register", get_name()))
+    endtask
+
+    // Writes selection after input readiness, then waits before releasing inputs.
+    virtual task execute_configuration(
+            input {{ settings.class_prefix }}config_context context_h,
+            input int token);
         int current_sel;
         real old_hz;
         real new_hz;
         real slow_hz;
         real delay_ns;
-        configured = f_reg.is_bound();
-        if (!configured)
+        if (!f_reg.is_bound())
             return;
-        cfg.read_reg(f_reg, current_sel);
+        current_sel = observed_sel(context_h);
         if (current_sel == _resolved_sel) begin
-            configured = 1'b0;
-            if (!cfg.quiet)
+            if (!context_h.io.quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "config_reg: mux %s skip reg sel %0d", get_name(), _resolved_sel), UVM_MEDIUM)
             return;
         end
-        if (!to_source.exists(current_sel) || to_source[current_sel] == null
-                || !to_source.exists(_resolved_sel) || to_source[_resolved_sel] == null)
-            `uvm_fatal("CLK_TREE", $sformatf(
-                "config_reg: mux %s missing old/new input %0d -> %0d",
-                get_name(), current_sel, _resolved_sel))
-        to_source[current_sel].prepare_clock(cfg);
-        to_source[_resolved_sel].prepare_clock(cfg);
         old_hz = to_source[current_sel].clock_rate_hz();
         new_hz = to_source[_resolved_sel].clock_rate_hz();
         slow_hz = old_hz < new_hz ? old_hz : new_hz;
         delay_ns = switch_delay_ns(slow_hz, switch_cycles);
-        // Allow a newly opened input gate to pass a complete clock cycle.
-        #(switch_delay_ns(slow_hz, 1) * 1ns);
-        if (!cfg.quiet)
-            `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: mux %s sel %0d -> %0d, wait %0.0f ns (%0d cycles at %0.3f Hz)",
-                get_name(), current_sel, _resolved_sel, delay_ns, switch_cycles, slow_hz), UVM_MEDIUM)
-        cfg.write_reg(f_reg, _resolved_sel);
-        #(delay_ns * 1ns);
+        if (delay_ns <= 0.0) return;
+        case (token)
+            1: begin
+                #(switch_delay_ns(slow_hz, 1) * 1ns);
+                if (!context_h.io.quiet)
+                    `uvm_info("CLK_TREE", $sformatf(
+                        "config_reg: mux %s sel %0d -> %0d, wait %0.0f ns (%0d cycles at %0.3f Hz)",
+                        get_name(), current_sel, _resolved_sel, delay_ns, switch_cycles, slow_hz), UVM_MEDIUM)
+                context_h.io.write_reg(f_reg, _resolved_sel);
+            end
+            0: #(delay_ns * 1ns);
+            default: `uvm_fatal("CLK_TREE", "unknown mux configuration action")
+        endcase
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Maps the sole default input to selector zero.

@@ -14,7 +14,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     rand bit _resolved_active;
     bit _should_print;
     bit _should_check;
-    protected bit _preparing_clock;
+    protected {{ settings.class_prefix }}reg control_regs[$];
     {{ settings.class_prefix }}node_base source;
     {{ settings.class_prefix }}node_base sources[string];
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
@@ -110,12 +110,18 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     endfunction
 `endif
 
-    // Returns the plugin's configuration order.
-    virtual function int configuration_priority(); return -1; endfunction
+    // Reports whether this node has a final configuration action.
+    virtual function bit has_configuration(); return 1'b0; endfunction
+    // Identifies the physical owner shared by multiple outputs.
+    virtual function {{ settings.class_prefix }}node_base configuration_owner(); return this; endfunction
+    // Identifies interchangeable availability controls within this transaction.
+    virtual function string availability_key(); return $sformatf("node:%0d", get_inst_id()); endfunction
+    // Describes the final encoding when several nodes share one control key.
+    virtual function string configuration_signature(); return ""; endfunction
+    // Reports whether the final target can precede temporary use.
+    virtual function bit configuration_preserves_availability(); return 1'b1; endfunction
     // Reports whether configuration requires an observed descendant.
     virtual function bit requires_observed_descendant(); return 1'b0; endfunction
-    // Reports whether this node has a post-write wait.
-    virtual function bit waits_after_configuration(); return 1'b0; endfunction
     // Applies this node's configuration through cfg.
     virtual task apply_configuration(input {{ settings.class_prefix }}node_config_api cfg, output bit configured);
         configured = 1'b0;
@@ -126,24 +132,67 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     virtual function real clock_rate_hz();
         return source == null ? real'(_resolved_freq) : source.clock_rate_hz();
     endfunction
-    // Prepares the selected upstream path without changing the random solution.
-    virtual task prepare_clock(input {{ settings.class_prefix }}node_config_api cfg);
-        if (_preparing_clock)
-            `uvm_fatal("CLK_TREE", $sformatf("config_reg: clock dependency cycle at %s", get_name()))
-        _preparing_clock = 1'b1;
-        if (source != null)
-            source.prepare_clock(cfg);
-        if (clock_rate_hz() <= 0.0)
-            `uvm_fatal("CLK_TREE", $sformatf("config_reg: %s cannot provide a running clock", get_name()))
-        _preparing_clock = 1'b0;
+    // Reads only the state needed to construct this transaction's plan.
+    virtual task observe_configuration(input {{ settings.class_prefix }}config_context context_h); endtask
+    // Contributes dependencies and optional owner-local actions.
+    virtual function void plan_configuration(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_action target); endfunction
+    // Holds the default input through a plugin-selected completion action.
+    function void require_source(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_action completion);
+        {{ settings.class_prefix }}config_lease upstream;
+        if (source != null) begin
+            upstream = context_h.require_available(source, completion);
+            if (context_h.has_failed()) return;
+            context_h.after_action(completion, upstream.ready);
+        end
+    endfunction
+    // Keeps a transparent node's upstream resource available for the full lease.
+    virtual function void plan_requirement(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_lease lease_h);
+        {{ settings.class_prefix }}config_lease upstream;
+        if (source != null) begin
+            upstream = context_h.require_available(source, lease_h.release_action);
+            if (context_h.has_failed()) return;
+            context_h.after_action(lease_h.ready, upstream.ready);
+        end
+    endfunction
+    // Establishes plugin-owned temporary state after dependencies are ready.
+    virtual task acquire_requirement(
+            input {{ settings.class_prefix }}config_context context_h,
+            input {{ settings.class_prefix }}config_lease lease_h); endtask
+    // Releases only temporary state whose completion has been confirmed.
+    virtual task release_requirement(
+            input {{ settings.class_prefix }}config_context context_h,
+            input {{ settings.class_prefix }}config_lease lease_h); endtask
+    // Applies the default target operation and its completion condition.
+    virtual task execute_configuration(
+            input {{ settings.class_prefix }}config_context context_h,
+            input int token);
+        bit configured;
+        if (token != 0) begin
+            context_h.fail($sformatf("%s unknown configuration action %0d", get_name(), token));
+            return;
+        end
+        apply_configuration(context_h.io, configured);
+        if (configured)
+            await_configuration(context_h.io);
     endtask
-    // Restores temporary state not consumed by normal configuration.
-    virtual task restore_configuration(input {{ settings.class_prefix }}node_config_api cfg); endtask
     // Finalizes plugin state after register binding.
     virtual function void post_register_bind(); endfunction
+    // Registers a bound control slice once, including aliases from other nodes.
+    function void bind_control_reg({{ settings.class_prefix }}reg field_h);
+        foreach (control_regs[i])
+            if (control_regs[i] == field_h)
+                return;
+        control_regs.push_back(field_h);
+    endfunction
     // Collects control registers owned by this node.
     virtual function void collect_control_regs(output {{ settings.class_prefix }}reg regs[$]);
-        regs.delete();
+        regs = control_regs;
     endfunction
 
     // Reports whether this node exposes a measurement endpoint.

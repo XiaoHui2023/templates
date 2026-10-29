@@ -57,8 +57,13 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
     endfunction
 
     // Configures the physical divider once through its hclk output.
-    virtual function int configuration_priority();
-        return output_name == "hclk" ? 200 : -1;
+    virtual function bit has_configuration();
+        return output_name == "hclk" && f_div.is_bound();
+    endfunction
+
+    // Shares temporary configuration ownership across the physical outputs.
+    virtual function {{ settings.class_prefix }}node_base configuration_owner();
+        return controller == null ? this : controller;
     endfunction
 
     // Preserves the direct core output and divides the remaining outputs.

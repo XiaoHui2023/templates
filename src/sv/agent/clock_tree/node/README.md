@@ -24,23 +24,28 @@ tree.clk_cpu._should_check = 0;
 | --- | --- |
 | `post_register_bind` | 寄存器绑定完成后的初始化 |
 | `set_output_peer` | 连接同一物理器件的其它输出实例 |
-| `configuration_priority` | 配置优先级，负数表示不参与，数值小的优先 |
+| `has_configuration` | 是否提供最终配置动作 |
 | `requires_observed_descendant` | 是否要求下游存在可测量节点 |
 | `apply_configuration` | 写入本节点寄存器，并返回 `configured` |
-| `waits_after_configuration` | 是否需要配置完成等待 |
 | `await_configuration` | 等待锁定等完成条件 |
 | `clock_rate_hz` | 临时开启后按实际配置编码计算频率，单位 Hz |
-| `prepare_clock` | 准备上游供钟，不修改随机化结果 |
-| `restore_configuration` | 恢复未被正常配置覆盖的临时状态 |
+| `observe_configuration` | 读取规划所需的实际状态 |
+| `plan_configuration` | 声明最终动作的依赖 |
+| `plan_requirement` | 声明满足外部临时需求的依赖 |
+| `acquire_requirement`、`release_requirement` | 建立和释放临时状态 |
+| `execute_configuration` | 执行插件内部动作 token，默认 0 为最终配置 |
+| `configuration_owner`、`availability_key` | 标识多输出或别名共享的控制资源 |
+| `configuration_signature` | 比较共用控制标识的最终编码 |
+| `configuration_preserves_availability` | 最终状态是否允许临时使用 |
 | `apply_low_power_preference` | 设置本节点的低功耗偏好 |
 | `collect_control_regs` | 返回控制寄存器，用于识别共享字段 |
 
 `tree.configure` 的执行顺序：
 
 1. 检查 build 状态，按参数应用低功耗偏好，然后随机化。
-2. 筛选配置优先级非负且满足下游要求的节点。
-3. 按优先级升序调用 `apply_configuration`；同优先级保持队列顺序。每个节点配置后立即执行其完成等待，再处理下一个节点。
-4. 全部配置结束后调用 `restore_configuration`，恢复借用但未参与正常配置的状态。
+2. 登记提供配置且满足下游要求的节点，读取实际状态。
+3. 插件声明动作与临时需求，公共上下文合并共享使用并检查整个依赖图。
+4. 确认无环后串行执行；每个动作返回时已完成自身等待。
 
 寄存器编码、读回比较和重复配置判断由插件实现。
 
@@ -49,14 +54,14 @@ tree.clk_cpu._should_check = 0;
 ### 无毛刺切换
 
 1. mux 读回旧 sel；与目标相同则跳过写入和等待。
-2. 递归准备旧、新输入。gate 临时打开；遇到上游 mux，先完成它的配置。
-3. 等待最慢输入的一个周期，使刚打开的输入开始供钟。
-4. 写 sel，再等待 `switch_cycles` 个最慢输入周期。
-5. 所有 mux 完成后，按目标关闭 gate；没有正常配置动作的临时 gate 恢复读回值。
+2. 声明旧、新输入需要保持运行，直到切换等待完成。
+3. 输入提供者声明自己的准备动作；两端就绪后，等一个最慢输入周期，再写 sel。
+4. 等待 `switch_cycles` 个最慢输入周期，之后才释放输入使用。
+5. 共享输入等全部使用结束后，再应用关闭目标；没有最终目标的临时 gate 恢复读回值。
 
-mux 只描述切换需求，不判断上游类型。上游插件负责供钟、频率和恢复；公共配置代码负责顺序与完成等待。PLL 先启动并等锁定，关闭动作则安排在所有 mux 和 gate 之后。
+mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的临时使用钩子提供运行状态；公共配置代码只管理动作、依赖及共享使用。具体结构见[配置计划](base/config/README.md)。
 
-频率由源、分频比和 DTO 步进编码计算，不使用已关闭 gate 的零频率，也不使用约束容差带中的随机值。供钟路径必须具有已知的正频率；已关闭的 PLL 不会被临时上电，无法供钟时配置报错。
+频率由源、分频比和 DTO 步进编码计算，不使用已关闭 gate 的零频率，也不使用约束容差带中的随机值。PLL 临时供钟复用自身编程和锁定逻辑，使用结束后应用最终电源目标；寄存器绑定不全或无法确认锁定时，拒绝供钟要求。
 
 `switch_cycles` 是目标 IP 的切换时间预算，不是硬件完成状态。没有完成状态寄存器时，须按同步级数和 IP 时序设置，不能靠延长等待修复已停止的输入。
 

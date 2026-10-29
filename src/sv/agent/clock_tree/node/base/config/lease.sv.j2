@@ -1,0 +1,17 @@
+`ifndef {{ (settings.class_prefix ~ "config_lease") | upper }}
+`define {{ (settings.class_prefix ~ "config_lease") | upper }}
+
+class {{ settings.class_prefix }}config_lease;
+    {{ settings.class_prefix }}node_base provider;
+    {{ settings.class_prefix }}config_action ready;
+    {{ settings.class_prefix }}config_action release_action;
+    uvm_object state;
+    bit has_target;
+
+    // Identifies a shared provider; its plugin owns the saved state.
+    function new({{ settings.class_prefix }}node_base provider);
+        this.provider = provider;
+    endfunction
+endclass
+
+`endif

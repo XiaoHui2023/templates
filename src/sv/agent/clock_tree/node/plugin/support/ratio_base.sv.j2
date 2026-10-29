@@ -33,9 +33,11 @@ class {{ settings.class_prefix }}ratio_base extends {{ settings.class_prefix }}n
         unfix_ratio = 1'b1;
     endfunction
 
-    // Configures after frequency synthesis.
-    virtual function int configuration_priority();
-        return 200;
+    // Makes the input available for synchronous configuration controls.
+    virtual function void plan_configuration(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_action target);
+        require_source(context_h, target);
     endfunction
 
     // Uses the programmed ratio rather than the constraint tolerance band.

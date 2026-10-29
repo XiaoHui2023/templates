@@ -12,6 +12,7 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}freq
     {{ settings.class_prefix }}reg f_clkr;
     {{ settings.class_prefix }}reg f_bwadj;
 
+    // Initializes the synthesis and power control handles.
     function new(string name = "");
         super.new(name);
         f_lock = new();
@@ -25,30 +26,36 @@ class {{ settings.class_prefix }}pll_tci extends {{ settings.class_prefix }}freq
         kind = "pll_tci";
     endfunction
 
+    // Returns the lock-status field.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
 
-    virtual task apply_configuration(
+    // Requires the full synthesis and power control set.
+    virtual function bit configuration_is_bound();
+        return f_bypass.is_bound() && f_pwrdn.is_bound() && f_reset.is_bound() && f_clkod.is_bound()
+            && f_clkf.is_bound() && f_clkr.is_bound() && f_bwadj.is_bound();
+    endfunction
+
+    // Applies one explicit power state using the same readback optimization.
+    virtual task program_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
+            input bit active,
             output bit configured);
         {{ settings.class_prefix }}frequency_encoder encoder;
         longint ref_hz;
-        bit active;
         bit reg_match;
         int clkr;
         int clkf;
         int clkod;
         int bwadj;
         configured = 1'b0;
-        active = _resolved_active;
         if (active && source == null)
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_tci %s has no source for ref frequency", get_name()))
         if (active && frequence <= 0)
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_tci %s frequence must be positive", get_name()))
-        ref_hz = active ? source._resolved_freq : 0;
+        ref_hz = active ? longint'(source.clock_rate_hz()) : 0;
         if (active && ref_hz <= 0)
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_tci %s source %s frequence must be positive", get_name(), source.get_name()))
-        if (!f_bypass.is_bound() || !f_pwrdn.is_bound() || !f_reset.is_bound() || !f_clkod.is_bound()
-                || !f_clkf.is_bound() || !f_clkr.is_bound() || !f_bwadj.is_bound())
+        if (!configuration_is_bound())
             return;
         encoder = new(cfg.tools.rw);
         encoder.tci_regs_match_target(f_bypass, f_pwrdn, f_reset, f_clkod, f_clkf, f_clkr,

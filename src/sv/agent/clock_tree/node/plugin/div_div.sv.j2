@@ -18,6 +18,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
         _resolved_ratio <= max_ratio;
     }
 
+    // Initializes the divisor and optional control handles.
     function new(string name = "");
         super.new(name);
         kind = "div_div";
@@ -29,6 +30,12 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
         f_div = new();
     endfunction
 
+    // Reports whether the programming controls are bound.
+    virtual function bit has_configuration();
+        return f_rst.is_bound() && f_load.is_bound() && f_div.is_bound();
+    endfunction
+
+    // Applies the divisor with the configured reset and load sequence.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);

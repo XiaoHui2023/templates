@@ -33,6 +33,11 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             * real'({{ settings.class_prefix }}dto_ratio_to_step(_resolved_ratio)) / real'(1 << 25);
     endfunction
 
+    // Reports whether the complete DTO programming controls are bound.
+    virtual function bit has_configuration();
+        return f_rst.is_bound() && f_load.is_bound() && f_bypass.is_bound() && f_step.is_bound();
+    endfunction
+
     // Programs data before the load edge and allows control synchronization.
     task program_ratio(
             input {{ settings.class_prefix }}node_config_api cfg,

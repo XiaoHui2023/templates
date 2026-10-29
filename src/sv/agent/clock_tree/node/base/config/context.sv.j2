@@ -1,0 +1,233 @@
+`ifndef {{ (settings.class_prefix ~ "config_context") | upper }}
+`define {{ (settings.class_prefix ~ "config_context") | upper }}
+
+class {{ settings.class_prefix }}config_context;
+    {{ settings.class_prefix }}node_config_api io;
+    local {{ settings.class_prefix }}config_action actions[$];
+    local {{ settings.class_prefix }}config_action targets[int];
+    local {{ settings.class_prefix }}config_lease leases[string];
+    local bit planned_providers[string];
+    local uvm_object observations[int];
+    local bit sealed;
+    local bit failed;
+    local uvm_report_server reports;
+    local int initial_fatals;
+
+    // Starts one configuration with independent observations and temporary state.
+    function new({{ settings.class_prefix }}node_config_api io);
+        this.io = io;
+        reports = uvm_report_server::get_server();
+        initial_fatals = reports.get_severity_count(UVM_FATAL);
+    endfunction
+
+    // Records a planning failure independently of simulator termination.
+    function void fail(string message);
+        failed = 1'b1;
+        `uvm_fatal("CLK_TREE", message)
+    endfunction
+
+    // Exposes failure independently of the report server's stop policy.
+    function bit has_failed();
+        return failed || reports.get_severity_count(UVM_FATAL) > initial_fatals;
+    endfunction
+
+    // Checks graph mutability without relying on fatal to unwind callers.
+    local function bit require_open();
+        if (sealed) begin
+            fail("configuration plan is sealed");
+            return 1'b0;
+        end
+        return !has_failed();
+    endfunction
+
+    // Adds an opaque plugin operation.
+    function {{ settings.class_prefix }}config_action add_action(
+            {{ settings.class_prefix }}node_base owner, int token, string label);
+        {{ settings.class_prefix }}config_action action_h;
+        if (!require_open()) return null;
+        if (owner == null) begin
+            fail("configuration action has no owner");
+            return null;
+        end
+        action_h = new(actions.size(), owner, token, label);
+        actions.push_back(action_h);
+        return action_h;
+    endfunction
+
+    // Adds one dependency, rejecting foreign actions and duplicate edges.
+    function void after_action(
+            {{ settings.class_prefix }}config_action action_h,
+            {{ settings.class_prefix }}config_action prerequisite);
+        if (!require_open()) return;
+        if (action_h == null || prerequisite == null) begin
+            fail("configuration dependency has a null action");
+            return;
+        end
+        if (action_h.id < 0 || action_h.id >= actions.size()
+                || prerequisite.id < 0 || prerequisite.id >= actions.size()) begin
+            fail("configuration dependency belongs to another plan");
+            return;
+        end
+        if (actions[action_h.id] != action_h || actions[prerequisite.id] != prerequisite) begin
+            fail("configuration dependency belongs to another plan");
+            return;
+        end
+        foreach (action_h.prerequisites[i])
+            if (action_h.prerequisites[i] == prerequisite.id)
+                return;
+        action_h.prerequisites.push_back(prerequisite.id);
+        prerequisite.followers.push_back(action_h.id);
+    endfunction
+
+    // Registers the final target before any plugin contributes dependencies.
+    function void enlist({{ settings.class_prefix }}node_base node_h);
+        int key;
+        if (!require_open()) return;
+        key = node_h.get_inst_id();
+        if (!targets.exists(key))
+            targets[key] = add_action(node_h, 0, {node_h.get_name(), ".target"});
+    endfunction
+
+    // Returns the final target action, if this node participates.
+    function {{ settings.class_prefix }}config_action target({{ settings.class_prefix }}node_base node_h);
+        if (node_h != null && targets.exists(node_h.get_inst_id()))
+            return targets[node_h.get_inst_id()];
+        return null;
+    endfunction
+
+    // Stores plugin-owned readback without changing the requested model.
+    function void set_observation({{ settings.class_prefix }}node_base node_h, uvm_object state);
+        if (!require_open()) return;
+        observations[node_h.get_inst_id()] = state;
+    endfunction
+
+    // Returns this transaction's plugin-owned readback.
+    function uvm_object observation({{ settings.class_prefix }}node_base node_h);
+        if (observations.exists(node_h.get_inst_id()))
+            return observations[node_h.get_inst_id()];
+        return null;
+    endfunction
+
+    // Holds availability until the consumer's completion action.
+    function {{ settings.class_prefix }}config_lease require_available(
+            {{ settings.class_prefix }}node_base provider,
+            {{ settings.class_prefix }}config_action consumer_done);
+        {{ settings.class_prefix }}config_lease lease_h;
+        {{ settings.class_prefix }}node_base owner;
+        string key;
+        string provider_key;
+        if (!require_open()) return null;
+        if (provider == null) begin
+            fail("configuration requirement has no provider");
+            return null;
+        end
+        owner = provider.configuration_owner();
+        if (owner == null) begin
+            fail("configuration requirement has no resource owner");
+            return null;
+        end
+        key = owner.availability_key();
+        if (!leases.exists(key)) begin
+            lease_h = new(owner);
+            leases[key] = lease_h;
+            lease_h.has_target = target(owner) != null;
+            lease_h.ready = add_action(owner, 0, {owner.get_name(), ".acquire"});
+            lease_h.ready.action_kind = {{ settings.class_prefix }}config_action::ACQUIRE;
+            lease_h.ready.lease_key = key;
+            lease_h.release_action = add_action(owner, 0, {owner.get_name(), ".release"});
+            lease_h.release_action.action_kind = {{ settings.class_prefix }}config_action::RELEASE;
+            lease_h.release_action.lease_key = key;
+            after_action(lease_h.release_action, lease_h.ready);
+        end else
+            lease_h = leases[key];
+        provider_key = $sformatf("%s:%0d", key, owner.get_inst_id());
+        if (!planned_providers.exists(provider_key)) begin
+            planned_providers[provider_key] = 1'b1;
+            owner.plan_requirement(this, lease_h);
+        end
+        after_action(lease_h.release_action, consumer_done);
+        return lease_h;
+    endfunction
+
+    // Orders target writes around all temporary uses of overlapping controls.
+    local function void fence_targets();
+        {{ settings.class_prefix }}config_action first[string];
+        string key;
+        string signature;
+        foreach (targets[node_id]) begin
+            key = targets[node_id].owner.configuration_owner().availability_key();
+            signature = targets[node_id].owner.configuration_signature();
+            if (first.exists(key)) begin
+                if (signature == "" || signature != first[key].owner.configuration_signature()) begin
+                    fail($sformatf("shared configuration target conflict: %s and %s",
+                        first[key].owner.get_name(), targets[node_id].owner.get_name()));
+                    return;
+                end
+            end else
+                first[key] = targets[node_id];
+        end
+        foreach (leases[key]) begin
+            foreach (targets[node_id]) begin
+                if (leases[key].provider != targets[node_id].owner
+                        && !{{ settings.class_prefix }}nodes_share_control_reg(
+                            leases[key].provider, targets[node_id].owner))
+                    continue;
+                leases[key].has_target = 1'b1;
+                if (targets[node_id].owner.configuration_preserves_availability())
+                    after_action(leases[key].ready, targets[node_id]);
+                else
+                    after_action(targets[node_id], leases[key].release_action);
+            end
+        end
+    endfunction
+
+    // Validates the complete graph before returning any executable action.
+    local function bit execution_order(output {{ settings.class_prefix }}config_action ordered[$]);
+        int incoming[$];
+        {{ settings.class_prefix }}config_action ready[$];
+        {{ settings.class_prefix }}config_action action_h;
+        int cursor;
+        if (!require_open()) return 1'b0;
+        fence_targets();
+        if (has_failed()) return 1'b0;
+        sealed = 1'b1;
+        ordered.delete();
+        foreach (actions[i]) begin
+            incoming.push_back(actions[i].prerequisites.size());
+            if (incoming[i] == 0)
+                ready.push_back(actions[i]);
+        end
+        cursor = 0;
+        while (cursor < ready.size()) begin
+            action_h = ready[cursor++];
+            ordered.push_back(action_h);
+            foreach (action_h.followers[i]) begin
+                incoming[action_h.followers[i]]--;
+                if (incoming[action_h.followers[i]] == 0)
+                    ready.push_back(actions[action_h.followers[i]]);
+            end
+        end
+        if (ordered.size() != actions.size()) begin
+            fail("configuration dependency cycle; no actions executed");
+            return 1'b0;
+        end
+        return 1'b1;
+    endfunction
+
+    // Executes serially; failed actions cannot release unconfirmed resources.
+    task execute();
+        {{ settings.class_prefix }}config_action ordered[$];
+        if (!execution_order(ordered)) return;
+        foreach (ordered[i]) begin
+            case (ordered[i].action_kind)
+                {{ settings.class_prefix }}config_action::EXECUTE: ordered[i].owner.execute_configuration(this, ordered[i].token);
+                {{ settings.class_prefix }}config_action::ACQUIRE: ordered[i].owner.acquire_requirement(this, leases[ordered[i].lease_key]);
+                {{ settings.class_prefix }}config_action::RELEASE: ordered[i].owner.release_requirement(this, leases[ordered[i].lease_key]);
+                default: fail("invalid configuration action kind");
+            endcase
+            if (has_failed()) return;
+        end
+    endtask
+endclass
+
+`endif

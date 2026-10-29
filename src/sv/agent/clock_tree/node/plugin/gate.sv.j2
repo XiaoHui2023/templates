@@ -16,8 +16,6 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     bit fix_open;
     bit fix_close;
     {{ settings.class_prefix }}reg f_reg;
-    protected bit _temporarily_opened;
-    protected int _saved_gate_value;
 
     constraint cst_open {
         !(unfix_open || open < 0) -> open == _resolved_open;
@@ -51,9 +49,40 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         kind = "gate";
     endfunction
 
-    // gate 在 mux 之前配置；关闭 gate 在最后配置。
-    virtual function int configuration_priority();
-        return _resolved_open ? 400 : 600;
+    // Provides a register-controlled final state.
+    virtual function bit has_configuration(); return f_reg.is_bound(); endfunction
+
+    // A closed target must wait for outstanding users.
+    virtual function bit configuration_preserves_availability(); return _resolved_open; endfunction
+
+    // Shares the physical enable slice while retaining each input dependency.
+    virtual function string availability_key();
+        if (!f_reg.is_bound())
+            return super.availability_key();
+        return $sformatf("gate-control:%0d:%0d:%0d", f_reg.field.get_inst_id(), f_reg.offset, f_reg.width);
+    endfunction
+
+    // Compares the physical target bit across register aliases.
+    virtual function string configuration_signature();
+        return $sformatf("%0b", {{ '_resolved_open' if plugin_value("gate", "reg_high_means_open", false) else '!_resolved_open' }});
+    endfunction
+
+    // Rejects unavailable controls before any actions are executed.
+    virtual function void plan_requirement(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_lease lease_h);
+        if (!f_reg.is_bound()) begin
+            context_h.fail($sformatf("gate %s missing register for temporary enable", get_name()));
+            return;
+        end
+        super.plan_requirement(context_h, lease_h);
+    endfunction
+
+    // Keeps the input running until the gate control has been applied.
+    virtual function void plan_configuration(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_action target);
+        require_source(context_h, target);
     endfunction
 
     // Skip only a branch which cannot reach an observable endpoint.
@@ -61,27 +90,31 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         return 1'b1;
     endfunction
 
-    // Opens only the upstream path needed by a clock consumer.
-    virtual task prepare_clock(input {{ settings.class_prefix }}node_config_api cfg);
+    // Saves and enables the physical control without changing the target.
+    virtual task acquire_requirement(
+            input {{ settings.class_prefix }}config_context context_h,
+            input {{ settings.class_prefix }}config_lease lease_h);
+        uvm_queue#(int) snapshot;
         int current_value;
-        super.prepare_clock(cfg);
         if (!f_reg.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: gate %s missing register for temporary enable", get_name()))
-        if (_temporarily_opened)
-            return;
-        cfg.read_reg(f_reg, current_value);
-        if (current_value != {{ 1 if plugin_value("gate", "reg_high_means_open", false) else 0 }}) begin
-            _saved_gate_value = current_value;
-            _temporarily_opened = 1'b1;
-            cfg.write_reg(f_reg, {{ 1 if plugin_value("gate", "reg_high_means_open", false) else 0 }});
-        end
+        context_h.io.read_reg(f_reg, current_value);
+        snapshot = new();
+        snapshot.push_back(current_value);
+        lease_h.state = snapshot;
+        if (current_value != {{ 1 if plugin_value("gate", "reg_high_means_open", false) else 0 }})
+            context_h.io.write_reg(f_reg, {{ 1 if plugin_value("gate", "reg_high_means_open", false) else 0 }});
     endtask
 
-    // Restores a borrowed gate if it had no normal configuration action.
-    virtual task restore_configuration(input {{ settings.class_prefix }}node_config_api cfg);
-        if (_temporarily_opened) begin
-            cfg.write_reg(f_reg, _saved_gate_value);
-            _temporarily_opened = 1'b0;
+    // Restores a borrowed control only when no final target supersedes it.
+    virtual task release_requirement(
+            input {{ settings.class_prefix }}config_context context_h,
+            input {{ settings.class_prefix }}config_lease lease_h);
+        uvm_queue#(int) snapshot;
+        if (!lease_h.has_target) begin
+            if (!$cast(snapshot, lease_h.state) || snapshot.size() != 1)
+                `uvm_fatal("CLK_TREE", "gate lease has no saved state")
+            context_h.io.write_reg(f_reg, snapshot.get(0));
         end
     endtask
 
@@ -92,7 +125,6 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
         configured = f_reg.is_bound();
         if (!configured)
             return;
-        _temporarily_opened = 1'b0;
         if (!cfg.quiet)
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: gate %s open %0b", get_name(), _resolved_open), UVM_MEDIUM)

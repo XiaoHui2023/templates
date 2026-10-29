@@ -1,0 +1,28 @@
+`ifndef {{ (settings.class_prefix ~ "config_action") | upper }}
+`define {{ (settings.class_prefix ~ "config_action") | upper }}
+
+typedef class {{ settings.class_prefix }}node_base;
+typedef class {{ settings.class_prefix }}config_context;
+typedef class {{ settings.class_prefix }}config_lease;
+class {{ settings.class_prefix }}config_action;
+    typedef enum { EXECUTE, ACQUIRE, RELEASE } kind_t;
+    int id;
+    int token;
+    string label;
+    {{ settings.class_prefix }}node_base owner;
+    kind_t action_kind;
+    string lease_key;
+    int prerequisites[$];
+    int followers[$];
+
+    // Records an owner-local operation without interpreting its token.
+    function new(int id, {{ settings.class_prefix }}node_base owner, int token, string label);
+        this.id = id;
+        this.owner = owner;
+        this.token = token;
+        this.label = label;
+        action_kind = EXECUTE;
+    endfunction
+endclass
+
+`endif

@@ -31,26 +31,30 @@ class {{ settings.class_prefix }}pll_inno extends {{ settings.class_prefix }}fre
     // Returns the lock-status register.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return f_lock; endfunction
 
+    // Requires the shared synthesis and local power control set.
+    virtual function bit configuration_is_bound();
+        return f_pd.is_bound() && f_lock.is_bound() && f_refdiv.is_bound() && f_fbdiv.is_bound()
+            && f_postdiv1.is_bound() && f_postdiv2.is_bound();
+    endfunction
+
     // Applies the shared PLL configuration when register bindings exist.
-    virtual task apply_configuration(
+    virtual task program_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
+            input bit active,
             output bit configured);
         {{ settings.class_prefix }}frequency_encoder encoder;
         longint ref_hz;
-        bit active;
         bit write_shared;
         bit reg_match;
         configured = 1'b0;
-        active = _resolved_active;
         if (active && source == null)
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_inno %s has no source for ref frequency", get_name()))
         if (active && frequence <= 0)
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_inno %s frequence must be positive", get_name()))
-        ref_hz = active ? source._resolved_freq : 0;
+        ref_hz = active ? longint'(source.clock_rate_hz()) : 0;
         if (active && ref_hz <= 0)
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: pll_inno %s source %s frequence must be positive", get_name(), source.get_name()))
-        if (!f_pd.is_bound() || !f_lock.is_bound() || !f_refdiv.is_bound() || !f_fbdiv.is_bound()
-                || !f_postdiv1.is_bound() || !f_postdiv2.is_bound())
+        if (!configuration_is_bound())
             return;
         write_shared = group_id == "{{ plugin_value("pll_inno", "primary_group", "0") }}";
         encoder = new(cfg.tools.rw);

@@ -7,23 +7,22 @@ class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefi
         super.new(tools_h, quiet, "{{ settings.class_prefix }}config_reg_core");
     endfunction
 
-    // Applies node configuration and completion barriers in priority order.
+    // Builds and validates one plugin-declared configuration plan.
     extern task configure_tree(input {{ settings.class_prefix }}tree_base tree);
     // Applies the already selected low-power constraints.
     extern task configure_low_power(input {{ settings.class_prefix }}tree_base tree, bit quiet = 1'b0);
 endclass
 
 task {{ settings.class_prefix }}config_reg_core::configure_tree(input {{ settings.class_prefix }}tree_base tree);
-    {{ settings.class_prefix }}node_base ordered[$];
+    {{ settings.class_prefix }}config_context context_h;
     {{ settings.class_prefix }}node_base node_h;
-    int insert_at;
-    bit configured;
 
     if (tree == null)
         `uvm_fatal("CLK_TREE", "config_reg: tree is null")
+    context_h = new(this);
     foreach (tree.nodes[i]) begin
         node_h = tree.nodes[i];
-        if (node_h == null || node_h.configuration_priority() < 0)
+        if (node_h == null || !node_h.has_configuration())
             continue;
         if (node_h.requires_observed_descendant()
                 && !{{ settings.class_prefix }}node_has_observed_descendant(tree, node_h)) begin
@@ -32,23 +31,19 @@ task {{ settings.class_prefix }}config_reg_core::configure_tree(input {{ setting
                     "config_reg: %s invalid, no observed descendant", node_h.get_name()), UVM_MEDIUM)
             continue;
         end
-        insert_at = ordered.size();
-        for (int j = 0; j < ordered.size(); j++)
-            if (node_h.configuration_priority() < ordered[j].configuration_priority()) begin
-                insert_at = j;
-                break;
-            end
-        ordered.insert(insert_at, node_h);
+        context_h.enlist(node_h);
     end
-    foreach (ordered[i]) begin
-        configured = 1'b0;
-        ordered[i].apply_configuration(this, configured);
-        if (configured && ordered[i].waits_after_configuration())
-            ordered[i].await_configuration(this);
-    end
-    foreach (tree.nodes[i])
+    foreach (tree.nodes[i]) begin
+        if (context_h.has_failed()) return;
         if (tree.nodes[i] != null)
-            tree.nodes[i].restore_configuration(this);
+            tree.nodes[i].observe_configuration(context_h);
+    end
+    foreach (tree.nodes[i]) begin
+        if (context_h.has_failed()) return;
+        if (tree.nodes[i] != null && context_h.target(tree.nodes[i]) != null)
+            tree.nodes[i].plan_configuration(context_h, context_h.target(tree.nodes[i]));
+    end
+    context_h.execute();
 endtask
 
 task {{ settings.class_prefix }}config_reg_core::configure_low_power(

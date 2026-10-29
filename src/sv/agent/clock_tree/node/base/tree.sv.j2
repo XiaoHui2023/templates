@@ -84,6 +84,7 @@ function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel 
         {{ binding.sv_access }}.{{ binding.member }}.width = {{ binding.width }};
 {%- endif %}
         {{ binding.sv_access }}.{{ binding.member }}.alias_count = {{ binding.alias_count }};
+        {{ binding.sv_access }}.bind_control_reg({{ binding.sv_access }}.{{ binding.member }});
 {%- endfor %}
     end
     foreach (nodes[i])

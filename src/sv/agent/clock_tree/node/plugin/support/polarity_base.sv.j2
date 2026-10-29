@@ -31,10 +31,8 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
         f_reg = new();
     endfunction
 
-    // Configures after ratio transforms and before selection.
-    virtual function int configuration_priority();
-        return 300;
-    endfunction
+    // Provides a register-controlled polarity.
+    virtual function bit has_configuration(); return f_reg.is_bound(); endfunction
 
     // Writes the selected polarity when its register is bound.
     virtual task apply_configuration(

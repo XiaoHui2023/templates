@@ -40,19 +40,85 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     endfunction
 `endif
 
-    // Starts before consumers and shuts down only after their transitions.
-    virtual function int configuration_priority();
-        return _resolved_active ? 100 : 700;
+    // Provides a programmable final operating state.
+    virtual function bit has_configuration(); return configuration_is_bound(); endfunction
+
+    // Power-down must follow all temporary consumers.
+    virtual function bit configuration_preserves_availability(); return _resolved_active; endfunction
+
+    // Reports whether all power and frequency controls are accessible.
+    virtual function bit configuration_is_bound(); return 1'b0; endfunction
+
+    // Validates programmable supply before any configuration writes.
+    virtual function void plan_requirement(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_lease lease_h);
+        {{ settings.class_prefix }}reg field_h;
+        field_h = lock_reg();
+        if (!configuration_is_bound() || frequence <= 0 || field_h == null || !field_h.is_bound()) begin
+            context_h.fail($sformatf("%s cannot satisfy availability requirement", get_name()));
+            return;
+        end
+        super.plan_requirement(context_h, lease_h);
     endfunction
+
+    // Requires a running reference while programming an active target.
+    virtual function void plan_configuration(
+            {{ settings.class_prefix }}config_context context_h,
+            {{ settings.class_prefix }}config_action target);
+        {{ settings.class_prefix }}config_lease reference_h;
+        if (_resolved_active && source != null) begin
+            reference_h = context_h.require_available(source, target);
+            context_h.after_action(target, reference_h.ready);
+        end
+    endfunction
+
+    // Applies the final operating state without changing resolved members.
+    virtual task apply_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            output bit configured);
+        program_configuration(cfg, _resolved_active, configured);
+    endtask
+
+    // Confirms active targets even when register values already match.
+    virtual task execute_configuration(
+            input {{ settings.class_prefix }}config_context context_h,
+            input int token);
+        bit configured;
+        if (token != 0)
+            `uvm_fatal("CLK_TREE", "unknown synthesis configuration action")
+        apply_configuration(context_h.io, configured);
+        if (_resolved_active)
+            await_configuration(context_h.io);
+    endtask
+
+    // Programs hardware-specific frequency and power controls.
+    virtual task program_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input bit active,
+            output bit configured);
+        configured = 1'b0;
+        `uvm_fatal("CLK_TREE", "frequency provider has no programming implementation")
+    endtask
+
+    // Makes the programmed output available until its lease ends.
+    virtual task acquire_requirement(
+            input {{ settings.class_prefix }}config_context context_h,
+            input {{ settings.class_prefix }}config_lease lease_h);
+        bit configured;
+        {{ settings.class_prefix }}reg field_h;
+        field_h = lock_reg();
+        if (field_h == null || !field_h.is_bound())
+            `uvm_fatal("CLK_TREE", $sformatf("%s cannot confirm frequency-provider readiness", get_name()))
+        if (lease_h.has_target && _resolved_active)
+            return;
+        program_configuration(context_h.io, 1'b1, configured);
+        await_configuration(context_h.io);
+    endtask
 
     // A synthesizer owns its rate and cannot inherit its reference rate.
     virtual function real clock_rate_hz();
-        return real'(_resolved_freq);
-    endfunction
-
-    // Waits for a plugin-provided lock field.
-    virtual function bit waits_after_configuration();
-        return 1'b1;
+        return real'(frequence);
     endfunction
 
     // Returns the optional lock field.
