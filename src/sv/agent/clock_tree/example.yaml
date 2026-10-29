@@ -4,6 +4,9 @@ settings:
   class_regmodel: regmodel_t
   direct_config: true
   plugin:
+    mux:
+      switch_cycles: 8
+      switch_timeout_ns: 1000000
     divider:
       freq_tolerance: 0.01
     inverter:

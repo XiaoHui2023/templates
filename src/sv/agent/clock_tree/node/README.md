@@ -29,6 +29,9 @@ tree.clk_cpu._should_check = 0;
 | `apply_configuration` | 写入本节点寄存器，并返回 `configured` |
 | `waits_after_configuration` | 是否需要配置完成等待 |
 | `await_configuration` | 等待锁定等完成条件 |
+| `clock_rate_hz` | 临时开启后按实际配置编码计算频率，单位 Hz |
+| `prepare_clock` | 准备上游供钟，不修改随机化结果 |
+| `restore_configuration` | 恢复未被正常配置覆盖的临时状态 |
 | `apply_low_power_preference` | 设置本节点的低功耗偏好 |
 | `collect_control_regs` | 返回控制寄存器，用于识别共享字段 |
 
@@ -36,10 +39,26 @@ tree.clk_cpu._should_check = 0;
 
 1. 检查 build 状态，按参数应用低功耗偏好，然后随机化。
 2. 筛选配置优先级非负且满足下游要求的节点。
-3. 按优先级升序调用 `apply_configuration`；同优先级保持队列顺序。
-4. 对 `configured` 为真且声明需要等待的节点调用 `await_configuration`。
+3. 按优先级升序调用 `apply_configuration`；同优先级保持队列顺序。每个节点配置后立即执行其完成等待，再处理下一个节点。
+4. 全部配置结束后调用 `restore_configuration`，恢复借用但未参与正常配置的状态。
 
 寄存器编码、读回比较和重复配置判断由插件实现。
+
+单独编译 `config.f` 时，clock 和 cell 仍作为下游端点参与配置筛选，不要求 interface。加载测量接口后，端点仍按实际接口连接判断。
+
+### 无毛刺切换
+
+1. mux 读回旧 sel；与目标相同则跳过写入和等待。
+2. 递归准备旧、新输入。gate 临时打开；遇到上游 mux，先完成它的配置。
+3. 等待最慢输入的一个周期，使刚打开的输入开始供钟。
+4. 写 sel，再等待 `switch_cycles` 个最慢输入周期。
+5. 所有 mux 完成后，按目标关闭 gate；没有正常配置动作的临时 gate 恢复读回值。
+
+mux 只描述切换需求，不判断上游类型。上游插件负责供钟、频率和恢复；公共配置代码负责顺序与完成等待。PLL 先启动并等锁定，关闭动作则安排在所有 mux 和 gate 之后。
+
+频率由源、分频比和 DTO 步进编码计算，不使用已关闭 gate 的零频率，也不使用约束容差带中的随机值。供钟路径必须具有已知的正频率；已关闭的 PLL 不会被临时上电，无法供钟时配置报错。
+
+`switch_cycles` 是目标 IP 的切换时间预算，不是硬件完成状态。没有完成状态寄存器时，须按同步级数和 IP 时序设置，不能靠延长等待修复已停止的输入。
 
 ## 测量钩子
 

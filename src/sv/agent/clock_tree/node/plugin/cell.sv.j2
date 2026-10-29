@@ -33,12 +33,12 @@ class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_ba
         enabled = -1;
         kind = "cell";
     endfunction
-    // Exposes this node as a frequency-only measurement endpoint.
+    // Retains the endpoint when signal observation is unavailable.
     virtual function bit is_observable();
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
         return vif != null;
 `else
-        return 1'b0;
+        return 1'b1;
 `endif
     endfunction
 

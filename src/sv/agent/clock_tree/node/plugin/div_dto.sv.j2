@@ -23,6 +23,16 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         f_step = new();
     endfunction
 
+    // Includes the DTO accumulator's integer step quantization.
+    virtual function real clock_rate_hz();
+        if (source == null || _resolved_ratio <= 0)
+            return 0.0;
+        if ({{ settings.class_prefix }}dto_ratio_is_bypass(_resolved_ratio))
+            return source.clock_rate_hz();
+        return source.clock_rate_hz()
+            * real'({{ settings.class_prefix }}dto_ratio_to_step(_resolved_ratio)) / real'(1 << 25);
+    endfunction
+
     // Programs data before the load edge and allows control synchronization.
     task program_ratio(
             input {{ settings.class_prefix }}node_config_api cfg,

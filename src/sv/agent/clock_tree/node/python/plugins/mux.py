@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ..config import NodePluginConfig
+from ..config import NodePluginConfig, NodePluginSettings
+
+
+class MuxSettings(NodePluginSettings):
+    """无毛刺切换等待设置。"""
+
+    switch_cycles: int = Field(default=8, ge=1, le=1_000_000, description="切换后等待最慢输入的周期数")
+    switch_timeout_ns: int = Field(default=1_000_000, ge=1, le=1_000_000_000, description="单次切换等待预算上限，单位 ns")
 
 
 class MuxConfig(NodePluginConfig):

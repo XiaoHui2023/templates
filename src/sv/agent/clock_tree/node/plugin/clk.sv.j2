@@ -46,12 +46,12 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         unfix_enabled = 1'b0;
         kind = "clk";
     endfunction
-    // Exposes this node as a generic measurement endpoint.
+    // Retains the endpoint when signal observation is unavailable.
     virtual function bit is_observable();
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
         return vif != null;
 `else
-        return 1'b0;
+        return 1'b1;
 `endif
     endfunction
 

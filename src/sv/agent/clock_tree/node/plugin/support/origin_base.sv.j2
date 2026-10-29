@@ -15,9 +15,15 @@ class {{ settings.class_prefix }}origin_base extends {{ settings.class_prefix }}
     constraint cst_resolve_freq_from_src {
     }
 
+    // Initializes the external clock rate.
     function new(string name = "");
         super.new(name);
         frequence = 0;
+    endfunction
+
+    // Returns the declared external rate independently of any upstream edge.
+    virtual function real clock_rate_hz();
+        return real'(frequence);
     endfunction
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Retains native timing during transition checks.

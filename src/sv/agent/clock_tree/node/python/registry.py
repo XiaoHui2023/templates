@@ -13,7 +13,7 @@ from .plugins.gate import GateConfig, GateSettings
 from .plugins.inv import InvConfig
 from .plugins.inv_cell import InvCellConfig
 from .plugins.inv_mux import InvMuxConfig
-from .plugins.mux import MuxConfig
+from .plugins.mux import MuxConfig, MuxSettings
 from .plugins.pll_dw import PllDwConfig
 from .plugins.pll_inno import PllInnoConfig
 from .plugins.pll_sc import PllScConfig, PllScSettings
@@ -46,6 +46,7 @@ PLUGIN_CONFIGS: dict[str, PluginConfigType] = {
 }
 
 PLUGIN_SETTINGS: dict[str, PluginSettingsType] = {
+    "mux": MuxSettings,
     "clk_div_with_clken": ClkDivWithClkenSettings,
     "divider": DividerSettings,
     "div_div": DivDivSettings,

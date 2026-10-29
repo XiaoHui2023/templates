@@ -14,6 +14,7 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     rand bit _resolved_active;
     bit _should_print;
     bit _should_check;
+    protected bit _preparing_clock;
     {{ settings.class_prefix }}node_base source;
     {{ settings.class_prefix }}node_base sources[string];
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
@@ -121,6 +122,23 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     endtask
     // Waits for this node's declared post-write condition.
     virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg); endtask
+    // Returns the configured rate while temporarily enabled, in Hz.
+    virtual function real clock_rate_hz();
+        return source == null ? real'(_resolved_freq) : source.clock_rate_hz();
+    endfunction
+    // Prepares the selected upstream path without changing the random solution.
+    virtual task prepare_clock(input {{ settings.class_prefix }}node_config_api cfg);
+        if (_preparing_clock)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: clock dependency cycle at %s", get_name()))
+        _preparing_clock = 1'b1;
+        if (source != null)
+            source.prepare_clock(cfg);
+        if (clock_rate_hz() <= 0.0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: %s cannot provide a running clock", get_name()))
+        _preparing_clock = 1'b0;
+    endtask
+    // Restores temporary state not consumed by normal configuration.
+    virtual task restore_configuration(input {{ settings.class_prefix }}node_config_api cfg); endtask
     // Finalizes plugin state after register binding.
     virtual function void post_register_bind(); endfunction
     // Collects control registers owned by this node.

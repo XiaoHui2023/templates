@@ -54,7 +54,7 @@
 | `pll_tci`、`pll_sc`、`pll_dw`、`pll_inno` | `frequence`、`enabled` | 目标频率和开关；enabled 为 -1 时跟随前级活动状态，无前级时开启 |
 | `pll_inno` | `group_id` | 共用 PLL 系数的输出组名 |
 | `gate` | `open`、`unfix_open`、`fix_open`、`fix_close` | 开关要求及固定控制 |
-| `mux` | `sel`、`unfix_sel`、`max_sel` | 选择要求及选择范围 |
+| `mux` | `sel`、`unfix_sel`、`max_sel`、`switch_cycles`、`switch_timeout_ns` | 选择要求、范围及切换等待预算 |
 | `div_div`、`div_div_r`、`div_dto` | `ratio`、`unfix_ratio` | 分频比要求及固定控制 |
 | `div_div` | `max_ratio` | 分频比上限，构造默认 64 |
 | `clk_div_with_clken` | `ratio`、`unfix_ratio` | 三输出共用的分频要求，合法值为 2、3、4、6 |

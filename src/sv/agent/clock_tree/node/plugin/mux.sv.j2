@@ -12,6 +12,8 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     rand int _resolved_sel;
     int sel;
     bit unfix_sel;
+    int switch_cycles;
+    longint switch_timeout_ns;
     {{ settings.class_prefix }}node_base to_source[int];
     int input_keys[$];
     {{ settings.class_prefix }}reg f_reg;
@@ -39,6 +41,8 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         max_sel = -1;
         sel = -1;
         unfix_sel = 1'b1;
+        switch_cycles = {{ plugin_value("mux", "switch_cycles", 8) }};
+        switch_timeout_ns = {{ plugin_value("mux", "switch_timeout_ns", 1000000) }};
         f_reg = new();
         kind = "mux";
     endfunction
@@ -96,25 +100,81 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         return 1'b1;
     endfunction
 
+    // Returns the rate of the programmed input rather than a rounded target.
+    virtual function real clock_rate_hz();
+        if (!to_source.exists(_resolved_sel) || to_source[_resolved_sel] == null)
+            return 0.0;
+        return to_source[_resolved_sel].clock_rate_hz();
+    endfunction
+
+    // Rounds the slowest input's cycle budget up to whole nanoseconds.
+    function real switch_delay_ns(input real slow_hz, input int cycles);
+        real delay_ns;
+        if (slow_hz <= 0.0 || cycles <= 0 || switch_timeout_ns <= 0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: mux %s invalid switch rate or budget", get_name()))
+        delay_ns = $ceil(1.0e9 * real'(cycles) / slow_hz);
+        if (delay_ns > real'(switch_timeout_ns))
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "config_reg: mux %s switch wait %0.0f ns exceeds %0d ns at %0.3f Hz",
+                get_name(), delay_ns, switch_timeout_ns, slow_hz))
+        return delay_ns;
+    endfunction
+
+    // Completes an upstream selection before exposing its clock to a consumer.
+    virtual task prepare_clock(input {{ settings.class_prefix }}node_config_api cfg);
+        bit configured;
+        if (_preparing_clock)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: clock dependency cycle at %s", get_name()))
+        _preparing_clock = 1'b1;
+        if (!f_reg.is_bound())
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: mux %s missing selector register", get_name()))
+        apply_configuration(cfg, configured);
+        if (!configured && to_source.exists(_resolved_sel) && to_source[_resolved_sel] != null)
+            to_source[_resolved_sel].prepare_clock(cfg);
+        if (clock_rate_hz() <= 0.0)
+            `uvm_fatal("CLK_TREE", $sformatf("config_reg: mux %s cannot provide a running clock", get_name()))
+        _preparing_clock = 1'b0;
+    endtask
+
     // Writes the resolved source selector when its register is bound.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
             output bit configured);
         int current_sel;
+        real old_hz;
+        real new_hz;
+        real slow_hz;
+        real delay_ns;
         configured = f_reg.is_bound();
         if (!configured)
             return;
         cfg.read_reg(f_reg, current_sel);
         if (current_sel == _resolved_sel) begin
+            configured = 1'b0;
             if (!cfg.quiet)
                 `uvm_info("CLK_TREE", $sformatf(
                     "config_reg: mux %s skip reg sel %0d", get_name(), _resolved_sel), UVM_MEDIUM)
             return;
         end
+        if (!to_source.exists(current_sel) || to_source[current_sel] == null
+                || !to_source.exists(_resolved_sel) || to_source[_resolved_sel] == null)
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "config_reg: mux %s missing old/new input %0d -> %0d",
+                get_name(), current_sel, _resolved_sel))
+        to_source[current_sel].prepare_clock(cfg);
+        to_source[_resolved_sel].prepare_clock(cfg);
+        old_hz = to_source[current_sel].clock_rate_hz();
+        new_hz = to_source[_resolved_sel].clock_rate_hz();
+        slow_hz = old_hz < new_hz ? old_hz : new_hz;
+        delay_ns = switch_delay_ns(slow_hz, switch_cycles);
+        // Allow a newly opened input gate to pass a complete clock cycle.
+        #(switch_delay_ns(slow_hz, 1) * 1ns);
         if (!cfg.quiet)
             `uvm_info("CLK_TREE", $sformatf(
-                "config_reg: mux %s sel %0d", get_name(), _resolved_sel), UVM_MEDIUM)
+                "config_reg: mux %s sel %0d -> %0d, wait %0.0f ns (%0d cycles at %0.3f Hz)",
+                get_name(), current_sel, _resolved_sel, delay_ns, switch_cycles, slow_hz), UVM_MEDIUM)
         cfg.write_reg(f_reg, _resolved_sel);
+        #(delay_ns * 1ns);
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Maps the sole default input to selector zero.

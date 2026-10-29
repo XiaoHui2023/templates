@@ -40,9 +40,14 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     endfunction
 `endif
 
-    // Configures before downstream nodes.
+    // Starts before consumers and shuts down only after their transitions.
     virtual function int configuration_priority();
-        return 100;
+        return _resolved_active ? 100 : 700;
+    endfunction
+
+    // A synthesizer owns its rate and cannot inherit its reference rate.
+    virtual function real clock_rate_hz();
+        return real'(_resolved_freq);
     endfunction
 
     // Waits for a plugin-provided lock field.

@@ -2,17 +2,19 @@
 `define {{ (settings.class_prefix ~ "config_reg_core") | upper }}
 
 class {{ settings.class_prefix }}config_reg_core extends {{ settings.class_prefix }}node_config_api;
+    // Binds the register service and diagnostic policy.
     function new({{ settings.class_prefix }}core_tools tools_h, bit quiet = 1'b0);
         super.new(tools_h, quiet, "{{ settings.class_prefix }}config_reg_core");
     endfunction
 
+    // Applies node configuration and completion barriers in priority order.
     extern task configure_tree(input {{ settings.class_prefix }}tree_base tree);
+    // Applies the already selected low-power constraints.
     extern task configure_low_power(input {{ settings.class_prefix }}tree_base tree, bit quiet = 1'b0);
 endclass
 
 task {{ settings.class_prefix }}config_reg_core::configure_tree(input {{ settings.class_prefix }}tree_base tree);
     {{ settings.class_prefix }}node_base ordered[$];
-    {{ settings.class_prefix }}node_base waits[$];
     {{ settings.class_prefix }}node_base node_h;
     int insert_at;
     bit configured;
@@ -42,10 +44,11 @@ task {{ settings.class_prefix }}config_reg_core::configure_tree(input {{ setting
         configured = 1'b0;
         ordered[i].apply_configuration(this, configured);
         if (configured && ordered[i].waits_after_configuration())
-            waits.push_back(ordered[i]);
+            ordered[i].await_configuration(this);
     end
-    foreach (waits[i])
-        waits[i].await_configuration(this);
+    foreach (tree.nodes[i])
+        if (tree.nodes[i] != null)
+            tree.nodes[i].restore_configuration(this);
 endtask
 
 task {{ settings.class_prefix }}config_reg_core::configure_low_power(

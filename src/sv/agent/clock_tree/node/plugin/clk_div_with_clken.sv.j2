@@ -61,6 +61,13 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
         return output_name == "hclk" ? 200 : -1;
     endfunction
 
+    // Preserves the direct core output and divides the remaining outputs.
+    virtual function real clock_rate_hz();
+        if (output_name == "clk_arm_core")
+            return source == null ? 0.0 : source.clock_rate_hz();
+        return super.clock_rate_hz();
+    endfunction
+
     // Allows register-only configuration without measurement interfaces.
     virtual function bit requires_observed_descendant(); return 1'b0; endfunction
 

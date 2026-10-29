@@ -38,6 +38,13 @@ class {{ settings.class_prefix }}ratio_base extends {{ settings.class_prefix }}n
         return 200;
     endfunction
 
+    // Uses the programmed ratio rather than the constraint tolerance band.
+    virtual function real clock_rate_hz();
+        if (source == null || _resolved_ratio <= 0)
+            return 0.0;
+        return source.clock_rate_hz() / real'(_resolved_ratio);
+    endfunction
+
     // Skips branches without an observable descendant.
     virtual function bit requires_observed_descendant();
         return 1'b1;
