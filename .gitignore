@@ -4,6 +4,9 @@ src/c/pll_mini/bin/**
 !src/c/pll_mini/bin/.gitkeep
 *.pyc
 .cursor/
+.agent-tmp/
+.agent-work/
+.agent-evidence/
 **/.jinja-build-out*/
 **/.jinja-build-before-config-semantics-*/
 **/.jinja-build-probe-out*/
