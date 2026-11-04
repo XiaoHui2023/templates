@@ -2,7 +2,7 @@ nodes: !include example_nodes.yaml
 
 settings:
   class_regmodel: regmodel_t
-  direct_config: true
+  direct_config: true # 生成 config.f 和 config.md
   plugin:
     mux:
       switch_cycles: 8

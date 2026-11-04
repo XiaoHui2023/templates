@@ -105,7 +105,7 @@ mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的
 
 1. 添加 `node/python/plugins/<kind>.py`，继承 `NodePluginConfig`，声明节点属性、校验规则和可选全局设置。
 2. 在 `node/python/registry.py` 登记 Python 插件与设置。
-3. 添加 `node/plugin/<kind>.sv.j2`，实现字段、约束和需要的钩子，并加入 `node/plugin.f.j2`。
+3. 添加 `node/plugin/<kind>.sv.j2`，实现字段、约束和需要的钩子，并加入 `config.f.j2` 的文件清单。
 
 节点输入中，插件属性与公共字段平级。基础模型处理连接、路径和寄存器声明，其余属性交给对应 Python 插件校验；公共模型不声明具体插件属性。`output_config` 与节点属性合并后，由同一插件校验每个输出组。
 

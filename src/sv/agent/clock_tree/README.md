@@ -39,7 +39,7 @@ nodes:
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 类型名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `direct_config` | `bool` | `false` | 生成轻量配置入口。 |
+| `direct_config` | `bool` | `false` | 生成纯配置入口 `config.f` 和使用说明 `config.md`。 |
 | `min_freq_hz` | `int` | `15000` | 允许最低频率，单位 Hz。 |
 | `max_freq_hz` | `int` | `5000000000` | 允许最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 活动判定周期数。 |
