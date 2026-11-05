@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List, Sequence, Protocol
 
 from model.nodes import ExtraRegEntry, Tree
+from node.errors import node_context
 from .resolve import TreeResolve
 from load.regmodel import (
     FieldRef,
@@ -11,6 +12,7 @@ from load.regmodel import (
     RegModelIndex,
     field_part_label,
     pack_field_value,
+    validate_field_value,
 )
 
 
@@ -163,6 +165,7 @@ def _patch(
     note: str,
 ) -> _FieldPatch:
     ref = index.resolve(raw_path, ctx=f"node {node_name!r}")
+    validate_field_value(ref, value, ctx=f"nodes[{node_name!r}] {raw_path}")
     return _FieldPatch(
         node_name=node_name,
         field_ref=ref,
@@ -391,12 +394,16 @@ def build_config_plan(
     for node in tree.nodes_ordered:
         if node.plan_group:
             groups.setdefault(node.plan_group, node)
-    bundles = [node.build_plan_group(tree, index, resolved) for node in groups.values()]
+    bundles = []
+    for node in groups.values():
+        with node_context(node, "plan"):
+            bundles.append(node.build_plan_group(tree, index, resolved))
     dev_patches: List[_FieldPatch] = []
     for node in sorted(tree.nodes_ordered, key=lambda item: item.plan_priority):
-        dev_patches.extend(
-            node.plan_patches(index, settings, resolved.by_name[node.name])
-        )
+        with node_context(node, "plan"):
+            dev_patches.extend(
+                node.plan_patches(index, settings, resolved.by_name[node.name])
+            )
 
     dev_reg_paths = {patch.field_ref.reg.path for patch in dev_patches}
     extra_only_patches: List[_FieldPatch] = []

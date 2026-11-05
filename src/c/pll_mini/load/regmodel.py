@@ -183,6 +183,13 @@ def reg_bound_max(ref: FieldRef) -> int:
     return (1 << w) - 1
 
 
+def validate_field_value(ref: FieldRef, value: int, *, ctx: str) -> None:
+    """拒绝超出字段有效位宽的值，不在生成时静默截断。"""
+    maximum = reg_bound_max(ref)
+    if type(value) is not int or not 0 <= value <= maximum:
+        raise ValueError(f"{ctx}: value={value!r} 超出字段可写范围 0..{maximum}")
+
+
 def parse_field_path(raw: str, *, ctx: str) -> Tuple[str, str, Optional[int], Optional[int]]:
     """解析节点 reg 点分路径与可选比特后缀。
 

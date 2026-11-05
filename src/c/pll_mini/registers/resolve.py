@@ -8,6 +8,7 @@ from model.freq_graph import output_ports
 from model.nodes import Tree
 from model.solve_model import SolveModel
 from model.verify import raise_on_verify_issues, verify_solve_model
+from node.errors import graph_context, node_context
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,9 @@ def resolve_tree(
     """
     targets = [node.name for node in tree.nodes_ordered if node.is_target]
     if not targets:
-        raise ValueError("nodes 须至少含一个声明频率目标的插件节点")
+        raise ValueError(
+            f"nodes 至少包含一个声明频率目标的插件节点；{graph_context(tree)}"
+        )
     model = solve_tree_with_consolver(
         tree,
         period_tolerance=period_tolerance,
@@ -96,7 +99,11 @@ def resolve_tree(
             raise RuntimeError(
                 f"[fit] nodes[{node.name!r}] kind={node.kind}: {exc}\n{artifact}"
             ) from exc
-    issues = verify_solve_model(tree, model, period_tolerance=period_tolerance)
+    try:
+        issues = verify_solve_model(tree, model, period_tolerance=period_tolerance)
+    except (ValueError, RuntimeError) as exc:
+        artifact = failure_artifact("verify_error", exc)
+        raise ValueError(f"{exc}\n{artifact}") from exc
     if issues:
         artifact = failure_artifact(
             "verify_error",
@@ -114,11 +121,13 @@ def resolve_tree(
             for port in output_ports(tree, name)
         }
         primary = ports.get(node.primary_output_group, next(iter(ports.values()), 0))
+        with node_context(node, "resolve"):
+            values = node.resolved_values(model)
         resolved[name] = ResolvedNode(
             name=name,
             kind=node.kind,
             resolved_freq=primary,
             port_freqs=ports,
-            values=node.resolved_values(model),
+            values=values,
         )
     return TreeResolve(resolved, tuple(targets), model)

@@ -3,12 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from load.regmodel import FieldRef, RegModelIndex
+from load.regmodel import FieldRef, RegModelIndex, validate_field_value
 from model.nodes import Tree
 from reg_paths import reg_key_to_c_ident
 from registers.resolve import TreeResolve
 
 from node.plugins.pll import PllNode
+from node.errors import node_context
 
 from .pll_writes import (
     PLL_DW_ORDER,
@@ -779,6 +780,11 @@ def build_pll_plan(
     configured = _collect_configured_pll_nodes(tree, resolved)
     groups: dict[tuple[str, int], list[PllNode]] = {}
     for node in configured:
+        with node_context(node, "plan"):
+            for key, value in resolved.by_name[node.name].pll_cfg.items():
+                ctx = f"nodes[{node.name!r}].regs.{key}"
+                ref = index.resolve(node.regs[key], ctx=ctx)
+                validate_field_value(ref, value, ctx=ctx)
         layout = (_pll_field_specs(node, index), _pll_reg_grouping(node, index))
         state = resolved.by_name[node.name]
         subgroup = 1

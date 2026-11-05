@@ -61,8 +61,9 @@ class MuxNode(NodeBase):
 
     def read_solution(self, builder, raw, model) -> None:
         """读取输入选择变量。"""
-        model.values(self.name)["sel"] = int(
-            raw.get(builder.variable(self.name, "sel"), self.sel or 0)
+        symbol = builder.variable(self.name, "sel")
+        model.values(self.name)["sel"] = (
+            raw[symbol] if self.reg else raw.get(symbol, self.sel or 0)
         )
 
     def control_encodings(self, builder) -> dict[str, tuple[str, str]]:
@@ -72,13 +73,25 @@ class MuxNode(NodeBase):
         )
 
     def resolved_values(self, model) -> dict[str, object]:
-        """无求解约束时选择最小输入编号。"""
+        """读取合法输入编号，不修改写寄存器节点的求解值。"""
         selected = (
             self.sel if self.sel is not None else model.values(self.name).get("sel")
         )
         if str(selected) not in self.source:
+            if self.reg:
+                raise ValueError(
+                    f"nodes[{self.name!r}].sel={selected!r} 不在合法输入编号 {sorted(self.source)}"
+                )
             selected = min(map(int, self.source)) if self.source else 0
         return {"mux_sel": selected}
+
+    def control_domain(self, builder, role: str, encoding: str, maximum: int) -> str:
+        """只保留字段位宽可以表示的输入编号。"""
+        legal = [int(key) for key in self.source if int(key) <= maximum]
+        if len(legal) == len(self.source):
+            return "true"
+        choices = " ".join(f"(= {encoding} {key})" for key in legal)
+        return f"(or {choices})" if choices else "false"
 
     def plan_patches(self, index, settings, resolved) -> list:
         """生成选择字段。"""
@@ -116,6 +129,10 @@ class MuxNode(NodeBase):
         validate_optional_reg(
             self.reg, node_name=_validation_node_name(self, info), kind="mux"
         )
+        if self.reg and not self.source:
+            raise ValueError(
+                f"mux 节点 {_validation_node_name(self, info)!r} 写 reg 时 source 不能为空"
+            )
         if self.sel is not None:
             if self.reg:
                 raise ValueError(
@@ -136,17 +153,14 @@ def add_node_constraints(builder, name: str, node) -> None:
     builder._declare(sel, "Int")
     source_by_sel = {int(key): value for key, value in node.source.items()}
     keys = sorted(source_by_sel)
-    if name in builder.shared_control_nodes and keys:
+    if keys:
         choices = " ".join(f"(= {sel} {key})" for key in keys)
         builder._add(f"{name}__configured_sel_domain", f"(or {choices})")
     if not keys:
         builder._add(f"{name}__no_source_inactive", f"(not {act})")
         return
     if node.sel is not None:
-        builder._add(f"{name}__sel_fixed", f"(=> {act} (= {sel} {node.sel}))")
-    else:
-        choices = " ".join(f"(= {sel} {key})" for key in keys)
-        builder._add(f"{name}__sel_inside", f"(=> {act} (or {choices}))")
+        builder._add(f"{name}__sel_fixed", f"(= {sel} {node.sel})")
     for key in keys:
         parent = parse_port_ref(source_by_sel[key], ctx=f"{name}.source[{key}]")
         when = f"(and {act} (= {sel} {key}))"

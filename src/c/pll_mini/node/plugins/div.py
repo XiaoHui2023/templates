@@ -26,6 +26,7 @@ class DivNode(NodeBase):
         "ratio": ("ratio", "div_kind"),
         "configured_ratio": ("ratio", "div_kind"),
         "freq_div": ("source", "ratio", "div_kind", "settings.period_tolerance"),
+        "quotient": ("source", "ratio", "div_kind"),
     }
     plan_priority = 10
 
@@ -35,8 +36,10 @@ class DivNode(NodeBase):
 
     def read_solution(self, builder, raw, model) -> None:
         """读取求解器选定的分频比。"""
-        model.values(self.name)["ratio"] = int(
-            raw.get(builder.variable(self.name, "ratio"), self.ratio or 0)
+        symbol = builder.variable(self.name, "ratio")
+        default = self.ratio or (2 if self.div_kind in ("dto", "dto_n") else 1)
+        model.values(self.name)["ratio"] = (
+            raw[symbol] if self.regs else raw.get(symbol, default)
         )
 
     def control_encodings(self, builder) -> dict[str, tuple[str, str]]:
@@ -50,11 +53,36 @@ class DivNode(NodeBase):
         return {role: (self.regs[role], encoded)}
 
     def resolved_values(self, model) -> dict[str, object]:
-        """保留已求解分频比，并为无目标路径提供默认值。"""
+        """保留已求解分频比，不替换非法配置值。"""
         ratio = self.ratio or model.values(self.name).get("ratio", 0)
-        if ratio <= 0:
-            ratio = 2 if self.div_kind in ("dto", "dto_n") else 1
+        minimum = 2 if self.div_kind in ("dto", "dto_n") else 1
+        maximum = DTO_MAX_RATIO if self.div_kind in ("dto", "dto_n") else 64
+        if (
+            type(ratio) is not int
+            or ratio < minimum
+            or (self.ratio is None and ratio > maximum)
+        ):
+            raise ValueError(
+                f"nodes[{self.name!r}].ratio={ratio!r} 不在合法范围 {minimum}..{maximum}"
+            )
         return {"ratio": ratio}
+
+    def control_domain(self, builder, role: str, encoding: str, maximum: int) -> str:
+        """把 DTO 编码上限换算为比值下限，避免增加整数除法。"""
+        if role == "step":
+            minimum = DTO_MAX_RATIO // (maximum + 1) + 1
+            return (
+                "true"
+                if minimum <= 2
+                else f"(>= {builder.variable(self.name, 'ratio')} {minimum})"
+            )
+        if role == "div":
+            return (
+                "true"
+                if maximum >= 63
+                else f"(<= {builder.variable(self.name, 'ratio')} {maximum + 1})"
+            )
+        return super().control_domain(builder, role, encoding, maximum)
 
     def static_hz(self, tree, model, group: str, upstream) -> int:
         """按固定或已解分频比回放频率。"""
@@ -133,13 +161,17 @@ def add_node_constraints(builder, name: str, node) -> None:
     act = _act(name)
     ratio = builder.variable(name, "ratio")
     builder._declare(ratio, "Int")
-    if name in builder.shared_control_nodes:
-        minimum = 2 if node.div_kind in ("dto", "dto_n") else 1
-        maximum = DTO_MAX_RATIO if node.div_kind in ("dto", "dto_n") else 64
-        builder._add(
-            f"{name}__configured_ratio_domain",
-            f"(and (>= {ratio} {minimum}) (<= {ratio} {maximum}))",
-        )
+    minimum = 2 if node.div_kind in ("dto", "dto_n") else 1
+    maximum = DTO_MAX_RATIO if node.div_kind in ("dto", "dto_n") else 64
+    upper = (
+        f"(= {ratio} {node.ratio})"
+        if node.ratio is not None
+        else f"(<= {ratio} {maximum})"
+    )
+    builder._add(
+        f"{name}__configured_ratio_domain",
+        f"(and (>= {ratio} {minimum}) {upper})",
+    )
     try:
         parent = parent_port_for_child(builder.tree, name)
     except ValueError:
@@ -147,15 +179,13 @@ def add_node_constraints(builder, name: str, node) -> None:
         return
     out = _freq(Port(name, ""))
     builder._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
-    min_ratio = 2 if node.div_kind in ("dto", "dto_n") else 1
-    builder._add(f"{name}__ratio_min", f"(=> {act} (>= {ratio} {min_ratio}))")
-    if node.ratio is not None:
-        builder._add(f"{name}__ratio_fixed", f"(=> {act} (= {ratio} {node.ratio}))")
-    elif node.div_kind in ("dto", "dto_n"):
-        builder._add(f"{name}__ratio_max", f"(=> {act} (<= {ratio} {DTO_MAX_RATIO}))")
-    else:
-        builder._add(f"{name}__ratio_max", f"(=> {act} (<= {ratio} 64))")
-    hw = f"(div {_freq(parent)} {ratio})"
+    hw = builder.variable(name, "quotient")
+    product = f"(* {hw} {ratio})"
+    builder._add(
+        f"{name}__quotient",
+        f"(=> {act} (and (>= {hw} 0) (<= {product} {_freq(parent)}) "
+        f"(< {_freq(parent)} (+ {product} {ratio}))))",
+    )
     builder._add(
         f"{name}__freq_div",
         (
@@ -187,7 +217,7 @@ def verify_node(node, tree, model, period_tolerance):
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     for name, node in [(node.name, node)]:
         ratio = model.values(name).get("ratio", 0)
-        if ratio < 1:
+        if ratio < 1 or not node.source:
             continue
         parent_port = parent_port_for_child(tree, name)
         f_in = model.port_hz(parent_port)

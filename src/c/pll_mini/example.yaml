@@ -1234,6 +1234,32 @@ nodes:
     source: plugin_bus[hclken]
     freq: 8000000
 
+  unused_div:
+    kind: div_div
+    regs:
+      rst: blk_unused_div.ctrl.rst
+      load: blk_unused_div.ctrl.load
+      div: blk_unused_div.ctrl.div
+  unused_dto:
+    kind: div_dto
+    regs:
+      rst: blk_unused_dto.ctrl.rst
+      load: blk_unused_dto.ctrl.load
+      bypass: blk_unused_dto.ctrl.bypass
+      step: blk_unused_dto.ctrl.step
+  unused_mux:
+    kind: mux
+    source:
+      "2": unused_div
+      "7": unused_div
+    reg: blk_unused_mux.sel.sel
+  unused_bus:
+    kind: clk_div_with_clken
+    reg: blk_unused_bus.div.div
+  unused_gate:
+    kind: gate
+    reg: blk_unused_gate.en.en
+
 settings:
   main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true

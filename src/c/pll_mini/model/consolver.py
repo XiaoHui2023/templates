@@ -6,9 +6,10 @@ import hashlib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from load.regmodel import RegModelIndex
+from load.regmodel import RegModelIndex, reg_bound_max
 from load.tools import consolver_path, run_consolver_solve
 from model.arithmetic import freq_tolerance_bounds
+from node.errors import graph_context, node_context
 
 from .freq_graph import Port, output_ports, parse_port_ref
 from .nodes import Tree
@@ -57,7 +58,7 @@ def solve_tree_with_consolver(
         path = builder.failure_path(debug_smt_path)
         builder.write_debug(path, {"status": "tool_error", "error": str(exc)})
         raise RuntimeError(
-            f"[solve/tool_error] {exc}\nSMT: {path}\n映射: {path.with_suffix('.json')}"
+            f"[solve/tool_error] {exc}\n{graph_context(tree)}\nSMT: {path}\n映射: {path.with_suffix('.json')}"
         ) from exc
     status = data["status"]
     if status != "sat":
@@ -74,12 +75,14 @@ def solve_tree_with_consolver(
         if not isinstance(raw_model, dict):
             raise ValueError("consolver 输出缺少 model 对象")
         return builder.to_solve_model(raw_model)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, RuntimeError) as exc:
         path = builder.failure_path(debug_smt_path)
         builder.write_debug(
             path, {"status": "model_error", "error": str(exc), "solver": data}
         )
-        raise RuntimeError(f"[solve/model_error] {exc}\nSMT: {path}") from exc
+        raise RuntimeError(
+            f"[solve/model_error] {exc}\n{graph_context(tree)}\nSMT: {path}"
+        ) from exc
 
 
 def build_tree_smt2(
@@ -112,6 +115,7 @@ class _SmtBuilder:
         self.reg_index = reg_index
         self.constraints: list[NamedConstraint] = []
         self.decls: dict[str, str] = {}
+        self.symbol_nodes: dict[str, set[str]] = {}
         self.controls: list[dict[str, object]] = []
         self.shared_control_nodes: set[str] = set()
         self.current_node = ""
@@ -148,6 +152,9 @@ class _SmtBuilder:
             },
             "constraints": [asdict(item) for item in self.constraints],
             "controls": self.controls,
+            "symbol_nodes": {
+                key: sorted(value) for key, value in self.symbol_nodes.items()
+            },
             "result": result,
             "replay": [str(consolver_path()), "solve", str(path), "--format", "json"],
             "smt_sha256": hashlib.sha256(self.render().encode("utf-8")).hexdigest(),
@@ -163,6 +170,7 @@ class _SmtBuilder:
             expected = {"Bool": bool, "Int": int}.get(typ)
             if name in raw and expected is not None and type(raw[name]) is not expected:
                 raise ValueError(
+                    f"nodes={sorted(self.symbol_nodes.get(name, self.tree.nodes))!r}: "
                     f"missing/invalid {typ} variable {name}={raw.get(name)!r}"
                 )
         for name, node in self.tree.nodes.items():
@@ -179,20 +187,24 @@ class _SmtBuilder:
                         f"nodes[{name!r}]: missing/invalid {_freq(port)}={value!r}"
                     )
                 model.port_freq[port] = value
-            node.read_solution(self, raw, model)
+            with node_context(node, "decode"):
+                node.read_solution(self, raw, model)
         return model
 
     def _build(self) -> None:
         if self.reg_index is not None:
             self._shared_register_constraints(collect_only=True)
         for name in self.tree.nodes:
-            self._declare(_act(name), "Bool")
-            for port in output_ports(self.tree, name):
-                self._declare(_freq(port), "Int")
+            self.current_node = name
+            with node_context(self.tree.nodes[name], "constraints"):
+                self._declare(_act(name), "Bool")
+                for port in output_ports(self.tree, name):
+                    self._declare(_freq(port), "Int")
         for name, node in self.tree.nodes.items():
             self.current_node = name
-            self._common_node_constraints(name)
-            node.add_constraints(self)
+            with node_context(node, "constraints"):
+                self._common_node_constraints(name)
+                node.add_constraints(self)
         if self.reg_index is not None:
             self._shared_register_constraints()
 
@@ -246,10 +258,15 @@ class _SmtBuilder:
                 paths=(f"nodes[{name!r}].freq",),
             )
 
-    def _declare(self, name: str, typ: str) -> None:
+    def _declare(self, name: str, typ: str, *, node_name: str | None = None) -> None:
         if name in self.decls and self.decls[name] != typ:
-            raise ValueError(f"symbol type collision: {name}")
+            raise ValueError(
+                f"nodes[{node_name or self.current_node!r}]: symbol type collision: {name}"
+            )
         self.decls[name] = typ
+        owner = node_name or self.current_node
+        if owner:
+            self.symbol_nodes.setdefault(name, set()).add(owner)
 
     def _add(self, rule: str, expr: str, *, paths: tuple[str, ...] = ()) -> None:
         label = f"c{len(self.constraints):06d}"
@@ -276,16 +293,18 @@ class _SmtBuilder:
 
     def variable(self, name: str, role: str, typ: str = "Int") -> str:
         """声明插件自有变量，公共层不解释变量角色。"""
-        name = symbol("plugin", role, name)
-        self._declare(name, typ)
-        return name
+        value = symbol("plugin", role, name)
+        self._declare(value, typ, node_name=name)
+        return value
 
     def _shared_register_constraints(self, *, collect_only: bool = False) -> None:
         self.controls.clear()
         by_symbol = {}
         for name, node in self.tree.nodes.items():
             self.current_node = name
-            for role, (path, expr) in node.control_encodings(self).items():
+            with node_context(node, "controls"):
+                encodings = node.control_encodings(self)
+            for role, (path, expr) in encodings.items():
                 ref = self.reg_index.resolve(path, ctx=f"nodes[{name!r}].regs.{role}")
                 key = (
                     ref.reg.path,
@@ -300,6 +319,7 @@ class _SmtBuilder:
                     "path": path,
                     "symbol": symbol,
                     "encoding": expr,
+                    "maximum": reg_bound_max(ref),
                 }
                 self.controls.append(control)
                 by_symbol.setdefault(symbol, []).append(control)
@@ -311,10 +331,23 @@ class _SmtBuilder:
         }
         if collect_only:
             return
+        for control in self.controls:
+            name, role = control["node"], control["role"]
+            self.current_node = name
+            node = self.tree.nodes[name]
+            with node_context(node, "register_range"):
+                expr = node.control_domain(
+                    self, role, control["encoding"], control["maximum"]
+                )
+            field_path = f"nodes[{name!r}]." + (
+                "reg" if role == "reg" else f"regs.{role}"
+            )
+            self._add(f"{name}__register_range__{role}", expr, paths=(field_path,))
         for symbol, controls in by_symbol.items():
             if len(controls) < 2:
                 continue
-            self._declare(symbol, "Int")
+            for control in controls:
+                self._declare(symbol, "Int", node_name=control["node"])
             for control in controls:
                 name, role, expr = control["node"], control["role"], control["encoding"]
                 self.current_node = name

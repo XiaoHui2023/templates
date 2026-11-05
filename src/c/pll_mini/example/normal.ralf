@@ -1,3 +1,48 @@
+block blk_unused_div {
+  bytes 4;
+  register ctrl @'hd00 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field div @8 { bits 6; access rw; }
+  }
+}
+
+block blk_unused_dto {
+  bytes 4;
+  register ctrl @'hd04 {
+    bytes 4;
+    field rst @0 { bits 1; access rw; }
+    field load @1 { bits 1; access rw; }
+    field bypass @2 { bits 1; access rw; }
+    field step @7 { bits 25; access rw; }
+  }
+}
+
+block blk_unused_mux {
+  bytes 4;
+  register sel @'hd08 {
+    bytes 4;
+    field sel @0 { bits 3; access rw; }
+  }
+}
+
+block blk_unused_bus {
+  bytes 4;
+  register div @'hd0c {
+    bytes 4;
+    field div @0 { bits 4; access rw; }
+  }
+}
+
+block blk_unused_gate {
+  bytes 4;
+  register en @'hd10 {
+    bytes 4;
+    field en @0 { bits 1; access rw; }
+  }
+}
+
 block blk_pll_tci {
   bytes 4;
 
@@ -316,7 +361,7 @@ block blk_dto0 {
     field rst @0 { bits 1; access rw; }
     field load @1 { bits 1; access rw; }
     field bypass @2 { bits 1; access rw; }
-    field step @8 { bits 8; access rw; }
+    field step @7 { bits 25; access rw; }
   }
 }
 
@@ -328,7 +373,7 @@ block blk_dto_n0 {
     field rst @0 { bits 1; access rw; }
     field load @1 { bits 1; access rw; }
     field bypass @2 { bits 1; access rw; }
-    field step @8 { bits 8; access rw; }
+    field step @7 { bits 25; access rw; }
   }
 }
 
@@ -414,7 +459,7 @@ block blk_dto_stress_ref {
     field rst @0 { bits 1; access rw; }
     field load @1 { bits 1; access rw; }
     field bypass @2 { bits 1; access rw; }
-    field step @8 { bits 8; access rw; }
+    field step @7 { bits 25; access rw; }
   }
 }
 
@@ -446,7 +491,7 @@ block blk_dto_n_stress_ref {
     field rst @0 { bits 1; access rw; }
     field load @1 { bits 1; access rw; }
     field bypass @2 { bits 1; access rw; }
-    field step @8 { bits 8; access rw; }
+    field step @7 { bits 25; access rw; }
   }
 }
 
@@ -511,7 +556,7 @@ block blk_dto_stress_inno {
     field rst @0 { bits 1; access rw; }
     field load @1 { bits 1; access rw; }
     field bypass @2 { bits 1; access rw; }
-    field step @8 { bits 8; access rw; }
+    field step @7 { bits 25; access rw; }
   }
 }
 

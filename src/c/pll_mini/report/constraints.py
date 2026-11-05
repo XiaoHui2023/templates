@@ -5,6 +5,7 @@ import time
 from dataclasses import asdict
 
 from load.tools import run_consolver_solve
+from node.errors import graph_context
 
 
 def diagnose_constraints(
@@ -31,8 +32,9 @@ def diagnose_constraints(
         "diagnostic_errors": [],
     }
     if status != "unsat":
+        report["involved_nodes"] = sorted(builder.tree.nodes)
         report["message"] = (
-            f"[solve/{status}] 未能判定约束是否可满足；reason={reason}；timeout_ms={timeout_ms or 'unlimited'}"
+            f"[solve/{status}] 未能判定约束是否可满足；reason={reason}；timeout_ms={timeout_ms or 'unlimited'}\n{graph_context(builder.tree)}"
         )
         return report
 

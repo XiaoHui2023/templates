@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List, Sequence
 from .nodes import Tree
 from .solve_model import SolveModel
+from node.errors import node_context
 from .freq_graph import Port, collect_freq_targets, walk_path_upstream
 
 
@@ -22,7 +23,9 @@ def _hz_mhz(hz: int) -> str:
     return f"{hz} Hz"
 
 
-def _path_for_edge(tree: Tree, child: str, clk_name: str, model=None) -> tuple[str, ...]:
+def _path_for_edge(
+    tree: Tree, child: str, clk_name: str, model=None
+) -> tuple[str, ...]:
     chain = walk_path_upstream(tree, clk_name, model=model)
     if child in chain:
         idx = chain.index(child)
@@ -65,5 +68,6 @@ def verify_solve_model(
                 )
             )
     for node in tree.nodes_ordered:
-        issues.extend(node.verify(tree, model, period_tolerance))
+        with node_context(node, "verify"):
+            issues.extend(node.verify(tree, model, period_tolerance))
     return issues

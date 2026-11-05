@@ -99,6 +99,10 @@ class NodeBase(BaseModel):
         """返回寄存器角色对应的路径与硬件编码表达式。"""
         return {}
 
+    def control_domain(self, builder, role: str, encoding: str, maximum: int) -> str:
+        """限制寄存器编码到字段范围，插件可提供等价的高效表达。"""
+        return f"(and (>= {encoding} 0) (<= {encoding} {maximum}))"
+
     def resolved_values(self, model) -> dict[str, object]:
         """返回寄存器规划需要的节点状态。"""
         return {}

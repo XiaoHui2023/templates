@@ -67,8 +67,9 @@ class ClkDivWithClkenNode(NodeBase):
 
     def read_solution(self, builder, raw, model) -> None:
         """读取三个输出共用的分频比。"""
-        model.values(self.name)["ratio"] = int(
-            raw.get(builder.variable(self.name, "ratio"), self.ratio or 2)
+        symbol = builder.variable(self.name, "ratio")
+        model.values(self.name)["ratio"] = (
+            raw[symbol] if self.reg or self.regs else raw.get(symbol, self.ratio or 2)
         )
 
     def control_encodings(self, builder) -> dict[str, tuple[str, str]]:
@@ -80,7 +81,20 @@ class ClkDivWithClkenNode(NodeBase):
 
     def resolved_values(self, model) -> dict[str, object]:
         """返回共用分频比。"""
-        return {"ratio": self.ratio or model.values(self.name).get("ratio", 2)}
+        ratio = self.ratio or model.values(self.name).get("ratio", 2)
+        if type(ratio) is not int or ratio not in (2, 3, 4, 6):
+            raise ValueError(
+                f"nodes[{self.name!r}].ratio={ratio!r} 不在合法范围 {{2,3,4,6}}"
+            )
+        return {"ratio": ratio}
+
+    def control_domain(self, builder, role: str, encoding: str, maximum: int) -> str:
+        """全编码均可写时复用比值域，否则进一步约束编码。"""
+        return (
+            "true"
+            if maximum >= 8
+            else super().control_domain(builder, role, encoding, maximum)
+        )
 
     def static_hz(self, tree, model, group: str, upstream) -> int:
         """回放核心和总线输出频率。"""
