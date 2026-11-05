@@ -55,6 +55,12 @@ class MuxNode(NodeBase):
         )
         return self.source.get(str(selected)) if selected is not None else None
 
+    def frequency_parent(self, group: str = "") -> str | None:
+        """仅固定选择或单输入时传播等频要求。"""
+        if self.sel is not None:
+            return self.selected_input()
+        return next(iter(self.source.values())) if len(self.source) == 1 else None
+
     def input_condition(self, builder, key: str) -> str:
         """返回该输入被选中的 SMT 条件。"""
         return f"(= {builder.variable(self.name, 'sel')} {int(key)})"

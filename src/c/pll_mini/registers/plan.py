@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import List, Sequence, Protocol
 
 from model.nodes import ExtraRegEntry, Tree
@@ -222,90 +222,41 @@ def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
     if not patches:
         return []
 
-    reg_part_keys: dict[str, set[tuple[str, int, int]]] = {}
-    reg_epochs: dict[str, list[list[tuple[int, _FieldPatch]]]] = {}
+    by_reg: dict[str, list[_FieldPatch]] = {}
+    for patch in patches:
+        by_reg.setdefault(patch.field_ref.reg.path, []).append(patch)
 
-    for idx, patch in enumerate(patches):
-        ref = patch.field_ref
-        reg_path = ref.reg.path
-        part_key = (ref.field.name, ref.effective_lsb, ref.effective_width)
-
-        if reg_path not in reg_epochs:
-            reg_epochs[reg_path] = [[]]
-            reg_part_keys[reg_path] = set()
-
-        reg_epochs[reg_path][-1].append((idx, patch))
-        reg_part_keys[reg_path].add(part_key)
-
-    steps_with_idx: list[tuple[int, RegWriteStep]] = []
-    last_written: dict[str, int] = {}
-
-    for epochs in reg_epochs.values():
-        for epoch in epochs:
-            if not epoch:
-                continue
-            earliest_idx = epoch[0][0]
-            first_patch = epoch[0][1]
-            reg = first_patch.field_ref.reg
-            value = last_written.get(reg.path, 0)
-            part_views_by_key: dict[tuple[str, int, int], FieldPartView] = {}
-            notes: list[str] = []
-
-            for _patch_idx, patch in epoch:
-                ref = patch.field_ref
-                part_key = (ref.field.name, ref.effective_lsb, ref.effective_width)
-                value = pack_field_value(value, ref, patch.value)
-                part_views_by_key[part_key] = _patch_to_part_view(patch)
-                if patch.note:
-                    notes.append(patch.note)
-
-            part_views = sorted(part_views_by_key.values(), key=lambda part: part.lsb)
-            last_written[reg.path] = value
-            unique_notes = list(dict.fromkeys(notes))
-            comment = "; ".join(unique_notes) if unique_notes else first_patch.node_name
-            steps_with_idx.append(
-                (
-                    earliest_idx,
-                    RegWriteStep(
-                        node_name=first_patch.node_name,
-                        reg=reg,
-                        value=value,
-                        comment=comment,
-                        parts=tuple(part_views),
-                        step_index=0,
-                    ),
-                )
+    steps = []
+    for group in by_reg.values():
+        first_patch = group[0]
+        value = 0
+        part_views_by_key: dict[tuple[str, int, int], FieldPartView] = {}
+        notes: dict[str, None] = {}
+        for patch in group:
+            ref = patch.field_ref
+            part_key = (ref.field.name, ref.effective_lsb, ref.effective_width)
+            value = pack_field_value(value, ref, patch.value)
+            part_views_by_key[part_key] = _patch_to_part_view(patch)
+            if patch.note:
+                notes[patch.note] = None
+        steps.append(
+            RegWriteStep(
+                node_name=first_patch.node_name,
+                reg=first_patch.field_ref.reg,
+                value=value,
+                comment="; ".join(notes) if notes else first_patch.node_name,
+                parts=tuple(sorted(part_views_by_key.values(), key=lambda part: part.lsb)),
+                step_index=0,
             )
-
-    steps_with_idx.sort(key=lambda item: item[0])
-    return [step for _idx, step in steps_with_idx]
+        )
+    return steps
 
 
 def _with_step_indexes(steps: List[RegWriteStep]) -> tuple[RegWriteStep, ...]:
-    indexed: list[RegWriteStep] = []
-    for idx, step in enumerate(steps):
-        indexed.append(
-            RegWriteStep(
-                node_name=step.node_name,
-                reg=step.reg,
-                value=step.value,
-                comment=step.comment,
-                parts=step.parts,
-                step_index=idx,
-            )
-        )
-    pad = max((len(s.addr_macro) for s in indexed), default=0)
+    pad = max((len(s.addr_macro) for s in steps), default=0)
     return tuple(
-        RegWriteStep(
-            node_name=s.node_name,
-            reg=s.reg,
-            value=s.value,
-            comment=s.comment,
-            parts=s.parts,
-            step_index=s.step_index,
-            addr_pad_width=pad,
-        )
-        for s in indexed
+        replace(step, step_index=idx, addr_pad_width=pad)
+        for idx, step in enumerate(steps)
     )
 
 

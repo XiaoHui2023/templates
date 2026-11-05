@@ -17,7 +17,6 @@ from pydantic import (
 _C_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 from model.nodes import ExtraRegEntry, Tree
-from model.consolver import build_tree_smt2
 from registers.plan import (
     ConfigPlan,
     HeaderAddressPlan,
@@ -37,7 +36,6 @@ _TREE_RESOLVE_ERROR_CACHE: dict[_ModelCacheKey, str] = {}
 _CONFIG_PLAN_CACHE: dict[_ModelCacheKey, ConfigPlan] = {}
 _HEADER_REGS_CACHE: dict[_ModelCacheKey, List[Reg]] = {}
 _HEADER_ADDRESS_PLAN_CACHE: dict[_ModelCacheKey, HeaderAddressPlan] = {}
-_CONSOLVER_SMT_CACHE: dict[_ModelCacheKey, str] = {}
 
 
 class Settings(BaseModel):
@@ -125,6 +123,7 @@ class Models(BaseModel):
     )
 
     _regmodel: List[Reg] = PrivateAttr(default_factory=list)
+    _reg_index: RegModelIndex | None = PrivateAttr(default=None)
     _tree: Tree | None = PrivateAttr(default=None)
     _tree_resolve: TreeResolve | None = PrivateAttr(default=None)
     _config_plan: ConfigPlan | None = PrivateAttr(default=None)
@@ -176,6 +175,7 @@ class Models(BaseModel):
         )
         log_stage_done("models", "load", "regmodel", started_at, regs=len(regs))
         object.__setattr__(self, "_regmodel", regs)
+        object.__setattr__(self, "_reg_index", RegModelIndex(regs))
         return self
 
     @property
@@ -184,7 +184,7 @@ class Models(BaseModel):
 
     def _cache_key(self) -> _ModelCacheKey:
         return (
-            self.tree.model_dump_json(),
+            self.tree.model_dump_json(exclude={"nodes_ordered", "children_by_node"}),
             self.settings.model_dump_json(),
             tuple(reg.model_dump_json() for reg in self._regmodel),
         )
@@ -218,7 +218,7 @@ class Models(BaseModel):
                     debug_consolver_smt_path=self._resolve_debug_path(
                         s.debug_consolver_smt_path
                     ),
-                    reg_index=RegModelIndex(self.regmodel),
+                    reg_index=self._reg_index,
                 )
             except RuntimeError as exc:
                 log_stage_done(
@@ -261,7 +261,7 @@ class Models(BaseModel):
             )
             result = build_config_plan(
                 self.tree,
-                RegModelIndex(self.regmodel),
+                self._reg_index,
                 s,
                 self.tree_resolve,
                 self.extra_regs,
@@ -296,7 +296,7 @@ class Models(BaseModel):
             )
             result = list(
                 collect_used_regs(
-                    RegModelIndex(self.regmodel),
+                    self._reg_index,
                     self.config_plan,
                 )
             )
@@ -328,22 +328,6 @@ class Models(BaseModel):
             )
             _HEADER_ADDRESS_PLAN_CACHE[key] = result
             self._header_address_plan = result
-            return result
-
-    @property
-    def consolver_smt2(self) -> str:
-        with _CACHE_LOCK:
-            key = self._cache_key()
-            cached = _CONSOLVER_SMT_CACHE.get(key)
-            if cached is not None:
-                return cached
-            s = self.settings
-            result = build_tree_smt2(
-                self.tree,
-                period_tolerance=s.period_tolerance,
-                reg_index=RegModelIndex(self.regmodel),
-            )
-            _CONSOLVER_SMT_CACHE[key] = result
             return result
 
     def _resolve_debug_path(self, value: str | None) -> Path | None:

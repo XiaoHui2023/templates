@@ -52,11 +52,8 @@ class ClkNode(TransparentNode):
 
 
 def verify_node(node, tree, model, period_tolerance):
-    from model.arithmetic import freq_tolerance_bounds
     from model.freq_graph import (
         Port,
-        collect_freq_targets,
-        collect_non_frequency_targets,
         node_has_upstream_ref,
         parent_port_for_child,
         walk_path_upstream,
@@ -64,11 +61,8 @@ def verify_node(node, tree, model, period_tolerance):
     from model.verify import VerifyIssue, _hz_mhz
 
     issues = []
-    collect_freq_targets(tree)
-    non_constraint_clks = frozenset(collect_non_frequency_targets(tree))
-    tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     for name, node in [(node.name, node)]:
-        if name in non_constraint_clks:
+        if not node.fixed_hz():
             continue
         if not node_has_upstream_ref(node):
             continue

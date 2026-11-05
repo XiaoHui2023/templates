@@ -80,6 +80,10 @@ class NodeBase(BaseModel):
         """返回当前选中的输入引用。"""
         return self.input_refs().get("")
 
+    def frequency_parent(self, group: str = "") -> str | None:
+        """声明活动输出必定等频的输入；未知或变频时不传播。"""
+        return None
+
     def input_condition(self, builder, key: str) -> str:
         """默认输入无需选择条件。"""
         return "true"

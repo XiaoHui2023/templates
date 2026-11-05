@@ -33,6 +33,12 @@ def _path_for_edge(
     return (child,)
 
 
+def _path_for_node(tree: Tree, name: str, model=None) -> tuple[str, ...]:
+    """仅在报告错误时查找目标路径，正常回放不扫描全图。"""
+    targets = collect_freq_targets(tree)
+    return _path_for_edge(tree, name, targets[0][0], model) if targets else (name,)
+
+
 def raise_on_verify_issues(
     tree: Tree,
     issues: Sequence[VerifyIssue],

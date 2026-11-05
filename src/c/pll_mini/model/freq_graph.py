@@ -56,13 +56,26 @@ def collect_freq_targets(tree: Tree) -> list[tuple[str, int]]:
     ]
 
 
-def collect_non_frequency_targets(tree: Tree) -> list[str]:
-    """收集未指定正频率的目标节点。"""
-    return [
-        name
-        for name, node in tree.nodes.items()
-        if node.is_target and (node.fixed_hz() or 0) <= 0 and node.input_refs()
-    ]
+def required_frequencies(tree: Tree) -> dict[Port, int | None]:
+    """沿插件声明的必选等频输入一次性传播目标，冲突交给原约束诊断。"""
+    from node.errors import node_context
+
+    pending = deque((Port(name), hz) for name, hz in collect_freq_targets(tree))
+    required: dict[Port, int | None] = {}
+    while pending:
+        port, hz = pending.popleft()
+        if port in required:
+            if required[port] != hz:
+                required[port] = None
+            continue
+        required[port] = hz
+        node = tree.nodes[port.node]
+        with node_context(node, "frequency_index"):
+            raw = node.frequency_parent(port.group)
+            if raw:
+                parent = parse_port_ref(raw, ctx=f"nodes[{port.node!r}].source")
+                pending.append((parent, hz))
+    return required
 
 
 def walk_path_upstream(

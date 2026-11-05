@@ -157,6 +157,8 @@ def _search_pll_sc_uncached(
                             "postdiv2": postdiv2,
                         }
                         error = abs(actual - out_hz)
+                        if error == 0:
+                            return coeffs
                         if best is None or error < best[0]:
                             best = (error, coeffs)
     return best[1] if best is not None else None
@@ -203,6 +205,8 @@ def _search_pll_dw_uncached(
             ):
                 coeffs = {"fbdiv": fbdiv, "p": p}
                 error = abs(actual - out_hz)
+                if error == 0:
+                    return coeffs
                 if best is None or error < best[0]:
                     best = (error, coeffs)
     return best[1] if best is not None else None

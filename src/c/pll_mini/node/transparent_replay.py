@@ -2,21 +2,15 @@ from __future__ import annotations
 
 
 def verify_node(node, tree, model, period_tolerance):
-    from model.arithmetic import freq_tolerance_bounds
     from model.freq_graph import (
-        collect_freq_targets,
-        collect_non_frequency_targets,
         node_has_upstream_ref,
         output_ports,
         parent_port_for_child,
         port_label,
     )
-    from model.verify import VerifyIssue, _hz_mhz, _path_for_edge
+    from model.verify import VerifyIssue, _hz_mhz, _path_for_node
 
     issues = []
-    targets = collect_freq_targets(tree)
-    frozenset(collect_non_frequency_targets(tree))
-    tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     for name, node in [(node.name, node)]:
         if not node_has_upstream_ref(node):
             continue
@@ -38,9 +32,7 @@ def verify_node(node, tree, model, period_tolerance):
                         f"{_hz_mhz(f_parent)}，"
                         f"本节点 {_hz_mhz(f_self)}"
                     ),
-                    path_nodes=tuple(_path_for_edge(tree, name, targets[0][0], model))
-                    if targets
-                    else (name,),
+                    path_nodes=_path_for_node(tree, name, model),
                 )
             )
 

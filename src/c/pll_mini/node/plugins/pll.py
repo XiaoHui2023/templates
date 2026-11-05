@@ -206,15 +206,13 @@ def verify_node(node, tree, model, period_tolerance):
     from model.arithmetic import freq_tolerance_bounds, freq_within_tolerance
     from model.freq_graph import (
         Port,
-        collect_freq_targets,
-        collect_non_frequency_targets,
         output_ports,
         parent_port_for_child,
     )
     from model.freq_graph import (
         static_port_hz as _static_port_hz,
     )
-    from model.verify import _path_for_edge
+    from model.verify import _path_for_node
 
     from node.plugins.pll_math import (
         pll_dw_actual_hz,
@@ -224,8 +222,6 @@ def verify_node(node, tree, model, period_tolerance):
     )
 
     issues = []
-    targets = collect_freq_targets(tree)
-    frozenset(collect_non_frequency_targets(tree))
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     for name, node in [(node.name, node)]:
         vars_map = model.values(name).get("coefficients", {})
@@ -248,9 +244,7 @@ def verify_node(node, tree, model, period_tolerance):
                         f_out,
                         f_actual,
                         clkf=clkf,
-                        path=_path_for_edge(tree, name, targets[0][0], model)
-                        if targets
-                        else (name,),
+                        path=_path_for_node(tree, name, model),
                     )
                 )
         elif kind == "sc":
@@ -277,9 +271,7 @@ def verify_node(node, tree, model, period_tolerance):
                         refdiv=refdiv,
                         postdiv1=p1,
                         postdiv2=p2,
-                        path=_path_for_edge(tree, name, targets[0][0], model)
-                        if targets
-                        else (name,),
+                        path=_path_for_node(tree, name, model),
                     )
                 )
         elif kind == "dw":
@@ -302,9 +294,7 @@ def verify_node(node, tree, model, period_tolerance):
                         f_actual,
                         fbdiv=fbdiv,
                         p=p,
-                        path=_path_for_edge(tree, name, targets[0][0], model)
-                        if targets
-                        else (name,),
+                        path=_path_for_node(tree, name, model),
                     )
                 )
         elif kind == "inno":
@@ -336,9 +326,7 @@ def verify_node(node, tree, model, period_tolerance):
                             refdiv=refdiv,
                             postdiv1=p1,
                             postdiv2=p2,
-                            path=_path_for_edge(tree, name, targets[0][0], model)
-                            if targets
-                            else (name,),
+                            path=_path_for_node(tree, name, model),
                         )
                     )
 

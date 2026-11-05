@@ -3,11 +3,16 @@
 
 #include "pll_mini.h"
 
+{%- if config_plan.steps %}
+
 static const pll_mini_config_step_t pll_mini_config_steps[] = {
 {% for step in config_plan.steps -%}
 {{ step.c_config_step_lines }}
 {% endfor -%}
 };
+{%- endif %}
+
+{%- if config_plan.has_wait_lock_instances %}
 
 {% if config_plan.fixed_wait_lock_mask_hex -%}
 static void pll_mini_wait_lock(unsigned long addr)
@@ -18,7 +23,7 @@ static void pll_mini_wait_lock(unsigned long addr)
     while ((data & {{ config_plan.fixed_wait_lock_mask_hex }}) == 0)
         cpu_config_read(&data, addr);
 }
-{% else -%}
+{%- else -%}
 static void pll_mini_wait_lock(unsigned long addr, unsigned int lock_mask)
 {
     unsigned int data;
@@ -27,9 +32,11 @@ static void pll_mini_wait_lock(unsigned long addr, unsigned int lock_mask)
     while ((data & lock_mask) == 0)
         cpu_config_read(&data, addr);
 }
-{% endif -%}
+{%- endif %}
+{%- endif %}
 
-{% for kind in config_plan.function_plans -%}
+{%- for kind in config_plan.function_plans %}
+
 static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 {
 {%- for name in kind.cfg_var_names %}
@@ -59,24 +66,30 @@ static void {{ kind.fn_name }}({{ kind.c_fn_params }})
 {%- endfor %}
 }
 
-{% endfor -%}
+{%- endfor %}
+
 void {{ settings.main_fn }}(void)
 {
+{%- if config_plan.steps %}
     unsigned int i;
+{%- endif %}
 {%- for inst in config_plan.instances %}
     {{ inst.fn_name }}({{ inst.c_call_args }});
 {%- endfor %}
-{% if config_plan.has_wait_lock_instances %}
+{%- if config_plan.has_wait_lock_instances %}
 
 {%- for inst in config_plan.instances if inst.wait_lock %}
     pll_mini_wait_lock({% if config_plan.fixed_wait_lock_mask_hex %}{{ inst.lock_addr_macro }}{% else %}{{ inst.lock_addr_macro }}, {{ inst.lock_mask_hex }}{% endif %});
 {%- endfor %}
-{% endif %}
+{%- endif %}
+{%- if config_plan.steps %}
+
     for (i = 0; i < sizeof(pll_mini_config_steps) / sizeof(pll_mini_config_steps[0]); i++) {
         const pll_mini_config_step_t *step = &pll_mini_config_steps[i];
 
         cpu_config_write(step->addr, step->value);
     }
+{%- endif %}
 }
 
 #endif

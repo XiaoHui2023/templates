@@ -179,6 +179,16 @@ def add_node_constraints(builder, name: str, node) -> None:
         return
     out = _freq(Port(name, ""))
     builder._add(f"{name}__parent_active", f"(=> {act} {_act(parent.node)})")
+    target = node.fixed_hz() or builder.required_freqs.get(Port(name))
+    if target is not None and target > 0:
+        # Keep the quotient formula for solving/diagnostics; expose its linear bounds.
+        low = (target * builder.tol_lo + builder.tol_den - 1) // builder.tol_den
+        high = target * builder.tol_hi // builder.tol_den
+        builder._add(
+            f"{name}__freq_div_interval",
+            f"(=> {act} (and (<= (* {low} {ratio}) {_freq(parent)}) "
+            f"(< {_freq(parent)} (* {high + 1} {ratio}))))",
+        )
     hw = builder.variable(name, "quotient")
     product = f"(* {hw} {ratio})"
     builder._add(
@@ -205,15 +215,11 @@ def verify_node(node, tree, model, period_tolerance):
     )
     from model.freq_graph import (
         Port,
-        collect_freq_targets,
-        collect_non_frequency_targets,
         parent_port_for_child,
     )
-    from model.verify import VerifyIssue, _hz_mhz, _path_for_edge
+    from model.verify import VerifyIssue, _hz_mhz, _path_for_node
 
     issues = []
-    targets = collect_freq_targets(tree)
-    frozenset(collect_non_frequency_targets(tree))
     tol_lo, tol_hi, tol_den = freq_tolerance_bounds(period_tolerance)
     for name, node in [(node.name, node)]:
         ratio = model.values(name).get("ratio", 0)
@@ -232,9 +238,7 @@ def verify_node(node, tree, model, period_tolerance):
                     headline=f"div {name} 分频公式不成立",
                     formula="f_ref = f_hw × ratio + rem，0 ≤ rem < ratio",
                     detail=f"f_ref={_hz_mhz(f_in)}，ratio={ratio}",
-                    path_nodes=tuple(_path_for_edge(tree, name, targets[0][0], model))
-                    if targets
-                    else (name,),
+                    path_nodes=_path_for_node(tree, name, model),
                 )
             )
             continue
@@ -253,9 +257,7 @@ def verify_node(node, tree, model, period_tolerance):
                         f"f_hw={_hz_mhz(f_hw)}，rem={rem}，"
                         f"f_out={_hz_mhz(f_out)}"
                     ),
-                    path_nodes=tuple(_path_for_edge(tree, name, targets[0][0], model))
-                    if targets
-                    else (name,),
+                    path_nodes=_path_for_node(tree, name, model),
                 )
             )
 

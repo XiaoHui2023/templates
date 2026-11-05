@@ -6,6 +6,10 @@ from .base import NodeBase
 class TransparentNode(NodeBase):
     """提供单输入频率透传行为，供插件复用。"""
 
+    def frequency_parent(self, group: str = "") -> str | None:
+        """单输入透传节点的活动输入输出等频。"""
+        return self.selected_input()
+
     def add_constraints(self, builder) -> None:
         """约束输出频率等于输入频率。"""
         builder._single_input_equal_constraints(self.name, target=self.is_target)

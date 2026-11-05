@@ -11,7 +11,7 @@ from load.tools import consolver_path, run_consolver_solve
 from model.arithmetic import freq_tolerance_bounds
 from node.errors import graph_context, node_context
 
-from .freq_graph import Port, output_ports, parse_port_ref
+from .freq_graph import Port, output_ports, parse_port_ref, required_frequencies
 from .nodes import Tree
 from .smt import act as _act, freq as _freq, safe_name, symbol
 from .solve_model import SolveModel
@@ -111,6 +111,7 @@ class _SmtBuilder:
     ) -> None:
         """绑定图、容差及可选寄存器索引。"""
         self.tree = tree
+        self.required_freqs = required_frequencies(tree)
         self.tol_lo, self.tol_hi, self.tol_den = freq_tolerance_bounds(period_tolerance)
         self.reg_index = reg_index
         self.constraints: list[NamedConstraint] = []
@@ -118,6 +119,12 @@ class _SmtBuilder:
         self.symbol_nodes: dict[str, set[str]] = {}
         self.controls: list[dict[str, object]] = []
         self.shared_control_nodes: set[str] = set()
+        self.controls_by_symbol: dict[str, list[dict[str, object]]] = {}
+        self.consumers: dict[Port, list[tuple[str, str]]] = {}
+        for name, node in tree.nodes.items():
+            for key, raw in node.input_refs().items():
+                port = parse_port_ref(raw, ctx=f"nodes[{name!r}].source")
+                self.consumers.setdefault(port, []).append((name, key))
         self.current_node = ""
         self._build()
 
@@ -193,7 +200,7 @@ class _SmtBuilder:
 
     def _build(self) -> None:
         if self.reg_index is not None:
-            self._shared_register_constraints(collect_only=True)
+            self._collect_controls()
         for name in self.tree.nodes:
             self.current_node = name
             with node_context(self.tree.nodes[name], "constraints"):
@@ -282,14 +289,10 @@ class _SmtBuilder:
         )
 
     def _port_consumer_exprs(self, port: Port) -> list[str]:
-        consumers = []
-        for name, node in self.tree.nodes.items():
-            for key, raw in node.input_refs().items():
-                if parse_port_ref(raw, ctx=name) == port:
-                    consumers.append(
-                        f"(and {_act(name)} {node.input_condition(self, key)})"
-                    )
-        return consumers
+        return [
+            f"(and {_act(name)} {self.tree.nodes[name].input_condition(self, key)})"
+            for name, key in self.consumers.get(port, ())
+        ]
 
     def variable(self, name: str, role: str, typ: str = "Int") -> str:
         """声明插件自有变量，公共层不解释变量角色。"""
@@ -297,9 +300,9 @@ class _SmtBuilder:
         self._declare(value, typ, node_name=name)
         return value
 
-    def _shared_register_constraints(self, *, collect_only: bool = False) -> None:
-        self.controls.clear()
-        by_symbol = {}
+    def _collect_controls(self) -> None:
+        """只解析一次写寄存器插件与物理字段，复用于范围和共享约束。"""
+        by_symbol = self.controls_by_symbol
         for name, node in self.tree.nodes.items():
             self.current_node = name
             with node_context(node, "controls"):
@@ -329,8 +332,10 @@ class _SmtBuilder:
             if len(controls) > 1
             for item in controls
         }
-        if collect_only:
-            return
+
+    def _shared_register_constraints(self) -> None:
+        """使用已解析的字段生成无条件范围与共享编码约束。"""
+        by_symbol = self.controls_by_symbol
         for control in self.controls:
             name, role = control["node"], control["role"]
             self.current_node = name
