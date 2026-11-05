@@ -87,11 +87,11 @@ class PllNode(NodeBase):
         """按硅片公式回放输出频率。"""
         return verify_node(self, tree, model, tolerance)
 
-    def build_plan_group(self, tree, index, resolved):
+    def build_plan_group(self, nodes, index, resolved):
         """归并同类 PLL 的配置函数。"""
         from .pll_plan import build_pll_plan
 
-        return build_pll_plan(tree, index, resolved)
+        return build_pll_plan(nodes, index, resolved)
 
     kind: Literal["pll"] = "pll"
     freq: Optional[Union[int, Dict[str, int]]] = Field(

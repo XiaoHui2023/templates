@@ -1269,6 +1269,12 @@ nodes:
       load: blk_div0.ctrl.load
       div: blk_div0.ctrl.div
 
+  excluded_unused_clk:
+    kind: clk
+    exclude: true
+    source: unused_mux
+    freq: 12000000
+
 settings:
   main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true

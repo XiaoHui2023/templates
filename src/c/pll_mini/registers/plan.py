@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 from typing import List, Sequence, Protocol
 
 from model.nodes import ExtraRegEntry, Tree
+from model.freq_graph import configuration_node_names
 from node.errors import node_context
 from .resolve import TreeResolve
 from load.regmodel import (
@@ -295,16 +296,18 @@ def build_config_plan(
     extra_regs: Sequence[ExtraRegEntry] = (),
 ) -> ConfigPlan:
     """Build PLL kind plans, instances, and non-PLL register write steps."""
+    needed = configuration_node_names(tree, resolved.solve_model)
+    nodes = tuple(node for node in tree.nodes_ordered if node.name in needed)
     groups = {}
-    for node in tree.nodes_ordered:
+    for node in nodes:
         if node.plan_group:
             groups.setdefault(node.plan_group, node)
     bundles = []
     for node in groups.values():
         with node_context(node, "plan"):
-            bundles.append(node.build_plan_group(tree, index, resolved))
+            bundles.append(node.build_plan_group(nodes, index, resolved))
     dev_patches: List[_FieldPatch] = []
-    for node in sorted(tree.nodes_ordered, key=lambda item: item.plan_priority):
+    for node in sorted(nodes, key=lambda item: item.plan_priority):
         with node_context(node, "plan"):
             dev_patches.extend(
                 node.plan_patches(index, settings, resolved.by_name[node.name])

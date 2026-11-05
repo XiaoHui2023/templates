@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from load.regmodel import FieldRef, RegModelIndex, validate_field_value
-from model.nodes import Tree
+from node.base import NodeBase
 from reg_paths import reg_key_to_c_ident
 from registers.resolve import TreeResolve
 
@@ -760,11 +760,11 @@ def _instance_addr_args_by_slots(
 
 
 def _collect_configured_pll_nodes(
-    tree: Tree,
+    candidates: Sequence[NodeBase],
     resolved: TreeResolve,
 ) -> list[PllNode]:
     nodes: list[PllNode] = []
-    for node in tree.nodes_ordered:
+    for node in candidates:
         if not isinstance(node, PllNode) or not node.regs:
             continue
         if resolved.by_name[node.name].pll_cfg:
@@ -773,11 +773,11 @@ def _collect_configured_pll_nodes(
 
 
 def build_pll_plan(
-    tree: Tree,
+    nodes: Sequence[NodeBase],
     index: RegModelIndex,
     resolved: TreeResolve,
 ) -> PllPlanBundle:
-    configured = _collect_configured_pll_nodes(tree, resolved)
+    configured = _collect_configured_pll_nodes(nodes, resolved)
     groups: dict[tuple[str, int], list[PllNode]] = {}
     for node in configured:
         with node_context(node, "plan"):

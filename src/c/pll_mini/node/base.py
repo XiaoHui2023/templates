@@ -130,8 +130,8 @@ class NodeBase(BaseModel):
         """返回节点需要写入的寄存器字段。"""
         return []
 
-    def build_plan_group(self, tree, index, resolved):
-        """构建需要多节点共同归并的配置函数。"""
+    def build_plan_group(self, nodes, index, resolved):
+        """Build grouped configuration from the supplied live nodes only."""
         return None
 
     _name: str = PrivateAttr(default="")
