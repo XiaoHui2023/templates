@@ -7,6 +7,8 @@ from pydantic import (
     ConfigDict,
     Field,
     SerializeAsAny,
+    TypeAdapter,
+    ValidationError,
     computed_field,
     field_validator,
     model_validator,
@@ -18,6 +20,7 @@ from reg_paths import validate_reg_path
 
 Node = SerializeAsAny[NodeBase]
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+_EXCLUDE_BOOL = TypeAdapter(bool)
 
 
 def node_has_upstream_ref(node: NodeBase) -> bool:
@@ -33,8 +36,18 @@ def upstream_peer_names(node: NodeBase) -> List[str]:
     )
 
 
-def _is_omitted_node(value: Any) -> bool:
-    return value is None or (isinstance(value, dict) and value.get("exclude") is True)
+def _is_omitted_node(value: Any, *, ctx: str = "nodes") -> bool:
+    """Apply the node schema's boolean semantics before building the graph."""
+    if value is None:
+        return True
+    if isinstance(value, NodeBase):
+        return value.exclude
+    if not isinstance(value, dict) or "exclude" not in value:
+        return False
+    try:
+        return _EXCLUDE_BOOL.validate_python(value["exclude"])
+    except ValidationError as exc:
+        raise ValueError(f"{ctx}.exclude: expected a boolean value") from exc
 
 
 class ExtraRegEntry(BaseModel):
@@ -77,8 +90,8 @@ class Tree(BaseModel):
             return data
         if isinstance(nodes, list):
             as_dict: dict[str, Any] = {}
-            for item in nodes:
-                if _is_omitted_node(item):
+            for index, item in enumerate(nodes):
+                if _is_omitted_node(item, ctx=f"nodes[{index}]"):
                     continue
                 if not isinstance(item, dict):
                     as_dict[str(item)] = item
@@ -96,10 +109,10 @@ class Tree(BaseModel):
             return data
         normalized: dict[str, Any] = {}
         for key, item in nodes.items():
+            if _is_omitted_node(item, ctx=f"nodes[{key!r}]"):
+                continue
             if not _SV_ID.match(key):
                 raise ValueError(f"nodes 键 {key!r} 须为合法 SystemVerilog 名字")
-            if _is_omitted_node(item):
-                continue
             if isinstance(item, dict):
                 item = normalize_node_item(item)
                 if "name" in item:
@@ -118,7 +131,7 @@ class Tree(BaseModel):
             return value
         built: Dict[str, Node] = {}
         for key, item in value.items():
-            if _is_omitted_node(item):
+            if _is_omitted_node(item, ctx=f"nodes[{key!r}]"):
                 continue
             if isinstance(item, NodeBase):
                 object.__setattr__(item, "_name", key)

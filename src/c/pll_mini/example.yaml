@@ -1260,6 +1260,15 @@ nodes:
     kind: gate
     reg: blk_unused_gate.en.en
 
+  excluded_div:
+    exclude: "true"
+    kind: div_div
+    source: xtal
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.div
+
 settings:
   main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true
