@@ -28,16 +28,10 @@ class FieldPartView:
     comment: str
 
     @property
-    def value_u(self) -> str:
-        return f"{self.value}u"
-
-    @property
-    def lsb_u(self) -> str:
-        return f"{self.lsb}u"
-
-    @property
-    def value_hex_lit(self) -> str:
-        return f"0x{self.value:X}u"
+    def c_value_expr(self) -> str:
+        """按旧版风格保留字段值与位移，不添加数字后缀。"""
+        literal = f"0x{self.value:X}"
+        return f"({literal:<6} << {self.lsb:<4})"
 
 
 @dataclass(frozen=True)
@@ -57,59 +51,19 @@ class RegWriteStep:
         return self.reg.addr_macro
 
     @property
-    def value_hex(self) -> str:
-        return f"0x{self.value & 0xFFFFFFFF:08X}u"
-
-    def _packed_value_lines(
-        self,
-        *,
-        first_prefix: str,
-        cont_indent: str,
-        close: str,
-        unsigned_suffix: bool = True,
-        cast_uint32: bool = True,
-        hex_literals: bool = False,
-    ) -> list[str]:
-        lines: list[str] = []
-        for idx, part in enumerate(self.parts):
-            if idx == 0:
-                prefix = first_prefix
-            else:
-                prefix = cont_indent
-            sep = " |" if idx + 1 < len(self.parts) else close
-            if hex_literals:
-                value_lit = part.value_hex_lit
-                lsb_lit = str(part.lsb)
-            elif unsigned_suffix:
-                value_lit = part.value_u
-                lsb_lit = part.lsb_u
-            else:
-                value_lit = str(part.value)
-                lsb_lit = str(part.lsb)
-            if cast_uint32:
-                expr = f"((unsigned int){value_lit:<6} << {lsb_lit:<4})"
-            else:
-                expr = f"({value_lit:<6} << {lsb_lit:<4})"
-            lines.append(f"{prefix}{expr}{sep} // {part.comment}")
-        return lines
-
-    @property
     def c_config_step_lines(self) -> str:
+        """按字段拼接寄存器初值，保留位移与注释对齐。"""
         pad = self.addr_pad_width if self.addr_pad_width > 0 else len(self.addr_macro)
         base_indent = "    "
         addr_field = "{ " + f"{self.addr_macro:<{pad}}" + ", "
         field_start_col = len(base_indent) + len(addr_field)
         cont_indent = " " * field_start_col
-        return "\n".join(
-            self._packed_value_lines(
-                first_prefix=base_indent + addr_field,
-                cont_indent=cont_indent,
-                close=" },",
-                unsigned_suffix=False,
-                cast_uint32=False,
-                hex_literals=True,
-            )
-        )
+        lines = []
+        for idx, part in enumerate(self.parts):
+            prefix = base_indent + addr_field if idx == 0 else cont_indent
+            sep = " |" if idx + 1 < len(self.parts) else " },"
+            lines.append(f"{prefix}{part.c_value_expr}{sep} // {part.comment}")
+        return "\n".join(lines)
 
 
 def _is_single_bit_mask_hex(mask_hex: str) -> bool:
