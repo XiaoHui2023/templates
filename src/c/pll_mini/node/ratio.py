@@ -26,11 +26,17 @@ class QuotientNode(NodeBase):
     constraint_fields = {
         "ratio": ("ratio",),
         "configured_ratio": ("ratio",),
+        "init_ratio": ("init_ratio",),
         "freq_div": ("source", "ratio", "settings.period_tolerance"),
         "quotient": ("source", "ratio"),
     }
 
     plan_priority = 10
+
+    @classmethod
+    def terminal_demand_from_config(cls, value, *, frequency: bool) -> bool:
+        init = value.get("init_ratio") if isinstance(value, dict) else value.init_ratio
+        return frequency or init is not None
 
     def add_constraints(self, builder) -> None:
         """生成整数分频关系与合法分频范围。"""
@@ -81,6 +87,10 @@ class QuotientNode(NodeBase):
         description="插件声明的寄存器角色；固定 ratio 时不得配置。",
     )
 
+    init_ratio: Optional[int] = Field(
+        None, ge=1, description="可编程节点必须写入的初始分频比；须配置 regs，不与 ratio 共用。"
+    )
+
     @field_validator("source", mode="before")
     @classmethod
     def _coerce_source(cls, value: Any) -> str:
@@ -89,6 +99,14 @@ class QuotientNode(NodeBase):
     @model_validator(mode="after")
     def _validate_ratio_registers(self, info: ValidationInfo):
         name = _validation_node_name(self, info)
+        if self.init_ratio is not None:
+            if not self.regs or self.ratio is not None:
+                raise ValueError(f"nodes[{name!r}].init_ratio requires regs and no fixed ratio")
+            if not self.minimum_ratio <= self.init_ratio <= self.maximum_ratio:
+                raise ValueError(
+                    f"nodes[{name!r}].init_ratio must be in "
+                    f"{self.minimum_ratio}..{self.maximum_ratio}"
+                )
         if self.fixed_required and self.ratio is None:
             raise ValueError(f"nodes[{name!r}].ratio is required")
         if self.ratio is not None:
@@ -120,6 +138,8 @@ def add_node_constraints(builder, name: str, node) -> None:
         f"{name}__configured_ratio_domain",
         f"(and (>= {ratio} {minimum}) {upper})",
     )
+    if node.init_ratio is not None:
+        builder._add(f"{name}__init_ratio", f"(= {ratio} {node.init_ratio})")
     try:
         parent = parent_port_for_child(builder.tree, name)
     except ValueError:

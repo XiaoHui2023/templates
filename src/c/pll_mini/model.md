@@ -28,7 +28,7 @@ source 和 PLL 输出频率是输入锚点。复杂 PLL 系数在图求解后拟
 
 拓扑引用不等于有效需求。归一化从显式排除及无需求透明叶节点开始，用同一工作队列收缩空载上游。`demand_from_config` 每个节点只计算一次频率需求，再将结果传给插件的 `terminal_demand_from_config(value, frequency=...)`。默认保留独立初始化，透明插件按频率锚点判断，有实际写入的插件保留其独立终端动作。不依赖具体类型名单，也不以 `reg` 字段存在推断写入。
 
-`frequency_demand_from_config` 表示节点自身的频率锚点；即使最后一个被动下游被裁掉，也保留该节点及其上游。
+`frequency_demand_from_config` 表示节点自身的频率锚点。`terminal_demand_from_config` 的缓存结果统一保护原始叶节点和收缩后叶节点，包括插件声明的实际初始化动作。`standalone_initialization` 仅保留原本无消费者的独立配置，不保活失去需求的普通分支。可编程 quotient 的 `init_ratio` 与 mux 插件的 `init_sel` 将明确的写入意图纳入自身需求及无条件约束；固定功能 `ratio` / `sel` 保持不写寄存器语义。
 
 插件通过 `control_encodings` 提供控制字段及硬件编码表达式。只有多个节点确实绑定同一寄存器字段及比特范围时，公共层建立编码相等约束；不同插件的逻辑 ratio 不必相等，但最终硬件值必须相等。未被目标使用、仍会写寄存器的节点也遵守该约束。
 

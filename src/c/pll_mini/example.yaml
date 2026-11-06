@@ -35,6 +35,7 @@ nodes:
       "0": xtal
       "1": pad_xtal
     reg: blk_mux_ref_src.sel.sel
+    init_sel: 0
 
   div_ref:
     kind: div
@@ -1242,6 +1243,8 @@ nodes:
       div: blk_unused_div.ctrl.div
   unused_dto:
     kind: div_dto
+    source: xtal
+    init_ratio: 8
     regs:
       rst: blk_unused_dto.ctrl.rst
       load: blk_unused_dto.ctrl.load
@@ -1291,6 +1294,10 @@ nodes:
     kind: clk
     source: init_field_used
     freq: 24000000
+
+  init_field_passive_tail:
+    kind: cell
+    source: init_field_unreferenced
 
 settings:
   main_fn: chip_pll_config_extreme

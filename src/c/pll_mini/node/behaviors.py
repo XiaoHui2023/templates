@@ -10,9 +10,7 @@ from .base import NodeBase, _coerce_optional_source_field, _coerce_required_freq
 class TransparentNode(NodeBase):
     """提供单输入频率透传行为，供插件复用。"""
 
-    @classmethod
-    def terminal_demand_from_config(cls, value, *, frequency: bool) -> bool:
-        return frequency
+    standalone_initialization = False
 
     def frequency_parent(self, group: str = "") -> str | None:
         """单输入透传节点的活动输入输出等频。"""

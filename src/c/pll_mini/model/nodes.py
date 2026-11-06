@@ -63,26 +63,24 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
     parents: dict[str, set[str]] = {}
     consumers: dict[str, set[str]] = {name: set() for name in nodes}
     terminal_demand: dict[str, bool] = {}
-    frequency_demand: dict[str, bool] = {}
+    standalone_initialization: dict[str, bool] = {}
     for name, item in nodes.items():
         if isinstance(item, NodeBase):
             refs = item.input_refs()
-            frequency_demand[name], terminal_demand[name] = item.demand_from_config(
-                item
-            )
+            standalone_initialization[name] = item.standalone_initialization
+            terminal_demand[name] = item.demand_from_config(item)
         elif isinstance(item, dict):
             kind = item.get("kind")
             plugin = (
                 PLUGIN_TYPES.get(kind, NodeBase) if isinstance(kind, str) else NodeBase
             )
             refs = plugin.input_refs_from_config(item)
-            frequency_demand[name], terminal_demand[name] = plugin.demand_from_config(
-                item
-            )
+            standalone_initialization[name] = plugin.standalone_initialization
+            terminal_demand[name] = plugin.demand_from_config(item)
         else:
             refs = {}
             terminal_demand[name] = True
-            frequency_demand[name] = True
+            standalone_initialization[name] = True
         parents[name] = set()
         for raw in refs.values():
             try:
@@ -94,7 +92,12 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
                 consumers[parent].add(name)
     # Passive terminals are not demand. Standalone writers remain initialized.
     for name, item in nodes.items():
-        if name not in removed and not consumers[name] and not terminal_demand[name]:
+        if (
+            name not in removed
+            and not consumers[name]
+            and not terminal_demand[name]
+            and not standalone_initialization[name]
+        ):
             # An unused terminal may still contain invalid public input fields.
             if isinstance(item, dict):
                 parse_node(name, item, normalized=True)
@@ -107,7 +110,7 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
             if (
                 not consumers[parent]
                 and parent not in removed
-                and not frequency_demand[parent]
+                and not terminal_demand[parent]
             ):
                 removed.add(parent)
                 pending.append(parent)

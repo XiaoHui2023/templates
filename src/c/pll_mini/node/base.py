@@ -69,6 +69,7 @@ class NodeBase(BaseModel):
     independent_outputs: ClassVar[bool] = False
     plan_priority: ClassVar[int] = 0
     plan_group: ClassVar[str] = ""
+    standalone_initialization: ClassVar[bool] = True
 
     @classmethod
     def frequency_demand_from_config(cls, value) -> bool:
@@ -83,13 +84,13 @@ class NodeBase(BaseModel):
 
     @classmethod
     def terminal_demand_from_config(cls, value, *, frequency: bool) -> bool:
-        """Preserve standalone initialization unless a plugin declares it passive."""
-        return True
+        """Declare own demand, independent of original or pruned leaf position."""
+        return frequency
 
     @classmethod
-    def demand_from_config(cls, value) -> tuple[bool, bool]:
+    def demand_from_config(cls, value) -> bool:
         frequency = cls.frequency_demand_from_config(value)
-        return frequency, cls.terminal_demand_from_config(value, frequency=frequency)
+        return cls.terminal_demand_from_config(value, frequency=frequency)
 
     def input_refs(self) -> dict[str, str]:
         """返回输入键与上游引用，单输入使用空键。"""

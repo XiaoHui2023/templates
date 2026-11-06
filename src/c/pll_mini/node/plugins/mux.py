@@ -21,9 +21,15 @@ class MuxNode(NodeBase):
     constraint_fields = {
         "sel": ("sel", "source"),
         "configured_sel": ("sel", "source"),
+        "init_sel": ("init_sel", "source"),
         "arm_": ("source", "sel"),
     }
     plan_priority = 30
+
+    @classmethod
+    def terminal_demand_from_config(cls, value, *, frequency: bool) -> bool:
+        init = value.get("init_sel") if isinstance(value, dict) else value.init_sel
+        return frequency or init is not None
 
     @field_validator("source", mode="before")
     @classmethod
@@ -57,8 +63,9 @@ class MuxNode(NodeBase):
 
     def frequency_parent(self, group: str = "") -> str | None:
         """仅固定选择或单输入时传播等频要求。"""
-        if self.sel is not None:
-            return self.selected_input()
+        selected = self.sel if self.sel is not None else self.init_sel
+        if selected is not None:
+            return self.source.get(str(selected))
         return next(iter(self.source.values())) if len(self.source) == 1 else None
 
     def input_condition(self, builder, key: str) -> str:
@@ -132,6 +139,9 @@ class MuxNode(NodeBase):
         description="mux 选择寄存器模型点分路径；空则生成时跳过写寄存器；"
         "sel 已填写时也应为空。",
     )
+    init_sel: Optional[int] = Field(
+        None, ge=0, description="必须编程的输入编号；须配置 reg，不与固定 sel 共用。"
+    )
 
     @computed_field(  # type: ignore[prop-decorator]
         description="mux 的 source 键最大值；YAML 不可传入。",
@@ -144,6 +154,12 @@ class MuxNode(NodeBase):
 
     @model_validator(mode="after")
     def _validate_mux(self, info: ValidationInfo) -> MuxNode:
+        if self.init_sel is not None:
+            name = _validation_node_name(self, info)
+            if not self.reg or self.sel is not None:
+                raise ValueError(f"nodes[{name!r}].init_sel requires reg and no fixed sel")
+            if str(self.init_sel) not in self.source:
+                raise ValueError(f"nodes[{name!r}].init_sel={self.init_sel} not in source")
         validate_optional_reg(
             self.reg, node_name=_validation_node_name(self, info), kind="mux"
         )
@@ -179,6 +195,8 @@ def add_node_constraints(builder, name: str, node) -> None:
         return
     if node.sel is not None:
         builder._add(f"{name}__sel_fixed", f"(= {sel} {node.sel})")
+    if node.init_sel is not None:
+        builder._add(f"{name}__init_sel", f"(= {sel} {node.init_sel})")
     for key in keys:
         parent = parse_port_ref(source_by_sel[key], ctx=f"{name}.source[{key}]")
         when = f"(and {act} (= {sel} {key}))"
