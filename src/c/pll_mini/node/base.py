@@ -71,10 +71,18 @@ class NodeBase(BaseModel):
 
     def input_refs(self) -> dict[str, str]:
         """返回输入键与上游引用，单输入使用空键。"""
-        source = getattr(self, "source", "")
+        return self.input_refs_from_config(self)
+
+    @classmethod
+    def input_refs_from_config(cls, value) -> dict[str, str]:
+        """Read topology before excluded payloads undergo node validation."""
+        source = (
+            value.get("source", "")
+            if isinstance(value, dict) else getattr(value, "source", "")
+        )
         if isinstance(source, dict):
-            return {str(key): raw for key, raw in source.items()}
-        return {"": source} if source else {}
+            return {str(key): raw for key, raw in source.items() if isinstance(raw, str) and raw}
+        return {"": source} if isinstance(source, str) and source else {}
 
     def selected_input(self, model=None) -> str | None:
         """返回当前选中的输入引用。"""

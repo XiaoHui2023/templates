@@ -14,7 +14,7 @@ from pydantic import (
     model_validator,
 )
 from node.base import NodeBase
-from node.registry import normalize_node_item, parse_node
+from node.registry import PLUGIN_TYPES, normalize_node_item, parse_node
 from model.source_ref import parse_source_endpoint, validate_nodes_source_refs
 from reg_paths import validate_reg_path
 
@@ -48,6 +48,46 @@ def _is_omitted_node(value: Any, *, ctx: str = "nodes") -> bool:
         return _EXCLUDE_BOOL.validate_python(value["exclude"])
     except ValidationError as exc:
         raise ValueError(f"{ctx}.exclude: expected a boolean value") from exc
+
+
+def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
+    removed = {
+        name for name, item in nodes.items()
+        if _is_omitted_node(item, ctx=f"nodes[{name!r}]")
+    }
+    if not removed:
+        return nodes
+    parents: dict[str, set[str]] = {}
+    consumers: dict[str, set[str]] = {name: set() for name in nodes}
+    for name, item in nodes.items():
+        if isinstance(item, NodeBase):
+            refs = item.input_refs()
+        elif isinstance(item, dict):
+            normalized = normalize_node_item(item)
+            kind = normalized.get("kind")
+            plugin = PLUGIN_TYPES.get(kind, NodeBase) if isinstance(kind, str) else NodeBase
+            refs = plugin.input_refs_from_config(normalized)
+        else:
+            refs = {}
+        parents[name] = set()
+        for raw in refs.values():
+            try:
+                parent, _ = parse_source_endpoint(raw, ctx=f"nodes[{name!r}].source")
+            except ValueError:
+                continue
+            if parent in consumers:
+                parents[name].add(parent)
+                consumers[parent].add(name)
+    # Only losing the last original consumer propagates exclusion upstream.
+    pending = list(removed)
+    while pending:
+        child = pending.pop()
+        for parent in parents[child]:
+            consumers[parent].discard(child)
+            if not consumers[parent] and parent not in removed:
+                removed.add(parent)
+                pending.append(parent)
+    return {name: item for name, item in nodes.items() if name not in removed}
 
 
 class ExtraRegEntry(BaseModel):
@@ -91,7 +131,9 @@ class Tree(BaseModel):
         if isinstance(nodes, list):
             as_dict: dict[str, Any] = {}
             for index, item in enumerate(nodes):
-                if _is_omitted_node(item, ctx=f"nodes[{index}]"):
+                if _is_omitted_node(item, ctx=f"nodes[{index}]") and not (
+                    isinstance(item, dict) and item.get("name")
+                ):
                     continue
                 if not isinstance(item, dict):
                     as_dict[str(item)] = item
@@ -107,6 +149,7 @@ class Tree(BaseModel):
             nodes = as_dict
         if not isinstance(nodes, dict):
             return data
+        nodes = _exclude_unused_ancestors(nodes)
         normalized: dict[str, Any] = {}
         for key, item in nodes.items():
             if _is_omitted_node(item, ctx=f"nodes[{key!r}]"):
