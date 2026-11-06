@@ -55,20 +55,26 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
         name for name, item in nodes.items()
         if _is_omitted_node(item, ctx=f"nodes[{name!r}]")
     }
-    if not removed:
-        return nodes
     parents: dict[str, set[str]] = {}
     consumers: dict[str, set[str]] = {name: set() for name in nodes}
+    terminal_demand: dict[str, bool] = {}
+    frequency_demand: dict[str, bool] = {}
     for name, item in nodes.items():
         if isinstance(item, NodeBase):
             refs = item.input_refs()
+            terminal_demand[name] = item.terminal_demand_from_config(item)
+            frequency_demand[name] = item.frequency_demand_from_config(item)
         elif isinstance(item, dict):
             normalized = normalize_node_item(item)
             kind = normalized.get("kind")
             plugin = PLUGIN_TYPES.get(kind, NodeBase) if isinstance(kind, str) else NodeBase
             refs = plugin.input_refs_from_config(normalized)
+            terminal_demand[name] = plugin.terminal_demand_from_config(normalized)
+            frequency_demand[name] = plugin.frequency_demand_from_config(normalized)
         else:
             refs = {}
+            terminal_demand[name] = True
+            frequency_demand[name] = True
         parents[name] = set()
         for raw in refs.values():
             try:
@@ -78,13 +84,19 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
             if parent in consumers:
                 parents[name].add(parent)
                 consumers[parent].add(name)
-    # Only losing the last original consumer propagates exclusion upstream.
+    # Passive terminals are not demand. Standalone writers remain initialized.
+    for name, item in nodes.items():
+        if name not in removed and not consumers[name] and not terminal_demand[name]:
+            # An unused terminal may still contain invalid public input fields.
+            if isinstance(item, dict):
+                parse_node(name, item)
+            removed.add(name)
     pending = list(removed)
     while pending:
         child = pending.pop()
         for parent in parents[child]:
             consumers[parent].discard(child)
-            if not consumers[parent] and parent not in removed:
+            if not consumers[parent] and parent not in removed and not frequency_demand[parent]:
                 removed.add(parent)
                 pending.append(parent)
     return {name: item for name, item in nodes.items() if name not in removed}

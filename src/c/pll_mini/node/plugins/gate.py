@@ -19,6 +19,11 @@ from node.behaviors import TransparentNode
 class GateNode(TransparentNode):
     plan_priority = 20
 
+    @classmethod
+    def terminal_demand_from_config(cls, value) -> bool:
+        reg = value.get("reg", "") if isinstance(value, dict) else value.reg
+        return super().terminal_demand_from_config(value) or reg not in (None, "")
+
     def resolved_values(self, model) -> dict[str, object]:
         """配置阶段将门控设为打开。"""
         return {"gate_open": True}

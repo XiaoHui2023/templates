@@ -14,6 +14,7 @@ from node.behaviors import TransparentNode
 
 class ClkNode(TransparentNode):
     is_target = True
+    negative_freq_is_unconstrained = True
 
     def fixed_hz(self, group: str = "") -> int | None:
         """负频率仅表示不约束。"""

@@ -1275,6 +1275,10 @@ nodes:
     source: unused_mux
     freq: 12000000
 
+  unused_terminal_cell:
+    kind: cell
+    source: unused_mux
+
   init_field_used:
     kind: gate
     source: xtal

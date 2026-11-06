@@ -65,9 +65,26 @@ class NodeBase(BaseModel):
 
     is_target: ClassVar[bool] = False
     is_anchor: ClassVar[bool] = False
+    negative_freq_is_unconstrained: ClassVar[bool] = False
     independent_outputs: ClassVar[bool] = False
     plan_priority: ClassVar[int] = 0
     plan_group: ClassVar[str] = ""
+
+    @classmethod
+    def frequency_demand_from_config(cls, value) -> bool:
+        """Keep explicit frequency anchors, including malformed ones for validation."""
+        freq = value.get("freq") if isinstance(value, dict) else value.freq
+        if freq is None or freq == "":
+            return False
+        try:
+            return not (int(freq) < 0 and cls.negative_freq_is_unconstrained)
+        except (TypeError, ValueError, OverflowError):
+            return True
+
+    @classmethod
+    def terminal_demand_from_config(cls, value) -> bool:
+        """Preserve standalone initialization unless a plugin declares it passive."""
+        return True
 
     def input_refs(self) -> dict[str, str]:
         """返回输入键与上游引用，单输入使用空键。"""
@@ -184,7 +201,9 @@ class NodeBase(BaseModel):
 
     @model_validator(mode="after")
     def _validate_node_freq(self) -> NodeBase:
-        if isinstance(self.freq, int) and self.freq <= 0:
+        if isinstance(self.freq, int) and self.freq <= 0 and not (
+            self.freq < 0 and self.negative_freq_is_unconstrained
+        ):
             raise ValueError(f"节点 {self.name!r} freq 若填写须大于 0")
         return self
 
