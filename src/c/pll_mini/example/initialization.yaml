@@ -1,0 +1,87 @@
+ralf: example/normal.ralf
+nodes:
+  primary:
+    kind: source
+    freq: 24000000
+  alternate:
+    kind: source
+    freq: 24000000
+  independent_clock:
+    kind: clk
+    source: primary
+    freq: 24000000
+  backup:
+    kind: div_div
+    source: primary
+    init_ratio: 4
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.div
+  retained_gate:
+    kind: gate
+    source: backup
+    reg: blk_gate0.en.en
+  passive:
+    kind: cell
+    source: retained_gate
+  required_mux:
+    kind: mux
+    source:
+      '0': primary
+      '1': alternate
+    init_sel: 1
+    reg: blk_mux_clk.sel.sel
+  required_clock:
+    kind: clk
+    source: required_mux
+    freq: 24000000
+  required_backup:
+    kind: clk
+    source: backup
+    freq: 6000000
+  standby_dto:
+    kind: div_dto
+    source: primary
+    init_ratio: 8
+    regs:
+      rst: blk_dto0.ctrl.rst
+      load: blk_dto0.ctrl.load
+      bypass: blk_dto0.ctrl.bypass
+      step: blk_dto0.ctrl.step
+  standby_mux:
+    kind: mux
+    source:
+      '2': primary
+      '7': alternate
+    init_sel: 7
+    reg: blk_unused_mux.sel.sel
+  field_used:
+    kind: gate
+    source: primary
+    reg: blk_unused_div.ctrl.rst
+  field_independent:
+    kind: gate
+    source: primary
+    reg: blk_unused_div.ctrl.load
+  field_tail:
+    kind: cell
+    source: field_used
+  removed_div:
+    kind: div_div
+    source: primary
+    regs:
+      rst: blk_div_n0.ctrl.rst
+      load: blk_div_n0.ctrl.load
+      div: blk_div_n0.ctrl.div
+  removed_clock:
+    kind: clk
+    source: removed_div
+    freq: 12000000
+    exclude: true
+extra_regs:
+  - path: blk_unused_gate.en.en
+    value: 1
+settings:
+  main_fn: scope_config
+  gate_reg_high_means_open: true

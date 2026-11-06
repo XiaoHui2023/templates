@@ -1299,6 +1299,11 @@ nodes:
     kind: cell
     source: init_field_unreferenced
 
+  init_required_backup:
+    kind: clk
+    source: unused_dto
+    freq: 3000000
+
 settings:
   main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true

@@ -87,6 +87,8 @@ settings:
 
 需要指定可编程分频初值时使用 `init_ratio` 并保留 `regs`；需要指定可编程 mux 来源时使用 `init_sel` 并保留 `reg`。两者不受 active 限制，不与固定功能 `ratio` / `sel` 混用。省略时仍允许求解器选择合法值；同频来源不代表功能等价，必须来源应明确填写输入编号。主例固定参考来源为 xtal、备用 DTO 分频为 8。
 
+[完整初始化示例](example/initialization.yaml) 包含两个启用的必须目标、备用初值、同频但指定来源、带寄存器 gate、共享整字写入和独立排除分支。[初始化合同](initialization.md) 列出了该例的完整寄存器地址和值，便于核对实际输出。
+
 例如 [example.yaml](example.yaml) 中 `init_field_used` 与 `init_field_unreferenced` 分别配置同一寄存器的 bit 0、bit 1；即使后者没有时钟目标引用，两位也都必须为 1。普通步骤合并完整字段后整字写入，不能因为裁剪字段而把它写零。输入结构迁移不改变此初始化语义。
 
 | 字段 | 类型 | 默认值 | 说明 |

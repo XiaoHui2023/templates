@@ -90,3 +90,30 @@ Explicit `exclude` still takes precedence over all initialization intent.
   selected-target generation is correct.
 
 Acceptance must reject both historical failure strategies under this same contract.
+
+## Initialization Example
+
+`example/initialization.yaml` programs two equal-rate inputs with distinct source
+identity. `required_clock` selects `alternate` through input 1; `required_backup`
+uses `primary / 4`. Both targets are enabled. The standalone DTO programs ratio 8
+and the standalone mux programs input 7 even without an active downstream target.
+The register-backed gate remains configured when its passive child is removed.
+Only `removed_clock` is deliberately excluded, taking its exclusive divider out
+of initialization. Independent clock demand remains available.
+
+With the supplied `normal.ralf`, the complete ordinary writes are:
+
+| Address | Value | Meaning |
+| --- | --- | --- |
+| 0xd10 | 0x1 | Extra-only enable, emitted first |
+| 0x500 | 0x303 | Divider ratio 4, reset released and load asserted |
+| 0x530 | 0x20000003 | DTO ratio 8, reset released and load asserted |
+| 0x600 | 0x1 | Retained gate open |
+| 0xd00 | 0x3 | Both configured gate fields merged |
+| 0x504 | 0x1 | Required source is alternate, not equal-rate primary |
+| 0xd08 | 0x7 | Standalone source selection |
+
+Each address occurs once. Address 0x520 (the excluded branch divider) is absent.
+Changing a required target to `exclude: true` is not a valid way to preserve this
+example's requirements, even if explicit initialization leaves the same write
+values. Restore required targets individually; do not change divider equations.
