@@ -4,7 +4,9 @@
 
 输入只使用顶层 `nodes` 和 `extra_regs`，不接受旧 `tree` 层。节点名来自字典键，节点体不能填写 `name`。`null` 或 `exclude: true` 节点不进入图；引用不存在或被排除的节点会报出引用位置。未知字段、插件、输出名、环路和不存在的 mux 输入均在求解前拒绝。
 
-`node/base.py` 定义稳定 hook；`node/registry.py` 显式装配插件及其设置模型。具体模型、约束、状态解码、公式回放及寄存器行为位于 `node/plugins/`。新增类型通过独立插件与注册表接入，不修改图、求解器、验证器或规划器。
+`node/base.py` 定义稳定 hook；`node/discovery.py` 发现本地插件，`node/registry.py` 根据插件声明构建输入索引。每个具体节点的模型、别名、设置、约束、状态解码、公式和寄存器规则集中在 `node/plugins/` 中对应的一个 Python 文件。新增节点只增加插件文件，不修改注册表、图、求解器、验证器或公共模板。
+
+基础能力不包含器件型号：`node/behaviors.py` 提供透传、单输入及固定频率源；`node/ratio.py` 提供整数比值求解和回放；`node/synthesis.py` 提供固定输出目标的拟合流程。`registers/program.py` 按插件给出的槽位、字段表达式和写入阶段生成配置函数及就绪轮询。具体公式、合法范围、字段键、阶段顺序和 C 符号由插件声明。
 
 公共设置只包含生成选项、容差和工具预算。器件设置由插件自己的 Pydantic 模型验证，输入仍可使用扁平 `settings`。公共 `SolveModel` 只保存 `active`、端口频率和不透明的 `node_values`；寄存器规划状态由插件的 `resolved_values` 返回。
 
@@ -24,7 +26,7 @@ source 和 PLL 输出频率是输入锚点。复杂 PLL 系数在图求解后拟
 
 ## 共享硬件字段
 
-拓扑引用不等于有效需求。归一化从显式排除及无需求透明叶节点开始，用同一工作队列收缩空载上游。插件通过 `terminal_demand_from_config` 声明原始终端需求；默认保留独立初始化，透明插件按频率锚点判断，有实际写入的插件保留其独立终端动作。不依赖具体类型名单，也不以 `reg` 字段存在推断写入。
+拓扑引用不等于有效需求。归一化从显式排除及无需求透明叶节点开始，用同一工作队列收缩空载上游。`demand_from_config` 每个节点只计算一次频率需求，再将结果传给插件的 `terminal_demand_from_config(value, frequency=...)`。默认保留独立初始化，透明插件按频率锚点判断，有实际写入的插件保留其独立终端动作。不依赖具体类型名单，也不以 `reg` 字段存在推断写入。
 
 `frequency_demand_from_config` 表示节点自身的频率锚点；即使最后一个被动下游被裁掉，也保留该节点及其上游。
 
@@ -36,4 +38,26 @@ source 和 PLL 输出频率是输入锚点。复杂 PLL 系数在图求解后拟
 
 ## 扩展验证
 
-运行 `python tools/check_plugin_ownership.py` 检查核心不引入具体插件或 kind 分支，并验证检查器的故障 mutant。正式集成验证使用主示例和真实 Jinja 入口；新增插件必须覆盖端口、约束、状态、公式回放及配置贡献。
+插件文件名必须与其唯一节点类的 `kind` 默认值相同。输入别名由 `InputForm` 声明，插件内的 `SETTINGS` 声明该文件自己的设置模型。发现阶段拒绝节点所有权不唯一、重复设置字段和歧义输入形式。插件不互相导入，公共层不导入具体插件类。
+
+运行 `python tools/check_plugin_ownership.py` 检查文件所有权、跨插件导入、公共层具体类型选择和模板专有字段引用；注册表也纳入检查。静态检查不能代替真实生成、公式回放和旧版输出对照。新增插件必须覆盖端口、约束、状态、回放及配置贡献。
+
+| 节点 | 唯一插件文件 |
+| --- | --- |
+| cell | `node/plugins/cell.py` |
+| clk（clock） | `node/plugins/clk.py` |
+| clk_div_with_clken | `node/plugins/clk_div_with_clken.py` |
+| div_div（div、div_n） | `node/plugins/div_div.py` |
+| div_dto（dto、dto_n） | `node/plugins/div_dto.py` |
+| div_div_r（div_r） | `node/plugins/div_div_r.py` |
+| gate | `node/plugins/gate.py` |
+| inv | `node/plugins/inv.py` |
+| inv_cell | `node/plugins/inv_cell.py` |
+| inv_mux | `node/plugins/inv_mux.py` |
+| mux | `node/plugins/mux.py` |
+| pll_dw | `node/plugins/pll_dw.py` |
+| pll_inno | `node/plugins/pll_inno.py` |
+| pll_sc | `node/plugins/pll_sc.py` |
+| pll_tci | `node/plugins/pll_tci.py` |
+| source | `node/plugins/source.py` |
+| source_pad | `node/plugins/source_pad.py` |

@@ -11,61 +11,9 @@ static const pll_mini_config_step_t pll_mini_config_steps[] = {
 {% endfor -%}
 };
 {%- endif %}
+{%- for definition in config_plan.code.definitions %}
 
-{%- if config_plan.has_wait_lock_instances %}
-
-{% if config_plan.fixed_wait_lock_mask_hex -%}
-static void pll_mini_wait_lock(unsigned long addr)
-{
-    unsigned int data;
-
-    cpu_config_read(&data, addr);
-    while ((data & {{ config_plan.fixed_wait_lock_mask_hex }}) == 0)
-        cpu_config_read(&data, addr);
-}
-{%- else -%}
-static void pll_mini_wait_lock(unsigned long addr, unsigned int lock_mask)
-{
-    unsigned int data;
-
-    cpu_config_read(&data, addr);
-    while ((data & lock_mask) == 0)
-        cpu_config_read(&data, addr);
-}
-{%- endif %}
-{%- endif %}
-
-{%- for kind in config_plan.function_plans %}
-
-static void {{ kind.fn_name }}({{ kind.c_fn_params }})
-{
-{%- for name in kind.cfg_var_names %}
-    unsigned int {{ name }};
-{%- endfor %}
-{%- for value_var in kind.addr_value_vars %}
-    unsigned int {{ value_var }};
-{%- endfor %}
-    switch (out_freq_hz) {
-{%- for branch in kind.freq_branches %}
-    case {{ branch.freq_case_lit }}:
-{%- for name, value in branch.assignments %}
-        {{ name }} = {{ value }};
-{%- endfor %}
-        break;
-{%- endfor %}
-    default:
-        return;
-    }
-{%- for addr_param in kind.addr_params %}
-    cpu_config_read(&{{ kind.addr_value_vars[loop.index0] }}, {{ addr_param }});
-{%- endfor %}
-{%- for write in kind.write_templates %}
-
-    {{ write.c_value_update_stmt }}
-    cpu_config_write({{ write.addr_param }}, {{ write.value_var }});
-{%- endfor %}
-}
-
+{{ definition }}
 {%- endfor %}
 
 void {{ settings.main_fn }}(void)
@@ -73,13 +21,13 @@ void {{ settings.main_fn }}(void)
 {%- if config_plan.steps %}
     unsigned int i;
 {%- endif %}
-{%- for inst in config_plan.instances %}
-    {{ inst.fn_name }}({{ inst.c_call_args }});
+{%- for statement in config_plan.code.calls %}
+{{ statement }}
 {%- endfor %}
-{%- if config_plan.has_wait_lock_instances %}
+{%- if config_plan.code.after_calls %}
 
-{%- for inst in config_plan.instances if inst.wait_lock %}
-    pll_mini_wait_lock({% if config_plan.fixed_wait_lock_mask_hex %}{{ inst.lock_addr_macro }}{% else %}{{ inst.lock_addr_macro }}, {{ inst.lock_mask_hex }}{% endif %});
+{%- for statement in config_plan.code.after_calls %}
+{{ statement }}
 {%- endfor %}
 {%- endif %}
 {%- if config_plan.steps %}

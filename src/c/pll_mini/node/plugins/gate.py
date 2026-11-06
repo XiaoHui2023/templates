@@ -20,9 +20,9 @@ class GateNode(TransparentNode):
     plan_priority = 20
 
     @classmethod
-    def terminal_demand_from_config(cls, value) -> bool:
+    def terminal_demand_from_config(cls, value, *, frequency: bool) -> bool:
         reg = value.get("reg", "") if isinstance(value, dict) else value.reg
-        return super().terminal_demand_from_config(value) or reg not in (None, "")
+        return frequency or reg not in (None, "")
 
     def resolved_values(self, model) -> dict[str, object]:
         """配置阶段将门控设为打开。"""
@@ -30,9 +30,21 @@ class GateNode(TransparentNode):
 
     def plan_patches(self, index, settings, resolved) -> list:
         """生成门控字段。"""
-        from .gate_writes import expand_gate_patch
+        from registers.plan import _patch
 
-        return [expand_gate_patch(index, self, settings)] if self.reg else []
+        return (
+            [
+                _patch(
+                    index,
+                    node_name=self.name,
+                    raw_path=self.reg,
+                    value=1 if settings.gate_reg_high_means_open else 0,
+                    note=f"{self.name} gate open",
+                )
+            ]
+            if self.reg
+            else []
+        )
 
     kind: Literal["gate"] = "gate"
     source: str = Field("", description="前级引用；省略表示无前级。")
@@ -63,3 +75,6 @@ class GateSettings(BaseModel):
         False,
         description="为真时门控寄存器写 1 表示打开；为假时写 1 表示关闭。",
     )
+
+
+SETTINGS = (GateSettings,)

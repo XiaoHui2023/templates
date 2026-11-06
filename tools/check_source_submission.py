@@ -67,6 +67,11 @@ def validate_source() -> None:
     run("git", "diff", "--check")
     for path in (ROOT / "src").rglob("*.py"):
         compile(path.read_text(encoding="utf-8-sig"), str(path), "exec", dont_inherit=True)
+    changed = run("git", "diff", "--name-only", capture=True).stdout
+    changed += run("git", "diff", "--cached", "--name-only", capture=True).stdout
+    changed += run("git", "ls-files", "--others", "--exclude-standard", capture=True).stdout
+    if any(path.startswith(b"src/c/pll_mini/") for path in changed.splitlines()):
+        run(sys.executable, "src/c/pll_mini/tools/check_plugin_ownership.py")
 
 
 def main() -> int:

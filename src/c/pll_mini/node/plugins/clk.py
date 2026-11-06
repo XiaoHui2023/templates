@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from node.discovery import InputForm
+
 from typing import Any, Literal, Optional
 
 from pydantic import (
@@ -13,8 +15,21 @@ from node.behaviors import TransparentNode
 
 
 class ClkNode(TransparentNode):
+    input_forms = (InputForm("clock"),)
     is_target = True
-    negative_freq_is_unconstrained = True
+
+    def frequency_value_is_valid(self, value: int) -> bool:
+        return value != 0
+
+    @classmethod
+    def frequency_demand_from_config(cls, value) -> bool:
+        freq = value.get("freq") if isinstance(value, dict) else value.freq
+        if freq is None or freq == "":
+            return False
+        try:
+            return int(freq) >= 0
+        except (TypeError, ValueError, OverflowError):
+            return True
 
     def fixed_hz(self, group: str = "") -> int | None:
         """负频率仅表示不约束。"""

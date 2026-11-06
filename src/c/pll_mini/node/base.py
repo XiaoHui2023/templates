@@ -45,6 +45,7 @@ class NodeBase(BaseModel):
     kind: str = Field(..., min_length=1, description="节点插件名")
 
     constraint_fields: ClassVar[dict[str, tuple[str, ...]]] = {}
+    input_forms: ClassVar[tuple] = ()
 
     def constraint_paths(self, rule: str) -> tuple[str, ...]:
         """将插件声明的约束来源转换为输入字段路径。"""
@@ -65,7 +66,6 @@ class NodeBase(BaseModel):
 
     is_target: ClassVar[bool] = False
     is_anchor: ClassVar[bool] = False
-    negative_freq_is_unconstrained: ClassVar[bool] = False
     independent_outputs: ClassVar[bool] = False
     plan_priority: ClassVar[int] = 0
     plan_group: ClassVar[str] = ""
@@ -76,15 +76,20 @@ class NodeBase(BaseModel):
         freq = value.get("freq") if isinstance(value, dict) else value.freq
         if freq is None or freq == "":
             return False
-        try:
-            return not (int(freq) < 0 and cls.negative_freq_is_unconstrained)
-        except (TypeError, ValueError, OverflowError):
-            return True
+        return True
+
+    def frequency_value_is_valid(self, value: int) -> bool:
+        return value > 0
 
     @classmethod
-    def terminal_demand_from_config(cls, value) -> bool:
+    def terminal_demand_from_config(cls, value, *, frequency: bool) -> bool:
         """Preserve standalone initialization unless a plugin declares it passive."""
         return True
+
+    @classmethod
+    def demand_from_config(cls, value) -> tuple[bool, bool]:
+        frequency = cls.frequency_demand_from_config(value)
+        return frequency, cls.terminal_demand_from_config(value, frequency=frequency)
 
     def input_refs(self) -> dict[str, str]:
         """返回输入键与上游引用，单输入使用空键。"""
@@ -95,10 +100,15 @@ class NodeBase(BaseModel):
         """Read topology before excluded payloads undergo node validation."""
         source = (
             value.get("source", "")
-            if isinstance(value, dict) else getattr(value, "source", "")
+            if isinstance(value, dict)
+            else getattr(value, "source", "")
         )
         if isinstance(source, dict):
-            return {str(key): raw for key, raw in source.items() if isinstance(raw, str) and raw}
+            return {
+                str(key): raw
+                for key, raw in source.items()
+                if isinstance(raw, str) and raw
+            }
         return {"": source} if isinstance(source, str) and source else {}
 
     def selected_input(self, model=None) -> str | None:
@@ -201,9 +211,7 @@ class NodeBase(BaseModel):
 
     @model_validator(mode="after")
     def _validate_node_freq(self) -> NodeBase:
-        if isinstance(self.freq, int) and self.freq <= 0 and not (
-            self.freq < 0 and self.negative_freq_is_unconstrained
-        ):
+        if isinstance(self.freq, int) and not self.frequency_value_is_valid(self.freq):
             raise ValueError(f"节点 {self.name!r} freq 若填写须大于 0")
         return self
 

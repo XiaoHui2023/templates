@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 from model.freq_graph import Port, parent_port_for_child
 from model.smt import act as _act
@@ -14,20 +14,22 @@ from pydantic import (
 from reg_paths import validate_regs_exact
 
 from node.base import NodeBase, _coerce_optional_source_field, _validation_node_name
-from node.plugins.divider_math import DTO_MAX_RATIO
-
-from .config_paths import div_reg_keys_for_kind, normalize_div_kind
-
-DivKind = Literal["div", "div_n", "dto", "dto_n", "div_r"]
 
 
-class DivNode(NodeBase):
+class QuotientNode(NodeBase):
+    minimum_ratio: ClassVar[int]
+    maximum_ratio: ClassVar[int]
+    configured_maximum: ClassVar[int | None]
+    fixed_required: ClassVar[bool] = False
+    reg_keys: ClassVar[frozenset[str]] = frozenset()
+
     constraint_fields = {
-        "ratio": ("ratio", "div_kind"),
-        "configured_ratio": ("ratio", "div_kind"),
-        "freq_div": ("source", "ratio", "div_kind", "settings.period_tolerance"),
-        "quotient": ("source", "ratio", "div_kind"),
+        "ratio": ("ratio",),
+        "configured_ratio": ("ratio",),
+        "freq_div": ("source", "ratio", "settings.period_tolerance"),
+        "quotient": ("source", "ratio"),
     }
+
     plan_priority = 10
 
     def add_constraints(self, builder) -> None:
@@ -37,26 +39,16 @@ class DivNode(NodeBase):
     def read_solution(self, builder, raw, model) -> None:
         """读取求解器选定的分频比。"""
         symbol = builder.variable(self.name, "ratio")
-        default = self.ratio or (2 if self.div_kind in ("dto", "dto_n") else 1)
+        default = self.ratio or self.minimum_ratio
         model.values(self.name)["ratio"] = (
             raw[symbol] if self.regs else raw.get(symbol, default)
         )
 
-    def control_encodings(self, builder) -> dict[str, tuple[str, str]]:
-        """按硬件编码约束共享寄存器字段。"""
-        if self.ratio is not None or not self.regs:
-            return {}
-        ratio = builder.variable(self.name, "ratio")
-        dto = self.div_kind in ("dto", "dto_n")
-        role = "step" if dto else "div"
-        encoded = f"(div {DTO_MAX_RATIO} {ratio})" if dto else f"(- {ratio} 1)"
-        return {role: (self.regs[role], encoded)}
-
     def resolved_values(self, model) -> dict[str, object]:
         """保留已求解分频比，不替换非法配置值。"""
         ratio = self.ratio or model.values(self.name).get("ratio", 0)
-        minimum = 2 if self.div_kind in ("dto", "dto_n") else 1
-        maximum = DTO_MAX_RATIO if self.div_kind in ("dto", "dto_n") else 64
+        minimum = self.minimum_ratio
+        maximum = self.maximum_ratio
         if (
             type(ratio) is not int
             or ratio < minimum
@@ -67,23 +59,6 @@ class DivNode(NodeBase):
             )
         return {"ratio": ratio}
 
-    def control_domain(self, builder, role: str, encoding: str, maximum: int) -> str:
-        """把 DTO 编码上限换算为比值下限，避免增加整数除法。"""
-        if role == "step":
-            minimum = DTO_MAX_RATIO // (maximum + 1) + 1
-            return (
-                "true"
-                if minimum <= 2
-                else f"(>= {builder.variable(self.name, 'ratio')} {minimum})"
-            )
-        if role == "div":
-            return (
-                "true"
-                if maximum >= 63
-                else f"(<= {builder.variable(self.name, 'ratio')} {maximum + 1})"
-            )
-        return super().control_domain(builder, role, encoding, maximum)
-
     def static_hz(self, tree, model, group: str, upstream) -> int:
         """按固定或已解分频比回放频率。"""
         ratio = self.ratio or model.values(self.name).get("ratio", 0)
@@ -93,35 +68,18 @@ class DivNode(NodeBase):
         """检查分频公式及频率容差。"""
         return verify_node(self, tree, model, tolerance)
 
-    def plan_patches(self, index, settings, resolved) -> list:
-        """将分频状态编码成寄存器字段。"""
-        from .divider_writes import expand_div_patches
-
-        return expand_div_patches(index, self, settings, resolved) if self.regs else []
-
-    kind: Literal["div"] = "div"
-    div_kind: DivKind = Field(
-        "div",
-        description="分频器型号：div、div_n、dto、dto_n、div_r，大小写不限。",
-    )
     source: str = Field("", description="前级引用；省略表示无前级。")
+
     ratio: Optional[int] = Field(
         None,
         ge=1,
-        description="分频比；div_r 必填固定值，大于 0，不受可配置 div 的 64 上限；"
-        "其余 div 省略表示由求解器决定；已填写时功能固定，不写 regs，且不大于 64。",
-    )
-    regs: Dict[str, str] = Field(
-        default_factory=dict,
-        description="非空时键由 div_kind 决定：div/div_n 为 rst、load、div；"
-        "dto/dto_n 为 rst、load、bypass、step；"
-        "div_r 不可配置寄存器，应为空；ratio 已填写时也应为空。",
+        description="正整数比值；范围由插件声明，固定比值时不写寄存器。",
     )
 
-    @field_validator("div_kind", mode="before")
-    @classmethod
-    def _normalize_div_kind(cls, value: object) -> str:
-        return normalize_div_kind(value)
+    regs: Dict[str, str] = Field(
+        default_factory=dict,
+        description="插件声明的寄存器角色；固定 ratio 时不得配置。",
+    )
 
     @field_validator("source", mode="before")
     @classmethod
@@ -129,31 +87,21 @@ class DivNode(NodeBase):
         return _coerce_optional_source_field(value)
 
     @model_validator(mode="after")
-    def _validate_div_regs(self, info: ValidationInfo) -> DivNode:
-        if self.div_kind == "div_r":
-            if self.ratio is None:
+    def _validate_ratio_registers(self, info: ValidationInfo):
+        name = _validation_node_name(self, info)
+        if self.fixed_required and self.ratio is None:
+            raise ValueError(f"nodes[{name!r}].ratio is required")
+        if self.ratio is not None:
+            if (
+                self.configured_maximum is not None
+                and self.ratio > self.configured_maximum
+            ):
                 raise ValueError(
-                    f"div 节点 {_validation_node_name(self, info)!r} "
-                    f"div_kind 为 div_r 时须填写 ratio"
-                )
-        elif self.ratio is not None:
-            if self.ratio > 64:
-                raise ValueError(
-                    f"div 节点 {_validation_node_name(self, info)!r} "
-                    f"div_kind 为 {self.div_kind!r} 时 ratio 应不大于 64，"
-                    f"得到 {self.ratio}"
+                    f"nodes[{name!r}].ratio must not exceed {self.configured_maximum}"
                 )
             if self.regs:
-                raise ValueError(
-                    f"div 节点 {_validation_node_name(self, info)!r} "
-                    f"已指定 ratio 时 regs 应为空"
-                )
-        validate_regs_exact(
-            self.regs,
-            div_reg_keys_for_kind(self.div_kind),
-            node_name=_validation_node_name(self, info),
-            kind=f"div({self.div_kind})",
-        )
+                raise ValueError(f"nodes[{name!r}].regs must be empty with fixed ratio")
+        validate_regs_exact(self.regs, self.reg_keys, node_name=name, kind=self.kind)
         return self
 
 
@@ -161,8 +109,8 @@ def add_node_constraints(builder, name: str, node) -> None:
     act = _act(name)
     ratio = builder.variable(name, "ratio")
     builder._declare(ratio, "Int")
-    minimum = 2 if node.div_kind in ("dto", "dto_n") else 1
-    maximum = DTO_MAX_RATIO if node.div_kind in ("dto", "dto_n") else 64
+    minimum = node.minimum_ratio
+    maximum = node.maximum_ratio
     upper = (
         f"(= {ratio} {node.ratio})"
         if node.ratio is not None
@@ -235,7 +183,7 @@ def verify_node(node, tree, model, period_tolerance):
         except ValueError:
             issues.append(
                 VerifyIssue(
-                    headline=f"div {name} 分频公式不成立",
+                    headline=f"{node.kind} {name} 分频公式不成立",
                     formula="f_ref = f_hw × ratio + rem，0 ≤ rem < ratio",
                     detail=f"f_ref={_hz_mhz(f_in)}，ratio={ratio}",
                     path_nodes=_path_for_node(tree, name, model),
@@ -247,7 +195,7 @@ def verify_node(node, tree, model, period_tolerance):
         ):
             issues.append(
                 VerifyIssue(
-                    headline=f"div {name} 输出超出容差",
+                    headline=f"{node.kind} {name} 输出超出容差",
                     formula=(
                         "f_hw = f_ref // ratio；"
                         f"f_out 在 f_hw 的 ±{period_tolerance * 100:g}% 内"

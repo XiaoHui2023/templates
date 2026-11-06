@@ -51,8 +51,13 @@ def _is_omitted_node(value: Any, *, ctx: str = "nodes") -> bool:
 
 
 def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
+    nodes = {
+        name: normalize_node_item(item) if isinstance(item, dict) else item
+        for name, item in nodes.items()
+    }
     removed = {
-        name for name, item in nodes.items()
+        name
+        for name, item in nodes.items()
         if _is_omitted_node(item, ctx=f"nodes[{name!r}]")
     }
     parents: dict[str, set[str]] = {}
@@ -62,15 +67,18 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
     for name, item in nodes.items():
         if isinstance(item, NodeBase):
             refs = item.input_refs()
-            terminal_demand[name] = item.terminal_demand_from_config(item)
-            frequency_demand[name] = item.frequency_demand_from_config(item)
+            frequency_demand[name], terminal_demand[name] = item.demand_from_config(
+                item
+            )
         elif isinstance(item, dict):
-            normalized = normalize_node_item(item)
-            kind = normalized.get("kind")
-            plugin = PLUGIN_TYPES.get(kind, NodeBase) if isinstance(kind, str) else NodeBase
-            refs = plugin.input_refs_from_config(normalized)
-            terminal_demand[name] = plugin.terminal_demand_from_config(normalized)
-            frequency_demand[name] = plugin.frequency_demand_from_config(normalized)
+            kind = item.get("kind")
+            plugin = (
+                PLUGIN_TYPES.get(kind, NodeBase) if isinstance(kind, str) else NodeBase
+            )
+            refs = plugin.input_refs_from_config(item)
+            frequency_demand[name], terminal_demand[name] = plugin.demand_from_config(
+                item
+            )
         else:
             refs = {}
             terminal_demand[name] = True
@@ -89,14 +97,18 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
         if name not in removed and not consumers[name] and not terminal_demand[name]:
             # An unused terminal may still contain invalid public input fields.
             if isinstance(item, dict):
-                parse_node(name, item)
+                parse_node(name, item, normalized=True)
             removed.add(name)
     pending = list(removed)
     while pending:
         child = pending.pop()
         for parent in parents[child]:
             consumers[parent].discard(child)
-            if not consumers[parent] and parent not in removed and not frequency_demand[parent]:
+            if (
+                not consumers[parent]
+                and parent not in removed
+                and not frequency_demand[parent]
+            ):
                 removed.add(parent)
                 pending.append(parent)
     return {name: item for name, item in nodes.items() if name not in removed}
@@ -129,7 +141,7 @@ class Tree(BaseModel):
     )
     extra_regs: List[ExtraRegEntry] = Field(
         default_factory=list,
-        description="PLL 锁定等待之后、普通器件 steps 之前写入的寄存器 field 列表。",
+        description="普通器件初始化数组中的附加寄存器 field 列表。",
     )
 
     @model_validator(mode="before")
@@ -150,7 +162,6 @@ class Tree(BaseModel):
                 if not isinstance(item, dict):
                     as_dict[str(item)] = item
                     continue
-                item = normalize_node_item(item)
                 node_name = item.get("name")
                 if not node_name:
                     raise ValueError(
@@ -169,7 +180,6 @@ class Tree(BaseModel):
             if not _SV_ID.match(key):
                 raise ValueError(f"nodes 键 {key!r} 须为合法 SystemVerilog 名字")
             if isinstance(item, dict):
-                item = normalize_node_item(item)
                 if "name" in item:
                     raise ValueError(
                         f"nodes[{key!r}] 体内不可含 name，以字典键 {key!r} 为准"
@@ -192,7 +202,7 @@ class Tree(BaseModel):
                 object.__setattr__(item, "_name", key)
                 built[key] = item
                 continue
-            node = parse_node(key, item)
+            node = parse_node(key, item, normalized=True)
             object.__setattr__(node, "_name", key)
             built[key] = node
         return built

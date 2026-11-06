@@ -10,8 +10,6 @@ from pydantic import (
 from node.base import _coerce_optional_source_field
 from node.behaviors import TransparentNode
 
-from .config_paths import normalize_cell_kind
-
 
 class CellNode(TransparentNode):
     kind: Literal["cell"] = "cell"
@@ -31,3 +29,12 @@ class CellNode(TransparentNode):
     @classmethod
     def _coerce_source(cls, value: Any) -> str:
         return _coerce_optional_source_field(value)
+
+
+def normalize_cell_kind(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"cell_kind 应为字符串，得到 {type(value).__name__}")
+    text = value.strip()
+    if not text:
+        raise ValueError(f"cell_kind 应为非空字符串，得到 {value!r}")
+    return text

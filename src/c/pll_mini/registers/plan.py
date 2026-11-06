@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import List, Sequence, Protocol
+from typing import TYPE_CHECKING, List, Sequence, Protocol
 
-from model.nodes import ExtraRegEntry, Tree
+if TYPE_CHECKING:
+    from model.nodes import ExtraRegEntry, Tree
+    from .resolve import TreeResolve
 from node.errors import node_context
-from .resolve import TreeResolve
 from load.regmodel import (
     FieldRef,
     Reg,
@@ -66,10 +67,14 @@ class RegWriteStep:
         return "\n".join(lines)
 
 
-def _is_single_bit_mask_hex(mask_hex: str) -> bool:
-    literal = mask_hex.rstrip("uU")
-    value = int(literal, 16)
-    return value != 0 and (value & (value - 1)) == 0
+@dataclass(frozen=True)
+class CodeSections:
+    """Opaque plugin code contributions in execution order."""
+
+    definitions: tuple[str, ...] = ()
+    calls: tuple[str, ...] = ()
+    after_calls: tuple[str, ...] = ()
+    register_macros: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -77,21 +82,7 @@ class ConfigPlan:
     function_plans: tuple[object, ...]
     instances: tuple[object, ...]
     steps: tuple[RegWriteStep, ...]
-
-    @property
-    def has_wait_lock_instances(self) -> bool:
-        return any(inst.wait_lock for inst in self.instances)
-
-    @property
-    def fixed_wait_lock_mask_hex(self) -> str | None:
-        """若全部须等待锁定的 PLL 共用同一单比特 mask，返回该字面量；否则为 None。"""
-        masks = {inst.lock_mask_hex for inst in self.instances if inst.wait_lock}
-        if len(masks) != 1:
-            return None
-        mask_hex = masks.pop()
-        if not _is_single_bit_mask_hex(mask_hex):
-            return None
-        return mask_hex
+    code: CodeSections = CodeSections()
 
 
 @dataclass
@@ -199,7 +190,9 @@ def merge_field_patches(patches: List[_FieldPatch]) -> List[RegWriteStep]:
                 reg=first_patch.field_ref.reg,
                 value=value,
                 comment="; ".join(notes) if notes else first_patch.node_name,
-                parts=tuple(sorted(part_views_by_key.values(), key=lambda part: part.lsb)),
+                parts=tuple(
+                    sorted(part_views_by_key.values(), key=lambda part: part.lsb)
+                ),
                 step_index=0,
             )
         )
@@ -274,14 +267,11 @@ def collect_used_regs(
     macro_to_reg = {reg.addr_macro: reg for reg in index.regs}
     for step in plan.steps:
         by_path[step.reg.path] = step.reg
-    for inst in plan.instances:
-        for macro in (*inst.addr_args, inst.lock_addr_macro):
-            if not macro:
-                continue
-            reg = macro_to_reg.get(macro)
-            if reg is None:
-                raise ValueError(f"未知地址宏 {macro!r}")
-            by_path[reg.path] = reg
+    for macro in plan.code.register_macros:
+        reg = macro_to_reg.get(macro)
+        if reg is None:
+            raise ValueError(f"未知地址宏 {macro!r}")
+        by_path[reg.path] = reg
     for reg in extra_regs:
         by_path[reg.path] = reg
     return tuple(reg for reg in index.regs if reg.path in by_path)
@@ -294,7 +284,7 @@ def build_config_plan(
     resolved: TreeResolve,
     extra_regs: Sequence[ExtraRegEntry] = (),
 ) -> ConfigPlan:
-    """Build PLL kind plans, instances, and non-PLL register write steps."""
+    """Collect plugin contributions and merge ordinary register initialization."""
     nodes = tree.nodes_ordered
     groups = {}
     for node in nodes:
@@ -331,4 +321,15 @@ def build_config_plan(
             item for bundle in bundles if bundle for item in bundle.instances
         ),
         steps=_with_step_indexes(merge_field_patches(patches)),
+        code=CodeSections(
+            **{
+                field: tuple(
+                    item
+                    for bundle in bundles
+                    if bundle
+                    for item in getattr(bundle.code, field)
+                )
+                for field in CodeSections.__dataclass_fields__
+            }
+        ),
     )

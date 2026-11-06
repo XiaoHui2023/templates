@@ -101,9 +101,21 @@ class MuxNode(NodeBase):
 
     def plan_patches(self, index, settings, resolved) -> list:
         """生成选择字段。"""
-        from .mux_writes import expand_mux_patch
+        from registers.plan import _patch
 
-        return [expand_mux_patch(index, self, resolved)] if self.reg else []
+        return (
+            [
+                _patch(
+                    index,
+                    node_name=self.name,
+                    raw_path=self.reg,
+                    value=resolved.mux_sel,
+                    note=f"{self.name} mux sel={resolved.mux_sel}",
+                )
+            ]
+            if self.reg
+            else []
+        )
 
     kind: Literal["mux"] = "mux"
     source: Dict[str, str] = Field(

@@ -1,90 +1,132 @@
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 
 
-def ownership_errors(source: str, path: str) -> list[str]:
-    """Find concrete plugin imports or type dispatch outside plugin ownership."""
-    if "/node/plugins/" in ("/" + path.replace("\\", "/")) or path.endswith(
-        "node/registry.py"
-    ):
-        return []
+def ownership_errors(source: str, path: str, private_fields=()) -> list[str]:
+    """Reject static leaf imports and private-field use, including in registry."""
+    relative = Path(path)
+    leaf = relative.parent.as_posix() == "node/plugins"
+    package = list(relative.parent.parts)
     errors = []
     for item in ast.walk(ast.parse(source)):
-        if (
-            isinstance(item, ast.ImportFrom)
-            and item.module
-            and (
-                "node.plugins" in item.module
-                or item.module.startswith("plugins.")
-                or (
-                    item.module == "node"
-                    and any(alias.name == "plugins" for alias in item.names)
-                )
-            )
+        targets = []
+        if isinstance(item, ast.ImportFrom):
+            base = package[: len(package) - item.level + 1] if item.level else []
+            module = ".".join([*base, *(item.module or "").split(".")]).strip(".")
+            targets = [module, *(module + "." + alias.name for alias in item.names)]
+        elif isinstance(item, ast.Import):
+            targets = [alias.name for alias in item.names]
+        if any(
+            target.startswith("node.plugins.")
+            and target != ".".join((*package, relative.stem))
+            for target in targets
         ):
             errors.append(f"{path}:{item.lineno}: concrete plugin import")
-        if isinstance(item, ast.Import) and any(
-            "node.plugins" in alias.name for alias in item.names
-        ):
-            errors.append(f"{path}:{item.lineno}: concrete plugin module import")
-        if isinstance(item, ast.MatchClass) and isinstance(item.cls, ast.Name):
-            if item.cls.id.endswith("Node") and item.cls.id != "NodeBase":
-                errors.append(f"{path}:{item.lineno}: concrete node match dispatch")
-        if isinstance(item, ast.Compare) and any(
-            isinstance(n, ast.Attribute) and n.attr == "kind" for n in ast.walk(item)
-        ):
+        if not leaf and isinstance(item, ast.Attribute) and item.attr in private_fields:
+            errors.append(f"{path}:{item.lineno}: plugin-private attribute {item.attr}")
+        if not leaf and isinstance(item, ast.Compare):
             if any(
-                isinstance(n, ast.Constant) and isinstance(n.value, str)
+                isinstance(n, ast.Attribute) and n.attr == "kind"
                 for n in ast.walk(item)
             ):
-                errors.append(f"{path}:{item.lineno}: kind dispatch")
-        if (
-            isinstance(item, ast.Call)
-            and isinstance(item.func, ast.Name)
-            and item.func.id == "isinstance"
-        ):
-            types = item.args[1:] if len(item.args) > 1 else []
-            if any(
-                isinstance(n, ast.Name) and n.id.endswith("Node") and n.id != "NodeBase"
-                for t in types
-                for n in ast.walk(t)
-            ):
-                errors.append(f"{path}:{item.lineno}: concrete node type dispatch")
+                if any(
+                    isinstance(n, ast.Constant) and isinstance(n.value, str)
+                    for n in (item.left, *item.comparators)
+                ):
+                    errors.append(f"{path}:{item.lineno}: concrete kind dispatch")
     return errors
 
 
 def check(root: Path) -> list[str]:
-    """Check every production Python module outside the plugin catalog."""
-    errors = []
-    for path in root.rglob("*.py"):
-        relative = path.relative_to(root)
-        if relative.parts[0] in {"tools", "tests"} or any(
-            part.startswith(".") for part in relative.parts
-        ):
-            continue
-        errors.extend(
-            ownership_errors(path.read_text(encoding="utf-8-sig"), relative.as_posix())
+    sources = {
+        path: path.read_text(encoding="utf-8-sig")
+        for path in root.rglob("*.py")
+        if not any(
+            part.startswith(".") or part in {"tools", "tests", "__pycache__"}
+            for part in path.relative_to(root).parts
         )
+    }
+    errors = []
+    private = set()
+    trees = {path: ast.parse(source) for path, source in sources.items()}
+    references = {
+        item.id
+        for tree in trees.values()
+        for item in ast.walk(tree)
+        if isinstance(item, ast.Name) and isinstance(item.ctx, ast.Load)
+    }
+    references.update(
+        item.attr
+        for tree in trees.values()
+        for item in ast.walk(tree)
+        if isinstance(item, ast.Attribute)
+    )
+    for path, source in sources.items():
+        if path.parent != root / "node/plugins" or path.name == "__init__.py":
+            continue
+        kinds = []
+        for cls in (n for n in ast.parse(source).body if isinstance(n, ast.ClassDef)):
+            for field in cls.body:
+                if not isinstance(field, ast.AnnAssign) or not isinstance(
+                    field.target, ast.Name
+                ):
+                    continue
+                if field.target.id.endswith("_kind"):
+                    private.add(field.target.id)
+                if field.target.id == "kind" and isinstance(field.value, ast.Constant):
+                    kinds.append(field.value.value)
+        if kinds != [path.stem]:
+            errors.append(
+                f"{path.relative_to(root)}: exactly one owned kind must match filename"
+            )
+    for path, source in sources.items():
+        errors.extend(
+            ownership_errors(source, path.relative_to(root).as_posix(), private)
+        )
+        for item in trees[path].body:
+            if (
+                isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and item.name.startswith("_")
+                and item.name not in references
+            ):
+                errors.append(
+                    f"{path.relative_to(root)}:{item.lineno}: unreferenced private function {item.name}"
+                )
+    for path in root.rglob("*.j2"):
+        source = path.read_text(encoding="utf-8")
+        for field in private:
+            if "." + field in source:
+                errors.append(
+                    f"{path.relative_to(root)}: plugin-private template attribute {field}"
+                )
     return errors
 
 
 def self_test() -> None:
-    """Require the checker to accept hook dispatch and reject concrete dispatch."""
     assert not ownership_errors("node.add_constraints(builder)", "model/solver.py")
-    mutant = "from node.plugins.div import DivNode\nif isinstance(node, DivNode):\n    pass\n"
-    assert len(ownership_errors(mutant, "model/solver.py")) == 2
-    assert not ownership_errors(mutant, "node/plugins/div_div.py")
-    assert ownership_errors('if node.kind == "div": pass', "model/graph.py")
-    assert ownership_errors("import node.plugins.div as divider", "model/graph.py")
-    assert ownership_errors("from .plugins.div import DivNode", "model/graph.py")
-    assert ownership_errors("match node:\n    case DivNode(): pass", "model/graph.py")
+    assert ownership_errors("from node.plugins.probe import Probe", "node/registry.py")
+    assert ownership_errors("from .probe import Probe", "node/plugins/other.py")
+    assert not ownership_errors(
+        "from node.behaviors import TransparentNode", "node/plugins/probe.py"
+    )
+    assert ownership_errors("node.device_kind", "registers/plan.py", ("device_kind",))
+    assert ownership_errors('if node.kind == "probe": pass', "model/graph.py")
 
 
 if __name__ == "__main__":
     self_test()
     problems = check(Path(__file__).resolve().parents[1])
-    if problems:
-        raise SystemExit("\n".join(problems))
-    print("PASS plugin ownership and checker mutants")
+    print(
+        json.dumps(
+            {
+                "pass": not problems,
+                "scope": "static file ownership, imports, selectors, templates and private-call references",
+                "errors": problems,
+            },
+            indent=2,
+        )
+    )
+    raise SystemExit(bool(problems))
