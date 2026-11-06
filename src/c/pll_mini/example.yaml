@@ -1275,6 +1275,19 @@ nodes:
     source: unused_mux
     freq: 12000000
 
+  init_field_used:
+    kind: gate
+    source: xtal
+    reg: blk_unused_div.ctrl.rst
+  init_field_unreferenced:
+    kind: gate
+    source: xtal
+    reg: blk_unused_div.ctrl.load
+  init_field_clk:
+    kind: clk
+    source: init_field_used
+    freq: 24000000
+
 settings:
   main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true

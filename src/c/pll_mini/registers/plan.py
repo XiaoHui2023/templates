@@ -4,7 +4,6 @@ from dataclasses import dataclass, replace
 from typing import List, Sequence, Protocol
 
 from model.nodes import ExtraRegEntry, Tree
-from model.freq_graph import configuration_node_names
 from node.errors import node_context
 from .resolve import TreeResolve
 from load.regmodel import (
@@ -296,8 +295,7 @@ def build_config_plan(
     extra_regs: Sequence[ExtraRegEntry] = (),
 ) -> ConfigPlan:
     """Build PLL kind plans, instances, and non-PLL register write steps."""
-    needed = configuration_node_names(tree, resolved.solve_model)
-    nodes = tuple(node for node in tree.nodes_ordered if node.name in needed)
+    nodes = tree.nodes_ordered
     groups = {}
     for node in nodes:
         if node.plan_group:

@@ -78,21 +78,6 @@ def required_frequencies(tree: Tree) -> dict[Port, int | None]:
     return required
 
 
-def configuration_node_names(tree: Tree, model) -> set[str]:
-    """Mark selected dependencies of surviving frequency targets once."""
-    pending = [name for name, _ in collect_freq_targets(tree)]
-    needed: set[str] = set()
-    while pending:
-        name = pending.pop()
-        if name in needed:
-            continue
-        needed.add(name)
-        raw = tree.nodes[name].selected_input(model)
-        if raw:
-            pending.append(parse_port_ref(raw, ctx=f"nodes[{name!r}].source").node)
-    return needed
-
-
 def walk_path_upstream(
     tree: Tree, start: str, *, stop_at: str | None = None, model=None
 ) -> list[str]:

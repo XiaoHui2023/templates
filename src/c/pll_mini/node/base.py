@@ -131,7 +131,7 @@ class NodeBase(BaseModel):
         return []
 
     def build_plan_group(self, nodes, index, resolved):
-        """Build grouped configuration from the supplied live nodes only."""
+        """Build grouped initialization from all supplied configured nodes."""
         return None
 
     _name: str = PrivateAttr(default="")
