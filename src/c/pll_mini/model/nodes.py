@@ -60,15 +60,18 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
         for name, item in nodes.items()
         if _is_omitted_node(item, ctx=f"nodes[{name!r}]")
     }
+    explicit = list(removed)
     parents: dict[str, set[str]] = {}
     consumers: dict[str, set[str]] = {name: set() for name in nodes}
     terminal_demand: dict[str, bool] = {}
     standalone_initialization: dict[str, bool] = {}
+    independent_targets: dict[str, bool] = {}
     for name, item in nodes.items():
         if isinstance(item, NodeBase):
             refs = item.input_refs()
             standalone_initialization[name] = item.standalone_initialization
             terminal_demand[name] = item.demand_from_config(item)
+            independent_targets[name] = item.is_target and terminal_demand[name]
         elif isinstance(item, dict):
             kind = item.get("kind")
             plugin = (
@@ -77,10 +80,12 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
             refs = plugin.input_refs_from_config(item)
             standalone_initialization[name] = plugin.standalone_initialization
             terminal_demand[name] = plugin.demand_from_config(item)
+            independent_targets[name] = plugin.is_target and terminal_demand[name]
         else:
             refs = {}
             terminal_demand[name] = True
             standalone_initialization[name] = True
+            independent_targets[name] = True
         parents[name] = set()
         for raw in refs.values():
             try:
@@ -90,7 +95,7 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
             if parent in consumers:
                 parents[name].add(parent)
                 consumers[parent].add(name)
-    # Passive terminals are not demand. Standalone writers remain initialized.
+    passive = []
     for name, item in nodes.items():
         if (
             name not in removed
@@ -102,7 +107,21 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
             if isinstance(item, dict):
                 parse_node(name, item, normalized=True)
             removed.add(name)
-    pending = list(removed)
+            passive.append(name)
+    # Passive cleanup preserves initialization; explicit exclusion revokes its
+    # exclusive producers, but cannot revoke another retained target.
+    _prune_ancestors(passive, parents, consumers, removed, terminal_demand)
+    _prune_ancestors(explicit, parents, consumers, removed, independent_targets)
+    return {name: item for name, item in nodes.items() if name not in removed}
+
+
+def _prune_ancestors(
+    pending: list[str],
+    parents: dict[str, set[str]],
+    consumers: dict[str, set[str]],
+    removed: set[str],
+    protected: dict[str, bool],
+) -> None:
     while pending:
         child = pending.pop()
         for parent in parents[child]:
@@ -110,11 +129,10 @@ def _exclude_unused_ancestors(nodes: dict[str, Any]) -> dict[str, Any]:
             if (
                 not consumers[parent]
                 and parent not in removed
-                and not terminal_demand[parent]
+                and not protected[parent]
             ):
                 removed.add(parent)
                 pending.append(parent)
-    return {name: item for name, item in nodes.items() if name not in removed}
 
 
 class ExtraRegEntry(BaseModel):

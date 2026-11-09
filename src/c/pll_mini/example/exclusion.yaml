@@ -1,0 +1,63 @@
+ralf: example/normal.ralf
+nodes:
+  src:
+    kind: source
+    freq: 24000000
+  normal_div:
+    kind: div_div
+    source: src
+    init_ratio: 2
+    regs:
+      rst: blk_div_n0.ctrl.rst
+      load: blk_div_n0.ctrl.load
+      div: blk_div_n0.ctrl.div
+  normal_selector:
+    kind: mux
+    source:
+      '0': normal_div
+    init_sel: 0
+    reg: blk_mux_idle.sel.sel
+  normal_gate:
+    kind: gate
+    source: normal_selector
+    reg: blk_gate_pad.en.en
+  normal_clock:
+    kind: clk
+    source: normal_gate
+    freq: 12000000
+  divider:
+    kind: div_div
+    source: src
+    init_ratio: 2
+    regs:
+      rst: blk_div0.ctrl.rst
+      load: blk_div0.ctrl.load
+      div: blk_div0.ctrl.div
+  selector:
+    kind: mux
+    source:
+      '0': divider
+    init_sel: 0
+    reg: blk_mux_clk.sel.sel
+  gate:
+    kind: gate
+    source: selector
+    reg: blk_unused_div.ctrl.rst
+  omitted:
+    kind: clk
+    source: gate
+    freq: 12000000
+    exclude: true
+  passive_tail:
+    kind: cell
+    source: gate
+  independent:
+    kind: gate
+    source: src
+    reg: blk_unused_div.ctrl.load
+extra_regs:
+  - path: blk_unused_gate.en.en
+    value: 1
+settings:
+  main_fn: scope_config
+  gate_reg_high_means_open: true

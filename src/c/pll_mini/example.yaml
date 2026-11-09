@@ -1304,6 +1304,31 @@ nodes:
     source: unused_dto
     freq: 3000000
 
+  excluded_control_div:
+    kind: div_div
+    source: xtal
+    init_ratio: 4
+    regs:
+      rst: blk_unused_div.ctrl.rst
+      load: blk_unused_div.ctrl.load
+      div: blk_unused_div.ctrl.div
+  excluded_control_mux:
+    kind: mux
+    source:
+      '0': excluded_control_div
+      '1': excluded_control_div
+    init_sel: 1
+    reg: blk_unused_mux.sel.sel
+  excluded_control_gate:
+    kind: gate
+    source: excluded_control_mux
+    reg: blk_unused_gate.en.en
+  excluded_control_clock:
+    kind: clk
+    source: excluded_control_gate
+    freq: 6000000
+    exclude: true
+
 settings:
   main_fn: chip_pll_config_extreme
   gate_reg_high_means_open: true

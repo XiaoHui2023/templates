@@ -7,12 +7,13 @@
 | INIT-BASE | Preserve configured initialization, including standalone PLLs and unselected mux inputs; target reachability and SMT activity do not define initialization ownership. |
 | EXCLUDE-SELF | Explicitly excluded nodes do not constrain, calculate or contribute register configuration. |
 | EXCLUDE-BRANCH | Remove upstream nodes whose entire consumer set is removed by exclusion; do not remove other configured standalone nodes. |
-| EXCLUDE-SHARED | An upstream node with a retained effective consumer or its own frequency demand stays configured. |
+| EXCLUDE-SHARED | An upstream node with a retained effective consumer, or itself a retained clock target, stays configured. |
 | WORD-COMPLETE | Merge all retained field contributors before whole-word writes; no mask or per-field read-modify-write. |
 | EXTRA-INDEPENDENT | Extra registers remain explicit effects; extra-only words precede ordinary words, shared words merge once using existing override precedence. |
 | PLUGIN-BOUNDARY | Common graph policy uses input relationships, not concrete node kinds. Plugins keep their own encoding and PLL sequences. |
 | TERMINAL-DEMAND | Passive unconstrained terminals do not preserve upstream controls, including after physical target deletion; real demand through transparent chains does. |
-| INIT-EFFECT | A node's own observable demand protects it at both original terminals and terminals exposed by pruning. A register-backed gate remains an initialization root. |
+| INIT-EFFECT | A node's own observable demand protects it during passive-leaf cleanup. Explicit exclusion still removes its exclusive upstream controls, including register-backed gates. |
+| EXCLUDE-OWNERSHIP | An excluded consumer revokes its exclusively owned upstream controls, even with frequency or init settings. Shared consumers and other retained clock targets remain protected. |
 | INIT-INTENT | Explicit programmable initialization values and input selections constrain even inactive controls; equal frequency does not permit substituting another required source. |
 | INIT-TARGET | A required target must not be explicitly excluded in the input. Restore its intended inclusion, never change arithmetic to compensate for deletion. |
 | REGISTER-REPLAY | Check required field values and selected source identity against final programmed words, not just frequency or agreement with the generated array. |
@@ -24,10 +25,10 @@ standalone initialization and from underconstrained legal solver choices.
 ## Design
 
 Before validation and solving, index configured input edges and consumer sets.
-Start with explicitly excluded nodes and passive leaves without terminal demand.
-Remove their incoming consumer edges and
-recursively remove parents only when their original nonempty consumer set has
-become empty and they have no observable demand of their own. A node with no original consumers is not removed just for being
+First clean passive leaves without terminal demand, preserving actual initialization
+effects. Then propagate explicit exclusion upstream: controls that lose all their
+consumers are removed regardless of their own programming intent. Other retained
+clock targets protect their paths. A node with no original consumers is not removed just for being
 standalone if it has an initialization effect. A shared parent remains until its
 last effective consumer disappears. Empty transparent chains collapse through
 the same worklist, even without an explicit exclude flag. This is
@@ -43,7 +44,9 @@ raw dictionaries and validated objects. The default handles scalar or mapped
 `source`; common normalization never branches on concrete node kinds.
 
 `terminal_demand_from_config` declares a node's own observable demand. The same
-cached predicate applies to original leaves and ancestors exposed by pruning.
+cached predicate applies to original leaves and ancestors exposed by passive cleanup.
+Exclusion propagation separately protects retained targets via the plugin's
+`is_target` capability. It does not classify concrete node kinds.
 `standalone_initialization` separately preserves legacy independent initialization
 only for nodes with no original consumers; it does not protect emptied branches.
 Transparent plugins require a frequency anchor; clock plugins treat omitted and
@@ -61,7 +64,7 @@ initialization alone does not protect a formerly consumed, now unused branch.
 For programmable quotient nodes, `init_ratio` fixes the value to program and
 requires `regs`. For muxes, `init_sel` fixes the input number to program and
 requires `reg`. These are unconditional solver constraints and own demand, even
-when their downstream has been removed or their arm is not selected. Existing
+after passive downstream cleanup or when their arm is not selected. Existing
 `ratio` and `sel` still describe non-programmed fixed hardware and cannot coexist
 with their corresponding initialization field. Invalid ranges, missing writable
 registers, conflicting fixed settings and absent input numbers fail with the node
@@ -70,7 +73,9 @@ name. Shared-field and field-width constraints remain applicable.
 Omitting initialization intent preserves the existing frequency-driven search;
 an arbitrary legal model is not a specified hardware default. Required source
 identity and backup values must come from the input author, not frequency equality.
-Explicit `exclude` still takes precedence over all initialization intent.
+Explicit `exclude` and its exclusive ancestor closure take precedence over all
+control initialization intent. Shared controls and original standalone controls
+remain configured; unselected mux inputs of retained consumers are not pruned.
 
 ## Examples And Counterexamples
 
@@ -117,3 +122,14 @@ Each address occurs once. Address 0x520 (the excluded branch divider) is absent.
 Changing a required target to `exclude: true` is not a valid way to preserve this
 example's requirements, even if explicit initialization leaves the same write
 values. Restore required targets individually; do not change divider equations.
+
+## Exclusion Example
+
+`example/exclusion.yaml` removes the excluded clock's divider, selector and gate,
+including their explicit initialization values and a passive side leaf. The
+normal clock retains its divider, selector and gate unchanged. The independent
+gate shares a register word with the removed gate but contributes only its own
+bit: address 0xd00 is 2, not 3. The complete ordinary output is 0xd10=1 (extra
+first), 0x520=0x103, 0x60c=1, 0xd00=2 and 0x514=0, each written once. Addresses
+0x500 and 0x504 are absent. Adding another retained clock after the removed
+divider or selector preserves the shared prefix, not the exclusive suffix.
