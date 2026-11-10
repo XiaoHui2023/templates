@@ -103,7 +103,7 @@ nodes:
 | `clk_div_with_clken` | `ratio`、`unfix_ratio`，ratio 为 2、3、4 或 6 |
 | `inv`、`inv_cell`、`inv_mux` | `inverted`、`fix_inverted` |
 
-`stable: true` 且省略 enabled 时补 1；显式 enabled 小于等于 0 会报错。`exclude: true` 不等于关闭时钟；保留的节点不能引用被排除的节点。
+`stable: true` 且省略 enabled 时补 1；显式 enabled 小于等于 0 会报错。`exclude: true` 不等于关闭时钟；引用该节点的 source 连接会被忽略，其他节点和连接保留。
 
 mux 的选择值来自 source 的实际键集合。键使用非负整数的十进制字符串；例如只有 `"2"`、`"5"` 时，只允许选择 2 或 5。省略 max_sel 不增加上限，填写后只缩小该集合。
 

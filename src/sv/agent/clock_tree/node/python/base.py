@@ -355,6 +355,16 @@ class Tree(BaseModel):
 
     @computed_field
     @property
+    def sv_sources_by_node(self) -> Dict[str, List[SourceRef]]:
+        """返回各节点的连接，忽略指向排除节点的引用。"""
+        excluded = {name for name, node in self.nodes.items() if node.exclude}
+        return {
+            node.name: [source for source in node.sources if source.name not in excluded]
+            for node in self.nodes_ordered
+        }
+
+    @computed_field
+    @property
     def connectable_slots(self) -> List[SvPortSlot]:
         """展开所有需要 RTL interface 的端口。"""
         slots: List[SvPortSlot] = []
@@ -376,14 +386,14 @@ def validate_nodes_graph(nodes: Dict[str, Node]) -> None:
         nodes: 根输入中解析出的节点映射
 
     Raises:
-        ValueError: source 指向不存在、未生成或不存在的输出组
+        ValueError: 前级节点或输出组不存在
     """
     tree = Tree(nodes=nodes)
     generated = tree.sv_node_names
-    for node in tree.nodes_ordered:
-        for source in node.sources:
+    for name, sources in tree.sv_sources_by_node.items():
+        for source in sources:
             if source.name not in generated:
-                raise ValueError(f"节点 {node.name!r} 的 source 引用不存在或未生成: {source.name!r}")
+                raise ValueError(f"节点 {name!r} 的 source 引用不存在: {source.name!r}")
             peer = tree.nodes[source.name]
             if source.output and source.output not in peer.output_groups:
-                raise ValueError(f"节点 {node.name!r} 的 source 输出不存在: {source.name}[{source.output}]")
+                raise ValueError(f"节点 {name!r} 的 source 输出不存在: {source.name}[{source.output}]")

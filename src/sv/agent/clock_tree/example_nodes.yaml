@@ -134,6 +134,7 @@ mux_sparse:
   source:
     "2": xtal
     "5": pll_sc0
+    "9": excluded_gate
   in_paths:
     "2": dut.mux_sparse_xtal
     "5": dut.mux_sparse_pll
@@ -145,3 +146,15 @@ clk_mux:
   source: mux_sparse
   path: dut.clk_mux
   frequence: 1188000000
+
+excluded_gate:
+  kind: gate
+  exclude: true
+  source: xtal
+  reg: blk_excluded.en
+  out_path: dut.excluded_gate_o
+
+cell_excluded_source:
+  kind: cell
+  source: excluded_gate
+  path: dut.cell_excluded_source

@@ -1,3 +1,4 @@
+{% set sources_by_node = tree.sv_sources_by_node -%}
 `ifndef {{ (settings.class_prefix ~ "tree") | upper }}
 `define {{ (settings.class_prefix ~ "tree") | upper }}
 
@@ -54,7 +55,7 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- for node in tree.sv_nodes_ordered %}
 {%- for output in node.output_groups or [""] %}
 {%- set access = node.name ~ '["' ~ output ~ '"]' if output else node.name %}
-{%- for source in node.sources %}
+{%- for source in sources_by_node[node.name] %}
 {%- set parent = source.name ~ '["' ~ source.output ~ '"]' if source.output else source.name %}
         {{ access }}.set_source("{{ source.input_key }}", {{ parent }});
 {%- endfor %}
