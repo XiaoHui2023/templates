@@ -14,9 +14,11 @@ class {{ settings.class_prefix }}ratio_base extends {{ settings.class_prefix }}n
     rand int _resolved_ratio;
     int ratio;
     bit unfix_ratio;
+    bit _hardwired;
 
     constraint cst_ratio {
         !(unfix_ratio || ratio < 0) -> ratio == _resolved_ratio;
+        _hardwired -> ratio == _resolved_ratio;
     }
 
     constraint cst_resolve_freq_from_src {

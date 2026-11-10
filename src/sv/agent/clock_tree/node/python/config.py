@@ -8,6 +8,28 @@ from pydantic import BaseModel, ConfigDict, model_validator
 _SV_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 
+def require_registers(registers: dict[str, str], required: tuple[str, ...], optional: tuple[str, ...] = ()) -> None:
+    """检查寄存器角色是否完整。
+
+    Args:
+        registers: 已合并的寄存器路径
+        required: 必需角色
+        optional: 可选角色
+
+    Raises:
+        ValueError: 缺少必需角色或存在未知角色
+    """
+    missing = sorted(set(required) - registers.keys())
+    unknown = sorted(registers.keys() - set(required) - set(optional))
+    if missing or unknown:
+        parts = []
+        if missing:
+            parts.append(f"缺少寄存器字段 {missing!r}")
+        if unknown:
+            parts.append(f"不支持寄存器字段 {unknown!r}")
+        raise ValueError("；".join(parts))
+
+
 def sv_literal(value: object) -> str:
     """将一个插件配置值转换为 SystemVerilog 字面量。
 
@@ -35,6 +57,17 @@ class NodePluginConfig(BaseModel):
     """节点插件声明的显式配置字段。"""
 
     model_config = ConfigDict(extra="forbid")
+
+    def binding_assignments(self, registers: dict[str, str]) -> list[tuple[str, str]]:
+        """检查绑定要求并返回由绑定方式决定的成员值。
+
+        Args:
+            registers: 当前输出组的寄存器路径
+
+        Returns:
+            list[tuple[str, str]]: 需要补充的成员赋值
+        """
+        return []
 
     def normalize_outputs(self, outputs: list[str]) -> list[str]:
         """返回插件支持的输出组。

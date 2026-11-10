@@ -68,12 +68,12 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
     endfunction
 
     // Binds registers and resolves the initial graph state.
-    extern function void build({{ settings.class_regmodel }} regmodel = null);
+    extern function void build({{ settings.class_regmodel or 'uvm_reg_block' }} regmodel = null);
     // Resolves requested state and applies node configuration.
     extern virtual task configure();
 endclass
 
-function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel }} regmodel);
+function void {{ settings.class_prefix }}tree::build({{ settings.class_regmodel or 'uvm_reg_block' }} regmodel);
     built = 1'b0;
     if (regmodel != null) begin
 {%- for binding in reg_bindings %}

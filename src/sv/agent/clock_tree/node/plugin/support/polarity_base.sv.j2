@@ -9,6 +9,8 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
 
     rand bit inverted;
     bit fix_inverted;
+    bit _hardwired;
+    bit _fixed_inverted;
     {{ settings.class_prefix }}reg f_reg;
 
     constraint cst_resolve_active_from_src {
@@ -21,6 +23,7 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
 
     constraint cst_inv {
         fix_inverted -> inverted;
+        _hardwired -> inverted == _fixed_inverted;
     }
 
     // Starts in the inverted state.

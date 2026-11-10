@@ -9,6 +9,8 @@ from ._families import DividerConfig
 class DivDivConfig(DividerConfig):
     """整数分频器配置。"""
 
+    register_roles = ("rst", "load", "div")
+
     def register_encoding(self, role: str, access: str) -> str | None:
         """返回分频字段的 N-1 编码。"""
         return f"({access}._resolved_ratio - 1)" if role == "div" else None

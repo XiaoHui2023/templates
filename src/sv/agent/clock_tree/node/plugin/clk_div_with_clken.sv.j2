@@ -50,6 +50,7 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
     virtual function void post_register_bind();
         if (controller == null)
             `uvm_fatal("CLK_TREE", "missing hclk output")
+        if (_hardwired) return;
         if (!f_div.is_bound() || f_div.width != 4)
             `uvm_fatal("CLK_TREE", "divider register must bind a four-bit slice")
         if (f_div.field != controller.f_div.field || f_div.offset != controller.f_div.offset)

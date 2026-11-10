@@ -14,6 +14,17 @@ class ClkDivWithClkenConfig(DividerConfig):
     """直通核心时钟及共享分频的两个输出。"""
 
     ratio: Literal[2, 3, 4, 6] | None = Field(default=None, description="分频比，2、3、4 或 6")
+    register_roles = ("div",)
+    optional_register_roles = ("rst", "load")
+
+    def binding_assignments(self, registers: dict[str, str]) -> list[tuple[str, str]]:
+        """检查共享分频字段，默认字段与分频字段等价。"""
+        roles = dict(registers)
+        if "reg" in roles:
+            if "div" in roles and roles["reg"] != roles["div"]:
+                raise ValueError("'reg' 与 'div' 必须绑定同一字段")
+            roles["div"] = roles.pop("reg")
+        return super().binding_assignments(roles)
 
     def register_encoding(self, role: str, access: str) -> str | None:
         """返回分频字段的规范编码，默认 reg 与 div 指向同一字段。"""

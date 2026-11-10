@@ -158,3 +158,26 @@ cell_excluded_source:
   kind: cell
   source: excluded_gate
   path: dut.cell_excluded_source
+
+fixed_mux:
+  kind: mux
+  source:
+    "2": xtal
+    "5": pll_sc0
+  sel: 2
+
+fixed_gate:
+  kind: gate
+  source: fixed_mux
+  open: 1
+
+fixed_div:
+  kind: div_div_r
+  source: fixed_gate
+  ratio: 2
+
+clk_fixed:
+  kind: clk
+  source: fixed_div
+  path: dut.clk_fixed
+  frequence: 12000000

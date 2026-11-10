@@ -145,9 +145,7 @@ class Models(BaseModel):
     @model_validator(mode="after")
     def _validate_model(self) -> "Models":
         validate_nodes_graph(self.nodes)
-        if not any_reg_configured(self.tree):
-            raise ValueError(f"至少须配置一个 {ERR.fields('reg', 'regs')}")
-        if not self.settings.class_regmodel:
+        if any_reg_configured(self.tree) and not self.settings.class_regmodel:
             raise ValueError(f"任意节点配置了 {ERR.fields('reg', 'regs')} 时须填写 {ERR.field('settings.class_regmodel')}")
         self._cache["reg_analysis"] = analyze_reg_bindings(self.tree)
         return self

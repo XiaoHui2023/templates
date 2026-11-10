@@ -12,6 +12,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     rand int _resolved_sel;
     int sel;
     bit unfix_sel;
+    bit _hardwired;
     int switch_cycles;
     longint switch_timeout_ns;
     {{ settings.class_prefix }}node_base to_source[int];
@@ -23,6 +24,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         input_keys.size() > 0 -> _resolved_sel inside {input_keys};
         max_sel >= 0 -> _resolved_sel <= max_sel;
         !(unfix_sel || sel < 0) -> sel == _resolved_sel;
+        _hardwired -> sel == _resolved_sel;
     }
 
     constraint cst_resolve_active_from_src {
@@ -198,11 +200,11 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         context_h.after_action(lease_h.ready, selected_input.ready);
     endfunction
 
-    // Rejects availability claims for an uncontrolled selector.
+    // Accepts fixed routing or a bound selector control.
     virtual task acquire_requirement(
             input {{ settings.class_prefix }}config_context context_h,
             input {{ settings.class_prefix }}config_lease lease_h);
-        if (!f_reg.is_bound())
+        if (!_hardwired && !f_reg.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf("mux %s missing selector register", get_name()))
     endtask
 

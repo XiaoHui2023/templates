@@ -131,6 +131,7 @@ class Node(BaseModel):
     _name: str = PrivateAttr(default="")
     _plugin_config: NodePluginConfig = PrivateAttr()
     _output_plugin_configs: Dict[str, NodePluginConfig] = PrivateAttr(default_factory=dict)
+    _binding_assignments: Dict[str, List[tuple[str, str]]] = PrivateAttr(default_factory=dict)
 
     @field_validator("kind")
     @classmethod
@@ -255,7 +256,21 @@ class Node(BaseModel):
         values = dict(self._plugin_config.sv_assignments())
         if output in self._output_plugin_configs:
             values.update(self._output_plugin_configs[output].sv_assignments())
+        values.update(self._binding_assignments.get(output, []))
         return sorted(values.items())
+
+    def _prepare_bindings(self) -> None:
+        """按输出组检查插件绑定并保存补充赋值。"""
+        self._binding_assignments.clear()
+        if self.exclude:
+            return
+        for output in self.output_groups or [""]:
+            config = self._output_plugin_configs.get(output, self._plugin_config)
+            try:
+                self._binding_assignments[output] = config.binding_assignments(self.regs_for_output(output))
+            except ValueError as exc:
+                name = f"{self.name}[{output}]" if output else self.name
+                raise ValueError(f"节点 {name!r}: {exc}") from exc
 
     @computed_field
     @property
@@ -321,6 +336,7 @@ class Tree(BaseModel):
         for name, node in self.nodes.items():
             require_sv_id(name, field="nodes")
             node._name = name
+            node._prepare_bindings()
         return self
 
     @computed_field

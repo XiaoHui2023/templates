@@ -10,6 +10,7 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     longint frequence;
     int enabled;
     bit locked;
+    bit _hardwired;
 
     constraint cst_pll {
         enabled == 0 -> !_resolved_active;
@@ -58,6 +59,14 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         {{ settings.class_prefix }}config_action wait_h;
         {{ settings.class_prefix }}config_lease reference_h;
         field_h = lock_reg();
+        if (_hardwired) begin
+            if (!_resolved_active) begin
+                context_h.fail($sformatf("%s is a fixed inactive clock", get_name()));
+                return;
+            end
+            super.plan_requirement(context_h, lease_h);
+            return;
+        end
         if (!configuration_is_bound() || frequence <= 0 || field_h == null || !field_h.is_bound()) begin
             context_h.fail($sformatf("%s cannot satisfy availability requirement", get_name()));
             return;

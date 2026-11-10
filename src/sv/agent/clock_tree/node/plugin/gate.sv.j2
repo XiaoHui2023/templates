@@ -15,10 +15,12 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     bit unfix_open;
     bit fix_open;
     bit fix_close;
+    bit _hardwired;
     {{ settings.class_prefix }}reg f_reg;
 
     constraint cst_open {
         !(unfix_open || open < 0) -> open == _resolved_open;
+        _hardwired -> open == _resolved_open;
     }
 
     constraint cst_resolve_active_from_src {
@@ -71,7 +73,11 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     virtual function void plan_requirement(
             {{ settings.class_prefix }}config_context context_h,
             {{ settings.class_prefix }}config_lease lease_h);
-        if (!f_reg.is_bound()) begin
+        if (_hardwired && open == 0) begin
+            context_h.fail($sformatf("gate %s is hardwired closed", get_name()));
+            return;
+        end
+        if (!_hardwired && !f_reg.is_bound()) begin
             context_h.fail($sformatf("gate %s missing register for temporary enable", get_name()));
             return;
         end
@@ -96,6 +102,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
             input {{ settings.class_prefix }}config_lease lease_h);
         uvm_queue#(int) snapshot;
         int current_value;
+        if (_hardwired) return;
         if (!f_reg.is_bound())
             `uvm_fatal("CLK_TREE", $sformatf("config_reg: gate %s missing register for temporary enable", get_name()))
         context_h.io.read_reg(f_reg, current_value);
@@ -111,6 +118,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
             input {{ settings.class_prefix }}config_context context_h,
             input {{ settings.class_prefix }}config_lease lease_h);
         uvm_queue#(int) snapshot;
+        if (_hardwired) return;
         if (!lease_h.has_target) begin
             if (!$cast(snapshot, lease_h.state) || snapshot.size() != 1)
                 `uvm_fatal("CLK_TREE", "gate lease has no saved state")

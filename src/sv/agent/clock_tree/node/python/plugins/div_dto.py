@@ -9,6 +9,8 @@ from ._families import DividerConfig
 class DivDtoConfig(DividerConfig):
     """DTO 分频器配置。"""
 
+    register_roles = ("rst", "load", "bypass", "step")
+
     def register_encoding(self, role: str, access: str) -> str | None:
         """返回 step 或 bypass 的实际写入编码。"""
         ratio = f"{access}._resolved_ratio"

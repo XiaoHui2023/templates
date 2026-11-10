@@ -9,6 +9,8 @@ from ._families import PllConfig
 class PllScConfig(PllConfig):
     """SC PLL 配置。"""
 
+    register_roles = ("lock", "vocpd", "postdivpd", "dsmpd", "pd", "bypass", "refdiv", "postdiv2", "postdiv1", "fbdiv")
+
 
 class PllScSettings(NodePluginSettings):
     """SC PLL 搜索边界。"""

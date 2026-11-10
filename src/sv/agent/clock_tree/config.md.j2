@@ -11,16 +11,20 @@
 ```
 
 ## 部署
-
+{% if reg_bindings %}
 传入 `{{ settings.class_regmodel }}` 寄存器对象: `path-to-your-regmodel`
-
+{% endif %}
 ```systemverilog
 {{ settings.class_prefix }}tree tree;
 
 // 例化 tree
 tree = {{ settings.class_prefix }}tree::type_id::create("tree");
+{% if reg_bindings -%}
 // 绑定寄存器
 tree.build(path-to-your-regmodel);
+{% else -%}
+tree.build();
+{% endif -%}
 ```
 
 ## 低功耗

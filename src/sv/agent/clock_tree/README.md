@@ -107,6 +107,19 @@ nodes:
 
 mux 的选择值来自 source 的实际键集合。键使用非负整数的十进制字符串；例如只有 `"2"`、`"5"` 时，只允许选择 2 或 5。省略 max_sel 不增加上限，填写后只缩小该集合。
 
+### 固定控制
+
+mux、gate 和分频器不填寄存器时，分别填写固定的 `sel`、`open` 和 `ratio`；不能同时解除固定。有寄存器时，这些值是配置目标，省略则由约束决定。部分填写寄存器时必须补齐必需字段。
+
+| 节点 | 必需寄存器 | 可选寄存器 |
+| --- | --- | --- |
+| mux、gate、可编程反相器 | `reg` | |
+| div_div | `rst`、`load`、`div` | |
+| div_dto | `rst`、`load`、`bypass`、`step` | |
+| clk_div_with_clken | `div` 或 `reg` | `rst`、`load` |
+
+`div_div_r` 不支持寄存器。反相器不填寄存器时按 `inverted` 固定，省略为反相。PLL 不填寄存器时表示外部固定时钟，填写正频率或明确关闭；填写寄存器则必须提供对应型号的完整字段。全部节点均无需寄存器时，可以省略 `class_regmodel`。
+
 ### mux 切换等待
 
 `settings.plugin.mux`：

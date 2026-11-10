@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ..config import NodePluginConfig, NodePluginSettings
+from ..config import NodePluginConfig, NodePluginSettings, require_registers
 
 
 class MuxSettings(NodePluginSettings):
@@ -18,3 +18,16 @@ class MuxConfig(NodePluginConfig):
     max_sel: int | None = Field(default=None, ge=0, description="source 键集合的可选选择上限")
     sel: int | None = Field(default=None, ge=0, description="目标输入选择值")
     unfix_sel: bool | None = Field(default=None, description="解除选择值固定约束")
+
+    def binding_assignments(self, registers: dict[str, str]) -> list[tuple[str, str]]:
+        """检查可编程选择或固定选择的配置。"""
+        values = []
+        if registers:
+            require_registers(registers, ("reg",))
+        else:
+            if self.sel is None or self.unfix_sel:
+                raise ValueError("缺少 'reg'；固定选择需要填写 'sel'，且不能解除固定")
+            values.append(("_hardwired", "1'b1"))
+        if self.sel is not None and self.unfix_sel is None:
+            values.append(("unfix_sel", "1'b0"))
+        return values

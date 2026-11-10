@@ -15,7 +15,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
     constraint cst_div {
         max_ratio > 0;
         _resolved_ratio > 0;
-        _resolved_ratio <= max_ratio;
+        !_hardwired -> _resolved_ratio <= max_ratio;
     }
 
     // Initializes the divisor and optional control handles.

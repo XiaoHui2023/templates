@@ -9,3 +9,4 @@ class PllInnoConfig(PllConfig):
     """INNO PLL 配置。"""
 
     group_id: str | None = Field(default=None, description="共享配置组标识")
+    register_roles = ("lock", "pd", "postdiv1", "refdiv", "postdiv2", "fbdiv")
