@@ -92,9 +92,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
             output int failures);
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
-        real out_freq_hz;
         real expected_freq_hz;
-        real err_ratio;
         int bit_idx;
         int ratio;
         int width;
@@ -139,22 +137,11 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
                     get_name(), bit_idx, ratio, {{ settings.min_freq_hz }}))
                 continue;
             end
-            api.measure_port_freq(out_vif, $sformatf(
+            check_output(api, out_vif, $sformatf(
                 "%s.out bit %0d ratio %0d", get_name(), bit_idx, ratio),
-                int'(expected_freq_hz), out_freq_hz, passed);
+                expected_freq_hz, passed);
             if (!passed)
                 failures++;
-            else begin
-                err_ratio = (out_freq_hz > expected_freq_hz)
-                    ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
-                    : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
-                if (err_ratio > {{ settings.period_tolerance }}) begin
-                    failures++;
-                    `uvm_error("CLK_TREE", $sformatf(
-                        "test_flip: div %s bit %0d ratio %0d output %0.2f Hz expected %0.2f Hz",
-                        get_name(), bit_idx, ratio, out_freq_hz, expected_freq_hz))
-                end
-            end
         end
         in_vif.release_drive();
         did_check = 1'b1;

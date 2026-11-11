@@ -90,8 +90,12 @@ mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的
 | `run_functional_contract` | 施加激励、配置寄存器、检查输出并释放驱动 |
 | `is_stability_anchor` | 是否需要保护该节点及其上游 |
 | `preserves_native_input` | 是否保留原生输入时钟 |
+| `output_duty_check_enabled(key)` | 功能输出是否检查占空比，默认开启 |
+| `output_frequency_window(key)` | 每个频率样本的平均周期数，默认 1 |
 
 `flip_check` 串行调用选中节点的 `run_functional_contract`，传入提供寄存器访问和测量服务的 `node_test_api`。插件返回 `did_check`、`did_skip` 和失败数；前两个结果必须恰有一个为真。
+
+插件调用基础节点的 `check_output(api, 接口, 标签, 期望频率, passed, 端口键)`。基础节点解析策略，测量服务接收占空比开关与采样窗口，负责数值比较和清理，不依赖节点类型。DTO 按平均频率检查累加脉冲，关闭占空比；`clk_div_with_clken` 的三个输出也关闭占空比，其余功能输出默认检查。
 
 ## 连线钩子
 

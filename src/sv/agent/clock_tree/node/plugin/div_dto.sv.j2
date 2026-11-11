@@ -43,17 +43,26 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             input {{ settings.class_prefix }}node_config_api cfg,
             input int value,
             input bit reset);
-        int rst_value;
         int step_value;
-        int control_value;
         bit bypass_value;
+        bypass_value = {{ settings.class_prefix }}dto_ratio_is_bypass(value);
+        step_value = bypass_value ? 0 : {{ settings.class_prefix }}dto_ratio_to_step(value);
+        program_step(cfg, step_value, bypass_value, reset);
+    endtask
+
+    // Commits accumulator data before load and waits for synchronization.
+    task program_step(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input int step_value,
+            input bit bypass_value,
+            input bit reset);
+        int rst_value;
+        int control_value;
 {%- if plugin_value("div_dto", "reg_high_means_reset", false) %}
         rst_value = 0;
 {%- else %}
         rst_value = 1;
 {%- endif %}
-        bypass_value = {{ settings.class_prefix }}dto_ratio_is_bypass(value);
-        step_value = bypass_value ? 0 : {{ settings.class_prefix }}dto_ratio_to_step(value);
         // Refresh control fields before the write service checks their mirrors.
         cfg.read_reg(f_rst, control_value);
         cfg.read_reg(f_load, control_value);
@@ -94,7 +103,15 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         return 1'b1;
     endfunction
 
-    // Applies one representative DTO ratio under an independent input clock.
+    // Accumulator pulses do not require a symmetric high/low interval.
+    virtual function bit output_duty_check_enabled(string key = ""); return 1'b0; endfunction
+
+    // Averages accumulator period jitter before comparing nominal rates.
+    virtual function int output_frequency_window(string key = "");
+        return int'($ceil(4.0 / {{ settings.period_tolerance }}));
+    endfunction
+
+    // Exercises bypass and both values of every accumulator control bit.
     virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
@@ -102,11 +119,11 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             output int failures);
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
-        real out_freq_hz;
         real expected_freq_hz;
-        real err_ratio;
         bit passed;
-        int ratio;
+        int width;
+        int mask;
+        int step_value;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -122,26 +139,39 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
                 get_name()), UVM_LOW)
             return;
         end
-        ratio = 4;
+        width = {{ settings.class_prefix }}reg_field_width(f_step);
+        if (width < 1 || width > 25)
+            `uvm_fatal("CLK_TREE", $sformatf("test_flip: dto %s step width %0d outside [1,25]", get_name(), width))
+        mask = (1 << width) - 1;
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test dto %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
-        program_ratio(api.cfg, ratio, 1'b1);
+        program_step(api.cfg, 0, 1'b1, 1'b1);
         #({{ plugin_value("div_dto", "settle_ns", 200) }}ns);
-        expected_freq_hz = real'(1_000_000_000) / ratio;
-        api.measure_port_freq(out_vif, {get_name(), ".out"},
-            int'(expected_freq_hz), out_freq_hz, passed);
+        check_output(api, out_vif, {get_name(), ".out bypass"}, 1_000_000_000, passed);
         if (!passed)
             failures++;
-        else begin
-            err_ratio = (out_freq_hz > expected_freq_hz)
-                ? ((out_freq_hz - expected_freq_hz) / expected_freq_hz)
-                : ((expected_freq_hz - out_freq_hz) / expected_freq_hz);
-            if (err_ratio > {{ settings.period_tolerance }}) begin
-                failures++;
-                `uvm_error("CLK_TREE", $sformatf(
-                    "test_flip: dto %s output %0.2f Hz expected %0.2f Hz",
-                    get_name(), out_freq_hz, expected_freq_hz))
+        for (int bit_idx = 0; bit_idx < width; bit_idx++) begin
+            for (int pattern = 0; pattern < 2; pattern++) begin
+                step_value = pattern == 0
+                    ? (1 << (width - 1)) | (1 << bit_idx)
+                    : mask ^ (1 << bit_idx);
+                program_step(api.cfg, step_value, 1'b0, 1'b1);
+                #({{ plugin_value("div_dto", "settle_ns", 200) }}ns);
+                expected_freq_hz = 1.0e9 * real'(step_value) / real'(1 << 25);
+                if (step_value == 0)
+                    api.check_port_inactive(out_vif, {get_name(), ".out step 0"}, 1_000_000_000, passed);
+                else if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
+                    passed = 1'b0;
+                    `uvm_error("CLK_TREE", $sformatf(
+                        "test_flip: dto %s bit %0d expected %0.3f Hz below measurable %0d Hz",
+                        get_name(), bit_idx, expected_freq_hz, {{ settings.min_freq_hz }}))
+                end else
+                    check_output(api, out_vif,
+                        $sformatf("%s.out bit %0d step %0h", get_name(), bit_idx, step_value),
+                        expected_freq_hz, passed);
+                if (!passed)
+                    failures++;
             end
         end
         in_vif.release_drive();

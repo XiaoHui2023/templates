@@ -67,6 +67,7 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
         bit configured;
+        bit passed;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -103,6 +104,10 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s direct input 1 output %0b", get_name(), out_vif.in))
         end
+        in_vif.start_clock(1_000_000_000);
+        check_output(api, out_vif, {get_name(), ".out direct"}, 1_000_000_000, passed);
+        if (!passed)
+            failures++;
 {%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
         api.cfg.write_reg(f_reg, 1'b1);
 {%- else %}
@@ -123,6 +128,10 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s inverted input 1 output %0b", get_name(), out_vif.in))
         end
+        in_vif.start_clock(1_000_000_000);
+        check_output(api, out_vif, {get_name(), ".out inverted"}, 1_000_000_000, passed);
+        if (!passed)
+            failures++;
         in_vif.release_drive();
         did_check = 1'b1;
     endtask

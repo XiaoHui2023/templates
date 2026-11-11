@@ -216,12 +216,28 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     endfunction
     // Reports whether duty-cycle measurement is meaningful.
     virtual function bit supports_duty_observation(); return 1'b0; endfunction
+    // Reports whether the selected functional output requires duty validation.
+    virtual function bit output_duty_check_enabled(string key = ""); return 1'b1; endfunction
+    // Returns the number of output periods averaged per frequency sample.
+    virtual function int output_frequency_window(string key = ""); return 1; endfunction
     // Reports whether this node anchors stability checks.
     virtual function bit is_stability_anchor(); return 1'b0; endfunction
     // Applies this node's low-power preference.
     virtual function void apply_low_power_preference(); endfunction
 
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Resolves this output's policy before invoking the measurement service.
+    task check_output(
+            input {{ settings.class_prefix }}node_test_api api,
+            input virtual {{ settings.class_prefix }}interface port_vif,
+            input string label,
+            input real expected_freq_hz,
+            output bit passed,
+            input string key = "");
+        api.check_output(port_vif, label, expected_freq_hz, passed,
+            output_duty_check_enabled(key), output_frequency_window(key));
+    endtask
+
     // Reports whether this node supplies a functional check.
     virtual function bit has_functional_contract(); return 1'b0; endfunction
     // Runs this node's functional check through api.

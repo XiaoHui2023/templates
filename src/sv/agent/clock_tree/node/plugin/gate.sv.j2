@@ -155,7 +155,6 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
             output int failures);
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
-        real freq_hz;
         bit passed;
         bit configured;
 
@@ -181,8 +180,8 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
 {%- else %}
         api.cfg.write_reg(f_reg, 1'b0);
 {%- endif %}
-        api.measure_port_freq(out_vif, {get_name(), ".out open"},
-            1_000_000_000, freq_hz, passed);
+        check_output(api, out_vif, {get_name(), ".out open"},
+            1_000_000_000, passed);
         if (!passed)
             failures++;
 {%- if plugin_value("gate", "reg_high_means_open", false) %}

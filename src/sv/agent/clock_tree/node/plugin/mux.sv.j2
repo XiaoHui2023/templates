@@ -274,9 +274,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             output int failures);
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
-        real out_freq_hz;
         real expected_freq_hz[int];
-        real err_ratio;
         string in_key;
         int stim_freq_hz;
         bit passed;
@@ -321,21 +319,10 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         foreach (to_source[k]) begin
             api.cfg.write_reg(f_reg, k);
             #70ns;
-            api.measure_port_freq(out_vif, {get_name(), ".out"},
-                int'(expected_freq_hz[k]), out_freq_hz, passed);
+            check_output(api, out_vif, $sformatf("%s.out sel %0d", get_name(), k),
+                expected_freq_hz[k], passed);
             if (!passed)
                 failures++;
-            else begin
-                err_ratio = (out_freq_hz > expected_freq_hz[k])
-                    ? ((out_freq_hz - expected_freq_hz[k]) / expected_freq_hz[k])
-                    : ((expected_freq_hz[k] - out_freq_hz) / expected_freq_hz[k]);
-                if (err_ratio > {{ settings.period_tolerance }}) begin
-                    failures++;
-                    `uvm_error("CLK_TREE", $sformatf(
-                        "test_flip: mux %s sel %0d output %0.2f Hz expected %0.2f Hz",
-                        get_name(), k, out_freq_hz, expected_freq_hz[k]))
-                end
-            end
         end
         foreach (to_source[k]) begin
             in_key = $sformatf("%0d", k);

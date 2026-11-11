@@ -13,36 +13,66 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
         cfg = cfg_h;
     endfunction
 
-    // Measures a driven output against its expected frequency.
-    virtual task measure_port_freq(
+    // Checks output activity, frequency and the node's duty policy.
+    virtual task check_output(
             input virtual {{ settings.class_prefix }}interface vif,
             input string label,
-            input int expected_freq_hz,
-            output real freq_hz,
-            output bit passed);
+            input real expected_freq_hz,
+            output bit passed,
+            input bit check_duty = 1'b1,
+            input int frequency_window = 1);
         bit ok;
+        bit freq_stable;
+        bit duty_stable;
+        bit duty_ok;
         int min_freq_hz;
+        real freq_hz;
+        real error_ratio;
 
-        freq_hz = 0.0;
         passed = 1'b0;
-        if (vif == null)
+        if (vif == null || expected_freq_hz <= 0.0)
             `uvm_fatal("CLK_TREE", $sformatf(
-                "test_flip: %s missing interface", label))
-        min_freq_hz = int'(real'(expected_freq_hz)
+                "test_flip: %s invalid output check", label))
+        `uvm_info("CLK_TREE", $sformatf(
+            "test_flip: %s frequency 1 duty %0b expected %0.3f Hz",
+            label, check_duty, expected_freq_hz), UVM_HIGH)
+        min_freq_hz = int'(expected_freq_hz
             * (1.0 - {{ settings.period_tolerance }}));
+        vif.meas.set_frequency_window(frequency_window);
         vif.set_min_freq_hz(min_freq_hz);
-        vif.start_measure(1'b1, 1'b0);
-        vif.wait_measure_stable(1'b1, 1'b0, ok);
+        vif.start_measure(1'b1, check_duty);
+        vif.wait_measure_stable(1'b1, check_duty, ok);
+        freq_stable = vif.meas.freq_stable;
+        duty_stable = vif.meas.duty_stable;
+        duty_ok = vif.meas.duty_ok;
         vif.stop_measure();
+        vif.meas.set_frequency_window(1);
         vif.set_min_freq_hz({{ settings.min_freq_hz }});
-        if (!ok || !vif.meas.last_valid) begin
+        if (!vif.meas.last_valid || !freq_stable) begin
             `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: %s frequency did not stabilize, expected %0d Hz",
+                "test_flip: %s frequency did not stabilize, expected %0.3f Hz",
                 label, expected_freq_hz))
             return;
         end
         freq_hz = vif.meas.last_freq_hz;
         passed = 1'b1;
+        error_ratio = (freq_hz > expected_freq_hz)
+            ? (freq_hz - expected_freq_hz) / expected_freq_hz
+            : (expected_freq_hz - freq_hz) / expected_freq_hz;
+        if (error_ratio > {{ settings.period_tolerance }}) begin
+            passed = 1'b0;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: %s frequency %0.3f Hz expected %0.3f Hz",
+                label, freq_hz, expected_freq_hz))
+        end
+        if (check_duty && (!ok || !duty_stable || !duty_ok)) begin
+            passed = 1'b0;
+            `uvm_error("CLK_TREE", $sformatf(
+                "test_flip: %s duty %0.3f%% did not meet range [%0.3f,%0.3f]%%",
+                label, vif.meas.last_duty * 100.0,
+                {{ settings.duty_min }} - {{ settings.duty_tolerance_pct }},
+                {{ settings.duty_max }} + {{ settings.duty_tolerance_pct }}))
+        end
     endtask
 
     // Confirms that a driven output has no activity.

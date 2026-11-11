@@ -154,6 +154,9 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
     // Checks the physical divider once, not once per output.
     virtual function bit has_functional_contract(); return output_name == "hclk"; endfunction
 
+    // All outputs retain frequency checks without a duty-cycle requirement.
+    virtual function bit output_duty_check_enabled(string key = ""); return 1'b0; endfunction
+
     // Exercises every encoding and measures all three outputs.
     virtual task run_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
@@ -162,9 +165,7 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
             output int failures);
         virtual {{ settings.class_prefix }}interface input_vif;
         virtual {{ settings.class_prefix }}interface output_vif;
-        real measured;
         real expected;
-        real error_ratio;
         bit passed;
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -190,14 +191,8 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
             foreach (output_peers[key]) begin
                 output_vif = output_peers[key].get_out_vif();
                 expected = key == "clk_arm_core" ? 1.0e9 : 1.0e9 / decode_ratio(value);
-                api.measure_port_freq(output_vif, {get_name(), ".", key}, int'(expected), measured, passed);
-                if (passed) begin
-                    error_ratio = measured > expected ? (measured - expected) / expected : (expected - measured) / expected;
-                    if (error_ratio > {{ settings.period_tolerance }}) begin
-                        passed = 1'b0;
-                        `uvm_error("CLK_TREE", $sformatf("test_flip: %s %s encoding %0h measured %0f Hz expected %0f Hz", get_name(), key, value, measured, expected))
-                    end
-                end
+                check_output(api, output_vif,
+                    $sformatf("%s.%s encoding %0h", get_name(), key, value), expected, passed, key);
                 if (!passed) failures++;
             end
         end
