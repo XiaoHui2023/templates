@@ -89,16 +89,16 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
 {%- else %}
         api.cfg.write_reg(f_reg, 1'b1);
 {%- endif %}
-        #({{ plugin_value("inverter", "settle_ns", 100) }}ns);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("inverter", "settle_ns", 100) }});
         in_vif.drive_static(1'b0);
-        #1ns;
+        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
         if (out_vif.in !== 1'b0) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s direct input 0 output %0b", get_name(), out_vif.in))
         end
         in_vif.drive_static(1'b1);
-        #1ns;
+        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
         if (out_vif.in !== 1'b1) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
@@ -113,16 +113,16 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
 {%- else %}
         api.cfg.write_reg(f_reg, 1'b0);
 {%- endif %}
-        #({{ plugin_value("inverter", "settle_ns", 100) }}ns);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("inverter", "settle_ns", 100) }});
         in_vif.drive_static(1'b0);
-        #1ns;
+        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
         if (out_vif.in !== 1'b1) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s inverted input 0 output %0b", get_name(), out_vif.in))
         end
         in_vif.drive_static(1'b1);
-        #1ns;
+        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
         if (out_vif.in !== 1'b0) begin
             failures++;
             `uvm_error("CLK_TREE", $sformatf(

@@ -232,12 +232,12 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         if (delay_ns <= 0.0) return;
         case (token)
             1: begin
-                #(switch_delay_ns(slow_hz, 1) * 1ns);
+                {{ settings.class_prefix }}time_domain::delay_ns(switch_delay_ns(slow_hz, 1));
                 `uvm_info("CLK_TREE", $sformatf(
                     "config_reg: mux %s sel %0d -> %0d, wait %0.0f ns (%0d cycles at %0.3f Hz)",
                     get_name(), current_sel, _resolved_sel, delay_ns, switch_cycles, slow_hz), UVM_LOW)
                 context_h.io.write_reg(f_reg, _resolved_sel);
-                context_h.target(this).next_poll_ns = $realtime / 1ns + delay_ns;
+                context_h.target(this).next_poll_tick = {{ settings.class_prefix }}time_domain::after_ns(delay_ns);
             end
             0: context_h.fail("mux completion action was not deferred");
             default: `uvm_fatal("CLK_TREE", "unknown mux configuration action")
@@ -318,7 +318,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         end
         foreach (to_source[k]) begin
             api.cfg.write_reg(f_reg, k);
-            #70ns;
+            {{ settings.class_prefix }}time_domain::delay_ns(70.0);
             check_output(api, out_vif, $sformatf("%s.out sel %0d", get_name(), k),
                 expected_freq_hz[k], passed);
             if (!passed)

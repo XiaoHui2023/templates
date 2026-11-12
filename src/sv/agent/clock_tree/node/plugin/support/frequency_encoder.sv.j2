@@ -202,8 +202,8 @@ class {{ settings.class_prefix }}frequency_encoder extends {{ settings.class_pre
         input longint out_hz,
         input longint ref_hz,
         input bit write_shared);
-    // timeout — 轮询 f_lock 为 1 的最长等待
-    extern task wait_lock({{ settings.class_prefix }}reg f_lock, time timeout);
+    // Polls lock within a nanosecond budget, including register read time.
+    extern task wait_lock(input {{ settings.class_prefix }}reg f_lock, input real timeout_ns);
     // out_hz、ref_hz — 读回 TCI 系数与运行态是否与目标一致
     extern task tci_regs_match_target(
         input {{ settings.class_prefix }}reg f_bypass,
@@ -804,12 +804,12 @@ task {{ settings.class_prefix }}frequency_encoder::configure_dw(
     binds = '{f_pwron, f_shift, f_bypass};
     vals = '{1, 1, 0};
     rw.apply(binds, vals);
-    #4us;
+    {{ settings.class_prefix }}time_domain::delay_ns(4000.0);
 
     binds = '{f_reset, f_shift};
     vals = '{0, 0};
     rw.apply(binds, vals);
-    #10us;
+    {{ settings.class_prefix }}time_domain::delay_ns(10000.0);
 
     binds = '{f_divvcor, f_r, f_p, f_divvcop};
     vals = '{divvcor, r, p, divvcop};
@@ -1048,23 +1048,30 @@ task {{ settings.class_prefix }}frequency_encoder::inno_regs_match_target(
         match = 1'b0;
 endtask
 
-task {{ settings.class_prefix }}frequency_encoder::wait_lock({{ settings.class_prefix }}reg f_lock, time timeout);
-    time elapsed;
+task {{ settings.class_prefix }}frequency_encoder::wait_lock(
+        input {{ settings.class_prefix }}reg f_lock, input real timeout_ns);
+    time deadline_tick;
+    time now_tick;
+    time wake_tick;
     int lock_val;
 
     if (f_lock.field == null)
         `uvm_fatal("CLK_TREE", "wait_lock: f_lock not bound")
 
-    elapsed = 0;
-    while (elapsed < timeout) begin
+    deadline_tick = {{ settings.class_prefix }}time_domain::after_ns(timeout_ns);
+    while ({{ settings.class_prefix }}time_domain::now_ticks() < deadline_tick) begin
         rw.read(f_lock, lock_val);
-        if (lock_val == 1)
+        now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+        if (now_tick <= deadline_tick && lock_val == 1)
             return;
-        #2us;
-        elapsed += 2us;
+        if (now_tick >= deadline_tick) break;
+        wake_tick = deadline_tick;
+        if (deadline_tick - now_tick > {{ settings.class_prefix }}time_domain::ticks_from_ns(2000.0))
+            wake_tick = now_tick + {{ settings.class_prefix }}time_domain::ticks_from_ns(2000.0);
+        {{ settings.class_prefix }}time_domain::wait_until(wake_tick);
     end
     `uvm_fatal("CLK_TREE", $sformatf(
-        "wait_lock: %s lock not 1 within %0t", f_lock.field.get_full_name(), timeout))
+        "wait_lock: %s lock not 1 within %0.3f ns", f_lock.field.get_full_name(), timeout_ns))
 endtask
 
 `endif

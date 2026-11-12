@@ -13,7 +13,7 @@ class {{ settings.class_prefix }}config_action;
     kind_t action_kind;
     string lease_key;
     bit deferred;
-    real next_poll_ns;
+    time next_poll_tick;
     int prerequisites[$];
     int followers[$];
 

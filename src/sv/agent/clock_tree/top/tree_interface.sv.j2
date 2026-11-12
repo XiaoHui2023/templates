@@ -18,7 +18,7 @@
                         half_period_ns = 1.0; \
                     else \
                         half_period_ns = 500000000.0 / IF_INST.clock_freq_hz; \
-                    #(half_period_ns * 1ns); \
+                    {{ settings.class_prefix }}time_domain::delay_ns(half_period_ns); \
                     IF_INST.drive_value = !IF_INST.drive_value; \
                 end \
             end else begin \

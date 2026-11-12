@@ -1,0 +1,60 @@
+`ifndef {{ (settings.class_prefix ~ "time_domain") | upper }}
+`define {{ (settings.class_prefix ~ "time_domain") | upper }}
+
+package {{ settings.class_prefix }}time_domain;
+    timeunit 1fs;
+    timeprecision 1fs;
+
+    // Returns the current absolute time in integer femtoseconds.
+    function automatic time now_ticks();
+        return $time;
+    endfunction
+
+    // Converts a nonnegative nanosecond duration, rounding upward to one tick.
+    function automatic time ticks_from_ns(real duration_ns);
+        real ticks;
+        if (!(duration_ns >= 0.0)) begin
+            $fatal(1, "time_domain: duration_ns must be nonnegative");
+            return 0;
+        end
+        ticks = $ceil(duration_ns * 1.0e6);
+        if (!(ticks < 18446744073709551616.0)) begin
+            $fatal(1, "time_domain: duration exceeds 64-bit femtoseconds");
+            return 0;
+        end
+        return time'(ticks);
+    endfunction
+
+    // Returns a deadline without adding small durations to a real timestamp.
+    function automatic time after_ns(real duration_ns);
+        time begin_tick;
+        time delay_tick;
+        begin_tick = now_ticks();
+        delay_tick = ticks_from_ns(duration_ns);
+        if (delay_tick > ~begin_tick) begin
+            $fatal(1, "time_domain: deadline exceeds 64-bit femtoseconds");
+            return begin_tick;
+        end
+        return begin_tick + delay_tick;
+    endfunction
+
+    // Converts a relative integer tick count to nanoseconds.
+    function automatic real ticks_to_ns(time ticks);
+        return real'(ticks) / 1.0e6;
+    endfunction
+
+    // Waits in this package's time scope; elapsed deadlines return immediately.
+    task automatic wait_until(time deadline_tick);
+        time now_tick;
+        now_tick = now_ticks();
+        if (deadline_tick > now_tick)
+            #(deadline_tick - now_tick);
+    endtask
+
+    // Waits for a nanosecond duration; zero is a no-op.
+    task automatic delay_ns(real duration_ns);
+        wait_until(after_ns(duration_ns));
+    endtask
+endpackage
+
+`endif

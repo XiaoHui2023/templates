@@ -22,7 +22,7 @@
 | `config_action` | `action_kind` | `EXECUTE` 调用插件动作，`ACQUIRE` 建立可用状态，`RELEASE` 结束临时使用 |
 | `config_action` | `prerequisites[$]`、`followers[$]` | 前置动作和后继动作的整数 ID，不互相持有动作句柄 |
 | `config_action` | `lease_key` | 取得/释放动作对应的共享记录标识 |
-| `config_action` | `deferred`、`next_poll_ns` | 是否分次检查完成条件，以及下一次可检查的绝对纳秒时刻 |
+| `config_action` | `deferred`、`next_poll_tick` | 是否分次检查完成条件，以及下一次可检查的绝对fs整数时刻 |
 | `config_lease` | `provider`、`ready`、`release_action` | 实际提供者、就绪动作和释放动作 |
 | `config_lease` | `state` | 插件自己的 `uvm_object` 临时快照，核心不解释内容 |
 | `config_lease` | `has_target` | 此资源是否已有最终配置负责，不应再恢复临时快照 |
@@ -89,11 +89,21 @@
 ### 等待调度
 
 1. 先执行当前全部就绪的普通动作；遇到 deferred 动作时放入待检查队列。
-2. 对到达 `next_poll_ns` 的动作调用一次 `poll_configuration`。完成才递减后继依赖，否则按正数 `retry_ns` 安排下一次检查。
+2. 对到达 `next_poll_tick` 的动作调用一次 `poll_configuration`。完成才递减后继依赖，否则按正数 `retry_ns` 安排下一次检查。
 3. 检查完成若产生新的就绪动作，先执行新动作，不等待其它无关器件。
 4. 没有可运行工作时才等待最近的下一次检查时刻；不逐纳秒空转。
 
 寄存器访问始终串行。普通动作仍是原子 task，不在访问途中取消线程。插件的 poll 可以读状态寄存器，但不能在内部持续轮询或长时间 sleep；总线访问本身的超时由寄存器服务负责。
+
+### 时间域
+
+`time_domain` 是独立编译的package，固定为1fs/1fs。调度期限使用64位fs整数；`retry_ns` 仍是相对纳秒数值，在服务内向上量化。当前时刻、整数期限比较和实际等待都在服务内完成，不继承业务类所在package的时间设置。
+
+插件调用 `time_domain::after_ns(ns)` 建立期限，调用 `delay_ns(ns)` 等待，或用 `wait_until(tick)` 等待整数期限。传普通纳秒数值，不直接传 `1ns` 等已在调用者域换算的字面量。0不等待，正数不足1fs时等待1fs，过去的期限立即返回。
+
+`frequency_encoder.wait_lock(f_lock, timeout_ns)` 同样接收普通ns数值，预算包含寄存器读取耗时；当前配置计划使用节点自己的非阻塞锁轮询。
+
+该package不改变外部的局部时间单位，但会参与全局最小精度计算，因此可能影响 `#1step`。64位fs范围约5.12小时，预算或期限加法越界直接报错；仿真时刻本身须在此范围内，仿真器强制覆盖精度不在保证内。独立package须在宿主package外编译，`all.f` 和 `config.f` 已将它排在使用者之前。
 
 ### PLL 启动与锁定
 

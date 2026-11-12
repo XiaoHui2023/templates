@@ -68,15 +68,15 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         cfg.read_reg(f_load, control_value);
         if (reset) begin
             cfg.write_reg(f_rst, !rst_value);
-            #({{ plugin_value("div_dto", "sync_wait_ns", 200) }}ns);
+            {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "sync_wait_ns", 200) }});
         end
         cfg.write_reg(f_load, 0);
         cfg.write_reg(f_step, step_value);
         cfg.write_reg(f_bypass, bypass_value);
         cfg.write_reg(f_rst, rst_value);
-        #({{ plugin_value("div_dto", "sync_wait_ns", 200) }}ns);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "sync_wait_ns", 200) }});
         cfg.write_reg(f_load, 1);
-        #({{ plugin_value("div_dto", "sync_wait_ns", 200) }}ns);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "sync_wait_ns", 200) }});
     endtask
 
     // Configures a bound DTO and waits for its control synchronization budget.
@@ -147,7 +147,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             "test_flip: test dto %s", get_name()), UVM_LOW)
         in_vif.start_clock(1_000_000_000);
         program_step(api.cfg, 0, 1'b1, 1'b1);
-        #({{ plugin_value("div_dto", "settle_ns", 200) }}ns);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "settle_ns", 200) }});
         check_output(api, out_vif, {get_name(), ".out bypass"}, 1_000_000_000, passed);
         if (!passed)
             failures++;
@@ -157,7 +157,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
                     ? (1 << (width - 1)) | (1 << bit_idx)
                     : mask ^ (1 << bit_idx);
                 program_step(api.cfg, step_value, 1'b0, 1'b1);
-                #({{ plugin_value("div_dto", "settle_ns", 200) }}ns);
+                {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "settle_ns", 200) }});
                 expected_freq_hz = 1.0e9 * real'(step_value) / real'(1 << 25);
                 if (step_value == 0)
                     api.check_port_inactive(out_vif, {get_name(), ".out step 0"}, 1_000_000_000, passed);

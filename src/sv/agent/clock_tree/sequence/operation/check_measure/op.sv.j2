@@ -622,14 +622,14 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             end
         end
         if (pending > 0) begin
-            #1ns;
+            {{ settings.class_prefix }}time_domain::delay_ns(1.0);
             elapsed_ns++;
         end
     end
 
     // 截止时刻属于有效测量窗口；跨过一个仿真精度步后再判定结果。
     if (pending > 0)
-        #1step;
+        {{ settings.class_prefix }}time_domain::delay_ns(0.000001);
 
     if (pending > 0 && uvm_report_enabled(UVM_DEBUG, UVM_INFO, "CLK_TREE"))
         log_measure_progress(rq, nodes_to_check, node_done, activity_done,

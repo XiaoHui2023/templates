@@ -91,7 +91,7 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
             "test_route: test %s", edge_names[i]), UVM_LOW)
 
     out_vif.drive_static(1'b0);
-    #1ns;
+    {{ settings.class_prefix }}time_domain::delay_ns(1.0);
     foreach (in_vifs[i]) begin
         if (in_vifs[i].in !== 1'b0) begin
             failed++;
@@ -102,7 +102,7 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
     end
 
     out_vif.drive_static(1'b1);
-    #1ns;
+    {{ settings.class_prefix }}time_domain::delay_ns(1.0);
     foreach (in_vifs[i]) begin
         if (in_vifs[i].in !== 1'b1) begin
             failed++;

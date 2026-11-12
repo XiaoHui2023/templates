@@ -187,7 +187,7 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
         input_vif.start_clock(1_000_000_000);
         for (int value = 0; value < 16; value++) begin
             program_ratio(api.cfg, value);
-            #({{ plugin_value("clk_div_with_clken", "settle_ns", 200) }}ns);
+            {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("clk_div_with_clken", "settle_ns", 200) }});
             foreach (output_peers[key]) begin
                 output_vif = output_peers[key].get_out_vif();
                 expected = key == "clk_arm_core" ? 1.0e9 : 1.0e9 / decode_ratio(value);

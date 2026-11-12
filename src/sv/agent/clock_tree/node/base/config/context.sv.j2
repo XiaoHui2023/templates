@@ -276,8 +276,8 @@ class {{ settings.class_prefix }}config_context;
         int checks;
         bit complete;
         real retry_ns;
-        real wake_ns;
-        real now_ns;
+        time wake_tick;
+        time now_tick;
         if (!execution_order(ordered)) return;
         foreach (actions[i]) begin
             incoming.push_back(actions[i].prerequisites.size());
@@ -304,8 +304,8 @@ class {{ settings.class_prefix }}config_context;
             checks = pending.size();
             repeat (checks) begin
                 action_h = pending.pop_front();
-                now_ns = $realtime / 1ns;
-                if (action_h.next_poll_ns > now_ns) begin
+                now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+                if (action_h.next_poll_tick > now_tick) begin
                     pending.push_back(action_h);
                     continue;
                 end
@@ -318,11 +318,7 @@ class {{ settings.class_prefix }}config_context;
                         fail($sformatf("%s returned a nonpositive completion retry", action_h.label));
                         return;
                     end
-                    action_h.next_poll_ns = $realtime / 1ns + retry_ns;
-                    if (!(action_h.next_poll_ns > $realtime / 1ns)) begin
-                        fail($sformatf("%s completion retry cannot advance time", action_h.label));
-                        return;
-                    end
+                    action_h.next_poll_tick = {{ settings.class_prefix }}time_domain::after_ns(retry_ns);
                     pending.push_back(action_h);
                 end
                 if (cursor < runnable.size()) break;
@@ -332,17 +328,10 @@ class {{ settings.class_prefix }}config_context;
                 fail("configuration plan has no runnable or pending action");
                 return;
             end
-            wake_ns = pending[0].next_poll_ns;
+            wake_tick = pending[0].next_poll_tick;
             foreach (pending[i])
-                if (pending[i].next_poll_ns < wake_ns) wake_ns = pending[i].next_poll_ns;
-            now_ns = $realtime / 1ns;
-            if (wake_ns > now_ns) begin
-                #((wake_ns - now_ns) * 1ns);
-                if ($realtime / 1ns <= now_ns) begin
-                    fail("configuration completion retry is below timeprecision");
-                    return;
-                end
-            end
+                if (pending[i].next_poll_tick < wake_tick) wake_tick = pending[i].next_poll_tick;
+            {{ settings.class_prefix }}time_domain::wait_until(wake_tick);
         end
     endtask
 endclass

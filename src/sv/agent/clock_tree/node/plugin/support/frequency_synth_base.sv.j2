@@ -114,7 +114,7 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
             input {{ settings.class_prefix }}config_context context_h,
             input int token);
         bit configured;
-        uvm_queue#(real) state;
+        uvm_queue#(time) state;
         if (token == 0 && !_resolved_active) begin
             apply_configuration(context_h.io, configured);
             return;
@@ -127,7 +127,7 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         if (context_h.has_failed()) return;
         locked = 1'b0;
         state = new();
-        state.push_back($realtime / 1ns + real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0);
+        state.push_back({{ settings.class_prefix }}time_domain::after_ns(real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0));
         context_h.set_runtime_state(this, state);
     endtask
 
@@ -137,7 +137,7 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
             input int token,
             output bit complete,
             output real retry_ns);
-        uvm_queue#(real) state;
+        uvm_queue#(time) state;
         complete = 1'b0;
         retry_ns = 0.0;
         if (!(token inside {0, 3}) || !$cast(state, context_h.runtime_state(this))) begin
@@ -171,12 +171,12 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     // Samples lock once without extending the original completion deadline.
     task poll_lock(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input real deadline_ns,
+            input time deadline_tick,
             output bit complete,
             output real retry_ns);
         {{ settings.class_prefix }}reg field_h;
         int lock_value;
-        real now_ns;
+        time now_tick;
         complete = 1'b0;
         retry_ns = 0.0;
         field_h = lock_reg();
@@ -184,17 +184,17 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
             complete = 1'b1;
             return;
         end
-        now_ns = $realtime / 1ns;
-        if (now_ns <= deadline_ns)
+        now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+        if (now_tick <= deadline_tick)
             cfg.read_reg(field_h, lock_value);
-        now_ns = $realtime / 1ns;
-        if (now_ns <= deadline_ns && lock_value == 1) begin
+        now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+        if (now_tick <= deadline_tick && lock_value == 1) begin
             locked = 1'b1;
             complete = 1'b1;
             return;
         end
-        if (now_ns < deadline_ns) begin
-            retry_ns = deadline_ns - now_ns;
+        if (now_tick < deadline_tick) begin
+            retry_ns = {{ settings.class_prefix }}time_domain::ticks_to_ns(deadline_tick - now_tick);
             if (retry_ns > 2000.0) retry_ns = 2000.0;
             return;
         end
@@ -207,12 +207,12 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     virtual task await_configuration(input {{ settings.class_prefix }}node_config_api cfg);
         bit complete;
         real retry_ns;
-        real deadline_ns;
-        deadline_ns = $realtime / 1ns + real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0;
+        time deadline_tick;
+        deadline_tick = {{ settings.class_prefix }}time_domain::after_ns(real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0);
         do begin
-            poll_lock(cfg, deadline_ns, complete, retry_ns);
+            poll_lock(cfg, deadline_tick, complete, retry_ns);
             if (complete || retry_ns <= 0.0) return;
-            #(retry_ns * 1ns);
+            {{ settings.class_prefix }}time_domain::delay_ns(retry_ns);
         end while (!complete);
     endtask
 endclass

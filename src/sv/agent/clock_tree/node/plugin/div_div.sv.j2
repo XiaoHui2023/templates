@@ -128,7 +128,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
             api.cfg.write_reg(f_div, {{ settings.class_prefix }}div_ratio_to_n(f_div, ratio));
             api.cfg.write_reg(f_load, 0);
             api.cfg.write_reg(f_load, 1);
-            #({{ plugin_value("div_div", "settle_ns", 200) }}ns);
+            {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_div", "settle_ns", 200) }});
             expected_freq_hz = real'(1_000_000_000) / ratio;
             if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
                 failures++;
