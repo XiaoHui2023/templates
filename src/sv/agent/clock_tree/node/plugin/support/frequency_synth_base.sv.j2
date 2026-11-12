@@ -2,6 +2,7 @@
 `define {{ (settings.class_prefix ~ "frequency_synth_base") | upper }}
 
 class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_prefix }}node_base;
+    localparam real LOCK_TIMEOUT_NS = real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0;
     `uvm_object_utils_begin({{ settings.class_prefix }}frequency_synth_base)
         `uvm_field_int(frequence, UVM_ALL_ON | UVM_DEC)
         `uvm_field_int(enabled, UVM_ALL_ON | (enabled >= 0 ? 0 : UVM_NOPRINT))
@@ -127,11 +128,10 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         if (context_h.has_failed()) return;
         locked = 1'b0;
         state = new();
-        state.push_back({{ settings.class_prefix }}time_domain::after_ns(real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0));
         context_h.set_runtime_state(this, state);
     endtask
 
-    // Samples lock against the deadline captured when programming returned.
+    // Arms one observation budget when this completion is first scheduled.
     virtual task poll_configuration(
             input {{ settings.class_prefix }}config_context context_h,
             input int token,
@@ -144,10 +144,12 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
             context_h.fail($sformatf("%s missing synthesis completion state", get_name()));
             return;
         end
-        if (state.size() != 1) begin
+        if (state.size() > 1) begin
             context_h.fail($sformatf("%s invalid synthesis completion state", get_name()));
             return;
         end
+        if (state.size() == 0)
+            state.push_back({{ settings.class_prefix }}time_domain::after_ns(LOCK_TIMEOUT_NS));
         poll_lock(context_h.io, state.get(0), complete, retry_ns);
     endtask
 
@@ -168,7 +170,7 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     // Returns the optional lock field.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return null; endfunction
 
-    // Samples lock once without extending the original completion deadline.
+    // Reads before deciding success or timeout, including the final attempt.
     task poll_lock(
             input {{ settings.class_prefix }}node_config_api cfg,
             input time deadline_tick,
@@ -184,23 +186,27 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
             complete = 1'b1;
             return;
         end
-        now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
-        if (now_tick <= deadline_tick)
-            cfg.read_reg(field_h, lock_value);
-        now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
-        if (now_tick <= deadline_tick && lock_value == 1) begin
+        lock_value = -1;
+        cfg.read_reg(field_h, lock_value);
+        if (lock_value === 1) begin
             locked = 1'b1;
             complete = 1'b1;
             return;
         end
+        if (lock_value !== 0) begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "wait_lock: %s invalid lock read 0x%0h", field_h.field.get_full_name(), lock_value))
+            return;
+        end
+        now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
         if (now_tick < deadline_tick) begin
             retry_ns = {{ settings.class_prefix }}time_domain::ticks_to_ns(deadline_tick - now_tick);
             if (retry_ns > 2000.0) retry_ns = 2000.0;
             return;
         end
         `uvm_fatal("CLK_TREE", $sformatf(
-            "wait_lock: %s lock not 1 within %0t",
-            field_h.field.get_full_name(), {{ plugin_value("pll", "lock_timeout_us", 100) }}us))
+            "wait_lock: %s lock not 1 within %0.3f ns, last read %0d",
+            field_h.field.get_full_name(), LOCK_TIMEOUT_NS, lock_value))
     endtask
 
     // Waits synchronously when called outside a configuration plan.
@@ -208,7 +214,8 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         bit complete;
         real retry_ns;
         time deadline_tick;
-        deadline_tick = {{ settings.class_prefix }}time_domain::after_ns(real'({{ plugin_value("pll", "lock_timeout_us", 100) }}) * 1000.0);
+        locked = 1'b0;
+        deadline_tick = {{ settings.class_prefix }}time_domain::after_ns(LOCK_TIMEOUT_NS);
         do begin
             poll_lock(cfg, deadline_tick, complete, retry_ns);
             if (complete || retry_ns <= 0.0) return;
