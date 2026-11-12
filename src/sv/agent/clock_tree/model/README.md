@@ -74,6 +74,5 @@ clk 显式填写正频率且未填写 enabled 时默认开启；显式 enabled �
 | `offset` | `int unsigned` | 切片起始位 |
 | `width` | `int unsigned` | 切片位宽 |
 | `alias_count` | `int unsigned` | 同一绑定的使用数 |
-| `has_read` | `bit` | 已执行总线读取 |
 
 `is_bound()` 判断 field 是否连接。寄存器访问按切片合并值，保留其它位；批量修改同一个父寄存器时只写回一次。

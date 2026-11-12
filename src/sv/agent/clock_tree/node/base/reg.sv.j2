@@ -6,16 +6,16 @@ class {{ settings.class_prefix }}reg extends {{ settings.class_prefix }}base_obj
     int unsigned offset;
     int unsigned width;
     int unsigned alias_count;
-    bit has_read;
 
+    // 初始化字段切片
     function new();
         super.new("{{ settings.class_prefix }}reg");
         offset = 0;
         width = 0;
         alias_count = 1;
-        has_read = 1'b0;
     endfunction
 
+    // 判断是否已绑定寄存器字段
     function bit is_bound();
         return field != null;
     endfunction

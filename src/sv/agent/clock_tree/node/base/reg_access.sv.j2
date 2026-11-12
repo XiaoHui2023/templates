@@ -35,166 +35,243 @@ function automatic bit {{ settings.class_prefix }}reg_bindings_overlap(
 endfunction
 
 class {{ settings.class_prefix }}reg_rw extends {{ settings.class_prefix }}base_object;
+    // 初始化寄存器服务
     function new();
         super.new("{{ settings.class_prefix }}reg_rw");
     endfunction
 
     // 取 field 所属 uvm_reg
     extern function uvm_reg parent_reg({{ settings.class_prefix }}reg rb);
-    // 按 offset/width 读出 field 切片
+    // 取得模型 desired 的 field 切片
     extern function int get({{ settings.class_prefix }}reg rb);
-    // 按 offset/width 合并写入 field，其余位不变
+    // 修改模型 desired 的 field 切片
     extern function void set({{ settings.class_prefix }}reg rb, int value);
-    // 若尚未总线读则先 read
+    // 刷新绑定所在寄存器的读回值
     extern task ensure_read({{ settings.class_prefix }}reg rb);
     // 前门读整寄存器
-    extern task read_reg(input uvm_reg r, output int rdata);
+    extern task read_reg(input uvm_reg r, output uvm_reg_data_t rdata);
     // 前门读父寄存器并解析 field 切片
     extern task read(input {{ settings.class_prefix }}reg rb, output int value);
-    // 将 field 镜像写回总线
+    // 将整字 desired 写到总线
     extern task write_reg(uvm_reg r);
-    // ensure_read 后写父寄存器
+    // 提交父寄存器的整字 desired
     extern task write({{ settings.class_prefix }}reg rb);
-    // 值未变则跳过；否则 set 后写父寄存器
+    // 按实际读回值比较并修改一个 RW 切片
     extern task set_write({{ settings.class_prefix }}reg rb, int value);
-    // binds — field 绑定队列
-    // vals — 与 binds 同下标的写入值
+    // 按父寄存器合并 RW 切片，每个父寄存器读一次、最多写一次
+    // binds: field 绑定队列
+    // vals: 与 binds 同下标的写入值
     extern task apply(input {{ settings.class_prefix }}reg binds[$], input int vals[$]);
+    // 检查普通读改写所需的访问策略
+    extern local function bit supports_rmw(uvm_reg r);
+    // 读取实际整字，失败时返回 ok=0
+    extern local task read_value(input uvm_reg r, output uvm_reg_data_t value, output bit ok);
+    // 写入整字，失败时返回 ok=0
+    extern local task write_value(input uvm_reg r, input uvm_reg_data_t value, output bit ok);
 endclass
 
 function uvm_reg {{ settings.class_prefix }}reg_rw::parent_reg({{ settings.class_prefix }}reg rb);
-    if (rb.field == null)
+    if (rb == null || rb.field == null) begin
         `uvm_fatal("CLK_TREE", "parent_reg: field is null")
+        return null;
+    end
     return rb.field.get_register();
 endfunction
 
 function int {{ settings.class_prefix }}reg_rw::get({{ settings.class_prefix }}reg rb);
-    int full;
-    int mask;
-    int slice;
+    uvm_reg_data_t full;
+    uvm_reg_data_t mask;
+    int width;
     if (rb.field == null)
         `uvm_fatal("CLK_TREE", "get: field is null")
     full = rb.field.get();
-    if (rb.width == rb.field.get_n_bits() && rb.offset == 0)
-        return full;
-    mask = (1 << rb.width) - 1;
-    slice = (full >> rb.offset) & mask;
-    return slice;
+    width = {{ settings.class_prefix }}reg_bound_width(rb);
+    mask = '1;
+    mask >>= $bits(mask) - width;
+    return int'((full >> rb.offset) & mask);
 endfunction
 
 function void {{ settings.class_prefix }}reg_rw::set({{ settings.class_prefix }}reg rb, int value);
-    uvm_status_e status;
-    int cur;
-    int mask;
-    int slice_mask;
-    int newval;
+    uvm_reg_data_t cur;
+    uvm_reg_data_t mask;
+    uvm_reg_data_t slice_mask;
+    uvm_reg_data_t newval;
+    int width;
     if (rb.field == null)
         `uvm_fatal("CLK_TREE", "set: field is null")
-    slice_mask = (1 << rb.width) - 1;
-    if (rb.offset == 0 && rb.width == rb.field.get_n_bits()) begin
-        rb.field.set(value, status);
+    width = {{ settings.class_prefix }}reg_bound_width(rb);
+    slice_mask = '1;
+    slice_mask >>= $bits(slice_mask) - width;
+    if (rb.offset == 0 && width == rb.field.get_n_bits()) begin
+        rb.field.set(value);
     end else begin
         cur = rb.field.get();
         mask = slice_mask << rb.offset;
-        newval = (cur & ~mask) | ((value & slice_mask) << rb.offset);
-        rb.field.set(newval, status);
+        newval = (cur & ~mask) | ((uvm_reg_data_t'(value) & slice_mask) << rb.offset);
+        rb.field.set(newval);
     end
-    if (status != UVM_IS_OK)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "set: %s set 0x%0h failed", rb.field.get_full_name(), value))
 endfunction
 
-task {{ settings.class_prefix }}reg_rw::read_reg(input uvm_reg r, output int rdata);
+function bit {{ settings.class_prefix }}reg_rw::supports_rmw(uvm_reg r);
+    uvm_reg_field fields[$];
+    r.get_fields(fields);
+    foreach (fields[i]) begin
+        string access;
+        access = fields[i].get_access();
+        if (!(access inside {"RW", "RO"})) begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "read-modify-write: %s access %s requires a dedicated write operation",
+                fields[i].get_full_name(), access))
+            return 0;
+        end
+    end
+    return 1;
+endfunction
+
+task {{ settings.class_prefix }}reg_rw::read_value(
+        input uvm_reg r, output uvm_reg_data_t value, output bit ok);
     uvm_status_e status;
-    if (r == null)
+    value = '0;
+    ok = 0;
+    if (r == null) begin
         `uvm_fatal("CLK_TREE", "read_reg: reg is null")
-    r.read(status, rdata);
-    if (status != UVM_IS_OK)
+        return;
+    end
+    r.read(status, value, UVM_FRONTDOOR);
+    if (status != UVM_IS_OK) begin
         `uvm_fatal("CLK_TREE", $sformatf(
             "read_reg: read %s failed", r.get_full_name()))
+        return;
+    end
+    ok = 1;
+endtask
+
+task {{ settings.class_prefix }}reg_rw::read_reg(input uvm_reg r, output uvm_reg_data_t rdata);
+    bit ok;
+    read_value(r, rdata, ok);
 endtask
 
 task {{ settings.class_prefix }}reg_rw::ensure_read({{ settings.class_prefix }}reg rb);
     int dummy;
-    if (!rb.has_read)
-        read(rb, dummy);
+    read(rb, dummy);
 endtask
 
 task {{ settings.class_prefix }}reg_rw::read(input {{ settings.class_prefix }}reg rb, output int value);
     uvm_reg r;
-    int reg_rdata;
-    if (rb.field == null)
-        `uvm_fatal("CLK_TREE", "read: field is null")
+    uvm_reg_data_t reg_rdata;
+    uvm_reg_data_t mask;
+    int width;
+    bit ok;
+    value = 0;
     r = parent_reg(rb);
-    read_reg(r, reg_rdata);
-    rb.has_read = 1'b1;
-    value = get(rb);
+    if (r == null)
+        return;
+    read_value(r, reg_rdata, ok);
+    if (!ok)
+        return;
+    width = {{ settings.class_prefix }}reg_bound_width(rb);
+    mask = '1;
+    mask >>= $bits(mask) - width;
+    value = int'((reg_rdata >> (rb.field.get_lsb_pos() + rb.offset)) & mask);
+endtask
+
+task {{ settings.class_prefix }}reg_rw::write_value(
+        input uvm_reg r, input uvm_reg_data_t value, output bit ok);
+    uvm_status_e status;
+    ok = 0;
+    if (r == null) begin
+        `uvm_fatal("CLK_TREE", "write_reg: reg is null")
+        return;
+    end
+    r.write(status, value, UVM_FRONTDOOR);
+    if (status != UVM_IS_OK) begin
+        `uvm_fatal("CLK_TREE", $sformatf(
+            "write_reg: write %s 0x%0h failed", r.get_full_name(), value))
+        return;
+    end
+    ok = 1;
 endtask
 
 task {{ settings.class_prefix }}reg_rw::write_reg(uvm_reg r);
-    uvm_status_e status;
-    int wdata;
-    if (r == null)
+    bit ok;
+    if (r == null) begin
         `uvm_fatal("CLK_TREE", "write_reg: reg is null")
-    wdata = r.get();
-    r.write(status, wdata);
-    if (status != UVM_IS_OK)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "write_reg: write %s 0x%0h failed", r.get_full_name(), wdata))
+        return;
+    end
+    write_value(r, r.get(), ok);
 endtask
 
 task {{ settings.class_prefix }}reg_rw::write({{ settings.class_prefix }}reg rb);
-    ensure_read(rb);
     write_reg(parent_reg(rb));
 endtask
 
 task {{ settings.class_prefix }}reg_rw::set_write({{ settings.class_prefix }}reg rb, int value);
-    int cur;
-    ensure_read(rb);
-    cur = get(rb);
-    if (cur == value)
-        return;
-    set(rb, value);
-    write_reg(parent_reg(rb));
+    {{ settings.class_prefix }}reg binds[$];
+    int vals[$];
+    binds.push_back(rb);
+    vals.push_back(value);
+    apply(binds, vals);
 endtask
 
 task {{ settings.class_prefix }}reg_rw::apply(
         input {{ settings.class_prefix }}reg binds[$],
         input int vals[$]);
     uvm_reg regs[$];
-    uvm_reg read_regs[$];
-    if (binds.size() != vals.size())
+    uvm_reg_data_t original[$];
+    uvm_reg_data_t patched[$];
+    bit ok;
+    if (binds.size() != vals.size()) begin
         `uvm_fatal("CLK_TREE", $sformatf(
             "apply: binds size %0d != vals size %0d", binds.size(), vals.size()))
+        return;
+    end
     for (int i = 0; i < binds.size(); i++) begin
-        int cur;
         uvm_reg r;
-        bit seen;
-        bit reg_read;
+        uvm_reg_data_t mask;
+        uvm_reg_data_t data;
+        int index;
+        int width;
+        int shift;
         r = parent_reg(binds[i]);
-        reg_read = 0;
-        foreach (read_regs[j])
-            if (read_regs[j] == r)
-                reg_read = 1;
-        if (!reg_read) begin
-            int dummy;
-            read_reg(r, dummy);
-            read_regs.push_back(r);
+        if (r == null)
+            return;
+        width = {{ settings.class_prefix }}reg_bound_width(binds[i]);
+        if (width < 1 || width > 32 ||
+                binds[i].offset + width > binds[i].field.get_n_bits() ||
+                binds[i].field.get_access() != "RW") begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "apply: %s requires a valid RW slice of at most 32 bits",
+                binds[i].field.get_full_name()))
+            return;
         end
-        binds[i].has_read = 1'b1;
-        cur = get(binds[i]);
-        if (cur == vals[i])
-            continue;
-        set(binds[i], vals[i]);
-        seen = 0;
+        index = -1;
         foreach (regs[j])
             if (regs[j] == r)
-                seen = 1;
-        if (!seen)
+                index = j;
+        if (index < 0) begin
+            if (!supports_rmw(r))
+                return;
+            read_value(r, data, ok);
+            if (!ok)
+                return;
+            index = regs.size();
             regs.push_back(r);
+            original.push_back(data);
+            patched.push_back(data);
+        end
+        mask = '1;
+        mask >>= $bits(mask) - width;
+        shift = binds[i].field.get_lsb_pos() + binds[i].offset;
+        patched[index] = (patched[index] & ~(mask << shift)) |
+            ((uvm_reg_data_t'(vals[i]) & mask) << shift);
     end
-    foreach (regs[i])
-        write_reg(regs[i]);
+    foreach (regs[i]) begin
+        if (patched[i] == original[i])
+            continue;
+        write_value(regs[i], patched[i], ok);
+        if (!ok)
+            return;
+    end
 endtask
 
 `endif

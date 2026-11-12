@@ -57,15 +57,11 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             input bit bypass_value,
             input bit reset);
         int rst_value;
-        int control_value;
 {%- if plugin_value("div_dto", "reg_high_means_reset", false) %}
         rst_value = 0;
 {%- else %}
         rst_value = 1;
 {%- endif %}
-        // Refresh control fields before the write service checks their mirrors.
-        cfg.read_reg(f_rst, control_value);
-        cfg.read_reg(f_load, control_value);
         if (reset) begin
             cfg.write_reg(f_rst, !rst_value);
             {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "sync_wait_ns", 200) }});
