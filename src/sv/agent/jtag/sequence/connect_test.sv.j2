@@ -1,7 +1,6 @@
 `ifndef {{ class_prefix | upper }}CONNECT_TEST_SEQ
 `define {{ class_prefix | upper }}CONNECT_TEST_SEQ
 
-// 连通测试
 class {{ class_prefix }}connect_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}connect_rsp);
     `uvm_object_utils({{ class_prefix }}connect_test_seq)
 
@@ -11,10 +10,12 @@ class {{ class_prefix }}connect_test_seq extends {{ class_prefix }}base_seq#({{ 
         super.new(name);
     endfunction
 
+    // 执行序列。
     task body();
         execute_test(should_connected);
     endtask
 
+    // 执行连接状态检查。
     extern virtual task execute_test(bit should_connected);
 endclass
 

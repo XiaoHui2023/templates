@@ -8,6 +8,7 @@ class {{ class_prefix }}default_seq extends {{ class_prefix }}base_seq;
         super.new(name);
     endfunction
 
+    // 在阶段内保持序列运行。
     task pre_start();
         super.pre_start();
 
@@ -15,6 +16,7 @@ class {{ class_prefix }}default_seq extends {{ class_prefix }}base_seq;
             starting_phase.raise_objection(this);
     endtask
 
+    // 释放阶段等待。
     task post_start();
         super.post_start();
 

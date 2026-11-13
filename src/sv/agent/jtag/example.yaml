@@ -1,0 +1,36 @@
+class_prefix: jtag_ctrl_
+ir_width: 12
+dr_width: 512
+tck_period_ns: 80
+idle_cycles: 2
+use_trst: true
+trst_active_low: true
+trst_pulse_ns: 160
+reset_cycles: 6
+connect_settle_ns: 10
+read_fill: 0
+registers:
+  idcode:
+    instruction: 0x901
+    length: 32
+    expected: 0x12345001
+    check_mask: 0x0fffffff
+  status:
+    instruction: 0x902
+    length: 13
+    access: read_write
+    value: 0x123
+    expected: 0x321
+    check_mask: 0x1fff
+  payload:
+    instruction: 0x903
+    length: 512
+    access: read_write
+  public_id:
+    instruction: 0x2
+    length: 64
+  password:
+    instruction: 0xd
+    length: 128
+    access: write
+    value: 0x1234

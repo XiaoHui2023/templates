@@ -10,7 +10,9 @@ class {{ class_prefix }}driver extends uvm_driver#({{ class_prefix }}base_req,{{
         super.new(name,parent);
     endfunction
 
+    // 执行复位阶段。
     extern task reset_phase(uvm_phase phase);
+    // 持续处理扫描请求。
     extern task main_phase(uvm_phase phase);
 
     // 路由
@@ -27,7 +29,8 @@ task {{ class_prefix }}driver::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
     phase.raise_objection(this);
 
-    cfg.vif.logic_if.reset_tap();
+    cfg.apply();
+    cfg.vif.reset_tap();
 
     phase.drop_objection(this);
 endtask
@@ -35,28 +38,30 @@ endtask
 task {{ class_prefix }}driver::main_phase(uvm_phase phase);
     super.main_phase(phase);
 
-    fork
-        route();
-    join
+    route();
 endtask
 
 task {{ class_prefix }}driver::route();
     {{ class_prefix }}connect_req con_req;
     {{ class_prefix }}register_req reg_req;
+    {{ class_prefix }}connect_rsp con_rsp;
+    {{ class_prefix }}register_rsp reg_rsp;
 
     forever begin
         {{ class_prefix }}base_req req;
 
         seq_item_port.get_next_item(req);
 
-        // copy
-        $cast(req,req.clone());
         `uvm_info("",$sformatf("get requirement:\n%s",req.sprint()),UVM_LOW)
 
-        if($cast(con_req,req))
-            execute_connect(con_req,rsp);
-        else if($cast(reg_req,req))
-            execute_register(reg_req,rsp);
+        if($cast(con_req,req)) begin
+            execute_connect(con_req,con_rsp);
+            rsp = con_rsp;
+        end
+        else if($cast(reg_req,req)) begin
+            execute_register(reg_req,reg_rsp);
+            rsp = reg_rsp;
+        end
         else
             `uvm_fatal("",$sformatf("invalid req\n%s",req.sprint()))
 
@@ -83,13 +88,13 @@ task {{ class_prefix }}driver::execute_register(input {{ class_prefix }}register
     rsp = {{ class_prefix }}register_rsp::type_id::create({get_full_name(),".register_test"});
     rsp.name = req.name;
 
-    if(req.is_read) begin
-        cfg.vif.read(req.addr,req.len,rsp.value);
-    end
-    else if(req.is_write) begin
-        cfg.vif.write(req.addr,req.value,req.len);
-        rsp.value = req.value;
-    end
+    rsp.len = req.len;
+    case (req.act_type)
+        {{ class_prefix }}register_req::READ, {{ class_prefix }}register_req::WRITE: cfg.vif.transfer(req.addr, req.value, req.len, rsp.value);
+        {{ class_prefix }}register_req::SCAN_IR: cfg.vif.scan(1, req.value, req.len, rsp.value);
+        {{ class_prefix }}register_req::SCAN_DR: cfg.vif.scan(0, req.value, req.len, rsp.value);
+        default: `uvm_fatal("JTAG_REQUEST", "Invalid scan operation")
+    endcase
 endtask
 
 `endif

@@ -3,25 +3,25 @@
 
 `define connect_test_signal(NAME,IN,OUT,IS_PASS) \
 begin \
-    bit val; \
+    logic val; \
     bit fail; \
     \
     val = 0; \
     fail = 0; \
     \
     // 0 \
-    #10ns; \
+    #(connect_settle_ns * 1ns); \
     IN = 0; \
-    #10ns; \
+    #(connect_settle_ns * 1ns); \
     val = OUT; \
-    if(val == 0) ; else fail = 1; \
+    if(val === 1'b0) ; else fail = 1; \
     \
     // 1 \
-    #10ns; \
+    #(connect_settle_ns * 1ns); \
     IN = 1; \
-    #10ns; \
+    #(connect_settle_ns * 1ns); \
     val = OUT; \
-    if(val == 1) ; else fail = 1; \
+    if(val === 1'b1) ; else fail = 1; \
     \
     IS_PASS = !fail; \
 end
@@ -38,10 +38,14 @@ interface {{ class_prefix }}interface(
     input wire cpu_tdi,
     output wire cpu_tdo
 );
+    timeunit 1ns;
+    timeprecision 1ps;
 
-    {{ class_prefix }}logic_interface logic_if
-    (.tdo(mst_tdo)
-    );
+    semaphore scan_lock = new(1);
+    real connect_settle_ns = {{ connect_settle_ns }};
+    bit read_fill = {{ read_fill }};
+
+    logic tms,tck,trst,tdi;
 
     reg bypass_en; // 旁路使能
     reg bypass_tms;
@@ -50,42 +54,72 @@ interface {{ class_prefix }}interface(
     reg bypass_tdi;
     reg bypass_tdo;
 
-    assign mst_tms  = bypass_en ? bypass_tms  : logic_if.tms;
-    assign mst_tck  = bypass_en ? bypass_tck  : logic_if.tck;
-    assign mst_trst = bypass_en ? bypass_trst : logic_if.trst;
-    assign mst_tdi  = bypass_en ? bypass_tdi  : logic_if.tdi;
+    assign mst_tms  = bypass_en ? bypass_tms  : tms;
+    assign mst_tck  = bypass_en ? bypass_tck  : tck;
+    assign mst_trst = bypass_en ? bypass_trst : trst;
+    assign mst_tdi  = bypass_en ? bypass_tdi  : tdi;
     assign cpu_tdo  = bypass_en ? bypass_tdo  : 1'bz;
 
     initial begin
         bypass_en   = 0;
         bypass_tms  = 1;
-        bypass_tck  = 1;
-        bypass_trst = 1;
+        bypass_tck  = 0;
+        bypass_trst = {{ 1 if trst_active_low else 0 }};
         bypass_tdi  = 1;
         bypass_tdo  = 1;
     end
 
-    // 读测试
-    task automatic read(input bit[7:0] addr,input int len,output bit[255:0] rdata);
-        logic_if.goto_run_test_idle();
-        logic_if.goto_run_test_idle();
-        logic_if.set_instruction(addr);
-        logic_if.read(rdata,len);
+    // 串行执行一次 IR 或 DR 全双工扫描。
+    task automatic scan(input bit is_ir, input logic [{{ scan_width }}-1:0] tx_data,
+                        input int len, output logic [{{ scan_width }}-1:0] rx_data);
+        scan_lock.get();
+        scan_bits(is_ir, tx_data, len, rx_data);
+        scan_lock.put();
     endtask
 
-    // 写测试
-    task automatic write(input bit[7:0] addr,bit[255:0] data,int len);
-        logic_if.goto_run_test_idle();
-        logic_if.set_instruction(addr);
-        logic_if.write(data,len);
+    // 指令与 DR 扫描保持原子执行。
+    task automatic transfer(input logic [{{ ir_width }}-1:0] addr,
+                            input logic [{{ scan_width }}-1:0] tx_data,
+                            input int len, output logic [{{ scan_width }}-1:0] rx_data);
+        scan_lock.get();
+        validate();
+        if (len < 1 || len > {{ dr_width }} || (addr >> ir_length) != 0)
+            $fatal(1, "Invalid JTAG register instruction or length");
+        set_instruction(addr);
+        scan_bits(0, tx_data, len, rx_data);
+        scan_lock.put();
     endtask
 
-    // 连接测试
+    // 读 DR 时仍按配置电平驱动 TDI。
+    task automatic read(input logic [{{ ir_width }}-1:0] addr, input int len,
+                        output logic [{{ scan_width }}-1:0] rdata);
+        logic [{{ scan_width }}-1:0] fill_data;
+        fill_data = read_fill ? '1 : '0;
+        transfer(addr, fill_data, len, rdata);
+    endtask
+
+    // 写 DR 并丢弃同步移出的数据。
+    task automatic write(input logic [{{ ir_width }}-1:0] addr,
+                         input logic [{{ scan_width }}-1:0] data, input int len);
+        logic [{{ scan_width }}-1:0] ignored_data;
+        transfer(addr, data, len, ignored_data);
+    endtask
+
+    // 复位与扫描共用互斥锁。
+    task automatic reset_tap();
+        scan_lock.get();
+        reset_bits();
+        scan_lock.put();
+    endtask
+
+    // 暂时接管引脚，检查外部回环连接。
     task automatic connect_test(output bit is_pass,output bit is_tck_pass,output bit is_tms_pass,output bit is_tdi_pass,output bit is_tdo_pass,output bit is_trst_pass);
+        scan_lock.get();
+        if (!(connect_settle_ns >= 0.001)) $fatal(1, "Invalid JTAG connect delay");
         is_pass = 1;
 
         bypass_en = 1;
-        #10ns;
+        #(connect_settle_ns * 1ns);
 
         // TCK
         `connect_test_signal("TCK",bypass_tck,cpu_tck,is_tck_pass);
@@ -107,13 +141,111 @@ interface {{ class_prefix }}interface(
         `connect_test_signal("TRST",bypass_trst,cpu_trst,is_trst_pass);
         is_pass &= is_trst_pass;
 
-        #10ns;
+        #(connect_settle_ns * 1ns);
         bypass_en = 0;
 
-        // TDO单独测试:由外部连接中间UATAG mdl connect时的控制线回环来传递TDO值
-        // 该接口本身已经考虑了TDO无输出时开发板无连接
+        ready = 0;
+        scan_lock.put();
     endtask
 
+    real tck_period_ns = {{ tck_period_ns }};
+    int idle_cycles = {{ idle_cycles }};
+    int ir_length = {{ ir_width }};
+    bit use_trst = {{ 1 if use_trst else 0 }};
+    bit trst_active_low = {{ 1 if trst_active_low else 0 }};
+    real trst_pulse_ns = {{ trst_pulse_ns }};
+    int reset_cycles = {{ reset_cycles }};
+    bit ready = 0;
+
+    // 检查时间分辨率和扫描范围。
+    function automatic void validate();
+        if (!(tck_period_ns >= 0.002) || !(trst_pulse_ns >= 0.001) ||
+            idle_cycles < 0 || reset_cycles < 5 || ir_length < 1 || ir_length > {{ ir_width }})
+            $fatal(1, "Invalid JTAG timing or IR length");
+    endfunction
+
+    // TMS/TDI 在低电平建立，TDO 在上升沿前采样。
+    task automatic cycle(input bit next_tms, input logic next_tdi, output logic sampled_tdo);
+        tck = 0;
+        tms = next_tms;
+        tdi = next_tdi;
+        #(tck_period_ns * 0.5 * 1ns);
+        sampled_tdo = mst_tdo;
+        tck = 1;
+        #(tck_period_ns * 0.5 * 1ns);
+        tck = 0;
+    endtask
+
+    // 从任意 TAP 状态复位并进入 Run-Test/Idle。
+    task automatic reset_bits();
+        logic ignored_tdo;
+        validate();
+        tck = 0;
+        tms = 1;
+        tdi = 0;
+        trst = trst_active_low ? 1 : 0;
+        if (use_trst) begin
+            trst = trst_active_low ? 0 : 1;
+            #(trst_pulse_ns * 1ns);
+            trst = trst_active_low ? 1 : 0;
+        end
+        repeat (reset_cycles) cycle(1, 0, ignored_tdo);
+        cycle(0, 0, ignored_tdo);
+        ready = 1;
+    endtask
+
+    // 保持 Run-Test/Idle 指定周期。
+    task automatic run_idle(input int cycles);
+        logic ignored_tdo;
+        if (cycles < 0) $fatal(1, "Negative JTAG idle cycles");
+        if (!ready) reset_bits();
+        repeat (cycles) cycle(0, 0, ignored_tdo);
+    endtask
+
+    // 低位先传，末位同时退出 Shift；返回值保留 X/Z，未扫描高位清零。
+    task automatic scan_bits(
+        input bit is_ir,
+        input logic [{{ scan_width }}-1:0] tx_data,
+        input int length,
+        output logic [{{ scan_width }}-1:0] rx_data
+    );
+        logic sampled_tdo;
+        int limit;
+        validate();
+        limit = is_ir ? {{ ir_width }} : {{ dr_width }};
+        if (length < 1 || length > limit) $fatal(1, "Invalid JTAG scan length %0d", length);
+        if (!ready) reset_bits();
+        rx_data = '0;
+        cycle(1, 0, sampled_tdo);
+        if (is_ir) cycle(1, 0, sampled_tdo);
+        cycle(0, 0, sampled_tdo);
+        cycle(0, 0, sampled_tdo);
+        for (int i = 0; i < length; i++) begin
+            cycle(i == length - 1, tx_data[i], sampled_tdo);
+            rx_data[i] = sampled_tdo;
+        end
+        cycle(1, 0, sampled_tdo);
+        cycle(0, 0, sampled_tdo);
+        run_idle(idle_cycles);
+    endtask
+
+    // 扫描当前配置长度的 IR。
+    task automatic set_instruction(input logic [{{ ir_width }}-1:0] instruction);
+        logic [{{ scan_width }}-1:0] ignored_data;
+        scan_bits(1, {{ scan_width }}'(instruction), ir_length, ignored_data);
+    endtask
+
+    // 确保 TAP 处于 Run-Test/Idle。
+    task automatic goto_run_test_idle();
+        run_idle(0);
+    endtask
+
+    initial begin
+        tms = 1;
+        tck = 0;
+        trst = {{ 1 if trst_active_low else 0 }};
+        tdi = 0;
+    end
 endinterface
 
 `undef connect_test_signal

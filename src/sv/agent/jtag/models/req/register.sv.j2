@@ -1,46 +1,56 @@
 `ifndef {{ class_prefix | upper }}REGISTER_REQ
 `define {{ class_prefix | upper }}REGISTER_REQ
 
-// 寄存器请求
 class {{ class_prefix }}register_req extends {{ class_prefix }}base_req;
-    typedef enum {
-        READ,
-        WRITE
-    } act_type_e;
+    typedef enum {READ, WRITE, SCAN_IR, SCAN_DR} act_type_e;
 
     `uvm_object_utils_begin({{ class_prefix }}register_req)
-        `uvm_field_string(name,UVM_ALL_ON)
-        `uvm_field_int(addr,UVM_ALL_ON)
-        `uvm_field_enum(act_type_e,act_type,UVM_ALL_ON)
-        `uvm_field_int(value,UVM_ALL_ON)
-        `uvm_field_int(len,UVM_ALL_ON)
-        `uvm_field_int(bits,UVM_ALL_ON|UVM_NOPRINT)
-        `uvm_field_int(bytes,UVM_ALL_ON|UVM_NOPRINT)
-        `uvm_field_int(is_read,UVM_ALL_ON|UVM_NOPRINT)
-        `uvm_field_int(is_write,UVM_ALL_ON|UVM_NOPRINT)
+        `uvm_field_string(name, UVM_ALL_ON)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_enum(act_type_e, act_type, UVM_ALL_ON)
+        `uvm_field_int(value, UVM_ALL_ON)
+        `uvm_field_int(len, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(expected, UVM_ALL_ON)
+        `uvm_field_int(check_mask, UVM_ALL_ON)
     `uvm_object_utils_end
 
     string name;
-    rand bit[7:0] addr; // 地址
-    rand act_type_e act_type; // 动作类型
-    rand bit[255:0] value; // 写入时该字段填入的值
-    rand int len; // 位数
-    rand int bits; // 总bit个数
-    rand int bytes; // 字节个数
-    rand bit is_read; // 是否是读行为
-    rand bit is_write; // 是否是写行为
+    rand bit [{{ ir_width }}-1:0] addr;
+    rand act_type_e act_type;
+    rand bit [{{ scan_width }}-1:0] value;
+    rand int len;
+    bit [{{ scan_width }}-1:0] expected;
+    bit [{{ scan_width }}-1:0] check_mask;
 
-    function new(string name="{{ class_prefix }}register_req");
+    function new(string name = "{{ class_prefix }}register_req");
         super.new(name);
+        act_type = READ;
+        len = 32 <= {{ dr_width }} ? 32 : {{ dr_width }};
     endfunction
 
     constraint cst_register {
-        len == bits;
-        bits == bytes * 8;
-        bits inside {32,64,128,256};
-        is_read == (act_type == READ);
-        is_write == (act_type == WRITE);
+        if (act_type == SCAN_IR) len inside {[1:{{ ir_width }}]};
+        else len inside {[1:{{ dr_width }}]};
+        soft act_type == READ;
+        soft len == (32 <= {{ dr_width }} ? 32 : {{ dr_width }});
+        soft value == '0;
     }
+
+    // 复制寄存器配置，发送值与期望值分别保存。
+    extern function void configure(input {{ class_prefix }}register_config reg_cfg, input bit is_write = 0);
 endclass
+
+function void {{ class_prefix }}register_req::configure(input {{ class_prefix }}register_config reg_cfg, input bit is_write = 0);
+    if (reg_cfg == null) `uvm_fatal("JTAG_CONFIG", "Null register configuration")
+    if ((is_write && !reg_cfg.writable) || (!is_write && !reg_cfg.readable))
+        `uvm_fatal("JTAG_CONFIG", "Register access is not permitted")
+    name = reg_cfg.get_name();
+    addr = reg_cfg.instruction;
+    len = reg_cfg.length;
+    act_type = is_write ? WRITE : READ;
+    value = reg_cfg.value;
+    expected = reg_cfg.expected;
+    check_mask = reg_cfg.check_mask;
+endfunction
 
 `endif

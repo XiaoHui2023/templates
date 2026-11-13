@@ -1,41 +1,39 @@
 `ifndef {{ class_prefix | upper }}REGISTER_TEST_SEQ
 `define {{ class_prefix | upper }}REGISTER_TEST_SEQ
 
-// 寄存器测试
 class {{ class_prefix }}register_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}register_rsp);
     `uvm_object_utils({{ class_prefix }}register_test_seq)
-
-    rand {{ class_prefix }}register_public_id_req public_id_req;
-    rand {{ class_prefix }}register_idcode_req idcode_req;
 
     function new(string name = "{{ class_prefix }}register_test_seq");
         super.new(name);
     endfunction
 
-    task body();
-        execute_test(public_id_req);
-        execute_test(idcode_req);
-    endtask
+    // 扫描所有可读寄存器，只比较掩码指定的位。
+    extern virtual task body();
 
-    extern function void pre_randomize();
-    extern virtual task execute_test({{ class_prefix }}register_req req);
+    // 发送请求并取得同步移出的 TDO。
+    extern virtual task execute_test(input {{ class_prefix }}register_req request);
 endclass
 
-function void {{ class_prefix }}register_test_seq::pre_randomize();
-    super.pre_randomize();
+task {{ class_prefix }}register_test_seq::body();
+    foreach (p_sequencer.cfg.registers[name]) begin
+        {{ class_prefix }}register_config reg_cfg;
+        {{ class_prefix }}register_req request;
+        reg_cfg = p_sequencer.cfg.get_register(name);
+        if (!reg_cfg.readable) continue;
+        request = {{ class_prefix }}register_req::type_id::create(name);
+        request.configure(reg_cfg);
+        execute_test(request);
+    end
+endtask
 
-    `uvm_create(public_id_req)
-    `uvm_create(idcode_req)
-endfunction
-
-task {{ class_prefix }}register_test_seq::execute_test({{ class_prefix }}register_req req);
-    `uvm_send(req)
+task {{ class_prefix }}register_test_seq::execute_test(input {{ class_prefix }}register_req request);
+    start_item(request);
+    finish_item(request);
     get_response(rsp);
-
-    if(rsp.value != req.value)
-        `uvm_error("",$spsprintf("%s exp=0x%0h, but rddata=0x%0h",req.name,req.value,rsp.value))
-    else
-        `uvm_info("",$spsprintf("%s test pass",req.name),UVM_LOW)
+    if ((rsp.value & request.check_mask) !== (request.expected & request.check_mask))
+        `uvm_error("JTAG_COMPARE", $sformatf("%s expected=%h mask=%h actual=%h",
+                   request.name, request.expected, request.check_mask, rsp.value))
 endtask
 
 `endif

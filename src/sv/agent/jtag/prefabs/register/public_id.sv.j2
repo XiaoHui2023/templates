@@ -4,18 +4,30 @@
 class {{ class_prefix }}register_public_id_req extends {{ class_prefix }}register_req;
     `uvm_object_utils({{ class_prefix }}register_public_id_req)
 
+    protected {{ class_prefix }}register_config reg_cfg;
+
     function new(string name = "{{ class_prefix }}register_public_id_req");
         super.new(name);
-
         this.name = "public_id";
     endfunction
 
+    // 随机化前取得同名寄存器配置。
+    extern function void pre_randomize();
+
     constraint cst_prefab {
-        addr == 8'b0000_0010;
-        bits == 64;
+        addr == reg_cfg.instruction;
+        len == reg_cfg.length;
         act_type == READ;
-        soft value == p_sequencer.cfg.public_id;
+        soft value == reg_cfg.value;
     }
 endclass
+
+function void {{ class_prefix }}register_public_id_req::pre_randomize();
+    super.pre_randomize();
+    if (p_sequencer == null || p_sequencer.cfg == null)
+        `uvm_fatal("JTAG_CONFIG", "Register prefab requires a configured sequencer")
+    reg_cfg = p_sequencer.cfg.get_register("public_id");
+    configure(reg_cfg, 0);
+endfunction
 
 `endif

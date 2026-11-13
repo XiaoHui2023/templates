@@ -10,6 +10,7 @@ class {{ class_prefix }}sequencer extends uvm_sequencer#({{ class_prefix }}base_
         super.new(name,parent);
     endfunction
 
+    // 执行复位阶段。
     extern task reset_phase(uvm_phase phase);
 endclass
 

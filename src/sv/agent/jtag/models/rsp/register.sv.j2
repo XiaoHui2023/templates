@@ -3,14 +3,16 @@
 
 class {{ class_prefix }}register_rsp extends {{ class_prefix }}base_rsp;
     `uvm_object_utils_begin({{ class_prefix }}register_rsp)
-        `uvm_field_string(name,UVM_ALL_ON)
-        `uvm_field_int(value,UVM_ALL_ON)
+        `uvm_field_string(name, UVM_ALL_ON)
+        `uvm_field_int(value, UVM_ALL_ON)
+        `uvm_field_int(len, UVM_ALL_ON | UVM_DEC)
     `uvm_object_utils_end
 
     string name;
-    bit[255:0] value;
+    logic [{{ scan_width }}-1:0] value;
+    int len;
 
-    function new(string name="{{ class_prefix }}register_rsp");
+    function new(string name = "{{ class_prefix }}register_rsp");
         super.new(name);
     endfunction
 endclass

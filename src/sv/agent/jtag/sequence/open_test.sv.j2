@@ -1,7 +1,6 @@
 `ifndef {{ class_prefix | upper }}OPEN_TEST_SEQ
 `define {{ class_prefix | upper }}OPEN_TEST_SEQ
 
-// OPEN测试(应当连通)
 class {{ class_prefix }}open_test_seq extends {{ class_prefix }}base_seq;
     `uvm_object_utils({{ class_prefix }}open_test_seq)
 
@@ -9,10 +8,12 @@ class {{ class_prefix }}open_test_seq extends {{ class_prefix }}base_seq;
         super.new(name);
     endfunction
 
+    // 执行序列。
     task body();
         execute_test();
     endtask
 
+    // 执行连接状态检查。
     extern virtual task execute_test();
 endclass
 

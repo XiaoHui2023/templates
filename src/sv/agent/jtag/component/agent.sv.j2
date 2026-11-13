@@ -10,10 +10,15 @@ class {{ class_prefix }}agent extends uvm_component;
 
     function new(string name="{{ class_prefix }}agent", uvm_component parent);
         super.new(name,parent);
+        sqr = {{ class_prefix }}sequencer::type_id::create("sqr",this);
+        drv = {{ class_prefix }}driver::type_id::create("drv",this);
     endfunction
 
+    // 取得配置并设置默认序列。
     extern function void build();
+    // 连接驱动和 sequencer。
     extern function void connect();
+    // 检查接口与运行期配置。
     extern function void start_of_simulation();
 endclass
 
@@ -24,13 +29,6 @@ function void {{ class_prefix }}agent::build();
     if(!cfg)
         cfg = {{ class_prefix }}configuration::type_id::create({get_full_name(),".cfg"});
 
-    sqr = {{ class_prefix }}sequencer::type_id::create("sqr",this);
-    drv = {{ class_prefix }}driver::type_id::create("drv",this);
-
-    uvm_config_db#(uvm_object_wrapper)::set(sqr,
-        "main_phase",
-        "default_sequence",
-        {{ class_prefix }}default_seq::type_id::get());
 endfunction
 
 function void {{ class_prefix }}agent::connect();
@@ -45,8 +43,7 @@ function void {{ class_prefix }}agent::start_of_simulation();
     super.start_of_simulation();
 
     uvm_config_db#(virtual {{ class_prefix }}interface)::get(this,"","vif",cfg.vif);
-    if(!cfg.has_randomized)
-        assert(cfg.randomize()) else `uvm_fatal("","randomize failed")
+    cfg.apply();
     `uvm_info("",$sformatf("system config\n%s",cfg.sprint()),UVM_LOW)
 endfunction
 

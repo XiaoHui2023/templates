@@ -1,7 +1,6 @@
 `ifndef {{ class_prefix | upper }}CLOSE_TEST_SEQ
 `define {{ class_prefix | upper }}CLOSE_TEST_SEQ
 
-// CLOSE测试，应当不能连通
 class {{ class_prefix }}close_test_seq extends {{ class_prefix }}base_seq;
     `uvm_object_utils({{ class_prefix }}close_test_seq)
 
@@ -9,20 +8,27 @@ class {{ class_prefix }}close_test_seq extends {{ class_prefix }}base_seq;
         super.new(name);
     endfunction
 
+    // 执行序列。
     task body();
         execute_test();
     endtask
 
+    // 执行连接状态检查。
     extern virtual task execute_test();
 endclass
 
 task {{ class_prefix }}close_test_seq::execute_test();
     {{ class_prefix }}connect_test_seq con_test_seq;
     {{ class_prefix }}register_password_req pwd_req;
+    {{ class_prefix }}register_config password_cfg;
+    {{ class_prefix }}base_rsp write_rsp;
+
+    password_cfg = p_sequencer.cfg.get_register("password");
 
     `uvm_do_with(pwd_req,{
-        value == p_sequencer.cfg.password;
+        value == password_cfg.value;
     })
+    get_response(write_rsp);
 
     `uvm_do_with(con_test_seq,{
         should_connected == 0;

@@ -1,36 +1,83 @@
 `ifndef {{ class_prefix | upper }}CONFIGURATION
 `define {{ class_prefix | upper }}CONFIGURATION
 
-class {{ class_prefix }}configuration extends uvm_sequence_item;
+class {{ class_prefix }}configuration extends uvm_object;
     `uvm_object_utils_begin({{ class_prefix }}configuration)
-        `uvm_field_int(idcode,UVM_ALL_ON)
-        `uvm_field_int(public_id,UVM_ALL_ON)
-        `uvm_field_int(password,UVM_ALL_ON)
-        `uvm_field_int(has_randomized,UVM_ALL_ON)
-        `uvm_field_int(has_randomized,UVM_ALL_ON|UVM_NOPRINT)
+        `uvm_field_real(tck_period_ns, UVM_ALL_ON)
+        `uvm_field_int(idle_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(ir_length, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(use_trst, UVM_ALL_ON)
+        `uvm_field_int(trst_active_low, UVM_ALL_ON)
+        `uvm_field_real(trst_pulse_ns, UVM_ALL_ON)
+        `uvm_field_int(reset_cycles, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_real(connect_settle_ns, UVM_ALL_ON)
+        `uvm_field_int(read_fill, UVM_ALL_ON)
+        `uvm_field_aa_object_string(registers, UVM_ALL_ON)
     `uvm_object_utils_end
 
-    virtual {{ class_prefix }}interface vif; // 接口
-    rand bit[31:0] idcode;
-    rand bit[63:0] public_id;
-    rand bit[127:0] password;
-    rand bit has_randomized; // 是否随机过
+    virtual {{ class_prefix }}interface vif;
+    real tck_period_ns = {{ tck_period_ns }};
+    int idle_cycles = {{ idle_cycles }};
+    int ir_length = {{ ir_width }};
+    bit use_trst = {{ 1 if use_trst else 0 }};
+    bit trst_active_low = {{ 1 if trst_active_low else 0 }};
+    real trst_pulse_ns = {{ trst_pulse_ns }};
+    int reset_cycles = {{ reset_cycles }};
+    real connect_settle_ns = {{ connect_settle_ns }};
+    bit read_fill = {{ read_fill }};
+    {{ class_prefix }}register_config registers[string];
 
-    function new(string name="{{ class_prefix }}configuration");
+    function new(string name = "{{ class_prefix }}configuration");
+        {{ class_prefix }}register_config reg_cfg;
         super.new(name);
+        {%- for name, reg in registers.items() %}
+        reg_cfg = {{ class_prefix }}register_config::type_id::create("{{ name }}");
+        reg_cfg.instruction = {{ ir_width }}'h{{ '{:x}' | format(reg.instruction) }};
+        reg_cfg.length = {{ reg.length }};
+        reg_cfg.readable = {{ 1 if reg.access != 'write' else 0 }};
+        reg_cfg.writable = {{ 1 if reg.access != 'read' else 0 }};
+        reg_cfg.value = {{ scan_width }}'h{{ '{:x}' | format(reg.value) }};
+        reg_cfg.expected = {{ scan_width }}'h{{ '{:x}' | format(reg.expected) }};
+        reg_cfg.check_mask = {{ scan_width }}'h{{ '{:x}' | format(reg.check_mask) }};
+        registers["{{ name }}"] = reg_cfg;
+        {%- endfor %}
     endfunction
 
-    constraint cst_base {
-        soft idcode == 32'hf6204701;
-        has_randomized == 1;
-    }
+    // 按名字取得寄存器配置，缺少时报告错误。
+    extern function {{ class_prefix }}register_config get_register(input string name);
 
-    function void post_randomize();
-        super.post_randomize();
-
-        if(!vif)
-            `uvm_fatal("","require vif")
-    endfunction
+    // 将运行期时序设置应用到接口，并检查寄存器范围。
+    extern function void apply();
 endclass
+
+function {{ class_prefix }}register_config {{ class_prefix }}configuration::get_register(input string name);
+    if (!registers.exists(name) || registers[name] == null)
+        `uvm_fatal("JTAG_CONFIG", $sformatf("Register '%s' is not configured", name))
+    return registers[name];
+endfunction
+
+function void {{ class_prefix }}configuration::apply();
+    if (vif == null) `uvm_fatal("JTAG_CONFIG", "JTAG vif is required")
+    vif.tck_period_ns = tck_period_ns;
+    vif.idle_cycles = idle_cycles;
+    vif.ir_length = ir_length;
+    vif.use_trst = use_trst;
+    vif.trst_active_low = trst_active_low;
+    vif.trst_pulse_ns = trst_pulse_ns;
+    vif.reset_cycles = reset_cycles;
+    vif.connect_settle_ns = connect_settle_ns;
+    vif.read_fill = read_fill;
+    vif.validate();
+    if (!(connect_settle_ns >= 0.001)) `uvm_fatal("JTAG_CONFIG", "Invalid connect delay")
+    foreach (registers[name]) begin
+        {{ class_prefix }}register_config reg_cfg;
+        reg_cfg = get_register(name);
+        if (reg_cfg.length < 1 || reg_cfg.length > {{ dr_width }} ||
+            (reg_cfg.instruction >> ir_length) != 0 ||
+            ((reg_cfg.value | reg_cfg.expected | reg_cfg.check_mask) >> reg_cfg.length) != 0 ||
+            !(reg_cfg.readable || reg_cfg.writable))
+            `uvm_fatal("JTAG_CONFIG", $sformatf("Invalid register '%s'", name))
+    end
+endfunction
 
 `endif

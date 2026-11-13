@@ -1,0 +1,29 @@
+`ifndef {{ class_prefix | upper }}REGISTER_CONFIG
+`define {{ class_prefix | upper }}REGISTER_CONFIG
+
+class {{ class_prefix }}register_config extends uvm_object;
+
+    bit [{{ ir_width }}-1:0] instruction;
+    int length = 32;
+    bit readable = 1;
+    bit writable = 0;
+    bit [{{ scan_width }}-1:0] value;
+    bit [{{ scan_width }}-1:0] expected;
+    bit [{{ scan_width }}-1:0] check_mask;
+
+    `uvm_object_utils_begin({{ class_prefix }}register_config)
+        `uvm_field_int(instruction, UVM_ALL_ON)
+        `uvm_field_int(length, UVM_ALL_ON | UVM_DEC)
+        `uvm_field_int(readable, UVM_ALL_ON)
+        `uvm_field_int(writable, UVM_ALL_ON)
+        `uvm_field_int(value, UVM_ALL_ON)
+        `uvm_field_int(expected, UVM_ALL_ON)
+        `uvm_field_int(check_mask, UVM_ALL_ON)
+    `uvm_object_utils_end
+
+    function new(string name = "{{ class_prefix }}register_config");
+        super.new(name);
+    endfunction
+endclass
+
+`endif
