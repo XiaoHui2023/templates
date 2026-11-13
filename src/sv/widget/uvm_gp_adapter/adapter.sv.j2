@@ -1,0 +1,280 @@
+`ifndef {{ class_name | upper }}_SV
+`define {{ class_name | upper }}_SV
+
+`uvm_analysis_imp_decl(_{{ class_name }}_item)
+`uvm_analysis_imp_decl(_{{ class_name }}_gp)
+
+class {{ class_name }} extends uvm_component;
+    `uvm_component_utils({{ class_name }})
+
+    uvm_analysis_port #({{ item_type }}) i_item_ap;
+    uvm_analysis_port #({{ item_type }}) o_item_ap;
+    uvm_analysis_port #(uvm_tlm_generic_payload) i_gp_ap;
+    uvm_analysis_port #(uvm_tlm_generic_payload) o_gp_ap;
+    protected uvm_analysis_imp_{{ class_name }}_item #({{ item_type }}, {{ class_name }}) item_imp;
+    protected uvm_analysis_imp_{{ class_name }}_gp #(uvm_tlm_generic_payload, {{ class_name }}) gp_imp;
+    string last_error;
+
+    // Construct independent input and output ports.
+    function new(string name = "{{ class_name }}", uvm_component parent = null);
+        super.new(name, parent);
+        i_item_ap = new("i_item_ap", this);
+        o_item_ap = new("o_item_ap", this);
+        i_gp_ap = new("i_gp_ap", this);
+        o_gp_ap = new("o_gp_ap", this);
+        item_imp = new("item_imp", this);
+        gp_imp = new("gp_imp", this);
+    endfunction
+
+    // Bind the input ports to their receivers.
+    extern virtual function void connect_phase(uvm_phase phase);
+    // Publish a fresh GP on success; report and drop invalid input.
+    extern function void write_{{ class_name }}_item({{ item_type }} item);
+    // Publish a fresh item on success; report and drop invalid input.
+    extern function void write_{{ class_name }}_gp(uvm_tlm_generic_payload gp);
+    // Return success and a fresh GP; failure leaves gp null and sets last_error.
+    extern virtual function bit to_gp(input {{ item_type }} item, output uvm_tlm_generic_payload gp);
+    // Return success and a fresh item; failure leaves item at its type default.
+    extern virtual function bit from_gp(input uvm_tlm_generic_payload gp, output {{ item_type }} item);
+    // Record the conversion failure without issuing a UVM report.
+    extern protected function bit fail(string reason);
+    // Reject inconsistent buffer lengths, commands and byte enables.
+    extern protected function bit validate_gp(uvm_tlm_generic_payload gp);
+    // Populate a newly allocated GP from a read-only item.
+    extern protected virtual function bit encode_item(input {{ item_type }} item, input uvm_tlm_generic_payload gp);
+    // Populate a newly allocated item from a read-only GP.
+    extern protected virtual function bit decode_item(input uvm_tlm_generic_payload gp, inout {{ item_type }} item);
+    // Set additional GP attributes and extensions; return success.
+    extern protected virtual function bit after_encode(input {{ item_type }} item, input uvm_tlm_generic_payload gp);
+    // Read additional GP attributes and extensions; return success.
+    extern protected virtual function bit after_decode(input uvm_tlm_generic_payload gp, inout {{ item_type }} item);
+    {%- for name, mapping in [('data', data), ('byte_enable', byte_enable)] %}
+    {%- if mapping %}
+    // Serialize item elements into an owned byte queue.
+    extern protected virtual function bit pack_{{ name }}(input {{ item_type }} item, output bit [7:0] bytes[$]);
+    // Decode bytes into the item, rejecting size and padding loss.
+    extern protected virtual function bit unpack_{{ name }}(input bit [7:0] bytes[$], inout {{ item_type }} item);
+    {%- endif %}
+    {%- endfor %}
+endclass
+
+function void {{ class_name }}::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    i_item_ap.connect(item_imp);
+    i_gp_ap.connect(gp_imp);
+endfunction
+
+function void {{ class_name }}::write_{{ class_name }}_item({{ item_type }} item);
+    uvm_tlm_generic_payload gp;
+    if (to_gp(item, gp)) o_gp_ap.write(gp);
+    else `uvm_error("GP_ADAPTER", last_error)
+endfunction
+
+function void {{ class_name }}::write_{{ class_name }}_gp(uvm_tlm_generic_payload gp);
+    {{ item_type }} item;
+    if (from_gp(gp, item)) o_item_ap.write(item);
+    else `uvm_error("GP_ADAPTER", last_error)
+endfunction
+
+function bit {{ class_name }}::fail(string reason);
+    last_error = reason;
+    return 0;
+endfunction
+
+function bit {{ class_name }}::to_gp(input {{ item_type }} item, output uvm_tlm_generic_payload gp);
+    last_error = "";
+    gp = null;
+    {%- if item_is_class %}
+    if (item == null) return fail("null item");
+    {%- endif %}
+    gp = new("gp");
+    if (!encode_item(item, gp)) begin
+        gp = null;
+        if (last_error == "") return fail("encoder rejected item");
+        return 0;
+    end
+    if (!after_encode(item, gp)) begin
+        gp = null;
+        if (last_error == "") return fail("encode hook rejected item");
+        return 0;
+    end
+    if (!validate_gp(gp)) begin
+        gp = null;
+        return 0;
+    end
+    return 1;
+endfunction
+
+function bit {{ class_name }}::from_gp(input uvm_tlm_generic_payload gp, output {{ item_type }} item);
+    {{ item_type }} empty_item;
+    last_error = "";
+    if (gp == null) return fail("null GP");
+    if (!validate_gp(gp)) return 0;
+    {%- if item_is_class %}
+    item = {{ create_item }};
+    if (item == null) return fail("item allocation failed");
+    {%- endif %}
+    if (!decode_item(gp, item)) begin
+        item = empty_item;
+        if (last_error == "") return fail("decoder rejected GP");
+        return 0;
+    end
+    if (!after_decode(gp, item)) begin
+        item = empty_item;
+        if (last_error == "") return fail("decode hook rejected GP");
+        return 0;
+    end
+    return 1;
+endfunction
+
+function bit {{ class_name }}::validate_gp(uvm_tlm_generic_payload gp);
+    byte unsigned raw_data[];
+    byte unsigned raw_enable[];
+    if (gp.get_data_length() > {{ max_bytes }} || gp.get_byte_enable_length() > {{ max_bytes }})
+        return fail("GP length exceeds max_bytes");
+    gp.get_data(raw_data);
+    gp.get_byte_enable(raw_enable);
+    if (gp.get_data_length() > raw_data.size()) return fail("data length exceeds buffer");
+    if (gp.get_byte_enable_length() > raw_enable.size()) return fail("byte enable length exceeds buffer");
+    if (!(gp.get_command() inside {UVM_TLM_READ_COMMAND, UVM_TLM_WRITE_COMMAND, UVM_TLM_IGNORE_COMMAND}))
+        return fail("invalid command");
+    if (!(gp.get_response_status() inside {UVM_TLM_OK_RESPONSE, UVM_TLM_INCOMPLETE_RESPONSE,
+            UVM_TLM_GENERIC_ERROR_RESPONSE, UVM_TLM_ADDRESS_ERROR_RESPONSE,
+            UVM_TLM_COMMAND_ERROR_RESPONSE, UVM_TLM_BURST_ERROR_RESPONSE,
+            UVM_TLM_BYTE_ENABLE_ERROR_RESPONSE})) return fail("invalid response status");
+    if (gp.get_command() != UVM_TLM_IGNORE_COMMAND && gp.get_data_length() == 0)
+        return fail("read/write requires nonzero length");
+    if (gp.get_command() != UVM_TLM_IGNORE_COMMAND && gp.get_streaming_width() == 0)
+        return fail("read/write requires nonzero streaming width");
+    for (int i = 0; i < gp.get_byte_enable_length(); i++) begin
+        if (!(raw_enable[i] inside {8'h00, 8'hff})) return fail("invalid byte enable value");
+    end
+    return 1;
+endfunction
+
+function bit {{ class_name }}::encode_item(input {{ item_type }} item, input uvm_tlm_generic_payload gp);
+    bit [7:0] bytes[$];
+    byte unsigned raw[];
+    if (!pack_data(item, bytes)) return 0;
+    if (bytes.size() > {{ max_bytes }}) return fail("encoded data exceeds max_bytes");
+    raw = new[bytes.size()];
+    foreach (raw[i]) raw[i] = bytes[i];
+    gp.set_data(raw);
+    gp.set_data_length({% if data_length %}{{ data_length.encode }}{% else %}raw.size(){% endif %});
+    {%- if byte_enable %}
+    if (!pack_byte_enable(item, bytes)) return 0;
+    if (bytes.size() > {{ max_bytes }}) return fail("encoded byte enable exceeds max_bytes");
+    raw = new[bytes.size()];
+    foreach (raw[i]) raw[i] = bytes[i];
+    gp.set_byte_enable(raw);
+    gp.set_byte_enable_length(raw.size());
+    {%- endif %}
+    gp.set_address({{ address.encode }});
+    gp.set_command(uvm_tlm_command_e'({{ command.encode }}));
+    gp.set_response_status(uvm_tlm_response_status_e'({{ response_status.encode }}));
+    gp.set_streaming_width({{ streaming_width.encode }});
+    return 1;
+endfunction
+
+function bit {{ class_name }}::decode_item(input uvm_tlm_generic_payload gp, inout {{ item_type }} item);
+    bit [7:0] bytes[$];
+    byte unsigned raw[];
+    gp.get_data(raw);
+    for (int i = 0; i < gp.get_data_length(); i++) bytes.push_back(raw[i]);
+    if (!unpack_data(bytes, item)) return 0;
+    {%- if byte_enable %}
+    bytes.delete();
+    gp.get_byte_enable(raw);
+    for (int i = 0; i < gp.get_byte_enable_length(); i++) bytes.push_back(raw[i]);
+    if (!unpack_byte_enable(bytes, item)) return 0;
+    {%- endif %}
+    {%- for mapping in [address, command, response_status, streaming_width, data_length] %}
+    {%- if mapping and mapping.decode %}
+    {{ mapping.decode | indent(4) }}
+    {%- endif %}
+    {%- endfor %}
+    return 1;
+endfunction
+
+function bit {{ class_name }}::after_encode(input {{ item_type }} item, input uvm_tlm_generic_payload gp);
+    {{ encode_hook | indent(4) }}
+endfunction
+
+function bit {{ class_name }}::after_decode(input uvm_tlm_generic_payload gp, inout {{ item_type }} item);
+    {{ decode_hook | indent(4) }}
+endfunction
+{%- for name, mapping in [('data', data), ('byte_enable', byte_enable)] %}
+{%- if mapping %}
+{%- set width = mapping.element_bits %}
+{%- set stride = (width + 7) // 8 %}
+{%- set field = 'item.' ~ mapping.member %}
+{%- set element = field if mapping.kind == 'packed' else field ~ '[i]' %}
+{%- set capacity = field ~ '.size()' if mapping.kind in ['dynamic', 'queue'] else '$size(' ~ field ~ ')' %}
+
+function bit {{ class_name }}::pack_{{ name }}(input {{ item_type }} item, output bit [7:0] bytes[$]);
+    {%- if mapping.pack_body is not none %}
+    {{ mapping.pack_body | indent(4) }}
+    {%- else %}
+    bit [{{ width - 1 }}:0] word;
+    int count;
+    count = {{ mapping.count if mapping.count is not none else ('1' if mapping.kind == 'packed' else capacity) }};
+    if (count < 0 || count > {{ max_bytes // stride }}) return fail("{{ name }} element count out of range");
+    {%- if mapping.kind == 'packed' %}
+    if (count != 1) return fail("packed {{ name }} requires one element");
+    if ($bits({{ field }}) != {{ width }}) return fail("{{ name }} element width mismatch");
+    {%- else %}
+    if (count > {{ capacity }}) return fail("{{ name }} count exceeds member capacity");
+    if (count > 0 && $bits({{ field }}[0]) != {{ width }}) return fail("{{ name }} element width mismatch");
+    {%- endif %}
+    for (int i = 0; i < count; i++) begin
+        if ($isunknown({{ element }})) return fail("{{ name }} contains X/Z");
+        word = {{ element }};
+        for (int j = 0; j < {{ stride }}; j++)
+            bytes.push_back(8'(word >> (8 * {% if mapping.byte_order == 'big' %}({{ stride - 1 }} - j){% else %}j{% endif %})));
+    end
+    return 1;
+    {%- endif %}
+endfunction
+
+function bit {{ class_name }}::unpack_{{ name }}(input bit [7:0] bytes[$], inout {{ item_type }} item);
+    {%- if mapping.unpack_body is not none %}
+    {{ mapping.unpack_body | indent(4) }}
+    {%- else %}
+    bit [{{ width - 1 }}:0] word;
+    int count;
+    if (bytes.size() % {{ stride }} != 0) return fail("{{ name }} incomplete element");
+    count = bytes.size() / {{ stride }};
+    {%- if mapping.kind == 'packed' %}
+    if (count != 1) return fail("packed {{ name }} length mismatch");
+    if ($bits({{ field }}) != {{ width }}) return fail("{{ name }} element width mismatch");
+    {%- elif mapping.kind == 'fixed' %}
+    if (count != $size({{ field }})) return fail("fixed {{ name }} length mismatch");
+    {%- elif mapping.kind == 'dynamic' %}
+    {{ field }} = new[count];
+    {%- else %}
+    {{ field }}.delete();
+    {%- endif %}
+    {%- if mapping.kind != 'packed' %}
+    if (count > 0 && $bits({{ field }}[0]) != {{ width }}) return fail("{{ name }} element width mismatch");
+    {%- endif %}
+    for (int i = 0; i < count; i++) begin
+        word = '0;
+        {%- if width % 8 != 0 %}
+        if ((bytes[i * {{ stride }} + {{ 0 if mapping.byte_order == 'big' else stride - 1 }}] >> {{ width % 8 }}) != 0)
+            return fail("{{ name }} nonzero padding bits");
+        {%- endif %}
+        for (int j = 0; j < {{ stride }}; j++)
+            word |= {{ width }}'(bytes[i * {{ stride }} + j]) << (8 * {% if mapping.byte_order == 'big' %}({{ stride - 1 }} - j){% else %}j{% endif %});
+        {%- if mapping.kind == 'queue' %}
+        {{ field }}.push_back(word);
+        {%- else %}
+        {{ element }} = word;
+        {%- endif %}
+    end
+    return 1;
+    {%- endif %}
+endfunction
+{%- endif %}
+{%- endfor %}
+
+`endif

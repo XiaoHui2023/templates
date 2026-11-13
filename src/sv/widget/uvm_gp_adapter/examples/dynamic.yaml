@@ -1,0 +1,6 @@
+class_name: dynamic_gp_adapter
+item_type: gp_example_types::dynamic_t
+data:
+  kind: dynamic
+  element_bits: 24
+  byte_order: little

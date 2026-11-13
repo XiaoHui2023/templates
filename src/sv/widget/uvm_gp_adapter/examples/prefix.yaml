@@ -1,0 +1,9 @@
+class_name: prefix_gp_adapter
+item_type: gp_example_types::prefix_t
+max_bytes: 16
+data:
+  kind: queue
+  count: item.count
+data_length:
+  encode: item.valid_bytes
+  decode: item.valid_bytes = gp.get_data_length(); item.count = item.data.size();

@@ -1,0 +1,30 @@
+class_name: message_gp_adapter
+item_type: gp_example_message
+item_is_class: true
+data:
+  pack_body: |
+    bytes.push_back({item.opcode, item.address[12:8]});
+    bytes.push_back(item.address[7:0]);
+    foreach (item.payload[i]) bytes.push_back(item.payload[i]);
+    return 1;
+  unpack_body: |
+    if (bytes.size() < 2) return fail("message header requires two bytes");
+    item.opcode = bytes[0][7:5];
+    item.address = {bytes[0][4:0], bytes[1]};
+    item.payload.delete();
+    for (int i = 2; i < bytes.size(); i++) item.payload.push_back(bytes[i]);
+    return 1;
+encode_hook: |
+  gp_example_tag ext;
+  ext = new();
+  ext.tag = item.tag;
+  void'(gp.set_extension(ext));
+  gp.set_dmi_allowed(1);
+  return 1;
+decode_hook: |
+  gp_example_tag ext;
+  if (!$cast(ext, gp.get_extension(gp_example_tag::ID())))
+      return fail("missing tag extension");
+  if (ext == null) return fail("missing tag extension");
+  item.tag = ext.tag;
+  return 1;

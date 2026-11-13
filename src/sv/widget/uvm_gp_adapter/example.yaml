@@ -1,0 +1,22 @@
+class_name: packet_gp_adapter
+item_type: gp_example_types::packet_t
+data:
+  member: words
+  kind: queue
+  element_bits: 16
+  byte_order: big
+byte_enable:
+  member: enables
+  kind: queue
+address:
+  encode: item.addr
+  decode: item.addr = gp.get_address();
+command:
+  encode: "item.is_write ? UVM_TLM_WRITE_COMMAND : UVM_TLM_READ_COMMAND"
+  decode: item.is_write = gp.is_write();
+response_status:
+  encode: item.status
+  decode: item.status = gp.get_response_status();
+streaming_width:
+  encode: item.beat_bytes
+  decode: item.beat_bytes = gp.get_streaming_width();

@@ -1,0 +1,6 @@
+class_name: fixed_gp_adapter
+item_type: gp_example_types::fixed_t
+data:
+  kind: fixed
+  element_bits: 32
+  byte_order: big

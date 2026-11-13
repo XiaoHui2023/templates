@@ -1,0 +1,6 @@
+class_name: packed_gp_adapter
+item_type: gp_example_types::packed_t
+data:
+  kind: packed
+  element_bits: 13
+  byte_order: little
