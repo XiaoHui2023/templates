@@ -44,6 +44,14 @@ interface {{ class_prefix }}interface(
     semaphore scan_lock = new(1);
     real connect_settle_ns = {{ connect_settle_ns }};
     bit read_fill = {{ read_fill }};
+    real tck_period_ns = {{ tck_period_ns }};
+    int idle_cycles = {{ idle_cycles }};
+    int ir_length = {{ ir_width }};
+    bit use_trst = {{ 1 if use_trst else 0 }};
+    bit trst_active_low = {{ 1 if trst_active_low else 0 }};
+    real trst_pulse_ns = {{ trst_pulse_ns }};
+    int reset_cycles = {{ reset_cycles }};
+    bit ready = 0;
 
     logic tms,tck,trst,tdi;
 
@@ -147,15 +155,6 @@ interface {{ class_prefix }}interface(
         ready = 0;
         scan_lock.put();
     endtask
-
-    real tck_period_ns = {{ tck_period_ns }};
-    int idle_cycles = {{ idle_cycles }};
-    int ir_length = {{ ir_width }};
-    bit use_trst = {{ 1 if use_trst else 0 }};
-    bit trst_active_low = {{ 1 if trst_active_low else 0 }};
-    real trst_pulse_ns = {{ trst_pulse_ns }};
-    int reset_cycles = {{ reset_cycles }};
-    bit ready = 0;
 
     // 检查时间分辨率和扫描范围。
     function automatic void validate();
