@@ -1,0 +1,70 @@
+`ifndef {{ (class_prefix ~ "pending") | upper }}
+`define {{ (class_prefix ~ "pending") | upper }}
+
+class {{ class_prefix }}pending;
+    protected uvm_tlm_generic_payload entries[string][$];
+    protected int count;
+
+    // Create an empty keyed store.
+    function new();
+    endfunction
+
+    // Append one owned comparison unit.
+    extern function void push(string key, uvm_tlm_generic_payload payload);
+    // Remove a FIFO candidate, or an equal candidate in multiset mode.
+    // probe_is_golden — Selects the expected operand for asymmetric byte enables.
+    extern function bit take(input string key, input uvm_tlm_generic_payload probe,
+        input bit probe_is_golden, input {{ class_prefix }}adapter adapter,
+        input bit exact, output uvm_tlm_generic_payload result);
+    // Return the number of retained comparison units.
+    extern function int size();
+    // Read one bucket without changing its order.
+    extern function void get(input string key, output uvm_tlm_generic_payload payloads[$]);
+    // Release every retained GP.
+    extern function void clear();
+endclass
+
+function void {{ class_prefix }}pending::push(string key, uvm_tlm_generic_payload payload);
+    entries[key].push_back(payload);
+    count++;
+endfunction
+
+function bit {{ class_prefix }}pending::take(input string key, input uvm_tlm_generic_payload probe,
+    input bit probe_is_golden, input {{ class_prefix }}adapter adapter,
+    input bit exact, output uvm_tlm_generic_payload result);
+    result = null;
+    if(!entries.exists(key))
+        return 0;
+    foreach(entries[key][j]) begin
+        if(exact) begin
+            if(probe_is_golden && !adapter.equal(probe, entries[key][j]))
+                continue;
+            if(!probe_is_golden && !adapter.equal(entries[key][j], probe))
+                continue;
+        end
+        result = entries[key][j];
+        entries[key].delete(j);
+        count--;
+        if(entries[key].size() == 0)
+            entries.delete(key);
+        return 1;
+    end
+    return 0;
+endfunction
+
+function int {{ class_prefix }}pending::size();
+    return count;
+endfunction
+
+function void {{ class_prefix }}pending::get(input string key, output uvm_tlm_generic_payload payloads[$]);
+    payloads.delete();
+    if(entries.exists(key))
+        payloads = entries[key];
+endfunction
+
+function void {{ class_prefix }}pending::clear();
+    entries.delete();
+    count = 0;
+endfunction
+
+`endif

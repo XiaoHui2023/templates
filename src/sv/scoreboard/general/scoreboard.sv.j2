@@ -1,117 +1,231 @@
-`ifndef {{ class_name | upper }}
-`define {{ class_name | upper }}
+`ifndef {{ (class_prefix ~ "scoreboard") | upper }}
+`define {{ (class_prefix ~ "scoreboard") | upper }}
 
-class {{ class_name }}#(type T=uvm_sequence_item) extends uvm_component;
-    `uvm_component_param_utils({{ class_name }}#(T))
+`uvm_analysis_imp_decl(_{{ class_prefix }}golden)
+`uvm_analysis_imp_decl(_{{ class_prefix }}monitor)
 
-    uvm_analysis_port #(T) {{ golden_port_name }};
-    uvm_analysis_port #(T) {{ monitor_port_name }};
-    `uvm_analysis_imp_decl(_golden) protected uvm_analysis_imp_golden #(T,{{ class_name }}#(T)) gld_imp;
-    `uvm_analysis_imp_decl(_monitor) protected uvm_analysis_imp_monitor #(T,{{ class_name }}#(T)) mon_imp;
+class {{ class_prefix }}scoreboard extends uvm_scoreboard;
+    `uvm_component_utils({{ class_prefix }}scoreboard)
 
-    function new(string name="{{ class_name }}",uvm_component parent);
-        super.new(name,parent);
+    uvm_analysis_port #(uvm_tlm_generic_payload) i_golden_ap;
+    uvm_analysis_port #(uvm_tlm_generic_payload) i_monitor_ap;
+    protected uvm_analysis_imp_{{ class_prefix }}golden #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) golden_imp;
+    protected uvm_analysis_imp_{{ class_prefix }}monitor #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) monitor_imp;
+    protected {{ class_prefix }}config cfg;
+    protected {{ class_prefix }}adapter adapter;
+    protected {{ class_prefix }}pending golden_pending;
+    protected {{ class_prefix }}pending monitor_pending;
+    protected bit golden_keys[string];
+    protected bit started;
+    protected bit checked;
+    longint matched_count;
+    longint mismatched_count;
+    longint dropped_count;
 
-        {{ golden_port_name }} = new("{{ golden_port_name }}",this);
-        {{ monitor_port_name }} = new("{{ monitor_port_name }}",this);
-        gld_imp = new("gld_imp",this);
-        mon_imp = new("mon_imp",this);
+    // Construct input ports and private comparison state.
+    function new(string name = "{{ class_prefix }}scoreboard", uvm_component parent = null);
+        super.new(name, parent);
+        i_golden_ap = new("i_golden_ap", this);
+        i_monitor_ap = new("i_monitor_ap", this);
+        golden_imp = new("golden_imp", this);
+        monitor_imp = new("monitor_imp", this);
+        cfg = new;
+        adapter = new(cfg);
+        golden_pending = new;
+        monitor_pending = new;
     endfunction
 
-    protected T fifo_golden[$];
-    protected T fifo_monitor[$];
-    protected bit has_compared; // ???????
-
+    // Read the optional config_db object named config.
+    extern function void build_phase(uvm_phase phase);
+    // Connect both public inputs to their private receivers.
+    extern function void connect_phase(uvm_phase phase);
+    // Check all outstanding expectations after stimulus has ended.
+    extern function void check_phase(uvm_phase phase);
+    // Discard comparisons and counters at reset entry.
     extern task reset_phase(uvm_phase phase);
-    extern task shutdown_phase(uvm_phase phase);
-
-    // ??????
-    extern function void main();
-
-    // ????
-    extern function bit match(output T gld,output T mon);
-
-    // ??fifo
-    extern function void check_fifo();
-
-    // ?? golden ??
-    extern function void write_golden(T data_in);
-
-    // ?? monitor ??
-    extern function void write_monitor(T data_in);
+    // Copy options before the first input after construction or clear.
+    extern function void configure({{ class_prefix }}config options);
+    // Release pending data and reopen configuration.
+    extern function void clear();
+    // Receive a standard golden GP and preserve its independent contents.
+    extern function void write_{{ class_prefix }}golden(uvm_tlm_generic_payload payload);
+    // Receive a standard monitor GP and apply the configured filtering policy.
+    extern function void write_{{ class_prefix }}monitor(uvm_tlm_generic_payload payload);
+    // Find and remove a counterpart according to the current mode.
+    // golden — True when incoming represents an expectation.
+    extern protected function bit match(input uvm_tlm_generic_payload incoming,
+        input bit golden, output uvm_tlm_generic_payload counterpart);
+    // Process validated comparison units without retaining caller handles.
+    extern protected function void accept(uvm_tlm_generic_payload payload, bit golden);
+    // Report pending golden units and relevant extra monitor units once.
+    extern function void check_pending();
+    // Return pending unit counts without producing a report.
+    extern function void pending_counts(output int golden, output int monitor);
+    // Emit the standard GP printer output as a single UVM_INFO message.
+    // id — UVM report ID used for verbosity and action configuration.
+    extern function void print_payload(uvm_tlm_generic_payload payload,
+        string id = "GP", int verbosity = UVM_HIGH);
 endclass
 
-task {{ class_name }}::reset_phase(uvm_phase phase);
+function void {{ class_prefix }}scoreboard::build_phase(uvm_phase phase);
+    {{ class_prefix }}config options;
+
+    super.build_phase(phase);
+    if(uvm_config_db #({{ class_prefix }}config)::get(this, "", "config", options))
+        configure(options);
+endfunction
+
+function void {{ class_prefix }}scoreboard::connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    i_golden_ap.connect(golden_imp);
+    i_monitor_ap.connect(monitor_imp);
+endfunction
+
+function void {{ class_prefix }}scoreboard::check_phase(uvm_phase phase);
+    super.check_phase(phase);
+    check_pending();
+endfunction
+
+task {{ class_prefix }}scoreboard::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
-
-    fifo_golden.delete();
-    fifo_monitor.delete();
+    clear();
 endtask
 
-task {{ class_name }}::shutdown_phase(uvm_phase phase);
-    super.shutdown_phase(phase);
-
-    check_fifo();
-endtask
-
-function void {{ class_name }}::main();
-    T gld;
-    T mon;
-
-    if(!match(gld,mon))
+function void {{ class_prefix }}scoreboard::configure({{ class_prefix }}config options);
+    if(started) begin
+        `uvm_fatal("GP_CONFIG", "configuration changed during an active comparison")
         return;
-
-    if(!gld.compare(mon))
-        `uvm_error("",$psprintf("compare failed:",
-            "\ngolden:\n%s",gld.sprint(),
-            "\nmonitor:\n%s",mon.sprint()
-        ))
-
-    // ??????
-    has_compared = 1;
-
-    main();
+    end
+    if(options == null) begin
+        `uvm_fatal("GP_CONFIG", "null configuration")
+        return;
+    end
+    if(!options.valid()) begin
+        `uvm_fatal("GP_CONFIG", "invalid comparison options")
+        return;
+    end
+    cfg.copy(options);
 endfunction
 
-function bit {{ class_name }}::match(output T gld,output T mon);
-    if(!fifo_golden.size || !fifo_monitor.size)
-        return 0;
-
-    gld = fifo_golden.pop_front();
-    mon = fifo_monitor.pop_front();
-
-    return 1;
+function void {{ class_prefix }}scoreboard::clear();
+    golden_pending.clear();
+    monitor_pending.clear();
+    golden_keys.delete();
+    started = 0;
+    checked = 0;
+    matched_count = 0;
+    mismatched_count = 0;
+    dropped_count = 0;
 endfunction
 
-function void {{ class_name }}::check_fifo();
-    int num_gld;
-    int num_mon;
-
-    num_gld = fifo_golden.size();
-    num_mon = fifo_monitor.size();
-
-    if(num_gld)
-        `uvm_error("",$psprintf("golden remain %0d, first :\n%s",num_gld,fifo_golden[0].sprint()))
-    else if(num_mon)
-        `uvm_error("",$psprintf("monitor remain %0d, first :\n%s",num_mon,fifo_monitor[0].sprint()))
-    else if(has_compared)
-        `uvm_info("","compare success",UVM_LOW)
+function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}golden(uvm_tlm_generic_payload payload);
+    accept(payload, 1);
 endfunction
 
-function void {{ class_name }}::write_golden(T data_in);
-    $cast(data_in, data_in.clone());
-    `uvm_info("",$psprintf("input golden :\n%s",data_in.sprint()),UVM_DEBUG)
-
-    fifo_golden.push_back(data_in);
-    main();
+function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}monitor(uvm_tlm_generic_payload payload);
+    accept(payload, 0);
 endfunction
 
-function void {{ class_name }}::write_monitor(T data_in);
-    $cast(data_in, data_in.clone());
-    `uvm_info("",$psprintf("input monitor :\n%s",data_in.sprint()),UVM_DEBUG)
+function bit {{ class_prefix }}scoreboard::match(input uvm_tlm_generic_payload incoming,
+    input bit golden, output uvm_tlm_generic_payload counterpart);
+    string key;
 
-    fifo_monitor.push_back(data_in);
-    main();
+    key = adapter.key(incoming);
+    if(golden)
+        return monitor_pending.take(key, incoming, 1, adapter, cfg.mode == {{ class_prefix }}config::SET, counterpart);
+    return golden_pending.take(key, incoming, 0, adapter, cfg.mode == {{ class_prefix }}config::SET, counterpart);
+endfunction
+
+function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload payload, bit golden);
+    uvm_tlm_generic_payload units[$];
+    string reason;
+
+    started = 1;
+    checked = 0;
+    if(!adapter.convert(payload, units, reason)) begin
+        `uvm_error("GP_INPUT", reason)
+        return;
+    end
+    foreach(units[j]) begin
+        string key;
+        uvm_tlm_generic_payload counterpart;
+        bit equal;
+
+        key = adapter.key(units[j]);
+        if(golden && !golden_keys.exists(key)) begin
+            if(golden_keys.num() >= cfg.max_keys) begin
+                `uvm_fatal("GP_CAPACITY", "golden key limit exceeded")
+                return;
+            end
+            golden_keys[key] = 1;
+        end
+        if(!golden && !golden_keys.exists(key) && cfg.monitor_policy == {{ class_prefix }}config::DROP) begin
+            dropped_count++;
+            continue;
+        end
+        if(match(units[j], golden, counterpart)) begin
+            if(golden)
+                equal = adapter.equal(units[j], counterpart);
+            else
+                equal = adapter.equal(counterpart, units[j]);
+            if(equal)
+                matched_count++;
+            else begin
+                mismatched_count++;
+                `uvm_error("GP_MISMATCH", "payload comparison failed")
+                print_payload(golden ? units[j] : counterpart, "GP_GOLDEN", UVM_LOW);
+                print_payload(golden ? counterpart : units[j], "GP_MONITOR", UVM_LOW);
+            end
+        end
+        else if(golden) begin
+            if(golden_pending.size() >= cfg.max_pending) begin
+                `uvm_fatal("GP_CAPACITY", "golden pending limit exceeded")
+                return;
+            end
+            golden_pending.push(key, units[j]);
+        end
+        else begin
+            if(monitor_pending.size() >= cfg.max_pending) begin
+                `uvm_fatal("GP_CAPACITY", "monitor pending limit exceeded")
+                return;
+            end
+            monitor_pending.push(key, units[j]);
+        end
+    end
+endfunction
+
+function void {{ class_prefix }}scoreboard::check_pending();
+    if(checked)
+        return;
+    checked = 1;
+    if(golden_pending.size() != 0)
+        `uvm_error("GP_MISSING", "golden payloads remain unmatched")
+    if(cfg.monitor_policy == {{ class_prefix }}config::STRICT) begin
+        if(monitor_pending.size() != 0)
+            `uvm_error("GP_UNEXPECTED", "monitor payloads remain unmatched")
+    end
+    else begin
+        foreach(golden_keys[key]) begin
+            uvm_tlm_generic_payload payloads[$];
+
+            monitor_pending.get(key, payloads);
+            if(payloads.size() != 0) begin
+                `uvm_error("GP_UNEXPECTED", "monitor payloads remain at an expected key")
+                break;
+            end
+        end
+    end
+endfunction
+
+function void {{ class_prefix }}scoreboard::pending_counts(output int golden, output int monitor);
+    golden = golden_pending.size();
+    monitor = monitor_pending.size();
+endfunction
+
+function void {{ class_prefix }}scoreboard::print_payload(uvm_tlm_generic_payload payload,
+    string id = "GP", int verbosity = UVM_HIGH);
+    if(payload != null)
+        `uvm_info(id, payload.sprint(uvm_default_line_printer), verbosity)
 endfunction
 
 `endif

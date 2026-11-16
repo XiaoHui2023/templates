@@ -1,0 +1,168 @@
+`ifndef {{ (class_prefix ~ "adapter") | upper }}
+`define {{ (class_prefix ~ "adapter") | upper }}
+
+class {{ class_prefix }}adapter;
+    protected {{ class_prefix }}config cfg;
+
+    // Bind comparison options owned by the scoreboard.
+    function new({{ class_prefix }}config options);
+        cfg = options;
+    endfunction
+
+    // Validate standard GP fields and create independently owned comparison units.
+    // units — Empty on rejection, IGNORE commands, or fully disabled transfers.
+    // reason — Validation failure text, empty on success.
+    extern function bit convert(input uvm_tlm_generic_payload payload,
+        output uvm_tlm_generic_payload units[$], output string reason);
+    // Construct a key from the enabled identity fields.
+    extern function string key(uvm_tlm_generic_payload payload);
+    // Compare selected GP fields, honoring golden byte enables.
+    extern function bit equal(uvm_tlm_generic_payload golden, uvm_tlm_generic_payload monitor);
+endclass
+
+function bit {{ class_prefix }}adapter::convert(input uvm_tlm_generic_payload payload,
+    output uvm_tlm_generic_payload units[$], output string reason);
+    byte unsigned data[];
+    byte unsigned enables[];
+    int length;
+    int enable_length;
+    int width;
+    bit any_enabled;
+    uvm_tlm_generic_payload snapshot;
+
+    units.delete();
+    reason = "";
+    if(payload == null) begin
+        reason = "null payload";
+        return 0;
+    end
+    if(payload.get_object_type() != uvm_tlm_generic_payload::get_type()) begin
+        reason = "only uvm_tlm_generic_payload is supported";
+        return 0;
+    end
+    if(payload.get_command() == UVM_TLM_IGNORE_COMMAND)
+        return 1;
+    if(!(payload.get_command() inside {UVM_TLM_READ_COMMAND, UVM_TLM_WRITE_COMMAND})) begin
+        reason = "invalid command";
+        return 0;
+    end
+    if(payload.get_data_length() == 0 || payload.get_data_length() > cfg.max_payload_bytes) begin
+        reason = "invalid data length";
+        return 0;
+    end
+    if(payload.get_byte_enable_length() > cfg.max_payload_bytes) begin
+        reason = "invalid byte enable length";
+        return 0;
+    end
+    length = int'(payload.get_data_length());
+    enable_length = int'(payload.get_byte_enable_length());
+    width = length;
+    if(payload.get_streaming_width() != 0 && payload.get_streaming_width() < length)
+        width = int'(payload.get_streaming_width());
+    payload.get_data(data);
+    payload.get_byte_enable(enables);
+    if(data.size() < length || enables.size() < enable_length) begin
+        reason = "GP length exceeds array capacity";
+        return 0;
+    end
+    for(int j = 0; j < enable_length; j++) begin
+        if(!(enables[j] inside {8'h00, 8'hff})) begin
+            reason = "byte enable must be 00 or ff";
+            return 0;
+        end
+    end
+    for(int j = 0; j < length; j++) begin
+        if(enable_length == 0 || enables[j % enable_length] != 0)
+            any_enabled = 1;
+        if(payload.get_address() > 64'hffffffffffffffff - 64'(j % width)) begin
+            reason = "address overflow";
+            return 0;
+        end
+    end
+    if(!any_enabled)
+        return 1;
+    data = new[length](data);
+    enables = new[enable_length](enables);
+    if(!cfg.atomize) begin
+        snapshot = new("packet");
+        snapshot.set_address(payload.get_address());
+        snapshot.set_command(payload.get_command());
+        snapshot.set_response_status(payload.get_response_status());
+        snapshot.set_streaming_width(width);
+        snapshot.set_data(data);
+        snapshot.set_data_length(length);
+        snapshot.set_byte_enable(enables);
+        snapshot.set_byte_enable_length(enable_length);
+        units.push_back(snapshot);
+        return 1;
+    end
+    for(int j = 0; j < length; j++) begin
+        byte unsigned single_byte[];
+
+        if(enable_length != 0 && enables[j % enable_length] == 0)
+            continue;
+        single_byte = new[1];
+        single_byte[0] = data[j];
+        snapshot = new("byte");
+        snapshot.set_address(payload.get_address() + 64'(j % width));
+        snapshot.set_command(payload.get_command());
+        snapshot.set_response_status(payload.get_response_status());
+        snapshot.set_streaming_width(1);
+        snapshot.set_data(single_byte);
+        snapshot.set_data_length(1);
+        units.push_back(snapshot);
+    end
+    return 1;
+endfunction
+
+function string {{ class_prefix }}adapter::key(uvm_tlm_generic_payload payload);
+    bit [63:0] address;
+    int command;
+
+    if(cfg.mode == {{ class_prefix }}config::ORDERED)
+        return "ordered";
+    if(cfg.match_address)
+        address = payload.get_address();
+    if(cfg.match_command)
+        command = int'(payload.get_command());
+    return $sformatf("%016h:%0d", address, command);
+endfunction
+
+function bit {{ class_prefix }}adapter::equal(uvm_tlm_generic_payload golden, uvm_tlm_generic_payload monitor);
+    byte unsigned gdata[];
+    byte unsigned mdata[];
+    byte unsigned genables[];
+    byte unsigned menables[];
+    int glen;
+    int mlen;
+
+    if(cfg.compare_address && golden.get_address() != monitor.get_address())
+        return 0;
+    if(cfg.compare_command && golden.get_command() != monitor.get_command())
+        return 0;
+    if(cfg.compare_response && golden.get_response_status() != monitor.get_response_status())
+        return 0;
+    if(golden.get_data_length() != monitor.get_data_length()
+        || golden.get_streaming_width() != monitor.get_streaming_width())
+        return 0;
+    golden.get_data(gdata);
+    monitor.get_data(mdata);
+    golden.get_byte_enable(genables);
+    monitor.get_byte_enable(menables);
+    glen = int'(golden.get_byte_enable_length());
+    mlen = int'(monitor.get_byte_enable_length());
+    for(int j = 0; j < int'(golden.get_data_length()); j++) begin
+        bit genabled;
+        bit menabled;
+
+        genabled = glen == 0 || genables[j % glen] != 0;
+        menabled = mlen == 0 || menables[j % mlen] != 0;
+        if(genabled != menabled)
+            return 0;
+        if(genabled && cfg.compare_data && gdata[j] != mdata[j])
+            return 0;
+    end
+    return 1;
+endfunction
+
+`endif

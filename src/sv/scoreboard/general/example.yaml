@@ -1,0 +1,13 @@
+class_prefix: general_
+mode: address
+atomize: true
+match_address: true
+match_command: false
+compare_address: true
+compare_command: true
+compare_data: true
+compare_response: false
+monitor_policy: drop
+max_pending: 65536
+max_keys: 1048576
+max_payload_bytes: 1048576

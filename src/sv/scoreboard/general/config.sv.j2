@@ -1,0 +1,51 @@
+`ifndef {{ (class_prefix ~ "config") | upper }}
+`define {{ (class_prefix ~ "config") | upper }}
+
+class {{ class_prefix }}config extends uvm_object;
+    typedef enum {ADDRESS, ORDERED, SET} mode_e;
+    typedef enum {DROP, BUFFER, STRICT} monitor_policy_e;
+
+    mode_e mode = {{ mode | upper }};
+    monitor_policy_e monitor_policy = {{ monitor_policy | upper }};
+    bit atomize = {{ atomize | int }};
+    bit match_address = {{ match_address | int }};
+    bit match_command = {{ match_command | int }};
+    bit compare_address = {{ compare_address | int }};
+    bit compare_command = {{ compare_command | int }};
+    bit compare_data = {{ compare_data | int }};
+    bit compare_response = {{ compare_response | int }};
+    int max_pending = {{ max_pending }};
+    int max_keys = {{ max_keys }};
+    int max_payload_bytes = {{ max_payload_bytes }};
+
+    `uvm_object_utils_begin({{ class_prefix }}config)
+        `uvm_field_enum(mode_e, mode, UVM_DEFAULT)
+        `uvm_field_enum(monitor_policy_e, monitor_policy, UVM_DEFAULT)
+        `uvm_field_int(atomize, UVM_DEFAULT)
+        `uvm_field_int(match_address, UVM_DEFAULT)
+        `uvm_field_int(match_command, UVM_DEFAULT)
+        `uvm_field_int(compare_address, UVM_DEFAULT)
+        `uvm_field_int(compare_command, UVM_DEFAULT)
+        `uvm_field_int(compare_data, UVM_DEFAULT)
+        `uvm_field_int(compare_response, UVM_DEFAULT)
+        `uvm_field_int(max_pending, UVM_DEFAULT)
+        `uvm_field_int(max_keys, UVM_DEFAULT)
+        `uvm_field_int(max_payload_bytes, UVM_DEFAULT)
+    `uvm_object_utils_end
+
+    // Create an independent set of comparison options.
+    function new(string name = "{{ class_prefix }}config");
+        super.new(name);
+    endfunction
+
+    // Accept supported modes and positive storage limits.
+    extern function bit valid();
+endclass
+
+function bit {{ class_prefix }}config::valid();
+    return mode inside {ADDRESS, ORDERED, SET}
+        && monitor_policy inside {DROP, BUFFER, STRICT}
+        && max_pending > 0 && max_keys > 0 && max_payload_bytes > 0;
+endfunction
+
+`endif
