@@ -1,0 +1,137 @@
+`ifndef {{ (class_prefix ~ 'converter') | upper }}
+`define {{ (class_prefix ~ 'converter') | upper }}
+
+class {{ class_prefix }}converter extends uvm_subscriber #(svt_axi_transaction);
+    `uvm_component_utils({{ class_prefix }}converter)
+
+    localparam int BUS_BYTES = {{ data_width // 8 }};
+    uvm_analysis_port #(uvm_tlm_generic_payload) o_ap;
+
+    // 创建通用载荷输出端口。
+    function new(string name = "{{ class_prefix }}converter", uvm_component parent = null);
+        super.new(name, parent);
+        o_ap = new("o_ap", this);
+    endfunction
+
+    // 将完整 AXI 事务转换为逐拍通用载荷。
+    extern virtual function void write(svt_axi_transaction t);
+    // 检查事务形状及可表示的地址范围。
+    extern protected function bit valid_transaction(svt_axi_transaction t);
+    // 返回指定拍的首字节地址。
+    extern protected function bit [63:0] beat_address(svt_axi_transaction t, int index);
+    // 输出指定拍的有效字节和响应状态。
+    extern protected function void emit_beat(svt_axi_transaction t, int index);
+endclass
+
+function void {{ class_prefix }}converter::write(svt_axi_transaction t);
+    if (!valid_transaction(t))
+        return;
+    for (int index = 0; index < t.burst_length; index++)
+        emit_beat(t, index);
+endfunction
+
+function bit {{ class_prefix }}converter::valid_transaction(svt_axi_transaction t);
+    int size_bytes;
+    bit [63:0] addr;
+    bit [63:0] aligned_addr;
+    if (t == null) begin
+        `uvm_error("AXI_GP_SHAPE", "null completed transaction")
+        return 0;
+    end
+    if (!(t.xact_type inside {svt_axi_transaction::READ, svt_axi_transaction::WRITE}) ||
+            t.atomic_type != svt_axi_transaction::NORMAL) begin
+        `uvm_error("AXI_GP_TYPE", "only normal memory-mapped READ/WRITE is supported")
+        return 0;
+    end
+    if (int'(t.burst_size) < 0 || int'(t.burst_size) > $clog2(BUS_BYTES) ||
+            t.burst_length < 1 || t.burst_length > {{ 256 if protocol == 'AXI4' else (16 if protocol == 'AXI3' else 1) }} ||
+            t.data.size() < t.burst_length ||
+            (t.xact_type == svt_axi_transaction::READ && t.rresp.size() < t.burst_length) ||
+            (t.xact_type == svt_axi_transaction::WRITE && t.wstrb.size() < t.burst_length)) begin
+        `uvm_error("AXI_GP_SHAPE", "invalid size, length or incomplete completed-transaction arrays")
+        return 0;
+    end
+    if (!(t.burst_type inside {svt_axi_transaction::FIXED, svt_axi_transaction::INCR, svt_axi_transaction::WRAP})) begin
+        `uvm_error("AXI_GP_SHAPE", "reserved burst type")
+        return 0;
+    end
+    size_bytes = 1 << int'(t.burst_size);
+    if (BUS_BYTES > $bits(t.data[0]) / 8 || BUS_BYTES > $bits(t.wstrb[0]) ||
+            t.addr != {{ addr_width }}'(t.addr)) begin
+        `uvm_error("AXI_GP_SHAPE", "transaction exceeds configured address or VIP data width")
+        return 0;
+    end
+    if ((t.burst_type == svt_axi_transaction::FIXED && t.burst_length > 16) ||
+            (t.burst_type == svt_axi_transaction::WRAP &&
+            (!(t.burst_length inside {2, 4, 8, 16}) || t.addr % size_bytes != 0))) begin
+        `uvm_error("AXI_GP_SHAPE", "invalid FIXED length or WRAP alignment/length")
+        return 0;
+    end
+    for (int index = 0; index < t.burst_length; index++) begin
+        addr = beat_address(t, index);
+        aligned_addr = (addr / size_bytes) * size_bytes;
+        if ((addr >> 12) != (t.addr >> 12) || addr != {{ addr_width }}'(addr) ||
+                (aligned_addr + size_bytes - 1) != {{ addr_width }}'(aligned_addr + size_bytes - 1) ||
+                (index > 0 && t.burst_type == svt_axi_transaction::INCR && addr < t.addr)) begin
+            `uvm_error("AXI_GP_SHAPE", "burst crosses 4KB or configured address boundary")
+            return 0;
+        end
+    end
+    return 1;
+endfunction
+
+function bit [63:0] {{ class_prefix }}converter::beat_address(svt_axi_transaction t, int index);
+    bit [63:0] addr;
+    bit [63:0] wrap_base;
+    int size_bytes;
+    int wrap_bytes;
+    size_bytes = 1 << int'(t.burst_size);
+    if (t.burst_type == svt_axi_transaction::FIXED || index == 0)
+        return t.addr;
+    addr = (t.addr / size_bytes) * size_bytes + 64'(index) * size_bytes;
+    if (t.burst_type == svt_axi_transaction::WRAP) begin
+        wrap_bytes = size_bytes * t.burst_length;
+        wrap_base = (t.addr / wrap_bytes) * wrap_bytes;
+        addr = wrap_base + ((addr - wrap_base) % wrap_bytes);
+    end
+    return addr;
+endfunction
+
+function void {{ class_prefix }}converter::emit_beat(svt_axi_transaction t, int index);
+    uvm_tlm_generic_payload packet;
+    byte unsigned data_bytes[];
+    byte unsigned enables[];
+    bit [63:0] addr;
+    int size_bytes;
+    int length;
+    int lane;
+    svt_axi_transaction::resp_type_enum resp;
+    addr = beat_address(t, index);
+    size_bytes = 1 << int'(t.burst_size);
+    length = size_bytes - int'(addr % size_bytes);
+    lane = int'(addr % BUS_BYTES);
+    data_bytes = new[length];
+    enables = new[length];
+    foreach (data_bytes[i]) begin
+        data_bytes[i] = t.data[index][8 * (lane + i) +: 8];
+        enables[i] = (t.xact_type == svt_axi_transaction::READ || t.wstrb[index][lane + i]) ? 8'hff : 8'h00;
+    end
+    packet = uvm_tlm_generic_payload::type_id::create($sformatf("beat_%0d", index));
+    packet.set_address(addr);
+    packet.set_command(t.xact_type == svt_axi_transaction::READ ? UVM_TLM_READ_COMMAND : UVM_TLM_WRITE_COMMAND);
+    packet.set_data(data_bytes);
+    packet.set_data_length(length);
+    packet.set_byte_enable(enables);
+    packet.set_byte_enable_length(length);
+    packet.set_streaming_width(length);
+    resp = t.xact_type == svt_axi_transaction::READ ? t.rresp[index] : t.bresp;
+    case (resp)
+        svt_axi_transaction::OKAY, svt_axi_transaction::EXOKAY: packet.set_response_status(UVM_TLM_OK_RESPONSE);
+        svt_axi_transaction::SLVERR: packet.set_response_status(UVM_TLM_GENERIC_ERROR_RESPONSE);
+        svt_axi_transaction::DECERR: packet.set_response_status(UVM_TLM_ADDRESS_ERROR_RESPONSE);
+        default: packet.set_response_status(UVM_TLM_GENERIC_ERROR_RESPONSE);
+    endcase
+    o_ap.write(packet);
+endfunction
+
+`endif
