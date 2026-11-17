@@ -71,10 +71,12 @@ f_hclken = f_hclk
 
 ```
 step = floor(2^25 / ratio)
-f_actual = f_ref × step / 2^25
+f_actual = f_ref × min(step, 2^25 - step) / 2^25
 ```
 
 **ratio** 为 1 时旁通：**bypass**=1，**step**=0，**load**=1。
+
+非旁通时，**step**=0表示无时钟，**step**=2^24输出输入频率的一半；超过2^24后频率折叠。旁通输出始终为输入频率，不使用折叠公式。
 
 ## pll
 

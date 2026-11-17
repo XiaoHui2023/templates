@@ -98,6 +98,9 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
         return 1'b1;
     endfunction
 
+    // Divided outputs retain activity and frequency checks without duty checks.
+    virtual function bit output_duty_check_enabled(string key = ""); return 1'b0; endfunction
+
     // Traverses each encoded divider ratio under an independent input clock.
     virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,

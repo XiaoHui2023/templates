@@ -23,14 +23,27 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         f_step = new();
     endfunction
 
-    // Includes the DTO accumulator's integer step quantization.
+    // Returns the folded accumulator frequency, or the input when bypassed.
+    function real frequency_from_step(
+            input real input_freq_hz,
+            input int step_value,
+            input bit bypass_value = 1'b0);
+        int folded_step;
+        if (bypass_value)
+            return input_freq_hz;
+        folded_step = step_value <= (1 << 24) ? step_value : (1 << 25) - step_value;
+        return input_freq_hz * real'(folded_step) / real'(1 << 25);
+    endfunction
+
+    // Includes integer step quantization and accumulator folding.
     virtual function real clock_rate_hz();
+        bit bypass_value;
+        int step_value;
         if (source == null || _resolved_ratio <= 0)
             return 0.0;
-        if ({{ settings.class_prefix }}dto_ratio_is_bypass(_resolved_ratio))
-            return source.clock_rate_hz();
-        return source.clock_rate_hz()
-            * real'({{ settings.class_prefix }}dto_ratio_to_step(_resolved_ratio)) / real'(1 << 25);
+        bypass_value = {{ settings.class_prefix }}dto_ratio_is_bypass(_resolved_ratio);
+        step_value = bypass_value ? 0 : {{ settings.class_prefix }}dto_ratio_to_step(_resolved_ratio);
+        return frequency_from_step(source.clock_rate_hz(), step_value, bypass_value);
     endfunction
 
     // Reports whether the complete DTO programming controls are bound.
@@ -158,12 +171,12 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             failures++;
         for (int bit_idx = 0; bit_idx < width; bit_idx++) begin
             for (int pattern = 0; pattern < 2; pattern++) begin
-                step_value = pattern == 0
-                    ? (1 << (width - 1)) | (1 << bit_idx)
-                    : mask ^ (1 << bit_idx);
+                step_value = (1 << (width - 1)) | (1 << bit_idx);
+                if (pattern != 0)
+                    step_value ^= mask;
                 program_step(api.cfg, step_value, 1'b0, 1'b1);
                 {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "settle_ns", 200) }});
-                expected_freq_hz = 1.0e9 * real'(step_value) / real'(1 << 25);
+                expected_freq_hz = frequency_from_step(1.0e9, step_value);
                 if (step_value == 0)
                     api.check_port_inactive(out_vif, {get_name(), ".out step 0"}, 1_000_000_000, passed);
                 else if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
