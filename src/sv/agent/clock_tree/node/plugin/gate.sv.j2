@@ -148,7 +148,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     endfunction
 
     // Drives the input and checks both register-controlled gate states.
-    virtual task run_functional_contract(
+    virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -194,7 +194,6 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
             1_000_000_000, passed);
         if (!passed)
             failures++;
-        in_vif.release_drive();
         did_check = 1'b1;
     endtask
 `endif

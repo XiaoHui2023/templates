@@ -79,13 +79,27 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
         has_configured_ratio = 1'b1;
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Commits the saved divisor before restoring reset and load levels.
+    virtual task restore_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}reg_snapshot saved);
+        cfg.write_reg(f_rst, {{ 1 if plugin_value("div_div", "reg_high_means_reset", false) else 0 }});
+        cfg.write_reg(f_rst, {{ 0 if plugin_value("div_div", "reg_high_means_reset", false) else 1 }});
+        cfg.write_reg(f_div, saved.get(f_div));
+        cfg.write_reg(f_load, 0);
+        cfg.write_reg(f_load, 1);
+        saved.restore(cfg);
+        has_configured_ratio = 1'b0;
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_div", "settle_ns", 200) }});
+    endtask
+
     // Declares an isolated divider transition check.
     virtual function bit has_functional_contract();
         return 1'b1;
     endfunction
 
     // Traverses each encoded divider ratio under an independent input clock.
-    virtual task run_functional_contract(
+    virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -143,7 +157,6 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
             if (!passed)
                 failures++;
         end
-        in_vif.release_drive();
         did_check = 1'b1;
     endtask
 `endif

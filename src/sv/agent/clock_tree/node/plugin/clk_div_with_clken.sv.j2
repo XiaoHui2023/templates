@@ -148,6 +148,15 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
     endtask
 
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Reapplies the original encoding without canonicalizing its don't-care bits.
+    virtual task restore_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}reg_snapshot saved);
+        program_ratio(cfg, saved.get(f_div));
+        saved.restore(cfg);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("clk_div_with_clken", "settle_ns", 200) }});
+    endtask
+
     // Exposes the output for activity and frequency measurement.
     virtual function void interfaces_connected(); vif = out_vif; endfunction
 
@@ -158,7 +167,7 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
     virtual function bit output_duty_check_enabled(string key = ""); return 1'b0; endfunction
 
     // Exercises every encoding and measures all three outputs.
-    virtual task run_functional_contract(
+    virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -196,7 +205,6 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
                 if (!passed) failures++;
             end
         end
-        input_vif.release_drive();
         did_check = 1'b1;
     endtask
 `endif

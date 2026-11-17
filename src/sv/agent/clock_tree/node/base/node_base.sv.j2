@@ -240,8 +240,29 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
 
     // Reports whether this node supplies a functional check.
     virtual function bit has_functional_contract(); return 1'b0; endfunction
-    // Runs this node's functional check through api.
-    virtual task run_functional_contract(
+    // Runs a functional check, restores controls, then releases its inputs.
+    task run_functional_contract(
+            input {{ settings.class_prefix }}node_test_api api,
+            output bit did_check,
+            output bit did_skip,
+            output int failures);
+        {{ settings.class_prefix }}reg_snapshot saved;
+        {{ settings.class_prefix }}reg controls[$];
+        if (api == null || api.cfg == null) begin
+            exercise_functional_contract(api, did_check, did_skip, failures);
+            return;
+        end
+        saved = new();
+        collect_control_regs(controls);
+        saved.capture(api.cfg, controls);
+        exercise_functional_contract(api, did_check, did_skip, failures);
+        if (did_check) begin
+            restore_configuration(api.cfg, saved);
+            release_functional_inputs();
+        end
+    endtask
+    // Exercises the node's transitions while retaining its driven inputs.
+    virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -249,6 +270,19 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         did_check = 1'b0;
         did_skip = 1'b0;
         failures = 0;
+    endtask
+    // Restores ordinary control slices to their saved state.
+    virtual task restore_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}reg_snapshot saved);
+        saved.restore(cfg);
+    endtask
+    // Releases the default input after configuration has been restored.
+    virtual task release_functional_inputs();
+        virtual {{ settings.class_prefix }}interface input_vif;
+        input_vif = get_in_vif();
+        if (input_vif != null)
+            input_vif.release_drive();
     endtask
     // Reports whether functional checks preserve native inputs.
     virtual function bit preserves_native_input(); return 1'b0; endfunction

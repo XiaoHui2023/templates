@@ -94,6 +94,15 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             {{ "1'b1" if plugin_value("div_dto", "reset_on_config", false) else "1'b0" }});
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Reloads saved accumulator data, then restores the control levels.
+    virtual task restore_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}reg_snapshot saved);
+        program_step(cfg, saved.get(f_step), saved.get(f_bypass) != 0, 1'b1);
+        saved.restore(cfg);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "settle_ns", 200) }});
+    endtask
+
     // Declares an isolated DTO transition check.
     virtual function bit has_functional_contract();
         return 1'b1;
@@ -108,7 +117,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
     endfunction
 
     // Exercises bypass and both values of every accumulator control bit.
-    virtual task run_functional_contract(
+    virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -170,7 +179,6 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
                     failures++;
             end
         end
-        in_vif.release_drive();
         did_check = 1'b1;
     endtask
 `endif

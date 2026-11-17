@@ -1,0 +1,50 @@
+`ifndef {{ (settings.class_prefix ~ "reg_snapshot") | upper }}
+`define {{ (settings.class_prefix ~ "reg_snapshot") | upper }}
+
+class {{ settings.class_prefix }}reg_snapshot extends {{ settings.class_prefix }}base_object;
+    local {{ settings.class_prefix }}reg fields[$];
+    local int values[$];
+
+    // Creates an empty set of saved control slices.
+    function new();
+        super.new("{{ settings.class_prefix }}reg_snapshot");
+    endfunction
+
+    // Saves actual values of the supplied bound controls.
+    extern task capture(
+        input {{ settings.class_prefix }}node_config_api cfg,
+        input {{ settings.class_prefix }}reg controls[$]);
+    // Returns the saved value of one control slice.
+    extern function int get({{ settings.class_prefix }}reg field_h);
+    // Restores control slices while preserving unrelated register bits.
+    extern task restore({{ settings.class_prefix }}node_config_api cfg);
+endclass
+
+task {{ settings.class_prefix }}reg_snapshot::capture(
+        input {{ settings.class_prefix }}node_config_api cfg,
+        input {{ settings.class_prefix }}reg controls[$]);
+    fields.delete();
+    values.delete();
+    foreach (controls[i]) begin
+        int value;
+        if (controls[i] == null || !controls[i].is_bound())
+            continue;
+        cfg.read_reg(controls[i], value);
+        fields.push_back(controls[i]);
+        values.push_back(value);
+    end
+endtask
+
+function int {{ settings.class_prefix }}reg_snapshot::get({{ settings.class_prefix }}reg field_h);
+    foreach (fields[i])
+        if (fields[i] == field_h)
+            return values[i];
+    `uvm_fatal("CLK_TREE", "register snapshot: control was not captured")
+    return 0;
+endfunction
+
+task {{ settings.class_prefix }}reg_snapshot::restore({{ settings.class_prefix }}node_config_api cfg);
+    cfg.write_regs(fields, values);
+endtask
+
+`endif

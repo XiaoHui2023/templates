@@ -254,6 +254,25 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         if (!complete) context_h.fail("unknown mux completion action");
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Returns to the saved input while the test clocks are still running.
+    virtual task restore_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}reg_snapshot saved);
+        saved.restore(cfg);
+        {{ settings.class_prefix }}time_domain::delay_ns(70.0);
+    endtask
+
+    // Releases only the inputs driven by this functional check.
+    virtual task release_functional_inputs();
+        virtual {{ settings.class_prefix }}interface input_vif;
+        foreach (to_source[k]) begin
+            input_vif = get_in_vif($sformatf("%0d", k));
+            if (input_vif != null && (to_source[k] == null
+                    || !to_source[k].preserves_native_input()))
+                input_vif.release_drive();
+        end
+    endtask
+
     // Maps the sole default input to selector zero.
     virtual function virtual {{ settings.class_prefix }}interface get_in_vif(string key = "");
         if (key == "0" && sources.num() == 0 && !in_vifs.exists(key))
@@ -267,7 +286,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     endfunction
 
     // Drives independent inputs, then checks every selectable output path.
-    virtual task run_functional_contract(
+    virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -323,13 +342,6 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
                 expected_freq_hz[k], passed);
             if (!passed)
                 failures++;
-        end
-        foreach (to_source[k]) begin
-            in_key = $sformatf("%0d", k);
-            in_vif = get_in_vif(in_key);
-            if (in_vif != null && (to_source[k] == null
-                    || !to_source[k].preserves_native_input()))
-                in_vif.release_drive();
         end
         did_check = 1'b1;
     endtask

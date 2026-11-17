@@ -87,13 +87,18 @@ mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的
 | 钩子 | 用途 |
 | --- | --- |
 | `has_functional_contract` | 是否提供功能检查 |
-| `run_functional_contract` | 施加激励、配置寄存器、检查输出并释放驱动 |
+| `run_functional_contract` | 公共入口：保存、检查、恢复、释放，不由插件重载 |
+| `exercise_functional_contract` | 施加激励、配置寄存器、检查输出，返回时保留激励 |
+| `restore_configuration` | 恢复控制切片；有load或延迟提交时由插件重载 |
+| `release_functional_inputs` | 释放测试激励，默认释放单个输入 |
 | `is_stability_anchor` | 是否需要保护该节点及其上游 |
 | `preserves_native_input` | 是否保留原生输入时钟 |
 | `output_duty_check_enabled(key)` | 功能输出是否检查占空比，默认开启 |
 | `output_frequency_window(key)` | 每个频率样本的平均周期数，默认 1 |
 
-`flip_check` 串行调用选中节点的 `run_functional_contract`，传入提供寄存器访问和测量服务的 `node_test_api`。插件返回 `did_check`、`did_skip` 和失败数；前两个结果必须恰有一个为真。
+`flip_check` 串行调用选中节点的 `run_functional_contract`，传入提供寄存器访问和测量服务的 `node_test_api`。基础节点通过 `collect_control_regs` 保存实际读回值，再调用插件检查；检查完成后调用恢复和释放钩子，包括检查失败的返回路径。插件返回 `did_check`、`did_skip` 和失败数；前两个结果必须恰有一个为真。
+
+普通恢复只合并保存的控制切片，不覆盖共享寄存器的其它位。分频插件需要提交保存的数据并恢复reset/load原电平；mux需等待原选择生效后释放输入。未执行检查的节点不写回；仿真终止或总线致命错误不承诺恢复。
 
 插件调用基础节点的 `check_output(api, 接口, 标签, 期望频率, passed, 端口键)`。基础节点解析策略，测量服务接收占空比开关与采样窗口，负责数值比较和清理，不依赖节点类型。DTO 按平均频率检查累加脉冲，关闭占空比；`clk_div_with_clken` 的三个输出也关闭占空比，其余功能输出默认检查。
 

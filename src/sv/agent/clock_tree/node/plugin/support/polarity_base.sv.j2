@@ -53,13 +53,21 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
 {%- endif %}
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
+    // Allows the restored polarity control to propagate before input release.
+    virtual task restore_configuration(
+            input {{ settings.class_prefix }}node_config_api cfg,
+            input {{ settings.class_prefix }}reg_snapshot saved);
+        saved.restore(cfg);
+        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("inverter", "settle_ns", 100) }});
+    endtask
+
     // Declares an isolated inverter transition check.
     virtual function bit has_functional_contract();
         return 1'b1;
     endfunction
 
     // Checks direct and inverted levels after each polarity write.
-    virtual task run_functional_contract(
+    virtual task exercise_functional_contract(
             input {{ settings.class_prefix }}node_test_api api,
             output bit did_check,
             output bit did_skip,
@@ -132,7 +140,6 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
         check_output(api, out_vif, {get_name(), ".out inverted"}, 1_000_000_000, passed);
         if (!passed)
             failures++;
-        in_vif.release_drive();
         did_check = 1'b1;
     endtask
 `endif
