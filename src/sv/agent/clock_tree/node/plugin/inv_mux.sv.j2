@@ -1,9 +1,10 @@
 `ifndef {{ (settings.class_prefix ~ "inv_mux") | upper }}
 `define {{ (settings.class_prefix ~ "inv_mux") | upper }}
 
-class {{ settings.class_prefix }}inv_mux extends {{ settings.class_prefix }}polarity_base;
+class {{ settings.class_prefix }}inv_mux extends {{ settings.class_prefix }}mux;
     `uvm_object_utils({{ settings.class_prefix }}inv_mux)
 
+    // Initializes a selector with the standard mux controls.
     function new(string name = "");
         super.new(name);
         kind = "inv_mux";

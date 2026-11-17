@@ -52,6 +52,23 @@ cell_cpu:
   source: clk_cpu
   path: dut.cell_cpu
 
+inv_mux0:
+  kind: inv_mux
+  source:
+    "0": xtal
+    "3": pll_sc0
+  sel: 0
+  reg: blk_inv_mux0.sel[1:0]
+  in_paths:
+    "0": dut.inv_mux0_i0
+    "3": dut.inv_mux0_i3
+  out_path: dut.inv_mux0_o
+
+clk_inv_mux:
+  kind: clk
+  source: inv_mux0
+  path: dut.clk_inv_mux
+
 clk_stable:
   kind: clk
   source: xtal

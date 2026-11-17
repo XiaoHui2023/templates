@@ -97,15 +97,17 @@ nodes:
 | `clk` | `frequence`、`enabled`、`low_power`、`stable`、`check_duty`、`unfix_frequence`、`unfix_enabled` |
 | `cell` | `cell_kind`、`frequence`、`enabled` |
 | `gate` | `open`、`unfix_open`、`fix_open`、`fix_close` |
-| `mux` | `max_sel`、`sel`、`unfix_sel` |
+| `mux`、`inv_mux` | `max_sel`、`sel`、`unfix_sel` |
 | `div_div` | `ratio`、`unfix_ratio` |
 | `div_div_r`、`div_dto` | `ratio`、`unfix_ratio` |
 | `clk_div_with_clken` | `ratio`、`unfix_ratio`，ratio 为 2、3、4 或 6 |
-| `inv`、`inv_cell`、`inv_mux` | `inverted`、`fix_inverted` |
+| `inv`、`inv_cell` | `inverted`、`fix_inverted` |
 
 `stable: true` 且省略 enabled 时补 1；显式 enabled 小于等于 0 会报错。`exclude: true` 不等于关闭时钟；引用该节点的 source 连接会被忽略，其他节点和连接保留。
 
 mux 的选择值来自 source 的实际键集合。键使用非负整数的十进制字符串；例如只有 `"2"`、`"5"` 时，只允许选择 2 或 5。省略 max_sel 不增加上限，填写后只缩小该集合。
+
+`inv_mux` 与 `mux` 使用相同的选择配置和检查，不执行反相检查；切换等待使用 `settings.plugin.mux`。
 
 ### 固定控制
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ._families import InverterConfig
+from .mux import MuxConfig
 
 
-class InvMuxConfig(InverterConfig):
-    """选择器反相器配置。"""
+class InvMuxConfig(MuxConfig):
+    """多路时钟选择器配置。"""
