@@ -7,6 +7,8 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
     {{ settings.class_prefix }}reg f_load;
     {{ settings.class_prefix }}reg f_bypass;
     {{ settings.class_prefix }}reg f_step;
+    localparam int STEP_WIDTH = 25;
+    localparam longint STEP_MODULUS = 64'sd1 << STEP_WIDTH;
 
     constraint cst_dto {
         _resolved_ratio > 0;
@@ -26,13 +28,18 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
     // Returns the folded accumulator frequency, or the input when bypassed.
     function real frequency_from_step(
             input real input_freq_hz,
-            input int step_value,
+            input longint step_value,
             input bit bypass_value = 1'b0);
-        int folded_step;
+        longint folded_step;
+        if (!(input_freq_hz >= 0.0) || step_value < 0 || step_value >= STEP_MODULUS) begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "dto: invalid frequency %0g Hz or step %0d", input_freq_hz, step_value))
+            return 0.0;
+        end
         if (bypass_value)
             return input_freq_hz;
-        folded_step = step_value <= (1 << 24) ? step_value : (1 << 25) - step_value;
-        return input_freq_hz * real'(folded_step) / real'(1 << 25);
+        folded_step = step_value <= STEP_MODULUS / 2 ? step_value : STEP_MODULUS - step_value;
+        return input_freq_hz * (real'(folded_step) / real'(STEP_MODULUS));
     endfunction
 
     // Includes integer step quantization and accumulator folding.
@@ -54,10 +61,15 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
     // Programs data before the load edge and allows control synchronization.
     task program_ratio(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input int value,
+            input longint value,
             input bit reset);
         int step_value;
         bit bypass_value;
+        if (value < 1 || value > STEP_MODULUS) begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "dto %s ratio %0d outside [1,2^25]", get_name(), value))
+            return;
+        end
         bypass_value = {{ settings.class_prefix }}dto_ratio_is_bypass(value);
         step_value = bypass_value ? 0 : {{ settings.class_prefix }}dto_ratio_to_step(value);
         program_step(cfg, step_value, bypass_value, reset);
@@ -66,10 +78,28 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
     // Commits accumulator data before load and waits for synchronization.
     task program_step(
             input {{ settings.class_prefix }}node_config_api cfg,
-            input int step_value,
+            input longint step_value,
             input bit bypass_value,
             input bit reset);
         int rst_value;
+        int width;
+        longint step_limit;
+        if (!has_configuration()) begin
+            `uvm_fatal("CLK_TREE", $sformatf("dto %s missing programming controls", get_name()))
+            return;
+        end
+        width = {{ settings.class_prefix }}reg_field_width(f_step);
+        if (width < 1 || width > 32) begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "dto %s step binding width %0d outside [1,32]", get_name(), width))
+            return;
+        end
+        step_limit = width < STEP_WIDTH ? (64'sd1 << width) : STEP_MODULUS;
+        if (step_value < 0 || step_value >= step_limit) begin
+            `uvm_fatal("CLK_TREE", $sformatf(
+                "dto %s step %0d outside 25-bit range or %0d-bit binding", get_name(), step_value, width))
+            return;
+        end
 {%- if plugin_value("div_dto", "reg_high_means_reset", false) %}
         rst_value = 0;
 {%- else %}
@@ -80,7 +110,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "sync_wait_ns", 200) }});
         end
         cfg.write_reg(f_load, 0);
-        cfg.write_reg(f_step, step_value);
+        cfg.write_reg(f_step, int'(step_value));
         cfg.write_reg(f_bypass, bypass_value);
         cfg.write_reg(f_rst, rst_value);
         {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "sync_wait_ns", 200) }});
@@ -158,8 +188,10 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
             return;
         end
         width = {{ settings.class_prefix }}reg_field_width(f_step);
-        if (width < 1 || width > 25)
+        if (width < 1 || width > STEP_WIDTH) begin
             `uvm_fatal("CLK_TREE", $sformatf("test_flip: dto %s step width %0d outside [1,25]", get_name(), width))
+            return;
+        end
         mask = (1 << width) - 1;
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test dto %s", get_name()), UVM_LOW)

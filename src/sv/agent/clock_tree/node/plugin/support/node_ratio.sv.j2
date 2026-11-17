@@ -44,19 +44,15 @@ function automatic bit {{ settings.class_prefix }}dto_ratio_is_bypass(int ratio)
 endfunction
 
 // DTO 比转 step，step = 2^25 / ratio
-function automatic int {{ settings.class_prefix }}dto_ratio_to_step(int ratio);
-    longint step_i;
+function automatic int {{ settings.class_prefix }}dto_ratio_to_step(longint ratio);
     longint max_step;
-    if (ratio <= 0)
+    max_step = 64'sd1 << 25;
+    if (ratio < 2 || ratio > max_step) begin
         `uvm_fatal("CLK_TREE", $sformatf(
-            "dto_ratio_to_step: ratio %0d must be positive", ratio))
-    max_step = longint'(1) << 25;
-    step_i = max_step / ratio;
-    if (step_i < 1 || step_i >= max_step)
-        `uvm_fatal("CLK_TREE", $sformatf(
-            "dto_ratio_to_step: ratio %0d -> step %0d out of [1,2^25-1]",
-            ratio, step_i))
-    return int'(step_i);
+            "dto_ratio_to_step: ratio %0d outside [2,2^25]", ratio))
+        return 0;
+    end
+    return int'(max_step / ratio);
 endfunction
 
 // f_div 指定位写 1、其余位写 0 时对应的分频比
