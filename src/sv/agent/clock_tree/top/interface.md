@@ -16,8 +16,8 @@
 | --- | --- | --- |
 | `MIN_FREQ_HZ` | `int` | 活动和稳定超时的最低频率基准，Hz |
 | `ACTIVE_CYCLES` | `int` | 确认活动所需的上升沿数 |
-| `STABLE_CYCLES` | `int` | 连续稳定周期数 |
-| `PERIOD_TOL` | `real` | 相邻周期的相对偏差上限 |
+| `STABLE_CYCLES` | `int` | 连续稳定频率样本数；占空比按周期计数 |
+| `PERIOD_TOL` | `real` | 相邻平均周期的相对偏差上限 |
 | `DUTY_MIN_PCT`、`DUTY_MAX_PCT` | `real` | 占空比范围，百分数 |
 | `DUTY_TOL_PCT` | `real` | 占空比边界容差，百分数点 |
 
@@ -39,6 +39,7 @@
 | 方法 | 作用 |
 | --- | --- |
 | `set_min_freq_hz(hz)` | 设置超时基准，不低于 MIN_FREQ_HZ |
+| `configure_measurement(min_hz, window_cycles=1, max_rise_gap_ns=0)` | 同时设置最低频率、平均周期数及最大上升沿间隔，间隔单位 ns；0 表示按最低频率推算 |
 | `start_measure(need_freq=1, need_duty=1)` | 清零当前结果，启动本次测量 |
 | `wait_measure_stable(need_freq, need_duty, ok)` | 先等待活动确认，再等待指定项稳定；关闭测量或超时也会返回 |
 | `stop_measure()` | 保存有效活动读数，关闭并清零当前结果 |
@@ -63,14 +64,16 @@
 | `timed_out` | 活动已确认，但指定项未及时稳定 |
 | `phase_frac` | 相对本次首个上升沿的周期内位置，0～1，不含 1 |
 | `last_freq_hz`、`last_duty`、`last_phase_frac` | 最近保存的活动读数 |
-| `last_valid` | 曾保存有效活动读数，不表示频率或占空比已稳定 |
+| `last_valid` | 本次保存了有效活动读数，不表示频率或占空比已稳定 |
 
-停止测量会清零当前状态；停止前读取 `ok` 和错误状态，停止后读取 `last_*`。未确认活动时不会覆盖旧快照，因此不能单凭 `last_valid` 判断本次成功。
+`start_measure` 会清除 `last_valid`。停止测量会清零当前状态；停止前读取 `ok` 和错误状态，停止后读取 `last_*`。活动已确认不等于频率或占空比合格，不能单凭 `last_valid` 判断本次成功。
 
 ## 超时与稳定
 
-1. 活动阶段在最低频率对应的 ACTIVE_CYCLES 个周期内采够上升沿。
-2. 活动确认后，频率和占空比分别累计连续稳定周期；失稳时各自重新计数。
-3. 稳定预算为 STABLE_CYCLES + 1 个最低频率周期，额外一个周期用于建立频率基准。
+1. 活动预算为 `ACTIVE_CYCLES × 最大上升沿间隔`；未指定间隔时使用最低频率对应的周期。
+2. 频率按多个完整周期的总时间计算。一个平均窗口建立基准，随后累计 `STABLE_CYCLES` 次稳定比较；占空比仍按每个周期检查。
+3. 稳定预算为 `(STABLE_CYCLES + 1) × window_cycles × 最大上升沿间隔`。`meas.measurement_timeout_ticks()` 返回包含活动、所需稳定阶段和截止保护的总预算，单位为 fs。
 
 最低频率只决定超时，不丢弃已采到的正周期。截止时间包含仿真精度余量，并在截止时间槽结束后判断，避免与最后一个边沿竞争。
+
+采样使用 `time_domain` 的整数 fs 时间戳，先求时间跨度，再转换为实数计算频率，避免长时间仿真时绝对实数时间相减丢失精度。局部时间声明不改变其他模块的默认单位，但不能恢复信号产生时已被舍入的边沿。

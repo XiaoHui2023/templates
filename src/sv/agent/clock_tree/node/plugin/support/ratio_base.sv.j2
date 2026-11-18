@@ -49,6 +49,30 @@ class {{ settings.class_prefix }}ratio_base extends {{ settings.class_prefix }}n
         return source.clock_rate_hz() / real'(_resolved_ratio);
     endfunction
 
+    // Bounds an output gap by the required number of input intervals.
+    virtual function real output_max_rise_gap_ns(
+            input real expected_freq_hz,
+            input real input_freq_hz = 0.0,
+            input string key = "");
+        real input_hz;
+        real output_hz;
+        real input_gap_ns;
+        real gap_ns;
+        input_hz = input_freq_hz;
+        gap_ns = nominal_rise_gap_ns(expected_freq_hz);
+        if (input_hz <= 0.0 && source != null)
+            input_hz = source.clock_rate_hz();
+        if (input_hz <= 0.0 || expected_freq_hz <= 0.0)
+            return gap_ns;
+        output_hz = input_freq_hz > 0.0 ? expected_freq_hz : clock_rate_hz();
+        if (output_hz <= 0.0)
+            return gap_ns;
+        input_gap_ns = input_freq_hz > 0.0 || source == null
+            ? nominal_rise_gap_ns(input_hz) : source.output_max_rise_gap_ns(input_hz);
+        input_gap_ns *= $ceil(input_hz / output_hz);
+        return input_gap_ns > gap_ns ? input_gap_ns : gap_ns;
+    endfunction
+
     // Skips branches without an observable descendant.
     virtual function bit requires_observed_descendant();
         return 1'b1;

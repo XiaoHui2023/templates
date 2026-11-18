@@ -94,13 +94,17 @@ mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的
 | `is_stability_anchor` | 是否需要保护该节点及其上游 |
 | `preserves_native_input` | 是否保留原生输入时钟 |
 | `output_duty_check_enabled(key)` | 功能输出是否检查占空比，默认开启 |
-| `output_frequency_window(key)` | 每个频率样本的平均周期数，默认 1 |
+| `output_frequency_window(key)` | 节点自身所需的平均周期数，默认 1，功能检查使用此值 |
+| `measurement_frequency_window(key)` | 普通测量合并自身与前级的平均窗口 |
+| `output_max_rise_gap_ns(expected_freq_hz, input_freq_hz=0, key="")` | 最大上升沿间隔，单位 ns；正的 input_freq_hz 指定独立激励，0 使用树中配置 |
 
 `flip_check` 串行调用选中节点的 `run_functional_contract`，传入提供寄存器访问和测量服务的 `node_test_api`。基础节点通过 `collect_control_regs` 保存实际读回值，再调用插件检查；检查完成后调用恢复和释放钩子，包括检查失败的返回路径。插件返回 `did_check`、`did_skip` 和失败数；前两个结果必须恰有一个为真。
 
 普通恢复只合并保存的控制切片，不覆盖共享寄存器的其它位。分频插件需要提交保存的数据并恢复reset/load原电平；mux需等待原选择生效后释放输入。未执行检查的节点不写回；仿真终止或总线致命错误不承诺恢复。
 
-插件调用基础节点的 `check_output(api, 接口, 标签, 期望频率, passed, 端口键)`。基础节点解析策略，测量服务接收占空比开关与采样窗口，负责数值比较和清理，不依赖节点类型。DTO按折叠后的平均频率检查；`div_div`、DTO和`clk_div_with_clken`的三个输出不检查占空比，其余功能输出默认检查。
+插件调用基础节点的 `check_output(api, 接口, 标签, 期望频率, passed, 端口键, 输入激励频率)`，后两个参数可省略。量化输出需提供实际输入激励频率，避免使用树中原有频率。测量服务接收占空比开关、采样窗口和最大上升沿间隔，负责数值比较和清理，不依赖节点类型。DTO按折叠后的平均频率检查；`div_div`、DTO和`clk_div_with_clken`的三个输出不检查占空比，其余功能输出默认检查。
+
+普通测量与功能检查使用相同的接口设置方法。普通测量沿前级合并平均窗口与边沿上界，分频节点按实际编码组合输入间隔，PLL重新声明均匀输出。功能检查使用独立激励，只取节点自身窗口。共用接口取各节点窗口和间隔的最大值；频率允许误差不随窗口改变。
 
 ## 连线钩子
 

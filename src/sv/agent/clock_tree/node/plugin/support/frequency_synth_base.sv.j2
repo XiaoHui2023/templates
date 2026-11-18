@@ -42,6 +42,17 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
     endfunction
 `endif
 
+    // Synthesized timing does not inherit input quantization windows.
+    virtual function int measurement_frequency_window(string key = ""); return output_frequency_window(key); endfunction
+
+    // Bounds the synthesized output independently of reference edge spacing.
+    virtual function real output_max_rise_gap_ns(
+            input real expected_freq_hz,
+            input real input_freq_hz = 0.0,
+            input string key = "");
+        return nominal_rise_gap_ns(expected_freq_hz);
+    endfunction
+
     // Provides a programmable final operating state.
     virtual function bit has_configuration(); return configuration_is_bound(); endfunction
 

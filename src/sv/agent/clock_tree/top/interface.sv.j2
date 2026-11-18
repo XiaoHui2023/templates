@@ -55,6 +55,7 @@ interface {{ settings.class_prefix }}interface #(
         drive_en = 1'b0;
     endtask
 
+    // Stops and releases the generated clock.
     task automatic stop_clock();
         release_drive();
     endtask
@@ -81,6 +82,14 @@ interface {{ settings.class_prefix }}interface #(
     // hz — 最低频率，Hz
     function automatic void set_min_freq_hz(int hz);
         meas.set_min_freq_hz(hz);
+    endfunction
+
+    // Sets the activity bound and frequency averaging window together.
+    function automatic void configure_measurement(
+            input real min_hz,
+            input int window_cycles = 1,
+            input real max_rise_gap_ns = 0.0);
+        meas.configure_measurement(min_hz, window_cycles, max_rise_gap_ns);
     endfunction
 
     // 一次完成频率测量：开启、等待频率稳定、关闭；结果读 meas.last_freq_hz 等

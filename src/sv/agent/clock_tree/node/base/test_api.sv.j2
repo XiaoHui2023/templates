@@ -20,12 +20,13 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
             input real expected_freq_hz,
             output bit passed,
             input bit check_duty = 1'b1,
-            input int frequency_window = 1);
+            input int frequency_window = 1,
+            input real max_rise_gap_ns = 0.0);
         bit ok;
         bit freq_stable;
         bit duty_stable;
         bit duty_ok;
-        int min_freq_hz;
+        real min_freq_hz;
         real freq_hz;
         real error_ratio;
 
@@ -36,18 +37,15 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: %s frequency 1 duty %0b expected %0.3f Hz",
             label, check_duty, expected_freq_hz), UVM_HIGH)
-        min_freq_hz = int'(expected_freq_hz
-            * (1.0 - {{ settings.period_tolerance }}));
-        vif.meas.set_frequency_window(frequency_window);
-        vif.set_min_freq_hz(min_freq_hz);
+        min_freq_hz = expected_freq_hz * (1.0 - {{ settings.period_tolerance }});
+        vif.configure_measurement(min_freq_hz, frequency_window, max_rise_gap_ns);
         vif.start_measure(1'b1, check_duty);
         vif.wait_measure_stable(1'b1, check_duty, ok);
         freq_stable = vif.meas.freq_stable;
         duty_stable = vif.meas.duty_stable;
         duty_ok = vif.meas.duty_ok;
         vif.stop_measure();
-        vif.meas.set_frequency_window(1);
-        vif.set_min_freq_hz({{ settings.min_freq_hz }});
+        vif.configure_measurement({{ settings.min_freq_hz }});
         if (!vif.meas.last_valid || !freq_stable) begin
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s frequency did not stabilize, expected %0.3f Hz",

@@ -160,8 +160,8 @@ class {{ settings.class_prefix }}check_measure_seq extends {{ settings.class_pre
         bit freq_done[],
         bit duty_done[],
         int pending,
-        int elapsed_ns,
-        int meas_timeout_ns
+        real elapsed_ns,
+        real meas_timeout_ns
     );
 endclass
 
@@ -407,9 +407,15 @@ function void {{ settings.class_prefix }}check_measure_seq::start_measure_if_new
 );
     bit need_freq;
     bit need_duty;
+    int frequency_window;
+    int node_window;
+    real max_rise_gap_ns;
+    real node_gap_ns;
 
     need_freq = 1'b0;
     need_duty = 1'b0;
+    frequency_window = 1;
+    max_rise_gap_ns = 0.0;
     for (int j = 0; j < idx; j++) begin
         if (nodes[j].vif == nd.vif)
             return;
@@ -420,8 +426,16 @@ function void {{ settings.class_prefix }}check_measure_seq::start_measure_if_new
         need_freq |= node_needs_freq_check(nodes[j], check_observation,
             check_freq);
         need_duty |= node_needs_duty_check(nodes[j], check_observation, check_duty);
+        node_window = nodes[j].measurement_frequency_window();
+        if (node_window > frequency_window)
+            frequency_window = node_window;
+        if (nodes[j]._resolved_active) begin
+            node_gap_ns = nodes[j].output_max_rise_gap_ns(real'(nodes[j]._resolved_freq));
+            if (node_gap_ns > max_rise_gap_ns)
+                max_rise_gap_ns = node_gap_ns;
+        end
     end
-    nd.vif.set_min_freq_hz(meas_min_freq_hz);
+    nd.vif.configure_measurement(meas_min_freq_hz, frequency_window, max_rise_gap_ns);
     nd.vif.start_measure(need_freq, need_duty);
 endfunction
 
@@ -462,13 +476,13 @@ function void {{ settings.class_prefix }}check_measure_seq::log_measure_progress
     bit freq_done[],
     bit duty_done[],
     int pending,
-    int elapsed_ns,
-    int meas_timeout_ns
+    real elapsed_ns,
+    real meas_timeout_ns
 );
     {{ settings.class_prefix }}node_base nd;
 
     `uvm_info("CLK_TREE", $sformatf(
-        "check_measure progress: pending %0d elapsed %0d ns / %0d ns",
+        "check_measure progress: pending %0d elapsed %0.3f ns / %0.3f ns",
         pending, elapsed_ns, meas_timeout_ns), UVM_DEBUG)
     foreach (nodes_to_check[i]) begin
         if (node_done[i])
@@ -492,15 +506,16 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     {{ settings.class_prefix }}node_base nodes_to_check[$];
     {{ settings.class_prefix }}node_base nd;
     int meas_min_freq_hz;
-    int meas_period_ns;
-    int meas_active_timeout_ns;
-    int meas_stable_timeout_ns;
-    int meas_timeout_ns;
-    int elapsed_ns;
+    time measure_begin_tick;
+    time measure_deadline_tick;
+    time timeout_ticks;
+    time duration_ticks;
+    real meas_timeout_ns;
+    real elapsed_ns;
     int checked;
     int pending;
-    int progress_interval_ns;
-    int last_progress_ns;
+    real progress_interval_ns;
+    real last_progress_ns;
     bit node_done[];
     bit activity_done[];
     bit activity_passed[];
@@ -519,14 +534,7 @@ task {{ settings.class_prefix }}check_measure_seq::body();
         `uvm_fatal("CLK_TREE", "check_measure: no enabled check target")
 
     meas_min_freq_hz = rq.min_freq_hz > 0 ? rq.min_freq_hz : {{ settings.min_freq_hz }};
-    meas_period_ns = (1_000_000_000 + meas_min_freq_hz - 1) / meas_min_freq_hz;
-    meas_active_timeout_ns = meas_period_ns * {{ settings.active_cycles }};
-    // 与 measure_interface 一致：频率基准周期后累计稳定周期。
-    meas_stable_timeout_ns = meas_period_ns * ({{ settings.stable_cycles }} + 1);
-    meas_timeout_ns = meas_active_timeout_ns;
-    if (rq.check_freq || (rq.check_duty))
-        meas_timeout_ns += meas_stable_timeout_ns;
-    progress_interval_ns = meas_period_ns * 20;
+    progress_interval_ns = 1.0e9 / real'(meas_min_freq_hz) * 20.0;
     if (progress_interval_ns < 10_000)
         progress_interval_ns = 10_000;
 
@@ -558,10 +566,8 @@ task {{ settings.class_prefix }}check_measure_seq::body();
     pending = nodes_to_check.size();
     last_progress_ns = -progress_interval_ns;
 
-    `uvm_info("CLK_TREE", $sformatf(
-        "check_measure progress: begin %0d node(s) timeout %0d ns min_freq %0d Hz",
-        checked, meas_timeout_ns, meas_min_freq_hz), UVM_DEBUG)
-
+    measure_begin_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+    timeout_ticks = 0;
     foreach (nodes_to_check[i]) begin
         nd = nodes_to_check[i];
         `uvm_info("CLK_TREE", $sformatf(
@@ -579,10 +585,22 @@ task {{ settings.class_prefix }}check_measure_seq::body();
             nd._resolved_freq, nd._resolved_active), UVM_HIGH)
         start_measure_if_new_vif(nd, i, nodes_arr, meas_min_freq_hz,
             rq.check_observation, rq.check_freq, rq.check_duty);
+        duration_ticks = nd.vif.meas.measurement_timeout_ticks();
+        if (duration_ticks > timeout_ticks)
+            timeout_ticks = duration_ticks;
     end
+    if (timeout_ticks > ~measure_begin_tick)
+        `uvm_fatal("CLK_TREE", "check_measure: deadline exceeds tick range")
+    measure_deadline_tick = measure_begin_tick + timeout_ticks;
+    meas_timeout_ns = {{ settings.class_prefix }}time_domain::ticks_to_ns(timeout_ticks);
+    `uvm_info("CLK_TREE", $sformatf(
+        "check_measure progress: begin %0d node(s) timeout %0.3f ns min_freq %0d Hz",
+        checked, meas_timeout_ns, meas_min_freq_hz), UVM_DEBUG)
 
     elapsed_ns = 0;
-    while (pending > 0 && elapsed_ns < meas_timeout_ns) begin
+    while (pending > 0 && {{ settings.class_prefix }}time_domain::now_ticks() < measure_deadline_tick) begin
+        elapsed_ns = {{ settings.class_prefix }}time_domain::ticks_to_ns(
+            {{ settings.class_prefix }}time_domain::now_ticks() - measure_begin_tick);
         if (uvm_report_enabled(UVM_DEBUG, UVM_INFO, "CLK_TREE")
                 && elapsed_ns - last_progress_ns >= progress_interval_ns) begin
             log_measure_progress(rq, nodes_to_check, node_done, activity_done,
@@ -623,7 +641,6 @@ task {{ settings.class_prefix }}check_measure_seq::body();
         end
         if (pending > 0) begin
             {{ settings.class_prefix }}time_domain::delay_ns(1.0);
-            elapsed_ns++;
         end
     end
 

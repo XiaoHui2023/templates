@@ -198,7 +198,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         in_vif.start_clock(1_000_000_000);
         program_step(api.cfg, 0, 1'b1, 1'b1);
         {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "settle_ns", 200) }});
-        check_output(api, out_vif, {get_name(), ".out bypass"}, 1_000_000_000, passed);
+        check_output(api, out_vif, {get_name(), ".out bypass"}, 1_000_000_000, passed, "", 1.0e9);
         if (!passed)
             failures++;
         for (int bit_idx = 0; bit_idx < width; bit_idx++) begin
@@ -219,7 +219,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
                 end else
                     check_output(api, out_vif,
                         $sformatf("%s.out bit %0d step %0h", get_name(), bit_idx, step_value),
-                        expected_freq_hz, passed);
+                        expected_freq_hz, passed, "", 1.0e9);
                 if (!passed)
                     failures++;
             end

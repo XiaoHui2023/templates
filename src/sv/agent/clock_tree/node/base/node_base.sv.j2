@@ -220,6 +220,39 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
     virtual function bit output_duty_check_enabled(string key = ""); return 1'b1; endfunction
     // Returns the number of output periods averaged per frequency sample.
     virtual function int output_frequency_window(string key = ""); return 1; endfunction
+    // Combines intrinsic and upstream averaging for graph observations.
+    virtual function int measurement_frequency_window(string key = "");
+        int cycles;
+        int upstream_cycles;
+        cycles = output_frequency_window(key);
+        if (source != null) begin
+            upstream_cycles = source.measurement_frequency_window();
+            if (upstream_cycles > cycles)
+                cycles = upstream_cycles;
+        end
+        return cycles;
+    endfunction
+    // Returns the maximum rising-edge gap allowed by a uniform clock.
+    function real nominal_rise_gap_ns(real expected_freq_hz);
+        return expected_freq_hz > 0.0
+            ? 1.0e9 / (expected_freq_hz * (1.0 - {{ settings.period_tolerance }})) : 0.0;
+    endfunction
+    // Preserves upstream timing bounds through a transparent output.
+    // input_freq_hz supplies an isolated input rate instead of graph timing.
+    virtual function real output_max_rise_gap_ns(
+            input real expected_freq_hz,
+            input real input_freq_hz = 0.0,
+            input string key = "");
+        real gap_ns;
+        real upstream_gap_ns;
+        gap_ns = nominal_rise_gap_ns(expected_freq_hz);
+        if (input_freq_hz <= 0.0 && source != null) begin
+            upstream_gap_ns = source.output_max_rise_gap_ns(expected_freq_hz);
+            if (upstream_gap_ns > gap_ns)
+                gap_ns = upstream_gap_ns;
+        end
+        return gap_ns;
+    endfunction
     // Reports whether this node anchors stability checks.
     virtual function bit is_stability_anchor(); return 1'b0; endfunction
     // Applies this node's low-power preference.
@@ -233,9 +266,12 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
             input string label,
             input real expected_freq_hz,
             output bit passed,
-            input string key = "");
+            input string key = "",
+            input real input_freq_hz = 0.0);
         api.check_output(port_vif, label, expected_freq_hz, passed,
-            output_duty_check_enabled(key), output_frequency_window(key));
+            output_duty_check_enabled(key), output_frequency_window(key),
+            output_max_rise_gap_ns(expected_freq_hz,
+                input_freq_hz > 0.0 ? input_freq_hz : expected_freq_hz, key));
     endtask
 
     // Reports whether this node supplies a functional check.

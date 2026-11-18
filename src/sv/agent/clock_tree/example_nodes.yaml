@@ -133,7 +133,7 @@ dto0:
   source: xtal
   in_path: dut.dto0_i
   out_path: dut.dto0_o
-  ratio: 4
+  ratio: 3
   regs:
     rst: blk_dto0.rst
     load: blk_dto0.load
@@ -144,7 +144,8 @@ clk_dto:
   kind: clk
   source: dto0
   path: dut.clk_dto
-  frequence: 6000000
+  frequence: 8000000
+  check_duty: false
 
 mux_sparse:
   kind: mux

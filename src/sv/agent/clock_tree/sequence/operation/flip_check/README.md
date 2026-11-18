@@ -39,7 +39,7 @@
 
 ### 输出测量
 
-插件调用基础节点的 `check_output()`，解析输出策略后交给 `node_test_api` 检查活动、频率稳定及数值误差、占空比。频率不符和占空比不符分别报告；关闭占空比检查不会关闭频率检查。
+插件调用基础节点的 `check_output()`，解析输出策略后交给 `node_test_api` 检查活动、频率稳定及数值误差、占空比。活动窗口覆盖量化后的最大上升沿间隔，DTO提供实际激励频率计算该上界。频率不符和占空比不符分别报告；关闭占空比检查不会关闭频率检查。
 
 `output_duty_check_enabled(key)` 默认开启，插件可按输出端口关闭。`output_frequency_window(key)` 默认 1 周期，插件可声明平均窗口。窗口只影响频率，不能掩盖占空比错误。普通 `check_measure` 的端点选择仍由 `supports_duty_observation()` 决定。
 

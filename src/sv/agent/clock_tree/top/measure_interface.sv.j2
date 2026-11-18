@@ -18,7 +18,7 @@ interface {{ settings.class_prefix }}measure_interface #(
     localparam real DUTY_MIN = (DUTY_MIN_PCT - DUTY_TOL_PCT) / 100.0;
     localparam real DUTY_MAX = (DUTY_MAX_PCT + DUTY_TOL_PCT) / 100.0;
     localparam real DUTY_BOUND_EPS = 1.0e-12;
-    localparam real RT_PER_SEC = 1.0e9;
+    localparam real TICKS_PER_SEC = 1.0e15;
     bit meas_en;
     bit need_freq_rt;
     bit need_duty_rt;
@@ -41,18 +41,23 @@ interface {{ settings.class_prefix }}measure_interface #(
     real last_phase_frac;
     logic last_valid;
 
-    realtime last_edge_t;
-    realtime ref_posedge_t;
-    realtime last_posedge_t;
-    realtime last_period_t;
-    realtime high_end_t;
+    time ref_posedge_tick;
+    time last_posedge_tick;
+    time high_end_tick;
+    time frequency_window_tick;
+    real last_period_ticks;
+    bit have_posedge;
+    bit have_high_edge;
+    bit have_reference;
     int activity_edge_cnt;
     int freq_stable_cnt;
     int duty_stable_cnt;
     int frequency_window_cycles = 1;
     int frequency_window_count;
-    realtime frequency_window_sum;
-    int min_freq_hz_rt;
+    real min_freq_hz_rt;
+    real rise_gap_ns;
+    time active_timeout_ticks;
+    time stable_timeout_ticks;
     realtime active_timeout_rt;
     realtime stable_timeout_rt;
     real max_edge_period_rt;
@@ -65,15 +70,15 @@ interface {{ settings.class_prefix }}measure_interface #(
     // t_ref — 参考 0 时刻
     // period — 当前周期
     function automatic real frac_phase(
-            realtime t,
-            realtime t_ref,
-            real period);
+            time t,
+            time t_ref,
+            time period);
         real offset;
         real cycles;
 
         if (period <= 0.0)
             return 0.0;
-        offset = (t - t_ref) / period;
+        offset = real'(t - t_ref) / real'(period);
         cycles = offset - $floor(offset);
         if (cycles < 0.0)
             cycles += 1.0;
@@ -82,14 +87,42 @@ interface {{ settings.class_prefix }}measure_interface #(
 
     // 按最低频率更新活动与稳定阶段超时及最大边沿间隔
     // hz — 最低频率，Hz
-    function automatic void update_meas_timing_from_min_freq(int hz);
+    function automatic void update_meas_timing_from_min_freq(real hz);
         if (hz < MIN_FREQ_HZ)
             hz = MIN_FREQ_HZ;
         min_freq_hz_rt = hz;
-        max_edge_period_rt = RT_PER_SEC / hz;
-        active_timeout_rt = max_edge_period_rt * ACTIVE_CYCLES;
-        // 频率稳定需要一个基准周期，再累计 STABLE_CYCLES 次比较。
-        stable_timeout_rt = max_edge_period_rt * (STABLE_CYCLES + 1) * frequency_window_cycles;
+        max_edge_period_rt = rise_gap_ns > 0.0 ? rise_gap_ns : 1.0e9 / hz;
+        active_timeout_ticks = {{ settings.class_prefix }}time_domain::ticks_from_ns(
+            max_edge_period_rt * real'(ACTIVE_CYCLES));
+        stable_timeout_ticks = {{ settings.class_prefix }}time_domain::ticks_from_ns(
+            max_edge_period_rt * (real'(STABLE_CYCLES) + 1.0) * real'(frequency_window_cycles));
+        active_timeout_rt = {{ settings.class_prefix }}time_domain::ticks_to_ns(active_timeout_ticks);
+        stable_timeout_rt = {{ settings.class_prefix }}time_domain::ticks_to_ns(stable_timeout_ticks);
+    endfunction
+
+    // Sets independent activity and averaging bounds before measurement.
+    function automatic void configure_measurement(
+            input real min_hz,
+            input int window_cycles = 1,
+            input real max_rise_gap_ns = 0.0);
+        if (!(min_hz > 0.0) || !(max_rise_gap_ns >= 0.0) || window_cycles < 1) begin
+            $fatal(1, "measure_interface: invalid measurement bounds");
+            return;
+        end
+        rise_gap_ns = max_rise_gap_ns;
+        frequency_window_cycles = window_cycles;
+        update_meas_timing_from_min_freq(min_hz);
+    endfunction
+
+    // Includes both phases and their deadline scheduling guards.
+    function automatic time measurement_timeout_ticks();
+        time stable_ticks;
+        stable_ticks = need_freq_rt || need_duty_rt ? stable_timeout_ticks : 0;
+        if (stable_ticks > ~64'd4 || active_timeout_ticks > ~stable_ticks - 4) begin
+            $fatal(1, "measure_interface: measurement timeout exceeds tick range");
+            return 0;
+        end
+        return active_timeout_ticks + stable_ticks + 4;
     endfunction
 
     // Selects the averaging window before starting a measurement.
@@ -120,16 +153,18 @@ interface {{ settings.class_prefix }}measure_interface #(
         duty = 0.0;
         duty_ok = 1'b0;
         phase_frac = 0.0;
-        last_edge_t = 0.0;
-        ref_posedge_t = 0.0;
-        last_posedge_t = 0.0;
-        last_period_t = 0.0;
-        high_end_t = 0.0;
+        ref_posedge_tick = 0;
+        last_posedge_tick = 0;
+        high_end_tick = 0;
+        frequency_window_tick = 0;
+        last_period_ticks = 0.0;
+        have_posedge = 1'b0;
+        have_high_edge = 1'b0;
+        have_reference = 1'b0;
         activity_edge_cnt = 0;
         freq_stable_cnt = 0;
         duty_stable_cnt = 0;
         frequency_window_count = 0;
-        frequency_window_sum = 0.0;
     endfunction
 
     // 活动阶段未采够上升沿时结束测量
@@ -154,23 +189,26 @@ interface {{ settings.class_prefix }}measure_interface #(
     endfunction
 
     // 活动确认后根据相邻上升沿更新频率、占空比与稳定计数
-    function automatic void sample_period(realtime pos_t, realtime prev_pos_t);
-        realtime period_t;
-        realtime high_t;
-        realtime sampled_period_t;
+    function automatic void sample_period(time pos_tick, time prev_pos_tick);
+        time period_ticks;
+        time high_ticks;
+        time window_ticks;
+        real sampled_period_ticks;
         real rel_diff;
 
-        period_t = pos_t - prev_pos_t;
-        if (period_t <= 0.0)
+        period_ticks = pos_tick - prev_pos_tick;
+        if (period_ticks == 0)
             return;
 
-        if (ref_posedge_t <= 0.0)
-            ref_posedge_t = pos_t;
-        phase_frac = frac_phase(pos_t, ref_posedge_t, period_t);
+        if (!have_reference) begin
+            ref_posedge_tick = pos_tick;
+            have_reference = 1'b1;
+        end
+        phase_frac = frac_phase(pos_tick, ref_posedge_tick, period_ticks);
 
-        if (high_end_t > prev_pos_t && high_end_t <= pos_t) begin
-            high_t = high_end_t - prev_pos_t;
-            duty = high_t / period_t;
+        if (have_high_edge && high_end_tick > prev_pos_tick && high_end_tick <= pos_tick) begin
+            high_ticks = high_end_tick - prev_pos_tick;
+            duty = real'(high_ticks) / real'(period_ticks);
             if (duty < 0.0)
                 duty = 0.0;
             else if (duty > 1.0)
@@ -179,15 +217,17 @@ interface {{ settings.class_prefix }}measure_interface #(
                 && (duty <= DUTY_MAX + DUTY_BOUND_EPS);
         end
 
-        frequency_window_sum += period_t;
+        if (frequency_window_count == 0)
+            frequency_window_tick = prev_pos_tick;
         frequency_window_count++;
         if (frequency_window_count >= frequency_window_cycles) begin
-            sampled_period_t = frequency_window_sum / frequency_window_count;
-            freq_hz = RT_PER_SEC / sampled_period_t;
-            if (last_period_t > 0.0) begin
-                rel_diff = (sampled_period_t > last_period_t) ?
-                    (sampled_period_t - last_period_t) / last_period_t :
-                    (last_period_t - sampled_period_t) / last_period_t;
+            window_ticks = pos_tick - frequency_window_tick;
+            sampled_period_ticks = real'(window_ticks) / real'(frequency_window_count);
+            freq_hz = TICKS_PER_SEC * real'(frequency_window_count) / real'(window_ticks);
+            if (last_period_ticks > 0.0) begin
+                rel_diff = (sampled_period_ticks > last_period_ticks) ?
+                    (sampled_period_ticks - last_period_ticks) / last_period_ticks :
+                    (last_period_ticks - sampled_period_ticks) / last_period_ticks;
                 if (rel_diff <= PERIOD_TOL) begin
                     freq_stable_cnt++;
                     if (freq_stable_cnt >= STABLE_CYCLES)
@@ -198,9 +238,8 @@ interface {{ settings.class_prefix }}measure_interface #(
                     freq_stable = 1'b0;
                 end
             end
-            last_period_t = sampled_period_t;
+            last_period_ticks = sampled_period_ticks;
             frequency_window_count = 0;
-            frequency_window_sum = 0.0;
         end
 
         if (duty_ok) begin
@@ -218,6 +257,7 @@ interface {{ settings.class_prefix }}measure_interface #(
     // 可测量的最低频率，单位 Hz
     // hz — 最低频率，Hz
     function automatic void set_min_freq_hz(int hz);
+        rise_gap_ns = 0.0;
         update_meas_timing_from_min_freq(hz);
     endfunction
 
@@ -238,8 +278,13 @@ interface {{ settings.class_prefix }}measure_interface #(
             input bit need_freq = 1'b1,
             input bit need_duty = 1'b1);
         reset_measure();
+        last_valid = 1'b0;
         need_freq_rt = need_freq;
         need_duty_rt = need_duty;
+        if (measurement_timeout_ticks() > ~{{ settings.class_prefix }}time_domain::now_ticks()) begin
+            $fatal(1, "measure_interface: measurement deadline exceeds tick range");
+            return;
+        end
         measure_id++;
         meas_en = 1'b1;
     endfunction
@@ -278,19 +323,20 @@ interface {{ settings.class_prefix }}measure_interface #(
 
     // 监视上升沿并采样周期
     task automatic watch_posedge();
-        realtime now_t;
-        realtime prev_pos_t;
+        time now_tick;
+        time prev_pos_tick;
+        bit had_posedge;
 
         forever begin
             @(posedge in);
             if (!meas_en)
                 continue;
 
-            now_t = $realtime;
-            last_edge_t = now_t;
-
-            prev_pos_t = last_posedge_t;
-            last_posedge_t = now_t;
+            now_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+            had_posedge = have_posedge;
+            prev_pos_tick = last_posedge_tick;
+            last_posedge_tick = now_tick;
+            have_posedge = 1'b1;
 
             if (!activity_ok) begin
                 activity_edge_cnt++;
@@ -301,12 +347,12 @@ interface {{ settings.class_prefix }}measure_interface #(
                     duty_stable_cnt = 0;
                     freq_stable = 1'b0;
                     duty_stable = 1'b0;
-                    last_period_t = 0.0;
+                    last_period_ticks = 0.0;
                 end
             end
 
-            if (activity_ok && prev_pos_t > 0.0)
-                sample_period(now_t, prev_pos_t);
+            if (activity_ok && had_posedge)
+                sample_period(now_tick, prev_pos_tick);
         end
     endtask
 
@@ -317,8 +363,8 @@ interface {{ settings.class_prefix }}measure_interface #(
             if (!meas_en)
                 continue;
 
-            last_edge_t = $realtime;
-            high_end_t = last_edge_t;
+            high_end_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+            have_high_edge = 1'b1;
         end
     endtask
 
@@ -354,10 +400,9 @@ interface {{ settings.class_prefix }}measure_interface #(
                         || activity_ok || inactive);
                 end
                 begin
-                    #(active_timeout_rt * 1ns);
-                    // 每个待采周期保留一个精度步，并跨入截止时间后的时间槽。
-                    repeat (ACTIVE_CYCLES + 1)
-                        #1step;
+                    {{ settings.class_prefix }}time_domain::wait_until(
+                        {{ settings.class_prefix }}time_domain::now_ticks() + active_timeout_ticks);
+                    #1step;
                 end
             join_any
             disable wait_activity_or_timeout;
@@ -376,10 +421,9 @@ interface {{ settings.class_prefix }}measure_interface #(
                         || requested_measure_stable);
                 end
                 begin
-                    #(stable_timeout_rt * 1ns);
-                    // 覆盖基准周期、稳定周期的量化误差及截止时间槽竞争。
-                    repeat ((STABLE_CYCLES + 1) * frequency_window_cycles + 1)
-                        #1step;
+                    {{ settings.class_prefix }}time_domain::wait_until(
+                        {{ settings.class_prefix }}time_domain::now_ticks() + stable_timeout_ticks);
+                    #1step;
                 end
             join_any
             disable wait_stable_or_timeout;
