@@ -7,17 +7,20 @@ class {{ class_prefix }}pending;
 
     // Create an empty keyed store.
     function new();
+        count = 0;
     endfunction
 
     // Append one owned comparison unit.
     extern function void push(string key, uvm_tlm_generic_payload payload);
     // Remove a FIFO candidate, or an equal candidate in multiset mode.
-    // probe_is_golden — Selects the expected operand for asymmetric byte enables.
+    // probe_is_golden — Selects which operand represents the golden data.
     extern function bit take(input string key, input uvm_tlm_generic_payload probe,
         input bit probe_is_golden, input {{ class_prefix }}adapter adapter,
         input bit exact, output uvm_tlm_generic_payload result);
     // Return the number of retained comparison units.
     extern function int size();
+    // Return the number of units at one identity without copying the bucket.
+    extern function int key_size(string key);
     // Read one bucket without changing its order.
     extern function void get(input string key, output uvm_tlm_generic_payload payloads[$]);
     // Release every retained GP.
@@ -54,6 +57,12 @@ endfunction
 
 function int {{ class_prefix }}pending::size();
     return count;
+endfunction
+
+function int {{ class_prefix }}pending::key_size(string key);
+    if(entries.exists(key))
+        return entries[key].size();
+    return 0;
 endfunction
 
 function void {{ class_prefix }}pending::get(input string key, output uvm_tlm_generic_payload payloads[$]);

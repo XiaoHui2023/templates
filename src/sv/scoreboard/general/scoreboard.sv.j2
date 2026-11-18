@@ -18,6 +18,24 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     protected bit golden_keys[string];
     protected bit started;
     protected bit checked;
+    protected bit pending_checked;
+    protected bit failed;
+    protected bit golden_closed;
+    protected bit monitor_closed;
+    protected bit expected_set;
+    protected longint round_id;
+    protected longint expected_units;
+    protected longint golden_packets;
+    protected longint monitor_packets;
+    protected longint golden_units;
+    protected longint monitor_units;
+    protected longint golden_valid_bytes;
+    protected longint monitor_valid_bytes;
+    protected longint input_errors;
+    protected longint protocol_errors;
+    protected longint timeout_count;
+    protected longint check_errors;
+    typedef enum {COMPLETE, FAILED, TIMED_OUT, RESET} completion_e;
     longint matched_count;
     longint mismatched_count;
     longint dropped_count;
@@ -33,6 +51,8 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
         adapter = new(cfg);
         golden_pending = new;
         monitor_pending = new;
+        round_id = 0;
+        clear();
     endfunction
 
     // Read the optional config_db object named config.
@@ -47,6 +67,29 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     extern function void configure({{ class_prefix }}config options);
     // Release pending data and reopen configuration.
     extern function void clear();
+    // Replace the declared number of comparison units before golden closes.
+    extern function void set_expected_units(longint count);
+    // Extend the declared number of comparison units before golden closes.
+    extern function void add_expected_units(longint count);
+    // Declare that all golden input for this round has been submitted.
+    extern function void end_golden();
+    // Declare that the monitor will submit no further input for this round.
+    extern function void end_monitor();
+    // Close both inputs after their producers have stopped.
+    extern function void end_round();
+    // Return true only for a closed round that satisfies every completion policy.
+    extern function bit is_complete();
+    // Check boundary, nonempty policies, quantity, failures and pending units.
+    extern function bit check_round();
+    // Wait for this round to close, fail, time out, or be cleared.
+    // timeout_ns — Numeric nanoseconds for the whole call; zero disables the timer.
+    extern task wait_complete(output completion_e result, input real timeout_ns = 0.0);
+    // Return an independent snapshot with packet, valid-byte and unit counts.
+    extern function void get_statistics(output {{ class_prefix }}statistics result);
+    // Record a round API violation without accepting new input.
+    extern protected function void protocol_error(string message);
+    // Count extra monitor units that are relevant under the selected policy.
+    extern protected function int unexpected_monitor_count();
     // Receive a standard golden GP and preserve its independent contents.
     extern function void write_{{ class_prefix }}golden(uvm_tlm_generic_payload payload);
     // Receive a standard monitor GP and apply the configured filtering policy.
@@ -83,7 +126,7 @@ endfunction
 
 function void {{ class_prefix }}scoreboard::check_phase(uvm_phase phase);
     super.check_phase(phase);
-    check_pending();
+    void'(check_round());
 endfunction
 
 task {{ class_prefix }}scoreboard::reset_phase(uvm_phase phase);
@@ -111,8 +154,25 @@ function void {{ class_prefix }}scoreboard::clear();
     golden_pending.clear();
     monitor_pending.clear();
     golden_keys.delete();
+    round_id++;
     started = 0;
     checked = 0;
+    pending_checked = 0;
+    failed = 0;
+    golden_closed = 0;
+    monitor_closed = 0;
+    expected_set = 0;
+    expected_units = 0;
+    golden_packets = 0;
+    monitor_packets = 0;
+    golden_units = 0;
+    monitor_units = 0;
+    golden_valid_bytes = 0;
+    monitor_valid_bytes = 0;
+    input_errors = 0;
+    protocol_errors = 0;
+    timeout_count = 0;
+    check_errors = 0;
     matched_count = 0;
     mismatched_count = 0;
     dropped_count = 0;
@@ -139,12 +199,41 @@ endfunction
 function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload payload, bit golden);
     uvm_tlm_generic_payload units[$];
     string reason;
+    byte unsigned enables[];
+    int enable_length;
+    longint valid_bytes;
 
+    if((golden && golden_closed) || (!golden && monitor_closed)) begin
+        protocol_error(golden ? "golden input after end_golden" : "monitor input after end_monitor");
+        return;
+    end
+    valid_bytes = 0;
     started = 1;
     checked = 0;
+    pending_checked = 0;
     if(!adapter.convert(payload, units, reason)) begin
+        failed = 1;
+        input_errors++;
         `uvm_error("GP_INPUT", reason)
         return;
+    end
+    if(payload.get_command() != UVM_TLM_IGNORE_COMMAND) begin
+        payload.get_byte_enable(enables);
+        enable_length = int'(payload.get_byte_enable_length());
+        for(int j = 0; j < int'(payload.get_data_length()); j++) begin
+            if(enable_length == 0 || enables[j % enable_length] != 0)
+                valid_bytes++;
+        end
+    end
+    if(golden) begin
+        golden_packets++;
+        golden_units += units.size();
+        golden_valid_bytes += valid_bytes;
+    end
+    else begin
+        monitor_packets++;
+        monitor_units += units.size();
+        monitor_valid_bytes += valid_bytes;
     end
     foreach(units[j]) begin
         string key;
@@ -154,6 +243,8 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
         key = adapter.key(units[j]);
         if(golden && !golden_keys.exists(key)) begin
             if(golden_keys.num() >= cfg.max_keys) begin
+                failed = 1;
+                protocol_errors++;
                 `uvm_fatal("GP_CAPACITY", "golden key limit exceeded")
                 return;
             end
@@ -171,6 +262,7 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
             if(equal)
                 matched_count++;
             else begin
+                failed = 1;
                 mismatched_count++;
                 `uvm_error("GP_MISMATCH", "payload comparison failed")
                 print_payload(golden ? units[j] : counterpart, "GP_GOLDEN", UVM_LOW);
@@ -179,6 +271,8 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
         end
         else if(golden) begin
             if(golden_pending.size() >= cfg.max_pending) begin
+                failed = 1;
+                protocol_errors++;
                 `uvm_fatal("GP_CAPACITY", "golden pending limit exceeded")
                 return;
             end
@@ -186,6 +280,8 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
         end
         else begin
             if(monitor_pending.size() >= cfg.max_pending) begin
+                failed = 1;
+                protocol_errors++;
                 `uvm_fatal("GP_CAPACITY", "monitor pending limit exceeded")
                 return;
             end
@@ -195,25 +291,18 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
 endfunction
 
 function void {{ class_prefix }}scoreboard::check_pending();
-    if(checked)
+    if(pending_checked)
         return;
-    checked = 1;
-    if(golden_pending.size() != 0)
+    pending_checked = 1;
+    if(golden_pending.size() != 0) begin
+        failed = 1;
+        check_errors++;
         `uvm_error("GP_MISSING", "golden payloads remain unmatched")
-    if(cfg.monitor_policy == {{ class_prefix }}config::STRICT) begin
-        if(monitor_pending.size() != 0)
-            `uvm_error("GP_UNEXPECTED", "monitor payloads remain unmatched")
     end
-    else begin
-        foreach(golden_keys[key]) begin
-            uvm_tlm_generic_payload payloads[$];
-
-            monitor_pending.get(key, payloads);
-            if(payloads.size() != 0) begin
-                `uvm_error("GP_UNEXPECTED", "monitor payloads remain at an expected key")
-                break;
-            end
-        end
+    if(unexpected_monitor_count() != 0) begin
+        failed = 1;
+        check_errors++;
+        `uvm_error("GP_UNEXPECTED", "relevant monitor payloads remain unmatched")
     end
 endfunction
 
@@ -226,6 +315,189 @@ function void {{ class_prefix }}scoreboard::print_payload(uvm_tlm_generic_payloa
     string id = "GP", int verbosity = UVM_HIGH);
     if(payload != null)
         `uvm_info(id, payload.sprint(uvm_default_line_printer), verbosity)
+endfunction
+
+function void {{ class_prefix }}scoreboard::protocol_error(string message);
+    failed = 1;
+    protocol_errors++;
+    checked = 0;
+    `uvm_error("GP_ROUND", message)
+endfunction
+
+function void {{ class_prefix }}scoreboard::set_expected_units(longint count);
+    if(golden_closed || count < 0) begin
+        protocol_error("expected units must be nonnegative and set before end_golden");
+        return;
+    end
+    expected_units = count;
+    expected_set = 1;
+    checked = 0;
+endfunction
+
+function void {{ class_prefix }}scoreboard::add_expected_units(longint count);
+    if(golden_closed || count < 0 || count > 64'sh7fffffffffffffff - expected_units) begin
+        protocol_error("expected unit increment is negative, overflows, or follows end_golden");
+        return;
+    end
+    expected_units += count;
+    expected_set = 1;
+    checked = 0;
+endfunction
+
+function void {{ class_prefix }}scoreboard::end_golden();
+    if(golden_closed)
+        return;
+    started = 1;
+    golden_closed = 1;
+    if(!expected_set) begin
+        expected_units = golden_units;
+        expected_set = 1;
+    end
+    checked = 0;
+endfunction
+
+function void {{ class_prefix }}scoreboard::end_monitor();
+    if(monitor_closed)
+        return;
+    started = 1;
+    monitor_closed = 1;
+    checked = 0;
+endfunction
+
+function void {{ class_prefix }}scoreboard::end_round();
+    end_golden();
+    end_monitor();
+endfunction
+
+function int {{ class_prefix }}scoreboard::unexpected_monitor_count();
+    int count;
+
+    count = 0;
+    if(cfg.monitor_policy == {{ class_prefix }}config::STRICT)
+        return monitor_pending.size();
+    foreach(golden_keys[key])
+        count += monitor_pending.key_size(key);
+    return count;
+endfunction
+
+function bit {{ class_prefix }}scoreboard::is_complete();
+    return golden_closed && monitor_closed && !failed
+        && (!cfg.require_golden || golden_packets > 0)
+        && (!cfg.require_match || matched_count > 0)
+        && (!expected_set || (golden_units == expected_units
+            && matched_count + mismatched_count == expected_units))
+        && golden_pending.size() == 0 && unexpected_monitor_count() == 0;
+endfunction
+
+function bit {{ class_prefix }}scoreboard::check_round();
+    if(checked)
+        return is_complete();
+    check_pending();
+    if(!golden_closed || !monitor_closed) begin
+        failed = 1;
+        check_errors++;
+        `uvm_error("GP_ROUND_OPEN", "both inputs must explicitly close the round")
+    end
+    if(cfg.require_golden && golden_packets == 0) begin
+        failed = 1;
+        check_errors++;
+        `uvm_error("GP_EMPTY_GOLDEN", "no valid golden packet was received")
+    end
+    if(cfg.require_match && matched_count == 0) begin
+        failed = 1;
+        check_errors++;
+        `uvm_error("GP_NO_MATCH", "no comparison unit matched successfully")
+    end
+    if(expected_set && (golden_units != expected_units
+        || matched_count + mismatched_count != expected_units)) begin
+        failed = 1;
+        check_errors++;
+        `uvm_error("GP_COUNT", "submitted or compared unit count differs from expected units")
+    end
+    checked = 1;
+    return is_complete();
+endfunction
+
+task {{ class_prefix }}scoreboard::wait_complete(output completion_e result, input real timeout_ns = 0.0);
+    longint waiting_round;
+    time timeout_ticks;
+    time now_tick;
+
+    waiting_round = round_id;
+    if(!(timeout_ns >= 0.0) || !(timeout_ns * 1.0e6 < 18446744073709551616.0)) begin
+        protocol_error("timeout_ns must be finite, nonnegative and representable in femtoseconds");
+        result = FAILED;
+        return;
+    end
+    if(timeout_ns > 0.0) begin
+        timeout_ticks = {{ class_prefix }}time_domain::ticks_from_ns(timeout_ns);
+        now_tick = {{ class_prefix }}time_domain::now_ticks();
+        if(timeout_ticks > ~now_tick) begin
+            protocol_error("timeout deadline exceeds the time domain range");
+            result = FAILED;
+            return;
+        end
+    end
+    if(!failed && !(golden_closed && monitor_closed)) begin
+        if(timeout_ns == 0.0)
+            wait(failed || (golden_closed && monitor_closed) || round_id != waiting_round);
+        else begin
+            fork
+                begin
+                    fork
+                        begin
+                            wait(failed || (golden_closed && monitor_closed) || round_id != waiting_round);
+                        end
+                        begin
+                            {{ class_prefix }}time_domain::delay_ns(timeout_ns);
+                        end
+                    join_any
+                    disable fork;
+                end
+            join
+        end
+    end
+    if(round_id != waiting_round)
+        result = RESET;
+    else if(golden_closed && monitor_closed)
+        result = check_round() ? COMPLETE : FAILED;
+    else if(failed)
+        result = FAILED;
+    else begin
+        failed = 1;
+        timeout_count++;
+        checked = 0;
+        result = TIMED_OUT;
+        `uvm_error("GP_TIMEOUT", "round did not close within timeout_ns")
+    end
+endtask
+
+function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefix }}statistics result);
+    result = new;
+    result.round_id = round_id;
+    result.golden_packets = golden_packets;
+    result.monitor_packets = monitor_packets;
+    result.golden_units = golden_units;
+    result.monitor_units = monitor_units;
+    result.golden_valid_bytes = golden_valid_bytes;
+    result.monitor_valid_bytes = monitor_valid_bytes;
+    result.compared_units = matched_count + mismatched_count;
+    result.matched_count = matched_count;
+    result.mismatched_count = mismatched_count;
+    result.dropped_count = dropped_count;
+    result.input_errors = input_errors;
+    result.protocol_errors = protocol_errors;
+    result.timeout_count = timeout_count;
+    result.check_errors = check_errors;
+    result.expected_units = expected_units;
+    result.expected_set = expected_set;
+    result.golden_closed = golden_closed;
+    result.monitor_closed = monitor_closed;
+    result.failed = failed;
+    result.complete = is_complete();
+    result.pending_golden = golden_pending.size();
+    result.pending_monitor = monitor_pending.size();
+    result.unexpected_monitor = unexpected_monitor_count();
 endfunction
 
 `endif

@@ -8,6 +8,8 @@ class Models(BaseModel):
 
     class_prefix: str = Field("general_", pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", description="类型名前缀，建议以下划线结尾。")
     mode: Literal["address", "ordered", "set"] = Field("address", description="按地址、按顺序或按多重集合匹配。")
+    require_golden: bool = Field(True, description="要求本轮至少收到一包合法 golden 输入。")
+    require_match: bool = Field(True, description="要求本轮至少成功匹配一个比较单元。")
     atomize: bool = Field(True, description="按有效字节比较。")
     match_address: bool = Field(True, description="将地址作为匹配条件。")
     match_command: bool = Field(False, description="将读写命令作为匹配条件。")

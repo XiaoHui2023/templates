@@ -7,6 +7,8 @@ class {{ class_prefix }}config extends uvm_object;
 
     mode_e mode = {{ mode | upper }};
     monitor_policy_e monitor_policy = {{ monitor_policy | upper }};
+    bit require_golden = {{ require_golden | int }};
+    bit require_match = {{ require_match | int }};
     bit atomize = {{ atomize | int }};
     bit match_address = {{ match_address | int }};
     bit match_command = {{ match_command | int }};
@@ -21,6 +23,8 @@ class {{ class_prefix }}config extends uvm_object;
     `uvm_object_utils_begin({{ class_prefix }}config)
         `uvm_field_enum(mode_e, mode, UVM_DEFAULT)
         `uvm_field_enum(monitor_policy_e, monitor_policy, UVM_DEFAULT)
+        `uvm_field_int(require_golden, UVM_DEFAULT)
+        `uvm_field_int(require_match, UVM_DEFAULT)
         `uvm_field_int(atomize, UVM_DEFAULT)
         `uvm_field_int(match_address, UVM_DEFAULT)
         `uvm_field_int(match_command, UVM_DEFAULT)

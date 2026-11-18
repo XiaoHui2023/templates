@@ -1,0 +1,35 @@
+`ifndef {{ (class_prefix ~ "statistics") | upper }}
+`define {{ (class_prefix ~ "statistics") | upper }}
+
+class {{ class_prefix }}statistics;
+    longint round_id = 0;
+    longint golden_packets = 0;
+    longint monitor_packets = 0;
+    longint golden_units = 0;
+    longint monitor_units = 0;
+    longint golden_valid_bytes = 0;
+    longint monitor_valid_bytes = 0;
+    longint compared_units = 0;
+    longint matched_count = 0;
+    longint mismatched_count = 0;
+    longint dropped_count = 0;
+    longint input_errors = 0;
+    longint protocol_errors = 0;
+    longint timeout_count = 0;
+    longint check_errors = 0;
+    longint expected_units = 0;
+    bit expected_set = 0;
+    bit golden_closed = 0;
+    bit monitor_closed = 0;
+    bit failed = 0;
+    bit complete = 0;
+    int pending_golden = 0;
+    int pending_monitor = 0;
+    int unexpected_monitor = 0;
+
+    // Create an independent value snapshot for one round.
+    function new();
+    endfunction
+endclass
+
+`endif

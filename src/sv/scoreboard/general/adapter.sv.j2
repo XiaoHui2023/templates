@@ -119,6 +119,7 @@ function string {{ class_prefix }}adapter::key(uvm_tlm_generic_payload payload);
     bit [63:0] address;
     int command;
 
+    command = 0;
     if(cfg.mode == {{ class_prefix }}config::ORDERED)
         return "ordered";
     if(cfg.match_address)
