@@ -1,0 +1,25 @@
+class_name: configured_gp_adapter
+item_type: gp_config_types::transaction_t
+constants:
+  - {name: MASK_BYTES, type: int, value: 4}
+allowed_commands: [read, write]
+address_bits: 16
+require_streaming_width: false
+address: {member: address}
+command: {member: command}
+response_status: {constant: UVM_TLM_OK_RESPONSE, member: status}
+data:
+  member: words
+  kind: queue
+  element_bits: 16
+  byte_order: big
+  decode_count: item.count
+data_length: {member: count, unit: elements}
+streaming_width: {member: beat_elements, unit: elements}
+byte_enable:
+  member: strobes
+  kind: packed
+  element_bits: 4
+  encoding: bit_enable
+byte_enable_length: {constant: MASK_BYTES}
+byte_enable_policy: full_length

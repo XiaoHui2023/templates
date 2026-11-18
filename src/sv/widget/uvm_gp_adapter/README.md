@@ -11,8 +11,7 @@ data:
   element_bits: 16
   byte_order: big
 address:
-  encode: item.addr
-  decode: item.addr = gp.get_address();
+  member: addr
 command:
   encode: "item.is_write ? UVM_TLM_WRITE_COMMAND : UVM_TLM_READ_COMMAND"
   decode: item.is_write = gp.is_write();
@@ -31,8 +30,14 @@ command:
 | `address` | `ScalarMapping` | | 地址映射，省略时编码为零。 |
 | `command` | `ScalarMapping` | | 命令映射，省略时编码为写命令。 |
 | `response_status` | `ScalarMapping` | | 响应映射，省略时编码为未完成。 |
-| `streaming_width` | `ScalarMapping` | | 每拍字节数映射，省略时使用有效数据长度。 |
-| `data_length` | `optional ScalarMapping` | | 有效字节数映射，省略时使用编码缓冲区长度。 |
+| `streaming_width` | `LengthMapping` | | 每拍字节数映射，省略时使用有效数据长度。 |
+| `data_length` | `optional LengthMapping` | | 有效数据长度，省略时使用编码缓冲区长度。 |
+| `byte_enable_length` | `optional LengthMapping` | | 字节使能有效长度，省略时使用编码掩码长度。 |
+| `constants` | `list[ConstantField]` | `[]` | 长度、地址和字段表达式使用的常量。 |
+| `allowed_commands` | `list[str]` | `[read, write, ignore]` | 允许的命令，可选择 `read`、`write`、`ignore`。 |
+| `address_bits` | `int` | `64` | 地址有效位数，编码与解码均拒绝越界地址。 |
+| `byte_enable_policy` | `str` | `preserve` | 字节使能策略。 |
+| `require_streaming_width` | `bool` | `true` | 读写命令要求非零每拍字节数，设为假可接受表示连续地址的零值。 |
 | `max_bytes` | `int` | `1048576` | 每段编码缓冲区及 GP 有效字节数的上限。 |
 | `encode_hook` | `str` | `return 1;` | 编码后的自定义函数体。 |
 | `decode_hook` | `str` | `return 1;` | 解码后的自定义函数体。 |
@@ -41,10 +46,30 @@ command:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `encode` | `str` | | SV 表达式，读取 `item`，也可读取当前 `gp`。 |
+| `encode` | `optional str` | | SV 表达式，读取 `item`，也可读取当前 `gp`。 |
 | `decode` | `str` | `""` | SV 语句，读取 `gp` 并写入 `item`。 |
+| `member` | `optional str` | | 双向成员路径，省去普通赋值语句。 |
+| `constant` | `optional int or str` | | 编码常量值或SV表达式。 |
 
-表达式按目标 GP 字段的位宽和枚举类型转换。窄字段、符号扩展、地址单位换算和命令编码由表达式明确指定。省略 `decode` 表示不恢复该字段。
+`constant`、`encode`、`member` 按顺序选择编码来源，前两者互斥。`member` 自动恢复 GP 字段，也可与 `constant` 组合；`decode` 与 `member` 二选一。两者均省略表示不恢复该字段。命令成员使用 `uvm_tlm_command_e`，响应成员使用 `uvm_tlm_response_status_e`；其他枚举编码可通过表达式明确转换。
+
+### LengthMapping
+
+包含 ScalarMapping 的来源与目标字段，并增加长度单位。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `unit` | `str` | `bytes` | `bytes` 表示字节，`elements` 表示对应缓冲区元素个数；每拍长度以数据元素为单位。 |
+
+元素个数按每元素的完整编码字节数换算。负长度、超出可表示范围或无法整除的解码元素数均被拒绝。
+
+### ConstantField
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `name` | `str` | | 表达式中引用的常量名。 |
+| `type` | `str` | `int` | SV类型，可指定打包位宽。 |
+| `value` | `int or str` | | 数值或SV表达式。 |
 
 ### BufferMapping
 
@@ -55,6 +80,9 @@ command:
 | `element_bits` | `int` | `8` | 每元素位数，包含实际存储的全部比特。 |
 | `byte_order` | `str` | `little` | 元素内低字节优先或高字节优先，分别为 `little`、`big`。 |
 | `count` | `optional str` | | 编码元素数表达式，省略时取成员容量，packed 取一个元素。 |
+| `decode_count` | `optional str` | | 解码元素数表达式，省略时使用有效缓冲区长度，可读取 `bytes` 与已恢复的 `item` 字段。 |
+| `encoding` | `str` | `raw` | 字节编码，`bit_enable` 将每个比特扩为一个 `00` 或 `ff` 字节，仅用于字节使能。 |
+| `fields` | `list[PackedField]` | `[]` | packed 数据的比特布局。 |
 | `pack_body` | `optional str` | | 自定义编码函数体，与 `unpack_body` 成对填写。 |
 | `unpack_body` | `optional str` | | 自定义解码函数体，与 `pack_body` 成对填写。 |
 
@@ -63,6 +91,53 @@ command:
 `data_length` 选择编码后的有效字节前缀，解码只恢复该前缀。它的单位是字节，`count` 的单位是元素。
 
 字节使能映射保留 `00` 和 `ff` 字节，支持周期性重复的短掩码，不会删除禁用的数据字节。
+
+### PackedField
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `member` | `optional str` | | `item` 成员路径，解码时恢复到该成员。 |
+| `constant` | `optional int or str` | | 编码常量或表达式，解码时检查相等。 |
+| `lsb` | `int` | | 字段最低比特的位置。 |
+| `width` | `int` | | 字段位数。 |
+
+`fields` 与自定义函数体、元素个数表达式互斥，字段之间不能重叠。编码选择常量或成员值，未使用的比特补零，解码拒绝这些位置的非零数据。目标成员无法保存字段值时拒绝转换。`byte_order` 控制完整 packed 数据的字节顺序。普通容器映射与字段布局都采用从零开始的比特位置。
+
+```yaml
+constants:
+  - {name: MAGIC, type: "bit [7:0]", value: 165}
+data:
+  kind: packed
+  byte_order: big
+  fields:
+    - {lsb: 0, width: 13, member: address}
+    - {lsb: 13, width: 3, member: opcode}
+    - {lsb: 16, width: 8, constant: MAGIC}
+```
+
+### 字节使能策略
+
+| 取值 | 含义 |
+| --- | --- |
+| `preserve` | 使用配置的掩码，支持周期性短掩码；无映射时编码为空掩码。 |
+| `disabled` | 禁用掩码，拒绝带有效掩码的GP。 |
+| `all_enabled` | 全部数据字节有效，拒绝包含禁用字节的GP。 |
+| `required` | 非空数据要求有效掩码，可使用周期性短掩码。 |
+| `full_length` | 掩码有效长度与数据有效长度相同。 |
+
+`disabled`、`all_enabled` 不配置掩码映射；`required`、`full_length` 配置 `byte_enable`。`bit_enable` 按每元素的低位到高位扩展，`byte_order: big` 则反向排列。
+
+```yaml
+address_bits: 16
+allowed_commands: [read, write]
+address: {member: address}
+command: {member: command}
+data: {member: words, kind: queue, element_bits: 16, byte_order: big}
+data_length: {member: count, unit: elements}
+streaming_width: {member: beat_elements, unit: elements}
+byte_enable_policy: full_length
+byte_enable: {member: strobes, kind: packed, element_bits: 4, encoding: bit_enable}
+```
 
 ### 自定义转换
 

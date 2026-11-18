@@ -1,0 +1,14 @@
+class_name: fields_gp_adapter
+item_type: gp_config_types::header_t
+constants:
+  - {name: MAGIC, type: "bit [7:0]", value: 165}
+command: {constant: UVM_TLM_IGNORE_COMMAND}
+allowed_commands: [ignore]
+byte_enable_policy: disabled
+data:
+  kind: packed
+  byte_order: big
+  fields:
+    - {lsb: 0, width: 13, member: address}
+    - {lsb: 13, width: 3, member: opcode}
+    - {lsb: 16, width: 8, constant: MAGIC}

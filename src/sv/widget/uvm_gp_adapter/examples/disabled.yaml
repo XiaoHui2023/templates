@@ -1,0 +1,5 @@
+class_name: disabled_gp_adapter
+item_type: gp_config_types::transaction_t
+byte_enable_policy: disabled
+command: {member: command}
+data: {member: words, kind: queue, element_bits: 16}

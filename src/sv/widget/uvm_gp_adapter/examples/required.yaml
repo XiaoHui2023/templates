@@ -1,0 +1,7 @@
+class_name: required_gp_adapter
+item_type: gp_config_types::transaction_t
+data: {member: words, kind: queue, element_bits: 16, count: "item.count"}
+data_length: {member: raw_length}
+byte_enable_policy: required
+byte_enable: {member: mask, kind: queue}
+byte_enable_length: {member: mask_length}

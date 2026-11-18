@@ -1,0 +1,4 @@
+class_name: all_enabled_gp_adapter
+item_type: gp_config_types::transaction_t
+byte_enable_policy: all_enabled
+data: {member: words, kind: queue, element_bits: 16}
