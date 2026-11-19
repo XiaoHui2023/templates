@@ -1,0 +1,14 @@
+`ifndef {{ (class_prefix ~ "entry") | upper }}
+`define {{ (class_prefix ~ "entry") | upper }}
+
+class {{ class_prefix }}entry;
+    uvm_tlm_generic_payload payload;
+    bit covered = 0;
+
+    // Retain one independent GP comparison unit with its first-coverage state.
+    function new(uvm_tlm_generic_payload value);
+        payload = value;
+    endfunction
+endclass
+
+`endif

@@ -1,5 +1,6 @@
 class_prefix: general_
 mode: address
+reuse_read_expectations: false
 require_golden: true
 require_match: true
 atomize: true

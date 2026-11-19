@@ -2,60 +2,81 @@
 `define {{ (class_prefix ~ "pending") | upper }}
 
 class {{ class_prefix }}pending;
-    protected uvm_tlm_generic_payload entries[string][$];
+    protected {{ class_prefix }}entry entries[string][$];
     protected int count;
+    protected int uncovered;
 
     // Create an empty keyed store.
     function new();
         count = 0;
+        uncovered = 0;
     endfunction
 
-    // Append one owned comparison unit.
+    // Append one owned comparison unit with no successful coverage yet.
     extern function void push(string key, uvm_tlm_generic_payload payload);
-    // Remove a FIFO candidate, or an equal candidate in multiset mode.
-    // probe_is_golden — Selects which operand represents the golden data.
-    extern function bit take(input string key, input uvm_tlm_generic_payload probe,
-        input bit probe_is_golden, input {{ class_prefix }}adapter adapter,
-        input bit exact, output uvm_tlm_generic_payload result);
-    // Return the number of retained comparison units.
+    // Return a retained entry, or null for an absent position.
+    extern function {{ class_prefix }}entry at(string key, int index);
+    // Remove one retained entry and its uncovered obligation if present.
+    extern function void remove(string key, int index);
+    // Mark successful first coverage and return whether it is newly covered.
+    extern function bit mark_covered(string key, int index);
+    // Return the number of retained units still needing successful coverage.
     extern function int size();
-    // Return the number of units at one identity without copying the bucket.
+    // Return the actual number of retained units, including covered read models.
+    extern function int retained_size();
+    // Return the retained unit count for one identity.
     extern function int key_size(string key);
-    // Read one bucket without changing its order.
-    extern function void get(input string key, output uvm_tlm_generic_payload payloads[$]);
-    // Release every retained GP.
+    // Release every retained GP and its coverage state.
     extern function void clear();
 endclass
 
 function void {{ class_prefix }}pending::push(string key, uvm_tlm_generic_payload payload);
-    entries[key].push_back(payload);
+    {{ class_prefix }}entry value;
+
+    value = new(payload);
+    entries[key].push_back(value);
     count++;
+    uncovered++;
 endfunction
 
-function bit {{ class_prefix }}pending::take(input string key, input uvm_tlm_generic_payload probe,
-    input bit probe_is_golden, input {{ class_prefix }}adapter adapter,
-    input bit exact, output uvm_tlm_generic_payload result);
-    result = null;
-    if(!entries.exists(key))
+function {{ class_prefix }}entry {{ class_prefix }}pending::at(string key, int index);
+    if(!entries.exists(key) || index < 0)
+        return null;
+    if(index >= entries[key].size())
+        return null;
+    return entries[key][index];
+endfunction
+
+function void {{ class_prefix }}pending::remove(string key, int index);
+    {{ class_prefix }}entry value;
+
+    value = at(key, index);
+    if(value == null)
+        return;
+    if(!value.covered)
+        uncovered--;
+    entries[key].delete(index);
+    count--;
+    if(entries[key].size() == 0)
+        entries.delete(key);
+endfunction
+
+function bit {{ class_prefix }}pending::mark_covered(string key, int index);
+    {{ class_prefix }}entry value;
+
+    value = at(key, index);
+    if(value == null || value.covered)
         return 0;
-    foreach(entries[key][j]) begin
-        if(exact) begin
-            if(probe_is_golden && !adapter.equal(probe, entries[key][j]))
-                continue;
-            if(!probe_is_golden && !adapter.equal(entries[key][j], probe))
-                continue;
-        end
-        result = entries[key][j];
-        entries[key].delete(j);
-        count--;
-        if(entries[key].size() == 0)
-            entries.delete(key);
-        return 1;
-    end
-    return 0;
+    value.covered = 1;
+    uncovered--;
+    return 1;
 endfunction
 
 function int {{ class_prefix }}pending::size();
+    return uncovered;
+endfunction
+
+function int {{ class_prefix }}pending::retained_size();
     return count;
 endfunction
 
@@ -65,15 +86,10 @@ function int {{ class_prefix }}pending::key_size(string key);
     return 0;
 endfunction
 
-function void {{ class_prefix }}pending::get(input string key, output uvm_tlm_generic_payload payloads[$]);
-    payloads.delete();
-    if(entries.exists(key))
-        payloads = entries[key];
-endfunction
-
 function void {{ class_prefix }}pending::clear();
     entries.delete();
     count = 0;
+    uncovered = 0;
 endfunction
 
 `endif

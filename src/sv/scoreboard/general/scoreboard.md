@@ -43,6 +43,27 @@ sb.configure(options);
 
 `ORDERED` 按两条输入流的全局顺序一一比较，忽略 `match_*` 的挑选条件；`compare_*` 仍生效。此模式要求输入流已经过滤无关数据。
 
+## 读期望复用
+
+`reuse_read_expectations` 为真时，读期望保留到本轮清理；每次相关读采样都重新比较。已覆盖的读期望仍参与比较，不会把重复读去重或丢弃。写期望始终逐个消费，多出来的写采样仍按残留数据检查。
+
+```systemverilog
+general_config options;
+options = new;
+options.reuse_read_expectations = 1;
+sb.configure(options);
+```
+
+读样本在 `end_golden` 确定全部期望后逐条处理，此前按缓存容量保存。这样 monitor 先到、同址多个期望或相同内容多次声明时，都不会因提前复用第一条而失去覆盖后续期望的机会。通常应提交完整 golden 并调用 `end_golden`，再开始大量采样；提前到达的样本仍受 `max_pending` 限制。
+
+ADDRESS 和 SET 对同一身份的读候选优先选择尚未覆盖且内容相等的期望，再复用已经覆盖的相等期望；没有相等候选时仍选取相关读期望执行失配比较。多个相同的 golden 是多个独立期望，必须分别首次覆盖。
+
+ORDERED 仍保持首次覆盖及写操作的顺序，已经覆盖的读允许穿插复读；尚未覆盖的后续读不能跨越前置写。启用复用时，读写命令始终区分，即使关闭 `match_command` 或 `compare_command` 也不会用读期望满足写采样。
+
+`compared_units` 记录每次实际比较，包括复读及失配；`covered_units` 仅在某条期望第一次成功比较时增加。覆盖全部期望后仍须等本轮 monitor 明确结束；结束前的每次复读仍会核对，任一次错误都会使本轮失败。
+
+关闭此配置时读写都恢复为一对一消费。匹配、覆盖、数量检查和复位全部由模板内部处理，无须派生 scoreboard 或覆写方法。
+
 ## monitor 过滤
 
 `DROP` 只接收已经由 golden 登记的匹配条件。golden 应在对应 monitor 之前发送。登记一直保留至复位，同址多余次数不会作为噪声丢弃。
@@ -85,7 +106,7 @@ payload.set_streaming_width(0);
 
 `set_expected_units` 设置本轮总数，`add_expected_units` 追加数量。参数为非负 `longint`；负数、追加溢出以及 `end_golden` 后修改数量都报错。golden 关闭前可分批追加，达到当前声明数量不会提前完成。
 
-没有显式声明数量时，`end_golden` 会将已经提交的 golden 比较单元总数作为本轮预期数。显式声明时，最终同时核对 golden 提交单元数与实际比较单元数。
+没有显式声明数量时，`end_golden` 会将已经提交的 golden 比较单元总数作为本轮预期数。显式声明时，最终同时核对 golden 提交单元数与成功覆盖的期望单元数；比较次数可因复读大于预期数量。
 
 比较单元随模式变化：逐有效字节模式每个有效字节为一个单元，整包模式每个参与比较的 GP 为一个单元。包数、有效字节数和比较单元数分别统计，预期数量接口只使用比较单元。
 
@@ -139,10 +160,12 @@ sb.get_statistics(stats);
 | `golden_packets`、`monitor_packets` | 合法输入 GP 包数，包含 IGNORE 与完全禁用的包。 |
 | `golden_valid_bytes`、`monitor_valid_bytes` | 参与比较的有效字节数，排除禁用字节，IGNORE 为零。 |
 | `golden_units`、`monitor_units` | 转换所得比较单元数；monitor 包含随后被过滤的单元。 |
-| `compared_units` | 已配对并执行比较的单元数，等于成功数加失配数。 |
-| `matched_count`、`mismatched_count` | 成功与立即失配的比较单元数；SET 无相等候选时保留为残留。 |
+| `compared_units` | 实际比较次数，包含重复读和失配，等于成功数加失配数。 |
+| `covered_units` | 第一次成功比较的期望单元数，同一期望复读不重复增加。 |
+| `retained_golden` | 实际保存的期望单元数，包含已覆盖但仍可复用的读模型。 |
+| `matched_count`、`mismatched_count` | 成功与立即失配的比较单元数；普通 SET 无相等候选时保留为残留；复用读仍执行失配比较。 |
 | `dropped_count` | 按过滤策略丢弃的比较单元数。 |
-| `pending_golden`、`pending_monitor` | 当前未消耗的比较单元数。 |
+| `pending_golden`、`pending_monitor` | 尚未覆盖的保留期望数与待比较的 monitor 单元数。 |
 | `unexpected_monitor` | 按当前过滤策略必须检查的 monitor 残留单元数。 |
 | `expected_units`、`expected_set` | 已知预期比较单元数及有效标记。 |
 | `input_errors`、`protocol_errors` | 输入校验错误与轮次 API 或容量错误次数。 |
@@ -152,7 +175,7 @@ sb.get_statistics(stats);
 
 ## 清理与复位
 
-`clear` 同步清空待匹配数据、历史身份、全部统计、预期数量、结束标记和本轮错误状态，并允许重新配置。轮次编号递增，旧等待者返回 `RESET`，不会继续等待下一轮或污染下一轮的统计。`reset_phase` 自动调用同一接口。
+`clear` 同步清空待匹配数据、历史身份、全部统计、预期数量、结束标记、保留的读模型、首次覆盖位和本轮错误状态，并允许重新配置。轮次编号递增，旧等待者返回 `RESET`，不会继续等待下一轮或污染下一轮的统计。`reset_phase` 自动调用同一接口。
 
 清理不清除 UVM 全局已记录的错误。生产者应在清理期间停止提交；GP 不携带轮次号，清理后到达的数据会被视为新一轮输入。
 

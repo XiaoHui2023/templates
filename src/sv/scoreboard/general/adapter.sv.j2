@@ -124,7 +124,7 @@ function string {{ class_prefix }}adapter::key(uvm_tlm_generic_payload payload);
         return "ordered";
     if(cfg.match_address)
         address = payload.get_address();
-    if(cfg.match_command)
+    if(cfg.match_command || cfg.reuse_read_expectations)
         command = int'(payload.get_command());
     return $sformatf("%016h:%0d", address, command);
 endfunction
@@ -139,7 +139,7 @@ function bit {{ class_prefix }}adapter::equal(uvm_tlm_generic_payload golden, uv
 
     if(cfg.compare_address && golden.get_address() != monitor.get_address())
         return 0;
-    if(cfg.compare_command && golden.get_command() != monitor.get_command())
+    if((cfg.compare_command || cfg.reuse_read_expectations) && golden.get_command() != monitor.get_command())
         return 0;
     if(cfg.compare_response && golden.get_response_status() != monitor.get_response_status())
         return 0;

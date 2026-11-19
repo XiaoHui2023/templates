@@ -36,6 +36,7 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     protected longint timeout_count;
     protected longint check_errors;
     typedef enum {COMPLETE, FAILED, TIMED_OUT, RESET} completion_e;
+    protected longint covered_units;
     longint matched_count;
     longint mismatched_count;
     longint dropped_count;
@@ -67,9 +68,9 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     extern function void configure({{ class_prefix }}config options);
     // Release pending data and reopen configuration.
     extern function void clear();
-    // Replace the declared number of comparison units before golden closes.
+    // Replace the number of golden comparison units requiring first coverage.
     extern function void set_expected_units(longint count);
-    // Extend the declared number of comparison units before golden closes.
+    // Extend the number of golden comparison units requiring first coverage.
     extern function void add_expected_units(longint count);
     // Declare that all golden input for this round has been submitted.
     extern function void end_golden();
@@ -94,13 +95,13 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     extern function void write_{{ class_prefix }}golden(uvm_tlm_generic_payload payload);
     // Receive a standard monitor GP and apply the configured filtering policy.
     extern function void write_{{ class_prefix }}monitor(uvm_tlm_generic_payload payload);
-    // Find and remove a counterpart according to the current mode.
-    // golden — True when incoming represents an expectation.
-    extern protected function bit match(input uvm_tlm_generic_payload incoming,
-        input bit golden, output uvm_tlm_generic_payload counterpart);
+    // Select a monitor sample and a consumable or reusable golden candidate.
+    extern protected function bit match(input string key, output int golden_index, output int monitor_index);
+    // Compare every selected sample and update first coverage independently.
+    extern protected function void drain(string key);
     // Process validated comparison units without retaining caller handles.
     extern protected function void accept(uvm_tlm_generic_payload payload, bit golden);
-    // Report pending golden units and relevant extra monitor units once.
+    // Report uncovered retained expectations and relevant extra monitor units once.
     extern function void check_pending();
     // Return pending unit counts without producing a report.
     extern function void pending_counts(output int golden, output int monitor);
@@ -173,6 +174,7 @@ function void {{ class_prefix }}scoreboard::clear();
     protocol_errors = 0;
     timeout_count = 0;
     check_errors = 0;
+    covered_units = 0;
     matched_count = 0;
     mismatched_count = 0;
     dropped_count = 0;
@@ -186,14 +188,109 @@ function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}monitor(uvm_
     accept(payload, 0);
 endfunction
 
-function bit {{ class_prefix }}scoreboard::match(input uvm_tlm_generic_payload incoming,
-    input bit golden, output uvm_tlm_generic_payload counterpart);
-    string key;
+function bit {{ class_prefix }}scoreboard::match(input string key, output int golden_index, output int monitor_index);
+    golden_index = -1;
+    monitor_index = -1;
+    for(int m = 0; m < monitor_pending.key_size(key); m++) begin
+        {{ class_prefix }}entry mon;
+        int first_uncovered;
 
-    key = adapter.key(incoming);
-    if(golden)
-        return monitor_pending.take(key, incoming, 1, adapter, cfg.mode == {{ class_prefix }}config::SET, counterpart);
-    return golden_pending.take(key, incoming, 0, adapter, cfg.mode == {{ class_prefix }}config::SET, counterpart);
+        if(cfg.mode != {{ class_prefix }}config::SET && m > 0)
+            break;
+        mon = monitor_pending.at(key, m);
+        first_uncovered = -1;
+        for(int g = 0; g < golden_pending.key_size(key); g++) begin
+            {{ class_prefix }}entry gld;
+
+            gld = golden_pending.at(key, g);
+            if(!gld.covered) begin
+                first_uncovered = g;
+                break;
+            end
+        end
+        if(cfg.reuse_read_expectations && mon.payload.is_read()) begin
+            int covered_match;
+            int fallback;
+
+            if(!golden_closed)
+                continue;
+            covered_match = -1;
+            fallback = -1;
+            for(int g = 0; g < golden_pending.key_size(key); g++) begin
+                {{ class_prefix }}entry gld;
+
+                gld = golden_pending.at(key, g);
+                if(!gld.payload.is_read())
+                    continue;
+                if(cfg.mode == {{ class_prefix }}config::ORDERED && !gld.covered && g != first_uncovered)
+                    continue;
+                if(fallback < 0 || (golden_pending.at(key, fallback).covered && !gld.covered))
+                    fallback = g;
+                if(adapter.equal(gld.payload, mon.payload)) begin
+                    if(!gld.covered) begin
+                        golden_index = g;
+                        monitor_index = m;
+                        return 1;
+                    end
+                    if(covered_match < 0)
+                        covered_match = g;
+                end
+            end
+            if(covered_match >= 0)
+                golden_index = covered_match;
+            else if(fallback >= 0)
+                golden_index = fallback;
+            else if(cfg.mode == {{ class_prefix }}config::ORDERED)
+                golden_index = first_uncovered;
+            if(golden_index >= 0) begin
+                monitor_index = m;
+                return 1;
+            end
+        end
+        else begin
+            for(int g = 0; g < golden_pending.key_size(key); g++) begin
+                {{ class_prefix }}entry gld;
+
+                gld = golden_pending.at(key, g);
+                if(gld.covered)
+                    continue;
+                if(cfg.mode == {{ class_prefix }}config::SET && !adapter.equal(gld.payload, mon.payload))
+                    continue;
+                golden_index = g;
+                monitor_index = m;
+                return 1;
+            end
+        end
+    end
+    return 0;
+endfunction
+
+function void {{ class_prefix }}scoreboard::drain(string key);
+    int g;
+    int m;
+
+    while(match(key, g, m)) begin
+        {{ class_prefix }}entry gld;
+        {{ class_prefix }}entry mon;
+
+        gld = golden_pending.at(key, g);
+        mon = monitor_pending.at(key, m);
+        if(adapter.equal(gld.payload, mon.payload)) begin
+            matched_count++;
+            if(golden_pending.mark_covered(key, g))
+                covered_units++;
+        end
+        else begin
+            failed = 1;
+            mismatched_count++;
+            `uvm_error("GP_MISMATCH", "payload comparison failed")
+            print_payload(gld.payload, "GP_GOLDEN", UVM_LOW);
+            print_payload(mon.payload, "GP_MONITOR", UVM_LOW);
+        end
+        if(!cfg.reuse_read_expectations || (gld.payload.is_write() && mon.payload.is_write()))
+            golden_pending.remove(key, g);
+        monitor_pending.remove(key, m);
+    end
 endfunction
 
 function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload payload, bit golden);
@@ -237,8 +334,6 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
     end
     foreach(units[j]) begin
         string key;
-        uvm_tlm_generic_payload counterpart;
-        bit equal;
 
         key = adapter.key(units[j]);
         if(golden && !golden_keys.exists(key)) begin
@@ -254,38 +349,24 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
             dropped_count++;
             continue;
         end
-        if(match(units[j], golden, counterpart)) begin
-            if(golden)
-                equal = adapter.equal(units[j], counterpart);
-            else
-                equal = adapter.equal(counterpart, units[j]);
-            if(equal)
-                matched_count++;
-            else begin
-                failed = 1;
-                mismatched_count++;
-                `uvm_error("GP_MISMATCH", "payload comparison failed")
-                print_payload(golden ? units[j] : counterpart, "GP_GOLDEN", UVM_LOW);
-                print_payload(golden ? counterpart : units[j], "GP_MONITOR", UVM_LOW);
-            end
-        end
-        else if(golden) begin
-            if(golden_pending.size() >= cfg.max_pending) begin
-                failed = 1;
-                protocol_errors++;
-                `uvm_fatal("GP_CAPACITY", "golden pending limit exceeded")
-                return;
-            end
+        if(golden)
             golden_pending.push(key, units[j]);
-        end
-        else begin
-            if(monitor_pending.size() >= cfg.max_pending) begin
-                failed = 1;
-                protocol_errors++;
-                `uvm_fatal("GP_CAPACITY", "monitor pending limit exceeded")
-                return;
-            end
+        else
             monitor_pending.push(key, units[j]);
+        drain(key);
+        if(golden_pending.retained_size() > cfg.max_pending) begin
+            golden_pending.remove(key, golden_pending.key_size(key) - 1);
+            failed = 1;
+            protocol_errors++;
+            `uvm_fatal("GP_CAPACITY", "golden retained limit exceeded")
+            return;
+        end
+        if(monitor_pending.retained_size() > cfg.max_pending) begin
+            monitor_pending.remove(key, monitor_pending.key_size(key) - 1);
+            failed = 1;
+            protocol_errors++;
+            `uvm_fatal("GP_CAPACITY", "monitor pending limit exceeded")
+            return;
         end
     end
 endfunction
@@ -353,7 +434,10 @@ function void {{ class_prefix }}scoreboard::end_golden();
         expected_units = golden_units;
         expected_set = 1;
     end
+    foreach(golden_keys[key])
+        drain(key);
     checked = 0;
+    pending_checked = 0;
 endfunction
 
 function void {{ class_prefix }}scoreboard::end_monitor();
@@ -385,7 +469,7 @@ function bit {{ class_prefix }}scoreboard::is_complete();
         && (!cfg.require_golden || golden_packets > 0)
         && (!cfg.require_match || matched_count > 0)
         && (!expected_set || (golden_units == expected_units
-            && matched_count + mismatched_count == expected_units))
+            && covered_units == expected_units))
         && golden_pending.size() == 0 && unexpected_monitor_count() == 0;
 endfunction
 
@@ -409,10 +493,10 @@ function bit {{ class_prefix }}scoreboard::check_round();
         `uvm_error("GP_NO_MATCH", "no comparison unit matched successfully")
     end
     if(expected_set && (golden_units != expected_units
-        || matched_count + mismatched_count != expected_units)) begin
+        || covered_units != expected_units)) begin
         failed = 1;
         check_errors++;
-        `uvm_error("GP_COUNT", "submitted or compared unit count differs from expected units")
+        `uvm_error("GP_COUNT", "submitted or covered unit count differs from expected units")
     end
     checked = 1;
     return is_complete();
@@ -482,6 +566,8 @@ function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefi
     result.golden_valid_bytes = golden_valid_bytes;
     result.monitor_valid_bytes = monitor_valid_bytes;
     result.compared_units = matched_count + mismatched_count;
+    result.covered_units = covered_units;
+    result.retained_golden = golden_pending.retained_size();
     result.matched_count = matched_count;
     result.mismatched_count = mismatched_count;
     result.dropped_count = dropped_count;
