@@ -1,41 +1,58 @@
 # check_measure
 
-按树解析结果检查节点的活动、频率和占空比，tree 必须完成 build。
+测量当前时钟，不重新配置寄存器。tree 已完成build，接口已经connect。
 
-## req
+## 调用
 
-| 成员 | 类型 | 说明 |
+在已有 tree 和 clk_agt 的 task 中：
+
+```systemverilog
+clk_tree_check_measure_req req;
+clk_tree_check_measure_seq seq;
+
+req = clk_tree_check_measure_req::type_id::create("req");
+req.tree = tree;
+req.check_duty = 0;
+req.skip_nodes.push_back(tree.clk_debug);
+seq = clk_tree_check_measure_seq::type_id::create("measure");
+seq.req = req;
+seq.start(clk_agt.sqr);
+if (seq.rsp != null)
+    foreach (seq.rsp.failed_nodes[i])
+        `uvm_info("CLOCK", seq.rsp.failed_nodes[i].get_name(), UVM_LOW)
+```
+
+clk_debug 为示例节点，替换为实际需要跳过的对象。不需要自定义请求时可调用 `clk_agt.sqr.check_measure()`。
+
+## 请求
+
+| 成员 | 默认值 | 含义 |
 | --- | --- | --- |
-| `tree` | `tree_base` | 时钟树 |
-| `check_observation` | `bit` | 启用节点测量 |
-| `check_freq` | `bit` | 检查频率 |
-| `check_duty` | `bit` | 检查占空比 |
-| `min_freq_hz` | `int` | 测量最低频率，单位 Hz |
-| `skip_nodes` | `node_base` 队列 | 本次跳过的节点 |
+| `tree` | null | 时钟树 |
+| `check_observation` | 1 | 启用测量；置0时报错 |
+| `check_freq` | 1 | 比较输出频率 |
+| `check_duty` | 1 | 检查允许测量占空比的节点 |
+| `min_freq_hz` | 0 | 正数覆盖测量下限；0使用settings.min_freq_hz |
+| `skip_nodes` | 空队列 | 本次不检查的对象 |
 
-## 流程
+## 测量顺序
 
-1. 遍历 `tree.nodes`，收集 `_should_check` 为真、有 `vif`、`is_observable()` 为真且未在黑名单中的节点。
-2. 合并节点声明的最大上升沿间隔、平均窗口和检查项，启动接口测量；共享接口只启动一次。
-3. 并行检查各节点的实际活动是否符合 `_resolved_active`。
-4. 对期望且实际都有时钟的节点，按请求比较 `_resolved_freq`；`supports_duty_observation()` 为真时按请求检查占空比。
-5. 汇总失败节点，在接口全部检查完成后停止测量。
+1. 从tree.nodes选择允许检查、有vif且声明测量能力的节点，去掉skip_nodes。
+2. 按接口合并平均窗口、最大上升沿间隔和所需项目，启动测量。
+3. 各接口共同推进。对每个节点先判断是否有时钟，与_resolved_active比较。
+4. 有效性通过后，再按请求检查频率和占空比。
+5. 记录失败节点；同一接口的全部节点检查完成后才停止它。
 
-## 设计
+关闭check_freq和check_duty，仍然检查有没有时钟。期望关闭的节点只检查活动，不拿0Hz去等待稳定频率。
 
-### 活动与稳定
+## 量化时钟
 
-关闭频率和占空比检查后仍检查活动。期望无时钟的节点只检查活动；活动失败后不继续比较频率和占空比。
+DTO等输出不一定每个周期都相同。节点声明平均窗口和最大上升沿间隔，接口据此安排采样与超时；不会通过放宽最终频率误差来容忍不稳定。
 
-活动窗口覆盖量化后的最大上升沿间隔，不用频率误差代替边沿间隔。频率采用节点声明的多周期平均窗口，最终频率误差要求不变。外层等待预算取自各接口的总预算，不另行推算稳定超时；时间戳及期限使用整数 fs。
+普通测量合并前级量化特性。共享接口取各节点所需窗口和间隔的最大值，避免一个使用者提前清除另一个使用者的结果。
 
-### 共享与错误
+## 结果
 
-共享接口合并频率和占空比需求，最后一个节点完成时才停止测量。节点失败后继续检查其余节点，失败队列去重。关闭 `check_observation` 或筛选后没有节点时终止检查。
+rsp.ok表示所选节点全部通过；rsp.failed_nodes保存失败对象，每个节点只出现一次。一个节点失败后继续检查其他节点。
 
-## rsp
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| `ok` | `bit` | 全部节点通过 |
-| `failed_nodes` | `node_base` 队列 | 失败节点 |
+没有可测量节点时报错。频率未稳定、活动状态错误、频率不符和占空比不符分别报告；停止测量后用last_*读取保存结果，不能把last_valid当成稳定通过。

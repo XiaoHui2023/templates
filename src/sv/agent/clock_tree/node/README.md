@@ -1,145 +1,77 @@
-# 节点
+# 新增节点
 
-`tree.nodes` 是 `node_base` 句柄队列，包含全部节点实例。多输出节点的每个输出组各占一项。
+以固定分频节点 `custom_div` 为例。它接一个输入，不写寄存器，按 ratio 计算输出频率。
 
-## 控制
+## 定义输入属性
 
-| 成员 | 默认值 | 作用 |
-| --- | --- | --- |
-| `_should_print` | `0` | 打印解析结果、固定约束和分组等诊断字段 |
-| `_should_check` | `1` | 允许 measure、flip 和 route 检查该节点 |
-
-`_should_print` 不隐藏节点对象或普通字段，也不控制检查日志。`_should_check` 不改变连接、约束或寄存器配置；route 的任一端关闭检查时，该连线跳过。
-
-```systemverilog
-foreach (tree.nodes[i]) begin
-    tree.nodes[i]._should_print = 1;
-end
-tree.clk_cpu._should_check = 0;
-```
-
-## 配置钩子
-
-Python 插件的 `binding_assignments(registers)` 接收当前输出组的寄存器路径，检查必需字段并返回补充成员赋值。公共 Node 只负责合并、调用、缓存及添加节点名，不识别具体控制字段。`exclude` 节点不调用该钩子，输出组覆盖使用合并后的插件配置。
-
-无寄存器的固定控制由插件约束保持，不参与寄存器配置和翻转测试；仍参与频率推导、测量和连线检查。固定 mux 只保持选中输入，固定打开的 gate 只保持上游，不读写寄存器；固定关闭的 gate 无法提供临时供钟。
-
-| 钩子 | 插件提供的行为 |
-| --- | --- |
-| `post_register_bind` | 寄存器绑定完成后的初始化 |
-| `set_output_peer` | 连接同一物理器件的其它输出实例 |
-| `has_configuration` | 是否提供最终配置动作 |
-| `requires_observed_descendant` | 是否要求下游存在可测量节点 |
-| `apply_configuration` | 写入本节点寄存器，并返回 `configured` |
-| `await_configuration` | 等待锁定等完成条件 |
-| `clock_rate_hz` | 临时开启后按实际配置编码计算频率，单位 Hz |
-| `observe_configuration` | 读取规划所需的实际状态 |
-| `plan_configuration` | 声明最终动作的依赖 |
-| `plan_requirement` | 声明满足外部临时需求的依赖 |
-| `acquire_requirement`、`release_requirement` | 建立和释放临时状态 |
-| `execute_configuration` | 执行插件内部动作 token，默认 0 为最终配置 |
-| `poll_configuration` | 分次检查延迟完成条件，返回是否完成和下一次检查间隔 |
-| `configuration_owner`、`availability_key` | 区分多输出或别名共享的控制资源 |
-| `configuration_signature` | 比较共用控制资源的最终编码 |
-| `configuration_preserves_availability` | 最终状态是否允许临时使用 |
-| `apply_low_power_preference` | 设置本节点的低功耗偏好 |
-| `collect_control_regs` | 返回控制寄存器，用于识别共享字段 |
-
-`tree.configure` 的执行顺序：
-
-1. 检查 build 状态，按用户已设置的请求随机化。低功耗偏好由之前独立调用的 `tree.low_power()` 设置。
-2. 登记提供配置且满足下游要求的节点，读取实际状态。
-3. 插件声明动作与临时需求，公共上下文合并共享使用并检查整个依赖图。
-4. 确认无环后由单执行器运行；长等待拆为启动与分次完成检查，后继只在完成时放行。
-
-寄存器编码、读回比较和重复配置判断由插件实现。
-
-单独编译 `config.f` 时，clock 和 cell 仍作为下游端点参与配置筛选，不要求 interface。加载测量接口后，端点仍按实际接口连接判断。
-
-## 测量钩子
-
-| 钩子或成员 | 用途 |
-| --- | --- |
-| `is_observable` | 是否提供可测量端点 |
-| `supports_duty_observation` | 是否检查占空比 |
-| `vif` | 测量接口 |
-| `_resolved_active` | 期望有无时钟 |
-| `_resolved_freq` | 期望频率，单位 Hz |
-
-`check_measure` 遍历 `tree.nodes`，按检查请求、`_should_check`、接口和测量能力选择节点。活动检查通过后，按请求检查频率；请求与节点均允许时检查占空比。节点共用接口时共用测量状态。
-
-## 功能钩子
-
-| 钩子 | 用途 |
-| --- | --- |
-| `has_functional_contract` | 是否提供功能检查 |
-| `run_functional_contract` | 公共入口：保存、检查、恢复、释放，不由插件重载 |
-| `exercise_functional_contract` | 施加激励、配置寄存器、检查输出，返回时保留激励 |
-| `restore_configuration` | 恢复控制切片；有load或延迟提交时由插件重载 |
-| `release_functional_inputs` | 释放测试激励，默认释放单个输入 |
-| `is_stability_anchor` | 是否需要保护该节点及其上游 |
-| `preserves_native_input` | 是否保留原生输入时钟 |
-| `output_duty_check_enabled(key)` | 功能输出是否检查占空比，默认开启 |
-| `output_frequency_window(key)` | 节点自身所需的平均周期数，默认 1，功能检查使用此值 |
-| `measurement_frequency_window(key)` | 普通测量合并自身与前级的平均窗口 |
-| `output_max_rise_gap_ns(expected_freq_hz, input_freq_hz=0, key="")` | 最大上升沿间隔，单位 ns；正的 input_freq_hz 指定独立激励，0 使用树中配置 |
-
-`flip_check` 串行调用选中节点的 `run_functional_contract`，传入提供寄存器访问和测量服务的 `node_test_api`。基础节点通过 `collect_control_regs` 保存实际读回值，再调用插件检查；检查完成后调用恢复和释放钩子，包括检查失败的返回路径。插件返回 `did_check`、`did_skip` 和失败数；前两个结果必须恰有一个为真。
-
-普通恢复只合并保存的控制切片，不覆盖共享寄存器的其它位。分频插件需要提交保存的数据并恢复reset/load原电平；mux需等待原选择生效后释放输入。未执行检查的节点不写回；仿真终止或总线致命错误不承诺恢复。
-
-插件调用基础节点的 `check_output(api, 接口, 标签, 期望频率, passed, 端口键, 输入激励频率)`，后两个参数可省略。量化输出需提供实际输入激励频率，避免使用树中原有频率。测量服务接收占空比开关、采样窗口和最大上升沿间隔，负责数值比较和清理，不依赖节点类型。DTO按折叠后的平均频率检查；`div_div`、DTO和`clk_div_with_clken`的三个输出不检查占空比，其余功能输出默认检查。
-
-普通测量与功能检查使用相同的接口设置方法。普通测量沿前级合并平均窗口与边沿上界，分频节点按实际编码组合输入间隔，PLL重新声明均匀输出。功能检查使用独立激励，只取节点自身窗口。共用接口取各节点窗口和间隔的最大值；频率允许误差不随窗口改变。
-
-## 连线钩子
-
-| 钩子 | 用途 |
-| --- | --- |
-| `set_source` | 绑定上游节点与输入键 |
-| `collect_source_nodes` | 返回全部上游节点 |
-| `collect_input_keys_from_source` | 返回连接指定上游的输入键 |
-| `get_in_vif`、`get_out_vif` | 返回指定端口的 virtual interface |
-| `interfaces_connected` | 全部接口绑定后的初始化 |
-
-`route_check` 通过连接关系钩子找出前级输出和后级输入，逐个前级驱动 0、1 并检查全部下游输入，然后释放驱动。它使用前级默认输出 `get_out_vif()`；多输入由输入键区分。
-
-## 扩展
-
-1. 添加 `node/python/plugins/<kind>.py`，继承 `NodePluginConfig`，声明节点属性、校验规则和可选全局设置。
-2. 在 `node/python/registry.py` 登记 Python 插件与设置。
-3. 添加 `node/plugin/<kind>.sv.j2`，实现字段、约束和需要的钩子，并加入 `config.f.j2` 的文件清单。
-
-节点输入中，插件属性与公共字段平级。基础模型处理连接、路径和寄存器声明，其余属性交给对应 Python 插件校验；公共模型不声明具体插件属性。`output_config` 与节点属性合并后，由同一插件校验每个输出组。
-
-Python 插件不能声明与公共字段、只读属性或方法同名的字段。已注册插件拒绝未知属性；未知 `kind` 保留合法的标量属性并生成对应 SV 类型，缺少实现时由 SV 编译报错。
+创建 `node/python/plugins/custom_div.py`：
 
 ```python
 from pydantic import Field
-
 from ..config import NodePluginConfig
 
 
-class CustomConfig(NodePluginConfig):
-    """自定义节点属性。"""
-
-    ratio: int | None = Field(default=None, ge=1, description="输入与输出的分频比")
+class CustomDivConfig(NodePluginConfig):
+    ratio: int = Field(default=2, ge=1)
 ```
+
+在 `node/python/registry.py` 导入该类，并向 `PLUGIN_CONFIGS` 添加 `"custom_div": CustomDivConfig`。
+
+ratio 与 kind、source 平级。公共模型负责连接和路径，插件负责自己的属性；不要把 ratio 加到公共 Models。
+
+## 定义 SV 行为
+
+创建 `node/plugin/custom_div.sv.j2`：
+
+```systemverilog
+class {{ settings.class_prefix }}custom_div extends {{ settings.class_prefix }}node_base;
+    `uvm_object_utils({{ settings.class_prefix }}custom_div)
+
+    int ratio = 2;
+
+    constraint cst_resolve_freq_from_src {
+        source != null -> _resolved_freq == source._resolved_freq / ratio;
+    }
+
+    function new(string name = "");
+        super.new(name);
+    endfunction
+
+    virtual function real clock_rate_hz();
+        return source == null ? 0.0 : source.clock_rate_hz() / real'(ratio);
+    endfunction
+endclass
+```
+
+同名约束替换默认的直通频率约束；活动状态仍继承前级。这个例子只处理固定分频，不提供寄存器配置或 flip。实际可编程分频器还要处理编码、复位、load 和恢复。
+
+将 `node/plugin/custom_div.sv` 加入 `config.f.j2` 的公共 files 宏，放在基类之后。完整编译也使用这份节点清单，不需要再建自动发现机制。
+
+## 使用
 
 ```yaml
 nodes:
+  osc:
+    kind: source
+    frequence: 24000000
   custom0:
-    kind: custom
+    kind: custom_div
     source: osc
-    ratio: 4
+    ratio: 2
+  clk_out:
+    kind: clk
+    source: custom0
+    path: dut.clk_out
+    frequence: 12000000
 ```
 
-新增属性只修改该 Python 插件；`sv_assignments` 默认将显式填写的属性转换为 SV 成员赋值。需要改变名字、编码或默认行为时，在插件中重载该方法。
+生成后检查 custom0.ratio 为 2、clk_out 的 source 指向 custom0。build 后输出应为 12 MHz；实际测量需要 DUT 确实提供该信号。
 
-Python 插件可重载 `normalize_outputs` 提供固定输出组，重载 `port_paths_for_output` 分配每组端口；公共层不判断具体节点类型。
+## 增加能力
 
-存在可共享的配置字段时，重载 `register_encoding`，根据 role 和实例访问表达式返回实际写入的 SV 编码表达式。表达式应直接使用随机成员和整数运算，不调用有副作用或依赖寄存器读回的函数；reset、load 等非稳态字段返回 None。
+- **寄存器配置**：Python 校验字段并返回绑定要求；SV 声明控制寄存器、配置动作及重复配置判断。
+- **多输入、多输出**：Python 分配端口，SV 通过输入键和 output_peers 处理连接；公共 tree 不增加节点分支。
+- **测量**：声明可测量输出、占空比策略、平均窗口和最大边沿间隔。
+- **功能检查**：实现自身激励与预期；公共入口负责保存、恢复和释放。
 
-公共层按寄存器字段和比特范围分组，将每组其它编码约束为与第一项相等。不同分频插件按编码比较，不假定分频比相同。共享组中只要有节点声明了编码，其余节点也必须提供编码，否则输入报错。
-
-通用 tree 和 sequence 通过 `node_base` 调用虚方法；节点专属逻辑写在对应插件，可复用的能力写在 support 基类。
+具体接口见 [钩子参考](hooks.md)。普通配置、低功耗、功能检查和临时供钟都通过相同节点对象工作，不复制一份专用节点。

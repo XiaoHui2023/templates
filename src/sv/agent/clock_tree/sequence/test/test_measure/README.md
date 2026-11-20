@@ -1,29 +1,18 @@
 # test_measure
 
-编排完整配置和测量检查。tree 必须已经 build，并至少存在一个可测量节点。
+设置新目标后，配置寄存器并检查实际时钟。
 
-## req
+```systemverilog
+clk_agt.sqr.test_measure(.check_freq(1), .check_duty(0));
+```
 
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **tree** | **tree_base** | 时钟树 |
-| **check_observation** | **bit** | 启用节点测量；置 0 会终止 test |
-| **check_freq** | **bit** | 检查频率；关闭后仍检查活动 |
-| **check_duty** | **bit** | 检查占空比；关闭后仍检查活动 |
+## 请求与步骤
 
-## 流程
+req包含tree，以及check_observation、check_freq、check_duty，三个检查选项默认均为1。check_observation为0时报错；关闭频率和占空比仍检查活动。
 
-1. 校验请求、tree 和检查开关。
-2. 调用 **tree.configure**，应用本轮随机化配置。
-3. 配置成功后启动 **check_measure**，转交全部检查开关。
-4. 配置和测量均成功后返回通过。
+1. 检查请求、tree与build状态。
+2. 调用tree.configure，按当前目标随机化并配置。
+3. 把tree和三个检查选项交给check_measure。
+4. 两步都通过后返回rsp.ok=1。
 
-## 设计
-
-test 只负责编排，不直接访问寄存器或 interface。配置失败或测量 operation 失败都会立即终止 test，避免在配置未知时继续测量。
-
-## rsp
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **ok** | **bit** | 配置和测量均通过 |
+配置失败或测量失败立即终止test。不需要重新配置时，直接使用check_measure。

@@ -1,27 +1,15 @@
 # test_route
 
-启动一次 RTL 连线检查并返回汇总结果。
+启动一次器件间连线测试；信号驱动、采样和释放由route_check执行。
 
-## req
+```systemverilog
+clk_agt.sqr.test_route();
+```
 
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **tree** | **tree_base** | 时钟树 |
+1. 校验req及tree。
+2. 创建route_check请求，传入tree并启动operation。
+3. 将operation的ok和failed原样转交；没有response时按一次失败处理。
 
-## 流程
+req只有tree。rsp.failed是失败比较次数。快捷task在汇总失败后报告fatal；需要读取response时直接使用operation。
 
-1. 校验请求。
-2. 创建 `route_check` 请求并传入 tree。
-3. 启动 **route_check**。
-4. 将 operation 的通过状态和失败数写入 test response。
-
-## 设计
-
-test 不直接驱动 interface 或写寄存器。operation 没有返回 response 时按一次失败处理，其余结果原样转交。
-
-## rsp
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **ok** | **bit** | 连线检查通过 |
-| **failed** | **int** | 失败比较次数 |
+测试开始时会应用低功耗配置，之后只做force/release。连线筛选与计数见 [route_check](../../operation/route_check/README.md)。

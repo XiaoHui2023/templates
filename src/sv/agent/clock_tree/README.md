@@ -1,6 +1,15 @@
 # clock_tree
 
-## 示例
+根据时钟连接和寄存器配置，生成可配置、可检查的 SystemVerilog 时钟树模型。
+
+- **配置**：指定时钟频率和开关，求解分频、选路及门控，再写入寄存器。
+- **测量**：检查信号是否有时钟、频率是否正确、占空比是否合格。
+- **功能测试**：驱动单个器件输入，遍历控制寄存器并检查输出。
+- **连线测试**：驱动前级输出，检查后级输入是否跟随。
+
+## 最小配置
+
+24 MHz 晶振经过一个可编程 gate，输出到 CPU 时钟。
 
 ```yaml
 settings:
@@ -15,214 +24,53 @@ nodes:
     kind: gate
     source: osc
     reg: clk_ctrl.cpu_gate
-    open: 1
 
   clk_cpu:
     kind: clk
     source: gate_cpu
     path: dut.clk_cpu
-    stable: true
+    frequence: 24000000
 ```
 
-## 数据结构
+`source` 描述设计连接，`reg` 指向寄存器模型字段，`path` 指向 RTL 信号。节点填写正频率且没有显式设置 enabled 时，clk 默认开启。
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `settings` | `Settings` | 默认设置 | 全局选项。 |
-| `nodes` | `dict[str, Node]` | | 按名字管理的节点。 |
+完整器件与多输入示例保存在 [example.yaml](example.yaml) 和 [example_nodes.yaml](example_nodes.yaml)。
 
-### Settings
+## 使用
 
-节点可独立保存，用 `nodes: !include example_nodes.yaml` 引入。
+1. 按 [输入配置](configuration.md) 填写节点、路径和寄存器字段。
+2. 用下面的命令生成文件。完整验证编译 `all.f`；只配置寄存器时启用 `direct_config`，编译 `config.f`。
+3. 创建 tree 并绑定寄存器，按 [模型](model/README.md) 设置目标、执行配置。
+4. 需要检查时例化接口，按 [接口](top/interface.md) 绑定信号，通过 [组件](component/README.md) 启动检查。
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `class_prefix` | `str` | `clk_tree_` | 类型名前缀。 |
-| `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `direct_config` | `bool` | `false` | 启用独立的纯寄存器配置用法。 |
-| `min_freq_hz` | `int` | `15000` | 允许最低频率，单位 Hz。 |
-| `max_freq_hz` | `int` | `5000000000` | 允许最高频率，单位 Hz。 |
-| `active_cycles` | `int` | `1` | 活动判定周期数。 |
-| `stable_cycles` | `int` | `3` | 稳定判定周期数。 |
-| `period_tolerance` | `float` | `0.02` | 周期相对误差。 |
-| `duty_min` | `float` | `48.0` | 占空比下限。 |
-| `duty_max` | `float` | `67.0` | 占空比上限。 |
-| `duty_tolerance_pct` | `float` | `0.05` | 占空比容差。 |
-| `plugin` | `dict[str, dict]` | `{}` | 节点插件的全局选项。 |
+两个 filelist 均用 `-F` 引入，内部相对路径从 filelist 所在目录解析。`config.f` 不包含接口、组件和 sequence，但仍需要 UVM 及用户寄存器模型。
 
-`settings.plugin.<作用域>` 由注册插件校验；例如 `settings.plugin.pll_sc.fbdiv_max`。
+在 templates 仓库根目录执行，`JINJA_BUILD` 指向已安装依赖的 [jinja-build](https://github.com/XiaoHui2023/jinja-build) 源码目录：
 
-### 前级引用
-
-| 写法 | 含义 |
-| --- | --- |
-| `pll_cpu` | 单输出前级。 |
-| `pll_cpu[core]` | 多输出节点的 `core` 输出组。 |
-| `{ "0": "xtal", "1": "pll_cpu" }` | 按输入端口键指定多个前级。 |
-
-### 寄存器模型路径
-
-| 写法 | 含义 |
-| --- | --- |
-| `blk.field` | 整个字段。 |
-| `blk.field[1]` | 单个比特。 |
-| `blk.field[7:0]` | 连续位段。 |
-
-### Node
-
-#### 公共字段
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `kind` | `str` | | 节点插件名。 |
-| `exclude` | `bool` | `false` | 排除该节点，不生成实例、接口和寄存器绑定。 |
-| `source` | `str` / `dict[str, str]` | | 前级引用。 |
-| `outputs` | `list[str]` | `[]` | 输出组。 |
-| `path` | `str` | | 信号测量路径。 |
-| `in_path`、`out_path` | `str` | | 默认输入、输出路径。 |
-| `in_paths`、`out_paths` | `dict[str, str]` | `{}` | 具名端口路径。 |
-| `reg` | `str` | | 默认寄存器模型路径。 |
-| `regs` | `dict[str, str]` | `{}` | 具名寄存器模型路径。 |
-| `output_regs` | `dict[str, dict[str, str]]` | `{}` | 按输出组覆盖的寄存器路径。 |
-| `output_config` | `dict[str, dict]` | `{}` | 按输出组覆盖的插件配置。 |
-
-#### 插件配置
-
-插件字段与公共字段平级，由对应 Python 插件定义和校验。已注册插件的字段拼错或多写会报错。不再使用 `config` 容器。
-
-| `kind` | 字段 |
-| --- | --- |
-| `source`、`source_pad` | `frequence` |
-| `pll_sc`、`pll_dw`、`pll_inno`、`pll_tci` | `frequence`、`enabled`；`pll_inno` 还支持 `group_id` |
-| `clk` | `frequence`、`enabled`、`low_power`、`stable`、`check_duty`、`unfix_frequence`、`unfix_enabled` |
-| `cell` | `cell_kind`、`frequence`、`enabled` |
-| `gate` | `open`、`unfix_open`、`fix_open`、`fix_close` |
-| `mux`、`inv_mux` | `max_sel`、`sel`、`unfix_sel` |
-| `div_div` | `ratio`、`unfix_ratio` |
-| `div_div_r`、`div_dto` | `ratio`、`unfix_ratio` |
-| `clk_div_with_clken` | `ratio`、`unfix_ratio`，ratio 为 2、3、4 或 6 |
-| `inv`、`inv_cell` | `inverted`、`fix_inverted` |
-
-`stable: true` 且省略 enabled 时补 1；显式 enabled 小于等于 0 会报错。`exclude: true` 不等于关闭时钟；引用该节点的 source 连接会被忽略，其他节点和连接保留。
-
-mux 的选择值来自 source 的实际键集合。键使用非负整数的十进制字符串；例如只有 `"2"`、`"5"` 时，只允许选择 2 或 5。省略 max_sel 不增加上限，填写后只缩小该集合。
-
-`inv_mux` 与 `mux` 使用相同的选择配置和检查，不执行反相检查；切换等待使用 `settings.plugin.mux`。
-
-### 固定控制
-
-mux、gate 和分频器不填寄存器时，分别填写固定的 `sel`、`open` 和 `ratio`；不能同时解除固定。有寄存器时，这些值是配置目标，省略则由约束决定。部分填写寄存器时必须补齐必需字段。
-
-| 节点 | 必需寄存器 | 可选寄存器 |
-| --- | --- | --- |
-| mux、inv_mux、gate、可编程反相器 | `reg` | |
-| div_div | `rst`、`load`、`div` | |
-| div_dto | `rst`、`load`、`bypass`、`step` | |
-| clk_div_with_clken | `div` 或 `reg` | `rst`、`load` |
-| pll_sc | `lock`、`vocpd`、`postdivpd`、`dsmpd`、`pd`、`bypass`、`refdiv`、`postdiv2`、`postdiv1`、`fbdiv` | |
-| pll_inno | `lock`、`pd`、`postdiv1`、`refdiv`、`postdiv2`、`fbdiv` | |
-| pll_tci | `lock`、`bypass`、`pwrdn`、`reset`、`clkod`、`clkf`、`clkr`、`bwadj` | |
-| pll_dw | `lock`、`fbdiv`、`prediv`、`reset`、`pwron`、`shift`、`bypass`、`divvcor`、`r`、`p`、`divvcop`、`enr`、`enp` | |
-
-`div_div_r` 不支持寄存器。反相器不填寄存器时按 `inverted` 固定，省略为反相。PLL 不填寄存器时表示外部固定时钟，填写正频率或明确关闭；填写寄存器则必须提供对应型号的完整字段。全部节点均无需寄存器时，可以省略 `class_regmodel`。
-
-### mux 切换等待
-
-`settings.plugin.mux`：
-
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `switch_cycles` | `8` | 写 sel 后等待旧、新输入中最慢时钟的周期数。 |
-| `switch_timeout_ns` | `1000000` | 等待预算上限，单位 ns；超过则报错，不继续写 sel。 |
-
-`switch_cycles` 应覆盖目标 IP 的同步延迟；等待时间按旧、新输入中最慢的频率计算，不表示读取了硬件完成状态。
-
-### DTO 配置
-
-`settings.plugin.div_dto` 支持以下选项。
-
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `reg_high_means_reset` | `false` | 复位高有效。 |
-| `reset_on_config` | `false` | 每次配置前复位。 |
-| `sync_wait_ns` | `200` | 复位和 load 同步等待时间，单位 ns，大于 0。 |
-| `settle_ns` | `200` | flip 测量前的稳定等待时间，单位 ns。 |
-
-`sync_wait_ns` 应覆盖目标 IP 的复位和 load 同步延迟，不表示读取了硬件完成状态。
-
-### 其他插件设置
-
-均写在 `settings.plugin.<作用域>` 下。
-
-| 作用域 | 字段 | 默认值 | 含义 |
-| --- | --- | --- | --- |
-| `divider` | `freq_tolerance` | `0.01` | 分频约束容差，支持 0.005、0.0005 等小数；不改变测量误差 |
-| `div_div` | `reg_high_means_reset` | `false` | 复位高有效 |
-| `div_div` | `reset_on_config` | `false` | 普通配置前复位 |
-| `div_div` | `settle_ns` | `200` | flip 测量前等待时间，ns |
-| `gate` | `reg_high_means_open` | `false` | 寄存器 1 表示打开 |
-| `inverter` | `reg_high_means_inverted` | `true` | 寄存器 1 表示反相 |
-| `inverter` | `settle_ns` | `100` | 配置极性后采样前等待时间，ns |
-| `pll` | `lock_timeout_us` | `100` | 首次锁检查开始后的等待预算，us |
-
-### SC PLL 搜索
-
-`settings.plugin.pll_sc`：
-
-| 字段 | 默认值 | 含义 |
-| --- | --- | --- |
-| `fbdiv_min` | `16` | 反馈分频下限 |
-| `fbdiv_max` | `99` | 反馈分频上限 |
-| `pfd_min_hz` | `12000000` | 鉴相频率下限，Hz |
-| `vco_min_hz` | `800000000` | VCO频率下限，Hz |
-| `vco_max_hz` | `1600000000` | VCO频率上限，Hz |
-| `freq_tolerance` | `0.02` | 最优合法解允许的相对输出误差 |
-
-边界应按目标 IP 设置；允许误差只判断可接受性，不降低最佳频率搜索精度。
-
-### 共享寄存器
-
-绑定同一寄存器字段及相同比特范围的分频节点，实际写入编码必须一致。分频比显式要求互相矛盾时，随机化失败，不会分别配置后相互覆盖。reset 和 load 是控制动作，不用于约束分频比。
-
-### 输出组覆盖
-
-多输出节点用 `output_config` 覆盖指定输出组，未覆盖的字段沿用节点顶层值。
-
-```yaml
-nodes:
-  pll_audio:
-    kind: pll_inno
-    outputs: [fast, slow]
-    frequence: 480000000
-    output_config:
-      slow:
-        frequence: 240000000
+```sh
+JINJA_BUILD=/path/to/jinja-build
+python "$JINJA_BUILD/src/__main__.py" \
+  -t src/sv/agent/clock_tree \
+  -i src/sv/agent/clock_tree/example.yaml \
+  -o generated/clock_tree
 ```
 
-### clk_div_with_clken
+将生成目录加入工程编译清单，二选一：
 
-```yaml
-nodes:
-  bus_div:
-    kind: clk_div_with_clken
-    source: osc
-    in_path: dut.bus_div_i
-    out_paths:
-      clk_arm_core: dut.clk_arm_core
-      hclk: dut.hclk
-      hclken: dut.hclken
-    regs:
-      div: clk_ctrl.divider[3:0]
-      rst: clk_ctrl.reset
-      load: clk_ctrl.load
-    ratio: 3
+```text
+-F generated/clock_tree/all.f
 ```
 
-三个输出名固定，无需填写 outputs。clk_arm_core 直通输入，hclk 和 hclken 共用分频。div 绑定四位字段，rst 和 load 可省略；仅有分频字段时也可使用 reg。全局 `settings.plugin.clk_div_with_clken` 支持 `reg_high_means_reset` 和 `settle_ns`，默认分别为 false 和 200。
+```text
+-F generated/clock_tree/config.f
+```
 
-| 编码 | 分频比 |
-| --- | --- |
-| `000x` | 2 |
-| `001x` | 3 |
-| `01xx` | 4 |
-| `1xxx` | 6 |
+先编译 UVM 和用户寄存器模型，并让生成的类可见 `uvm_pkg`、UVM 宏及 `class_regmodel` 类型；具体导入方式沿用工程的编译单元组织。生成目录的 README 给出接口例化与 agent 搭建代码；启用 direct_config 后的 config.md 给出纯配置代码。
+
+## 扩展
+
+[结构](architecture.md) 说明公共代码与插件的关系。[新增节点](node/README.md) 从一个固定二分频器开始；[钩子参考](node/hooks.md) 按配置、测量和功能列出可重载接口。
+
+检查的区别和选择见 [sequence](sequence/README.md)，寄存器编码与频率换算见 [计算公式](core/formulas.md)。
+
+旧接口的变动见 [版本记录](VERSIONS.md)。

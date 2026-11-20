@@ -1,184 +1,106 @@
-# 计算公式
+# 频率与编码
 
-- **f** — 本节点输出频率
-- **f_ref** — 前级节点频率
-- **f_actual** — 寄存器编码对应的实际输出频率
-- 单位 — Hz
+频率单位均为Hz。f_in是前级频率，f_out是寄存器编码对应的实际输出频率，不是约束容差范围内的随机结果。
 
-## 分频频率与容差
-
-| 参数 | 说明 |
-| --- | --- |
-| **f_hw** | 前级频率除以分频比后的整数商 |
-| **epsilon** | 分频约束的相对容差 |
+## 整数分频
 
 ```text
-f_hw = floor(f_ref / ratio)
-floor(f_hw × (1 - epsilon)) <= f <= floor(f_hw × (1 + epsilon))
+code = ratio - 1
+f_out = f_in / ratio
 ```
 
-此范围用于分频约束，不改变寄存器对应的实际输出频率，也不代替测量误差范围。
+可编程div_div支持1至30位控制字段；宽度w可编码1至2^w分频，实际目标还受max_ratio限制。固定分频不受该max_ratio上界约束。div_div_r没有寄存器，直接使用固定ratio。
 
-## div
-
-| 参数 | 说明 |
-| --- | --- |
-| **ratio** | 分频比，1～max_ratio |
-| **max_ratio** | 节点允许的最大分频比 |
-| **N** | **div** 寄存器写入值 |
+分频约束先取整数商，再给频率一个小范围：
 
 ```text
-f_actual = f_ref / ratio
-N = ratio - 1
+f_hw = floor(f_in / ratio)
+floor(f_hw × (1 - epsilon)) <= resolved_freq
+resolved_freq <= floor(f_hw × (1 + epsilon))
 ```
 
-位宽为 **w** 的寄存器可编码 1～2^w 的分频比；节点的 **max_ratio** 还会进一步限制选择范围。
+epsilon使用divider.freq_tolerance，默认0.01。它不改变寄存器编码、不改变实际输出，也不代替测量允许误差。
 
-## div_r
+## CPU三输出分频
 
-固定分频，无寄存器。
+clk_div_with_clken使用四位控制字段：
 
-| 参数 | 说明 |
+| 编码 | ratio |
 | --- | --- |
-| **ratio** | 固定分频比，大于 0 |
+| 000x | 2 |
+| 001x | 3 |
+| 01xx | 4 |
+| 1xxx | 6 |
 
 ```text
-f_actual = f_ref / ratio
-```
-
-## clk_div_with_clken
-
-| 参数 | 说明 |
-| --- | --- |
-| **code** | 四位寄存器值 |
-| **ratio** | code 为 0～1、2～3、4～7、8～15 时，分别为 2、3、4、6 |
-
-```text
-f_clk_arm_core = f_ref
-f_hclk = f_ref / ratio
+f_clk_arm_core = f_in
+f_hclk = f_in / ratio
 f_hclken = f_hclk
 ```
 
-## dto
-
-| 参数 | 说明 |
-| --- | --- |
-| **ratio** | 分频比，大于 0 且不超过 2^25 |
-| **step** | **step** 寄存器写入值；旁通时为 0，分频时为 1～2^25−1 |
-| **bypass** | 旁通开关；**ratio** 为 1 时写 1，否则写 0 |
-
-分频比大于 1 时：
+## DTO
 
 ```text
-step = floor(2^25 / ratio)
-f_actual = f_ref × min(step, 2^25 - step) / 2^25
+M = 2^25
+step = floor(M / ratio)
+f_out = f_in × min(step, M - step) / M
 ```
 
-**ratio** 为 1 时旁通：**bypass**=1，**step**=0，**load**=1。
+折叠公式只用于非旁通输出。ratio为1时写bypass=1、step=0、load=1，输出直接等于输入。
 
-非旁通时，**step**=0表示无时钟，**step**=2^24输出输入频率的一半；超过2^24后频率折叠。旁通输出始终为输入频率，不使用折叠公式。
+非旁通step=0没有时钟，step=M/2输出输入频率的一半，超过M/2后折叠。step有效范围固定为25位；寄存器更宽不扩大算法范围，更窄则要求编码能完整写入，不能截断。
 
-step的有效范围固定为25位，不随寄存器字段宽度扩大；字段较窄时，step也必须能完整写入该字段，不能截断。ratio为整数，换算step时向下取整。
+## PLL
 
-## pll
-
-| 参数 | 说明 |
-| --- | --- |
-| **f** | 目标输出频率 |
-| **f_ref** | 参考前级节点频率 |
-
-由 **f_ref** 与 **f** 反算下列分频系数。
-
-### tci
-
-| 参数 | 说明 |
-| --- | --- |
-| **clkf** | 反馈分频，整数 |
-| **clkr** | 参考分频，固定 1 |
-| **clkod** | 输出分频，固定 1 |
-| **bwadj** | 带宽调节，等于 **clkf** |
+### SC
 
 ```text
-clkf = floor(f / f_ref)
-```
-
-输出近似 **f_ref × clkf**。
-
-### sc
-
-| 参数 | 说明 |
-| --- | --- |
-| **f_actual** | 由系数算出的输出频率 |
-| **f_pfd** | 鉴相频率 |
-| **f_vco** | VCO 频率 |
-| **fbdiv** | 反馈分频，**fbdiv_min**～**fbdiv_max** |
-| **refdiv** | 参考分频，1～63 |
-| **postdiv1** | 后分频 1，1～7 |
-| **postdiv2** | 后分频 2，1～7 |
-| **fbdiv_min** | **fbdiv** 下限 |
-| **fbdiv_max** | **fbdiv** 上限 |
-| **f_pfd_min** | 鉴相频率下限 |
-| **f_vco_min** | VCO 频率下限 |
-| **f_vco_max** | VCO 频率上限 |
-
-```text
-f_pfd = f_ref / refdiv
+f_pfd = f_in / refdiv
 f_vco = f_pfd × fbdiv
-f_actual = f_vco / postdiv1 / postdiv2
+f_out = f_vco / postdiv1 / postdiv2
 ```
 
-仅保留 **f_pfd ≥ f_pfd_min**、**f_vco_min ≤ f_vco ≤ f_vco_max** 的组合。每组 **refdiv**、**postdiv1**、**postdiv2** 检查合法区间内最接近理想值的两个 **fbdiv**，按精确输出误差选取全局最优解；误差相同时优先较高鉴相频率，再优先较高 VCO 频率。
+refdiv为1至63，postdiv1和postdiv2为1至7。fbdiv、PFD和VCO边界由SC插件设置。
 
-最优合法解的相对误差超过允许值，或不存在合法组合时，在写寄存器前报错。
+搜索先排除违反PFD、VCO和字段范围的组合，再检查合法区间内最接近理想值的两个fbdiv。比较精确输出误差；同误差优先高PFD，再优先高VCO。没有合法解或最佳解超出允许误差时，在写寄存器前报错。
 
-### inno
+重复配置按读回编码反算实际频率并比较容差，不要求与重新搜索出的系数逐位一致。不同合法编码可以提供相同频率；电源、旁通等状态仍要匹配。
 
-| 参数 | 说明 |
-| --- | --- |
-| **f_actual** | 由系数算出的输出频率 |
-| **fbdiv** | 反馈分频，绑定位宽内四舍五入取整，两路共用；不得为 0～7 或 11 |
-| **refdiv** | 参考分频，1～63；两路共用 |
-| **postdiv1** | 后分频 1，1～7；每路独立 |
-| **postdiv2** | 后分频 2，1～7；每路独立 |
-| **postdiv1_reg** | **postdiv1** 寄存器写入值，0～6；每路独立 |
-| **postdiv2_reg** | **postdiv2** 寄存器写入值，0～6；每路独立 |
+### INNO
 
 ```text
-f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
+f_out = f_in × fbdiv / refdiv / postdiv1 / postdiv2
+postdiv1 = postdiv1_reg + 1
+postdiv2 = postdiv2_reg + 1
 ```
 
-**postdiv1** 为 **postdiv1_reg + 1**；**postdiv2** 为 **postdiv2_reg + 1**。分频为 1 时写入 0。
+refdiv为1至63，postdiv为1至7，写入值为0至6。fbdiv受绑定位宽限制，跳过0至7及11。
 
-**fbdiv**、**refdiv** 两路共用；每路各有 **postdiv1**、**postdiv2**。
+共享输出先确定fbdiv和refdiv，各路再选择自己的后分频。两组共用系数，不是两颗独立PLL。
 
-在合法组合中使 **f_actual** 与 **f** 绝对误差最小。先视 **postdiv1**、**postdiv2** 均为 1，在 **refdiv** 1～63 与合法 **fbdiv** 范围内搜共用系数；**fbdiv** 跳过 0～7 与 11；再固定已定的 **fbdiv**、**refdiv**，在 **postdiv1**、**postdiv2** 各 1～7 内为该路搜后级分频。
-
-### dw
-
-| 参数 | 说明 |
-| --- | --- |
-| **f_actual** | 由系数算出的输出频率 |
-| **fbdiv** | 反馈分频，1～1023，四舍五入取整 |
-| **p** | 后分频索引，0～7 |
-| **postdiv** | **p + 1** |
+### DW
 
 ```text
-f_actual = f_ref × fbdiv / postdiv
+postdiv = p + 1
+f_out = f_in × fbdiv / postdiv
 ```
 
-在 **p** 为 0～7 范围内搜索，使 **f_actual** 与 **f** 绝对误差最小。
+p为0至7，fbdiv为1至1023。每个后分频尝试最接近目标的反馈系数，取绝对误差最小者。
+
+### TCI
+
+```text
+clkr = 1
+clkod = 1
+clkf = floor(f_target / f_in)
+bwadj = clkf
+f_out ≈ f_in × clkf
+```
 
 ## 测量相位
 
-| 参数 | 说明 |
-| --- | --- |
-| **t_rise** | 当前上升沿时刻 |
-| **t_ref** | 本次测量第一个上升沿时刻 |
-| **T** | 当前测得周期 |
-| **phase_frac** | 归一化相位，取值 0 以上且小于 1 |
-
 ```text
-phase_frac = fmod(t_rise - t_ref, T) / T
+phase_frac = fmod(t_rise - t_first_rise, period) / period
 ```
 
-这是该路时钟相对自身首个上升沿的位置，不是两路时钟的相位差。
+这是同一路时钟相对本次首个上升沿的周期内位置，范围为0至1、不含1；不是两路时钟的相位差。

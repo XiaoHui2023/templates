@@ -1,27 +1,15 @@
 # test_flip
 
-启动一次器件寄存器功能检查并返回汇总结果。
+启动一次器件功能测试；激励、寄存器遍历和恢复由flip_check执行。
 
-## req
+```systemverilog
+clk_agt.sqr.test_flip();
+```
 
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **tree** | **tree_base** | 时钟树 |
+1. 校验req及tree。
+2. 创建flip_check请求，传入tree并启动operation。
+3. 将operation的ok和failed原样转交；没有response时按一次失败处理。
 
-## 流程
+req只有tree。rsp.failed是失败检查次数。快捷task在汇总失败后报告fatal；需要读取详细response时直接使用operation。
 
-1. 校验请求。
-2. 创建 `flip_check` 请求并传入 tree。
-3. 启动 **flip_check**。
-4. 将 operation 的通过状态和失败数写入 test response。
-
-## 设计
-
-test 不直接访问寄存器或 interface。operation 没有返回 response 时按一次失败处理，其余结果原样转交。
-
-## rsp
-
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| **ok** | **bit** | 器件功能检查通过 |
-| **failed** | **int** | 失败检查数 |
+测试会改变整树配置，局部恢复不等于恢复调用前状态。具体范围见 [flip_check](../../operation/flip_check/README.md)。

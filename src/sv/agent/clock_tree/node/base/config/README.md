@@ -1,162 +1,85 @@
 # 配置计划
 
-## 结构
+无毛刺 mux 切换需要旧、新输入同时运行；其他节点可能已经请求关闭旧输入。配置不能按节点顺序逐个写完，而要把“提供时钟直到切换完成”表达为临时需求。
 
-| 文件 | 职责 |
-| --- | --- |
-| `action.sv` | 动作所有者、插件内部 token、依赖和后继 |
-| `lease.sv` | 提供者、就绪、释放和插件自己的临时快照 |
-| `context.sv` | 实际状态、共享使用、完整验环及串行执行 |
+## mux 切换
 
-`node_base` 提供规划和执行钩子，`config_reg_core` 收集插件计划。核心不识别具体节点类型，也不解释寄存器编码。
+1. 读取旧sel，与目标相同则省略切换。
+2. 创建select动作，请求旧、新输入保持可用，直到切换完成。
+3. 两个输入就绪后，等待一个最慢输入周期，再写sel。
+4. 等待 `switch_cycles` 个最慢输入周期，期间执行其他就绪动作。
+5. 切换完成后释放输入需求；旧输入没有其他使用者时才允许关闭。
 
-`tree.low_power()` 只设置偏好；用户随后修改节点目标，再调用 `tree.configure()` 随机化并应用配置。规划不会重新覆盖用户设置。
+输入频率由源和实际寄存器编码计算，不使用已关闭gate的零频率，也不使用约束容差内随机出的频率。等待周期应覆盖IP同步延迟；没有完成状态时，这只是时间预算，不是锁存完成的读回确认。
 
-## 对象与数据
+## 动作与临时使用
 
-所有类名带 `class_prefix`。以下省略前缀。
+`config_action` 保存owner、插件内部token和前置动作。token 0表示最终配置；其他值由插件自己解释。`config_context` 保存动作、依赖、读回和运行状态，并由一个执行器执行。
 
-| 对象 | 成员 | 含义 |
+`config_lease` 保存同一资源的一次临时使用：提供者、ready动作、release动作和插件快照。相同availability_key的使用合并；release等待所有消费者完成，不靠线程退出顺序计数。
+
+```systemverilog
+lease = context_h.require_available(provider, completion);
+context_h.after_action(use_action, lease.ready);
+```
+
+第一行只声明需求，不立即打开时钟，也不自动让use_action等待ready。第二行不能省略。资源的release会自动等待completion。
+
+mux将写sel和切换完成拆成两个动作；target原本就是该节点的最终动作，select_action由插件添加：
+
+```systemverilog
+select_action = context_h.add_action(this, 1, {get_name(), ".select"});
+old_input = context_h.require_available(to_source[current_sel], target);
+new_input = context_h.require_available(to_source[_resolved_sel], target);
+context_h.after_action(select_action, old_input.ready);
+context_h.after_action(select_action, new_input.ready);
+context_h.after_action(target, select_action);
+context_h.defer_action(target);
+```
+
+| 动作 | 等待谁 | 完成意味着什么 |
 | --- | --- | --- |
-| `config_action` | `id`、`owner`、`token`、`label` | 计划内编号、执行节点、插件内部动作编号和诊断名称 |
-| `config_action` | `action_kind` | `EXECUTE` 调用插件动作，`ACQUIRE` 建立可用状态，`RELEASE` 结束临时使用 |
-| `config_action` | `prerequisites[$]`、`followers[$]` | 前置动作和后继动作的整数 ID，不互相持有动作句柄 |
-| `config_action` | `lease_key` | 取得/释放动作对应的共享记录名字 |
-| `config_action` | `deferred`、`next_poll_tick` | 是否分次检查完成条件，以及下一次可检查的绝对fs整数时刻 |
-| `config_lease` | `provider`、`ready`、`release_action` | 实际提供者、就绪动作和释放动作 |
-| `config_lease` | `state` | 插件自己的 `uvm_object` 临时快照，核心不解释内容 |
-| `config_lease` | `has_target` | 此资源是否已有最终配置负责，不应再恢复临时快照 |
-| `config_context` | `actions[$]`、`targets[int]` | 全部动作，以及按节点实例 ID 索引的最终动作 |
-| `config_context` | `leases[string]` | 按物理可用控制 key 合并的共享记录 |
-| `config_context` | `planned_providers[string]` | 同一 key 下已贡献依赖的逻辑提供者，避免递归重复规划 |
-| `config_context` | `observations[int]` | 按节点实例 ID 保存本次读回状态 |
-| `config_context` | `runtime_states[int]` | 插件执行状态，例如首次锁检查时确定的截止时间；与规划读回分开保存 |
-| `config_context` | `sealed`、`failed`、`io` | 计划是否封存、是否失败、寄存器服务 |
+| old_input.ready、new_input.ready | 各自的上游需求和必要配置 | 旧、新输入可以使用 |
+| select_action | 两个ready | 已写sel，并记录切换完成时刻 |
+| target | select_action及完成等待 | 最慢输入的switch_cycles已过 |
+| 两个release_action | target及同资源其他消费者 | 不再为本次切换保留输入 |
 
-每次配置创建新上下文，不跨配置保存临时快照，也不修改节点的 `_resolved_*` 作为临时状态。
+这里的completion传target，不能传select_action：寄存器写完不等于内部切换完成。示例省略失败分支；实际插件在每次require_available后检查规划结果。
 
-## 请求接口
+最终目标仍能提供资源时，目标动作排在ready之前；最终目标会关闭资源时，排在release之后。释放不等于关闭：没有最终目标才恢复临时快照；已有开启目标则保持开启。
 
-目前资源请求只有一种：**提供者保持可用，直到指定动作完成**。频率和开关通过节点最终目标表达；复位、load、选路等属于插件动作，不是额外的公共请求类型。
+## 一次配置
 
-| 接口 | 调用者与作用 |
-| --- | --- |
-| `context.require_available(provider, completion)` | 消费者请求提供者可用，返回共享 `config_lease` |
-| `node.require_source(context, completion)` | 单输入插件请求自身 source，并将 completion 排在上游就绪之后 |
-| `context.add_action(owner, token, label)` | 插件添加动作；token 0 为最终目标，其余由插件自己定义 |
-| `context.after_action(action, prerequisite)` | 声明 action 必须等待 prerequisite 完成；重复边只登记一次 |
-| `context.defer_action(action)` | 将本计划的 EXECUTE 动作改为分次完成检查，仍遵守原依赖 |
-| `context.target(node)` | 查找节点的最终动作，没有参与配置则返回 null |
-| `context.set_observation(node, state)`、`observation(node)` | 保存与读取插件规划需要的实际状态 |
-| `context.set_runtime_state(node, state)`、`runtime_state(node)` | 保存与读取插件在执行时建立的状态，不修改已封存的依赖图 |
-| `context.fail(message)`、`has_failed()` | 报告并传播失败；fatal 不作为语言异常使用 |
+1. `tree.configure()` 检查build状态并随机化目标。
+2. 收集参与配置的节点，为它们创建最终动作。
+3. 插件读取规划需要的硬件状态，添加动作和临时需求。
+4. 检查共享编码与全部依赖。循环依赖在写寄存器之前报错。
+5. 执行就绪动作；动作完成后才放行后继。
 
-`require_available` 只建立共享记录和依赖，**不会立即打开时钟**。调用者仍要把自己的使用动作排在返回的 `lease.ready` 之后；它只自动保证 release 在 completion 之后。
+临时状态存放在上下文或lease，不改 `_resolved_*`，不为中间状态重新随机化。不同配置调用使用不同上下文。
 
-## 节点钩子
+## 等待不占住总线
 
-| 钩子 | 职责与默认行为 |
-| --- | --- |
-| `has_configuration()` | 是否登记最终动作；默认否 |
-| `requires_observed_descendant()` | 是否要求有效下游测量端点；默认否 |
-| `configuration_owner()` | 多输出对应的实际控制者；默认自身 |
-| `availability_key()` | 等价取得/释放操作的共享 key；默认节点实例 ID |
-| `configuration_signature()` | 同一 key 的最终编码签名；默认空，不允许多个目标靠空签名宣称一致 |
-| `configuration_preserves_availability()` | 最终目标是否保持可用；默认是 |
-| `observe_configuration(context)` | 读取规划所需状态；默认空操作 |
-| `plan_configuration(context, target)` | 为最终目标补动作与依赖；默认空操作 |
-| `plan_requirement(context, lease)` | 补上游需求；默认保持 source 可用至自身 release，并让自身 ready 等待上游 ready |
-| `acquire_requirement(context, lease)` | 建立临时状态；默认空操作 |
-| `release_requirement(context, lease)` | 结束临时使用；默认空操作 |
-| `execute_configuration(context, token)` | 默认仅接受 token 0，调用 apply；实际配置后调用 await |
-| `poll_configuration(context, token, complete, retry_ns)` | 只检查一次完成条件；未完成时返回下次检查间隔，默认拒绝未实现的检查 |
-| `apply_configuration(io, configured)` | 节点寄存器配置；默认返回未配置 |
-| `await_configuration(io)` | 配置完成等待；默认空操作 |
+PLL编程在寄存器总线上依次完成，硬件锁定可以重叠。每个PLL确认就绪后放行自己的下游，不等待无关PLL。
 
-默认的透明传播不等于所有节点都能供钟。可控提供者必须自行校验寄存器、输入、锁状态及其它必要条件，并实现取得/释放行为。
+![PLL寄存器写入串行，两个硬件锁定窗口重叠，各自在完成后放行下游](../../../images/pll-waits.drawio.svg)
 
-## 执行
+长等待拆成启动动作与deferred完成动作。调度器执行当前全部普通动作，再检查到期的poll；没有可运行工作时，才等待最近的下次检查时刻。poll只检查一次，返回complete和正数retry_ns，不能在内部再写长轮询。
 
-1. 保留随机化得到的最终状态，登记每个参与节点的目标动作。
-2. 调用 `observe_configuration`，读取插件规划需要的实际状态。
-3. 调用 `plan_configuration`，添加动作及依赖。token 由插件自己解释，0 表示目标动作。
-4. `require_available(provider, completion)` 声明提供者必须保持可用，直到指定动作完成。
-5. 提供者通过 `plan_requirement` 声明上游要求；上下文合并共享使用，并安排就绪、释放和目标动作。
-6. 完整连接关系检查通过后，由单执行器运行就绪动作和分次完成检查。循环依赖在任何动作执行前报错。
+锁观察预算从首次实际poll开始，后续不续期。每次都真实读锁状态，包括已到期的最后一次；未知值与超时分别报错。预算默认100us，可通过插件设置修改；它不证明硬件从编程起100us内锁定。总线读取耗时和最后一次调度可能延后返回。
 
-动作通过 `context.io` 访问寄存器。不依赖其它节点的数值优先级；需要长时间等待的插件拆成启动与完成动作，完成前不放行后继。
+级联PLL仍要等待参考输入。配置值匹配而省略写入时，也需要确认lock。没有绑定锁字段的插件不执行锁等待。
 
-### 等待调度
+## 共享寄存器
 
-1. 先执行当前全部就绪的普通动作；遇到 deferred 动作时放入待检查队列。
-2. 对到达 `next_poll_tick` 的动作调用一次 `poll_configuration`。完成才递减后继依赖，否则按正数 `retry_ns` 安排下一次检查。
-3. 检查完成若产生新的就绪动作，先执行新动作，不等待其它无关器件。
-4. 没有可运行工作时才等待最近的下一次检查时刻；不逐纳秒空转。
+寄存器修改使用前门读回值，不依赖未同步镜像。写回只覆盖绑定切片；同一父寄存器的批量操作合并为一次读写，值未变时省略写入。
 
-寄存器访问始终串行。普通动作仍是原子 task，不在访问途中取消线程。插件的 poll 可以读状态寄存器，但不能在内部持续轮询或长时间 sleep；总线访问本身的超时由寄存器服务负责。
+共享控制资源的最终目标必须给出一致编码。Python生成编码约束，插件校验实际配置，上下文安排使用与修改的先后；不能用最后一次写入覆盖冲突目标。
 
-### 时间域
+## 时间与错误
 
-`time_domain` 是独立编译的package，固定为1fs/1fs。调度期限使用64位fs整数；`retry_ns` 仍是相对纳秒数值，在服务内向上量化。当前时刻、整数期限比较和实际等待都在服务内完成，不继承业务类所在package的时间设置。
+`time_domain` 独立编译为1fs/1fs。调用 `delay_ns(value)`、`after_ns(value)` 传普通纳秒数值，不传已经在外部时间域换算的 `1ns` 字面量。期限使用64位fs整数，正等待向上量化；范围约5.12小时，越界报错。
 
-插件调用 `time_domain::after_ns(ns)` 建立期限，调用 `delay_ns(ns)` 等待，或用 `wait_until(tick)` 等待整数期限。传普通纳秒数值，不直接传 `1ns` 等已在调用者域换算的字面量。0不等待，正数不足1fs时等待1fs，过去的期限立即返回。
+该package不改变其他模块的局部单位，但参与全局最小精度，可能影响 `#1step`。它不能恢复外部已经舍入的信号边沿。
 
-`frequency_encoder.wait_lock(f_lock, timeout_ns)` 同样接收普通ns数值，预算包含寄存器读取耗时；当前配置计划使用节点自己的非阻塞锁轮询。
-
-该package不改变外部的局部时间单位，但会参与全局最小精度计算，因此可能影响 `#1step`。64位fs范围约5.12小时，预算或期限加法越界直接报错；仿真时刻本身应在此范围内，仿真器强制覆盖精度不在保证内。独立 package 应在宿主package外编译，`all.f` 和 `config.f` 已将它排在使用者之前。
-
-### PLL 启动与锁定
-
-1. 开启目标拆为 program 与 lock-completion。program 等参考输入就绪；completion 等 program；下游等 completion。
-2. program 复用原寄存器匹配与编程函数。锁观察在首次实际调度时建立一次绝对期限，后续检查不续期；其它器件的编程不会提前耗尽尚未开始的观察预算。
-3. 独立 PLL 先分别编程，硬件同时锁定；某个 PLL 提前就绪，它的下游可以先继续。级联 PLL 仍需等参考 PLL 就绪。
-4. 最终关闭但被临时使用的 PLL 同样拆为临时 program 与 lock-completion。确认锁定后才宣布 lease.ready；所有使用完成后再执行关闭目标。
-5. 即使配置匹配而没有写寄存器，仍确认 lock。每次先真实读回：1表示完成，0且预算未用完则重试，0且已到期则报超时；未知或非法读值单独报错。超期调度仍保留这次读回，不用未读初值判断锁状态。
-
-各 PLL 的具体编码函数不变；配置计划不识别 PLL 类名。锁轮询间隔最多2us，等待不超过剩余预算。预算默认100us，衡量锁观察窗口，不证明硬件从编程起100us内锁定；调度及最后一次前门读取可能延后返回，单次总线访问超时由寄存器服务负责，不取消正在执行的寄存器访问线程。同步等待入口复用相同读回判断。
-
-### 一次请求的展开
-
-1. 消费者先取得自己的 completion 动作，再调用 `require_available(provider, completion)`。
-2. 上下文调用 `configuration_owner()` 与 `availability_key()`，查找已有共享记录。
-3. 首次使用该 key 时，创建 lease、ACQUIRE 和 RELEASE，添加 RELEASE 等待 ACQUIRE 的依赖。
-4. 每个不同逻辑提供者调用一次 `plan_requirement()`。即使共用 key，各入口自己的上游依赖也不能省略。
-5. 添加 RELEASE 等待 completion 的依赖，将这次使用并入共享生命周期。
-6. 消费者把实际使用动作排在 lease.ready 之后。提供者的上游请求按同一机制展开。
-7. 全部插件规划完后，上下文检查共享目标：保持可用的最终目标在 ACQUIRE 前执行；破坏可用的目标在 RELEASE 后执行。
-8. 完整连接关系排序通过后才执行。ACQUIRE 调用取得钩子，EXECUTE 调用动作钩子，RELEASE 调用释放钩子。
-
-共享记录不靠“最后一个线程”的计数判断结束，而是让同一个 RELEASE 依赖全部消费者的 completion。当前串行执行，没有请求线程或后台 worker。
-
-### mux 切换示例
-
-1. mux 观察旧选择；与目标相同则不添加切换动作。
-2. 创建 select 动作，并请求旧、新输入保持可用至 mux 的 target 完成。
-3. select 等待两个输入 ready；target 等待 select。gate 等提供者再声明自己的上游需求。
-4. 提供者建立可用状态，mux 预等一个最慢输入周期，然后 select 写入选择值。
-5. select 写入完成后，为 target 设置 `switch_cycles` 个最慢输入周期的完成时刻。target 到时完成，其间可执行其它器件的动作，之后才允许两个输入 RELEASE。
-6. 旧 gate 的最终关闭动作等待 RELEASE；新 gate 的最终开启动作保持有效。其它消费者仍使用旧 gate 时，关闭继续等待。
-
-配置需求与 sequence 的 `req` 不同。measure 使用测量能力，flip 使用节点功能检查，route 使用端口连接关系；它们只在最初配置阶段间接使用此计划，不把测量和 force 转成 availability 请求。
-
-## 插件
-
-普通插件保留 `apply_configuration` 与可选 `await_configuration`，默认目标动作调用它们。需要多步动作时，重载 `plan_configuration` 和 `execute_configuration`，使用插件内部的 token 区分动作。
-
-提供者在 `acquire_requirement` 建立可用状态，在 `release_requirement` 结束临时使用。快照放在 `lease.state`，读回状态放在上下文；不修改 `_resolved_*`，也不为中间状态重新随机化。
-
-`configuration_preserves_availability` 为真时，目标动作先于就绪；为假时，目标动作等待全部使用结束。释放不是关闭：最终目标为开启时保持开启，没有目标时才恢复快照。
-
-## 共享与失败
-
-寄存器修改使用本次前门读回整字合并，不依赖模型镜像。每次批量操作对同一父寄存器只读一次、最多写一次，实际值未变时省略写；读写失败立即停止。普通读改写只接受RW目标及RW/RO邻接字段，W1C、RC、WO等策略需要专用操作，避免读写副作用。
-
-多输出通过 `configuration_owner` 返回实际控制者。等价控制别名可返回相同的 `availability_key`，共用一次取得和释放；每个逻辑提供者仍声明自己的上游依赖。
-
-共用控制资源的最终动作必须给出相同的 `configuration_signature`。签名由插件按实际目标编码生成；缺失或冲突时，计划在写入前失败，不按先后顺序覆盖。
-
-`tree.build` 登记寄存器控制切片。上下文将重叠控制的目标写入安排在使用之前或之后；编码是否兼容由原有约束和插件校验，不由调度器猜测。
-
-完整连接关系预检与依赖释放为 O(V+E)；共享控制检查另按使用记录与目标节点比较，待完成动作按轮询批次检查。硬件等待可以重叠，但 task 和寄存器访问仍由一个执行器串行调用，不添加总线锁或工作线程。
-
-规划错误直接终止，尚未执行的动作不会写入硬件。执行期间超时不继续释放尚未确认的资源，也不承诺任意硬件动作都能回滚。周期等待只是插件的时间预算；存在完成状态时，应由插件检查该状态。
+规划失败不执行寄存器动作。执行失败不承诺硬件回滚，也不继续释放尚未确认可释放的资源。不能为超时而杀掉正在前门访问的线程；单次访问超时由寄存器服务处理。

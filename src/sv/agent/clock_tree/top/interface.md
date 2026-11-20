@@ -1,81 +1,80 @@
-# 接口
+# 信号接口
 
-`tree_interface` 包含节点端口的接口实例，`connect(interface, tree)` 将句柄分配给节点。`interface` 负责驱动和转交测量请求，内部的 `meas` 为 `measure_interface`。两者均使用 `timeunit 1ns`、`timeprecision 1fs`。
+每个填写了路径的端口都有一个interface实例。tree_interface把这些实例包在一起；connect把句柄分配给节点。读取RTL和驱动RTL使用同一个接口，但方向不同。
 
-## 端口与路径
+![RTL信号经in输入进入测量器，驱动值经包装层force返回同一个RTL路径](../images/interfaces.drawio.svg)
 
-`interface` 和 `measure_interface` 都以 `input wire in` 读取 RTL 信号。`interface` 没有输出端口，驱动通过 `drive_en`、`drive_value` 交给 `tree_interface` 中的 force/release 逻辑。
+## 路径
 
-`path_macros.sv` 为 RTL 路径提供带 `ifndef` 的默认宏定义，可在编译前定义同名宏来替换路径。
+```yaml
+nodes:
+  mux_cpu:
+    kind: mux
+    source: {"0": osc, "1": pll_cpu}
+    reg: clk_ctrl.cpu_sel
+    in_paths:
+      "0": dut.mux_cpu.ref_clk
+      "1": dut.mux_cpu.pll_clk
+    out_path: dut.mux_cpu.clk_out
+  clk_cpu:
+    kind: clk
+    source: mux_cpu
+    path: dut.clk_cpu
+```
 
-## 参数
+path用于测量点；in_path、out_path用于默认端口，in_paths、out_paths用于具名端口。路径描述实际RTL，不代替source连接。
 
-两个接口使用相同参数；外层将参数传入 `meas`。
+## 例化与绑定
 
-| 参数 | 类型 | 含义 |
-| --- | --- | --- |
-| `MIN_FREQ_HZ` | `int` | 活动和稳定超时的最低频率基准，Hz |
-| `ACTIVE_CYCLES` | `int` | 确认活动所需的上升沿数 |
-| `STABLE_CYCLES` | `int` | 连续稳定频率样本数；占空比按周期计数 |
-| `PERIOD_TOL` | `real` | 相邻平均周期的相对偏差上限 |
-| `DUTY_MIN_PCT`、`DUTY_MAX_PCT` | `real` | 占空比范围，百分数 |
-| `DUTY_TOL_PCT` | `real` | 占空比边界容差，百分数点 |
+```systemverilog
+// 放在顶层module中
+clk_tree_tree_interface clk_tree_if();
+
+// tree创建和build之后，在环境build_phase中
+clk_tree_connect(your_top.clk_tree_if, tree);
+```
+
+两个片段分别放在module和UVM环境，不能写在同一作用域。参数顺序为interface在前、tree在后。
+
+### 路径覆盖
+
+生成的path_macros.sv对每条路径使用ifndef。可在它编译前定义同名宏；例如example中的晶振输出：
+
+```systemverilog
+`define CLK_TREE_PATH_XTAL_OUT_DEFAULT tb.dut.xtal_clk
+```
+
+名字由类名前缀、节点、端口方向和端口键组成。使用生成文件中的实际名字；多输出组也参与命名。
+
+`CLK_TREE__PATH_DISABLE_XTAL_OUT_DEFAULT`会移除该端口接口及其绑定，不移除节点或source。要从模型排除整个节点，使用exclude；只暂停某个节点检查，使用_should_check。
 
 ## 驱动
 
 | task | 作用 |
 | --- | --- |
-| `drive_static(value)` | 停止时钟激励，持续驱动 0 或 1 |
-| `start_clock(freq_hz)` | 产生指定频率的时钟，单位 Hz；非正值不改变驱动 |
-| `release_drive()` | 关闭驱动并释放 RTL 信号 |
-| `stop_clock()` | 与 release_drive 相同 |
+| `drive_static(value)` | 持续驱动0或1 |
+| `start_clock(freq_hz)` | 产生指定频率，非正值不改变驱动 |
+| `release_drive()`、`stop_clock()` | 停止驱动并释放RTL |
 
-驱动持续到显式释放。所有正常退出和可继续错误路径都要释放驱动。
+interface只有输入wire in，没有输出端口。驱动控制交给tree_interface中紧邻实例的initial块，由它执行force/release，不使用uvm_hdl_force。
 
-时钟半周期等待结束后重新检查驱动状态。等待期间切为静态驱动或释放时，旧时钟分支不再翻转驱动值。
+半周期等待返回后会重新检查驱动状态；期间改成静态驱动或释放时，旧时钟分支不再翻转。驱动持续到显式释放，可继续的错误路径也要释放。
 
 ## 测量
 
-以下方法由 `interface` 转交给 `meas`，也可直接通过 `measure_interface` 调用。
+```systemverilog
+bit ok;
 
-| 方法 | 作用 |
-| --- | --- |
-| `set_min_freq_hz(hz)` | 设置超时基准，不低于 MIN_FREQ_HZ |
-| `configure_measurement(min_hz, window_cycles=1, max_rise_gap_ns=0)` | 同时设置最低频率、平均周期数及最大上升沿间隔，间隔单位 ns；0 表示按最低频率推算 |
-| `start_measure(need_freq=1, need_duty=1)` | 清零当前结果，启动本次测量 |
-| `wait_measure_stable(need_freq, need_duty, ok)` | 先等待活动确认，再等待指定项稳定；关闭测量或超时也会返回 |
-| `stop_measure()` | 保存有效活动读数，关闭并清零当前结果 |
-| `set_measure_en(en)` | 控制测量开关；关闭时保存读数并清零 |
-| `measure_freq_hz()` | 启动、等待频率稳定、停止；不等待占空比 |
+vif.configure_measurement(15000, 1, 0.0);
+vif.start_measure(1, 0);
+vif.wait_measure_stable(1, 0, ok);
+vif.stop_measure();
+```
 
-仅检查活动时，将两个 need 参数均置 0。开始和等待阶段应使用相同的选择。
+在task中使用已连接的vif。参数依次为最低频率、平均周期数和最大上升沿间隔ns；间隔0按最低频率推算。示例只等待频率，不等待占空比。开始和等待使用相同检查项。
 
-## 测量结果
+测量先确认活动，再等待所需项目稳定。只检查活动时，两个need参数都为0。stop_measure保存last_*，并清除当前状态；last_valid只说明保存了活动读数，不证明稳定或误差通过。
 
-以下成员位于 `meas`。
+活动预算覆盖ACTIVE_CYCLES个最大上升沿间隔。频率按完整窗口计时，一个窗口建立基准，再累计STABLE_CYCLES次稳定比较；占空比按单周期检查。measurement_timeout_ticks返回完整预算，单位fs，外部检查直接使用它。
 
-| 成员 | 含义 |
-| --- | --- |
-| `meas_en` | 测量已开启 |
-| `active`、`activity_ok` | 已采够活动上升沿 |
-| `inactive` | 活动阶段未通过 |
-| `freq_hz` | 当前频率，Hz |
-| `duty` | 当前占空比，0～1 |
-| `duty_ok` | 占空比在允许范围内 |
-| `freq_stable`、`duty_stable` | 对应项目达到连续稳定要求 |
-| `timed_out` | 活动已确认，但指定项未及时稳定 |
-| `phase_frac` | 相对本次首个上升沿的周期内位置，0～1，不含 1 |
-| `last_freq_hz`、`last_duty`、`last_phase_frac` | 最近保存的活动读数 |
-| `last_valid` | 本次保存了有效活动读数，不表示频率或占空比已稳定 |
-
-`start_measure` 会清除 `last_valid`。停止测量会清零当前状态；停止前读取 `ok` 和错误状态，停止后读取 `last_*`。活动已确认不等于频率或占空比合格，不能单凭 `last_valid` 判断本次成功。
-
-## 超时与稳定
-
-1. 活动预算为 `ACTIVE_CYCLES × 最大上升沿间隔`；未指定间隔时使用最低频率对应的周期。
-2. 频率按多个完整周期的总时间计算。一个平均窗口建立基准，随后累计 `STABLE_CYCLES` 次稳定比较；占空比仍按每个周期检查。
-3. 稳定预算为 `(STABLE_CYCLES + 1) × window_cycles × 最大上升沿间隔`。`meas.measurement_timeout_ticks()` 返回包含活动、所需稳定阶段和截止保护的总预算，单位为 fs。
-
-最低频率只决定超时，不丢弃已采到的正周期。截止时间包含仿真精度余量，并在截止时间槽结束后判断，避免与最后一个边沿竞争。
-
-采样使用 `time_domain` 的整数 fs 时间戳，先求时间跨度，再转换为实数计算频率，避免长时间仿真时绝对实数时间相减丢失精度。局部时间声明不改变其他模块的默认单位，但不能恢复信号产生时已被舍入的边沿。
+两个接口均使用1ns/1fs，采样先用整数fs时间戳求跨度，再换算频率。截止检查包含时间精度余量并避开最后一个边沿的同时间槽竞争；最低频率只确定预算，不丢弃已采到的正周期。

@@ -1,80 +1,61 @@
-# 时钟树模型
+# 模型
 
-类型名带 `class_prefix` 前缀。
+tree 保存全部节点，并负责绑定和配置。类名都带 `class_prefix`；默认 tree 类型为 `clk_tree_tree`。
 
-## tree
+## 配置一次时钟
 
-| 成员 | 类型 | 含义 |
-| --- | --- | --- |
-| `nodes` | `node_base` 队列 | 全部节点实例，每个输出组各占一项 |
-| `built` | `bit` | build 已完成 |
-| `<节点名>` | 对应插件类型 | 单输出节点句柄 |
-| `<节点名>[string]` | 对应插件类型的关联数组 | 多输出节点，按输出组名索引 |
+```systemverilog
+clk_tree_tree tree;
+tree = clk_tree_tree::type_id::create("tree");
+tree.build(your_regmodel);
 
-| 方法 | 作用 |
+tree.low_power();
+tree.clk_cpu.enabled = 1;
+tree.clk_cpu.frequence = 24000000;
+tree.configure();
+```
+
+`build` 完成初次随机化，不写寄存器。`low_power` 只改变关闭偏好。`configure` 按当前目标再次随机化，再执行寄存器配置，需要在 task 中调用。全部节点都没有寄存器时，build 不传寄存器对象。
+
+## 目标与结果
+
+设置 `enabled`、`frequence`、`open`、`sel`、`ratio` 等目标属性，不直接改 `_resolved_*`。后者是求解结果，下一次随机化会重新计算。
+
+clk 和 cell 的 enabled、frequence 构造默认值均为 -1，表示没有显式要求。clk 输入正频率后，Python 会在未指定 enabled 时补 1；显式 enabled 优先。关闭时保留 frequence，再开启可继续使用它。
+
+有前级且未指定开关的 clk 默认软开启；low_power 为 1 时软关闭。显式开启和 stable 不受软偏好覆盖。stable 必须开启；输入 stable 为 true 且未填 enabled 时初始化为 1，显式关闭会在输入阶段报错。
+
+PLL 可通过 SV 的 enabled 指定开关；-1 保持默认求解。关闭 PLL 前要让依赖它的时钟满足关闭或改选输入的要求。low_power 不主动关闭 PLL。
+
+## tree 成员
+
+| 成员或方法 | 含义 |
 | --- | --- |
-| `build(regmodel)` | 绑定寄存器，调用节点初始化钩子，随机化；成功后置位 built |
-| `low_power()` | 向所有节点设置低功耗偏好，不写寄存器 |
-| `configure()` | 按当前请求重新随机化并配置寄存器 |
-| `require_built(ctx)` | 未 build 时终止并打印调用位置 |
+| `nodes` | 全部 node_base 对象的队列，每个输出组各占一项 |
+| `<节点名>` | 单输出节点句柄 |
+| `<节点名>[string]` | 按输出组名索引的节点句柄 |
+| `built` | build 已成功完成 |
+| `build(regmodel)` | 绑定、初始化和随机化 |
+| `low_power()` | 向节点设置低功耗偏好 |
+| `configure()` | 求解并应用当前目标 |
+| `require_built(ctx)` | 检查初始化状态，错误中包含调用位置 |
 
-`config_reg(tree)` 是 `tree.configure()` 的全局 task 入口，不是 sequence。配置需要在 task 上下文调用。
+## 公共节点成员
 
-## 公共成员
+| 成员 | 含义 |
+| --- | --- |
+| `source`、`sources[string]` | 默认输入或具名输入的前级 |
+| `output_name`、`output_peers[string]` | 当前输出组与同一器件的其他输出 |
+| `_resolved_active`、`_resolved_freq` | 求解后的活动状态与频率，频率单位 Hz |
+| `_should_print` | 打印解析和固定控制等诊断字段，默认 0 |
+| `_should_check` | 允许测量、flip和route，默认 1；不改变配置 |
 
-| 成员 | 类型 | 含义 |
-| --- | --- | --- |
-| `kind` | `string` | 插件名 |
-| `source` | `node_base` | 默认输入的前级 |
-| `sources[string]` | `node_base` 关联数组 | 具名输入的前级 |
-| `output_name` | `string` | 当前输出组名，单输出时为空 |
-| `output_peers[string]` | `node_base` 关联数组 | 同一物理器件的全部输出实例 |
-| `_should_print` | `bit` | 打印诊断字段，默认 0 |
-| `_should_check` | `bit` | 允许检查，默认 1 |
-| `_resolved_freq` | `rand longint` | 解析后的频率，单位 Hz |
-| `_resolved_active` | `rand bit` | 解析后的活动状态 |
+`_should_print` 不隐藏节点对象，也不控制 INFO 日志。route 的任一端关闭检查时，该连线跳过。
 
-基类约束频率大于 0 当且仅当节点活跃；连接了默认前级时，默认继承前级频率和活动状态。插件可重载这些约束。
+接口编译后，节点还持有 `vif`、`in_vif`、`out_vif` 及具名端口数组。纯配置编译不声明这些接口成员。
 
-接口已编译时，节点还提供 `vif`、`in_vif`、`out_vif` 以及具名端口数组 `in_vifs[string]`、`out_vifs[string]`。未编译接口时，这些成员和依赖它们的钩子不参与编译。
+## 寄存器切片
 
-## 插件属性
+每个绑定保存 `field`、`offset` 和 `width`。`is_bound()` 判断字段是否连接；同一字段可只绑定部分比特。
 
-寄存器绑定和配置动作由各插件负责。
-
-| 插件 | 属性 | 作用 |
-| --- | --- | --- |
-| `source`、`source_pad` | `frequence` | 固定输出频率 |
-| `clk` | `frequence`、`enabled` | 指定频率和开关，默认均为 -1，不主动固定 |
-| `clk` | `low_power` | 软约束关闭偏好，默认 0 |
-| `clk` | `stable`、`check_duty` | 稳定保护、占空比检查，默认分别为 0、1 |
-| `clk` | `unfix_frequence`、`unfix_enabled` | 忽略显式频率或开关要求，默认 0 |
-| `cell` | `frequence`、`enabled` | 可选频率和开关，默认均为 -1；检查活动和频率，不测占空比 |
-| `cell` | `cell_kind` | cell 名字 |
-| `pll_tci`、`pll_sc`、`pll_dw`、`pll_inno` | `frequence`、`enabled` | 目标频率和开关；enabled 为 -1 时跟随前级活动状态，无前级时开启 |
-| `pll_inno` | `group_id` | 共用 PLL 系数的输出组名 |
-| `gate` | `open`、`unfix_open`、`fix_open`、`fix_close` | 开关要求及固定控制 |
-| `mux`、`inv_mux` | `sel`、`unfix_sel`、`max_sel`、`switch_cycles`、`switch_timeout_ns` | 选择要求、范围及切换等待预算 |
-| `div_div`、`div_div_r`、`div_dto` | `ratio`、`unfix_ratio` | 分频比要求及固定控制 |
-| `div_div` | `max_ratio` | 分频比上限，构造默认 64 |
-| `clk_div_with_clken` | `ratio`、`unfix_ratio` | 三输出共用的分频要求，合法值为 2、3、4、6 |
-| `inv`、`inv_cell` | `inverted`、`fix_inverted` | 反相状态及固定控制 |
-
-gate、mux 和分频器随机化的是 `_resolved_open`、`_resolved_sel`、`_resolved_ratio`，不是 `open`、`sel`、`ratio`。反相器的 `inverted` 本身为 rand。
-
-clk 显式填写正频率且未填写 enabled 时默认开启；显式 enabled 优先。enabled 大于 0 且未解除频率要求时使用指定频率；enabled 为 0 时可保留 frequence 供下次开启。stable 强制开启。低功耗只改变软偏好，不覆盖显式开关，也不清除频率要求。
-
-输入 stable 为 true 且省略 enabled 时，插件初始化 enabled 为 1；显式冲突在输入阶段报错。
-
-未指定开关的 clk 有前级时默认软开启；low_power 为 1 时改为软关闭。没有前级时默认软关闭，显式设置仍受节点约束检查。
-
-## 寄存器绑定
-
-| 成员 | 类型 | 含义 |
-| --- | --- | --- |
-| `field` | `uvm_reg_field` | 寄存器模型字段句柄 |
-| `offset` | `int unsigned` | 切片起始位 |
-| `width` | `int unsigned` | 切片位宽 |
-| `alias_count` | `int unsigned` | 同一绑定的使用数 |
-
-`is_bound()` 判断 field 是否连接。寄存器访问按切片合并值，保留其它位；批量修改同一个父寄存器时只写回一次。
+写入前真实读取父寄存器，合并控制切片并保留其他位。批量修改同一个父寄存器时合并为一次写回，实际值未变则省略写入。普通读改写只适用于支持的 RW/RO 访问组合，不能套用于 W1C、RC、WO 等有副作用的字段。

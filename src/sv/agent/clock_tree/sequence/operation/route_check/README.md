@@ -1,37 +1,40 @@
 # route_check
 
-驱动前级输出并采样后级输入，检查节点间的 RTL 连线，tree 必须完成 build。
+检查前级输出到后级输入的RTL连线，不验证器件内部功能。每次只驱动一个前级，避免错误串线被并行激励掩盖。
 
-## req
+tree需要build，信号接口需要connect。开始时会执行一次低功耗配置；随后不再写寄存器，只驱动和释放信号。
 
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| `tree` | `tree_base` | 时钟树 |
+## 调用
 
-## 流程
+```systemverilog
+clk_tree_route_check_req req;
+clk_tree_route_check_seq seq;
 
-1. 应用低功耗偏好并执行一次寄存器配置。
-2. 遍历 `tree.nodes`，用 `collect_source_nodes()` 收集前级节点。
-3. 逐个前级调用 `collect_input_keys_from_source()` 找出全部后级输入。
-4. 跳过任一端 `_should_check` 为假或接口缺失的连线。
-5. 将前级默认输出分别驱动为 0、1，每次等待 1 ns 后检查全部后级输入。
-6. 释放驱动，继续下一组，最后返回汇总结果。
+req = clk_tree_route_check_req::type_id::create("req");
+req.tree = tree;
+seq = clk_tree_route_check_seq::type_id::create("route");
+seq.req = req;
+seq.start(clk_agt.sqr);
+if (seq.rsp != null)
+    `uvm_info("CLOCK", $sformatf("failed %0d", seq.rsp.failed), UVM_LOW)
+```
 
-## 设计
+在已有tree和clk_agt的task中执行。请求只有tree，快捷调用为 `clk_agt.sqr.test_route()`。
 
-### 逐路检查
+## 逐路检查
 
-每次只驱动一个前级输出并检查全部下游输入，防止错误串线使并行激励互相掩盖。多输入节点通过输入键区分端口；clk、cell 的同一个接口同时充当输入和输出。
+1. 遍历source连接，收集每个前级以及接到它的全部输入端口。
+2. 检查前级默认输出和后级输入是否有接口，任一端不允许检查则跳过。
+3. 前级输出force为0，等待1ns，比较全部后级输入。
+4. force为1，等待1ns，再比较全部后级输入。
+5. release前级，继续下一组。
 
-### 跳过与错误
+多输入用输入键区分。clk和cell没有内部功能，可以让同一接口充当输入和输出。stable时钟和PLL也参与连线检查。
 
-每条已测试连线打印 test，跳过时打印原因；关闭前级检查时按前级打印 skip。任一输入值错误会累计并继续，0、1 两次比较可分别计为失败。
+## 结果
 
-无结构边、全部连线跳过或某个前级没有返回检查及跳过结果时终止。stable 与 PLL 按相同规则参与连线检查。初始配置完成后不再写寄存器。
+每条被测试连线打印test；跳过时打印缺失端口或屏蔽原因。输入不符累计错误后继续，0、1两次比较可以分别失败。
 
-## rsp
+rsp.failed是失败比较次数，不是失败节点数或连线数。rsp.ok表示已执行比较全部通过。
 
-| 成员 | 类型 | 说明 |
-| --- | --- | --- |
-| `ok` | `bit` | 已执行检查全部通过 |
-| `failed` | `int` | 失败比较次数 |
+没有source连线、全部连线跳过或某个前级没有返回有效检查状态时报告fatal。部分跳过但其余通过不等于完整连接覆盖，需要同时查看test和skip日志。
