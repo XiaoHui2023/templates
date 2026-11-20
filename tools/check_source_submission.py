@@ -65,6 +65,7 @@ def artifact_hashes(policy: dict[str, Any]) -> dict[str, str | None]:
 
 def validate_source() -> None:
     run("git", "diff", "--check")
+    run(sys.executable, "tools/check_document_reviews.py")
     for path in (ROOT / "src").rglob("*.py"):
         compile(path.read_text(encoding="utf-8-sig"), str(path), "exec", dont_inherit=True)
     changed = run("git", "diff", "--name-only", capture=True).stdout

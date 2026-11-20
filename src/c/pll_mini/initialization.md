@@ -1,135 +1,45 @@
-# Initialization Contract
+# 时钟初始化
 
-## Requirements
+## 排除时钟
 
-| ID | Required Behavior |
-| --- | --- |
-| INIT-BASE | Preserve configured initialization, including standalone PLLs and unselected mux inputs; target reachability and SMT activity do not define initialization ownership. |
-| EXCLUDE-SELF | Explicitly excluded nodes do not constrain, calculate or contribute register configuration. |
-| EXCLUDE-BRANCH | Remove upstream nodes whose entire consumer set is removed by exclusion; do not remove other configured standalone nodes. |
-| EXCLUDE-SHARED | An upstream node with a retained effective consumer, or itself a retained clock target, stays configured. |
-| WORD-COMPLETE | Merge all retained field contributors before whole-word writes; no mask or per-field read-modify-write. |
-| EXTRA-INDEPENDENT | Extra registers remain explicit effects; extra-only words precede ordinary words, shared words merge once using existing override precedence. |
-| PLUGIN-BOUNDARY | Common graph policy uses input relationships, not concrete node kinds. Plugins keep their own encoding and PLL sequences. |
-| TERMINAL-DEMAND | Passive unconstrained terminals do not preserve upstream controls, including after physical target deletion; real demand through transparent chains does. |
-| INIT-EFFECT | A node's own observable demand protects it during passive-leaf cleanup. Explicit exclusion still removes its exclusive upstream controls, including register-backed gates. |
-| EXCLUDE-OWNERSHIP | An excluded consumer revokes its exclusively owned upstream controls, even with frequency or init settings. Shared consumers and other retained clock targets remain protected. |
-| INIT-INTENT | Explicit programmable initialization values and input selections constrain even inactive controls; equal frequency does not permit substituting another required source. |
-| INIT-TARGET | A required target must not be explicitly excluded in the input. Restore its intended inclusion, never change arithmetic to compensate for deletion. |
-| REGISTER-REPLAY | Check required field values and selected source identity against final programmed words, not just frequency or agreement with the generated array. |
+`exclude: true` 的时钟不参与求解，也不写寄存器。只供它使用的上游 div、mux、gate 一起排除，配置的初始值不会让这些节点重新参与初始化。
 
-These requirements are cumulative. Restoring INIT-BASE does not revoke EXCLUDE-BRANCH.
-Historical output comparisons must distinguish deliberate exclusion from unrelated
-standalone initialization and from underconstrained legal solver choices.
+![共享控制保留，排除时钟的独占控制不配置](images/initialization.drawio.svg)
 
-## Design
+共享控制仍被正常时钟使用时保留。只属于被排除时钟的后续控制不保留，两个节点使用同一个寄存器地址也不会改变这个判断。
 
-Before validation and solving, index configured input edges and consumer sets.
-First clean passive leaves without terminal demand, preserving actual initialization
-effects. Then propagate explicit exclusion upstream: controls that lose all their
-consumers are removed regardless of their own programming intent. Other retained
-clock targets protect their paths. A node with no original consumers is not removed just for being
-standalone if it has an initialization effect. A shared parent remains until its
-last effective consumer disappears. Empty transparent chains collapse through
-the same worklist, even without an explicit exclude flag. This is
-linear in nodes and edges; no repeated whole-tree traversal or per-kind branches.
+## 初始化范围
 
-The resulting node graph owns constraints, fitted parameters and register plans.
-The plan does not apply a second target-path filter. Register grouping sees every
-remaining field before packing a word from zero. PLL staged writes are unchanged.
-Explicit extras do not resurrect frequency nodes.
+原本独立配置的节点继续初始化。保留的 mux 仍初始化所有输入分支，不按当前选择裁剪；gate 固定打开。
 
-Plugins using a nonstandard input layout override `input_refs_from_config` for
-raw dictionaries and validated objects. The default handles scalar or mapped
-`source`; common normalization never branches on concrete node kinds.
+无频率要求、无寄存器动作的 cell 等末端节点不形成需求。删除目标时钟后只剩这类节点时，空载上游会被移除。带寄存器的独立 gate 有开启动作；普通无需求节点的删除不会取消该动作，但显式 exclude 的独占上游仍要排除。
 
-`terminal_demand_from_config` declares a node's own observable demand. The same
-cached predicate applies to original leaves and ancestors exposed by passive cleanup.
-Exclusion propagation separately protects retained targets via the plugin's
-`is_target` capability. It does not classify concrete node kinds.
-`standalone_initialization` separately preserves legacy independent initialization
-only for nodes with no original consumers; it does not protect emptied branches.
-Transparent plugins require a frequency anchor; clock plugins treat omitted and
-negative frequencies as unconstrained. Gates with a register have an explicit
-initialization effect. An inverter's accepted `reg` metadata does not imply a
-write. Other effectful plugins override this hook. Malformed anchors remain
-for normal validation. This is not a solver-activity or selected-path filter.
+## 固定分频与来源
 
-`frequency_demand_from_config` independently declares an explicit frequency
-anchor. Such an anchor survives removal of passive downstream nodes; standalone
-initialization alone does not protect a formerly consumed, now unused branch.
+可编程分频使用 `init_ratio` 指定初始分频比，同时填写 `regs`。可编程 mux 使用 `init_sel` 指定输入编号，同时填写 `reg`。没有指定时，求解器选择合法值；两个来源频率相同，不代表它们可以互换。
 
-## Explicit Programming Intent
+`ratio` 和 `sel` 只描述固定分频和固定输入选择，不写对应寄存器；分别不能与 `init_ratio`、`init_sel` 同时填写。
 
-For programmable quotient nodes, `init_ratio` fixes the value to program and
-requires `regs`. For muxes, `init_sel` fixes the input number to program and
-requires `reg`. These are unconditional solver constraints and own demand, even
-after passive downstream cleanup or when their arm is not selected. Existing
-`ratio` and `sel` still describe non-programmed fixed hardware and cannot coexist
-with their corresponding initialization field. Invalid ranges, missing writable
-registers, conflicting fixed settings and absent input numbers fail with the node
-name. Shared-field and field-width constraints remain applicable.
+## 普通寄存器
 
-Omitting initialization intent preserves the existing frequency-driven search;
-an arbitrary legal model is not a specified hardware default. Required source
-identity and backup values must come from the input author, not frequency equality.
-Explicit `exclude` and its exclusive ancestor closure take precedence over all
-control initialization intent. Shared controls and original standalone controls
-remain configured; unselected mux inputs of retained consumers are not pruned.
+同一寄存器的保留字段合成一个数组项，只写一次。写入值从零组合，未参与配置的字段为零；共享寄存器不能成为保留已排除节点的理由。
 
-## Examples And Counterexamples
+`extra_regs` 中的同地址字段合入普通数组项，相同字段以 `extra_regs` 为准。只有附加字段的寄存器放在数组前面。PLL 的多阶段写入和等待锁定不按普通数组规则合并。
 
-- Standalone configured PLL: initialize it even with no clock target.
-- Divider feeding only an excluded clock: no divider constraint or write.
-- Same divider also feeding a retained clock: retain its configuration once.
-- Delete or exclude that clock, leaving only an unconstrained cell or transparent
-  chain: omit the chain and exclusive divider; references alone are not demand.
-- Add a real frequency target after the chain: retain the complete shared upstream.
-- A frequency-constrained cell or divider followed only by a passive cell: remove
-  the passive child, but preserve the anchor and its upstream configuration.
-- Two retained gates own bit 0 and bit 1: write 3, not 1.
-- Exclude one of those gates explicitly: omit that contribution; do not silently
-  retain its bit merely because the same register is written elsewhere.
-- Exclude a branch and include an unrelated standalone PLL in the same input:
-  omit only the branch. Neither blanket full-node generation nor blanket
-  selected-target generation is correct.
+## 排除示例
 
-Acceptance must reject both historical failure strategies under this same contract.
+`example/exclusion.yaml` 保留 12 MHz 正常时钟，排除另一条时钟及其独占 div、mux、gate。独立 gate 与被排除 gate 共用地址 `0xd00`，只留下独立 gate 的 bit 1。
 
-## Initialization Example
-
-`example/initialization.yaml` programs two equal-rate inputs with distinct source
-identity. `required_clock` selects `alternate` through input 1; `required_backup`
-uses `primary / 4`. Both targets are enabled. The standalone DTO programs ratio 8
-and the standalone mux programs input 7 even without an active downstream target.
-The register-backed gate remains configured when its passive child is removed.
-Only `removed_clock` is deliberately excluded, taking its exclusive divider out
-of initialization. Independent clock demand remains available.
-
-With the supplied `normal.ralf`, the complete ordinary writes are:
-
-| Address | Value | Meaning |
+| 地址 | 写入值 | 含义 |
 | --- | --- | --- |
-| 0xd10 | 0x1 | Extra-only enable, emitted first |
-| 0x500 | 0x303 | Divider ratio 4, reset released and load asserted |
-| 0x530 | 0x20000003 | DTO ratio 8, reset released and load asserted |
-| 0x600 | 0x1 | Retained gate open |
-| 0xd00 | 0x3 | Both configured gate fields merged |
-| 0x504 | 0x1 | Required source is alternate, not equal-rate primary |
-| 0xd08 | 0x7 | Standalone source selection |
+| `0xd10` | `0x1` | 仅有附加字段，排在数组最前 |
+| `0x520` | `0x103` | 正常分频比为 2，解除复位并加载 |
+| `0x60c` | `0x1` | 正常 gate 打开 |
+| `0xd00` | `0x2` | 独立 gate 的 bit 1 为 1，被排除 gate 的 bit 0 为 0 |
+| `0x514` | `0x0` | 正常 mux 选择输入 0 |
 
-Each address occurs once. Address 0x520 (the excluded branch divider) is absent.
-Changing a required target to `exclude: true` is not a valid way to preserve this
-example's requirements, even if explicit initialization leaves the same write
-values. Restore required targets individually; do not change divider equations.
+独占 div 和 mux 的地址 `0x500`、`0x504` 不出现。给另一个正常时钟引用该 div 后，会保留共享 div；后续独占 mux 和 gate 仍不配置。
 
-## Exclusion Example
+## 保留必须目标
 
-`example/exclusion.yaml` removes the excluded clock's divider, selector and gate,
-including their explicit initialization values and a passive side leaf. The
-normal clock retains its divider, selector and gate unchanged. The independent
-gate shares a register word with the removed gate but contributes only its own
-bit: address 0xd00 is 2, not 3. The complete ordinary output is 0xd10=1 (extra
-first), 0x520=0x103, 0x60c=1, 0xd00=2 and 0x514=0, each written once. Addresses
-0x500 and 0x504 are absent. Adding another retained clock after the removed
-divider or selector preserves the shared prefix, not the exclusive suffix.
+必须初始化的目标不能填写 `exclude: true`。恢复目标时逐项取消排除，不修改分频公式来补偿目标缺失。即使寄存器写入值没有变化，也要检查必须目标是否仍参与求解。
