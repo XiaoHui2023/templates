@@ -39,8 +39,8 @@ Python 插件的 `binding_assignments(registers)` 接收当前输出组的寄存
 | `acquire_requirement`、`release_requirement` | 建立和释放临时状态 |
 | `execute_configuration` | 执行插件内部动作 token，默认 0 为最终配置 |
 | `poll_configuration` | 分次检查延迟完成条件，返回是否完成和下一次检查间隔 |
-| `configuration_owner`、`availability_key` | 标识多输出或别名共享的控制资源 |
-| `configuration_signature` | 比较共用控制标识的最终编码 |
+| `configuration_owner`、`availability_key` | 区分多输出或别名共享的控制资源 |
+| `configuration_signature` | 比较共用控制资源的最终编码 |
 | `configuration_preserves_availability` | 最终状态是否允许临时使用 |
 | `apply_low_power_preference` | 设置本节点的低功耗偏好 |
 | `collect_control_regs` | 返回控制寄存器，用于识别共享字段 |
@@ -55,20 +55,6 @@ Python 插件的 `binding_assignments(registers)` 接收当前输出组的寄存
 寄存器编码、读回比较和重复配置判断由插件实现。
 
 单独编译 `config.f` 时，clock 和 cell 仍作为下游端点参与配置筛选，不要求 interface。加载测量接口后，端点仍按实际接口连接判断。
-
-### 无毛刺切换
-
-1. mux 读回旧 sel；与目标相同则跳过写入和等待。
-2. 声明旧、新输入需要保持运行，直到切换等待完成。
-3. 输入提供者声明自己的准备动作；两端就绪后，等一个最慢输入周期，再写 sel。
-4. 用延迟完成动作等待 `switch_cycles` 个最慢输入周期；期间继续执行其它已就绪动作，完成后才释放输入使用。
-5. 共享输入等全部使用结束后，再应用关闭目标；没有最终目标的临时 gate 恢复读回值。
-
-mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的临时使用钩子提供运行状态；公共配置代码只管理动作、依赖及共享使用。具体结构见[配置计划](base/config/README.md)。
-
-频率由源、分频比和 DTO 步进编码计算，不使用已关闭 gate 的零频率，也不使用约束容差带中的随机值。PLL 临时供钟复用自身编程和锁定逻辑，使用结束后应用最终电源目标；寄存器绑定不全或无法确认锁定时，拒绝供钟要求。
-
-`switch_cycles` 是目标 IP 的切换时间预算，不是硬件完成状态。没有完成状态寄存器时，须按同步级数和 IP 时序设置，不能靠延长等待修复已停止的输入。
 
 ## 测量钩子
 
@@ -116,7 +102,7 @@ mux 只描述切换需求，不判断上游类型。gate 和 PLL 通过同样的
 | `get_in_vif`、`get_out_vif` | 返回指定端口的 virtual interface |
 | `interfaces_connected` | 全部接口绑定后的初始化 |
 
-`route_check` 通过拓扑钩子找出前级输出和后级输入，逐个前级驱动 0、1 并检查全部下游输入，然后释放驱动。它使用前级默认输出 `get_out_vif()`；多输入由输入键区分。
+`route_check` 通过连接关系钩子找出前级输出和后级输入，逐个前级驱动 0、1 并检查全部下游输入，然后释放驱动。它使用前级默认输出 `get_out_vif()`；多输入由输入键区分。
 
 ## 扩展
 

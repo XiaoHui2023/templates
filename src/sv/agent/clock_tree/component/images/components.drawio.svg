@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="760px" height="240px" viewBox="0 0 760 240" content="&lt;mxfile host=&quot;app.diagrams.net&quot; version=&quot;24.0.0&quot;&gt;&lt;diagram name=&quot;Components&quot; id=&quot;clock-tree-components&quot;&gt;&lt;mxGraphModel dx=&quot;760&quot; dy=&quot;240&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; page=&quot;0&quot;&gt;&lt;root&gt;
+&lt;mxCell id=&quot;0&quot;/&gt;&lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;
+&lt;mxCell id=&quot;legend&quot; value=&quot;tree: tree     clk_agt: agent     sqr: kit_sequencer&quot; style=&quot;text;html=0;align=left;fontSize=14;fontFamily=Microsoft YaHei;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;25&quot; y=&quot;15&quot; width=&quot;710&quot; height=&quot;30&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;tree&quot; value=&quot;tree&quot; style=&quot;rounded=1;arcSize=8;whiteSpace=wrap;html=0;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=16;fontFamily=Microsoft YaHei;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;30&quot; y=&quot;95&quot; width=&quot;150&quot; height=&quot;70&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;agent&quot; value=&quot;clk_agt&quot; style=&quot;rounded=1;arcSize=8;whiteSpace=wrap;html=0;verticalAlign=top;spacingTop=14;fillColor=#f2f2f2;strokeColor=#111111;strokeWidth=1.5;fontSize=16;fontFamily=Microsoft YaHei;&quot; vertex=&quot;1&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry x=&quot;440&quot; y=&quot;60&quot; width=&quot;270&quot; height=&quot;150&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;sqr&quot; value=&quot;sqr&quot; style=&quot;rounded=1;arcSize=8;whiteSpace=wrap;html=0;fillColor=#ffffff;strokeColor=#111111;strokeWidth=1.5;fontSize=16;fontFamily=Microsoft YaHei;&quot; vertex=&quot;1&quot; parent=&quot;agent&quot;&gt;&lt;mxGeometry x=&quot;60&quot; y=&quot;60&quot; width=&quot;150&quot; height=&quot;60&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;mxCell id=&quot;inject&quot; value=&quot;config_db: tree&quot; style=&quot;edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;strokeColor=#111111;strokeWidth=1.5;fontSize=14;fontFamily=Microsoft YaHei;&quot; edge=&quot;1&quot; source=&quot;tree&quot; target=&quot;agent&quot; parent=&quot;1&quot;&gt;&lt;mxGeometry relative=&quot;1&quot; as=&quot;geometry&quot;/&gt;&lt;/mxCell&gt;
+&lt;/root&gt;&lt;/mxGraphModel&gt;&lt;/diagram&gt;&lt;/mxfile&gt;" style="background-color: transparent; background-color: transparent;">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#111"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif" fill="#111" font-size="14">
+<text x="25" y="36">tree: tree　　clk_agt: agent　　sqr: kit_sequencer</text>
+<g stroke="#111" stroke-width="1.5"><rect x="30" y="95" width="150" height="70" rx="8" fill="#fff"/><rect x="440" y="60" width="270" height="150" rx="8" fill="#f2f2f2"/><rect x="500" y="120" width="150" height="60" rx="8" fill="#fff"/><path d="M180 130H440" marker-end="url(#arrow)" fill="none"/></g>
+<g font-size="16" text-anchor="middle"><text x="105" y="136">tree</text><text x="575" y="90">clk_agt</text><text x="575" y="156">sqr</text></g>
+<text x="310" y="115" text-anchor="middle">config_db: tree</text>
+</g>
+</svg>

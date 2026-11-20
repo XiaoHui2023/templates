@@ -28,7 +28,7 @@ nodes:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `settings` | `Settings` | | 全局选项。 |
+| `settings` | `Settings` | 默认设置 | 全局选项。 |
 | `nodes` | `dict[str, Node]` | | 按名字管理的节点。 |
 
 ### Settings
@@ -39,7 +39,7 @@ nodes:
 | --- | --- | --- | --- |
 | `class_prefix` | `str` | `clk_tree_` | 类型名前缀。 |
 | `class_regmodel` | `str` | `""` | 寄存器模型类型名。 |
-| `direct_config` | `bool` | `false` | 生成纯配置入口 `config.f` 和使用说明 `config.md`。 |
+| `direct_config` | `bool` | `false` | 启用独立的纯寄存器配置用法。 |
 | `min_freq_hz` | `int` | `15000` | 允许最低频率，单位 Hz。 |
 | `max_freq_hz` | `int` | `5000000000` | 允许最高频率，单位 Hz。 |
 | `active_cycles` | `int` | `1` | 活动判定周期数。 |
@@ -78,7 +78,7 @@ nodes:
 | `exclude` | `bool` | `false` | 排除该节点，不生成实例、接口和寄存器绑定。 |
 | `source` | `str` / `dict[str, str]` | | 前级引用。 |
 | `outputs` | `list[str]` | `[]` | 输出组。 |
-| `path` | `str` | | 观测路径。 |
+| `path` | `str` | | 信号测量路径。 |
 | `in_path`、`out_path` | `str` | | 默认输入、输出路径。 |
 | `in_paths`、`out_paths` | `dict[str, str]` | `{}` | 具名端口路径。 |
 | `reg` | `str` | | 默认寄存器模型路径。 |
@@ -115,10 +115,14 @@ mux、gate 和分频器不填寄存器时，分别填写固定的 `sel`、`open`
 
 | 节点 | 必需寄存器 | 可选寄存器 |
 | --- | --- | --- |
-| mux、gate、可编程反相器 | `reg` | |
+| mux、inv_mux、gate、可编程反相器 | `reg` | |
 | div_div | `rst`、`load`、`div` | |
 | div_dto | `rst`、`load`、`bypass`、`step` | |
 | clk_div_with_clken | `div` 或 `reg` | `rst`、`load` |
+| pll_sc | `lock`、`vocpd`、`postdivpd`、`dsmpd`、`pd`、`bypass`、`refdiv`、`postdiv2`、`postdiv1`、`fbdiv` | |
+| pll_inno | `lock`、`pd`、`postdiv1`、`refdiv`、`postdiv2`、`fbdiv` | |
+| pll_tci | `lock`、`bypass`、`pwrdn`、`reset`、`clkod`、`clkf`、`clkr`、`bwadj` | |
+| pll_dw | `lock`、`fbdiv`、`prediv`、`reset`、`pwron`、`shift`、`bypass`、`divvcor`、`r`、`p`、`divvcop`、`enr`、`enp` | |
 
 `div_div_r` 不支持寄存器。反相器不填寄存器时按 `inverted` 固定，省略为反相。PLL 不填寄存器时表示外部固定时钟，填写正频率或明确关闭；填写寄存器则必须提供对应型号的完整字段。全部节点均无需寄存器时，可以省略 `class_regmodel`。
 
@@ -131,17 +135,7 @@ mux、gate 和分频器不填寄存器时，分别填写固定的 `sel`、`open`
 | `switch_cycles` | `8` | 写 sel 后等待旧、新输入中最慢时钟的周期数。 |
 | `switch_timeout_ns` | `1000000` | 等待预算上限，单位 ns；超过则报错，不继续写 sel。 |
 
-切换前临时开启旧、新输入路径上的 gate，等待一个最慢输入周期，再写 sel。切换等待结束后才按目标关闭 gate。选择值未变化时不重复配置或等待。
-
-[切换配置示例](example_config_plan.yaml)保留新输入、最终关闭旧输入；切换期间仍由配置计划保持两端供钟。
-
-周期数须满足目标 mux 的同步延迟；这是时间预算，不是硬件完成确认。输入运行要求由各提供者插件处理，寄存器或锁定条件不足时拒绝配置。
-
-独立 PLL 先编程，再分次检查锁定，硬件锁定时间可以重叠；mux 的写后等待同样不阻塞其它就绪动作。级联参考和共享输入仍按依赖执行，寄存器访问保持串行。详见[配置调度](node/base/config/README.md)。
-
-## 日志
-
-日志由 UVM verbosity 控制：`UVM_LOW` 显示配置、测试点、跳过与汇总；`UVM_HIGH` 显示读回跳过及逐项测量结果；`UVM_DEBUG` 显示等待进度和接口状态。错误不受 INFO verbosity 过滤。
+`switch_cycles` 应覆盖目标 IP 的同步延迟；等待时间按旧、新输入中最慢的频率计算，不表示读取了硬件完成状态。
 
 ### DTO 配置
 
@@ -154,12 +148,37 @@ mux、gate 和分频器不填寄存器时，分别填写固定的 `sel`、`open`
 | `sync_wait_ns` | `200` | 复位和 load 同步等待时间，单位 ns，大于 0。 |
 | `settle_ns` | `200` | flip 测量前的稳定等待时间，单位 ns。 |
 
-1. 需要复位时，断言复位并等待同步。
-2. 拉低 load，写 step 和 bypass，释放复位。
-3. 等待同步，最后拉高 load。
-4. 等待 load 同步后返回。
+`sync_wait_ns` 应覆盖目标 IP 的复位和 load 同步延迟，不表示读取了硬件完成状态。
 
-当前没有同步完成状态输入，sync_wait_ns 应覆盖目标 IP 的同步延迟，不表示读取了硬件完成状态。
+### 其他插件设置
+
+均写在 `settings.plugin.<作用域>` 下。
+
+| 作用域 | 字段 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `divider` | `freq_tolerance` | `0.01` | 分频约束容差，支持 0.005、0.0005 等小数；不改变测量误差 |
+| `div_div` | `reg_high_means_reset` | `false` | 复位高有效 |
+| `div_div` | `reset_on_config` | `false` | 普通配置前复位 |
+| `div_div` | `settle_ns` | `200` | flip 测量前等待时间，ns |
+| `gate` | `reg_high_means_open` | `false` | 寄存器 1 表示打开 |
+| `inverter` | `reg_high_means_inverted` | `true` | 寄存器 1 表示反相 |
+| `inverter` | `settle_ns` | `100` | 配置极性后采样前等待时间，ns |
+| `pll` | `lock_timeout_us` | `100` | 首次锁检查开始后的等待预算，us |
+
+### SC PLL 搜索
+
+`settings.plugin.pll_sc`：
+
+| 字段 | 默认值 | 含义 |
+| --- | --- | --- |
+| `fbdiv_min` | `16` | 反馈分频下限 |
+| `fbdiv_max` | `99` | 反馈分频上限 |
+| `pfd_min_hz` | `12000000` | 鉴相频率下限，Hz |
+| `vco_min_hz` | `800000000` | VCO频率下限，Hz |
+| `vco_max_hz` | `1600000000` | VCO频率上限，Hz |
+| `freq_tolerance` | `0.02` | 最优合法解允许的相对输出误差 |
+
+边界应按目标 IP 设置；允许误差只判断可接受性，不降低最佳频率搜索精度。
 
 ### 共享寄存器
 

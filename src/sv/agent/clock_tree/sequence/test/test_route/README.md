@@ -11,7 +11,7 @@
 ## 流程
 
 1. 校验请求。
-2. 创建 **route_check** 请求并转交 tree、打印开关。
+2. 创建 `route_check` 请求并传入 tree。
 3. 启动 **route_check**。
 4. 将 operation 的通过状态和失败数写入 test response。
 

@@ -1,4 +1,4 @@
-# 说明
+# 时钟树验证
 
 ## 例化接口
 
@@ -18,6 +18,7 @@ endmodule
 {{ settings.class_prefix }}tree tree;
 
 function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
     ...
     clk_agt = {{ settings.class_prefix }}agent::type_id::create("clk_agt", this);
     tree = {{ settings.class_prefix }}tree::type_id::create("tree");
@@ -39,3 +40,5 @@ task main_phase(uvm_phase phase);
     phase.drop_objection(this);
 endtask
 ```
+
+{{- '\n' }}

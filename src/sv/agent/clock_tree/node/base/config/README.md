@@ -21,7 +21,7 @@
 | `config_action` | `id`、`owner`、`token`、`label` | 计划内编号、执行节点、插件内部动作编号和诊断名称 |
 | `config_action` | `action_kind` | `EXECUTE` 调用插件动作，`ACQUIRE` 建立可用状态，`RELEASE` 结束临时使用 |
 | `config_action` | `prerequisites[$]`、`followers[$]` | 前置动作和后继动作的整数 ID，不互相持有动作句柄 |
-| `config_action` | `lease_key` | 取得/释放动作对应的共享记录标识 |
+| `config_action` | `lease_key` | 取得/释放动作对应的共享记录名字 |
 | `config_action` | `deferred`、`next_poll_tick` | 是否分次检查完成条件，以及下一次可检查的绝对fs整数时刻 |
 | `config_lease` | `provider`、`ready`、`release_action` | 实际提供者、就绪动作和释放动作 |
 | `config_lease` | `state` | 插件自己的 `uvm_object` 临时快照，核心不解释内容 |
@@ -30,7 +30,7 @@
 | `config_context` | `leases[string]` | 按物理可用控制 key 合并的共享记录 |
 | `config_context` | `planned_providers[string]` | 同一 key 下已贡献依赖的逻辑提供者，避免递归重复规划 |
 | `config_context` | `observations[int]` | 按节点实例 ID 保存本次读回状态 |
-| `config_context` | `runtime_states[int]` | 插件执行状态，例如编程结束后确定的锁定截止时间；与规划读回分开保存 |
+| `config_context` | `runtime_states[int]` | 插件执行状态，例如首次锁检查时确定的截止时间；与规划读回分开保存 |
 | `config_context` | `sealed`、`failed`、`io` | 计划是否封存、是否失败、寄存器服务 |
 
 每次配置创建新上下文，不跨配置保存临时快照，也不修改节点的 `_resolved_*` 作为临时状态。
@@ -51,14 +51,14 @@
 | `context.set_runtime_state(node, state)`、`runtime_state(node)` | 保存与读取插件在执行时建立的状态，不修改已封存的依赖图 |
 | `context.fail(message)`、`has_failed()` | 报告并传播失败；fatal 不作为语言异常使用 |
 
-`require_available` 只建立共享记录和依赖，**不会立即打开时钟**。调用者仍须把自己的使用动作排在返回的 `lease.ready` 之后；它只自动保证 release 在 completion 之后。
+`require_available` 只建立共享记录和依赖，**不会立即打开时钟**。调用者仍要把自己的使用动作排在返回的 `lease.ready` 之后；它只自动保证 release 在 completion 之后。
 
 ## 节点钩子
 
 | 钩子 | 职责与默认行为 |
 | --- | --- |
 | `has_configuration()` | 是否登记最终动作；默认否 |
-| `requires_observed_descendant()` | 是否要求有效下游观测端点；默认否 |
+| `requires_observed_descendant()` | 是否要求有效下游测量端点；默认否 |
 | `configuration_owner()` | 多输出对应的实际控制者；默认自身 |
 | `availability_key()` | 等价取得/释放操作的共享 key；默认节点实例 ID |
 | `configuration_signature()` | 同一 key 的最终编码签名；默认空，不允许多个目标靠空签名宣称一致 |
@@ -82,7 +82,7 @@
 3. 调用 `plan_configuration`，添加动作及依赖。token 由插件自己解释，0 表示目标动作。
 4. `require_available(provider, completion)` 声明提供者必须保持可用，直到指定动作完成。
 5. 提供者通过 `plan_requirement` 声明上游要求；上下文合并共享使用，并安排就绪、释放和目标动作。
-6. 完整拓扑检查通过后，由单执行器运行就绪动作和分次完成检查。循环依赖在任何动作执行前报错。
+6. 完整连接关系检查通过后，由单执行器运行就绪动作和分次完成检查。循环依赖在任何动作执行前报错。
 
 动作通过 `context.io` 访问寄存器。不依赖其它节点的数值优先级；需要长时间等待的插件拆成启动与完成动作，完成前不放行后继。
 
@@ -103,7 +103,7 @@
 
 `frequency_encoder.wait_lock(f_lock, timeout_ns)` 同样接收普通ns数值，预算包含寄存器读取耗时；当前配置计划使用节点自己的非阻塞锁轮询。
 
-该package不改变外部的局部时间单位，但会参与全局最小精度计算，因此可能影响 `#1step`。64位fs范围约5.12小时，预算或期限加法越界直接报错；仿真时刻本身须在此范围内，仿真器强制覆盖精度不在保证内。独立package须在宿主package外编译，`all.f` 和 `config.f` 已将它排在使用者之前。
+该package不改变外部的局部时间单位，但会参与全局最小精度计算，因此可能影响 `#1step`。64位fs范围约5.12小时，预算或期限加法越界直接报错；仿真时刻本身应在此范围内，仿真器强制覆盖精度不在保证内。独立 package 应在宿主package外编译，`all.f` 和 `config.f` 已将它排在使用者之前。
 
 ### PLL 启动与锁定
 
@@ -113,7 +113,7 @@
 4. 最终关闭但被临时使用的 PLL 同样拆为临时 program 与 lock-completion。确认锁定后才宣布 lease.ready；所有使用完成后再执行关闭目标。
 5. 即使配置匹配而没有写寄存器，仍确认 lock。每次先真实读回：1表示完成，0且预算未用完则重试，0且已到期则报超时；未知或非法读值单独报错。超期调度仍保留这次读回，不用未读初值判断锁状态。
 
-各 PLL 的具体编码函数不变；配置计划不识别 PLL 类名。锁轮询间隔最多2us，等待不超过剩余预算。预算默认100us，衡量锁观察窗口，不证明硬件从编程起100us内锁定；调度及最后一次前门读取可能延后返回，单次总线访问超时由寄存器服务负责，不取消正在执行的RAL线程。同步等待入口复用相同读回判断。
+各 PLL 的具体编码函数不变；配置计划不识别 PLL 类名。锁轮询间隔最多2us，等待不超过剩余预算。预算默认100us，衡量锁观察窗口，不证明硬件从编程起100us内锁定；调度及最后一次前门读取可能延后返回，单次总线访问超时由寄存器服务负责，不取消正在执行的寄存器访问线程。同步等待入口复用相同读回判断。
 
 ### 一次请求的展开
 
@@ -124,7 +124,7 @@
 5. 添加 RELEASE 等待 completion 的依赖，将这次使用并入共享生命周期。
 6. 消费者把实际使用动作排在 lease.ready 之后。提供者的上游请求按同一机制展开。
 7. 全部插件规划完后，上下文检查共享目标：保持可用的最终目标在 ACQUIRE 前执行；破坏可用的目标在 RELEASE 后执行。
-8. 完整拓扑排序通过后才执行。ACQUIRE 调用取得钩子，EXECUTE 调用动作钩子，RELEASE 调用释放钩子。
+8. 完整连接关系排序通过后才执行。ACQUIRE 调用取得钩子，EXECUTE 调用动作钩子，RELEASE 调用释放钩子。
 
 共享记录不靠“最后一个线程”的计数判断结束，而是让同一个 RELEASE 依赖全部消费者的 completion。当前串行执行，没有请求线程或后台 worker。
 
@@ -137,7 +137,7 @@
 5. select 写入完成后，为 target 设置 `switch_cycles` 个最慢输入周期的完成时刻。target 到时完成，其间可执行其它器件的动作，之后才允许两个输入 RELEASE。
 6. 旧 gate 的最终关闭动作等待 RELEASE；新 gate 的最终开启动作保持有效。其它消费者仍使用旧 gate 时，关闭继续等待。
 
-配置需求与 sequence 的 `req` 不同。measure 使用观测能力，flip 使用节点功能契约，route 使用端口拓扑；它们只在最初配置阶段间接使用此计划，不把测量和 force 转成 availability 请求。
+配置需求与 sequence 的 `req` 不同。measure 使用测量能力，flip 使用节点功能检查，route 使用端口连接关系；它们只在最初配置阶段间接使用此计划，不把测量和 force 转成 availability 请求。
 
 ## 插件
 
@@ -153,10 +153,10 @@
 
 多输出通过 `configuration_owner` 返回实际控制者。等价控制别名可返回相同的 `availability_key`，共用一次取得和释放；每个逻辑提供者仍声明自己的上游依赖。
 
-共用控制标识的最终动作必须给出相同的 `configuration_signature`。签名由插件按实际目标编码生成；缺失或冲突时，计划在写入前失败，不按先后顺序覆盖。
+共用控制资源的最终动作必须给出相同的 `configuration_signature`。签名由插件按实际目标编码生成；缺失或冲突时，计划在写入前失败，不按先后顺序覆盖。
 
 `tree.build` 登记寄存器控制切片。上下文将重叠控制的目标写入安排在使用之前或之后；编码是否兼容由原有约束和插件校验，不由调度器猜测。
 
-完整拓扑预检与依赖释放为 O(V+E)；共享控制检查另按使用记录与目标节点比较，待完成动作按轮询批次检查。硬件等待可以重叠，但 task 和寄存器访问仍由一个执行器串行调用，不添加总线锁或工作线程。
+完整连接关系预检与依赖释放为 O(V+E)；共享控制检查另按使用记录与目标节点比较，待完成动作按轮询批次检查。硬件等待可以重叠，但 task 和寄存器访问仍由一个执行器串行调用，不添加总线锁或工作线程。
 
 规划错误直接终止，尚未执行的动作不会写入硬件。执行期间超时不继续释放尚未确认的资源，也不承诺任意硬件动作都能回滚。周期等待只是插件的时间预算；存在完成状态时，应由插件检查该状态。

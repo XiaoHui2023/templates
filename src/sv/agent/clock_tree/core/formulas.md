@@ -27,7 +27,7 @@ floor(f_hw × (1 - epsilon)) <= f <= floor(f_hw × (1 + epsilon))
 | **max_ratio** | 节点允许的最大分频比 |
 | **N** | **div** 寄存器写入值 |
 
-```
+```text
 f_actual = f_ref / ratio
 N = ratio - 1
 ```
@@ -42,7 +42,7 @@ N = ratio - 1
 | --- | --- |
 | **ratio** | 固定分频比，大于 0 |
 
-```
+```text
 f_actual = f_ref / ratio
 ```
 
@@ -69,7 +69,7 @@ f_hclken = f_hclk
 
 分频比大于 1 时：
 
-```
+```text
 step = floor(2^25 / ratio)
 f_actual = f_ref × min(step, 2^25 - step) / 2^25
 ```
@@ -98,7 +98,7 @@ step的有效范围固定为25位，不随寄存器字段宽度扩大；字段�
 | **clkod** | 输出分频，固定 1 |
 | **bwadj** | 带宽调节，等于 **clkf** |
 
-```
+```text
 clkf = floor(f / f_ref)
 ```
 
@@ -121,7 +121,7 @@ clkf = floor(f / f_ref)
 | **f_vco_min** | VCO 频率下限 |
 | **f_vco_max** | VCO 频率上限 |
 
-```
+```text
 f_pfd = f_ref / refdiv
 f_vco = f_pfd × fbdiv
 f_actual = f_vco / postdiv1 / postdiv2
@@ -143,7 +143,7 @@ f_actual = f_vco / postdiv1 / postdiv2
 | **postdiv1_reg** | **postdiv1** 寄存器写入值，0～6；每路独立 |
 | **postdiv2_reg** | **postdiv2** 寄存器写入值，0～6；每路独立 |
 
-```
+```text
 f_actual = f_ref × fbdiv / refdiv / postdiv1 / postdiv2
 ```
 
@@ -177,8 +177,8 @@ f_actual = f_ref × fbdiv / postdiv
 | **T** | 当前测得周期 |
 | **phase_frac** | 归一化相位，取值 0 以上且小于 1 |
 
-```
+```text
 phase_frac = fmod(t_rise - t_ref, T) / T
 ```
 
-这是本路时钟相对自身首个上升沿的位置，不是两路时钟的相位差。
+这是该路时钟相对自身首个上升沿的位置，不是两路时钟的相位差。

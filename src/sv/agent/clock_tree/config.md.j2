@@ -6,18 +6,20 @@
 
 只配置寄存器时，用 `-F` 导入 `config.f`，不需要例化接口或启动 sequence。
 
-```
+```text
 -F path-to-dir/config.f
 ```
 
 ## 部署
-{% if reg_bindings %}
-传入 `{{ settings.class_regmodel }}` 寄存器对象: `path-to-your-regmodel`
-{% endif %}
+
+{% if reg_bindings -%}
+传入 `{{ settings.class_regmodel }}` 寄存器对象 `path-to-your-regmodel`。
+
+{% endif -%}
+
 ```systemverilog
 {{ settings.class_prefix }}tree tree;
 
-// 例化 tree
 tree = {{ settings.class_prefix }}tree::type_id::create("tree");
 {% if reg_bindings -%}
 // 绑定寄存器
@@ -47,5 +49,18 @@ tree.your_clk.frequence = 123456000; // 目标频率 123.456 MHz
 tree.configure();
 ```
 
-频率和开关必须满足前级连接，否则随机化失败。共用寄存器的节点要设置相容的控制值，避免相互覆盖。
+## 关闭 PLL
+
+以 `your_pll` 为例。先关闭依赖它的时钟，再应用配置；低功耗操作不会主动关闭 PLL。
+
+```systemverilog
+tree.your_pll.enabled = 0;
+tree.configure();
+```
+
+## 约束
+
+1. 频率和开关要满足前级连接，否则随机化失败。
+2. 开启的时钟需要有效的上游输入，频率通常要满足分频关系。
+3. 共用寄存器的节点要有相容的控制值，不能分别要求互相矛盾的编码。
 {% endif -%}
