@@ -1,94 +1,17 @@
 # 寄存器计算公式
 
-- **f_ref**：前级参考频率。
-- **f_out**：目标输出频率。
-- **ratio**：分频比。
-- **step**：DTO 寄存器写入值。
-- **tol**：允许相对频率偏差。
+`f_ref` 为前级频率，`f_hw` 为硬件输出频率，单位均为 Hz。`//` 表示整数除法；目标频率与计算结果按 `period_tolerance` 比较。
 
-## div
+| 节点 | 频率或编码公式 | 参数范围与写入 |
+| --- | --- | --- |
+| div | `f_hw = f_ref // ratio` | 可编程比值为 1～64，写入 `ratio - 1`。 |
+| DTO | `step = (2^25) // ratio`，`f_hw = f_ref // ratio` | 可编程比值为 2～`2^25`，`step` 为 1～`2^25 - 1`。 |
+| TCI PLL | `f_hw = f_ref * clkf` | `bwadj = clkf`，`clkr = clkod = 1`。 |
+| SC PLL | `f_hw = (f_ref * fbdiv) // (refdiv * postdiv1 * postdiv2)` | `fbdiv` 受配置上下限约束。 |
+| DW PLL | `f_hw = (f_ref * fbdiv) // (p + 1)` | `p` 使用寄存器编码值。 |
+| INNO PLL | `f_hw[g] = (f_ref * fbdiv) // (refdiv * postdiv1[g] * postdiv2[g])` | 每路后级实际分频为 1～7，寄存器写入实际值减 1。 |
+| clk_div_with_clken | `core = f_ref`，`hclk = hclken = f_ref // ratio` | 比值 2、3、4、6 分别编码为 0、2、4、8。 |
 
-| 参数 | 说明 |
-| --- | --- |
-| **f_ref** | 前级频率 |
-| **ratio** | 分频比，普通 div 允许 1 到 64 |
-| **f_hw** | 硬件整数分频后的频率 |
+DTO 的固定 `ratio` 上限为 64；可编程 `init_ratio` 与求解值使用表中的硬件范围。`ratio=1` 会得到越界的 `step=2^25`，不能用于 DTO。
 
-```text
-f_hw = f_ref // ratio
-rem = f_ref % ratio
-```
-
-`f_out` 与 `f_hw` 按容差比较。寄存器写入值为：
-
-```text
-N = ratio - 1
-```
-
-## dto
-
-| 参数 | 说明 |
-| --- | --- |
-| **ratio** | DTO 分频比，允许 2 到 2^25 |
-| **step** | DTO 步进寄存器值 |
-
-```text
-step = (2^25) // ratio
-```
-
-`step` 必须在 1 到 `2^25 - 1` 内。`ratio=1` 会得到 `step=2^25`，不是合法寄存器值。
-
-## TCI PLL
-
-| 参数 | 说明 |
-| --- | --- |
-| **clkf** | 倍频系数 |
-
-```text
-f_out = f_ref * clkf
-```
-
-寄存器写入使用 `clkf`，`bwadj` 与 `clkf` 相同，`clkr` 和 `clkod` 固定为 1。
-
-## SC PLL
-
-| 参数 | 说明 |
-| --- | --- |
-| **fbdiv** | 反馈分频系数 |
-| **refdiv** | 参考分频系数 |
-| **postdiv1** | 后级分频 1 |
-| **postdiv2** | 后级分频 2 |
-
-```text
-f_hw = (f_ref * fbdiv) // (refdiv * postdiv1 * postdiv2)
-```
-
-`f_out` 与 `f_hw` 按容差比较。`fbdiv` 使用配置允许的上下限。
-
-## DW PLL
-
-| 参数 | 说明 |
-| --- | --- |
-| **fbdiv** | 反馈分频系数 |
-| **p** | P 分频寄存器语义 |
-
-```text
-f_hw = (f_ref * fbdiv) // (p + 1)
-```
-
-`f_out` 与 `f_hw` 按容差比较。
-
-## INNO PLL
-
-| 参数 | 说明 |
-| --- | --- |
-| **fbdiv** | 反馈分频系数 |
-| **refdiv** | 参考分频系数 |
-| **postdiv1_g** | 输出组 **g** 的后级分频 1 |
-| **postdiv2_g** | 输出组 **g** 的后级分频 2 |
-
-```text
-f_hw_g = (f_ref * fbdiv) // (refdiv * postdiv1_g * postdiv2_g)
-```
-
-只对有效输出组比较 `f_out_g`。未被下游使用的输出组不参与寄存器系数匹配。
+INNO 两路共用 `refdiv` 和 `fbdiv`，分别使用自己的 `postdiv1`、`postdiv2`；只有有效输出组参与频率拟合。

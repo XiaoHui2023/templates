@@ -2,7 +2,7 @@
 
 ## 工具调用
 
-`bin/consolver.exe` 是外部工具，不提交二进制。缺失时错误包含预期路径与 [下载入口](https://github.com/XiaoHui2023/consolver)。Python 写入临时 SMT 文件，调用 `consolver solve <file> --format json --timeout-ms <ms>`，读取 JSON 后删除临时输入。正式求解只有一次；失败诊断可以在独立预算内做额外检查。
+`bin/consolver.exe` 缺失时，错误包含预期路径与 [下载入口](https://github.com/XiaoHui2023/consolver)。Python 写入临时 SMT 文件，调用 `consolver solve <file> --format json --timeout-ms <ms>`，读取 JSON 后删除临时输入。正式求解只有一次；失败诊断可以在独立预算内做额外检查。
 
 每个断言使用唯一标签 `c000000` 等，另存节点、规则、输入字段和表达式映射。调试导出与正常求解使用相同 builder，不改变求解选项或模型。
 

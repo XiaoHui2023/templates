@@ -63,9 +63,12 @@ def artifact_hashes(policy: dict[str, Any]) -> dict[str, str | None]:
     return result
 
 
-def validate_source() -> None:
-    run("git", "diff", "--check")
-    run(sys.executable, "tools/check_document_reviews.py")
+def validate_source(*, staged: bool = False) -> None:
+    run("git", "diff", *(["--cached"] if staged else []), "--check")
+    review_command = [sys.executable, "tools/check_document_reviews.py"]
+    if staged:
+        review_command.append("--staged")
+    run(*review_command)
     for path in (ROOT / "src").rglob("*.py"):
         compile(path.read_text(encoding="utf-8-sig"), str(path), "exec", dont_inherit=True)
     changed = run("git", "diff", "--name-only", capture=True).stdout
@@ -81,7 +84,7 @@ def main() -> int:
     if phase not in {"source", "delivery"} or not challenge:
         raise ValueError("this validator must run from the managed quality gate")
     policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
-    validate_source()
+    validate_source(staged=phase == "source")
     source = policy["source_submission"]
     if phase == "source":
         command = source["command_windows"] if os.name == "nt" else source["command"]

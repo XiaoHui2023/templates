@@ -62,6 +62,8 @@ def check(root: Path, staged: bool) -> int:
         command = [policy['python'], policy['checker'], 'check', '--root', str(root),
                    '--draft', entry['draft'], '--target', target, '--review', entry['review'],
                    '--vocabulary', policy['vocabulary']]
+        if entry.get('assurance_profile'):
+            command += ['--assurance-profile', entry['assurance_profile']]
         result = subprocess.run(command, cwd=root)
         if result.returncode:
             return result.returncode

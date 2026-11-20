@@ -1,7 +1,5 @@
 # pll_mini
 
-![](images/pipeline.drawio.svg)
-
 ## 示例
 
 ```yaml
@@ -17,6 +15,14 @@ nodes:
     freq: 60000000
     regs:
       lock: blk_pll_sc.stat.lock
+      vocpd: blk_pll_sc.pd.vocpd
+      postdivpd: blk_pll_sc.pd.postdivpd
+      dsmpd: blk_pll_sc.pd.dsmpd
+      pd: blk_pll_sc.pd.pd
+      bypass: blk_pll_sc.pd.bypass
+      refdiv: blk_pll_sc.div.refdiv
+      postdiv2: blk_pll_sc.div.postdiv2
+      postdiv1: blk_pll_sc.div.postdiv1
       fbdiv: blk_pll_sc.div.fbdiv
   clk_out:
     kind: clk
@@ -33,8 +39,8 @@ settings:
 | `ralf` | `str` | | RALF 文件路径。 |
 | `ralf_include_dirs` | `list[str]` | `[]` | RALF 引用其它文件时的额外搜索目录。 |
 | `nodes` | `dict[str, Node]` | | 节点表，键为节点名。 |
-| `extra_regs` | `list[ExtraRegEntry]` | `[]` | 合入普通 steps；没有同寄存器项可合并的条目放在数组最前面。 |
-| `settings` | `Settings` | 见下表 | 全局选项。 |
+| `extra_regs` | `list[ExtraRegEntry]` | `[]` | 附加寄存器字段。 |
+| `settings` | `Settings` | `{}` | 全局选项。 |
 
 ### Settings
 
@@ -70,42 +76,26 @@ settings:
 | 写法 | 含义 |
 | --- | --- |
 | `osc` | 通常写法，单路输出前级 |
-| `pll0` | 单路输出前级 |
 | `pll_inno[0]` | 多路输出前级，输出名为 `0` |
 
 ### Nodes
 
 类型直接使用插件名：`source`、`source_pad`、`pll_tci`、`pll_sc`、`pll_dw`、`pll_inno`、`div_div`、`div_dto`、`div_div_r`、`inv`、`inv_mux`、`inv_cell`、`gate`、`mux`、`cell`、`clk`、`clk_div_with_clken`。原有 family 加子类型的节点写法仍可用；不支持旧 `tree` 外层。
 
-节点字段严格校验。`exclude: true` 与 `null` 一样省略节点；其它节点不能引用被省略的节点。
+`nodes` 的字典键是节点名，节点体不填写 `name`。节点值为 `null` 或配置 `exclude: true` 时省略；其它节点不能引用被省略的节点。
 
-初始化保留未受排除影响的配置节点，与目标路径、mux 是否选中或求解器 `active` 无关。显式排除节点后，其失去全部消费者的独占上游递归移除；仍有保留消费者的共享上游不移除。原本独立配置的节点和 `extra_regs` 仍生效。完整范围及反例见 [初始化合同](initialization.md)。
-
-消费者必须存在实际需求：无频率约束、无配置动作的透明叶节点及其空载链不会保活上游。删除目标 clk 后仅剩 cell 时，也会移除独占上游；cell 后仍有频率目标或实际配置终端则保留。此判断由插件的 `terminal_demand_from_config` 声明，不在公共流程列举节点类型。
-
-节点自身的频率锚点和实际初始化需求不会因为下游只剩无需求透明节点而被移除。但显式 exclude 会连同其独占上游控制一起排除，gate 的寄存器动作、分频初值、mux 初选或控制节点的频率设置都不能保活该独占分支。仍影响正常时钟的共享部分保留；原本独立配置也保留。
-
-需要指定可编程分频初值时使用 `init_ratio` 并保留 `regs`；需要指定可编程 mux 来源时使用 `init_sel` 并保留 `reg`。两者不受 active 限制，不与固定功能 `ratio` / `sel` 混用。省略时仍允许求解器选择合法值；同频来源不代表功能等价，必须来源应明确填写输入编号。主例固定参考来源为 xtal、备用 DTO 分频为 8。
-
-[完整初始化示例](example/initialization.yaml) 包含两个启用的必须目标、备用初值、同频但指定来源、带寄存器 gate、共享整字写入和独立排除分支。[初始化合同](initialization.md) 列出了该例的完整寄存器地址和值，便于核对实际输出。
-
-[独占控制排除示例](example/exclusion.yaml) 同时包含正常路径、被排除路径和共享寄存器字。被排除时钟的 div/mux/gate 不生成配置，正常路径保持原值，共享字仅保留正常节点的字段。
-
-例如 [example.yaml](example.yaml) 中 `init_field_used` 与 `init_field_unreferenced` 分别配置同一寄存器的 bit 0、bit 1；即使后者没有时钟目标引用，两位也都必须为 1。普通步骤合并完整字段后整字写入，不能因为裁剪字段而把它写零。输入结构迁移不改变此初始化语义。
-
-| 字段 | 类型 | 默认值 | 说明 |
+| 公共字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `nodes` | `dict[str, Node]` | | 节点表，键为节点名；某键值为 **null** 时跳过该节点，不参与约束求解与寄存器回填；其它节点仍引用该名字时会 **model_validate** 失败。 |
-
-写 **nodes** 时可用 `节点名: ~` 表示跳过。
+| `kind` | `str` | | 插件名或兼容的节点类型。 |
+| `freq` | `int` | | 频率，单位 Hz；时钟目标省略或填写负值时不限制频率。 |
+| `exclude` | `bool` | `false` | 排除节点。 |
 
 ### ExtraRegEntry
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `path` | `str` | | 寄存器模型路径，按 `.` 分隔，可带比特范围。 |
-| `value` | `int` | | 写入该 field 的整数值，须在 field 位宽范围内。 |
-同一寄存器的所有 field 合并成一个地址/值数组项，不要求列表中相邻。共享节点的控制值由约束统一；`extra_regs` 覆盖同字段的普通配置。PLL 多阶段配置不受此合并规则影响。
+| `value` | `int` | | 字段写入值。 |
 
 ### Node - source
 
@@ -205,17 +195,16 @@ gate 在本工具中必定开启，不接受 `open` 字段；寄存器开启极�
 
 ### Node - div
 
-`kind` 为 `div`，用 `div_kind` 区分型号。旧写法 `kind: dto` 等会在载入时归并为 `kind: div`。
-
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `div` | |
 | `div_kind` | `str` | `div` | 取 `div`、`div_n`、`dto`、`dto_n`、`div_r`。 |
 | `source` | `str` | | 前级引用。 |
-| `ratio` | `int` | | `div_r` 必填固定分频比，大于 0，不受可配置 **div** 的 64 上限；其它 **div_kind** 可填以固定分频比，且不大于 64。 |
-| `regs` | `dict` | `{}` | 键由 `div_kind` 决定；`div_r` 须为空。 |
+| `ratio` | `int` | | 固定分频比，不配置寄存器；`div_r` 必填，其它型号上限为 64。 |
+| `init_ratio` | `int` | | 可编程初始分频比，不与 `ratio` 共用；同时填写 `regs`。 |
+| `regs` | `dict` | `{}` | 键由 `div_kind` 决定；`div_r` 保持为空。 |
 
-**div_kind** 为 `div` 或 `div_n`：
+#### div / div_n
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -223,7 +212,7 @@ gate 在本工具中必定开启，不接受 `open` 字段；寄存器开启极�
 | `regs.load` | `str` | 加载位。 |
 | `regs.div` | `str` | 分频系数。 |
 
-**div_kind** 为 `dto` 或 `dto_n`：
+#### dto / dto_n
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -234,7 +223,7 @@ gate 在本工具中必定开启，不接受 `open` 字段；寄存器开启极�
 
 ### Node - inv
 
-反相器仅作频率透传，**不写寄存器**，生成代码跳过配置。
+反相器仅作频率透传，不写寄存器。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -247,8 +236,9 @@ gate 在本工具中必定开启，不接受 `open` 字段；寄存器开启极�
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `kind` | `str` | `mux` | |
-| `source` | `dict[str, str]` | `{}` | 输入标签到前级引用的映射。 |
-| `sel` | `int` | | mux 选择值；省略表示由求解器决定。 |
+| `source` | `dict[str, str]` | `{}` | 非负整数输入编号到前级引用的映射。 |
+| `sel` | `int` | | 固定输入编号，不配置选择寄存器。 |
+| `init_sel` | `int` | | 可编程初始输入编号，不与 `sel` 共用；同时填写 `reg`。 |
 | `reg` | `str` | `""` | 选择寄存器模型路径。 |
 
 ### Node - cell
@@ -263,4 +253,4 @@ gate 在本工具中必定开启，不接受 `open` 字段；寄存器开启极�
 
 三个输出为 `clk_arm_core`、`hclk`、`hclken`。核心输出与 `source` 同频；后两路同频，共用分频比 `ratio`，取 2、3、4、6，可省略交给求解器。寄存器编码分别为 0、2、4、8。
 
-`reg` 可指定分频控制字段；或使用 `regs.div` 并可选 `regs.rst`、`regs.load`。`reg` 与 `regs.div` 同时填写时必须相同。引用输出示例：`bus[hclk]`。本工具不执行 clock_tree 的运行时 gate 开关操作。
+`reg` 可指定分频控制字段；或使用 `regs.div` 并可选 `regs.rst`、`regs.load`。`reg` 与 `regs.div` 同时填写时必须相同。引用输出示例：`bus[hclk]`。

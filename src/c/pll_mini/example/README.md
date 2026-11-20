@@ -1,25 +1,14 @@
-# example 目录
+# 配置示例
 
-提交前跑 **example\check.bat**：族根 **example.yaml** 都要通过 **jinja_build** 生成成功并以 0 退出。
-
-**example.yaml** 是标准回归入口，已经合并原 normal 与压力场景，覆盖：
-
-| 场景 | 用途 |
+| 输入文件 | 内容 |
 | --- | --- |
-| 基础 kind | source / pll / div / inv / mux / gate / cell / clk 至少一条可解路径 |
-| ref_dto | PLL 参考路径上 mux / dto / div 组合 |
-| ref_mux | 多层参考 mux 与 inno 参考路径 |
-| mux_combo | 四层 mux 组合枚举剪枝压力 |
-| deep_div | 同一子树内多路并行 div 求解 |
-| div_share | 多个 clk 共享同一 div ratio |
-| dual_path | PLL 路径与 xtal 路径汇入 mux |
+| `../example.yaml` | 多型号节点、共享分频、多层 mux 和 PLL 参考路径。 |
+| `normal.yaml` | 较小的可解时钟树。 |
+| `initialization.yaml` | 启用必须目标，指定备用分频初值和同频输入的来源。 |
+| `exclusion.yaml` | 正常与排除路径并存，共用寄存器只保留正常字段。 |
+| `extreme.yaml` | 多层 mux 与并行分频的压力输入。 |
+| `unsat.yaml` | 无解频率关系。 |
+| `reg_bit_range.yaml` | 寄存器比特范围错误。 |
+| `reg_missing_field.yaml` | 不存在的寄存器字段。 |
 
-## 其它样例
-
-| 文件 | 用途 |
-| --- | --- |
-| `normal.yaml` | 轻量健全检查；保留作人工定位用，不作为提交必跑入口。 |
-| `extreme.yaml` | 历史压力样例；压力内容已经并入族根 `example.yaml`。 |
-| `unsat.yaml` | 故意无解拓扑，验收诊断输出。 |
-| `reg_bit_range.yaml` | 寄存器位宽越界报错。 |
-| `reg_missing_field.yaml` | 缺少寄存器 field 报错。 |
+`initialization.yaml` 与 `exclusion.yaml` 使用 `normal.ralf` 中的寄存器定义；路径以输入 YAML 所在目录为起点。
