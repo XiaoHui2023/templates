@@ -12,8 +12,9 @@ class {{ class_prefix }}adapter;
     // Validate standard GP fields and create independently owned comparison units.
     // units — Empty on rejection, IGNORE commands, or fully disabled transfers.
     // reason — Validation failure text, empty on success.
+    // valid_bytes — Enabled-byte count, zero on rejection or IGNORE.
     extern function bit convert(input uvm_tlm_generic_payload payload,
-        output uvm_tlm_generic_payload units[$], output string reason);
+        output uvm_tlm_generic_payload units[$], output string reason, output longint valid_bytes);
     // Construct a key from the enabled identity fields.
     extern function string key(uvm_tlm_generic_payload payload);
     // Compare selected GP fields, honoring golden byte enables.
@@ -21,17 +22,19 @@ class {{ class_prefix }}adapter;
 endclass
 
 function bit {{ class_prefix }}adapter::convert(input uvm_tlm_generic_payload payload,
-    output uvm_tlm_generic_payload units[$], output string reason);
+    output uvm_tlm_generic_payload units[$], output string reason, output longint valid_bytes);
     byte unsigned data[];
     byte unsigned enables[];
     int length;
     int enable_length;
     int width;
-    bit any_enabled;
+    longint enabled_count;
     uvm_tlm_generic_payload snapshot;
 
     units.delete();
     reason = "";
+    valid_bytes = 0;
+    enabled_count = 0;
     if(payload == null) begin
         reason = "null payload";
         return 0;
@@ -73,13 +76,14 @@ function bit {{ class_prefix }}adapter::convert(input uvm_tlm_generic_payload pa
     end
     for(int j = 0; j < length; j++) begin
         if(enable_length == 0 || enables[j % enable_length] != 0)
-            any_enabled = 1;
+            enabled_count++;
         if(payload.get_address() > 64'hffffffffffffffff - 64'(j % width)) begin
             reason = "address overflow";
             return 0;
         end
     end
-    if(!any_enabled)
+    valid_bytes = enabled_count;
+    if(enabled_count == 0)
         return 1;
     data = new[length](data);
     enables = new[enable_length](enables);

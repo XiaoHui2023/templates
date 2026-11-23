@@ -16,13 +16,17 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     protected {{ class_prefix }}pending golden_pending;
     protected {{ class_prefix }}pending monitor_pending;
     protected bit golden_keys[string];
-    protected bit started;
-    protected bit checked;
-    protected bit pending_checked;
+    localparam bit [5:0] ROUND_OPEN = 6'b000001;
+    localparam bit [5:0] EMPTY_GOLDEN = 6'b000010;
+    localparam bit [5:0] NO_MATCH = 6'b000100;
+    localparam bit [5:0] COUNT = 6'b001000;
+    localparam bit [5:0] MISSING = 6'b010000;
+    localparam bit [5:0] UNEXPECTED = 6'b100000;
+    protected bit [5:0] reported_checks;
     protected bit failed;
     protected bit golden_closed;
     protected bit monitor_closed;
-    protected bit expected_set;
+    protected bit expected_explicit;
     protected longint round_id;
     protected longint expected_units;
     protected longint golden_packets;
@@ -37,9 +41,9 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     protected longint check_errors;
     typedef enum {COMPLETE, FAILED, TIMED_OUT, RESET} completion_e;
     protected longint covered_units;
-    longint matched_count;
-    longint mismatched_count;
-    longint dropped_count;
+    protected longint matched_count;
+    protected longint mismatched_count;
+    protected longint dropped_count;
 
     // Construct input ports and private comparison state.
     function new(string name = "{{ class_prefix }}scoreboard", uvm_component parent = null);
@@ -80,6 +84,10 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     extern function void end_round();
     // Return true only for a closed round that satisfies every completion policy.
     extern function bit is_complete();
+    // Compute all completion issues from authoritative round state.
+    extern protected function bit [5:0] completion_issues();
+    // Report each requested issue category at most once per round.
+    extern protected function void report_checks(bit [5:0] issues);
     // Check boundary, nonempty policies, quantity, failures and pending units.
     extern function bit check_round();
     // Wait for this round to close, fail, time out, or be cleared.
@@ -96,7 +104,7 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     // Receive a standard monitor GP and apply the configured filtering policy.
     extern function void write_{{ class_prefix }}monitor(uvm_tlm_generic_payload payload);
     // Select a monitor sample and a consumable or reusable golden candidate.
-    extern protected function bit match(input string key, output int golden_index, output int monitor_index);
+    extern protected function bit match(input string key, output int golden_index, output int monitor_index, output bit equal);
     // Compare every selected sample and update first coverage independently.
     extern protected function void drain(string key);
     // Process validated comparison units without retaining caller handles.
@@ -136,7 +144,8 @@ task {{ class_prefix }}scoreboard::reset_phase(uvm_phase phase);
 endtask
 
 function void {{ class_prefix }}scoreboard::configure({{ class_prefix }}config options);
-    if(started) begin
+    if(golden_packets != 0 || monitor_packets != 0 || input_errors != 0
+        || golden_closed || monitor_closed) begin
         `uvm_fatal("GP_CONFIG", "configuration changed during an active comparison")
         return;
     end
@@ -156,13 +165,11 @@ function void {{ class_prefix }}scoreboard::clear();
     monitor_pending.clear();
     golden_keys.delete();
     round_id++;
-    started = 0;
-    checked = 0;
-    pending_checked = 0;
+    reported_checks = 0;
     failed = 0;
     golden_closed = 0;
     monitor_closed = 0;
-    expected_set = 0;
+    expected_explicit = 0;
     expected_units = 0;
     golden_packets = 0;
     monitor_packets = 0;
@@ -188,9 +195,10 @@ function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}monitor(uvm_
     accept(payload, 0);
 endfunction
 
-function bit {{ class_prefix }}scoreboard::match(input string key, output int golden_index, output int monitor_index);
+function bit {{ class_prefix }}scoreboard::match(input string key, output int golden_index, output int monitor_index, output bit equal);
     golden_index = -1;
     monitor_index = -1;
+    equal = 0;
     for(int m = 0; m < monitor_pending.key_size(key); m++) begin
         {{ class_prefix }}entry mon;
         int first_uncovered;
@@ -199,13 +207,13 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
             break;
         mon = monitor_pending.at(key, m);
         first_uncovered = -1;
-        for(int g = 0; g < golden_pending.key_size(key); g++) begin
-            {{ class_prefix }}entry gld;
-
-            gld = golden_pending.at(key, g);
-            if(!gld.covered) begin
-                first_uncovered = g;
-                break;
+        if(cfg.reuse_read_expectations && mon.payload.is_read()
+            && cfg.mode == {{ class_prefix }}config::ORDERED) begin
+            for(int g = 0; g < golden_pending.key_size(key); g++) begin
+                if(!golden_pending.at(key, g).covered) begin
+                    first_uncovered = g;
+                    break;
+                end
             end
         end
         if(cfg.reuse_read_expectations && mon.payload.is_read()) begin
@@ -230,14 +238,17 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
                     if(!gld.covered) begin
                         golden_index = g;
                         monitor_index = m;
+                        equal = 1;
                         return 1;
                     end
                     if(covered_match < 0)
                         covered_match = g;
                 end
             end
-            if(covered_match >= 0)
+            if(covered_match >= 0) begin
                 golden_index = covered_match;
+                equal = 1;
+            end
             else if(fallback >= 0)
                 golden_index = fallback;
             else if(cfg.mode == {{ class_prefix }}config::ORDERED)
@@ -254,7 +265,8 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
                 gld = golden_pending.at(key, g);
                 if(gld.covered)
                     continue;
-                if(cfg.mode == {{ class_prefix }}config::SET && !adapter.equal(gld.payload, mon.payload))
+                equal = adapter.equal(gld.payload, mon.payload);
+                if(cfg.mode == {{ class_prefix }}config::SET && !equal)
                     continue;
                 golden_index = g;
                 monitor_index = m;
@@ -268,14 +280,15 @@ endfunction
 function void {{ class_prefix }}scoreboard::drain(string key);
     int g;
     int m;
+    bit equal;
 
-    while(match(key, g, m)) begin
+    while(match(key, g, m, equal)) begin
         {{ class_prefix }}entry gld;
         {{ class_prefix }}entry mon;
 
         gld = golden_pending.at(key, g);
         mon = monitor_pending.at(key, m);
-        if(adapter.equal(gld.payload, mon.payload)) begin
+        if(equal) begin
             matched_count++;
             if(golden_pending.mark_covered(key, g))
                 covered_units++;
@@ -296,8 +309,6 @@ endfunction
 function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload payload, bit golden);
     uvm_tlm_generic_payload units[$];
     string reason;
-    byte unsigned enables[];
-    int enable_length;
     longint valid_bytes;
 
     if((golden && golden_closed) || (!golden && monitor_closed)) begin
@@ -305,22 +316,11 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
         return;
     end
     valid_bytes = 0;
-    started = 1;
-    checked = 0;
-    pending_checked = 0;
-    if(!adapter.convert(payload, units, reason)) begin
+    if(!adapter.convert(payload, units, reason, valid_bytes)) begin
         failed = 1;
         input_errors++;
         `uvm_error("GP_INPUT", reason)
         return;
-    end
-    if(payload.get_command() != UVM_TLM_IGNORE_COMMAND) begin
-        payload.get_byte_enable(enables);
-        enable_length = int'(payload.get_byte_enable_length());
-        for(int j = 0; j < int'(payload.get_data_length()); j++) begin
-            if(enable_length == 0 || enables[j % enable_length] != 0)
-                valid_bytes++;
-        end
     end
     if(golden) begin
         golden_packets++;
@@ -372,19 +372,7 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
 endfunction
 
 function void {{ class_prefix }}scoreboard::check_pending();
-    if(pending_checked)
-        return;
-    pending_checked = 1;
-    if(golden_pending.size() != 0) begin
-        failed = 1;
-        check_errors++;
-        `uvm_error("GP_MISSING", "golden payloads remain unmatched")
-    end
-    if(unexpected_monitor_count() != 0) begin
-        failed = 1;
-        check_errors++;
-        `uvm_error("GP_UNEXPECTED", "relevant monitor payloads remain unmatched")
-    end
+    report_checks(completion_issues() & (MISSING | UNEXPECTED));
 endfunction
 
 function void {{ class_prefix }}scoreboard::pending_counts(output int golden, output int monitor);
@@ -401,7 +389,6 @@ endfunction
 function void {{ class_prefix }}scoreboard::protocol_error(string message);
     failed = 1;
     protocol_errors++;
-    checked = 0;
     `uvm_error("GP_ROUND", message)
 endfunction
 
@@ -411,8 +398,7 @@ function void {{ class_prefix }}scoreboard::set_expected_units(longint count);
         return;
     end
     expected_units = count;
-    expected_set = 1;
-    checked = 0;
+    expected_explicit = 1;
 endfunction
 
 function void {{ class_prefix }}scoreboard::add_expected_units(longint count);
@@ -421,31 +407,21 @@ function void {{ class_prefix }}scoreboard::add_expected_units(longint count);
         return;
     end
     expected_units += count;
-    expected_set = 1;
-    checked = 0;
+    expected_explicit = 1;
 endfunction
 
 function void {{ class_prefix }}scoreboard::end_golden();
     if(golden_closed)
         return;
-    started = 1;
     golden_closed = 1;
-    if(!expected_set) begin
-        expected_units = golden_units;
-        expected_set = 1;
-    end
     foreach(golden_keys[key])
         drain(key);
-    checked = 0;
-    pending_checked = 0;
 endfunction
 
 function void {{ class_prefix }}scoreboard::end_monitor();
     if(monitor_closed)
         return;
-    started = 1;
     monitor_closed = 1;
-    checked = 0;
 endfunction
 
 function void {{ class_prefix }}scoreboard::end_round();
@@ -464,41 +440,57 @@ function int {{ class_prefix }}scoreboard::unexpected_monitor_count();
     return count;
 endfunction
 
+function bit [5:0] {{ class_prefix }}scoreboard::completion_issues();
+    bit [5:0] issues;
+
+    issues = 0;
+    if(!golden_closed || !monitor_closed)
+        issues |= ROUND_OPEN;
+    if(!expected_explicit) begin
+        if(cfg.require_golden && golden_packets == 0)
+            issues |= EMPTY_GOLDEN;
+        if(cfg.require_match && matched_count == 0)
+            issues |= NO_MATCH;
+    end
+    if((expected_explicit && (golden_units != expected_units || covered_units != expected_units))
+        || (!expected_explicit && golden_closed && covered_units != golden_units))
+        issues |= COUNT;
+    if(golden_pending.size() != 0)
+        issues |= MISSING;
+    if(unexpected_monitor_count() != 0)
+        issues |= UNEXPECTED;
+    return issues;
+endfunction
+
+function void {{ class_prefix }}scoreboard::report_checks(bit [5:0] issues);
+    issues &= ~reported_checks;
+    reported_checks |= issues;
+    if(issues != 0)
+        failed = 1;
+    for(int i = 0; i < 6; i++) begin
+        if(issues[i])
+            check_errors++;
+    end
+    if((issues & MISSING) != 0)
+        `uvm_error("GP_MISSING", "golden payloads remain unmatched")
+    if((issues & UNEXPECTED) != 0)
+        `uvm_error("GP_UNEXPECTED", "relevant monitor payloads remain unmatched")
+    if((issues & ROUND_OPEN) != 0)
+        `uvm_error("GP_ROUND_OPEN", "both inputs must explicitly close the round")
+    if((issues & EMPTY_GOLDEN) != 0)
+        `uvm_error("GP_EMPTY_GOLDEN", "no valid golden packet was received")
+    if((issues & NO_MATCH) != 0)
+        `uvm_error("GP_NO_MATCH", "no comparison unit matched successfully")
+    if((issues & COUNT) != 0)
+        `uvm_error("GP_COUNT", "submitted or covered unit count differs from expected units")
+endfunction
+
 function bit {{ class_prefix }}scoreboard::is_complete();
-    return golden_closed && monitor_closed && !failed
-        && (!cfg.require_golden || golden_packets > 0)
-        && (!cfg.require_match || matched_count > 0)
-        && (!expected_set || (golden_units == expected_units
-            && covered_units == expected_units))
-        && golden_pending.size() == 0 && unexpected_monitor_count() == 0;
+    return !failed && completion_issues() == 0;
 endfunction
 
 function bit {{ class_prefix }}scoreboard::check_round();
-    if(checked)
-        return is_complete();
-    check_pending();
-    if(!golden_closed || !monitor_closed) begin
-        failed = 1;
-        check_errors++;
-        `uvm_error("GP_ROUND_OPEN", "both inputs must explicitly close the round")
-    end
-    if(cfg.require_golden && golden_packets == 0) begin
-        failed = 1;
-        check_errors++;
-        `uvm_error("GP_EMPTY_GOLDEN", "no valid golden packet was received")
-    end
-    if(cfg.require_match && matched_count == 0) begin
-        failed = 1;
-        check_errors++;
-        `uvm_error("GP_NO_MATCH", "no comparison unit matched successfully")
-    end
-    if(expected_set && (golden_units != expected_units
-        || covered_units != expected_units)) begin
-        failed = 1;
-        check_errors++;
-        `uvm_error("GP_COUNT", "submitted or covered unit count differs from expected units")
-    end
-    checked = 1;
+    report_checks(completion_issues());
     return is_complete();
 endfunction
 
@@ -550,8 +542,7 @@ task {{ class_prefix }}scoreboard::wait_complete(output completion_e result, inp
     else begin
         failed = 1;
         timeout_count++;
-        checked = 0;
-        result = TIMED_OUT;
+            result = TIMED_OUT;
         `uvm_error("GP_TIMEOUT", "round did not close within timeout_ns")
     end
 endtask
@@ -575,8 +566,9 @@ function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefi
     result.protocol_errors = protocol_errors;
     result.timeout_count = timeout_count;
     result.check_errors = check_errors;
-    result.expected_units = expected_units;
-    result.expected_set = expected_set;
+    result.expected_units = expected_explicit ? expected_units : golden_units;
+    result.expected_set = expected_explicit || golden_closed;
+    result.expected_explicit = expected_explicit;
     result.golden_closed = golden_closed;
     result.monitor_closed = monitor_closed;
     result.failed = failed;

@@ -19,8 +19,8 @@ monitor_policy: drop
 | `class_prefix` | `str` | `general_` | 类型名前缀，建议以下划线结尾。 |
 | `mode` | `str` | `address` | `address` 按地址匹配，`ordered` 按输入顺序匹配，`set` 按多重集合匹配。 |
 | `reuse_read_expectations` | `bool` | `false` | 本轮读期望可重复使用，写期望逐个消费。 |
-| `require_golden` | `bool` | `true` | 要求本轮至少收到一包合法 golden 输入。 |
-| `require_match` | `bool` | `true` | 要求本轮至少成功匹配一个比较单元。 |
+| `require_golden` | `bool` | `true` | 未显式设置预期单元数时，要求至少收到一包合法 golden。 |
+| `require_match` | `bool` | `true` | 未显式设置预期单元数时，要求至少成功匹配一个比较单元。 |
 | `atomize` | `bool` | `true` | 按有效字节比较；为假时整包比较。 |
 | `match_address` | `bool` | `true` | 将地址作为匹配条件。 |
 | `match_command` | `bool` | `false` | 将读写命令作为匹配条件。 |

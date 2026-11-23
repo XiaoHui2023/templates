@@ -31,7 +31,7 @@ sb.configure(options);
 
 ### 地址匹配
 
-`ADDRESS` 在不同地址之间允许乱序，同一匹配条件按到达顺序一一比较。地址与命令是否参与匹配由 `match_address`、`match_command` 决定。匹配后才按 `compare_*` 核对内容；匹配到的错误数据会报错。
+`ADDRESS` 在不同地址之间允许乱序，同一匹配条件按到达顺序一一比较。地址与命令是否参与匹配由 `match_address`、`match_command` 决定。匹配后才按 `compare_*` 比较内容；匹配到的错误数据会报错。
 
 默认按地址匹配并比较命令。若命令也用作匹配条件，无关命令可以被过滤。无法仅凭地址区分的同址数据，需要选用命令条件或使用多重集合模式。
 
@@ -56,13 +56,13 @@ sb.configure(options);
 
 读样本在 `end_golden` 确定全部期望后逐条处理，此前按缓存容量保存。这样 monitor 先到、同址多个期望或相同内容多次声明时，都不会因提前复用第一条而失去覆盖后续期望的机会。通常应提交完整 golden 并调用 `end_golden`，再开始大量采样；提前到达的样本仍受 `max_pending` 限制。
 
-ADDRESS 和 SET 对同一身份的读候选优先选择尚未覆盖且内容相等的期望，再复用已经覆盖的相等期望；没有相等候选时仍选取相关读期望执行失配比较。多个相同的 golden 是多个独立期望，必须分别首次覆盖。
+ADDRESS 和 SET 对同一身份的读候选优先选择尚未覆盖且内容相等的期望，再复用已经覆盖的相等期望；没有相等候选时仍选取相关读期望执行失配比较。多个相同的 golden 是多个独立期望，必需分别首次覆盖。
 
 ORDERED 仍保持首次覆盖及写操作的顺序，已经覆盖的读允许穿插复读；尚未覆盖的后续读不能跨越前置写。启用复用时，读写命令始终区分，即使关闭 `match_command` 或 `compare_command` 也不会用读期望满足写采样。
 
-`compared_units` 记录每次实际比较，包括复读及失配；`covered_units` 仅在某条期望第一次成功比较时增加。覆盖全部期望后仍须等本轮 monitor 明确结束；结束前的每次复读仍会核对，任一次错误都会使本轮失败。
+`compared_units` 记录每次实际比较，包括复读及失配；`covered_units` 仅在某条期望第一次成功比较时增加。覆盖全部期望后仍需等本轮 monitor 明确结束；结束前的每次复读仍会比较，任一次错误都会使本轮失败。
 
-关闭此配置时读写都恢复为一对一消费。匹配、覆盖、数量检查和复位全部由模板内部处理，无须派生 scoreboard 或覆写方法。
+关闭此配置时读写都恢复为一对一消费。匹配、覆盖、数量检查和复位全部由模板内部处理，不需要派生 scoreboard 或覆写方法。
 
 ## monitor 过滤
 
@@ -74,11 +74,11 @@ ORDERED 仍保持首次覆盖及写操作的顺序，已经覆盖的读允许穿
 
 ## GP 数据
 
-有效长度必须与 `set_data_length`、`set_byte_enable_length` 分别设置，且不得超过数组容量。短字节使能按周期重复，00 为禁用，ff 为有效。IGNORE 与完全禁用的数据不参与比较。
+有效长度必需与 `set_data_length`、`set_byte_enable_length` 分别设置，且不得超过数组容量。短字节使能按周期重复，00 为禁用，ff 为有效。IGNORE 与完全禁用的数据不参与比较。
 
 `atomize` 为真时，每个有效字节按地址比较，可比较不同的分包方式；地址为起始地址加字节序号对有效 streaming width 的余数。width 为 0 或大于等于长度时按连续地址处理。数据顺序保持 GP 数组顺序。
 
-整包模式同时核对有效长度、有效 streaming width，以及选择的字段。两份 GP 的有效位置必须一致，禁用位置的数据值被忽略。
+整包模式同时比较有效长度、有效 streaming width，以及选择的字段。两份 GP 的有效位置必需一致，禁用位置的数据值被忽略。
 
 ```systemverilog
 uvm_tlm_generic_payload payload;
@@ -106,7 +106,7 @@ payload.set_streaming_width(0);
 
 `set_expected_units` 设置本轮总数，`add_expected_units` 追加数量。参数为非负 `longint`；负数、追加溢出以及 `end_golden` 后修改数量都报错。golden 关闭前可分批追加，达到当前声明数量不会提前完成。
 
-没有显式声明数量时，`end_golden` 会将已经提交的 golden 比较单元总数作为本轮预期数。显式声明时，最终同时核对 golden 提交单元数与成功覆盖的期望单元数；比较次数可因复读大于预期数量。
+没有显式声明数量时，`end_golden` 会将已经提交的 golden 比较单元总数作为本轮预期数。显式声明时自动停用两项非空兜底，最终同时比较 golden 提交单元数与成功覆盖的期望单元数；比较次数可因复读大于预期数量。
 
 比较单元随模式变化：逐有效字节模式每个有效字节为一个单元，整包模式每个参与比较的 GP 为一个单元。包数、有效字节数和比较单元数分别统计，预期数量接口只使用比较单元。
 
@@ -130,7 +130,7 @@ if (result != general_scoreboard::COMPLETE)
     `uvm_error("SB_DONE", "scoreboard round did not complete successfully")
 ```
 
-`timeout_ns` 是整次调用的数值纳秒预算，0 为无限等待；正数向上量化至 1fs。输入到达不会延长预算。时间服务具有独立的 1fs 时间范围，无须改变调用者的时间单位；服务会参与全局最小仿真精度的计算。64 位 fs 时间范围内的负数、非有限值与期限溢出会被拒绝。边界提交与到期在同一仿真时刻发生时，处理先后由调度顺序决定。
+`timeout_ns` 是整次调用的数值纳秒预算，0 为无限等待；正数向上量化至 1fs。输入到达不会延长预算。时间服务具有独立的 1fs 时间范围，不需要改变调用者的时间单位；服务会参与全局最小仿真精度的计算。64 位 fs 时间范围内的负数、非有限值与期限溢出会被拒绝。边界提交与到期在同一仿真时刻发生时，处理先后由调度顺序决定。
 
 | 返回值 | 含义 |
 | --- | --- |
@@ -139,15 +139,15 @@ if (result != general_scoreboard::COMPLETE)
 | `TIMED_OUT` | 本次等待超过预算；超时记入本轮失败。 |
 | `RESET` | 等待期间发生 `clear` 或复位，原轮次被取消。 |
 
-`require_golden` 检查至少收到一包合法 golden 输入，IGNORE 和完全禁用的数据也属于合法输入包；`require_match` 检查至少有一个比较单元成功匹配。两项独立配置且默认打开。显式允许空轮次时须关闭两项，仍须提交双边结束标记。
+`require_golden` 检查至少收到一包合法 golden 输入，IGNORE 和完全禁用的数据也属于合法输入包；`require_match` 检查至少有一个比较单元成功匹配。两项独立配置且默认打开，仅在本轮没有成功调用 `set_expected_units` 或 `add_expected_units` 时兜底。显式设置数量后，两项自动停用，配置对象中的原值不变；包括显式设置 0 或追加 0。显式 0 允许空轮次，仍需双边结束、无错误且无相关残留。未显式设置时，即使关闭 golden 后推导出数量为 0，两项兜底仍按配置执行。负数、溢出或关闭后被拒绝的设置不会改变数量来源。
 
-`is_complete` 是不打印的当前状态查询。`check_round` 执行完整最终检查，`check_phase` 自动调用它，无须项目重载。`check_pending` 保留为仅检查当前残留的接口，不能证明本轮已结束。没有状态变化时重复检查不会重复报告。已报告的错误保持到本轮清理；后续数据恢复匹配不能撤销它。
+`is_complete` 是不打印的当前状态查询。`check_round` 执行完整最终检查，`check_phase` 自动调用它，不需要项目重载。`check_pending` 保留为仅检查当前残留的接口，不能证明本轮已结束。同一轮次每类最终检查错误只报告一次；即使输入或边界随后变化，也不会重复同类诊断。每次输入错误、失配、API 违规和超时仍分别记录。已报告的错误保持到本轮清理；后续数据恢复匹配不能撤销它。
 
 等待接口不会自动管理 phase objection；调用者应在等待期间保持运行 phase。
 
 ## 统计快照
 
-`get_statistics` 返回独立对象，修改快照不会改变 scoreboard；快照也不会随之后的输入变化。统计只供查询，不自动输出汇总。
+`get_statistics` 返回独立对象，修改快照不会改变 scoreboard；快照也不会随之后的输入变化。统计只供查询，不自动输出汇总。内部累计计数均受保护；旧代码直接读取 `sb.matched_count`、`sb.mismatched_count` 或 `sb.dropped_count`，需迁移为读取快照中的同名字段。修改快照不会改变完成判断。
 
 ```systemverilog
 general_statistics stats;
@@ -166,10 +166,11 @@ sb.get_statistics(stats);
 | `matched_count`、`mismatched_count` | 成功与立即失配的比较单元数；普通 SET 无相等候选时保留为残留；复用读仍执行失配比较。 |
 | `dropped_count` | 按过滤策略丢弃的比较单元数。 |
 | `pending_golden`、`pending_monitor` | 尚未覆盖的保留期望数与待比较的 monitor 单元数。 |
-| `unexpected_monitor` | 按当前过滤策略必须检查的 monitor 残留单元数。 |
-| `expected_units`、`expected_set` | 已知预期比较单元数及有效标记。 |
+| `unexpected_monitor` | 按当前过滤策略必需检查的 monitor 残留单元数。 |
+| `expected_units`、`expected_set` | 预期比较单元数及有效标记；未显式设置时，数量在 golden 关闭后才有效。 |
+| `expected_explicit` | 本轮数量是否来自成功的 set/add 调用，决定非空兜底是否停用。 |
 | `input_errors`、`protocol_errors` | 输入校验错误与轮次 API 或容量错误次数。 |
-| `timeout_count`、`check_errors` | 等待超时次数与最终检查错误项数。 |
+| `timeout_count`、`check_errors` | 等待超时次数与本轮已报告的不同最终检查错误类别数。 |
 | `golden_closed`、`monitor_closed` | 两条输入流的结束标记。 |
 | `failed`、`complete` | 当前轮次的失败与完成状态。 |
 
