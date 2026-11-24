@@ -12,4 +12,4 @@ clk_agt.sqr.test_route();
 
 req只有tree。rsp.failed是失败比较次数。快捷task在汇总失败后报告fatal；需要读取response时直接使用operation。
 
-测试开始时会应用低功耗配置，之后只做force/release。连线筛选与计数见 [route_check](../../operation/route_check/README.md)。
+测试开始时会应用低功耗配置，之后观察原生激励或临时探测空闲连线。连线筛选、驱动权限与超时见 [route_check](../../operation/route_check/README.md)。

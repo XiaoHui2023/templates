@@ -19,6 +19,28 @@ interface {{ settings.class_prefix }}interface #(
     bit drive_value;
     bit clock_drive_en;
     int clock_freq_hz;
+    bit allow_override = 1'b1;
+
+    // Waits for an input transition until an absolute femtosecond deadline.
+    task automatic wait_transition(
+            input time deadline,
+            output bit changed);
+        bit transition_seen;
+        transition_seen = 1'b0;
+        fork
+            begin
+                fork
+                    begin
+                        @(in);
+                        transition_seen = 1'b1;
+                    end
+                    {{ settings.class_prefix }}time_domain::wait_until(deadline);
+                join_any
+                disable fork;
+            end
+        join
+        changed = transition_seen;
+    endtask
 
     {{ settings.class_prefix }}measure_interface #(
         .MIN_FREQ_HZ(MIN_FREQ_HZ),

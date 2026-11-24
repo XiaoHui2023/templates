@@ -199,3 +199,13 @@ clk_fixed:
   source: fixed_div
   path: dut.clk_fixed
   frequence: 12000000
+
+pad_idle:
+  kind: source_pad
+  frequence: 0
+  out_path: dut.pad_idle
+
+clk_pad_idle:
+  kind: clk
+  source: pad_idle
+  path: dut.clk_pad_idle

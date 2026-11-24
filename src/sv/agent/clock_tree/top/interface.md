@@ -60,6 +60,10 @@ interface只有输入wire in，没有输出端口。驱动控制交给tree_inter
 
 半周期等待返回后会重新检查驱动状态；期间改成静态驱动或释放时，旧时钟分支不再翻转。驱动持续到显式释放，可继续的错误路径也要释放。
 
+route优先观察原生激励，仅在空闲且允许接管时建立临时驱动。外部独立force拥有该路径时，将对应接口的allow_override设为0；它限制route的空闲探测，不改变显式drive_static和start_clock调用。
+
+wait_transition接收time_domain的绝对fs期限，等待输入变化后返回changed。超时返回0，不启动驱动，也不修改测量状态。
+
 ## 测量
 
 ```systemverilog
