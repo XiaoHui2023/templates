@@ -1,20 +1,20 @@
-`ifndef {{ (class_prefix ~ "scoreboard") | upper }}
-`define {{ (class_prefix ~ "scoreboard") | upper }}
+`ifndef {{ class_prefix }}scoreboard_SV
+`define {{ class_prefix }}scoreboard_SV
 
-`uvm_analysis_imp_decl(_{{ class_prefix }}golden)
-`uvm_analysis_imp_decl(_{{ class_prefix }}monitor)
+`uvm_analysis_imp_decl(_{{ class_prefix }}scoreboard_golden)
+`uvm_analysis_imp_decl(_{{ class_prefix }}scoreboard_monitor)
 
 class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     `uvm_component_utils({{ class_prefix }}scoreboard)
 
     uvm_analysis_port #(uvm_tlm_generic_payload) i_golden_ap;
     uvm_analysis_port #(uvm_tlm_generic_payload) i_monitor_ap;
-    protected uvm_analysis_imp_{{ class_prefix }}golden #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) golden_imp;
-    protected uvm_analysis_imp_{{ class_prefix }}monitor #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) monitor_imp;
-    protected {{ class_prefix }}config cfg;
-    protected {{ class_prefix }}adapter adapter;
-    protected {{ class_prefix }}pending golden_pending;
-    protected {{ class_prefix }}pending monitor_pending;
+    protected uvm_analysis_imp_{{ class_prefix }}scoreboard_golden #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) golden_imp;
+    protected uvm_analysis_imp_{{ class_prefix }}scoreboard_monitor #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) monitor_imp;
+    protected {{ class_prefix }}scoreboard_config cfg;
+    protected {{ class_prefix }}scoreboard_adapter adapter;
+    protected {{ class_prefix }}scoreboard_pending golden_pending;
+    protected {{ class_prefix }}scoreboard_pending monitor_pending;
     protected bit golden_keys[string];
     localparam bit [5:0] ROUND_OPEN = 6'b000001;
     localparam bit [5:0] EMPTY_GOLDEN = 6'b000010;
@@ -69,7 +69,7 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     // Discard comparisons and counters at reset entry.
     extern task reset_phase(uvm_phase phase);
     // Copy options before the first input after construction or clear.
-    extern function void configure({{ class_prefix }}config options);
+    extern function void configure({{ class_prefix }}scoreboard_config options);
     // Release pending data and reopen configuration.
     extern function void clear();
     // Replace the number of golden comparison units requiring first coverage.
@@ -94,15 +94,15 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     // timeout_ns — Numeric nanoseconds for the whole call; zero disables the timer.
     extern task wait_complete(output completion_e result, input real timeout_ns = 0.0);
     // Return an independent snapshot with packet, valid-byte and unit counts.
-    extern function void get_statistics(output {{ class_prefix }}statistics result);
+    extern function void get_statistics(output {{ class_prefix }}scoreboard_statistics result);
     // Record a round API violation without accepting new input.
     extern protected function void protocol_error(string message);
     // Count extra monitor units that are relevant under the selected policy.
     extern protected function int unexpected_monitor_count();
     // Receive a standard golden GP and preserve its independent contents.
-    extern function void write_{{ class_prefix }}golden(uvm_tlm_generic_payload payload);
+    extern function void write_{{ class_prefix }}scoreboard_golden(uvm_tlm_generic_payload payload);
     // Receive a standard monitor GP and apply the configured filtering policy.
-    extern function void write_{{ class_prefix }}monitor(uvm_tlm_generic_payload payload);
+    extern function void write_{{ class_prefix }}scoreboard_monitor(uvm_tlm_generic_payload payload);
     // Select a monitor sample and a consumable or reusable golden candidate.
     extern protected function bit match(input string key, output int golden_index, output int monitor_index, output bit equal);
     // Compare every selected sample and update first coverage independently.
@@ -120,10 +120,10 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
 endclass
 
 function void {{ class_prefix }}scoreboard::build_phase(uvm_phase phase);
-    {{ class_prefix }}config options;
+    {{ class_prefix }}scoreboard_config options;
 
     super.build_phase(phase);
-    if(uvm_config_db #({{ class_prefix }}config)::get(this, "", "config", options))
+    if(uvm_config_db #({{ class_prefix }}scoreboard_config)::get(this, "", "config", options))
         configure(options);
 endfunction
 
@@ -143,7 +143,7 @@ task {{ class_prefix }}scoreboard::reset_phase(uvm_phase phase);
     clear();
 endtask
 
-function void {{ class_prefix }}scoreboard::configure({{ class_prefix }}config options);
+function void {{ class_prefix }}scoreboard::configure({{ class_prefix }}scoreboard_config options);
     if(golden_packets != 0 || monitor_packets != 0 || input_errors != 0
         || golden_closed || monitor_closed) begin
         `uvm_fatal("GP_CONFIG", "configuration changed during an active comparison")
@@ -187,11 +187,11 @@ function void {{ class_prefix }}scoreboard::clear();
     dropped_count = 0;
 endfunction
 
-function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}golden(uvm_tlm_generic_payload payload);
+function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}scoreboard_golden(uvm_tlm_generic_payload payload);
     accept(payload, 1);
 endfunction
 
-function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}monitor(uvm_tlm_generic_payload payload);
+function void {{ class_prefix }}scoreboard::write_{{ class_prefix }}scoreboard_monitor(uvm_tlm_generic_payload payload);
     accept(payload, 0);
 endfunction
 
@@ -200,15 +200,15 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
     monitor_index = -1;
     equal = 0;
     for(int m = 0; m < monitor_pending.key_size(key); m++) begin
-        {{ class_prefix }}entry mon;
+        {{ class_prefix }}scoreboard_entry mon;
         int first_uncovered;
 
-        if(cfg.mode != {{ class_prefix }}config::SET && m > 0)
+        if(cfg.mode != {{ class_prefix }}scoreboard_config::SET && m > 0)
             break;
         mon = monitor_pending.at(key, m);
         first_uncovered = -1;
         if(cfg.reuse_read_expectations && mon.payload.is_read()
-            && cfg.mode == {{ class_prefix }}config::ORDERED) begin
+            && cfg.mode == {{ class_prefix }}scoreboard_config::ORDERED) begin
             for(int g = 0; g < golden_pending.key_size(key); g++) begin
                 if(!golden_pending.at(key, g).covered) begin
                     first_uncovered = g;
@@ -225,12 +225,12 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
             covered_match = -1;
             fallback = -1;
             for(int g = 0; g < golden_pending.key_size(key); g++) begin
-                {{ class_prefix }}entry gld;
+                {{ class_prefix }}scoreboard_entry gld;
 
                 gld = golden_pending.at(key, g);
                 if(!gld.payload.is_read())
                     continue;
-                if(cfg.mode == {{ class_prefix }}config::ORDERED && !gld.covered && g != first_uncovered)
+                if(cfg.mode == {{ class_prefix }}scoreboard_config::ORDERED && !gld.covered && g != first_uncovered)
                     continue;
                 if(fallback < 0 || (golden_pending.at(key, fallback).covered && !gld.covered))
                     fallback = g;
@@ -251,7 +251,7 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
             end
             else if(fallback >= 0)
                 golden_index = fallback;
-            else if(cfg.mode == {{ class_prefix }}config::ORDERED)
+            else if(cfg.mode == {{ class_prefix }}scoreboard_config::ORDERED)
                 golden_index = first_uncovered;
             if(golden_index >= 0) begin
                 monitor_index = m;
@@ -260,13 +260,13 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
         end
         else begin
             for(int g = 0; g < golden_pending.key_size(key); g++) begin
-                {{ class_prefix }}entry gld;
+                {{ class_prefix }}scoreboard_entry gld;
 
                 gld = golden_pending.at(key, g);
                 if(gld.covered)
                     continue;
                 equal = adapter.equal(gld.payload, mon.payload);
-                if(cfg.mode == {{ class_prefix }}config::SET && !equal)
+                if(cfg.mode == {{ class_prefix }}scoreboard_config::SET && !equal)
                     continue;
                 golden_index = g;
                 monitor_index = m;
@@ -283,8 +283,8 @@ function void {{ class_prefix }}scoreboard::drain(string key);
     bit equal;
 
     while(match(key, g, m, equal)) begin
-        {{ class_prefix }}entry gld;
-        {{ class_prefix }}entry mon;
+        {{ class_prefix }}scoreboard_entry gld;
+        {{ class_prefix }}scoreboard_entry mon;
 
         gld = golden_pending.at(key, g);
         mon = monitor_pending.at(key, m);
@@ -345,7 +345,7 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
             end
             golden_keys[key] = 1;
         end
-        if(!golden && !golden_keys.exists(key) && cfg.monitor_policy == {{ class_prefix }}config::DROP) begin
+        if(!golden && !golden_keys.exists(key) && cfg.monitor_policy == {{ class_prefix }}scoreboard_config::DROP) begin
             dropped_count++;
             continue;
         end
@@ -433,7 +433,7 @@ function int {{ class_prefix }}scoreboard::unexpected_monitor_count();
     int count;
 
     count = 0;
-    if(cfg.monitor_policy == {{ class_prefix }}config::STRICT)
+    if(cfg.monitor_policy == {{ class_prefix }}scoreboard_config::STRICT)
         return monitor_pending.size();
     foreach(golden_keys[key])
         count += monitor_pending.key_size(key);
@@ -506,8 +506,8 @@ task {{ class_prefix }}scoreboard::wait_complete(output completion_e result, inp
         return;
     end
     if(timeout_ns > 0.0) begin
-        timeout_ticks = {{ class_prefix }}time_domain::ticks_from_ns(timeout_ns);
-        now_tick = {{ class_prefix }}time_domain::now_ticks();
+        timeout_ticks = {{ class_prefix }}scoreboard_time_domain::ticks_from_ns(timeout_ns);
+        now_tick = {{ class_prefix }}scoreboard_time_domain::now_ticks();
         if(timeout_ticks > ~now_tick) begin
             protocol_error("timeout deadline exceeds the time domain range");
             result = FAILED;
@@ -525,7 +525,7 @@ task {{ class_prefix }}scoreboard::wait_complete(output completion_e result, inp
                             wait(failed || (golden_closed && monitor_closed) || round_id != waiting_round);
                         end
                         begin
-                            {{ class_prefix }}time_domain::delay_ns(timeout_ns);
+                            {{ class_prefix }}scoreboard_time_domain::delay_ns(timeout_ns);
                         end
                     join_any
                     disable fork;
@@ -547,7 +547,7 @@ task {{ class_prefix }}scoreboard::wait_complete(output completion_e result, inp
     end
 endtask
 
-function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefix }}statistics result);
+function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefix }}scoreboard_statistics result);
     result = new;
     result.round_id = round_id;
     result.golden_packets = golden_packets;

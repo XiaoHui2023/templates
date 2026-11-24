@@ -1,6 +1,18 @@
 # Scoreboard
 
-类型名使用配置的 `class_prefix`，示例使用 `general_`。
+类型名由 `class_prefix` 和固定的组件名称组成。示例前缀为 `general_`，主组件为 `general_scoreboard`，辅助类型均带 `scoreboard_`。前缀按原文拼接，不会自动补下划线或删除已有词语。
+
+| 角色 | 示例类型名 |
+| --- | --- |
+| 主组件 | `general_scoreboard` |
+| 配置 | `general_scoreboard_config` |
+| 统计快照 | `general_scoreboard_statistics` |
+| GP 转换与比较 | `general_scoreboard_adapter` |
+| 内部期望记录 | `general_scoreboard_entry` |
+| 内部待匹配存储 | `general_scoreboard_pending` |
+| 时间服务包 | `general_scoreboard_time_domain` |
+
+旧的 `general_config`、`general_statistics` 等辅助类型需迁移到上述名称；没有保留旧名别名。主组件、`i_golden_ap`、`i_monitor_ap` 和配置键 `config` 保持原名。
 
 ## 输入
 
@@ -18,14 +30,14 @@ monitor.o_ap.connect(sb.i_monitor_ap);
 
 ## 运行配置
 
-在首次输入之前调用 `configure`。配置会被复制，修改原配置对象不会影响当前比较；已有输入后再次配置会中止。也可通过 `uvm_config_db` 的 `config` 设置 `general_config` 对象。
+在首次输入之前调用 `configure`。配置会被复制，修改原配置对象不会影响当前比较；已有输入后再次配置会中止。也可通过 `uvm_config_db` 的 `config` 设置 `general_scoreboard_config` 对象。
 
 ```systemverilog
-general_config options;
+general_scoreboard_config options;
 options = new;
-options.mode = general_config::ADDRESS;
+options.mode = general_scoreboard_config::ADDRESS;
 options.atomize = 1;
-options.monitor_policy = general_config::DROP;
+options.monitor_policy = general_scoreboard_config::DROP;
 sb.configure(options);
 ```
 
@@ -48,7 +60,7 @@ sb.configure(options);
 `reuse_read_expectations` 为真时，读期望保留到本轮清理；每次相关读采样都重新比较。已覆盖的读期望仍参与比较，不会把重复读去重或丢弃。写期望始终逐个消费，多出来的写采样仍按残留数据检查。
 
 ```systemverilog
-general_config options;
+general_scoreboard_config options;
 options = new;
 options.reuse_read_expectations = 1;
 sb.configure(options);
@@ -150,7 +162,7 @@ if (result != general_scoreboard::COMPLETE)
 `get_statistics` 返回独立对象，修改快照不会改变 scoreboard；快照也不会随之后的输入变化。统计只供查询，不自动输出汇总。内部累计计数均受保护；旧代码直接读取 `sb.matched_count`、`sb.mismatched_count` 或 `sb.dropped_count`，需迁移为读取快照中的同名字段。修改快照不会改变完成判断。
 
 ```systemverilog
-general_statistics stats;
+general_scoreboard_statistics stats;
 sb.get_statistics(stats);
 ```
 

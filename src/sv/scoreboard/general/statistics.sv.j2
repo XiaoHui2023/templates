@@ -1,7 +1,7 @@
-`ifndef {{ (class_prefix ~ "statistics") | upper }}
-`define {{ (class_prefix ~ "statistics") | upper }}
+`ifndef {{ class_prefix }}scoreboard_statistics_SV
+`define {{ class_prefix }}scoreboard_statistics_SV
 
-class {{ class_prefix }}statistics;
+class {{ class_prefix }}scoreboard_statistics;
     longint round_id = 0;
     longint golden_packets = 0;
     longint monitor_packets = 0;

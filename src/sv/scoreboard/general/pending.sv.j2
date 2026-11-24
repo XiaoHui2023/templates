@@ -1,8 +1,8 @@
-`ifndef {{ (class_prefix ~ "pending") | upper }}
-`define {{ (class_prefix ~ "pending") | upper }}
+`ifndef {{ class_prefix }}scoreboard_pending_SV
+`define {{ class_prefix }}scoreboard_pending_SV
 
-class {{ class_prefix }}pending;
-    protected {{ class_prefix }}entry entries[string][$];
+class {{ class_prefix }}scoreboard_pending;
+    protected {{ class_prefix }}scoreboard_entry entries[string][$];
     protected int count;
     protected int uncovered;
 
@@ -15,7 +15,7 @@ class {{ class_prefix }}pending;
     // Append one owned comparison unit with no successful coverage yet.
     extern function void push(string key, uvm_tlm_generic_payload payload);
     // Return a retained entry, or null for an absent position.
-    extern function {{ class_prefix }}entry at(string key, int index);
+    extern function {{ class_prefix }}scoreboard_entry at(string key, int index);
     // Remove one retained entry and its uncovered obligation if present.
     extern function void remove(string key, int index);
     // Mark successful first coverage and return whether it is newly covered.
@@ -30,8 +30,8 @@ class {{ class_prefix }}pending;
     extern function void clear();
 endclass
 
-function void {{ class_prefix }}pending::push(string key, uvm_tlm_generic_payload payload);
-    {{ class_prefix }}entry value;
+function void {{ class_prefix }}scoreboard_pending::push(string key, uvm_tlm_generic_payload payload);
+    {{ class_prefix }}scoreboard_entry value;
 
     value = new(payload);
     entries[key].push_back(value);
@@ -39,7 +39,7 @@ function void {{ class_prefix }}pending::push(string key, uvm_tlm_generic_payloa
     uncovered++;
 endfunction
 
-function {{ class_prefix }}entry {{ class_prefix }}pending::at(string key, int index);
+function {{ class_prefix }}scoreboard_entry {{ class_prefix }}scoreboard_pending::at(string key, int index);
     if(!entries.exists(key) || index < 0)
         return null;
     if(index >= entries[key].size())
@@ -47,8 +47,8 @@ function {{ class_prefix }}entry {{ class_prefix }}pending::at(string key, int i
     return entries[key][index];
 endfunction
 
-function void {{ class_prefix }}pending::remove(string key, int index);
-    {{ class_prefix }}entry value;
+function void {{ class_prefix }}scoreboard_pending::remove(string key, int index);
+    {{ class_prefix }}scoreboard_entry value;
 
     value = at(key, index);
     if(value == null)
@@ -61,8 +61,8 @@ function void {{ class_prefix }}pending::remove(string key, int index);
         entries.delete(key);
 endfunction
 
-function bit {{ class_prefix }}pending::mark_covered(string key, int index);
-    {{ class_prefix }}entry value;
+function bit {{ class_prefix }}scoreboard_pending::mark_covered(string key, int index);
+    {{ class_prefix }}scoreboard_entry value;
 
     value = at(key, index);
     if(value == null || value.covered)
@@ -72,21 +72,21 @@ function bit {{ class_prefix }}pending::mark_covered(string key, int index);
     return 1;
 endfunction
 
-function int {{ class_prefix }}pending::size();
+function int {{ class_prefix }}scoreboard_pending::size();
     return uncovered;
 endfunction
 
-function int {{ class_prefix }}pending::retained_size();
+function int {{ class_prefix }}scoreboard_pending::retained_size();
     return count;
 endfunction
 
-function int {{ class_prefix }}pending::key_size(string key);
+function int {{ class_prefix }}scoreboard_pending::key_size(string key);
     if(entries.exists(key))
         return entries[key].size();
     return 0;
 endfunction
 
-function void {{ class_prefix }}pending::clear();
+function void {{ class_prefix }}scoreboard_pending::clear();
     entries.delete();
     count = 0;
     uncovered = 0;

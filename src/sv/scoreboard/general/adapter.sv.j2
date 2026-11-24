@@ -1,11 +1,11 @@
-`ifndef {{ (class_prefix ~ "adapter") | upper }}
-`define {{ (class_prefix ~ "adapter") | upper }}
+`ifndef {{ class_prefix }}scoreboard_adapter_SV
+`define {{ class_prefix }}scoreboard_adapter_SV
 
-class {{ class_prefix }}adapter;
-    protected {{ class_prefix }}config cfg;
+class {{ class_prefix }}scoreboard_adapter;
+    protected {{ class_prefix }}scoreboard_config cfg;
 
     // Bind comparison options owned by the scoreboard.
-    function new({{ class_prefix }}config options);
+    function new({{ class_prefix }}scoreboard_config options);
         cfg = options;
     endfunction
 
@@ -21,7 +21,7 @@ class {{ class_prefix }}adapter;
     extern function bit equal(uvm_tlm_generic_payload golden, uvm_tlm_generic_payload monitor);
 endclass
 
-function bit {{ class_prefix }}adapter::convert(input uvm_tlm_generic_payload payload,
+function bit {{ class_prefix }}scoreboard_adapter::convert(input uvm_tlm_generic_payload payload,
     output uvm_tlm_generic_payload units[$], output string reason, output longint valid_bytes);
     byte unsigned data[];
     byte unsigned enables[];
@@ -119,12 +119,12 @@ function bit {{ class_prefix }}adapter::convert(input uvm_tlm_generic_payload pa
     return 1;
 endfunction
 
-function string {{ class_prefix }}adapter::key(uvm_tlm_generic_payload payload);
+function string {{ class_prefix }}scoreboard_adapter::key(uvm_tlm_generic_payload payload);
     bit [63:0] address;
     int command;
 
     command = 0;
-    if(cfg.mode == {{ class_prefix }}config::ORDERED)
+    if(cfg.mode == {{ class_prefix }}scoreboard_config::ORDERED)
         return "ordered";
     if(cfg.match_address)
         address = payload.get_address();
@@ -133,7 +133,7 @@ function string {{ class_prefix }}adapter::key(uvm_tlm_generic_payload payload);
     return $sformatf("%016h:%0d", address, command);
 endfunction
 
-function bit {{ class_prefix }}adapter::equal(uvm_tlm_generic_payload golden, uvm_tlm_generic_payload monitor);
+function bit {{ class_prefix }}scoreboard_adapter::equal(uvm_tlm_generic_payload golden, uvm_tlm_generic_payload monitor);
     byte unsigned gdata[];
     byte unsigned mdata[];
     byte unsigned genables[];

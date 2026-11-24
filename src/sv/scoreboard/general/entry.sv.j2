@@ -1,7 +1,7 @@
-`ifndef {{ (class_prefix ~ "entry") | upper }}
-`define {{ (class_prefix ~ "entry") | upper }}
+`ifndef {{ class_prefix }}scoreboard_entry_SV
+`define {{ class_prefix }}scoreboard_entry_SV
 
-class {{ class_prefix }}entry;
+class {{ class_prefix }}scoreboard_entry;
     uvm_tlm_generic_payload payload;
     bit covered = 0;
 
