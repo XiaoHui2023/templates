@@ -8,6 +8,12 @@ class {{ settings.class_prefix }}source extends {{ settings.class_prefix }}origi
         super.new(name);
         kind = "source";
     endfunction
+
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = null;
+        return frequence > 0 ? ACTIVITY_TOGGLING : ACTIVITY_AUTO;
+    endfunction
 endclass
 
 `endif

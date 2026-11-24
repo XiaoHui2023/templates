@@ -46,6 +46,12 @@ class {{ settings.class_prefix }}clk extends {{ settings.class_prefix }}node_bas
         unfix_enabled = 1'b0;
         kind = "clk";
     endfunction
+
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = source;
+        return ACTIVITY_AUTO;
+    endfunction
     // Retains the endpoint when signal observation is unavailable.
     virtual function bit is_observable();
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}

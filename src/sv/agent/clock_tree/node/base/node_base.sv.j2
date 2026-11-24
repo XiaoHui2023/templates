@@ -7,9 +7,9 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         `uvm_field_int(_resolved_active, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
-    typedef enum {ACTIVITY_AUTO, ACTIVITY_STATIC, ACTIVITY_TOGGLING} activity_e;
+    typedef enum {ACTIVITY_AUTO, ACTIVITY_STATIC, ACTIVITY_TOGGLING, ACTIVITY_DEFAULT} activity_e;
 
-    activity_e expected_activity = ACTIVITY_AUTO;
+    activity_e expected_activity = ACTIVITY_DEFAULT;
     string kind;
     string output_name;
     {{ settings.class_prefix }}node_base output_peers[string];
@@ -37,6 +37,31 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         super.new(name);
         _should_print = 1'b0;
         _should_check = 1'b1;
+    endfunction
+
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = null;
+        return ACTIVITY_AUTO;
+    endfunction
+
+    // A plugin can describe its output directly or delegate to one input.
+    function activity_e output_activity();
+        {{ settings.class_prefix }}node_base current_node;
+        {{ settings.class_prefix }}node_base upstream;
+        bit visited[int];
+        activity_e activity;
+        current_node = this;
+        do begin
+            if (current_node.expected_activity != ACTIVITY_DEFAULT)
+                return current_node.expected_activity;
+            if (visited.exists(current_node.get_inst_id()))
+                return ACTIVITY_AUTO;
+            visited[current_node.get_inst_id()] = 1'b1;
+            activity = current_node.default_output_activity(upstream);
+            current_node = upstream;
+        end while (current_node != null);
+        return activity;
     endfunction
 
     // Binds another output of the same physical node.

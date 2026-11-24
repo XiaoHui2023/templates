@@ -47,6 +47,7 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
     bit drive_owned;
     bit drive_blocked;
     bit expect_toggle;
+    {{ settings.class_prefix }}node_base::activity_e activity;
     bit expected_value;
     logic observed_value;
     string method_name;
@@ -101,12 +102,13 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
         return;
     checked = in_vifs.size();
     deadline = {{ settings.class_prefix }}time_domain::after_ns(req.timeout_ns);
-    expect_toggle = parent.expected_activity == {{ settings.class_prefix }}node_base::ACTIVITY_TOGGLING;
+    activity = parent.output_activity();
+    expect_toggle = activity == {{ settings.class_prefix }}node_base::ACTIVITY_TOGGLING;
     native_activity = 1'b0;
     drive_blocked = !out_vif.allow_override || out_vif.drive_en;
     foreach (in_vifs[i])
         drive_blocked |= !in_vifs[i].allow_override || in_vifs[i].drive_en;
-    if (parent.expected_activity != {{ settings.class_prefix }}node_base::ACTIVITY_STATIC) begin
+    if (activity != {{ settings.class_prefix }}node_base::ACTIVITY_STATIC) begin
         observation_deadline = deadline;
         if (!expect_toggle && !drive_blocked) begin
             idle_ns = req.idle_window_ns;

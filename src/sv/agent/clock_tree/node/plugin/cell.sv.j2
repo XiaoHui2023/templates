@@ -33,6 +33,12 @@ class {{ settings.class_prefix }}cell extends {{ settings.class_prefix }}node_ba
         enabled = -1;
         kind = "cell";
     endfunction
+
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = source;
+        return ACTIVITY_AUTO;
+    endfunction
     // Retains the endpoint when signal observation is unavailable.
     virtual function bit is_observable();
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}

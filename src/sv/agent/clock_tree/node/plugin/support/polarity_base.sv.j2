@@ -13,6 +13,12 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
     bit _fixed_inverted;
     {{ settings.class_prefix }}reg f_reg;
 
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = source;
+        return ACTIVITY_AUTO;
+    endfunction
+
     constraint cst_resolve_active_from_src {
         source != null -> _resolved_active == source._resolved_active;
     }

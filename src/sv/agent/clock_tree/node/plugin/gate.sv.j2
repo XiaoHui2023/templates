@@ -16,6 +16,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
     bit fix_open;
     bit fix_close;
     bit _hardwired;
+    protected bit applied_open;
     {{ settings.class_prefix }}reg f_reg;
 
     constraint cst_open {
@@ -53,6 +54,21 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
 
     // Provides a register-controlled final state.
     virtual function bit has_configuration(); return f_reg.is_bound(); endfunction
+
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = null;
+        if (_hardwired && open >= 0) begin
+            if (open == 0) return ACTIVITY_STATIC;
+        end else if (!applied_open)
+            return ACTIVITY_AUTO;
+        upstream = source;
+        return ACTIVITY_AUTO;
+    endfunction
+
+    virtual task observe_configuration(input {{ settings.class_prefix }}config_context context_h);
+        applied_open = 1'b0;
+    endtask
 
     // A closed target must wait for outstanding users.
     virtual function bit configuration_preserves_availability(); return _resolved_open; endfunction
@@ -140,6 +156,7 @@ class {{ settings.class_prefix }}gate extends {{ settings.class_prefix }}node_ba
 {%- else %}
         cfg.write_reg(f_reg, !_resolved_open);
 {%- endif %}
+        applied_open = _resolved_open;
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Declares an isolated gate transition check.

@@ -178,6 +178,12 @@ class {{ settings.class_prefix }}frequency_synth_base extends {{ settings.class_
         return real'(frequence);
     endfunction
 
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = null;
+        return _resolved_active && locked ? ACTIVITY_TOGGLING : ACTIVITY_AUTO;
+    endfunction
+
     // Returns the optional lock field.
     virtual function {{ settings.class_prefix }}reg lock_reg(); return null; endfunction
 

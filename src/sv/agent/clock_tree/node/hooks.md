@@ -50,6 +50,7 @@
 | `await_configuration(cfg)` | 默认无等待 |
 | `poll_configuration(context, token, complete, retry_ns)` | 分次检查完成；未实现时拒绝调用 |
 | `clock_rate_hz()` | 根据实际编码计算频率，默认沿source读取 |
+| `default_output_activity(upstream)` | 返回输出活动预期，或指定继承预期的输入；默认 `auto` |
 | `collect_control_regs(regs)` | 返回已登记控制切片 |
 | `apply_low_power_preference()` | 默认不改变状态 |
 

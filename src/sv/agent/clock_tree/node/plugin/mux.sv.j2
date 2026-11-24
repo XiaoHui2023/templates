@@ -13,6 +13,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     int sel;
     bit unfix_sel;
     bit _hardwired;
+    protected int applied_sel = -1;
     int switch_cycles;
     longint switch_timeout_ns;
     {{ settings.class_prefix }}node_base to_source[int];
@@ -116,6 +117,14 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         return to_source[_resolved_sel].clock_rate_hz();
     endfunction
 
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        int selection;
+        selection = _hardwired ? sel : applied_sel;
+        upstream = to_source.exists(selection) ? to_source[selection] : null;
+        return ACTIVITY_AUTO;
+    endfunction
+
     // Rounds the slowest input's cycle budget up to whole nanoseconds.
     function real switch_delay_ns(input real slow_hz, input int cycles);
         real delay_ns;
@@ -137,6 +146,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
     virtual task observe_configuration(input {{ settings.class_prefix }}config_context context_h);
         uvm_queue#(int) state;
         int current_sel;
+        applied_sel = -1;
         if (!f_reg.is_bound())
             return;
         context_h.io.read_reg(f_reg, current_sel);
@@ -221,6 +231,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             return;
         current_sel = observed_sel(context_h);
         if (current_sel == _resolved_sel) begin
+            applied_sel = current_sel;
             `uvm_info("CLK_TREE", $sformatf(
                 "config_reg: mux %s skip reg sel %0d", get_name(), _resolved_sel), UVM_HIGH)
             return;
@@ -251,6 +262,7 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             output real retry_ns);
         complete = token == 0;
         retry_ns = 0.0;
+        if (complete) applied_sel = _resolved_sel;
         if (!complete) context_h.fail("unknown mux completion action");
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}

@@ -74,6 +74,12 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
         return super.clock_rate_hz();
     endfunction
 
+    virtual function activity_e default_output_activity(
+            output {{ settings.class_prefix }}node_base upstream);
+        upstream = output_name == "clk_arm_core" ? source : null;
+        return ACTIVITY_AUTO;
+    endfunction
+
     // Allows register-only configuration without measurement interfaces.
     virtual function bit requires_observed_descendant(); return 1'b0; endfunction
 

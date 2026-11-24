@@ -48,6 +48,20 @@ def generic_sources(root: Path) -> list[Path]:
     return paths
 
 
+def without_runtime_queue_casts(text: str) -> str:
+    def strip_cast(task: re.Match[str]) -> str:
+        body = task[0]
+        for name in re.findall(r"\buvm_queue\s*#\(\s*(?:time|int)\s*\)\s+(\w+)\s*;", body):
+            body = re.sub(
+                rf"\$cast\s*\(\s*{re.escape(name)}\s*,\s*context_h\.runtime_state\(this\)\s*\)",
+                "",
+                body,
+            )
+        return body
+
+    return re.sub(r"\btask\b[^;]*;(?:(?!\btask\b).)*?\bendtask\b", strip_cast, text, flags=re.S)
+
+
 def violations(root: Path = ROOT) -> list[str]:
     """Find centralized dispatch or concrete node ownership outside leaf plugins."""
     failures: list[str] = []
@@ -65,8 +79,9 @@ def violations(root: Path = ROOT) -> list[str]:
     )
     for path in generic_sources(root):
         text = path.read_text(encoding="utf-8")
+        dispatch_text = without_runtime_queue_casts(text)
         for pattern in forbidden:
-            if re.search(pattern, text):
+            if re.search(pattern, dispatch_text):
                 failures.append(f"{path.relative_to(root)}: forbidden centralized dispatch {pattern}")
         for name in literal_names:
             if re.search(rf'(?<![A-Za-z0-9_$])["\']{re.escape(name)}["\']', text):
@@ -104,7 +119,17 @@ def self_test() -> int:
             return 1
         support = root / "node" / "plugin" / "support" / "bad.sv.j2"
         support.parent.mkdir(parents=True)
-        support.write_text("if ($cast(node_h, gate_h)) ;\n", encoding="utf-8")
+        support.write_text(
+            "task poll(); uvm_queue#(time) state; if (!$cast(state, context_h.runtime_state(this))) ; endtask\n",
+            encoding="utf-8",
+        )
+        if violations(root):
+            print("generic runtime queue cast was rejected")
+            return 1
+        with support.open("a", encoding="utf-8") as stream:
+            stream.write(
+                "task bad(); gate state; if ($cast(state, context_h.runtime_state(this))) ; endtask\n"
+            )
         if not violations(root):
             print("SV support mutant was accepted")
             return 1
