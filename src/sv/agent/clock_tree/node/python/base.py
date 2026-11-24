@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationInfo, computed_field, field_validator, model_validator
 
@@ -116,6 +116,9 @@ class Node(BaseModel):
 
     kind: str = Field(..., min_length=1, description="对应的 SystemVerilog 节点插件名")
     exclude: bool = Field(default=False, description="排除该节点，不生成实例、接口和寄存器绑定")
+    expected_activity: Literal["auto", "static", "toggling"] = Field(
+        default="auto", description="连线检查时预期的原生输出活动"
+    )
     source: SourceValue = Field(default=None, description="默认或具名上游节点引用")
     outputs: List[str] = Field(default_factory=list, description="展开为数组实例的输出组")
     path: Optional[str] = Field(default=None, description="无功能端点的观测路径")
@@ -217,6 +220,11 @@ class Node(BaseModel):
     def name(self) -> str:
         """返回由父级节点字典键绑定的名称。"""
         return self._name
+
+    @computed_field
+    @property
+    def has_expected_activity(self) -> bool:
+        return "expected_activity" in self.model_fields_set
 
     @computed_field
     @property

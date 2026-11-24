@@ -37,6 +37,9 @@ class {{ settings.class_prefix }}tree extends {{ settings.class_prefix }}tree_ba
 {%- set access = node.name ~ '["' ~ output ~ '"]' if output else node.name %}
         {{ access }} = {{ settings.class_prefix }}{{ node.kind }}::type_id::create("{{ node.name }}{% if output %}[{{ output }}]{% endif %}");
         {{ access }}.kind = "{{ node.kind }}";
+{%- if node.has_expected_activity %}
+        {{ access }}.expected_activity = {{ settings.class_prefix }}node_base::ACTIVITY_{{ node.expected_activity | upper }};
+{%- endif %}
 {%- if output %}
         {{ access }}.output_name = "{{ output }}";
 {%- endif %}

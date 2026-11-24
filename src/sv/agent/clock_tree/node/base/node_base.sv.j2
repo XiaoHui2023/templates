@@ -7,6 +7,9 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         `uvm_field_int(_resolved_active, UVM_DEFAULT|(_should_print ? 0 : UVM_NOPRINT))
     `uvm_object_utils_end
 
+    typedef enum {ACTIVITY_AUTO, ACTIVITY_STATIC, ACTIVITY_TOGGLING} activity_e;
+
+    activity_e expected_activity = ACTIVITY_AUTO;
     string kind;
     string output_name;
     {{ settings.class_prefix }}node_base output_peers[string];

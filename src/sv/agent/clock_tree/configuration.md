@@ -76,6 +76,7 @@ nodes:
 | --- | --- | --- | --- |
 | `kind` | `str` | | 节点插件名。 |
 | `exclude` | `bool` | `false` | 排除该节点，不生成实例、接口和寄存器绑定。 |
+| `expected_activity` | `auto` / `static` / `toggling` | `auto` | 低功耗配置后的 route 输出活动预期；同一节点的各展开实例共用。 |
 | `source` | `str` / `dict[str, str]` | | 前级引用。 |
 | `outputs` | `list[str]` | `[]` | 输出组。 |
 | `path` | `str` | | 信号测量路径。 |

@@ -201,6 +201,7 @@ clk_fixed:
   frequence: 12000000
 
 pad_idle:
+  expected_activity: static
   kind: source_pad
   frequence: 0
   out_path: dut.pad_idle

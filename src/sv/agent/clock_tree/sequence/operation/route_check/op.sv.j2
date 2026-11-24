@@ -46,6 +46,7 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
     bit native_activity;
     bit drive_owned;
     bit drive_blocked;
+    bit expect_toggle;
     bit expected_value;
     logic observed_value;
     string method_name;
@@ -100,31 +101,43 @@ task {{ settings.class_prefix }}route_check_seq::check_parent_routes(
         return;
     checked = in_vifs.size();
     deadline = {{ settings.class_prefix }}time_domain::after_ns(req.timeout_ns);
-    idle_ns = req.idle_window_ns;
-    rate_hz = parent.clock_rate_hz();
-    if (rate_hz > 0.0 && 2.0e9 / rate_hz > idle_ns)
-        idle_ns = 2.0e9 / rate_hz;
-    observation_deadline = {{ settings.class_prefix }}time_domain::after_ns(idle_ns);
-    if (observation_deadline > deadline)
-        observation_deadline = deadline;
+    expect_toggle = parent.expected_activity == {{ settings.class_prefix }}node_base::ACTIVITY_TOGGLING;
+    native_activity = 1'b0;
     drive_blocked = !out_vif.allow_override || out_vif.drive_en;
     foreach (in_vifs[i])
         drive_blocked |= !in_vifs[i].allow_override || in_vifs[i].drive_en;
-    if (drive_blocked)
+    if (parent.expected_activity != {{ settings.class_prefix }}node_base::ACTIVITY_STATIC) begin
         observation_deadline = deadline;
-    out_vif.wait_transition(observation_deadline, native_activity);
-    if (!native_activity) begin
-        drive_blocked = !out_vif.allow_override || out_vif.drive_en;
-        foreach (in_vifs[i])
-            drive_blocked |= !in_vifs[i].allow_override || in_vifs[i].drive_en;
+        if (!expect_toggle && !drive_blocked) begin
+            idle_ns = req.idle_window_ns;
+            rate_hz = parent.clock_rate_hz();
+            if (rate_hz > 0.0 && 2.0e9 / rate_hz > idle_ns)
+                idle_ns = 2.0e9 / rate_hz;
+            observation_deadline = {{ settings.class_prefix }}time_domain::after_ns(idle_ns);
+            if (observation_deadline > deadline)
+                observation_deadline = deadline;
+        end
+        out_vif.wait_transition(observation_deadline, native_activity);
+        if (!native_activity && !expect_toggle) begin
+            drive_blocked = !out_vif.allow_override || out_vif.drive_en;
+            foreach (in_vifs[i])
+                drive_blocked |= !in_vifs[i].allow_override || in_vifs[i].drive_en;
+        end
     end
 
-    method_name = native_activity ? "observe native stimulus" :
+    method_name = (native_activity || expect_toggle) ? "observe native stimulus" :
         (drive_blocked ? "no activity, drive unavailable" : "idle probe");
     foreach (edge_names[i])
         `uvm_info("CLK_TREE", $sformatf(
             "test_route: test %s, %s", edge_names[i],
             method_name), UVM_LOW)
+
+    if (expect_toggle && !native_activity) begin
+        failed = checked;
+        `uvm_error("CLK_TREE", $sformatf(
+            "test_route: %s expected native transitions, none before deadline", parent.get_name()))
+        return;
+    end
 
     drive_owned = 1'b0;
     for (int sample = 0; sample < req.transitions; sample++) begin
