@@ -15,6 +15,8 @@ class {{ class_prefix }}scoreboard_adapter;
     // valid_bytes — Enabled-byte count, zero on rejection or IGNORE.
     extern function bit convert(input uvm_tlm_generic_payload payload,
         output uvm_tlm_generic_payload units[$], output string reason, output longint valid_bytes);
+    // Copy only standard GP fields into an independent payload.
+    extern function uvm_tlm_generic_payload copy_payload(uvm_tlm_generic_payload payload);
     // Construct a key from the enabled identity fields.
     extern function string key(uvm_tlm_generic_payload payload);
     // Compare selected GP fields, honoring golden byte enables.
@@ -45,6 +47,10 @@ function bit {{ class_prefix }}scoreboard_adapter::convert(input uvm_tlm_generic
     end
     if(payload.get_command() == UVM_TLM_IGNORE_COMMAND)
         return 1;
+    if(cfg.mode == {{ class_prefix }}scoreboard_config::STATE && !payload.is_write()) begin
+        reason = "state mode accepts WRITE or IGNORE payloads only";
+        return 0;
+    end
     if(!(payload.get_command() inside {UVM_TLM_READ_COMMAND, UVM_TLM_WRITE_COMMAND})) begin
         reason = "invalid command";
         return 0;
@@ -85,18 +91,9 @@ function bit {{ class_prefix }}scoreboard_adapter::convert(input uvm_tlm_generic
     valid_bytes = enabled_count;
     if(enabled_count == 0)
         return 1;
-    data = new[length](data);
-    enables = new[enable_length](enables);
     if(!cfg.atomize) begin
-        snapshot = new("packet");
-        snapshot.set_address(payload.get_address());
-        snapshot.set_command(payload.get_command());
-        snapshot.set_response_status(payload.get_response_status());
+        snapshot = copy_payload(payload);
         snapshot.set_streaming_width(width);
-        snapshot.set_data(data);
-        snapshot.set_data_length(length);
-        snapshot.set_byte_enable(enables);
-        snapshot.set_byte_enable_length(enable_length);
         units.push_back(snapshot);
         return 1;
     end
@@ -117,6 +114,29 @@ function bit {{ class_prefix }}scoreboard_adapter::convert(input uvm_tlm_generic
         units.push_back(snapshot);
     end
     return 1;
+endfunction
+
+function uvm_tlm_generic_payload {{ class_prefix }}scoreboard_adapter::copy_payload(uvm_tlm_generic_payload payload);
+    uvm_tlm_generic_payload result;
+    byte unsigned data[];
+    byte unsigned enables[];
+
+    if(payload == null)
+        return null;
+    result = new("snapshot");
+    payload.get_data(data);
+    payload.get_byte_enable(enables);
+    data = new[payload.get_data_length()](data);
+    enables = new[payload.get_byte_enable_length()](enables);
+    result.set_address(payload.get_address());
+    result.set_command(payload.get_command());
+    result.set_response_status(payload.get_response_status());
+    result.set_streaming_width(payload.get_streaming_width());
+    result.set_data(data);
+    result.set_data_length(payload.get_data_length());
+    result.set_byte_enable(enables);
+    result.set_byte_enable_length(payload.get_byte_enable_length());
+    return result;
 endfunction
 
 function string {{ class_prefix }}scoreboard_adapter::key(uvm_tlm_generic_payload payload);

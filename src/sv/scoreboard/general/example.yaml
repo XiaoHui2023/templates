@@ -1,6 +1,7 @@
 class_prefix: general_
-mode: address
+mode: state
 reuse_read_expectations: false
+expected_units: -1
 require_golden: true
 require_match: true
 atomize: true
@@ -10,7 +11,7 @@ compare_address: true
 compare_command: true
 compare_data: true
 compare_response: false
-monitor_policy: drop
+monitor_policy: buffer
 max_pending: 65536
 max_keys: 1048576
 max_payload_bytes: 1048576

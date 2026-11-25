@@ -1,51 +1,48 @@
 `ifndef {{ class_prefix }}scoreboard_SV
 `define {{ class_prefix }}scoreboard_SV
 
-`uvm_analysis_imp_decl(_{{ class_prefix }}scoreboard_golden)
-`uvm_analysis_imp_decl(_{{ class_prefix }}scoreboard_monitor)
-
 class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     `uvm_component_utils({{ class_prefix }}scoreboard)
+    `uvm_register_cb({{ class_prefix }}scoreboard, {{ class_prefix }}scoreboard_callback)
+    `uvm_analysis_imp_decl(_{{ class_prefix }}scoreboard_golden)
+    `uvm_analysis_imp_decl(_{{ class_prefix }}scoreboard_monitor)
 
     uvm_analysis_port #(uvm_tlm_generic_payload) i_golden_ap;
     uvm_analysis_port #(uvm_tlm_generic_payload) i_monitor_ap;
-    protected uvm_analysis_imp_{{ class_prefix }}scoreboard_golden #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) golden_imp;
-    protected uvm_analysis_imp_{{ class_prefix }}scoreboard_monitor #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) monitor_imp;
-    protected {{ class_prefix }}scoreboard_config cfg;
-    protected {{ class_prefix }}scoreboard_adapter adapter;
-    protected {{ class_prefix }}scoreboard_pending golden_pending;
-    protected {{ class_prefix }}scoreboard_pending monitor_pending;
-    protected bit golden_keys[string];
+    local uvm_analysis_imp_{{ class_prefix }}scoreboard_golden #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) golden_imp;
+    local uvm_analysis_imp_{{ class_prefix }}scoreboard_monitor #(uvm_tlm_generic_payload, {{ class_prefix }}scoreboard) monitor_imp;
+    local {{ class_prefix }}scoreboard_config cfg;
+    local {{ class_prefix }}scoreboard_adapter adapter;
+    local {{ class_prefix }}scoreboard_pending golden_pending;
+    local {{ class_prefix }}scoreboard_pending monitor_pending;
+    local bit golden_keys[string];
+    typedef enum {ACCEPTING, SEALED, CHECKED} lifecycle_e;
+    typedef enum {RESET_EVENT, COMPARE_EVENT, CHECK_EVENT} notification_e;
+    local lifecycle_e lifecycle;
+    local bit notifying;
+    local bit failed;
     localparam bit [5:0] ROUND_OPEN = 6'b000001;
     localparam bit [5:0] EMPTY_GOLDEN = 6'b000010;
     localparam bit [5:0] NO_MATCH = 6'b000100;
     localparam bit [5:0] COUNT = 6'b001000;
     localparam bit [5:0] MISSING = 6'b010000;
     localparam bit [5:0] UNEXPECTED = 6'b100000;
-    protected bit [5:0] reported_checks;
-    protected bit failed;
-    protected bit golden_closed;
-    protected bit monitor_closed;
-    protected bit expected_explicit;
-    protected longint round_id;
-    protected longint expected_units;
-    protected longint golden_packets;
-    protected longint monitor_packets;
-    protected longint golden_units;
-    protected longint monitor_units;
-    protected longint golden_valid_bytes;
-    protected longint monitor_valid_bytes;
-    protected longint input_errors;
-    protected longint protocol_errors;
-    protected longint timeout_count;
-    protected longint check_errors;
-    typedef enum {COMPLETE, FAILED, TIMED_OUT, RESET} completion_e;
-    protected longint covered_units;
-    protected longint matched_count;
-    protected longint mismatched_count;
-    protected longint dropped_count;
+    local longint round_id;
+    local longint golden_packets;
+    local longint monitor_packets;
+    local longint golden_units;
+    local longint monitor_units;
+    local longint golden_valid_bytes;
+    local longint monitor_valid_bytes;
+    local longint input_errors;
+    local longint protocol_errors;
+    local longint check_errors;
+    local longint covered_units;
+    local longint matched_count;
+    local longint mismatched_count;
+    local longint dropped_count;
 
-    // Construct input ports and private comparison state.
+    // Construct input ports and independent comparison state.
     function new(string name = "{{ class_prefix }}scoreboard", uvm_component parent = null);
         super.new(name, parent);
         i_golden_ap = new("i_golden_ap", this);
@@ -57,74 +54,66 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
         golden_pending = new;
         monitor_pending = new;
         round_id = 0;
-        clear();
+        reset_state();
     endfunction
 
-    // Read the optional config_db object named config.
-    extern function void build_phase(uvm_phase phase);
-    // Connect both public inputs to their private receivers.
-    extern function void connect_phase(uvm_phase phase);
-    // Check all outstanding expectations after stimulus has ended.
-    extern function void check_phase(uvm_phase phase);
-    // Discard comparisons and counters at reset entry.
-    extern task reset_phase(uvm_phase phase);
-    // Copy options before the first input after construction or clear.
-    extern function void configure({{ class_prefix }}scoreboard_config options);
-    // Release pending data and reopen configuration.
-    extern function void clear();
-    // Replace the number of golden comparison units requiring first coverage.
-    extern function void set_expected_units(longint count);
-    // Extend the number of golden comparison units requiring first coverage.
-    extern function void add_expected_units(longint count);
-    // Declare that all golden input for this round has been submitted.
-    extern function void end_golden();
-    // Declare that the monitor will submit no further input for this round.
-    extern function void end_monitor();
-    // Close both inputs after their producers have stopped.
-    extern function void end_round();
-    // Return true only for a closed round that satisfies every completion policy.
+    // Copy and validate the optional config_db object named config.
+    extern virtual function void build_phase(uvm_phase phase);
+    // Bind both public inputs to their owner-scoped receivers.
+    extern virtual function void connect_phase(uvm_phase phase);
+    // Discard this round at the standard reset boundary.
+    extern virtual task reset_phase(uvm_phase phase);
+    // Seal sampling and finish comparisons after all runtime phases end.
+    extern virtual function void extract_phase(uvm_phase phase);
+    // Check the sealed round and notify observers exactly once.
+    extern virtual function void check_phase(uvm_phase phase);
+    // Return success only after automatic checking has finished.
     extern function bit is_complete();
-    // Compute all completion issues from authoritative round state.
-    extern protected function bit [5:0] completion_issues();
-    // Report each requested issue category at most once per round.
-    extern protected function void report_checks(bit [5:0] issues);
-    // Check boundary, nonempty policies, quantity, failures and pending units.
-    extern function bit check_round();
-    // Wait for this round to close, fail, time out, or be cleared.
-    // timeout_ns — Numeric nanoseconds for the whole call; zero disables the timer.
-    extern task wait_complete(output completion_e result, input real timeout_ns = 0.0);
-    // Return an independent snapshot with packet, valid-byte and unit counts.
+    // Return an independent statistics snapshot without reporting.
     extern function void get_statistics(output {{ class_prefix }}scoreboard_statistics result);
-    // Record a round API violation without accepting new input.
-    extern protected function void protocol_error(string message);
-    // Count extra monitor units that are relevant under the selected policy.
-    extern protected function int unexpected_monitor_count();
-    // Receive a standard golden GP and preserve its independent contents.
+    // Receive an owned copy of a standard golden GP.
     extern function void write_{{ class_prefix }}scoreboard_golden(uvm_tlm_generic_payload payload);
-    // Receive a standard monitor GP and apply the configured filtering policy.
+    // Receive a standard monitor GP through the configured filter.
     extern function void write_{{ class_prefix }}scoreboard_monitor(uvm_tlm_generic_payload payload);
-    // Select a monitor sample and a consumable or reusable golden candidate.
-    extern protected function bit match(input string key, output int golden_index, output int monitor_index, output bit equal);
-    // Compare every selected sample and update first coverage independently.
-    extern protected function void drain(string key);
-    // Process validated comparison units without retaining caller handles.
-    extern protected function void accept(uvm_tlm_generic_payload payload, bit golden);
-    // Report uncovered retained expectations and relevant extra monitor units once.
-    extern function void check_pending();
-    // Return pending unit counts without producing a report.
-    extern function void pending_counts(output int golden, output int monitor);
-    // Emit the standard GP printer output as a single UVM_INFO message.
+    // Emit standard GP printer output as one UVM_INFO.
     // id — UVM report ID used for verbosity and action configuration.
     extern function void print_payload(uvm_tlm_generic_payload payload,
         string id = "GP", int verbosity = UVM_HIGH);
+    // Clear all transient state while retaining the build-time configuration.
+    extern local function void reset_state();
+    // Select one monitor sample and a golden candidate with its comparison result.
+    extern local function bit match(input string key, output int golden_index, output int monitor_index, output bit equal);
+    // Consume every selected sample and record first coverage independently.
+    extern local function void drain(string key);
+    // Accept validated units only while runtime sampling is open.
+    extern local function void accept(uvm_tlm_generic_payload payload, bit golden);
+    // Count residual monitor units relevant under the configured filter.
+    extern local function int unexpected_monitor_count();
+    // Return the number of independent golden obligations under this policy.
+    extern local function longint required_units();
+    // Compute every completion issue from authoritative state.
+    extern local function bit [5:0] completion_issues();
+    // Record and report each issue in a single automatic check.
+    extern local function void report_checks(bit [5:0] issues);
+    // Notify enabled callbacks with fresh detached values for each observer.
+    extern local function void notify(notification_e kind,
+        uvm_tlm_generic_payload golden = null, uvm_tlm_generic_payload monitor = null,
+        bit matched = 0, bit first_coverage = 0);
 endclass
 
 function void {{ class_prefix }}scoreboard::build_phase(uvm_phase phase);
     {{ class_prefix }}scoreboard_config options;
 
     super.build_phase(phase);
-    if(uvm_config_db #({{ class_prefix }}scoreboard_config)::get(this, "", "config", options))
-        configure(options);
+    if(uvm_config_db #({{ class_prefix }}scoreboard_config)::get(this, "", "config", options)) begin
+        if(options == null) begin
+            `uvm_fatal("GP_CONFIG", "null configuration")
+            return;
+        end
+        cfg.copy(options);
+    end
+    if(!cfg.valid())
+        `uvm_fatal("GP_CONFIG", "invalid comparison options")
 endfunction
 
 function void {{ class_prefix }}scoreboard::connect_phase(uvm_phase phase);
@@ -133,44 +122,38 @@ function void {{ class_prefix }}scoreboard::connect_phase(uvm_phase phase);
     i_monitor_ap.connect(monitor_imp);
 endfunction
 
-function void {{ class_prefix }}scoreboard::check_phase(uvm_phase phase);
-    super.check_phase(phase);
-    void'(check_round());
-endfunction
-
 task {{ class_prefix }}scoreboard::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
-    clear();
+    reset_state();
+    notify(RESET_EVENT);
 endtask
 
-function void {{ class_prefix }}scoreboard::configure({{ class_prefix }}scoreboard_config options);
-    if(golden_packets != 0 || monitor_packets != 0 || input_errors != 0
-        || golden_closed || monitor_closed) begin
-        `uvm_fatal("GP_CONFIG", "configuration changed during an active comparison")
+function void {{ class_prefix }}scoreboard::extract_phase(uvm_phase phase);
+    super.extract_phase(phase);
+    if(lifecycle != ACCEPTING)
         return;
-    end
-    if(options == null) begin
-        `uvm_fatal("GP_CONFIG", "null configuration")
-        return;
-    end
-    if(!options.valid()) begin
-        `uvm_fatal("GP_CONFIG", "invalid comparison options")
-        return;
-    end
-    cfg.copy(options);
+    lifecycle = SEALED;
+    foreach(golden_keys[key])
+        drain(key);
 endfunction
 
-function void {{ class_prefix }}scoreboard::clear();
+function void {{ class_prefix }}scoreboard::check_phase(uvm_phase phase);
+    super.check_phase(phase);
+    if(lifecycle == CHECKED)
+        return;
+    report_checks(completion_issues());
+    lifecycle = CHECKED;
+    notify(CHECK_EVENT);
+endfunction
+
+function void {{ class_prefix }}scoreboard::reset_state();
     golden_pending.clear();
     monitor_pending.clear();
     golden_keys.delete();
     round_id++;
-    reported_checks = 0;
+    lifecycle = ACCEPTING;
+    notifying = 0;
     failed = 0;
-    golden_closed = 0;
-    monitor_closed = 0;
-    expected_explicit = 0;
-    expected_units = 0;
     golden_packets = 0;
     monitor_packets = 0;
     golden_units = 0;
@@ -179,7 +162,6 @@ function void {{ class_prefix }}scoreboard::clear();
     monitor_valid_bytes = 0;
     input_errors = 0;
     protocol_errors = 0;
-    timeout_count = 0;
     check_errors = 0;
     covered_units = 0;
     matched_count = 0;
@@ -199,6 +181,8 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
     golden_index = -1;
     monitor_index = -1;
     equal = 0;
+    if(cfg.mode == {{ class_prefix }}scoreboard_config::STATE && lifecycle == ACCEPTING)
+        return 0;
     for(int m = 0; m < monitor_pending.key_size(key); m++) begin
         {{ class_prefix }}scoreboard_entry mon;
         int first_uncovered;
@@ -220,7 +204,7 @@ function bit {{ class_prefix }}scoreboard::match(input string key, output int go
             int covered_match;
             int fallback;
 
-            if(!golden_closed)
+            if(lifecycle == ACCEPTING)
                 continue;
             covered_match = -1;
             fallback = -1;
@@ -285,12 +269,15 @@ function void {{ class_prefix }}scoreboard::drain(string key);
     while(match(key, g, m, equal)) begin
         {{ class_prefix }}scoreboard_entry gld;
         {{ class_prefix }}scoreboard_entry mon;
+        bit first_coverage;
 
+        first_coverage = 0;
         gld = golden_pending.at(key, g);
         mon = monitor_pending.at(key, m);
         if(equal) begin
             matched_count++;
-            if(golden_pending.mark_covered(key, g))
+            first_coverage = golden_pending.mark_covered(key, g);
+            if(first_coverage)
                 covered_units++;
         end
         else begin
@@ -303,6 +290,7 @@ function void {{ class_prefix }}scoreboard::drain(string key);
         if(!cfg.reuse_read_expectations || (gld.payload.is_write() && mon.payload.is_write()))
             golden_pending.remove(key, g);
         monitor_pending.remove(key, m);
+        notify(COMPARE_EVENT, gld.payload, mon.payload, equal, first_coverage);
     end
 endfunction
 
@@ -311,8 +299,13 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
     string reason;
     longint valid_bytes;
 
-    if((golden && golden_closed) || (!golden && monitor_closed)) begin
-        protocol_error(golden ? "golden input after end_golden" : "monitor input after end_monitor");
+    if(notifying || lifecycle != ACCEPTING) begin
+        failed = 1;
+        protocol_errors++;
+        if(notifying)
+            `uvm_error("GP_CALLBACK", "input submitted recursively during an observer callback")
+        else
+            `uvm_error("GP_PHASE", "input submitted after extract_phase sealed sampling")
         return;
     end
     valid_bytes = 0;
@@ -349,10 +342,18 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
             dropped_count++;
             continue;
         end
-        if(golden)
-            golden_pending.push(key, units[j]);
-        else
-            monitor_pending.push(key, units[j]);
+        if(golden) begin
+            if(cfg.mode == {{ class_prefix }}scoreboard_config::STATE)
+                golden_pending.put_latest(key, units[j]);
+            else
+                golden_pending.push(key, units[j]);
+        end
+        else begin
+            if(cfg.mode == {{ class_prefix }}scoreboard_config::STATE)
+                monitor_pending.put_latest(key, units[j]);
+            else
+                monitor_pending.push(key, units[j]);
+        end
         drain(key);
         if(golden_pending.retained_size() > cfg.max_pending) begin
             golden_pending.remove(key, golden_pending.key_size(key) - 1);
@@ -371,64 +372,6 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
     end
 endfunction
 
-function void {{ class_prefix }}scoreboard::check_pending();
-    report_checks(completion_issues() & (MISSING | UNEXPECTED));
-endfunction
-
-function void {{ class_prefix }}scoreboard::pending_counts(output int golden, output int monitor);
-    golden = golden_pending.size();
-    monitor = monitor_pending.size();
-endfunction
-
-function void {{ class_prefix }}scoreboard::print_payload(uvm_tlm_generic_payload payload,
-    string id = "GP", int verbosity = UVM_HIGH);
-    if(payload != null)
-        `uvm_info(id, payload.sprint(uvm_default_line_printer), verbosity)
-endfunction
-
-function void {{ class_prefix }}scoreboard::protocol_error(string message);
-    failed = 1;
-    protocol_errors++;
-    `uvm_error("GP_ROUND", message)
-endfunction
-
-function void {{ class_prefix }}scoreboard::set_expected_units(longint count);
-    if(golden_closed || count < 0) begin
-        protocol_error("expected units must be nonnegative and set before end_golden");
-        return;
-    end
-    expected_units = count;
-    expected_explicit = 1;
-endfunction
-
-function void {{ class_prefix }}scoreboard::add_expected_units(longint count);
-    if(golden_closed || count < 0 || count > 64'sh7fffffffffffffff - expected_units) begin
-        protocol_error("expected unit increment is negative, overflows, or follows end_golden");
-        return;
-    end
-    expected_units += count;
-    expected_explicit = 1;
-endfunction
-
-function void {{ class_prefix }}scoreboard::end_golden();
-    if(golden_closed)
-        return;
-    golden_closed = 1;
-    foreach(golden_keys[key])
-        drain(key);
-endfunction
-
-function void {{ class_prefix }}scoreboard::end_monitor();
-    if(monitor_closed)
-        return;
-    monitor_closed = 1;
-endfunction
-
-function void {{ class_prefix }}scoreboard::end_round();
-    end_golden();
-    end_monitor();
-endfunction
-
 function int {{ class_prefix }}scoreboard::unexpected_monitor_count();
     int count;
 
@@ -440,20 +383,26 @@ function int {{ class_prefix }}scoreboard::unexpected_monitor_count();
     return count;
 endfunction
 
+function longint {{ class_prefix }}scoreboard::required_units();
+    return cfg.mode == {{ class_prefix }}scoreboard_config::STATE ? longint'(golden_keys.num()) : golden_units;
+endfunction
+
 function bit [5:0] {{ class_prefix }}scoreboard::completion_issues();
     bit [5:0] issues;
+    longint required;
 
     issues = 0;
-    if(!golden_closed || !monitor_closed)
+    required = required_units();
+    if(lifecycle == ACCEPTING)
         issues |= ROUND_OPEN;
-    if(!expected_explicit) begin
+    if(cfg.expected_units < 0) begin
         if(cfg.require_golden && golden_packets == 0)
             issues |= EMPTY_GOLDEN;
         if(cfg.require_match && matched_count == 0)
             issues |= NO_MATCH;
     end
-    if((expected_explicit && (golden_units != expected_units || covered_units != expected_units))
-        || (!expected_explicit && golden_closed && covered_units != golden_units))
+    if((cfg.expected_units >= 0 && (required != cfg.expected_units || covered_units != cfg.expected_units))
+        || (cfg.expected_units < 0 && lifecycle != ACCEPTING && covered_units != required))
         issues |= COUNT;
     if(golden_pending.size() != 0)
         issues |= MISSING;
@@ -463,8 +412,6 @@ function bit [5:0] {{ class_prefix }}scoreboard::completion_issues();
 endfunction
 
 function void {{ class_prefix }}scoreboard::report_checks(bit [5:0] issues);
-    issues &= ~reported_checks;
-    reported_checks |= issues;
     if(issues != 0)
         failed = 1;
     for(int i = 0; i < 6; i++) begin
@@ -476,7 +423,7 @@ function void {{ class_prefix }}scoreboard::report_checks(bit [5:0] issues);
     if((issues & UNEXPECTED) != 0)
         `uvm_error("GP_UNEXPECTED", "relevant monitor payloads remain unmatched")
     if((issues & ROUND_OPEN) != 0)
-        `uvm_error("GP_ROUND_OPEN", "both inputs must explicitly close the round")
+        `uvm_error("GP_ROUND_OPEN", "extract_phase must seal sampling before checking")
     if((issues & EMPTY_GOLDEN) != 0)
         `uvm_error("GP_EMPTY_GOLDEN", "no valid golden packet was received")
     if((issues & NO_MATCH) != 0)
@@ -486,66 +433,8 @@ function void {{ class_prefix }}scoreboard::report_checks(bit [5:0] issues);
 endfunction
 
 function bit {{ class_prefix }}scoreboard::is_complete();
-    return !failed && completion_issues() == 0;
+    return lifecycle == CHECKED && !failed && completion_issues() == 0;
 endfunction
-
-function bit {{ class_prefix }}scoreboard::check_round();
-    report_checks(completion_issues());
-    return is_complete();
-endfunction
-
-task {{ class_prefix }}scoreboard::wait_complete(output completion_e result, input real timeout_ns = 0.0);
-    longint waiting_round;
-    time timeout_ticks;
-    time now_tick;
-
-    waiting_round = round_id;
-    if(!(timeout_ns >= 0.0) || !(timeout_ns * 1.0e6 < 18446744073709551616.0)) begin
-        protocol_error("timeout_ns must be finite, nonnegative and representable in femtoseconds");
-        result = FAILED;
-        return;
-    end
-    if(timeout_ns > 0.0) begin
-        timeout_ticks = {{ class_prefix }}scoreboard_time_domain::ticks_from_ns(timeout_ns);
-        now_tick = {{ class_prefix }}scoreboard_time_domain::now_ticks();
-        if(timeout_ticks > ~now_tick) begin
-            protocol_error("timeout deadline exceeds the time domain range");
-            result = FAILED;
-            return;
-        end
-    end
-    if(!failed && !(golden_closed && monitor_closed)) begin
-        if(timeout_ns == 0.0)
-            wait(failed || (golden_closed && monitor_closed) || round_id != waiting_round);
-        else begin
-            fork
-                begin
-                    fork
-                        begin
-                            wait(failed || (golden_closed && monitor_closed) || round_id != waiting_round);
-                        end
-                        begin
-                            {{ class_prefix }}scoreboard_time_domain::delay_ns(timeout_ns);
-                        end
-                    join_any
-                    disable fork;
-                end
-            join
-        end
-    end
-    if(round_id != waiting_round)
-        result = RESET;
-    else if(golden_closed && monitor_closed)
-        result = check_round() ? COMPLETE : FAILED;
-    else if(failed)
-        result = FAILED;
-    else begin
-        failed = 1;
-        timeout_count++;
-            result = TIMED_OUT;
-        `uvm_error("GP_TIMEOUT", "round did not close within timeout_ns")
-    end
-endtask
 
 function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefix }}scoreboard_statistics result);
     result = new;
@@ -564,18 +453,46 @@ function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefi
     result.dropped_count = dropped_count;
     result.input_errors = input_errors;
     result.protocol_errors = protocol_errors;
-    result.timeout_count = timeout_count;
     result.check_errors = check_errors;
-    result.expected_units = expected_explicit ? expected_units : golden_units;
-    result.expected_set = expected_explicit || golden_closed;
-    result.expected_explicit = expected_explicit;
-    result.golden_closed = golden_closed;
-    result.monitor_closed = monitor_closed;
+    result.required_units = required_units();
+    result.expected_units = cfg.expected_units >= 0 ? cfg.expected_units : result.required_units;
+    result.expected_set = cfg.expected_units >= 0 || lifecycle != ACCEPTING;
+    result.expected_explicit = cfg.expected_units >= 0;
+    result.sealed = lifecycle != ACCEPTING;
+    result.checked = lifecycle == CHECKED;
     result.failed = failed;
     result.complete = is_complete();
     result.pending_golden = golden_pending.size();
     result.pending_monitor = monitor_pending.size();
     result.unexpected_monitor = unexpected_monitor_count();
+endfunction
+
+function void {{ class_prefix }}scoreboard::notify(notification_e kind,
+    uvm_tlm_generic_payload golden = null, uvm_tlm_generic_payload monitor = null,
+    bit matched = 0, bit first_coverage = 0);
+    uvm_callback_iter #({{ class_prefix }}scoreboard, {{ class_prefix }}scoreboard_callback) iterator_;
+    {{ class_prefix }}scoreboard_callback observer;
+
+    notifying = 1;
+    iterator_ = new(this);
+    for(observer = iterator_.first(); observer != null; observer = iterator_.next()) begin
+        {{ class_prefix }}scoreboard_statistics stats;
+
+        get_statistics(stats);
+        case(kind)
+            RESET_EVENT: observer.on_reset(get_full_name(), stats);
+            COMPARE_EVENT: observer.on_compare(get_full_name(), adapter.copy_payload(golden),
+                adapter.copy_payload(monitor), matched, first_coverage, stats);
+            CHECK_EVENT: observer.on_check(get_full_name(), stats);
+        endcase
+    end
+    notifying = 0;
+endfunction
+
+function void {{ class_prefix }}scoreboard::print_payload(uvm_tlm_generic_payload payload,
+    string id = "GP", int verbosity = UVM_HIGH);
+    if(payload != null)
+        `uvm_info(id, payload.sprint(uvm_default_line_printer), verbosity)
 endfunction
 
 `endif

@@ -14,6 +14,8 @@ class {{ class_prefix }}scoreboard_pending;
 
     // Append one owned comparison unit with no successful coverage yet.
     extern function void push(string key, uvm_tlm_generic_payload payload);
+    // Replace the retained units at one identity with its latest write.
+    extern function void put_latest(string key, uvm_tlm_generic_payload payload);
     // Return a retained entry, or null for an absent position.
     extern function {{ class_prefix }}scoreboard_entry at(string key, int index);
     // Remove one retained entry and its uncovered obligation if present.
@@ -37,6 +39,12 @@ function void {{ class_prefix }}scoreboard_pending::push(string key, uvm_tlm_gen
     entries[key].push_back(value);
     count++;
     uncovered++;
+endfunction
+
+function void {{ class_prefix }}scoreboard_pending::put_latest(string key, uvm_tlm_generic_payload payload);
+    while(key_size(key) != 0)
+        remove(key, 0);
+    push(key, payload);
 endfunction
 
 function {{ class_prefix }}scoreboard_entry {{ class_prefix }}scoreboard_pending::at(string key, int index);

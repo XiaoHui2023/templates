@@ -2,12 +2,13 @@
 `define {{ class_prefix }}scoreboard_config_SV
 
 class {{ class_prefix }}scoreboard_config extends uvm_object;
-    typedef enum {ADDRESS, ORDERED, SET} mode_e;
+    typedef enum {ADDRESS, ORDERED, SET, STATE} mode_e;
     typedef enum {DROP, BUFFER, STRICT} monitor_policy_e;
 
     mode_e mode = {{ mode | upper }};
     monitor_policy_e monitor_policy = {{ monitor_policy | upper }};
     bit reuse_read_expectations = {{ reuse_read_expectations | int }};
+    longint expected_units = {{ expected_units }};
     bit require_golden = {{ require_golden | int }};
     bit require_match = {{ require_match | int }};
     bit atomize = {{ atomize | int }};
@@ -25,6 +26,7 @@ class {{ class_prefix }}scoreboard_config extends uvm_object;
         `uvm_field_enum(mode_e, mode, UVM_DEFAULT)
         `uvm_field_enum(monitor_policy_e, monitor_policy, UVM_DEFAULT)
         `uvm_field_int(reuse_read_expectations, UVM_DEFAULT)
+        `uvm_field_int(expected_units, UVM_DEFAULT)
         `uvm_field_int(require_golden, UVM_DEFAULT)
         `uvm_field_int(require_match, UVM_DEFAULT)
         `uvm_field_int(atomize, UVM_DEFAULT)
@@ -49,8 +51,10 @@ class {{ class_prefix }}scoreboard_config extends uvm_object;
 endclass
 
 function bit {{ class_prefix }}scoreboard_config::valid();
-    return mode inside {ADDRESS, ORDERED, SET}
+    return mode inside {ADDRESS, ORDERED, SET, STATE}
         && monitor_policy inside {DROP, BUFFER, STRICT}
+        && (mode != STATE || (atomize && match_address && !reuse_read_expectations))
+        && expected_units >= -1
         && max_pending > 0 && max_keys > 0 && max_payload_bytes > 0;
 endfunction
 

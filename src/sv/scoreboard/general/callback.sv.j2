@@ -1,0 +1,28 @@
+`ifndef {{ class_prefix }}scoreboard_callback_SV
+`define {{ class_prefix }}scoreboard_callback_SV
+
+class {{ class_prefix }}scoreboard_callback extends uvm_callback;
+    `uvm_object_utils({{ class_prefix }}scoreboard_callback)
+
+    // Create an optional observer for standard UVM callback registration.
+    function new(string name = "{{ class_prefix }}scoreboard_callback");
+        super.new(name);
+    endfunction
+
+    // Observe a completed reset with an independent statistics snapshot.
+    virtual function void on_reset(string source, {{ class_prefix }}scoreboard_statistics stats);
+    endfunction
+    // Observe one comparison after all counters and storage have been updated.
+    // golden — Independent copy of the selected golden comparison unit.
+    // monitor — Independent copy of the selected actual comparison unit.
+    // first_coverage — True only for the first successful comparison of this expectation.
+    virtual function void on_compare(string source, uvm_tlm_generic_payload golden,
+        uvm_tlm_generic_payload monitor, bit matched, bit first_coverage,
+        {{ class_prefix }}scoreboard_statistics stats);
+    endfunction
+    // Observe the automatic final check with an independent statistics snapshot.
+    virtual function void on_check(string source, {{ class_prefix }}scoreboard_statistics stats);
+    endfunction
+endclass
+
+`endif
