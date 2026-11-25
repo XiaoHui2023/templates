@@ -1,11 +1,10 @@
 `ifndef {{ class_name | upper }}_SV
 `define {{ class_name | upper }}_SV
 
-`uvm_analysis_imp_decl(_{{ class_name }}_item)
-`uvm_analysis_imp_decl(_{{ class_name }}_gp)
-
 class {{ class_name }} extends uvm_component;
     `uvm_component_utils({{ class_name }})
+    `uvm_analysis_imp_decl(_{{ class_name }}_item)
+    `uvm_analysis_imp_decl(_{{ class_name }}_gp)
 
     typedef struct packed {
         bit [63:0] success_count;
