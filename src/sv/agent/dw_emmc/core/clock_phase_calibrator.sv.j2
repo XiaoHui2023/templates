@@ -1,0 +1,212 @@
+`ifndef {{ class_prefix | upper }}CLOCK_PHASE_CALIBRATOR
+`define {{ class_prefix | upper }}CLOCK_PHASE_CALIBRATOR
+
+package {{ class_prefix }}clock_phase_calibration;
+timeunit 1ns;
+timeprecision 1ps;
+import {{ class_prefix }}clock_phase_types::*;
+
+class calibrator;
+    typedef {{ class_prefix }}clock_phase_adapter adapter_t;
+    typedef {{ class_prefix }}clock_phase_grid_pkg::clock_phase_grid grid_t;
+    typedef grid_t grids_t[$];
+    local bit running;
+
+    // Runs a bounded calibration and restores the captured taps on failure.
+    task run(
+        input adapter_t adapter,
+        input int max_probes,
+        input int confirm_samples,
+        input int scan_timeout_us,
+        input int restore_timeout_us,
+        output result_t result
+    );
+        result_t outcome;
+        bit recovery_needed;
+        bit finished;
+        bit restored;
+
+        outcome.status = PHASE_SKIPPED;
+        outcome.failure_before_restore = PHASE_SKIPPED;
+        outcome.failed_group = CONFIRM_ALL_GROUPS;
+        if (adapter == null) begin
+            result = outcome;
+            return;
+        end
+        if (running) begin
+            outcome.status = PHASE_BUSY;
+            result = outcome;
+            return;
+        end
+        if (scan_timeout_us <= 0 || restore_timeout_us <= 0 || confirm_samples <= 0 ||
+            max_probes <= confirm_samples) begin
+            outcome.status = PHASE_BAD_TOPOLOGY;
+            result = outcome;
+            return;
+        end
+
+        running = 1;
+        fork
+            begin
+                fork
+                    begin
+                        scan(adapter, max_probes, confirm_samples, outcome, recovery_needed);
+                        finished = 1;
+                    end
+                    #(scan_timeout_us * 1us);
+                join_any
+                disable fork;
+            end
+        join
+        if (!finished)
+            outcome.status = PHASE_TIMED_OUT;
+        if (recovery_needed && outcome.status != PHASE_PASSED) begin
+            fork
+                begin
+                    fork
+                        adapter.apply(outcome.original, restored);
+                        #(restore_timeout_us * 1us);
+                    join_any
+                    disable fork;
+                end
+            join
+            if (!restored) begin
+                outcome.failure_before_restore = outcome.status;
+                outcome.status = PHASE_RESTORE_FAILED;
+            end
+        end
+        if (outcome.status != PHASE_PASSED)
+            outcome.selected.delete();
+        running = 0;
+        result = outcome;
+    endtask
+
+    // Validates axes and total exposure before any phase writes.
+    local function status_e plan(input axes_t axes, input int budget, ref grids_t groups);
+        grid_t by_id[int];
+        bit names[string];
+        int points;
+
+        if (axes.size() == 0)
+            return PHASE_SKIPPED;
+        foreach (axes[index]) begin
+            if (axes[index].name == "" || names.exists(axes[index].name) ||
+                axes[index].group_id < 0 || axes[index].tap_count <= 0)
+                return PHASE_BAD_TOPOLOGY;
+            names[axes[index].name] = 1;
+            if (!by_id.exists(axes[index].group_id)) begin
+                grid_t group = new;
+
+                group.group_id = axes[index].group_id;
+                by_id[group.group_id] = group;
+                groups.push_back(group);
+            end
+            if (!by_id[axes[index].group_id].add_axis(index, axes[index].tap_count, budget))
+                return PHASE_BUDGET_EXCEEDED;
+        end
+        points = 0;
+        foreach (groups[index]) begin
+            if (groups[index].size > budget - points)
+                return PHASE_BUDGET_EXCEEDED;
+            points += groups[index].size;
+        end
+        return PHASE_PASSED;
+    endfunction
+
+    // Probes each point once and confirms the combined selection.
+    local task scan(
+        input adapter_t adapter,
+        input int max_probes,
+        input int confirm_samples,
+        ref result_t outcome,
+        ref bit recovery_needed
+    );
+        axes_t axes;
+        grids_t groups;
+        taps_t tapped;
+        taps_t programmed;
+        bit ok;
+        probe_e probe_status;
+
+        adapter.describe(axes);
+        outcome.status = plan(axes, max_probes - confirm_samples, groups);
+        if (outcome.status != PHASE_PASSED)
+            return;
+        outcome.status = PHASE_ADAPTER_FAILED;
+        adapter.capture(outcome.original, ok);
+        if (!ok || outcome.original.size() != axes.size())
+            return;
+        foreach (axes[index])
+            if (outcome.original[index] < 0 || outcome.original[index] >= axes[index].tap_count)
+                return;
+
+        tapped = outcome.original;
+        programmed = outcome.original;
+        outcome.selected = outcome.original;
+        foreach (groups[index]) begin
+            grid_t group;
+            bit passed[];
+            int flat;
+            int best;
+
+            group = groups[index];
+            outcome.failed_group = group.group_id;
+            passed = new[group.size];
+            for (int step = 0; step < group.size; step++) begin
+                flat = group.visit(axes, step, tapped);
+                program_taps(adapter, tapped, programmed, recovery_needed, ok);
+                if (!ok)
+                    return;
+                outcome.probes++;
+                recovery_needed = 1;
+                adapter.probe(group.group_id, probe_status);
+                if (probe_status == PROBE_FAILED)
+                    return;
+                passed[flat] = probe_status == PROBE_PASSED;
+            end
+            best = group.best_point(axes, outcome.original, passed);
+            if (best < 0) begin
+                outcome.status = PHASE_NO_WINDOW;
+                return;
+            end
+            group.select_taps(axes, best, outcome.selected);
+            tapped = outcome.selected;
+        end
+
+        outcome.failed_group = CONFIRM_ALL_GROUPS;
+        program_taps(adapter, outcome.selected, programmed, recovery_needed, ok);
+        if (!ok)
+            return;
+        repeat (confirm_samples) begin
+            outcome.probes++;
+            adapter.probe(CONFIRM_ALL_GROUPS, probe_status);
+            if (probe_status == PROBE_FAILED)
+                return;
+            if (probe_status != PROBE_PASSED) begin
+                outcome.status = PHASE_CONFIRM_FAILED;
+                return;
+            end
+        end
+        outcome.status = PHASE_PASSED;
+    endtask
+
+    // Skips identical vectors and records that hardware may need restoration.
+    local task program_taps(
+        input adapter_t adapter,
+        input taps_t taps,
+        ref taps_t programmed,
+        ref bit recovery_needed,
+        output bit ok
+    );
+        ok = 1;
+        if (taps == programmed)
+            return;
+        recovery_needed = 1;
+        adapter.apply(taps, ok);
+        if (ok)
+            programmed = taps;
+    endtask
+endclass
+endpackage
+
+`endif

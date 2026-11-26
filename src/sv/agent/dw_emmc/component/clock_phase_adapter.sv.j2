@@ -1,0 +1,18 @@
+`ifndef {{ class_prefix | upper }}CLOCK_PHASE_ADAPTER
+`define {{ class_prefix | upper }}CLOCK_PHASE_ADAPTER
+
+virtual class {{ class_prefix }}clock_phase_adapter;
+    // Describes the adjustable axes in tap order, grouped by mutual dependence.
+    pure virtual function void describe(output {{ class_prefix }}clock_phase_types::axes_t axes);
+
+    // Captures the current taps from hardware before any setting is changed.
+    pure virtual task capture(output {{ class_prefix }}clock_phase_types::taps_t taps, output bit ok);
+
+    // Applies a complete vector and returns after the clocks settle.
+    pure virtual task apply(input {{ class_prefix }}clock_phase_types::taps_t taps, output bit ok);
+
+    // Tests one group, or all groups for the final confirmation.
+    pure virtual task probe(input int group_id, output {{ class_prefix }}clock_phase_types::probe_e outcome);
+endclass
+
+`endif

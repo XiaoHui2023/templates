@@ -76,6 +76,11 @@ def validate_source(*, staged: bool = False) -> None:
     changed += run("git", "ls-files", "--others", "--exclude-standard", capture=True).stdout
     if any(path.startswith(b"src/c/pll_mini/") for path in changed.splitlines()):
         run(sys.executable, "src/c/pll_mini/tools/check_plugin_ownership.py")
+    dw_emmc_gate = {b"tools/check_dw_emmc_read.py", b"tools/run_dw_emmc_read_probe.py",
+                    b"tools/dw_emmc_read_probe.sv", b"tools/dw_emmc_clock_phase_probe.sv"}
+    if any(path.startswith(b"src/sv/agent/dw_emmc/") or path in dw_emmc_gate
+           for path in changed.splitlines()):
+        run(sys.executable, "tools/check_dw_emmc_read.py")
 
 
 def main() -> int:

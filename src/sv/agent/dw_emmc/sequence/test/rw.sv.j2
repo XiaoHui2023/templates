@@ -124,7 +124,7 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
 {%- endif %}
 
         if(rd) {
-            $countones({rd_multi, rd_single, rd_blocking}) > 0;
+            rd_single || rd_multi;
         } else {
             rd_multi == 0;
             rd_single == 0;

@@ -11,72 +11,32 @@
 | `dma_enable` / `dma_sel` | DMA 使能和类型；仅 `enable_dma: true` 时生成；mobile_storage 不使用 `dma_sel` 写寄存器 |
 | `adma_des` | MSHC ADMA 描述符数据；仅 `enable_dma: true` 且 `controller_ip: mshc` 时生成 |
 | `idmac_descriptor` | mobile_storage IDMAC 描述符数据；仅 `enable_dma: true` 且 `controller_ip: mobile_storage` 时生成 |
-| `abort` | 是否走 abort 场景 |
+| `abort` | 提前停止传输；eMMC/SD 读不支持 |
 | `data_xfer_dir` | `XFER_READ` 或 `XFER_WRITE` |
 | `function_number` | SDIO function number，默认 1 |
 | `is_ddr` | eMMC/SD DDR 传输标记 |
 
-公共流程：
-
-1. `enable_dma: true` 且 DMA 启用时，通过 `cpu_config_operation_seq` 写入对应 DMA 描述符；MSHC 只在 ADMA2/ADMA2_3 时写描述符。
-2. 设置 block length。
-3. 执行具体读写命令。
-4. 按 `abort` 条件执行停止动作。
-
-关键约束：
-
-- `len == count * size`。
-- SDIO 地址低 2 bit 为 0，`function_number` 在 1 到 7。
-- eMMC DDR/HS400 时 `size == 512`。
-- SDSC 不支持多 block，`count == 1`。
-- DMA 描述符地址和数据地址不能重叠。
-- mobile_storage 单描述符长度不超过 8191 字节。
+按顺序准备 DMA 描述符（启用时）、设置块长、执行读写命令。SDIO 地址按 4 字节对齐，`function_number` 为 1 至 7；单块不写块长，提前停止时在 CMD53 后发 CMD52。eMMC DDR 或 HS400 使用 512 字节块且不发 CMD16；SDSC 只允许单块。
 
 ## Read
 
 | 字段 | 作用 |
 | --- | --- |
-| `blocking` | 读数据搬运顺序 |
+| `blocking` | PIO 阻塞读模式 |
 | `rdata` | 命令 response 中返回的数据 |
 
-eMMC/SD 流程：
+eMMC/SD 单块读发 CMD17，多块读先发 CMD23 再发 CMD18。SDIO 发 CMD53。命令返回后把响应中的 `data` 保存到 `rdata`。
 
-1. `count > 1` 时先发 CMD23 设置 block count。
-2. `count > 1` 时发 CMD18，否则发 CMD17。
-3. 按 `blocking` 决定 host 从 buffer 取数的时机。
-4. 把 command response 的 `data` 保存到 `rdata`。
+| 控制器 | `blocking == 0` | `blocking == 1` |
+| --- | --- | --- |
+| MSHC | 逐块等待 BRR 并从 `BUF_DATA_R` 取数，最后等 TC | 按同一顺序逐块取数，等 TC 后一次性写入响应队列 |
+| mobile_storage SDIO | 逐块等待 RXDR，逐字确认 FIFO 非空后取数，最后等 DTO | 先等 DTO，再逐字确认 FIFO 非空后取数，不等待 RXDR |
 
-SDIO 流程：
+DMA 读先等传输完成，再从内存取数，不使用 PIO 阻塞读模式。
 
-1. 通过 CMD53 执行读。
-2. 把 command response 的 `data` 保存到 `rdata`。
+mobile_storage 发读命令前按块长设置 FIFO 保护阈值。每读一个 32 位字前检查 `STATUS_R[2] == 0`，轮询期间若 `RINTSTS_R[11]` 置位则报 `UVM_FATAL`。FIFO 窗口从 `default_map.get_base_addr() + 0x200` 开始，使用前门访问。
 
-普通 read：
-
-- `blocking == 0`。
-- 每个 block 都先等一次 `BUF_RD_READY`，然后立刻读走一个 block。
-- MSHC 从 `BUF_DATA_R` 读取。
-- mobile_storage 从 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口前门读取 32-bit word。
-- mobile_storage 读命令前开启读 FIFO 保护，阈值按当前 block size 配置。
-- 所有 block 读走后再等 `XFER_COMPLETE`。
-- MSHC PIO 的 `rw_test` 默认使用该流程。
-
-Blocked read：
-
-- `blocking == 1`。
-- 不逐块等待 `BUF_RD_READY`。
-- 先等 `XFER_COMPLETE`，再连续读取 `block_count` 个 block。
-- mobile_storage SDIO 的 `rw_test` 默认使用该流程。
-- MSHC PIO 的 `rw_test` 默认不使用该流程。
-
-eMMC/SD read 不支持 abort，约束 `abort == 0`。
-
-### mobile_storage 非 DMA FIFO read
-
-- 块级唤醒仍使用 `BUF_RD_READY`。
-- 每个 word 读取前检查 `STATUS_R[2] == 0`。
-- FIFO 非空后读取 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口。
-- 轮询期间检查 `RINTSTS_R[11]`，出现 FIFO 下溢或上溢时 fatal。
+扩展读操作时，继承实际命令类或相同的 request 特化。只改变单块搬运时重写 `read_buffer_one_block`，保留等待顺序；需要改变路径选择时才重写 `read`。用实际创建类型的 `get_type()` 注册工厂替换，并经基类句柄启动序列验证重写。
 
 ## Write
 
@@ -85,39 +45,18 @@ eMMC/SD read 不支持 abort，约束 `abort == 0`。
 | `write_protected` | 写保护场景，关闭 data present |
 | `wdata` | 写入数据，长度等于 `len` |
 
-eMMC/SD 流程：
+eMMC/SD 单块写发 CMD24，多块写发 CMD25；非 abort 的多块写先发 CMD23，abort 时启用 `AUTO_CMD12_ENABLED`。写保护时将 `data_present_sel` 置 0。SDIO 将 `wdata` 传给 CMD53。
 
-1. `count > 1` 且非 abort 时先发 CMD23 设置 block count。
-2. `count > 1` 时发 CMD25，否则发 CMD24。
-3. abort 场景打开 `AUTO_CMD12_ENABLED`。
-4. 写保护场景把 `data_present_sel` 置 0。
-
-SDIO 流程：
-
-1. 通过 CMD53 执行写。
-2. `wdata` 传入 CMD53 request。
-
-非 DMA 写：
-
-- MSHC 写 `BUF_DATA_R`。
-- mobile_storage 在命令发出前写 `default_map.get_base_addr() + 0x200` 的 FIFO 窗口，每 4 字节按小端组一个 word，前门 CPU 写；不等待 `CMD_COMPLETE` 后再写。
+非 DMA 写时，MSHC 写 `BUF_DATA_R`；mobile_storage 在发命令前以前门写 FIFO 窗口，每 4 字节按小端组成一个 32 位字。
 
 ## DMA
 
-Python 配置 `enable_dma` 默认关闭。关闭时不生成 DMA enum、DMA request 字段、ADMA descriptor、DMA interrupt/error 处理和 kit `use_dma` 参数。
+生成参数 `enable_dma` 默认关闭；未生成 DMA 时没有 `use_dma` 参数。运行时 `dma_enable == 0` 不写描述符。DMA 描述符与数据缓冲区不重叠，均通过 `cpu_config_operation_seq` 后门访问。
 
-DMA 传输由读写命令触发，flow 只负责准备描述符和 request 字段。
+| 模式 | 描述符 | 命令操作使用的地址 |
+| --- | --- | --- |
+| MSHC SDMA | 无 | 数据地址 `addr` |
+| MSHC ADMA2 / ADMA2_3 | `adma_des` | 描述符地址 `adma_des.cmd_addr` |
+| mobile_storage IDMAC | `idmac_descriptor`，传输上限 8191 字节 | 将 `descriptor_addr` 写入 `DBADDR_R`；描述符中另存 `data_addr` |
 
-| 条件 | 行为 |
-| --- | --- |
-| `dma_enable == 0` | 不写 DMA 描述符 |
-| MSHC `dma_sel` 不是 ADMA2/ADMA2_3 | 不写 DMA 描述符 |
-| MSHC `dma_enable == 1` 且 ADMA2/ADMA2_3 | 写 `adma_des`，命令 request 携带 `dma_enable`、`dma_sel` |
-| mobile_storage `dma_enable == 1` | 写 `idmac_descriptor`，命令 request 携带 `dma_enable` |
-
-ADMA 模式下，命令寄存器使用描述符地址 `adma_des.cmd_addr`；SDMA 模式下，命令寄存器使用数据地址 `addr`。
-`mobile_storage` 的 DMA 模式走 IDMAC 描述符链表：`CTRL_R.USE_INTERNAL_DMAC` 选择 internal DMAC，`DBADDR_R` 写 `idmac_descriptor.descriptor_addr`，真实数据 buffer 地址写在 `idmac_descriptor.data_addr` 中，`BMOD_R.SWR` 复位 IDMAC，`BMOD_R.DE` 开启 IDMAC，向 `PLDMND_R` 写 `32'h1` 触发 DMA；`0x84` 是 `PLDMND_R` 地址。
-
-DMA 数据 buffer 也通过 `cpu_config_operation_seq` 后门访问。普通 kit CPU 读写、mobile_storage 非 DMA FIFO 访问默认前门。
-
-读写流程不自己搬 DUT 数据。DUT 数据搬运由 CPU 访问或 DMA 决定，scoreboard 只接收最终期望和实际数据。
+mobile_storage 使用 `CTRL_R.USE_INTERNAL_DMAC` 选择 IDMAC，`BMOD_R.SWR` 复位，`BMOD_R.DE` 使能，再向 `PLDMND_R`（偏移 `0x84`）写 `1` 触发。普通 kit CPU 读写默认使用前门。

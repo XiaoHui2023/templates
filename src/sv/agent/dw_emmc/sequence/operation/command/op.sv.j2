@@ -38,7 +38,7 @@ class {{ class_prefix }}command_operation_seq #(
     // Reads command response registers.
     extern task read_resp();
     // Reads data payload for the current command.
-    extern task read(ref bit [7:0] data[$]);
+    extern virtual task read(ref bit [7:0] data[$]);
     // Writes data payload for the current command.
     extern task write(bit [7:0] data[$]);
 {%- if enable_dma %}
@@ -49,10 +49,12 @@ class {{ class_prefix }}command_operation_seq #(
 {%- endif %}
     // Writes all requested blocks through the controller buffer.
     extern task write_buffer(bit [7:0] data[$]);
-    // Reads all requested blocks through the controller buffer.
-    extern protected task read_buffer(ref bit [7:0] data[$]);
-    // Reads blocks after transfer completion.
-    extern protected task read_buffer_blocked(ref bit [7:0] data[$]);
+    // Drains all requested blocks through the controller buffer.
+    extern virtual protected task read_buffer(ref bit [7:0] data[$]);
+    // Publishes buffered data after the transfer completes.
+    extern virtual protected task read_buffer_blocked(ref bit [7:0] data[$]);
+    // Waits for the controller to make the next read block available.
+    extern local task wait_read_buffer_ready();
 {%- if enable_dma %}
     // Reads byte payload from external memory.
     extern protected task read_memory(ref bit [7:0] data[$]);
@@ -66,13 +68,13 @@ class {{ class_prefix }}command_operation_seq #(
     // Writes one block through the controller buffer.
     extern protected task write_buffer_one_block(ref bit [7:0] data[$]);
     // Reads one block through the controller buffer.
-    extern protected task read_buffer_one_block(ref bit [7:0] data[$]);
+    extern virtual protected task read_buffer_one_block(ref bit [7:0] data[$]);
     // Requests a block-gap abort when supported.
     extern protected task abort();
     // Waits for command-complete interrupt status.
     extern task wait_cmd_complete();
     // Waits for transfer-complete interrupt status.
-    extern task wait_xfer_complete();
+    extern virtual task wait_xfer_complete();
     // Creates a wait-field operation sequence.
     extern function {{ class_prefix }}wait_field_operation_seq create_wait_field_seq();
     // Creates a wait-interrupt operation sequence.
@@ -229,19 +231,33 @@ endtask
 task {{ class_prefix }}command_operation_seq::read_buffer(ref bit [7:0] data[$]);
     for (int j = 0; j < cmd_request.block_count; j++) begin
         `uvm_info("", $psprintf("read buffer [%0d]", j), UVM_LOW)
-        // wait ready
-        $cast(wait_intr_seq, create_wait_intr_seq());
-        `uvm_rand_send_with(wait_intr_seq, {wait_intr_request.buf_rd_ready;})
+        wait_read_buffer_ready();
         read_buffer_one_block(data);
     end
     `uvm_info("", "read buffer done", UVM_LOW)
 endtask
 
+task {{ class_prefix }}command_operation_seq::wait_read_buffer_ready();
+{%- if is_mobile_storage %}
+    // After DTO, the FIFO word-level check is the readiness gate.
+    if (cmd_request.rd_blocking)
+        return;
+{%- endif %}
+    wait_intr_seq = create_wait_intr_seq();
+    `uvm_rand_send_with(wait_intr_seq, {wait_intr_request.buf_rd_ready == 1;})
+endtask
+
 task {{ class_prefix }}command_operation_seq::read_buffer_blocked(ref bit [7:0] data[$]);
+{%- if is_mobile_storage %}
     wait_xfer_complete();
-    repeat (cmd_request.block_count)
-        read_buffer_one_block(data);
-    `uvm_info("", "read buffer blocked done", UVM_LOW)
+    read_buffer(data);
+{%- else %}
+    bit [7:0] buffered[$];
+
+    read_buffer(buffered);
+    wait_xfer_complete();
+    data = {data, buffered};
+{%- endif %}
 endtask
 
 {% if is_mobile_storage -%}
