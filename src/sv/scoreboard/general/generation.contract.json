@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "validator": "tools/check_scoreboard_generation.py"
+}

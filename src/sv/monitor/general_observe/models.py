@@ -43,6 +43,7 @@ class Models(BaseModel):
         False,
         description="为真时按已发字节数累加作为下一包的地址；为假时每包地址为 0。",
     )
+    report_payload: bool = Field(True, description="输出采样包日志。")
     if_clk: str = Field(
         "clk",
         pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",

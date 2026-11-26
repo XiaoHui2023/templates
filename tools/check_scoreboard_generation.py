@@ -174,7 +174,8 @@ def run_matrix(executable: str, output: Path) -> dict:
         raise ValueError("disabled profile did not remove comparison source")
     if results["lean"]["source_characters"] >= results["reference"]["source_characters"]:
         raise ValueError("lean profile did not reduce the reference output")
-    return dict(passed=True, profiles=results, rejected_controls=controls)
+    return dict(passed=True, family=FAMILY.relative_to(ROOT).as_posix(),
+                profiles=results, rejected_controls=controls)
 
 
 def main() -> None:

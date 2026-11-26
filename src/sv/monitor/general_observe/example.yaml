@@ -1,0 +1,4 @@
+class_prefix: general_observe_
+data_width_expr: "16"
+address_increment: false
+report_payload: false

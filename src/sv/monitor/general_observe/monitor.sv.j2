@@ -1,16 +1,16 @@
 `ifndef {{ (class_prefix ~ 'monitor') | upper }}
 `define {{ (class_prefix ~ 'monitor') | upper }}
 
-// general_observe monitor：在接口 valid/时钟域采样数据，打包为 UVM_TLM_WRITE GP 并写出分析端口。
 class {{ class_prefix }}monitor#(int DW={{ data_width_expr }}) extends uvm_component;
     `uvm_component_param_utils({{ class_prefix }}monitor#(DW))
 
     uvm_analysis_port #(uvm_tlm_generic_payload) {{ output_ap_name }}; // 观测到的写事务
 
-{% if address_increment %}
+{%- if address_increment %}
     bit [63:0] m_stream_byte_addr;
-{% endif %}
+{%- endif %}
 
+    // Create the analysis output.
     function new(string name="{{ class_prefix }}monitor",uvm_component parent);
         super.new(name,parent);
 
@@ -19,10 +19,12 @@ class {{ class_prefix }}monitor#(int DW={{ data_width_expr }}) extends uvm_compo
 
     virtual {{ class_prefix }}interface vif;
 
+    // Resolve the sampling interface before runtime.
     extern function void start_of_simulation();
+    // Start sampling in the runtime phase.
     extern task run_phase(uvm_phase phase);
 
-    // sample_and_output — 等待 rx_count 递增，装配 GP 并 write 至 {{ output_ap_name }}
+    // Convert each captured word to a write payload.
     extern protected task sample_and_output();
 endclass
 
@@ -41,53 +43,40 @@ endtask
 
 task {{ class_prefix }}monitor::sample_and_output();
     forever begin
-        bit[DW-1:0] pdata;
+        bit [((DW+7)/8)*8-1:0] padded;
         int width;
         uvm_tlm_generic_payload out;
         int len;
-        bit [7:0] tmp_dyn[];
-        bit [7:0] full_q[$];
-        bit [7:0] byte_q[$];
         byte unsigned data_dyn[];
 
         @(vif.rx_count);
-        pdata = vif.rx_data.data;
+        padded = (((DW+7)/8)*8)'(vif.rx_data.data);
         width = vif.rx_data.width;
 
         len = (width-1)/8+1;
+        if(len > $bits(padded)/8)
+            len = $bits(padded)/8;
 
         out = uvm_tlm_generic_payload::type_id::create({get_full_name(),".gp"});
 
-        tmp_dyn = { >> {pdata}};
-        full_q.delete();
-        foreach (tmp_dyn[i])
-            full_q.push_back(tmp_dyn[i]);
-
-        byte_q.delete();
-        begin
-            int n_bytes;
-            n_bytes = full_q.size();
-            for (int i = 0; i < len && i < n_bytes; i++)
-                byte_q.push_back(full_q[n_bytes - 1 - i]);
-        end
-
-        data_dyn = new[byte_q.size()];
-        foreach (byte_q[i])
-            data_dyn[i] = byte_q[i];
+        data_dyn = new[len];
+        foreach(data_dyn[i])
+            data_dyn[i] = padded[8*i +: 8];
         out.set_data(data_dyn);
+        out.set_data_length(len);
         out.set_command(UVM_TLM_WRITE_COMMAND);
-{% if address_increment %}
+{%- if address_increment %}
         out.set_address(m_stream_byte_addr);
-        m_stream_byte_addr += byte_q.size();
-{% else %}
+        m_stream_byte_addr += 64'(len);
+{%- else %}
         out.set_address(64'h0);
-{% endif %}
+{%- endif %}
 
         fork begin
             out.accept_tr();
-
+{%- if report_payload %}
             `uvm_info("",$psprintf("output:\n%s",out.sprint()),UVM_HIGH)
-
+{%- endif %}
             {{ output_ap_name }}.write(out);
         end join_none
     end
