@@ -116,6 +116,9 @@ function void {{ class_prefix }}scoreboard::build_phase(uvm_phase phase);
     void'(uvm_config_db #(bit)::get(this, "", "checks_enabled", cfg.checks_enabled));
     void'(uvm_config_db #(bit)::get(this, "", "require_golden", cfg.require_golden));
     void'(uvm_config_db #(bit)::get(this, "", "require_match", cfg.require_match));
+    void'(uvm_config_db #(bit)::get(this, "", "check_count", cfg.check_count));
+    void'(uvm_config_db #(bit)::get(this, "", "check_missing", cfg.check_missing));
+    void'(uvm_config_db #(bit)::get(this, "", "check_unexpected", cfg.check_unexpected));
     void'(uvm_config_db #(bit)::get(this, "", "compare_address", cfg.compare_address));
     void'(uvm_config_db #(bit)::get(this, "", "compare_command", cfg.compare_command));
     void'(uvm_config_db #(bit)::get(this, "", "compare_data", cfg.compare_data));
@@ -416,12 +419,12 @@ function bit [5:0] {{ class_prefix }}scoreboard::completion_issues();
         if(cfg.require_match && matched_count == 0)
             issues |= NO_MATCH;
     end
-    if((cfg.expected_units >= 0 && (required != cfg.expected_units || covered_units != cfg.expected_units))
-        || (cfg.expected_units < 0 && lifecycle != ACCEPTING && covered_units != required))
+    if(cfg.check_count && ((cfg.expected_units >= 0 && (required != cfg.expected_units || covered_units != cfg.expected_units))
+        || (cfg.expected_units < 0 && lifecycle != ACCEPTING && covered_units != required)))
         issues |= COUNT;
-    if(golden_pending.size() != 0)
+    if(cfg.check_missing && golden_pending.size() != 0)
         issues |= MISSING;
-    if(unexpected_monitor_count() != 0)
+    if(cfg.check_unexpected && unexpected_monitor_count() != 0)
         issues |= UNEXPECTED;
     return issues;
 endfunction

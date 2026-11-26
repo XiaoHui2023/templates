@@ -12,6 +12,9 @@ class {{ class_prefix }}scoreboard_config extends uvm_object;
     longint expected_units = {{ expected_units }};
     bit require_golden = {{ require_golden | int }};
     bit require_match = {{ require_match | int }};
+    bit check_count = {{ check_count | int }};
+    bit check_missing = {{ check_missing | int }};
+    bit check_unexpected = {{ check_unexpected | int }};
     bit atomize = {{ atomize | int }};
     bit match_address = {{ match_address | int }};
     bit match_command = {{ match_command | int }};
@@ -31,6 +34,9 @@ class {{ class_prefix }}scoreboard_config extends uvm_object;
         `uvm_field_int(expected_units, UVM_DEFAULT)
         `uvm_field_int(require_golden, UVM_DEFAULT)
         `uvm_field_int(require_match, UVM_DEFAULT)
+        `uvm_field_int(check_count, UVM_DEFAULT)
+        `uvm_field_int(check_missing, UVM_DEFAULT)
+        `uvm_field_int(check_unexpected, UVM_DEFAULT)
         `uvm_field_int(atomize, UVM_DEFAULT)
         `uvm_field_int(match_address, UVM_DEFAULT)
         `uvm_field_int(match_command, UVM_DEFAULT)

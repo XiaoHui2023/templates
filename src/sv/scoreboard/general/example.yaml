@@ -5,6 +5,9 @@ reuse_read_expectations: false
 expected_units: -1
 require_golden: true
 require_match: true
+check_count: true
+check_missing: true
+check_unexpected: true
 atomize: true
 match_address: true
 match_command: false

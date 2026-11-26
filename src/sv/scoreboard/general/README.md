@@ -10,6 +10,9 @@ reuse_read_expectations: false
 expected_units: -1
 require_golden: true
 require_match: true
+check_count: true
+check_missing: true
+check_unexpected: true
 atomize: true
 monitor_policy: buffer
 ```
@@ -25,6 +28,9 @@ monitor_policy: buffer
 | `expected_units` | `int` | `-1` | 预期比较单元数，-1 按本轮期望义务数推导；state 为独立有效字节地址数，其余为 golden 单元数。 |
 | `require_golden` | `bool` | `true` | 未显式设置预期单元数时，要求至少收到一包合法 golden。 |
 | `require_match` | `bool` | `true` | 未显式设置预期单元数时，要求至少成功匹配一个比较单元。 |
+| `check_count` | `bool` | `true` | 检查期望单元数与成功覆盖数。 |
+| `check_missing` | `bool` | `true` | 检查未匹配的 golden 单元。 |
+| `check_unexpected` | `bool` | `true` | 检查相关的 monitor 残留单元。 |
 | `atomize` | `bool` | `true` | 按有效字节比较；为假时整包比较。 |
 | `match_address` | `bool` | `true` | 将地址作为匹配条件。 |
 | `match_command` | `bool` | `false` | 将读写命令作为匹配条件。 |

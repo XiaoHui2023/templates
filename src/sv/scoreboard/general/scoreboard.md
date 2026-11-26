@@ -31,7 +31,7 @@ options.expected_units = 4;
 uvm_config_db #(general_scoreboard_config)::set(this, "sb", "config", options);
 ```
 
-`checks_enabled` 默认开启。通过 `uvm_config_db #(bit)` 可以直接设置 `checks_enabled`、`require_golden`、`require_match`、`compare_address`、`compare_command`、`compare_data` 和 `compare_response`。显式设置 `expected_units` 时，两项非空策略仍由数量检查替代。
+`checks_enabled` 默认开启。通过 `uvm_config_db #(bit)` 可以直接设置 `checks_enabled`、`require_golden`、`require_match`、`compare_address`、`compare_command`、`compare_data` 和 `compare_response`，以及三项最终检查 `check_count`、`check_missing` 和 `check_unexpected`。三项最终检查均默认开启。
 
 ```systemverilog
 // Full bypass for this instance in a special test.
@@ -42,6 +42,20 @@ uvm_config_db #(bit)::set(this, "env.addr_sb", "compare_data", 0);
 ```
 
 整体关闭时，组件保留端口和阶段调度，只统计采样期间跳过的包数，跳过载荷校验、比较与最终数据检查。配置校验仍执行，`on_check` 仍在 check phase 通知，统计中 `checks_enabled`、`checked` 和 `complete` 均为假。复位清零跳过计数并保留构建期设置。
+
+## 组合设置
+
+用一个 `general_scoreboard_config` 对象设置多项检查。以下用法允许本轮有未匹配的期望单元，并保留多余相关 monitor 数据检查。`check_missing` 判断是否有待匹配 golden 单元，`check_count` 另行判断覆盖数是否满足期望，因此此例同时关闭这两项。
+
+```systemverilog
+general_scoreboard_config options;
+options = new;
+options.check_missing = 0;
+options.check_count = 0;
+uvm_config_db #(general_scoreboard_config)::set(this, "env.sb", "config", options);
+```
+
+停用某项最终检查后，统计仍保留已匹配数量和两侧残留。`check_unexpected` 检查的范围仍由 `monitor_policy` 决定。总开关开启时，GP 输入校验、容量和阶段边界继续生效。
 
 ## 自动生命周期
 
@@ -118,7 +132,7 @@ ORDERED 保持首次覆盖及写操作的顺序，已覆盖读可穿插复读，
 
 ## 数量与非空策略
 
-`expected_units` 是构建期预期比较单元数；-1 使用最终 `required_units`，非负值同时检查期望义务数和首次成功覆盖数。STATE 的义务是 golden 中独立有效字节地址，其余模式每个 golden 转换单元形成独立义务。显式数量停用 `require_golden`、`require_match`，包括显式 0；推导数量不会停用它们。
+`expected_units` 是构建期预期比较单元数；-1 使用最终 `required_units`，非负值提供显式数量。`check_count` 开启时，期望义务数和首次成功覆盖数都需要达到该值。STATE 的义务是 golden 中独立有效字节地址，其余模式每个 golden 转换单元形成独立义务。显式数量停用 `require_golden` 和 `require_match`，包括显式 0。`check_count` 只决定是否验证数量，显式声明的优先级仍生效。
 
 未显式声明时，`require_golden` 检查至少收到一包合法 golden，包含 IGNORE 和完全禁用包；`require_match` 检查至少有一个比较单元成功匹配，两项默认开启。显式 0 允许空轮次，仍需运行 phase 正常结束、无错误且无相关残留。
 
