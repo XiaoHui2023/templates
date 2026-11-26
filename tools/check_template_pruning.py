@@ -170,6 +170,30 @@ def run_contract(family: Path, contract: dict) -> dict:
                                 for name, files in products.items()}}
 
 
+def precontract_restore(family: Path) -> str | None:
+    """Recognize withdrawal that exactly restores a family's pre-onboarding Git tree."""
+    relative = family.relative_to(ROOT).as_posix()
+    contract = f"{relative}/{CONTRACT}"
+    if git_paths("ls-files", "--others", "--exclude-standard", "--", relative):
+        return None
+    for ref in ("HEAD", "origin/main"):
+        exists = subprocess.run(["git", "cat-file", "-e", f"{ref}:{contract}"],
+                                cwd=ROOT, capture_output=True)
+        if exists.returncode:
+            continue
+        added = subprocess.check_output(
+            ["git", "log", "-1", "--diff-filter=A", "--format=%H", ref, "--", contract],
+            cwd=ROOT, text=True,
+        ).strip()
+        if not added:
+            continue
+        before = subprocess.run(["git", "rev-parse", "--verify", f"{added}^"], cwd=ROOT,
+                                capture_output=True, text=True)
+        if before.returncode == 0 and not git_paths("diff", "--name-only", before.stdout.strip(), "--", relative):
+            return before.stdout.strip()
+    return None
+
+
 def check_family(family: Path) -> dict:
     """Require a contract for conditional generation and dispatch its validator."""
     contract_path = family / CONTRACT
@@ -177,6 +201,8 @@ def check_family(family: Path) -> dict:
     optional = bool(SOURCE.search(templates))
     if not contract_path.is_file():
         if optional:
+            if baseline := precontract_restore(family):
+                return {"scope": "restored exact precontract tree", "baseline": baseline}
             raise ValueError(f"missing conditional output contract: {contract_path.relative_to(ROOT)}")
         return {"scope": "no detected conditional generation"}
     contract = json.loads(contract_path.read_text(encoding="utf-8"))
