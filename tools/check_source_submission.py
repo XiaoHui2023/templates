@@ -74,6 +74,16 @@ def validate_source(*, staged: bool = False) -> None:
     changed = run("git", "diff", "--name-only", capture=True).stdout
     changed += run("git", "diff", "--cached", "--name-only", capture=True).stdout
     changed += run("git", "ls-files", "--others", "--exclude-standard", capture=True).stdout
+    outgoing = subprocess.run(
+        ["git", "diff", "--name-only", "origin/main..HEAD"], cwd=ROOT, capture_output=True,
+    )
+    scoreboard_paths = changed.splitlines()
+    if outgoing.returncode == 0:
+        scoreboard_paths += outgoing.stdout.splitlines()
+    if any(path.startswith(b"src/sv/scoreboard/general/") or
+           path in {b"tools/check_scoreboard_generation.py", b"tools/check_source_submission.py"}
+           for path in scoreboard_paths):
+        run(sys.executable, "tools/check_scoreboard_generation.py")
     if any(path.startswith(b"src/c/pll_mini/") for path in changed.splitlines()):
         run(sys.executable, "src/c/pll_mini/tools/check_plugin_ownership.py")
     dw_emmc_gate = {b"tools/check_dw_emmc_read.py", b"tools/run_dw_emmc_read_probe.py",

@@ -6,6 +6,8 @@
 class_prefix: general_
 mode: state
 checks_enabled: true
+callbacks_enabled: true
+print_payload_enabled: true
 reuse_read_expectations: false
 expected_units: -1
 require_golden: true
@@ -24,6 +26,8 @@ monitor_policy: buffer
 | `class_prefix` | `str` | `general_` | 类型名前缀，建议以下划线结尾。 |
 | `mode` | `str` | `address` | `address` 按地址匹配，`ordered` 按输入顺序匹配，`set` 按多重集合匹配，`state` 按有效字节地址比较写入终态。 |
 | `checks_enabled` | `bool` | `true` | 启用 scoreboard 数据检查。 |
+| `callbacks_enabled` | `bool` | `true` | 启用复位、比较与最终检查回调。 |
+| `print_payload_enabled` | `bool` | `true` | 启用 GP 打印接口和失配包输出。 |
 | `reuse_read_expectations` | `bool` | `false` | 事务模式中读期望可重复使用，写期望逐个消费；state 不支持读复用。 |
 | `expected_units` | `int` | `-1` | 预期比较单元数，-1 按本轮期望义务数推导；state 为独立有效字节地址数，其余为 golden 单元数。 |
 | `require_golden` | `bool` | `true` | 未显式设置预期单元数时，要求至少收到一包合法 golden。 |

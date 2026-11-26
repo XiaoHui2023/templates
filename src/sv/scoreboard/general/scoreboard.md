@@ -5,9 +5,8 @@
 | 角色 | 示例类型名 |
 | --- | --- |
 | 主组件 | `general_scoreboard` |
-| 配置 | `general_scoreboard_config` |
 | 统计快照 | `general_scoreboard_statistics` |
-| 观察回调 | `general_scoreboard_callback` |
+| 观察回调 | `general_scoreboard_callback`（检查和回调均开启时） |
 | GP 转换与比较 | `general_scoreboard_adapter` |
 | 内部记录与存储 | `general_scoreboard_entry`、`general_scoreboard_pending` |
 
@@ -20,52 +19,31 @@ golden_producer.o_ap.connect(sb.i_golden_ap);
 monitor.o_ap.connect(sb.i_monitor_ap);
 ```
 
-在目标 scoreboard 的 `build_phase` 前设置配置。组件先使用生成默认值，再复制 `uvm_config_db` 中名为 `config` 的配置对象，最后应用已设置的 `uvm_config_db #(bit)` 单项并校验。运行期间重设数据库或修改原配置对象不会改变已生效的设置。
+在生成前通过 YAML 设置模式、匹配与检查策略。填入一项即可单独调整，同一份 YAML 可组合任意适用的开关。组件生成后使用固定策略。不同实例需要不同策略时，用不同的 `class_prefix` 分别生成。
 
-```systemverilog
-general_scoreboard_config options;
-options = new;
-options.mode = general_scoreboard_config::ADDRESS;
-options.reuse_read_expectations = 1;
-options.expected_units = 4;
-uvm_config_db #(general_scoreboard_config)::set(this, "sb", "config", options);
+例如，有些测试允许少覆盖一部分期望。可在该测试使用的 YAML 同时关闭缺失检查和数量检查，继续检查相关的 monitor 残留。
+
+```yaml
+class_prefix: partial_
+check_missing: false
+check_count: false
+check_unexpected: true
 ```
 
-`checks_enabled` 默认开启。通过 `uvm_config_db #(bit)` 可以直接设置 `checks_enabled`、`require_golden`、`require_match`、`compare_address`、`compare_command`、`compare_data` 和 `compare_response`，以及三项最终检查 `check_count`、`check_missing` 和 `check_unexpected`。三项最终检查均默认开启。
+缺失与数量分别检查残留和成功覆盖数。关闭任一项后，实际覆盖与两侧残留仍可通过统计观察。开启检查时，GP 输入校验、容量限制与阶段边界继续生效。
 
-```systemverilog
-// Full bypass for this instance in a special test.
-uvm_config_db #(bit)::set(this, "env.sb", "checks_enabled", 0);
+`callbacks_enabled: false` 省略观察回调，`print_payload_enabled: false` 省略包打印函数和失配包输出。失配本身仍通过 UVM 错误报告。
 
-// Field-only override for a different instance that still checks transactions.
-uvm_config_db #(bit)::set(this, "env.addr_sb", "compare_data", 0);
-```
-
-整体关闭时，组件保留端口和阶段调度，只统计采样期间跳过的包数，跳过载荷校验、比较与最终数据检查。配置校验仍执行，`on_check` 仍在 check phase 通知，统计中 `checks_enabled`、`checked` 和 `complete` 均为假。复位清零跳过计数并保留构建期设置。
-
-## 组合设置
-
-用一个 `general_scoreboard_config` 对象设置多项检查。以下用法允许本轮有未匹配的期望单元，并保留多余相关 monitor 数据检查。`check_missing` 判断是否有待匹配 golden 单元，`check_count` 另行判断覆盖数是否满足期望，因此此例同时关闭这两项。
-
-```systemverilog
-general_scoreboard_config options;
-options = new;
-options.check_missing = 0;
-options.check_count = 0;
-uvm_config_db #(general_scoreboard_config)::set(this, "env.sb", "config", options);
-```
-
-停用某项最终检查后，统计仍保留已匹配数量和两侧残留。`check_unexpected` 检查的范围仍由 `monitor_policy` 决定。总开关开启时，GP 输入校验、容量和阶段边界继续生效。
+`checks_enabled: false` 只生成 GP 接收和跳过统计。组件保留两路端口，随 phase 复位计数并封闭采样。快照提供 `round_id`、`sealed` 和 `skipped_packets`，此配置没有检查结果字段。
 
 ## 自动生命周期
 
 | UVM phase | 组件行为 |
 | --- | --- |
-| `build_phase` | 复制配置对象、读取单项开关并验证。 |
 | `connect_phase` | 连接两路输入与类内 imp。 |
-| `reset_phase` | 清除待匹配数据、历史地址、统计、错误和本轮阶段；保留构建期配置并递增轮次号。 |
+| `reset_phase` | 清除待匹配数据、历史地址、统计、错误和本轮阶段；递增轮次号。 |
 | `extract_phase` | 在运行 phase 结束后冻结输入，排空延迟比较。 |
-| `check_phase` | 检查开启时检查数量、首次覆盖、相关残留和错误。随后通知观察者。 |
+| `check_phase` | 按生成时选定的检查项验证结果。启用回调时通知观察者。 |
 
 采样应在运行 phase 中完成，生产者和 monitor 在实际工作结束前保持相应 objection。`main_phase` 结束不代表全部运行 phase 结束，`shutdown_phase` 仍可提交数据。`extract_phase` 是零时间函数阶段，不会等待 DUT 继续输出。
 
@@ -140,7 +118,7 @@ ORDERED 保持首次覆盖及写操作的顺序，已覆盖读可穿插复读，
 
 ## 观察回调
 
-可派生 `general_scoreboard_callback` 并通过标准 `uvm_callbacks` 注册，不需要派生 scoreboard。三个钩子 `on_reset`、`on_compare`、`on_check` 默认无操作；在发生相应事件前注册，支持标准 callback enable/disable。
+启用 `callbacks_enabled` 时，可派生 `general_scoreboard_callback` 并通过标准 `uvm_callbacks` 注册，不需要派生 scoreboard。三个钩子 `on_reset`、`on_compare`、`on_check` 默认无操作；在发生相应事件前注册，支持标准 callback enable/disable。
 
 ```systemverilog
 uvm_callbacks #(general_scoreboard, general_scoreboard_callback)::add(sb, observer);
@@ -162,8 +140,6 @@ sb.get_statistics(stats);
 | 字段 | 含义 |
 | --- | --- |
 | `round_id` | 每次构造或标准复位清理时递增。 |
-| `checks_enabled` | 构建期解析后生效的总开关。 |
-| `skipped_packets` | 检查关闭时在采样期间跳过的双端输入包数，复位清零。 |
 | `golden_packets`、`monitor_packets` | 合法输入 GP 包数，包含 IGNORE 与完全禁用包。 |
 | `golden_valid_bytes`、`monitor_valid_bytes` | 有效字节数，排除禁用位置，IGNORE 为零。 |
 | `golden_units`、`monitor_units` | 转换所得比较单元数，monitor 包含随后被过滤的单元。 |
@@ -171,14 +147,15 @@ sb.get_statistics(stats);
 | `compared_units` | 比较次数，等于 `matched_count + mismatched_count`。 |
 | `covered_units` | 首次成功覆盖的期望单元数。 |
 | `retained_golden` | 保存的全部模型数，包含已覆盖的可复用读；STATE 为尚保留的终态地址。 |
-| `matched_count`、`mismatched_count`、`dropped_count` | 成功比较、失配和过滤单元数。 |
+| `matched_count`、`mismatched_count` | 成功比较与失配单元数。 |
+| `dropped_count` | DROP 模式过滤的单元数，仅 DROP 模式提供。 |
 | `pending_golden`、`pending_monitor`、`unexpected_monitor` | 未覆盖期望、待处理实际单元和必须检查的实际残留。 |
 | `expected_units`、`expected_set`、`expected_explicit` | 有效预期数、数量是否已知、是否由配置显式声明。 |
 | `input_errors`、`protocol_errors`、`check_errors` | 输入校验、非法时机或重入、最终检查错误项数。 |
 | `sealed`、`checked` | 输入已冻结、自动检查已执行。 |
 | `failed`、`complete` | 当前失败与最终成功状态。 |
 
-`print_payload` 通过 GP 标准行打印器，以一条 `UVM_INFO` 输出包，支持 ID 与 verbosity。失配包也使用同一入口；没有统计表格、文件报告或成功汇总。
+启用 `print_payload_enabled` 时，`print_payload` 通过 GP 标准行打印器，以一条 `UVM_INFO` 输出包，支持 ID 与 verbosity。失配包也使用同一入口；没有统计表格、文件报告或成功汇总。
 
 ```systemverilog
 sb.print_payload(payload, "GP_DEBUG", UVM_HIGH);
@@ -188,6 +165,6 @@ sb.print_payload(payload, "GP_DEBUG", UVM_HIGH);
 
 Models 省略 mode 时默认 ADDRESS，原有模式逐笔语义保持；随库 example.yaml 显式选择 STATE/BUFFER。需要忽略同址写入细节时显式选择 STATE；STATE 的 expected_units 使用独立地址数，不能沿用写入次数。
 
-旧的 `configure`、`clear`、`set_expected_units`、`add_expected_units`、`end_golden`、`end_monitor`、`end_round`、`check_pending`、`check_round`、`pending_counts` 和 `wait_complete` 不再作为外部 API。配置使用构建期 `config_db`，采样结束、清理与检查交给 phase；运行时追加数量或手动开启多个轮次的用法需要调整。
+将原来通过 `uvm_config_db` 设置的配置对象和布尔项迁移到生成 YAML，删除测试中的 `general_scoreboard_config` 声明及相关数据库设置。采样结束、复位与最终检查仍由 UVM phase 管理。
 
-统计中的 `golden_closed`、`monitor_closed` 改为统一的 `sealed` 与 `checked`，不再提供自建等待超时统计。独立时间服务包随旧等待接口移除。已有 `i_golden_ap`、`i_monitor_ap`、只读统计查询和标准打印用法保持。
+重新生成时使用空输出目录，避免上次结果中的旧配置文件或已关闭的辅助文件被下游编译。

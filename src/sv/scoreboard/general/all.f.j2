@@ -1,8 +1,11 @@
 import.sv
-config.sv
 statistics.sv
+{%- if checks_enabled %}
+{%- if callbacks_enabled %}
 callback.sv
+{%- endif %}
 adapter.sv
 entry.sv
 pending.sv
+{%- endif %}
 scoreboard.sv

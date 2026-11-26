@@ -1,3 +1,4 @@
+{%- if checks_enabled and callbacks_enabled %}
 `ifndef {{ class_prefix }}scoreboard_callback_SV
 `define {{ class_prefix }}scoreboard_callback_SV
 
@@ -26,3 +27,4 @@ class {{ class_prefix }}scoreboard_callback extends uvm_callback;
 endclass
 
 `endif
+{%- endif %}

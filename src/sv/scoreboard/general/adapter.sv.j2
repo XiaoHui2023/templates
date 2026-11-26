@@ -1,22 +1,18 @@
+{%- if checks_enabled %}
 `ifndef {{ class_prefix }}scoreboard_adapter_SV
 `define {{ class_prefix }}scoreboard_adapter_SV
 
 class {{ class_prefix }}scoreboard_adapter;
-    protected {{ class_prefix }}scoreboard_config cfg;
-
-    // Bind comparison options owned by the scoreboard.
-    function new({{ class_prefix }}scoreboard_config options);
-        cfg = options;
-    endfunction
-
     // Validate standard GP fields and create independently owned comparison units.
     // units — Empty on rejection, IGNORE commands, or fully disabled transfers.
     // reason — Validation failure text, empty on success.
     // valid_bytes — Enabled-byte count, zero on rejection or IGNORE.
     extern function bit convert(input uvm_tlm_generic_payload payload,
         output uvm_tlm_generic_payload units[$], output string reason, output longint valid_bytes);
+{%- if not atomize or callbacks_enabled %}
     // Copy only standard GP fields into an independent payload.
     extern function uvm_tlm_generic_payload copy_payload(uvm_tlm_generic_payload payload);
+{%- endif %}
     // Construct a key from the enabled identity fields.
     extern function string key(uvm_tlm_generic_payload payload);
     // Compare selected GP fields, honoring golden byte enables.
@@ -47,19 +43,22 @@ function bit {{ class_prefix }}scoreboard_adapter::convert(input uvm_tlm_generic
     end
     if(payload.get_command() == UVM_TLM_IGNORE_COMMAND)
         return 1;
-    if(cfg.mode == {{ class_prefix }}scoreboard_config::STATE && !payload.is_write()) begin
+{%- if mode == 'state' %}
+    if(!payload.is_write()) begin
         reason = "state mode accepts WRITE or IGNORE payloads only";
         return 0;
     end
+{%- else %}
     if(!(payload.get_command() inside {UVM_TLM_READ_COMMAND, UVM_TLM_WRITE_COMMAND})) begin
         reason = "invalid command";
         return 0;
     end
-    if(payload.get_data_length() == 0 || payload.get_data_length() > cfg.max_payload_bytes) begin
+{%- endif %}
+    if(payload.get_data_length() == 0 || payload.get_data_length() > {{ max_payload_bytes }}) begin
         reason = "invalid data length";
         return 0;
     end
-    if(payload.get_byte_enable_length() > cfg.max_payload_bytes) begin
+    if(payload.get_byte_enable_length() > {{ max_payload_bytes }}) begin
         reason = "invalid byte enable length";
         return 0;
     end
@@ -91,12 +90,7 @@ function bit {{ class_prefix }}scoreboard_adapter::convert(input uvm_tlm_generic
     valid_bytes = enabled_count;
     if(enabled_count == 0)
         return 1;
-    if(!cfg.atomize) begin
-        snapshot = copy_payload(payload);
-        snapshot.set_streaming_width(width);
-        units.push_back(snapshot);
-        return 1;
-    end
+{%- if atomize %}
     for(int j = 0; j < length; j++) begin
         byte unsigned single_byte[];
 
@@ -113,9 +107,15 @@ function bit {{ class_prefix }}scoreboard_adapter::convert(input uvm_tlm_generic
         snapshot.set_data_length(1);
         units.push_back(snapshot);
     end
+{%- else %}
+    snapshot = copy_payload(payload);
+    snapshot.set_streaming_width(width);
+    units.push_back(snapshot);
+{%- endif %}
     return 1;
 endfunction
 
+{%- if not atomize or callbacks_enabled %}
 function uvm_tlm_generic_payload {{ class_prefix }}scoreboard_adapter::copy_payload(uvm_tlm_generic_payload payload);
     uvm_tlm_generic_payload result;
     byte unsigned data[];
@@ -138,40 +138,58 @@ function uvm_tlm_generic_payload {{ class_prefix }}scoreboard_adapter::copy_payl
     result.set_byte_enable_length(payload.get_byte_enable_length());
     return result;
 endfunction
+{%- endif %}
 
 function string {{ class_prefix }}scoreboard_adapter::key(uvm_tlm_generic_payload payload);
-    bit [63:0] address;
-    int command;
-
-    command = 0;
-    if(cfg.mode == {{ class_prefix }}scoreboard_config::ORDERED)
-        return "ordered";
-    if(cfg.match_address)
-        address = payload.get_address();
-    if(cfg.match_command || cfg.reuse_read_expectations)
-        command = int'(payload.get_command());
-    return $sformatf("%016h:%0d", address, command);
+{%- if mode == 'ordered' %}
+    return "ordered";
+{%- elif match_address and (match_command or reuse_read_expectations) %}
+    return $sformatf("%016h:%0d", payload.get_address(), int'(payload.get_command()));
+{%- elif match_address %}
+    return $sformatf("%016h", payload.get_address());
+{%- elif match_command or reuse_read_expectations %}
+    return $sformatf("%0d", int'(payload.get_command()));
+{%- else %}
+    return "all";
+{%- endif %}
 endfunction
 
 function bit {{ class_prefix }}scoreboard_adapter::equal(uvm_tlm_generic_payload golden, uvm_tlm_generic_payload monitor);
+{%- if compare_data %}
     byte unsigned gdata[];
     byte unsigned mdata[];
+{%- endif %}
+{%- if not atomize %}
     byte unsigned genables[];
     byte unsigned menables[];
     int glen;
     int mlen;
+{%- endif %}
+{%- if compare_data or not atomize %}
 
-    if(cfg.compare_address && golden.get_address() != monitor.get_address())
+{%- endif %}
+{%- if compare_address and (mode == 'ordered' or not match_address) %}
+    if(golden.get_address() != monitor.get_address())
         return 0;
-    if((cfg.compare_command || cfg.reuse_read_expectations) && golden.get_command() != monitor.get_command())
+{%- endif %}
+{%- if (compare_command or reuse_read_expectations) and mode != 'state' and (mode == 'ordered' or not (match_command or reuse_read_expectations)) %}
+    if(golden.get_command() != monitor.get_command())
         return 0;
-    if(cfg.compare_response && golden.get_response_status() != monitor.get_response_status())
+{%- endif %}
+{%- if compare_response %}
+    if(golden.get_response_status() != monitor.get_response_status())
         return 0;
+{%- endif %}
+{%- if not atomize %}
     if(golden.get_data_length() != monitor.get_data_length()
         || golden.get_streaming_width() != monitor.get_streaming_width())
         return 0;
+{%- endif %}
+{%- if compare_data %}
     golden.get_data(gdata);
     monitor.get_data(mdata);
+{%- endif %}
+{%- if not atomize %}
     golden.get_byte_enable(genables);
     monitor.get_byte_enable(menables);
     glen = int'(golden.get_byte_enable_length());
@@ -184,10 +202,17 @@ function bit {{ class_prefix }}scoreboard_adapter::equal(uvm_tlm_generic_payload
         menabled = mlen == 0 || menables[j % mlen] != 0;
         if(genabled != menabled)
             return 0;
-        if(genabled && cfg.compare_data && gdata[j] != mdata[j])
+{%- if compare_data %}
+        if(genabled && gdata[j] != mdata[j])
             return 0;
+{%- endif %}
     end
+{%- elif compare_data %}
+    if(gdata[0] != mdata[0])
+        return 0;
+{%- endif %}
     return 1;
 endfunction
 
 `endif
+{%- endif %}

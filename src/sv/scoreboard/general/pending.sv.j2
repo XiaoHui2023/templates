@@ -1,31 +1,42 @@
+{%- if checks_enabled %}
 `ifndef {{ class_prefix }}scoreboard_pending_SV
 `define {{ class_prefix }}scoreboard_pending_SV
 
 class {{ class_prefix }}scoreboard_pending;
     protected {{ class_prefix }}scoreboard_entry entries[string][$];
     protected int count;
+{%- if reuse_read_expectations %}
     protected int uncovered;
+{%- endif %}
 
     // Create an empty keyed store.
     function new();
         count = 0;
+{%- if reuse_read_expectations %}
         uncovered = 0;
+{%- endif %}
     endfunction
 
     // Append one owned comparison unit with no successful coverage yet.
     extern function void push(string key, uvm_tlm_generic_payload payload);
+{%- if mode == "state" %}
     // Replace the retained units at one identity with its latest write.
     extern function void put_latest(string key, uvm_tlm_generic_payload payload);
+{%- endif %}
     // Return a retained entry, or null for an absent position.
     extern function {{ class_prefix }}scoreboard_entry at(string key, int index);
     // Remove one retained entry and its uncovered obligation if present.
     extern function void remove(string key, int index);
+{%- if reuse_read_expectations %}
     // Mark successful first coverage and return whether it is newly covered.
     extern function bit mark_covered(string key, int index);
+{%- endif %}
     // Return the number of retained units still needing successful coverage.
     extern function int size();
+{%- if reuse_read_expectations %}
     // Return the actual number of retained units, including covered read models.
     extern function int retained_size();
+{%- endif %}
     // Return the retained unit count for one identity.
     extern function int key_size(string key);
     // Release every retained GP and its coverage state.
@@ -38,15 +49,19 @@ function void {{ class_prefix }}scoreboard_pending::push(string key, uvm_tlm_gen
     value = new(payload);
     entries[key].push_back(value);
     count++;
+{%- if reuse_read_expectations %}
     uncovered++;
+{%- endif %}
 endfunction
 
+{%- if mode == "state" %}
 function void {{ class_prefix }}scoreboard_pending::put_latest(string key, uvm_tlm_generic_payload payload);
     while(key_size(key) != 0)
         remove(key, 0);
     push(key, payload);
 endfunction
 
+{%- endif %}
 function {{ class_prefix }}scoreboard_entry {{ class_prefix }}scoreboard_pending::at(string key, int index);
     if(!entries.exists(key) || index < 0)
         return null;
@@ -61,14 +76,17 @@ function void {{ class_prefix }}scoreboard_pending::remove(string key, int index
     value = at(key, index);
     if(value == null)
         return;
+{%- if reuse_read_expectations %}
     if(!value.covered)
         uncovered--;
+{%- endif %}
     entries[key].delete(index);
     count--;
     if(entries[key].size() == 0)
         entries.delete(key);
 endfunction
 
+{%- if reuse_read_expectations %}
 function bit {{ class_prefix }}scoreboard_pending::mark_covered(string key, int index);
     {{ class_prefix }}scoreboard_entry value;
 
@@ -80,13 +98,16 @@ function bit {{ class_prefix }}scoreboard_pending::mark_covered(string key, int 
     return 1;
 endfunction
 
+{%- endif %}
 function int {{ class_prefix }}scoreboard_pending::size();
-    return uncovered;
+    return {{ "uncovered" if reuse_read_expectations else "count" }};
 endfunction
 
+{%- if reuse_read_expectations %}
 function int {{ class_prefix }}scoreboard_pending::retained_size();
     return count;
 endfunction
+{%- endif %}
 
 function int {{ class_prefix }}scoreboard_pending::key_size(string key);
     if(entries.exists(key))
@@ -97,7 +118,10 @@ endfunction
 function void {{ class_prefix }}scoreboard_pending::clear();
     entries.delete();
     count = 0;
+{%- if reuse_read_expectations %}
     uncovered = 0;
+{%- endif %}
 endfunction
 
 `endif
+{%- endif %}
