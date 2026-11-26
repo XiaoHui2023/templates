@@ -4,9 +4,6 @@
 class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     `uvm_component_utils({{ class_prefix }}kit_sequencer)
 
-    local {{ class_prefix }}clock_phase_adapter phase_adapter;
-    local {{ class_prefix }}clock_phase_calibration::calibrator phase_calibrator = new;
-
     function new(string name = "{{ class_prefix }}kit_sequencer", uvm_component parent = null);
         super.new(name, parent);
     endfunction
@@ -25,16 +22,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task send_ext_csd(int bus_speed_mode, int data_width);
 {% endif %}
     extern task tune_phase(bit[7:0] phase);
-    // Registers the project-owned clock-phase adapter. Null disables calibration.
-    extern function void set_clock_phase_adapter(input {{ class_prefix }}clock_phase_adapter adapter);
-    // Calibrates an idle controller without changing the normal tuning flow.
-    extern task calibrate_clock_phases(
-        output {{ class_prefix }}clock_phase_types::result_t result,
-        input int max_probes = 256,
-        input int confirm_samples = 2,
-        input int scan_timeout_us = 10000,
-        input int restore_timeout_us = 1000
-    );
 
     // test shortcuts
     extern task rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %});
@@ -81,20 +68,6 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
 {%- endif %}
     extern task check_clock_frequence_test();
 endclass
-function void {{ class_prefix }}kit_sequencer::set_clock_phase_adapter(input {{ class_prefix }}clock_phase_adapter adapter);
-    phase_adapter = adapter;
-endfunction
-
-task {{ class_prefix }}kit_sequencer::calibrate_clock_phases(
-    output {{ class_prefix }}clock_phase_types::result_t result,
-    input int max_probes,
-    input int confirm_samples,
-    input int scan_timeout_us,
-    input int restore_timeout_us
-);
-    phase_calibrator.run(phase_adapter, max_probes, confirm_samples, scan_timeout_us, restore_timeout_us, result);
-endtask
-
 task {{ class_prefix }}kit_sequencer::frequence_set_operation(int frequence);
     {{ class_prefix }}frequence_set_operation_seq seq;
 

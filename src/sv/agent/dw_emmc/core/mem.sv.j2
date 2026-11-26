@@ -4,14 +4,14 @@
 class {{ class_prefix }}mem extends {{ class_prefix }}base_object;
     `uvm_object_utils({{ class_prefix }}mem)
 
-    bit[7:0] data[$];
+    local bit[7:0] data[longint];
+    local longint extent;
 
     function new(string name = "{{ class_prefix }}mem");
         super.new(name);
     endfunction
 
     extern function void clear();
-    extern function void ensure_size(longint size);
     extern function void write(input longint addr, ref bit[7:0] bytes[$]);
     extern function bit read(input longint addr, input int len, ref bit[7:0] bytes[$], output string message);
     extern function bit compare(input longint addr, ref bit[7:0] actual[$], input string label = "");
@@ -23,23 +23,24 @@ endclass
 
 function void {{ class_prefix }}mem::clear();
     data.delete();
-endfunction
-
-function void {{ class_prefix }}mem::ensure_size(longint size);
-    while(data.size() < size)
-        data.push_back('0);
+    extent = 0;
 endfunction
 
 function void {{ class_prefix }}mem::write(input longint addr, ref bit[7:0] bytes[$]);
-    ensure_size(addr + bytes.size());
+    if(addr < 0 || addr > 64'sh7fff_ffff_ffff_ffff - bytes.size()) begin
+        `uvm_error("MEM_WRITE", $sformatf("invalid write range [0x%0h:+%0d]", addr, bytes.size()))
+        return;
+    end
+    if(addr + bytes.size() > extent)
+        extent = addr + bytes.size();
     foreach(bytes[j])
         data[addr + j] = bytes[j];
 endfunction
 
 function bit {{ class_prefix }}mem::read(input longint addr, input int len, ref bit[7:0] bytes[$], output string message);
     bytes.delete();
-    if(addr + len > data.size()) begin
-        message = $psprintf("read [0x%0h:+%0d] exceeds memory size %0d", addr, len, data.size());
+    if(addr < 0 || len < 0 || addr > extent || len > extent - addr) begin
+        message = $psprintf("read [0x%0h:+%0d] exceeds memory size %0d", addr, len, extent);
         return 0;
     end
 
@@ -134,7 +135,7 @@ function bit {{ class_prefix }}mem::load_memh(string filename, longint base_addr
     end
     $fclose(fh);
 
-    `uvm_info("MEM_LOAD", $psprintf("loaded memh file '%s' at base 0x%0h, memory size=%0d", filename, base_addr, data.size()), UVM_LOW)
+    `uvm_info("MEM_LOAD", $psprintf("loaded memh file '%s' at base 0x%0h, stored bytes=%0d", filename, base_addr, data.num()), UVM_LOW)
     return 1;
 endfunction
 

@@ -21,11 +21,86 @@ class {{ class_prefix }}switch_bus_seq extends {{ class_prefix }}base_seq;
     }
 
     {{ class_prefix }}frequence_set_operation_seq freq_set_seq;
+    local bus_speed_mode_e programmed_mode;
+    local int programmed_width;
 
+    // Prepares the configured bus before transport starts.
     extern task body();
+    // Programs the card timing and the controller frequency for one bus mode.
+    extern local task program_bus(input bus_speed_mode_e target_mode, input int target_width);
+    // Identifies the protocol and electrical settings used by the project adapter.
+    extern local function {{ class_prefix }}clock_phase_types::operating_point_t clock_point(
+        input bus_speed_mode_e target_mode, input int target_width);
 endclass
 
 task {{ class_prefix }}switch_bus_seq::body();
+    import {{ class_prefix }}clock_phase_types::*;
+    operating_point_t target;
+    bit phase_lock;
+    bit phase_enabled;
+{%- if is_emmc %}
+    operating_point_t training;
+{%- endif %}
+
+    phase_lock = p_sequencer.automatic_clock_phase_active();
+    if (phase_lock) begin
+        lock(p_sequencer);
+        target = clock_point(bus_speed_mode, data_width);
+        phase_enabled = p_sequencer.clock_phase_enabled(target);
+    end
+{%- if is_emmc %}
+    if (phase_enabled && (bus_speed_mode inside {HS200, HS400}) &&
+        (!(settings.boot_cfg.voltage inside {V1_8, V1_2}) || !(data_width inside {4, 8})))
+        `uvm_fatal("CLOCK_PHASE", "HS200/HS400 calibration requires 1.8 V or 1.2 V and 4- or 8-bit data")
+{%- endif %}
+    if (phase_enabled && p_sequencer.clock_phase_can_keep(target)) begin
+        p_sequencer.prepare_clock_phase(target);
+        unlock(p_sequencer);
+        return;
+    end
+{%- if is_emmc %}
+    if (phase_enabled && bus_speed_mode == HS400) begin
+        training = clock_point(HS200, data_width);
+        if (data_width != 8 || !p_sequencer.clock_phase_enabled(training))
+            `uvm_fatal("CLOCK_PHASE", "HS400 calibration requires HS200 training at 8-bit width")
+        program_bus(HS200, data_width);
+        training.frequency_hz = freq_set_seq.freq_set_request.frequence;
+        p_sequencer.prepare_clock_phase(training);
+    end
+{%- endif %}
+    program_bus(bus_speed_mode, data_width);
+    if (phase_enabled) begin
+        target.frequency_hz = freq_set_seq.freq_set_request.frequence;
+        p_sequencer.prepare_clock_phase(target);
+    end
+    if (phase_lock)
+        unlock(p_sequencer);
+endtask
+
+function {{ class_prefix }}clock_phase_types::operating_point_t {{ class_prefix }}switch_bus_seq::clock_point(
+    input bus_speed_mode_e target_mode, input int target_width
+);
+    import {{ class_prefix }}clock_phase_types::*;
+    operating_point_t point;
+
+    point = '{int'(target_mode), target_width, 0, int'(settings.boot_cfg.voltage), PHASE_TRANSFER};
+    case (target_mode)
+{%- for mode in clock_frequency_modes %}
+        {{ mode }}: point.frequency_hz = settings.boot_cfg.frequence_{{ mode | lower }};
+{%- endfor %}
+        default: ;
+    endcase
+{%- if is_emmc %}
+    case (target_mode)
+        HS200: point.protocol = PHASE_EMMC_HS200_CMD21;
+        HS400: point.protocol = PHASE_EMMC_HS400_TRANSFER;
+        default: ;
+    endcase
+{%- endif %}
+    return point;
+endfunction
+
+task {{ class_prefix }}switch_bus_seq::program_bus(input bus_speed_mode_e target_mode, input int target_width);
     {%- if is_emmc %}
 
     /*
@@ -41,61 +116,63 @@ task {{ class_prefix }}switch_bus_seq::body();
     {{ class_prefix }}switch_hs_timing_command_seq switch_hs_timing_seq;
     {{ class_prefix }}switch_bus_width_command_seq switch_bus_width_seq;
 
+    programmed_mode = target_mode;
+    programmed_width = target_width;
     // 先调时钟到 6MHz
     `uvm_do_with(freq_set_seq, {
         freq_set_request.frequence == 6000000; // 6M
     })
 
     // 过渡状态 (仅双工需要)
-    if(bus_speed_mode inside {HIGH_SPEED_DDR, HS400})
+    if(target_mode inside {HIGH_SPEED_DDR, HS400} ||
+       (target_mode == HS200 && ctx.bus_speed_mode_cur == HS400 &&
+        p_sequencer.clock_phase_enabled(clock_point(HS200, target_width))))
         `uvm_do_with(switch_hs_timing_seq, {
             cmd_request.bus_speed_mode == HIGH_SPEED_SDR; // SDR兼容所有数据位宽, 最合适
         })
 
     // 切换数据位宽
     `uvm_do_with(switch_bus_width_seq, {
-        cmd_request.data_width == local::data_width;
-        cmd_request.bus_speed_mode == local::bus_speed_mode;
+        cmd_request.data_width == local::programmed_width;
+        cmd_request.bus_speed_mode == local::programmed_mode;
     })
 
     // 切换速度
     `uvm_do_with(switch_hs_timing_seq, {
-        cmd_request.bus_speed_mode == local::bus_speed_mode;
+        cmd_request.bus_speed_mode == local::programmed_mode;
     })
-
-    // 分频
-    `uvm_do(freq_set_seq)
 
     {%- elif is_sdcard %}
 
     {{ class_prefix }}switch_func_command_seq switch_func_seq;
     {{ class_prefix }}set_bus_width_acmd_seq set_bus_width_seq;
 
+    programmed_mode = target_mode;
+    programmed_width = target_width;
     `uvm_do_with(set_bus_width_seq, {
-        cmd_request.bus_width == local::data_width;
+        cmd_request.bus_width == local::programmed_width;
     })
 
     `uvm_do_with(switch_func_seq, {
-        cmd_request.bus_speed_mode == local::bus_speed_mode;
+        cmd_request.bus_speed_mode == local::programmed_mode;
     })
 
-    // 分频
-    `uvm_do(freq_set_seq)
     {%- elif is_sdio %}
     {{ class_prefix }}io_rw_direct_bus_interface_control_command_seq bus_interface_control_seq;
     {{ class_prefix }}io_rw_direct_bus_speed_select_command_seq bus_speed_select_seq;
 
+    programmed_mode = target_mode;
+    programmed_width = target_width;
     `uvm_do_with(bus_interface_control_seq, {
-        cmd_request.data_width == local::data_width;
+        cmd_request.data_width == local::programmed_width;
     })
 
     `uvm_do_with(bus_speed_select_seq, {
-        cmd_request.bus_speed_mode == local::bus_speed_mode;
+        cmd_request.bus_speed_mode == local::programmed_mode;
     })
 
-    // 分频
-    `uvm_do(freq_set_seq)
     {%- endif %}
+    `uvm_do(freq_set_seq)
 endtask
 
 `endif

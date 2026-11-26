@@ -11,6 +11,15 @@ package {{ class_prefix }}clock_phase_types;
     typedef axis_t axes_t[];
     typedef int taps_t[];
 
+    typedef enum {PHASE_TRANSFER, PHASE_EMMC_HS200_CMD21, PHASE_EMMC_HS400_TRANSFER} protocol_e;
+    typedef struct packed {
+        int speed_mode;
+        int data_width;
+        int frequency_hz;
+        int voltage;
+        protocol_e protocol;
+    } operating_point_t;
+
     typedef enum {
         PHASE_SKIPPED,
         PHASE_PASSED,

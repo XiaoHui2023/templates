@@ -19,7 +19,8 @@ class calibrator;
         input int confirm_samples,
         input int scan_timeout_us,
         input int restore_timeout_us,
-        output result_t result
+        output result_t result,
+        input taps_t cached_taps = {}
     );
         result_t outcome;
         bit recovery_needed;
@@ -50,7 +51,7 @@ class calibrator;
             begin
                 fork
                     begin
-                        scan(adapter, max_probes, confirm_samples, outcome, recovery_needed);
+                        scan(adapter, max_probes, confirm_samples, cached_taps, outcome, recovery_needed);
                         finished = 1;
                     end
                     #(scan_timeout_us * 1us);
@@ -118,6 +119,7 @@ class calibrator;
         input adapter_t adapter,
         input int max_probes,
         input int confirm_samples,
+        input taps_t cached_taps,
         ref result_t outcome,
         ref bit recovery_needed
     );
@@ -139,6 +141,12 @@ class calibrator;
         foreach (axes[index])
             if (outcome.original[index] < 0 || outcome.original[index] >= axes[index].tap_count)
                 return;
+
+        if (cached_taps == outcome.original) begin
+            outcome.selected = cached_taps;
+            outcome.status = PHASE_PASSED;
+            return;
+        end
 
         tapped = outcome.original;
         programmed = outcome.original;

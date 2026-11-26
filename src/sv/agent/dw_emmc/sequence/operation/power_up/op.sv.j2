@@ -47,6 +47,7 @@ function void {{ class_prefix }}power_up_operation_seq::pre_randomize();
 endfunction
 
 task {{ class_prefix }}power_up_operation_seq::body();
+    p_sequencer.invalidate_clock_phase();
     `uvm_info("", $psprintf("power-up start: %s", power_up_request.sprint()), UVM_LOW)
 
     // soft reset

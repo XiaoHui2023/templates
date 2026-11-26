@@ -1,6 +1,7 @@
 """Execute the generated read methods with recording FIFO and interrupt substitutes."""
 
 import argparse
+import os
 import re
 import subprocess
 import tempfile
@@ -10,8 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 
-def build_probe(work, top, flags, timeout=40):
-    command = ["verilator", "--binary", "--timing", "-Wno-fatal", "-j", "2",
+def build_probe(work, top, flags, timeout=40, jobs=2):
+    command = ["verilator", "--binary", "--timing", "-Wno-fatal", "-j", str(jobs),
                "--top-module", top, "--Mdir", str(work), *flags, str(ROOT / f"{top}.sv")]
     build = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
     if build.returncode:
@@ -93,6 +94,56 @@ def run_clock_phase_probe(generated):
             print(f"PASS clock phase {case}", flush=True)
 
 
+def run_automatic_phase_probe(generated, uvm_src):
+    with tempfile.TemporaryDirectory(prefix="dw-emmc-auto-phase-") as temp:
+        work = Path(temp)
+        flags = [f"-I{generated}", f"-I{uvm_src}", "-DUVM_NO_DPI",
+                 "-MAKEFLAGS", "OPT_FAST=-O0 OPT_SLOW=-O0", str(uvm_src / "uvm_pkg.sv")]
+        jobs = max(1, min(6, len(os.sched_getaffinity(0)))) if hasattr(os, "sched_getaffinity") else 2
+        binary = build_probe(work, "dw_emmc_auto_phase_probe", flags, 70, jobs)
+        result = subprocess.run([binary, "+UVM_NO_RELNOTES"], cwd=work, capture_output=True, text=True, timeout=5)
+        if result.returncode or "AUTO_PHASE_PROBE_PASS" not in result.stdout or "[RNDFLD]" in result.stdout:
+            raise RuntimeError(result.stdout + result.stderr)
+        failed = subprocess.run([binary, "+UVM_NO_RELNOTES", "+reject_transfer"], cwd=work,
+                                capture_output=True, text=True, timeout=5)
+        if (not re.search(r"UVM_FATAL .*\[CLOCK_PHASE\].*status=PHASE_NO_WINDOW", failed.stdout)
+                or "AUTO_PHASE_PROBE_PASS" in failed.stdout
+                or "no-window phase returned into the normal flow" in failed.stdout
+                or "[RNDFLD]" in failed.stdout):
+            raise RuntimeError(failed.stdout + failed.stderr)
+        print("PASS automatic phase ordering, bypass, cache, reset, overlap and no-window rejection")
+
+
+def run_hot_path_probe(generated, expected_baseline):
+    command = (generated / "sequence/operation/command/op.sv").read_text(encoding="utf-8")
+    fifo_read = re.search(r"^task \w+command_operation_seq::read_buffer_one_block\(.*?^endtask$",
+                          command, re.M | re.S)
+    with tempfile.TemporaryDirectory(prefix="dw-emmc-hot-path-") as temp:
+        work = Path(temp)
+        (work / "fifo_read.svh").write_text(fifo_read[0], encoding="utf-8")
+        binary = build_probe(work, "dw_emmc_hot_path_probe", [f"-I{generated}", f"-I{work}"])
+        result = subprocess.run([binary, "+dense_only"], capture_output=True, text=True, timeout=5)
+        if result.returncode or "HOT_PATH_PROBE_PASS" not in result.stdout:
+            raise RuntimeError(result.stdout + result.stderr)
+        # Bound the old dense allocator instead of letting a high-address repro exhaust the host.
+        command = ["sh", "-c", 'ulimit -c 0; ulimit -v 400000; exec "$1"', "sh", binary]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=5)
+        except subprocess.TimeoutExpired:
+            if not expected_baseline:
+                raise
+            print("BASELINE REJECTED: 4 GiB write exceeded its time budget")
+            return
+        if expected_baseline:
+            if not result.returncode or "bad_alloc" not in result.stderr:
+                raise RuntimeError(result.stdout + result.stderr)
+            print("BASELINE REJECTED: 4 GiB write exceeded its memory budget")
+        elif result.returncode or "HOT_PATH_PROBE_PASS" not in result.stdout:
+            raise RuntimeError(result.stdout + result.stderr)
+        else:
+            print("PASS sparse boot address and linear FIFO byte append")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("generated", type=Path)
@@ -100,9 +151,18 @@ if __name__ == "__main__":
     parser.add_argument("--uvm-src", type=Path)
     parser.add_argument("--mobile", action="store_true")
     parser.add_argument("--dma", action="store_true")
-    parser.add_argument("--clock-phase", action="store_true")
+    probes = parser.add_mutually_exclusive_group()
+    probes.add_argument("--clock-phase", action="store_true")
+    probes.add_argument("--automatic-phase", action="store_true")
+    probes.add_argument("--hot-paths", action="store_true")
     arguments = parser.parse_args()
     if arguments.clock_phase:
         run_clock_phase_probe(arguments.generated)
+    elif arguments.automatic_phase:
+        if arguments.uvm_src is None:
+            parser.error("--automatic-phase requires --uvm-src")
+        run_automatic_phase_probe(arguments.generated, arguments.uvm_src)
+    elif arguments.hot_paths:
+        run_hot_path_probe(arguments.generated, arguments.baseline)
     else:
         run_probe(arguments.generated, arguments.baseline, arguments.uvm_src, arguments.mobile, arguments.dma)

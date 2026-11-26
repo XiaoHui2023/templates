@@ -7,6 +7,11 @@ class {{ class_prefix }}settings extends {{ class_prefix }}base_item;
         `uvm_field_object(chk_clk_cfg, UVM_ALL_ON)
         `uvm_field_object(regmodel, UVM_ALL_ON | UVM_NOPRINT | UVM_NOCOPY)
         `uvm_field_int(has_randomized, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(clock_phase_auto_enable, UVM_ALL_ON)
+        `uvm_field_int(clock_phase_max_probes, UVM_ALL_ON)
+        `uvm_field_int(clock_phase_confirm_samples, UVM_ALL_ON)
+        `uvm_field_int(clock_phase_scan_timeout_us, UVM_ALL_ON)
+        `uvm_field_int(clock_phase_restore_timeout_us, UVM_ALL_ON)
     `uvm_object_utils_end
 
     rand {{ class_prefix }}boot_configuration boot_cfg; // 启动配置
@@ -14,6 +19,11 @@ class {{ class_prefix }}settings extends {{ class_prefix }}base_item;
     virtual {{ class_prefix }}interface vif; // 接口
     {{ class_regmodel }} regmodel; // 寄存器模型虚拟句柄
     rand bit has_randomized; // 是否随机过
+    bit clock_phase_auto_enable = 1;
+    int clock_phase_max_probes = 256;
+    int clock_phase_confirm_samples = 2;
+    int clock_phase_scan_timeout_us = 10000;
+    int clock_phase_restore_timeout_us = 1000;
 
     function new(string name="{{ class_prefix }}settings");
         super.new(name);
