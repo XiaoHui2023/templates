@@ -1,5 +1,6 @@
 class_prefix: general_
 mode: state
+checks_enabled: true
 reuse_read_expectations: false
 expected_units: -1
 require_golden: true

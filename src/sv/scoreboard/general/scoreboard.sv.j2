@@ -28,6 +28,7 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     localparam bit [5:0] MISSING = 6'b010000;
     localparam bit [5:0] UNEXPECTED = 6'b100000;
     local longint round_id;
+    local longint skipped_packets;
     local longint golden_packets;
     local longint monitor_packets;
     local longint golden_units;
@@ -57,7 +58,7 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
         reset_state();
     endfunction
 
-    // Copy and validate the optional config_db object named config.
+    // Resolve and validate build-time check settings.
     extern virtual function void build_phase(uvm_phase phase);
     // Bind both public inputs to their owner-scoped receivers.
     extern virtual function void connect_phase(uvm_phase phase);
@@ -65,7 +66,7 @@ class {{ class_prefix }}scoreboard extends uvm_scoreboard;
     extern virtual task reset_phase(uvm_phase phase);
     // Seal sampling and finish comparisons after all runtime phases end.
     extern virtual function void extract_phase(uvm_phase phase);
-    // Check the sealed round and notify observers exactly once.
+    // Finalize the round and notify observers exactly once.
     extern virtual function void check_phase(uvm_phase phase);
     // Return success only after automatic checking has finished.
     extern function bit is_complete();
@@ -112,6 +113,13 @@ function void {{ class_prefix }}scoreboard::build_phase(uvm_phase phase);
         end
         cfg.copy(options);
     end
+    void'(uvm_config_db #(bit)::get(this, "", "checks_enabled", cfg.checks_enabled));
+    void'(uvm_config_db #(bit)::get(this, "", "require_golden", cfg.require_golden));
+    void'(uvm_config_db #(bit)::get(this, "", "require_match", cfg.require_match));
+    void'(uvm_config_db #(bit)::get(this, "", "compare_address", cfg.compare_address));
+    void'(uvm_config_db #(bit)::get(this, "", "compare_command", cfg.compare_command));
+    void'(uvm_config_db #(bit)::get(this, "", "compare_data", cfg.compare_data));
+    void'(uvm_config_db #(bit)::get(this, "", "compare_response", cfg.compare_response));
     if(!cfg.valid())
         `uvm_fatal("GP_CONFIG", "invalid comparison options")
 endfunction
@@ -141,7 +149,8 @@ function void {{ class_prefix }}scoreboard::check_phase(uvm_phase phase);
     super.check_phase(phase);
     if(lifecycle == CHECKED)
         return;
-    report_checks(completion_issues());
+    if(cfg.checks_enabled)
+        report_checks(completion_issues());
     lifecycle = CHECKED;
     notify(CHECK_EVENT);
 endfunction
@@ -154,6 +163,7 @@ function void {{ class_prefix }}scoreboard::reset_state();
     lifecycle = ACCEPTING;
     notifying = 0;
     failed = 0;
+    skipped_packets = 0;
     golden_packets = 0;
     monitor_packets = 0;
     golden_units = 0;
@@ -299,6 +309,11 @@ function void {{ class_prefix }}scoreboard::accept(uvm_tlm_generic_payload paylo
     string reason;
     longint valid_bytes;
 
+    if(!cfg.checks_enabled) begin
+        if(lifecycle == ACCEPTING && !notifying)
+            skipped_packets++;
+        return;
+    end
     if(notifying || lifecycle != ACCEPTING) begin
         failed = 1;
         protocol_errors++;
@@ -433,12 +448,14 @@ function void {{ class_prefix }}scoreboard::report_checks(bit [5:0] issues);
 endfunction
 
 function bit {{ class_prefix }}scoreboard::is_complete();
-    return lifecycle == CHECKED && !failed && completion_issues() == 0;
+    return cfg.checks_enabled && lifecycle == CHECKED && !failed && completion_issues() == 0;
 endfunction
 
 function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefix }}scoreboard_statistics result);
     result = new;
     result.round_id = round_id;
+    result.checks_enabled = cfg.checks_enabled;
+    result.skipped_packets = skipped_packets;
     result.golden_packets = golden_packets;
     result.monitor_packets = monitor_packets;
     result.golden_units = golden_units;
@@ -455,11 +472,13 @@ function void {{ class_prefix }}scoreboard::get_statistics(output {{ class_prefi
     result.protocol_errors = protocol_errors;
     result.check_errors = check_errors;
     result.required_units = required_units();
-    result.expected_units = cfg.expected_units >= 0 ? cfg.expected_units : result.required_units;
-    result.expected_set = cfg.expected_units >= 0 || lifecycle != ACCEPTING;
-    result.expected_explicit = cfg.expected_units >= 0;
+    if(cfg.checks_enabled) begin
+        result.expected_units = cfg.expected_units >= 0 ? cfg.expected_units : result.required_units;
+        result.expected_set = cfg.expected_units >= 0 || lifecycle != ACCEPTING;
+        result.expected_explicit = cfg.expected_units >= 0;
+    end
     result.sealed = lifecycle != ACCEPTING;
-    result.checked = lifecycle == CHECKED;
+    result.checked = cfg.checks_enabled && lifecycle == CHECKED;
     result.failed = failed;
     result.complete = is_complete();
     result.pending_golden = golden_pending.size();

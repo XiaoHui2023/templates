@@ -7,6 +7,7 @@ class {{ class_prefix }}scoreboard_config extends uvm_object;
 
     mode_e mode = {{ mode | upper }};
     monitor_policy_e monitor_policy = {{ monitor_policy | upper }};
+    bit checks_enabled = {{ checks_enabled | int }};
     bit reuse_read_expectations = {{ reuse_read_expectations | int }};
     longint expected_units = {{ expected_units }};
     bit require_golden = {{ require_golden | int }};
@@ -25,6 +26,7 @@ class {{ class_prefix }}scoreboard_config extends uvm_object;
     `uvm_object_utils_begin({{ class_prefix }}scoreboard_config)
         `uvm_field_enum(mode_e, mode, UVM_DEFAULT)
         `uvm_field_enum(monitor_policy_e, monitor_policy, UVM_DEFAULT)
+        `uvm_field_int(checks_enabled, UVM_DEFAULT)
         `uvm_field_int(reuse_read_expectations, UVM_DEFAULT)
         `uvm_field_int(expected_units, UVM_DEFAULT)
         `uvm_field_int(require_golden, UVM_DEFAULT)

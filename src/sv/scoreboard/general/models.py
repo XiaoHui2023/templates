@@ -8,6 +8,7 @@ class Models(BaseModel):
 
     class_prefix: str = Field("general_", pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", description="类型名前缀，建议以下划线结尾。")
     mode: Literal["address", "ordered", "set", "state"] = Field("address", description="按地址、按顺序、按多重集合或按地址写入终态比较。")
+    checks_enabled: bool = Field(True, description="启用 scoreboard 数据检查。")
     reuse_read_expectations: bool = Field(False, description="在事务模式中复用读期望，写期望仍逐个消费。")
     expected_units: int = Field(-1, ge=-1, le=9223372036854775807, description="预期比较单元数，-1 自动推导；state 按独立有效字节地址计，其余按 golden 转换单元计。")
     require_golden: bool = Field(True, description="未显式设置预期单元数时，要求至少收到一包合法 golden。")

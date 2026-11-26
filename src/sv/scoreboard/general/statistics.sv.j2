@@ -3,6 +3,8 @@
 
 class {{ class_prefix }}scoreboard_statistics;
     longint round_id = 0;
+    bit checks_enabled = 0;
+    longint skipped_packets = 0;
     longint golden_packets = 0;
     longint monitor_packets = 0;
     longint golden_units = 0;

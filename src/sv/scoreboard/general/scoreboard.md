@@ -20,29 +20,42 @@ golden_producer.o_ap.connect(sb.i_golden_ap);
 monitor.o_ap.connect(sb.i_monitor_ap);
 ```
 
-在 scoreboard 的 `build_phase` 前通过 `uvm_config_db` 设置名为 `config` 的配置对象。组件复制并验证配置，之后修改原对象不会改变当前策略。
+在目标 scoreboard 的 `build_phase` 前设置配置。组件先使用生成默认值，再复制 `uvm_config_db` 中名为 `config` 的配置对象，最后应用已设置的 `uvm_config_db #(bit)` 单项并校验。运行期间重设数据库或修改原配置对象不会改变已生效的设置。
 
 ```systemverilog
 general_scoreboard_config options;
 options = new;
+options.mode = general_scoreboard_config::ADDRESS;
 options.reuse_read_expectations = 1;
 options.expected_units = 4;
 uvm_config_db #(general_scoreboard_config)::set(this, "sb", "config", options);
 ```
 
+`checks_enabled` 默认开启。通过 `uvm_config_db #(bit)` 可以直接设置 `checks_enabled`、`require_golden`、`require_match`、`compare_address`、`compare_command`、`compare_data` 和 `compare_response`。显式设置 `expected_units` 时，两项非空策略仍由数量检查替代。
+
+```systemverilog
+// Full bypass for this instance in a special test.
+uvm_config_db #(bit)::set(this, "env.sb", "checks_enabled", 0);
+
+// Field-only override for a different instance that still checks transactions.
+uvm_config_db #(bit)::set(this, "env.addr_sb", "compare_data", 0);
+```
+
+整体关闭时，组件保留端口和阶段调度，只统计采样期间跳过的包数，跳过载荷校验、比较与最终数据检查。配置校验仍执行，`on_check` 仍在 check phase 通知，统计中 `checks_enabled`、`checked` 和 `complete` 均为假。复位清零跳过计数并保留构建期设置。
+
 ## 自动生命周期
 
 | UVM phase | 组件行为 |
 | --- | --- |
-| `build_phase` | 复制并验证配置。 |
+| `build_phase` | 复制配置对象、读取单项开关并验证。 |
 | `connect_phase` | 连接两路输入与类内 imp。 |
 | `reset_phase` | 清除待匹配数据、历史地址、统计、错误和本轮阶段；保留构建期配置并递增轮次号。 |
 | `extract_phase` | 在运行 phase 结束后冻结输入，排空延迟比较。 |
-| `check_phase` | 自动检查数量、首次覆盖、相关残留和已记录错误，通知检查结果。 |
+| `check_phase` | 检查开启时检查数量、首次覆盖、相关残留和错误。随后通知观察者。 |
 
 采样应在运行 phase 中完成，生产者和 monitor 在实际工作结束前保持相应 objection。`main_phase` 结束不代表全部运行 phase 结束，`shutdown_phase` 仍可提交数据。`extract_phase` 是零时间函数阶段，不会等待 DUT 继续输出。
 
-数量达到预期、队列暂空或静默一段时间，都不会提前标记成功。`is_complete` 仅在自动检查完成且没有错误时为真；冻结后再输入会报错并使此前成功失效。组件不创建自己的 objection 或全局 watchdog；测试挂起超时使用 UVM root 的标准超时机制。
+数量达到预期、队列暂空或静默一段时间，都不会提前标记成功。检查开启时，`is_complete` 在自动检查完成且没有错误后为真，冻结后再输入会报错并使先前的成功状态失效。组件不创建自己的 objection 或全局 watchdog；测试挂起超时使用 UVM root 的标准超时机制。
 
 复位由标准 phase 调度触发，不需要调用 scoreboard 的清理方法。生产者应在复位期间停止提交；普通 GP 不带轮次号，组件不能辨认复位后的迟到旧数据。复位清除本轮状态，不清除 UVM 已累计的全局错误。
 
@@ -119,7 +132,7 @@ ORDERED 保持首次覆盖及写操作的顺序，已覆盖读可穿插复读，
 uvm_callbacks #(general_scoreboard, general_scoreboard_callback)::add(sb, observer);
 ```
 
-`on_reset` 接收组件路径和清理后的统计；`on_compare` 接收路径、golden/monitor 比较单元、成功标记、首次覆盖标记及比较后的统计；`on_check` 接收路径和自动检查后的统计。
+`on_reset` 接收组件路径和清理后的统计。`on_compare` 接收路径、golden/monitor 比较单元、成功标记、首次覆盖标记及比较后的统计。`on_check` 接收路径和阶段结束时的统计，可查看 `checked` 确认是否执行了检查。
 
 每个观察者分别收到独立 GP 标准字段副本和统计快照，修改通知参数不会改变模型或后续观察者。回调是同步函数，不消耗仿真时间；回调执行期间再次向此 scoreboard 输入会报错，避免递归修改正在比较的数据。回调不提供配置或内部状态句柄。
 
@@ -135,6 +148,8 @@ sb.get_statistics(stats);
 | 字段 | 含义 |
 | --- | --- |
 | `round_id` | 每次构造或标准复位清理时递增。 |
+| `checks_enabled` | 构建期解析后生效的总开关。 |
+| `skipped_packets` | 检查关闭时在采样期间跳过的双端输入包数，复位清零。 |
 | `golden_packets`、`monitor_packets` | 合法输入 GP 包数，包含 IGNORE 与完全禁用包。 |
 | `golden_valid_bytes`、`monitor_valid_bytes` | 有效字节数，排除禁用位置，IGNORE 为零。 |
 | `golden_units`、`monitor_units` | 转换所得比较单元数，monitor 包含随后被过滤的单元。 |
