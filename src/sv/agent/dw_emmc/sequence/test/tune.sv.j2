@@ -1,3 +1,4 @@
+{% if is_emmc -%}
 `ifndef {{ class_prefix | upper }}TUNE_TEST_SEQ
 `define {{ class_prefix | upper }}TUNE_TEST_SEQ
 
@@ -11,6 +12,7 @@ class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}base_seq#({{ cla
     {{ class_prefix }}switch_bus_seq switch_bus_seq;
     {{ class_prefix }}tune_seq tune_seq;
 
+    // Creates an eMMC tuning test.
     function new(string name = "{{ class_prefix }}tune_test_seq");
         super.new(name);
     endfunction
@@ -21,6 +23,7 @@ class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}base_seq#({{ cla
         settings.boot_cfg.voltage == V1_8;
     }
 
+    // Sets HS200 and runs tuning for each phase.
     task body();
         if(!ctx.has_initialized)
             `uvm_do(initial_seq)
@@ -38,3 +41,4 @@ class {{ class_prefix }}tune_test_seq extends {{ class_prefix }}base_seq#({{ cla
 endclass
 
 `endif
+{% endif %}

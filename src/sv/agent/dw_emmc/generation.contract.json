@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "validator": "tools/check_dw_emmc_generation.py"
+}

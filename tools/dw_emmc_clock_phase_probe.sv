@@ -1,13 +1,22 @@
 `timescale 1ns/1ps
+`define uvm_object_utils(T)
+`define uvm_fatal(ID, MSG) $fatal(1, MSG);
+typedef enum {UVM_FRONTDOOR, UVM_BACKDOOR} uvm_path_e;
+class uvm_callback;
+    function new(string name = "");
+    endfunction
+endclass
+class Emmc_ctrl_sequencer;
+endclass
+
 `include "core/clock_phase_types.sv"
-`include "core/clock_phase_grid.sv"
-`include "component/clock_phase_adapter.sv"
+`include "component/callback.sv"
 `include "core/clock_phase_calibrator.sv"
 
 module dw_emmc_clock_phase_probe;
     import Emmc_ctrl_clock_phase_types::*;
 
-    class adapter extends Emmc_ctrl_clock_phase_adapter;
+    class adapter extends Emmc_ctrl_callback;
         taps_t current = '{0, 0, 7};
         taps_t initial_taps = '{0, 0, 7};
         bit seen[int][int];
@@ -16,7 +25,7 @@ module dw_emmc_clock_phase_probe;
         string test_case;
         int previous_key = -1;
 
-        function void describe(output axes_t axes);
+        function void clock_phase_describe(output axes_t axes);
             axes = '{
                 '{"rx", 8, 5, 0},
                 '{"tx", 8, 3, 0},
@@ -28,12 +37,12 @@ module dw_emmc_clock_phase_probe;
                 axes.delete();
         endfunction
 
-        task capture(output taps_t taps, output bit ok);
+        task clock_phase_capture(output taps_t taps, output bit ok);
             taps = current;
             ok = 1;
         endtask
 
-        task apply(input taps_t taps, output bit ok);
+        task clock_phase_apply(input taps_t taps, output bit ok);
             applies++;
             current = taps;
             ok = 1;
@@ -47,7 +56,7 @@ module dw_emmc_clock_phase_probe;
                 ok = 0;
         endtask
 
-        task probe(input int group_id, output probe_e outcome);
+        task clock_phase_probe(input int group_id, output probe_e outcome);
             int key;
 
             visits[group_id]++;
@@ -89,7 +98,7 @@ module dw_emmc_clock_phase_probe;
     endclass
 
     initial begin
-        Emmc_ctrl_clock_phase_calibration::calibrator calibrator;
+        Emmc_ctrl_clock_phase_calibrator calibrator;
         adapter stimulus;
         result_t result;
         taps_t expected;

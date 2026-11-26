@@ -3,9 +3,6 @@
 import uvm_pkg::*;
 
 `include "core/clock_phase_types.sv"
-`include "core/clock_phase_grid.sv"
-`include "component/clock_phase_adapter.sv"
-`include "core/clock_phase_calibrator.sv"
 
 import Emmc_ctrl_clock_phase_types::*;
 typedef enum {HIGH_SPEED_SDR, HIGH_SPEED_DDR, HS200, HS400, LEGACY} bus_speed_mode_e;
@@ -46,6 +43,7 @@ class Emmc_ctrl_context;
 endclass
 
 `include "component/callback.sv"
+`include "core/clock_phase_calibrator.sv"
 `include "component/sequencer.sv"
 
 class Emmc_ctrl_base_seq extends uvm_sequence;
@@ -143,7 +141,7 @@ endclass
 
 `include "sequence/flow/switch_bus.sv"
 
-class auto_adapter extends Emmc_ctrl_clock_phase_adapter;
+class auto_adapter extends Emmc_ctrl_callback;
     Emmc_ctrl_context ctx;
     operating_point_t active_point;
     int revision;
@@ -154,15 +152,19 @@ class auto_adapter extends Emmc_ctrl_clock_phase_adapter;
     bit reject_transfer;
     taps_t current = '{0};
 
-    function int calibration_revision();
+    function bit clock_phase_enabled();
+        return 1;
+    endfunction
+
+    function int clock_phase_revision();
         return revision;
     endfunction
 
-    function bit accepts(input operating_point_t point);
+    function bit clock_phase_accepts(input operating_point_t point);
         return point.speed_mode != int'(HIGH_SPEED_SDR);
     endfunction
 
-    function void select_operating_point(input operating_point_t point);
+    function void clock_phase_select(input operating_point_t point);
         if (ctx.bus_speed_mode_cur != point.speed_mode || ctx.data_width_cur != point.data_width ||
             ctx.frequency_hz != point.frequency_hz || point.voltage != 2)
             $fatal(1, "adapter called before the operating point was programmed");
@@ -170,21 +172,21 @@ class auto_adapter extends Emmc_ctrl_clock_phase_adapter;
         ctx.trace.push_back(point.protocol == PHASE_EMMC_HS200_CMD21 ? -200 : -400);
     endfunction
 
-    function void describe(output axes_t axes);
+    function void clock_phase_describe(output axes_t axes);
         axes = '{'{"sample", 0, 3, 0}};
     endfunction
 
-    task capture(output taps_t taps, output bit ok);
+    task clock_phase_capture(output taps_t taps, output bit ok);
         taps = current;
         ok = 1;
     endtask
 
-    task apply(input taps_t taps, output bit ok);
+    task clock_phase_apply(input taps_t taps, output bit ok);
         current = taps;
         ok = 1;
     endtask
 
-    task probe(input int group_id, output probe_e outcome);
+    task clock_phase_probe(input int group_id, output probe_e outcome);
         if (active_point.protocol == PHASE_EMMC_HS200_CMD21 && ctx.bus_speed_mode_cur == HS200)
             training_probes++;
         else if (active_point.protocol == PHASE_EMMC_HS400_TRANSFER && ctx.bus_speed_mode_cur == HS400)
@@ -218,6 +220,7 @@ module dw_emmc_auto_phase_probe;
     initial begin
         Emmc_ctrl_sequencer sqr;
         auto_adapter adapter;
+        Emmc_ctrl_callback other_callback;
         int bypass_trace[$];
         int first_trace[$];
         int concurrent_trace[$];
@@ -237,7 +240,13 @@ module dw_emmc_auto_phase_probe;
         if (sqr.ctx.trace != bypass_trace)
             $fatal(1, "no adapter trace: %p; mode=%s width=%0d",
                 sqr.ctx.trace, sqr.ctx.bus_speed_mode_cur.name(), sqr.ctx.data_width_cur);
-        sqr.set_clock_phase_adapter(adapter);
+        other_callback = new("legacy_cpu_callback");
+        uvm_callbacks#(Emmc_ctrl_sequencer, Emmc_ctrl_callback)::add(sqr, other_callback);
+        sqr.ctx.trace.delete();
+        switch_bus(sqr);
+        if (sqr.ctx.trace != bypass_trace)
+            $fatal(1, "a callback without phase overrides changed the normal flow");
+        uvm_callbacks#(Emmc_ctrl_sequencer, Emmc_ctrl_callback)::add(sqr, adapter);
         sqr.settings.clock_phase_auto_enable = 0;
         sqr.ctx.trace.delete();
         switch_bus(sqr);
@@ -245,6 +254,13 @@ module dw_emmc_auto_phase_probe;
             $fatal(1, "disabled adapter changed the normal flow");
         sqr.settings.clock_phase_auto_enable = 1;
         sqr.ctx.trace.delete();
+        if ($test$plusargs("duplicate_callback")) begin
+            auto_adapter duplicate = new;
+            duplicate.set_name("duplicate_phase_callback");
+            uvm_callbacks#(Emmc_ctrl_sequencer, Emmc_ctrl_callback)::add(sqr, duplicate);
+            switch_bus(sqr);
+            $fatal(1, "duplicate callback returned into the normal flow");
+        end
         if ($test$plusargs("reject_transfer")) begin
             adapter.reject_transfer = 1;
             switch_bus(sqr);

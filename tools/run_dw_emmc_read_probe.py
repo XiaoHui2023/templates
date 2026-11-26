@@ -104,14 +104,18 @@ def run_automatic_phase_probe(generated, uvm_src):
         result = subprocess.run([binary, "+UVM_NO_RELNOTES"], cwd=work, capture_output=True, text=True, timeout=5)
         if result.returncode or "AUTO_PHASE_PROBE_PASS" not in result.stdout or "[RNDFLD]" in result.stdout:
             raise RuntimeError(result.stdout + result.stderr)
-        failed = subprocess.run([binary, "+UVM_NO_RELNOTES", "+reject_transfer"], cwd=work,
-                                capture_output=True, text=True, timeout=5)
-        if (not re.search(r"UVM_FATAL .*\[CLOCK_PHASE\].*status=PHASE_NO_WINDOW", failed.stdout)
-                or "AUTO_PHASE_PROBE_PASS" in failed.stdout
-                or "no-window phase returned into the normal flow" in failed.stdout
-                or "[RNDFLD]" in failed.stdout):
-            raise RuntimeError(failed.stdout + failed.stderr)
-        print("PASS automatic phase ordering, bypass, cache, reset, overlap and no-window rejection")
+        for argument, reason in (
+            ("+reject_transfer", "status=PHASE_NO_WINDOW"),
+            ("+duplicate_callback", "Only one callback may enable clock phase control"),
+        ):
+            failed = subprocess.run([binary, "+UVM_NO_RELNOTES", argument], cwd=work,
+                                    capture_output=True, text=True, timeout=5)
+            if (not re.search(r"UVM_FATAL .*\[CLOCK_PHASE\].*" + reason, failed.stdout)
+                    or "AUTO_PHASE_PROBE_PASS" in failed.stdout
+                    or "returned into the normal flow" in failed.stdout
+                    or "[RNDFLD]" in failed.stdout):
+                raise RuntimeError(failed.stdout + failed.stderr)
+        print("PASS automatic phase ordering, bypass, cache, reset, overlap and failure rejection")
 
 
 def run_hot_path_probe(generated, expected_baseline):

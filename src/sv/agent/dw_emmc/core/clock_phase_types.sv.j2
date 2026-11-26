@@ -2,6 +2,9 @@
 `define {{ class_prefix | upper }}CLOCK_PHASE_TYPES
 
 package {{ class_prefix }}clock_phase_types;
+timeunit 1ns;
+timeprecision 1ps;
+
     typedef struct {
         string name;
         int group_id;
@@ -43,6 +46,11 @@ package {{ class_prefix }}clock_phase_types;
         taps_t original;
         taps_t selected;
     } result_t;
+
+    // Waits in microseconds independently of the caller's timescale.
+    task automatic wait_clock_phase_timeout(input int timeout_us);
+        #(timeout_us * 1us);
+    endtask
 endpackage
 
 `endif

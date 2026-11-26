@@ -16,6 +16,9 @@ FAMILY = ROOT / "src/sv/agent/dw_emmc"
 COMMAND = Path("sequence/operation/command/op.sv")
 RW_TEST = Path("sequence/test/rw.sv")
 SWITCH_BUS = Path("sequence/flow/switch_bus.sv")
+CALLBACK = "component/callback.sv"
+CALIBRATOR = "core/clock_phase_calibrator.sv"
+SEQUENCER = "component/sequencer.sv"
 TOOLS = Path(__file__).resolve().parent
 
 
@@ -113,6 +116,21 @@ def check_automatic_phase(output, *, emmc):
         raise ValueError("read/write must use the shared automatic trigger")
 
 
+def check_phase_package(output):
+    files = ("core/clock_phase_types.sv", CALLBACK, CALIBRATOR,
+             SEQUENCER, "component/kit_sequencer.sv")
+    filelist = (output / "all.f").read_text(encoding="utf-8").splitlines()
+    if tuple(name for name in filelist if name in files) != files:
+        raise ValueError("missing, repeated or misordered clock-phase compile dependency")
+
+    callbacks = (output / CALLBACK).read_text(encoding="utf-8")
+    sequencer = (output / SEQUENCER).read_text(encoding="utf-8")
+    if "clock_phase_enabled()" not in callbacks or "uvm_callback_iter#" not in sequencer:
+        raise ValueError("clock phase hooks must use the normal UVM callback registration")
+    if "set_clock_phase_adapter" in sequencer or "component/clock_phase_adapter.sv" in filelist:
+        raise ValueError("clock phase hooks must not require a second registration path")
+
+
 def simulate(output, *flags):
     timeout = 75 if "--automatic-phase" in flags else 40
     auto_phase = "--automatic-phase" in flags
@@ -171,14 +189,7 @@ def main():
             verify(source, mobile=controller == "mobile_storage", dma=dma)
             check_rw_test((output / RW_TEST).read_text(encoding="utf-8"))
             check_automatic_phase(output, emmc=card == "emmc")
-            filelist = (output / "all.f").read_text(encoding="utf-8").splitlines()
-            phase_files = ("core/clock_phase_types.sv", "core/clock_phase_grid.sv",
-                           "component/clock_phase_adapter.sv", "core/clock_phase_calibrator.sv",
-                           "component/kit_sequencer.sv")
-            if any(filelist.count(path) != 1 for path in phase_files):
-                raise ValueError("missing or repeated clock-phase compile dependency")
-            if [p for p in filelist if p in phase_files] != list(phase_files):
-                raise ValueError("clock-phase compile dependencies are misordered")
+            check_phase_package(output)
             if card == "emmc":
                 calibrate(source)
             print(f"PASS {name}: generated read structure and ordering", flush=True)

@@ -1,14 +1,131 @@
 `ifndef {{ class_prefix | upper }}CLOCK_PHASE_CALIBRATOR
 `define {{ class_prefix | upper }}CLOCK_PHASE_CALIBRATOR
 
-package {{ class_prefix }}clock_phase_calibration;
-timeunit 1ns;
-timeprecision 1ps;
 import {{ class_prefix }}clock_phase_types::*;
 
-class calibrator;
-    typedef {{ class_prefix }}clock_phase_adapter adapter_t;
-    typedef {{ class_prefix }}clock_phase_grid_pkg::clock_phase_grid grid_t;
+class {{ class_prefix }}clock_phase_grid;
+    int group_id;
+    int axis_index[$];
+    int stride[$];
+    int size = 1;
+
+    // Adds an axis only if all combinations still fit in the remaining budget.
+    function bit add_axis(input int index, input int tap_count, input int budget);
+        if (tap_count <= 0 || size > budget / tap_count)
+            return 0;
+        axis_index.push_back(index);
+        stride.push_back(size);
+        size *= tap_count;
+        return 1;
+    endfunction
+
+    // Loads taps for a reflected traversal and returns their canonical index.
+    function int visit(input axes_t axes, input int step, ref taps_t taps);
+        int flat;
+        int count;
+        int tap;
+
+        flat = 0;
+        foreach (axis_index[j]) begin
+            count = axes[axis_index[j]].tap_count;
+            tap = (step / stride[j]) % count;
+            if (((step / (stride[j] * count)) % 2) != 0)
+                tap = count - 1 - tap;
+            taps[axis_index[j]] = tap;
+            flat += tap * stride[j];
+        end
+        return flat;
+    endfunction
+
+    // Loads a selected canonical grid point into the corresponding axes.
+    function void select_taps(input axes_t axes, input int flat, ref taps_t taps);
+        foreach (axis_index[j])
+            taps[axis_index[j]] = (flat / stride[j]) % axes[axis_index[j]].tap_count;
+    endfunction
+
+    // Finds the passing point with the largest distance to failure or a non-wrapping edge.
+    function int best_point(input axes_t axes, input taps_t original, input bit passed[]);
+        int distance[];
+        int pending[$];
+        int node;
+        int axis_id;
+        int count;
+        int tap;
+        int next_tap;
+        int neighbor;
+        int travel;
+        int delta;
+        int best;
+        int best_travel;
+
+        distance = new[size];
+        // Seed at distances 0 and 1 in that order to keep the queue monotonic.
+        for (int flat = 0; flat < size; flat++) begin
+            distance[flat] = passed[flat] ? size + 1 : 0;
+            if (!passed[flat])
+                pending.push_back(flat);
+        end
+        for (int flat = 0; flat < size; flat++) begin
+            if (!passed[flat])
+                continue;
+            foreach (axis_index[j]) begin
+                axis_id = axis_index[j];
+                count = axes[axis_id].tap_count;
+                tap = (flat / stride[j]) % count;
+                if (count > 1 && !axes[axis_id].wraps && (tap == 0 || tap == count - 1)) begin
+                    distance[flat] = 1;
+                    pending.push_back(flat);
+                    break;
+                end
+            end
+        end
+        while (pending.size() != 0) begin
+            node = pending.pop_front();
+            foreach (axis_index[j]) begin
+                axis_id = axis_index[j];
+                count = axes[axis_id].tap_count;
+                tap = (node / stride[j]) % count;
+                for (int direction = -1; direction <= 1; direction += 2) begin
+                    next_tap = tap + direction;
+                    if (next_tap < 0 || next_tap >= count) begin
+                        if (!axes[axis_id].wraps)
+                            continue;
+                        next_tap = (next_tap + count) % count;
+                    end
+                    neighbor = node + (next_tap - tap) * stride[j];
+                    if (distance[neighbor] > distance[node] + 1) begin
+                        distance[neighbor] = distance[node] + 1;
+                        pending.push_back(neighbor);
+                    end
+                end
+            end
+        end
+        best = -1;
+        best_travel = 0;
+        for (int flat = 0; flat < size; flat++) begin
+            if (!passed[flat])
+                continue;
+            travel = 0;
+            foreach (axis_index[j]) begin
+                axis_id = axis_index[j];
+                count = axes[axis_id].tap_count;
+                tap = (flat / stride[j]) % count;
+                delta = tap > original[axis_id] ? tap - original[axis_id] : original[axis_id] - tap;
+                travel += axes[axis_id].wraps && count - delta < delta ? count - delta : delta;
+            end
+            if (best < 0 || distance[flat] > distance[best] ||
+                (distance[flat] == distance[best] && travel < best_travel)) begin
+                best = flat;
+                best_travel = travel;
+            end
+        end
+        return best;
+    endfunction
+endclass
+
+class {{ class_prefix }}clock_phase_calibrator;
+    typedef {{ class_prefix }}callback adapter_t;
+    typedef {{ class_prefix }}clock_phase_grid grid_t;
     typedef grid_t grids_t[$];
     local bit running;
 
@@ -54,7 +171,7 @@ class calibrator;
                         scan(adapter, max_probes, confirm_samples, cached_taps, outcome, recovery_needed);
                         finished = 1;
                     end
-                    #(scan_timeout_us * 1us);
+                    wait_clock_phase_timeout(scan_timeout_us);
                 join_any
                 disable fork;
             end
@@ -65,8 +182,8 @@ class calibrator;
             fork
                 begin
                     fork
-                        adapter.apply(outcome.original, restored);
-                        #(restore_timeout_us * 1us);
+                        adapter.clock_phase_apply(outcome.original, restored);
+                        wait_clock_phase_timeout(restore_timeout_us);
                     join_any
                     disable fork;
                 end
@@ -130,12 +247,12 @@ class calibrator;
         bit ok;
         probe_e probe_status;
 
-        adapter.describe(axes);
+        adapter.clock_phase_describe(axes);
         outcome.status = plan(axes, max_probes - confirm_samples, groups);
         if (outcome.status != PHASE_PASSED)
             return;
         outcome.status = PHASE_ADAPTER_FAILED;
-        adapter.capture(outcome.original, ok);
+        adapter.clock_phase_capture(outcome.original, ok);
         if (!ok || outcome.original.size() != axes.size())
             return;
         foreach (axes[index])
@@ -167,7 +284,7 @@ class calibrator;
                     return;
                 outcome.probes++;
                 recovery_needed = 1;
-                adapter.probe(group.group_id, probe_status);
+                adapter.clock_phase_probe(group.group_id, probe_status);
                 if (probe_status == PROBE_FAILED)
                     return;
                 passed[flat] = probe_status == PROBE_PASSED;
@@ -187,7 +304,7 @@ class calibrator;
             return;
         repeat (confirm_samples) begin
             outcome.probes++;
-            adapter.probe(CONFIRM_ALL_GROUPS, probe_status);
+            adapter.clock_phase_probe(CONFIRM_ALL_GROUPS, probe_status);
             if (probe_status == PROBE_FAILED)
                 return;
             if (probe_status != PROBE_PASSED) begin
@@ -210,11 +327,10 @@ class calibrator;
         if (taps == programmed)
             return;
         recovery_needed = 1;
-        adapter.apply(taps, ok);
+        adapter.clock_phase_apply(taps, ok);
         if (ok)
             programmed = taps;
     endtask
 endclass
-endpackage
 
 `endif
