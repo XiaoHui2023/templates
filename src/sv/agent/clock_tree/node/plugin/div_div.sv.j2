@@ -110,6 +110,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
         real expected_freq_hz;
+        real input_hz;
         int bit_idx;
         int ratio;
         int width;
@@ -132,7 +133,12 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
         width = {{ settings.class_prefix }}reg_field_width(f_div);
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test div %s", get_name()), UVM_LOW)
-        in_vif.start_clock(1_000_000_000);
+        prepare_functional_clock(api, source, "", 1_000_000_000, input_hz);
+        if (input_hz <= 0.0) begin
+            did_skip = 1'b1;
+            failures++;
+            return;
+        end
         for (bit_idx = 0; bit_idx < width; bit_idx++) begin
             ratio = {{ settings.class_prefix }}div_ratio_for_reg_bit(f_div, bit_idx);
 {%- if plugin_value("div_div", "reg_high_means_reset", false) %}
@@ -146,7 +152,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
             api.cfg.write_reg(f_load, 0);
             api.cfg.write_reg(f_load, 1);
             {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_div", "settle_ns", 200) }});
-            expected_freq_hz = real'(1_000_000_000) / ratio;
+            expected_freq_hz = input_hz / ratio;
             if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
                 failures++;
                 `uvm_error("CLK_TREE", $sformatf(
@@ -156,7 +162,7 @@ class {{ settings.class_prefix }}div_div extends {{ settings.class_prefix }}rati
             end
             check_output(api, out_vif, $sformatf(
                 "%s.out bit %0d ratio %0d", get_name(), bit_idx, ratio),
-                expected_freq_hz, passed);
+                expected_freq_hz, passed, "", input_hz);
             if (!passed)
                 failures++;
         end

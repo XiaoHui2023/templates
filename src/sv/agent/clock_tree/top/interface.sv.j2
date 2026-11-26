@@ -129,6 +129,20 @@ interface {{ settings.class_prefix }}interface #(
             output bit ok);
         meas.wait_measure_stable(need_freq, need_duty, ok);
     endtask
+
+    task automatic measure_clock(
+            input bit check_duty,
+            output real stable_hz,
+            output real duty,
+            output bit duty_passed);
+        bit stable;
+        meas.start_measure(1'b1, check_duty);
+        meas.wait_measure_stable(1'b1, check_duty, stable);
+        stable_hz = meas.freq_stable ? meas.freq_hz : 0.0;
+        duty = meas.duty;
+        duty_passed = !check_duty || (stable && meas.duty_stable && meas.duty_ok);
+        meas.stop_measure();
+    endtask
 endinterface
 
 `endif

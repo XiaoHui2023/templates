@@ -78,10 +78,11 @@
 | `has_functional_contract()` | 默认false；声明是否提供功能检查 |
 | `exercise_functional_contract(api, did_check, did_skip, failures)` | 驱动输入、操作寄存器、检查输出；返回时保留驱动 |
 | `restore_configuration(cfg, saved)` | 默认恢复控制切片；延迟提交器件要补load、复位或等待 |
-| `release_functional_inputs()` | 默认释放默认输入；多输入插件释放自己驱动的端口 |
 | `is_stability_anchor()` | 默认false；stable节点作为保护起点 |
 | `preserves_native_input()` | 默认false；时钟源可声明保留原生输入 |
 
-`did_check` 与 `did_skip` 必须恰有一个为true。skip只用于驱动、修改寄存器之前的前置检查；缺接口时先打印具体端口。产生副作用后的可继续失败返回did_check并累计failures，公共入口才会恢复和释放。仿真终止或总线致命错误不能保证恢复。
+插件用 `prepare_functional_clock(api, upstream, key, stimulus_hz, input_hz)` 准备输入。受保护的输入只测量，其他输入可驱动；返回的频率用于计算输出期望。公共入口只释放本次启动的驱动。
+
+`did_check` 与 `did_skip` 必须恰有一个为true。缺接口或输入准备失败时，在写寄存器前返回skip。写过寄存器后返回did_check，公共入口恢复控制切片。仿真终止或总线致命错误不保证恢复。
 
 插件通过 `check_output(api, vif, label, expected, passed, key, input_hz)` 检查输出；key与input_hz可省略。测量和寄存器访问使用传入服务，不在公共sequence里添加器件类型判断。

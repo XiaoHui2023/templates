@@ -181,6 +181,7 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
         virtual {{ settings.class_prefix }}interface input_vif;
         virtual {{ settings.class_prefix }}interface output_vif;
         real expected;
+        real input_hz;
         bit passed;
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -199,15 +200,20 @@ class {{ settings.class_prefix }}clk_div_with_clken extends {{ settings.class_pr
             end
         end
         `uvm_info("CLK_TREE", $sformatf("test_flip: test %s", get_name()), UVM_LOW)
-        input_vif.start_clock(1_000_000_000);
+        prepare_functional_clock(api, source, "", 1_000_000_000, input_hz);
+        if (input_hz <= 0.0) begin
+            did_skip = 1'b1;
+            failures++;
+            return;
+        end
         for (int value = 0; value < 16; value++) begin
             program_ratio(api.cfg, value);
             {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("clk_div_with_clken", "settle_ns", 200) }});
             foreach (output_peers[key]) begin
                 output_vif = output_peers[key].get_out_vif();
-                expected = key == "clk_arm_core" ? 1.0e9 : 1.0e9 / decode_ratio(value);
+                expected = key == "clk_arm_core" ? input_hz : input_hz / decode_ratio(value);
                 check_output(api, output_vif,
-                    $sformatf("%s.%s encoding %0h", get_name(), key, value), expected, passed, key);
+                    $sformatf("%s.%s encoding %0h", get_name(), key, value), expected, passed, key, input_hz);
                 if (!passed) failures++;
             end
         end

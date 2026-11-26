@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "validator": "tools/check_clock_tree_generation.py"
+}

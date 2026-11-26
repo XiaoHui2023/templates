@@ -4,6 +4,7 @@
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
 class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix }}base_object;
     {{ settings.class_prefix }}node_config_api cfg;
+    local virtual {{ settings.class_prefix }}interface driven_inputs[$];
 
     // Binds the register service used by one node transition check.
     function new(
@@ -12,6 +13,97 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
         super.new(name);
         cfg = cfg_h;
     endfunction
+
+    task prepare_input_clock(
+            input virtual {{ settings.class_prefix }}interface vif,
+            input string label,
+            input bit preserve_native,
+            input int stimulus_hz,
+            output real input_hz);
+        real duty;
+        bit duty_passed;
+        input_hz = 0.0;
+        if (vif == null) return;
+        if (!preserve_native && vif.allow_override && !vif.drive_en) begin
+            vif.start_clock(stimulus_hz);
+            driven_inputs.push_back(vif);
+            input_hz = real'(stimulus_hz);
+            return;
+        end
+        vif.configure_measurement({{ settings.min_freq_hz }});
+        vif.measure_clock(1'b0, input_hz, duty, duty_passed);
+        if (input_hz < {{ settings.min_freq_hz }})
+            input_hz = 0.0;
+        if (input_hz <= 0.0)
+            `uvm_error("CLK_TREE", $sformatf("test_flip: %s native input clock did not stabilize", label))
+    endtask
+
+    task release_input_clocks();
+        foreach (driven_inputs[i]) begin
+            virtual {{ settings.class_prefix }}interface vif = driven_inputs[i];
+            vif.release_drive();
+        end
+        driven_inputs.delete();
+    endtask
+
+    // Measures a full input cycle, then compares at the center of both levels.
+    task check_polarity(
+            input virtual {{ settings.class_prefix }}interface input_vif,
+            input virtual {{ settings.class_prefix }}interface output_vif,
+            input string label,
+            input real input_hz,
+            input bit invert_output,
+            output bit passed);
+        time deadline_tick;
+        time edge_tick;
+        time widths[2];
+        time center_ticks;
+        logic level;
+        bit changed;
+        bit covered[2];
+        passed = 1'b0;
+        deadline_tick = {{ settings.class_prefix }}time_domain::after_ns(
+            5.0e9 / (input_hz * (1.0 - {{ settings.period_tolerance }})));
+        input_vif.wait_transition(deadline_tick, changed);
+        if (!changed || $isunknown(input_vif.in)) begin
+            `uvm_error("CLK_TREE", $sformatf("test_flip: %s no valid input edge for polarity check", label))
+            return;
+        end
+        repeat (2) begin
+            level = input_vif.in;
+            edge_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+            input_vif.wait_transition(deadline_tick, changed);
+            if (!changed || input_vif.in !== ~level) begin
+                `uvm_error("CLK_TREE", $sformatf("test_flip: %s invalid or missing input transition", label))
+                return;
+            end
+            widths[int'(level)] = {{ settings.class_prefix }}time_domain::now_ticks() - edge_tick;
+        end
+        repeat (2) begin
+            input_vif.wait_transition(deadline_tick, changed);
+            level = input_vif.in;
+            if (!changed || $isunknown(level)) begin
+                `uvm_error("CLK_TREE", $sformatf("test_flip: %s missing input transition during polarity sampling", label))
+                return;
+            end
+            center_ticks = widths[int'(level)] / 2;
+            edge_tick = {{ settings.class_prefix }}time_domain::now_ticks();
+            if (covered[int'(level)] || center_ticks == 0 || edge_tick >= deadline_tick
+                    || center_ticks >= deadline_tick - edge_tick) begin
+                `uvm_error("CLK_TREE", $sformatf("test_flip: %s no usable input pulse for polarity sampling", label))
+                return;
+            end
+            {{ settings.class_prefix }}time_domain::wait_until(edge_tick + center_ticks);
+            if (input_vif.in !== level || output_vif.in !== (level ^ invert_output)) begin
+                `uvm_error("CLK_TREE", $sformatf(
+                    "test_flip: %s polarity mismatch, input %0b expected output %0b measured %0b",
+                    label, input_vif.in, level ^ invert_output, output_vif.in))
+                return;
+            end
+            covered[int'(level)] = 1'b1;
+        end
+        passed = 1'b1;
+    endtask
 
     // Checks output activity, frequency and the node's duty policy.
     virtual task check_output(
@@ -22,10 +114,8 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
             input bit check_duty = 1'b1,
             input int frequency_window = 1,
             input real max_rise_gap_ns = 0.0);
-        bit ok;
-        bit freq_stable;
-        bit duty_stable;
-        bit duty_ok;
+        bit duty_passed;
+        real duty;
         real min_freq_hz;
         real freq_hz;
         real error_ratio;
@@ -39,20 +129,14 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
             label, check_duty, expected_freq_hz), UVM_HIGH)
         min_freq_hz = expected_freq_hz * (1.0 - {{ settings.period_tolerance }});
         vif.configure_measurement(min_freq_hz, frequency_window, max_rise_gap_ns);
-        vif.start_measure(1'b1, check_duty);
-        vif.wait_measure_stable(1'b1, check_duty, ok);
-        freq_stable = vif.meas.freq_stable;
-        duty_stable = vif.meas.duty_stable;
-        duty_ok = vif.meas.duty_ok;
-        vif.stop_measure();
+        vif.measure_clock(check_duty, freq_hz, duty, duty_passed);
         vif.configure_measurement({{ settings.min_freq_hz }});
-        if (!vif.meas.last_valid || !freq_stable) begin
+        if (freq_hz <= 0.0) begin
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s frequency did not stabilize, expected %0.3f Hz",
                 label, expected_freq_hz))
             return;
         end
-        freq_hz = vif.meas.last_freq_hz;
         passed = 1'b1;
         error_ratio = (freq_hz > expected_freq_hz)
             ? (freq_hz - expected_freq_hz) / expected_freq_hz
@@ -63,11 +147,11 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
                 "test_flip: %s frequency %0.3f Hz expected %0.3f Hz",
                 label, freq_hz, expected_freq_hz))
         end
-        if (check_duty && (!ok || !duty_stable || !duty_ok)) begin
+        if (!duty_passed) begin
             passed = 1'b0;
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s duty %0.3f%% did not meet range [%0.3f,%0.3f]%%",
-                label, vif.meas.last_duty * 100.0,
+                label, duty * 100.0,
                 {{ settings.duty_min }} - {{ settings.duty_tolerance_pct }},
                 {{ settings.duty_max }} + {{ settings.duty_tolerance_pct }}))
         end
@@ -77,22 +161,21 @@ class {{ settings.class_prefix }}node_test_api extends {{ settings.class_prefix 
     virtual task check_port_inactive(
             input virtual {{ settings.class_prefix }}interface vif,
             input string label,
-            input int expected_freq_hz,
+            input real expected_freq_hz,
             output bit passed);
         bit ok;
-        int min_freq_hz;
+        real min_freq_hz;
 
         passed = 1'b0;
         if (vif == null)
             `uvm_fatal("CLK_TREE", $sformatf(
                 "test_flip: %s missing interface", label))
-        min_freq_hz = int'(real'(expected_freq_hz)
-            * (1.0 - {{ settings.period_tolerance }}));
-        vif.set_min_freq_hz(min_freq_hz);
+        min_freq_hz = expected_freq_hz * (1.0 - {{ settings.period_tolerance }});
+        vif.configure_measurement(min_freq_hz);
         vif.start_measure(1'b0, 1'b0);
         vif.wait_measure_stable(1'b0, 1'b0, ok);
         vif.stop_measure();
-        vif.set_min_freq_hz({{ settings.min_freq_hz }});
+        vif.configure_measurement({{ settings.min_freq_hz }});
         if (ok) begin
             `uvm_error("CLK_TREE", $sformatf(
                 "test_flip: %s expected inactive but active", label))

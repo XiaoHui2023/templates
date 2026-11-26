@@ -274,17 +274,6 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
         {{ settings.class_prefix }}time_domain::delay_ns(70.0);
     endtask
 
-    // Releases only the inputs driven by this functional check.
-    virtual task release_functional_inputs();
-        virtual {{ settings.class_prefix }}interface input_vif;
-        foreach (to_source[k]) begin
-            input_vif = get_in_vif($sformatf("%0d", k));
-            if (input_vif != null && (to_source[k] == null
-                    || !to_source[k].preserves_native_input()))
-                input_vif.release_drive();
-        end
-    endtask
-
     // Maps the sole default input to selector zero.
     virtual function virtual {{ settings.class_prefix }}interface get_in_vif(string key = "");
         if (key == "0" && sources.num() == 0 && !in_vifs.exists(key))
@@ -337,15 +326,16 @@ class {{ settings.class_prefix }}mux extends {{ settings.class_prefix }}node_bas
             "test_flip: test mux %s", get_name()), UVM_LOW)
         stim_freq_hz = 900_000_000;
         foreach (to_source[k]) begin
+            real input_hz;
             in_key = $sformatf("%0d", k);
-            in_vif = get_in_vif(in_key);
-            if (to_source[k] != null && to_source[k].preserves_native_input())
-                expected_freq_hz[k] = to_source[k]._resolved_freq;
-            else begin
-                expected_freq_hz[k] = stim_freq_hz;
-                in_vif.start_clock(stim_freq_hz);
-                stim_freq_hz = int'(real'(stim_freq_hz) * (20.0 / 21.0));
+            prepare_functional_clock(api, to_source[k], in_key, stim_freq_hz, input_hz);
+            if (input_hz <= 0.0) begin
+                did_skip = 1'b1;
+                failures++;
+                return;
             end
+            expected_freq_hz[k] = input_hz;
+            stim_freq_hz = int'(real'(stim_freq_hz) * (20.0 / 21.0));
         end
         foreach (to_source[k]) begin
             api.cfg.write_reg(f_reg, k);

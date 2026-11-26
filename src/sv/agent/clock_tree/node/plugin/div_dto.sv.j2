@@ -168,6 +168,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
         real expected_freq_hz;
+        real input_hz;
         bit passed;
         int width;
         int mask;
@@ -195,10 +196,15 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
         mask = (1 << width) - 1;
         `uvm_info("CLK_TREE", $sformatf(
             "test_flip: test dto %s", get_name()), UVM_LOW)
-        in_vif.start_clock(1_000_000_000);
+        prepare_functional_clock(api, source, "", 1_000_000_000, input_hz);
+        if (input_hz <= 0.0) begin
+            did_skip = 1'b1;
+            failures++;
+            return;
+        end
         program_step(api.cfg, 0, 1'b1, 1'b1);
         {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "settle_ns", 200) }});
-        check_output(api, out_vif, {get_name(), ".out bypass"}, 1_000_000_000, passed, "", 1.0e9);
+        check_output(api, out_vif, {get_name(), ".out bypass"}, input_hz, passed, "", input_hz);
         if (!passed)
             failures++;
         for (int bit_idx = 0; bit_idx < width; bit_idx++) begin
@@ -208,9 +214,9 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
                     step_value ^= mask;
                 program_step(api.cfg, step_value, 1'b0, 1'b1);
                 {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("div_dto", "settle_ns", 200) }});
-                expected_freq_hz = frequency_from_step(1.0e9, step_value);
+                expected_freq_hz = frequency_from_step(input_hz, step_value);
                 if (step_value == 0)
-                    api.check_port_inactive(out_vif, {get_name(), ".out step 0"}, 1_000_000_000, passed);
+                    api.check_port_inactive(out_vif, {get_name(), ".out step 0"}, input_hz, passed);
                 else if (expected_freq_hz < {{ settings.min_freq_hz }}) begin
                     passed = 1'b0;
                     `uvm_error("CLK_TREE", $sformatf(
@@ -219,7 +225,7 @@ class {{ settings.class_prefix }}div_dto extends {{ settings.class_prefix }}rati
                 end else
                     check_output(api, out_vif,
                         $sformatf("%s.out bit %0d step %0h", get_name(), bit_idx, step_value),
-                        expected_freq_hz, passed, "", 1.0e9);
+                        expected_freq_hz, passed, "", input_hz);
                 if (!passed)
                     failures++;
             end

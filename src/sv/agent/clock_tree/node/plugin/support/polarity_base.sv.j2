@@ -43,6 +43,10 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
     // Provides a register-controlled polarity.
     virtual function bit has_configuration(); return f_reg.is_bound(); endfunction
 
+    function bit encode_polarity(bit invert_output);
+        return {{ "invert_output" if plugin_value("inverter", "reg_high_means_inverted", true) else "!invert_output" }};
+    endfunction
+
     // Writes the selected polarity when its register is bound.
     virtual task apply_configuration(
             input {{ settings.class_prefix }}node_config_api cfg,
@@ -52,11 +56,7 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
             return;
         `uvm_info("CLK_TREE", $sformatf(
             "config_reg: %s inverted %0b", get_name(), inverted), UVM_LOW)
-{%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
-        cfg.write_reg(f_reg, inverted);
-{%- else %}
-        cfg.write_reg(f_reg, !inverted);
-{%- endif %}
+        cfg.write_reg(f_reg, encode_polarity(inverted));
     endtask
 `ifdef {{ (settings.class_prefix ~ "interface") | upper }}
     // Allows the restored polarity control to propagate before input release.
@@ -80,8 +80,10 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
             output int failures);
         virtual {{ settings.class_prefix }}interface in_vif;
         virtual {{ settings.class_prefix }}interface out_vif;
-        bit configured;
+        real input_hz;
         bit passed;
+        bit inverted_mode;
+        string label;
 
         did_check = 1'b0;
         did_skip = 1'b0;
@@ -96,56 +98,23 @@ class {{ settings.class_prefix }}polarity_base extends {{ settings.class_prefix 
                 get_name()), UVM_LOW)
             return;
         end
-        `uvm_info("CLK_TREE", $sformatf(
-            "test_flip: test %s", get_name()), UVM_LOW)
-{%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
-        api.cfg.write_reg(f_reg, 1'b0);
-{%- else %}
-        api.cfg.write_reg(f_reg, 1'b1);
-{%- endif %}
-        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("inverter", "settle_ns", 100) }});
-        in_vif.drive_static(1'b0);
-        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
-        if (out_vif.in !== 1'b0) begin
+        prepare_functional_clock(api, source, "", 1_000_000_000, input_hz);
+        if (input_hz <= 0.0) begin
+            did_skip = 1'b1;
             failures++;
-            `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: %s direct input 0 output %0b", get_name(), out_vif.in))
+            return;
         end
-        in_vif.drive_static(1'b1);
-        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
-        if (out_vif.in !== 1'b1) begin
-            failures++;
-            `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: %s direct input 1 output %0b", get_name(), out_vif.in))
+        `uvm_info("CLK_TREE", $sformatf("test_flip: test %s", get_name()), UVM_LOW)
+        for (int mode = 0; mode < 2; mode++) begin
+            inverted_mode = bit'(mode);
+            label = {get_name(), inverted_mode ? ".out inverted" : ".out direct"};
+            api.cfg.write_reg(f_reg, encode_polarity(inverted_mode));
+            {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("inverter", "settle_ns", 100) }});
+            api.check_polarity(in_vif, out_vif, label, input_hz, inverted_mode, passed);
+            if (!passed) failures++;
+            check_output(api, out_vif, label, input_hz, passed);
+            if (!passed) failures++;
         end
-        in_vif.start_clock(1_000_000_000);
-        check_output(api, out_vif, {get_name(), ".out direct"}, 1_000_000_000, passed);
-        if (!passed)
-            failures++;
-{%- if plugin_value("inverter", "reg_high_means_inverted", true) %}
-        api.cfg.write_reg(f_reg, 1'b1);
-{%- else %}
-        api.cfg.write_reg(f_reg, 1'b0);
-{%- endif %}
-        {{ settings.class_prefix }}time_domain::delay_ns({{ plugin_value("inverter", "settle_ns", 100) }});
-        in_vif.drive_static(1'b0);
-        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
-        if (out_vif.in !== 1'b1) begin
-            failures++;
-            `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: %s inverted input 0 output %0b", get_name(), out_vif.in))
-        end
-        in_vif.drive_static(1'b1);
-        {{ settings.class_prefix }}time_domain::delay_ns(1.0);
-        if (out_vif.in !== 1'b0) begin
-            failures++;
-            `uvm_error("CLK_TREE", $sformatf(
-                "test_flip: %s inverted input 1 output %0b", get_name(), out_vif.in))
-        end
-        in_vif.start_clock(1_000_000_000);
-        check_output(api, out_vif, {get_name(), ".out inverted"}, 1_000_000_000, passed);
-        if (!passed)
-            failures++;
         did_check = 1'b1;
     endtask
 `endif

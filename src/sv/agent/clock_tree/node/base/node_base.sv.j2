@@ -320,10 +320,28 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
         collect_control_regs(controls);
         saved.capture(api.cfg, controls);
         exercise_functional_contract(api, did_check, did_skip, failures);
-        if (did_check) begin
+        if (did_check)
             restore_configuration(api.cfg, saved);
-            release_functional_inputs();
+        api.release_input_clocks();
+    endtask
+    // Starts a synthetic clock only when neither endpoint owns native stimulus.
+    task prepare_functional_clock(
+            input {{ settings.class_prefix }}node_test_api api,
+            input {{ settings.class_prefix }}node_base upstream,
+            input string key,
+            input int stimulus_hz,
+            output real input_hz);
+        virtual {{ settings.class_prefix }}interface upstream_vif;
+        bit preserve_native;
+        preserve_native = 1'b0;
+        if (upstream != null) begin
+            preserve_native = upstream.preserves_native_input();
+            upstream_vif = upstream.get_out_vif();
+            if (upstream_vif != null)
+                preserve_native |= !upstream_vif.allow_override || upstream_vif.drive_en;
         end
+        api.prepare_input_clock(get_in_vif(key), {get_name(), ".in", key},
+            preserve_native, stimulus_hz, input_hz);
     endtask
     // Exercises the node's transitions while retaining its driven inputs.
     virtual task exercise_functional_contract(
@@ -340,13 +358,6 @@ class {{ settings.class_prefix }}node_base extends {{ settings.class_prefix }}ba
             input {{ settings.class_prefix }}node_config_api cfg,
             input {{ settings.class_prefix }}reg_snapshot saved);
         saved.restore(cfg);
-    endtask
-    // Releases the default input after configuration has been restored.
-    virtual task release_functional_inputs();
-        virtual {{ settings.class_prefix }}interface input_vif;
-        input_vif = get_in_vif();
-        if (input_vif != null)
-            input_vif.release_drive();
     endtask
     // Reports whether functional checks preserve native inputs.
     virtual function bit preserves_native_input(); return 1'b0; endfunction
