@@ -2,36 +2,6 @@
 `define {{ class_prefix | upper }}ACCESS_REQ
 
 class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
-    `uvm_object_utils_begin({{ class_prefix }}access_request)
-        `uvm_field_int(cmd_index, UVM_ALL_ON)
-        `uvm_field_int(argument, UVM_ALL_ON)
-        `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
-        `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON)
-        `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON)
-{%- if enable_dma %}
-        `uvm_field_enum(sdma_buf_bdary_e, sdma_buf_bdary, UVM_ALL_ON)
-{%- endif %}
-        `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
-        `uvm_field_int(data_width, UVM_ALL_ON)
-        `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
-        `uvm_field_int(resp_type, UVM_ALL_ON)
-{%- if enable_dma %}
-        `uvm_field_int(dma_enable, UVM_ALL_ON)
-        `uvm_field_int(dma_addr, UVM_ALL_ON)
-        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
-{%- endif %}
-        `uvm_field_int(uhs_mode_sel, UVM_ALL_ON)
-        `uvm_field_int(data_present_sel, UVM_ALL_ON)
-        `uvm_field_int(dat_xfer_width, UVM_ALL_ON)
-        `uvm_field_int(ext_dat_xfer, UVM_ALL_ON)
-        `uvm_field_int(xfer_block_size, UVM_ALL_ON)
-        `uvm_field_int(sdmasa, UVM_ALL_ON)
-        `uvm_field_enum(resp_type_select_e, resp_type_select, UVM_ALL_ON)
-        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-        `uvm_field_int(tune_en, UVM_ALL_ON)
-        `uvm_field_int(center_ph_code, UVM_ALL_ON)
-        `uvm_field_int(high_speed_en, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[5:0] cmd_index; // 传输命令索引
     rand int argument; // 传输参数
@@ -204,6 +174,37 @@ class {{ class_prefix }}access_request extends {{ class_prefix }}base_request;
     function new(string name="{{ class_prefix }}access_request");
         super.new(name);
     endfunction
+
+    `uvm_object_utils_begin({{ class_prefix }}access_request)
+        `uvm_field_int(cmd_index, UVM_ALL_ON)
+        `uvm_field_int(argument, UVM_ALL_ON)
+        `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
+        `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON)
+        `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON)
+{%- if enable_dma %}
+        `uvm_field_enum(sdma_buf_bdary_e, sdma_buf_bdary, UVM_ALL_ON)
+{%- endif %}
+        `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+        `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
+        `uvm_field_int(resp_type, UVM_ALL_ON)
+{%- if enable_dma %}
+        `uvm_field_int(dma_enable, UVM_ALL_ON)
+        `uvm_field_int(dma_addr, UVM_ALL_ON)
+        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+{%- endif %}
+        `uvm_field_int(uhs_mode_sel, UVM_ALL_ON)
+        `uvm_field_int(data_present_sel, UVM_ALL_ON)
+        `uvm_field_int(dat_xfer_width, UVM_ALL_ON)
+        `uvm_field_int(ext_dat_xfer, UVM_ALL_ON)
+        `uvm_field_int(xfer_block_size, UVM_ALL_ON)
+        `uvm_field_int(sdmasa, UVM_ALL_ON)
+        `uvm_field_enum(resp_type_select_e, resp_type_select, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+        `uvm_field_int(tune_en, UVM_ALL_ON)
+        `uvm_field_int(center_ph_code, UVM_ALL_ON)
+        `uvm_field_int(high_speed_en, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

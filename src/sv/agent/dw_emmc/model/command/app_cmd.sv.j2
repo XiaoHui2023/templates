@@ -4,9 +4,6 @@
 
 // 发送CMD55，作为ACMD的第一个命令
 class {{ class_prefix }}app_cmd_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}app_cmd_command_request)
-        `uvm_field_int(rca, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[15:0] rca; // 相对地址
 
@@ -20,6 +17,10 @@ class {{ class_prefix }}app_cmd_command_request extends {{ class_prefix }}comman
         resp == R1;
         soft rca == settings.boot_cfg.relative_addr;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}app_cmd_command_request)
+        `uvm_field_int(rca, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

@@ -4,10 +4,6 @@
 
 // 读 EXT_CSD 寄存器 (CMD8)
 class {{ class_prefix }}send_ext_csd_seq extends {{ class_prefix }}base_seq;
-    `uvm_object_utils_begin({{ class_prefix }}send_ext_csd_seq)
-        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-        `uvm_field_int(data_width, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bus_speed_mode_e bus_speed_mode; // 总线速率模式
     rand int data_width; // 数据位宽
@@ -42,6 +38,11 @@ class {{ class_prefix }}send_ext_csd_seq extends {{ class_prefix }}base_seq;
             cmd_request.block_size == 512;
         })
     endtask
+
+    `uvm_object_utils_begin({{ class_prefix }}send_ext_csd_seq)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

@@ -9,12 +9,6 @@ class {{ class_prefix }}sd_send_op_cond_acmd_request extends {{ class_prefix }}b
         XPC_150=1
     } xpc_e;
 
-    `uvm_object_utils_begin({{ class_prefix }}sd_send_op_cond_acmd_request)
-        `uvm_field_int(hcs, UVM_ALL_ON)
-        `uvm_field_enum(xpc_e, xpc, UVM_ALL_ON)
-        `uvm_field_int(s18a, UVM_ALL_ON)
-        `uvm_field_int(vdd, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit hcs; // 主机容量支持信息。参考OCR[30]。0=只支持 SDSC; 1=也支持 SDHC 或 SDXC
     rand xpc_e xpc; // 控制目前最大默认速度(SDXC+)(单位mA)
@@ -49,6 +43,12 @@ class {{ class_prefix }}sd_send_op_cond_acmd_request extends {{ class_prefix }}b
         }
     }
 
+    `uvm_object_utils_begin({{ class_prefix }}sd_send_op_cond_acmd_request)
+        `uvm_field_int(hcs, UVM_ALL_ON)
+        `uvm_field_enum(xpc_e, xpc, UVM_ALL_ON)
+        `uvm_field_int(s18a, UVM_ALL_ON)
+        `uvm_field_int(vdd, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

@@ -12,6 +12,7 @@ class {{ class_prefix }}mem extends {{ class_prefix }}base_object;
     endfunction
 
     extern function void clear();
+    extern function longint get_extent();
     extern function void write(input longint addr, ref bit[7:0] bytes[$]);
     extern function bit read(input longint addr, input int len, ref bit[7:0] bytes[$], output string message);
     extern function bit compare(input longint addr, ref bit[7:0] actual[$], input string label = "");
@@ -24,6 +25,10 @@ endclass
 function void {{ class_prefix }}mem::clear();
     data.delete();
     extent = 0;
+endfunction
+
+function longint {{ class_prefix }}mem::get_extent();
+    return extent;
 endfunction
 
 function void {{ class_prefix }}mem::write(input longint addr, ref bit[7:0] bytes[$]);

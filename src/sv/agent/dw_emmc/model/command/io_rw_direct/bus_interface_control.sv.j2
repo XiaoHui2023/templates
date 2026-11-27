@@ -4,11 +4,6 @@
 
 // CCCR.bus interface control 总线控制
 class {{ class_prefix }}io_rw_direct_bus_interface_control_command_request extends {{ class_prefix }}io_rw_direct_command_request;
-    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_bus_interface_control_command_request)
-        `uvm_field_int(bus_width, UVM_ALL_ON)
-        `uvm_field_int(cd_disable, UVM_ALL_ON)
-        `uvm_field_int(data_width, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand int bus_width; // 总线带宽
     rand bit cd_disable; // card detected disable
@@ -34,6 +29,12 @@ class {{ class_prefix }}io_rw_direct_bus_interface_control_command_request exten
         (data_width == 4) -> bus_width == 4;
         bus_width inside {1,4};
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_bus_interface_control_command_request)
+        `uvm_field_int(bus_width, UVM_ALL_ON)
+        `uvm_field_int(cd_disable, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

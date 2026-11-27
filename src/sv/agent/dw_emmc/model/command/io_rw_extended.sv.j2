@@ -26,14 +26,6 @@ class {{ class_prefix }}io_rw_extended_command_request extends {{ class_prefix }
         RW_FLAG_WRITE=1
     } rw_flag_e;
 
-    `uvm_object_utils_begin({{ class_prefix }}io_rw_extended_command_request)
-        `uvm_field_enum(rw_flag_e, rw_flag, UVM_ALL_ON)
-        `uvm_field_int(function_number, UVM_ALL_ON)
-        `uvm_field_enum(block_mode_e, block_mode, UVM_ALL_ON)
-        `uvm_field_enum(op_code_e, op_code, UVM_ALL_ON)
-        `uvm_field_int(register_address, UVM_ALL_ON)
-        `uvm_field_int(count, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand rw_flag_e rw_flag; // 读还是写
     rand bit[2:0] function_number; // 选择要读写的功能的ID
@@ -77,6 +69,15 @@ class {{ class_prefix }}io_rw_extended_command_request extends {{ class_prefix }
         (rw_flag == RW_FLAG_READ) -> data_xfer_dir == XFER_READ;
         (rw_flag == RW_FLAG_WRITE) -> data_xfer_dir == XFER_WRITE;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_extended_command_request)
+        `uvm_field_enum(rw_flag_e, rw_flag, UVM_ALL_ON)
+        `uvm_field_int(function_number, UVM_ALL_ON)
+        `uvm_field_enum(block_mode_e, block_mode, UVM_ALL_ON)
+        `uvm_field_enum(op_code_e, op_code, UVM_ALL_ON)
+        `uvm_field_int(register_address, UVM_ALL_ON)
+        `uvm_field_int(count, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

@@ -12,12 +12,6 @@ class {{ class_prefix }}switch_bus_width_command_request extends {{ class_prefix
         BUS_MODE_SELECTION_8BIT_DUPLEX=6   // 8bit双工
     } bus_mode_selection_e;
 
-    `uvm_object_utils_begin({{ class_prefix }}switch_bus_width_command_request)
-        `uvm_field_int(enhanced_strobe, UVM_ALL_ON)
-        `uvm_field_enum(bus_mode_selection_e, bus_mode_selection, UVM_ALL_ON)
-        `uvm_field_int(data_width, UVM_ALL_ON)
-        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit enhanced_strobe; // 是否启用增强strobe, 需要 STROBE_SUPPORT 支持, 0 : 只在 data_out 和 crc, 1 : 在 data_out , crc 和 cmd_response
     rand bus_mode_selection_e bus_mode_selection; // 总线模式选择
@@ -67,6 +61,13 @@ class {{ class_prefix }}switch_bus_width_command_request extends {{ class_prefix
             BUS_MODE_SELECTION_8BIT_DUPLEX
         };
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}switch_bus_width_command_request)
+        `uvm_field_int(enhanced_strobe, UVM_ALL_ON)
+        `uvm_field_enum(bus_mode_selection_e, bus_mode_selection, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

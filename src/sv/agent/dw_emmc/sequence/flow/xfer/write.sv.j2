@@ -3,10 +3,6 @@
 
 // EMMC 主机写数据，从机接收写数据
 class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
-    `uvm_object_utils_begin({{ class_prefix }}xfer_write_seq)
-        `uvm_field_int(write_protected, UVM_ALL_ON)
-        `uvm_field_queue_int(wdata, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit write_protected; // 是否写保护。开启写保护时，写无效
     rand bit[7:0] wdata[$]; // 写数据
@@ -94,6 +90,11 @@ class {{ class_prefix }}xfer_write_seq extends {{ class_prefix }}xfer_base_seq;
         execute_sdio(wdata);
         {%- endif %}
     endtask
+
+    `uvm_object_utils_begin({{ class_prefix }}xfer_write_seq)
+        `uvm_field_int(write_protected, UVM_ALL_ON)
+        `uvm_field_queue_int(wdata, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

@@ -4,11 +4,6 @@
 
 // CCCR.bus speed select
 class {{ class_prefix }}io_rw_direct_bus_speed_select_command_request extends {{ class_prefix }}io_rw_direct_command_request;
-    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_bus_speed_select_command_request)
-        `uvm_field_int(bss, UVM_ALL_ON)
-        `uvm_field_int(shs, UVM_ALL_ON)
-        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[2:0] bss; // bus speed select
     rand bit[2:0] shs; // support high speed
@@ -34,6 +29,12 @@ class {{ class_prefix }}io_rw_direct_bus_speed_select_command_request extends {{
         else if (bus_speed_mode inside {SDR12, SDR25, SDR50, SDR104, DDR50})
             shs == 1;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_bus_speed_select_command_request)
+        `uvm_field_int(bss, UVM_ALL_ON)
+        `uvm_field_int(shs, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

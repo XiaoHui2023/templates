@@ -2,36 +2,6 @@
 `define {{ class_prefix | upper }}RW_TEST_SEQ
 
 class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class_prefix }}base_item);
-    `uvm_object_utils_begin({{ class_prefix }}rw_test_seq)
-        `uvm_field_int(addr, UVM_ALL_ON)
-        `uvm_field_int(rd_multi_block_count, UVM_ALL_ON)
-        `uvm_field_int(wr_multi_block_count, UVM_ALL_ON)
-        `uvm_field_int(rd_block_size, UVM_ALL_ON)
-        `uvm_field_int(wr_block_size, UVM_ALL_ON)
-        `uvm_field_int(data_width, UVM_ALL_ON)
-        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-{%- if enable_dma %}
-        `uvm_field_int(dma_enable, UVM_ALL_ON)
-        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
-{%- endif %}
-        `uvm_field_int(rd_blocking, UVM_ALL_ON)
-        `uvm_field_int(rd, UVM_ALL_ON)
-        `uvm_field_int(wr, UVM_ALL_ON)
-        `uvm_field_int(rd_single, UVM_ALL_ON)
-        `uvm_field_int(wr_single, UVM_ALL_ON)
-        `uvm_field_int(rd_multi, UVM_ALL_ON)
-        `uvm_field_int(wr_multi, UVM_ALL_ON)
-        `uvm_field_int(abort, UVM_ALL_ON)
-        `uvm_field_int(wp, UVM_ALL_ON)
-{%- if enable_dma %}
-        `uvm_field_int(adma_des_addr, UVM_ALL_ON)
-{%- endif %}
-        `uvm_field_int(should_compare, UVM_ALL_ON)
-{%- if is_emmc %}
-        `uvm_field_enum(boot_partition_enable_e, boot_partition_enable, UVM_ALL_ON)
-        `uvm_field_enum(boot_partition_access_e, boot_partition_access, UVM_ALL_ON)
-{%- endif %}
-    `uvm_object_utils_end
 
     rand bit[63:0] addr;
     rand int rd_multi_block_count;
@@ -182,6 +152,37 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
     extern function uvm_tlm_generic_payload create_scoreboard_payload(bit[7:0] rw_data[$], string name);
     // Return the scoreboard address for the selected memory area.
     extern function bit[63:0] scoreboard_addr();
+
+    `uvm_object_utils_begin({{ class_prefix }}rw_test_seq)
+        `uvm_field_int(addr, UVM_ALL_ON)
+        `uvm_field_int(rd_multi_block_count, UVM_ALL_ON)
+        `uvm_field_int(wr_multi_block_count, UVM_ALL_ON)
+        `uvm_field_int(rd_block_size, UVM_ALL_ON)
+        `uvm_field_int(wr_block_size, UVM_ALL_ON)
+        `uvm_field_int(data_width, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+{%- if enable_dma %}
+        `uvm_field_int(dma_enable, UVM_ALL_ON)
+        `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+{%- endif %}
+        `uvm_field_int(rd_blocking, UVM_ALL_ON)
+        `uvm_field_int(rd, UVM_ALL_ON)
+        `uvm_field_int(wr, UVM_ALL_ON)
+        `uvm_field_int(rd_single, UVM_ALL_ON)
+        `uvm_field_int(wr_single, UVM_ALL_ON)
+        `uvm_field_int(rd_multi, UVM_ALL_ON)
+        `uvm_field_int(wr_multi, UVM_ALL_ON)
+        `uvm_field_int(abort, UVM_ALL_ON)
+        `uvm_field_int(wp, UVM_ALL_ON)
+{%- if enable_dma %}
+        `uvm_field_int(adma_des_addr, UVM_ALL_ON)
+{%- endif %}
+        `uvm_field_int(should_compare, UVM_ALL_ON)
+{%- if is_emmc %}
+        `uvm_field_enum(boot_partition_enable_e, boot_partition_enable, UVM_ALL_ON)
+        `uvm_field_enum(boot_partition_access_e, boot_partition_access, UVM_ALL_ON)
+{%- endif %}
+    `uvm_object_utils_end
 endclass
 
 function void {{ class_prefix }}rw_test_seq::post_randomize();

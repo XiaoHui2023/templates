@@ -4,11 +4,6 @@
 
 // CCCM.I/O Enable
 class {{ class_prefix }}io_rw_direct_fn0_block_size_command_request extends {{ class_prefix }}io_rw_direct_command_request;
-    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_fn0_block_size_command_request)
-        `uvm_field_int(lo_hi, UVM_ALL_ON)
-        `uvm_field_int(local_function_number, UVM_ALL_ON)
-        `uvm_field_int(block_length, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit lo_hi; // 设置寄存器的高8位还是低8位。1=高8位 0=低8位
     rand int local_function_number; // 设置1-7中哪个功能
@@ -36,6 +31,12 @@ class {{ class_prefix }}io_rw_direct_fn0_block_size_command_request extends {{ c
         soft raw_flag == 1;
         soft block_length inside {[1:2048]};
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_fn0_block_size_command_request)
+        `uvm_field_int(lo_hi, UVM_ALL_ON)
+        `uvm_field_int(local_function_number, UVM_ALL_ON)
+        `uvm_field_int(block_length, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

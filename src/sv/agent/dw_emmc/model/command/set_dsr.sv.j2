@@ -3,9 +3,6 @@
 
 // 发送CMD4, 设置DSR
 class {{ class_prefix }}set_dsr_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}set_dsr_command_request)
-        `uvm_field_int(dsr, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[15:0] dsr;
 
@@ -18,6 +15,10 @@ class {{ class_prefix }}set_dsr_command_request extends {{ class_prefix }}comman
         argument[31:16] == dsr;
         resp == NR;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}set_dsr_command_request)
+        `uvm_field_int(dsr, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

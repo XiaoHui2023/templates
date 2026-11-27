@@ -21,14 +21,6 @@ class {{ class_prefix }}switch_func_command_request extends {{ class_prefix }}co
             ASSD=4
     } command_system_e;
 
-    `uvm_object_utils_begin({{ class_prefix }}switch_func_command_request)
-            `uvm_field_enum(mode_e, mode, UVM_ALL_ON)
-            `uvm_field_int(current_limit, UVM_ALL_ON)
-            `uvm_field_enum(driver_strength_e, driver_strength, UVM_ALL_ON)
-            `uvm_field_enum(command_system_e, command_system, UVM_ALL_ON)
-            `uvm_field_int(access_mode, UVM_ALL_ON)
-            `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand mode_e mode; // 模式
     rand int current_limit; // 电流(mA)
@@ -75,6 +67,15 @@ class {{ class_prefix }}switch_func_command_request extends {{ class_prefix }}co
             soft driver_strength == TYPE_B;
             soft command_system == AFTER_INITIAL;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}switch_func_command_request)
+            `uvm_field_enum(mode_e, mode, UVM_ALL_ON)
+            `uvm_field_int(current_limit, UVM_ALL_ON)
+            `uvm_field_enum(driver_strength_e, driver_strength, UVM_ALL_ON)
+            `uvm_field_enum(command_system_e, command_system, UVM_ALL_ON)
+            `uvm_field_int(access_mode, UVM_ALL_ON)
+            `uvm_field_enum(bus_speed_mode_e, bus_speed_mode, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

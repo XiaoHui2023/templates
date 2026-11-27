@@ -3,10 +3,6 @@
 
 // 发送CMD12, ABORT, 强制停止传输
 class {{ class_prefix }}stop_transmission_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}stop_transmission_command_request)
-        `uvm_field_int(rca, UVM_ALL_ON)
-        `uvm_field_int(hpi, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[15:0] rca; // 相对地址
     rand data_xfer_dir_e data_xfer_dir; // 传输方向
@@ -28,6 +24,11 @@ class {{ class_prefix }}stop_transmission_command_request extends {{ class_prefi
         data_xfer_dir == super.data_xfer_dir;
         soft rca == settings.boot_cfg.relative_addr;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}stop_transmission_command_request)
+        `uvm_field_int(rca, UVM_ALL_ON)
+        `uvm_field_int(hpi, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

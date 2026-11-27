@@ -3,9 +3,6 @@
 
 // 接收微调区块
 class {{ class_prefix }}send_tuning_block_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}send_tuning_block_command_request)
-        `uvm_field_int(phase, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[7:0] phase; // 相位
 
@@ -49,6 +46,10 @@ class {{ class_prefix }}send_tuning_block_command_request extends {{ class_prefi
         ctx.bus_speed_mode_cur inside {SDR12,SDR25,SDR50,SDR104,DDR50};
                                                                                                                   {%- endif %}
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}send_tuning_block_command_request)
+        `uvm_field_int(phase, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

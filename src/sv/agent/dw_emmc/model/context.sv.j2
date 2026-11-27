@@ -3,12 +3,6 @@
 
 // 上下文，复位时清除
 class {{ class_prefix }}context extends {{ class_prefix }}base_item;
-    `uvm_object_utils_begin({{ class_prefix }}context)
-        `uvm_field_int(data_width_cur, UVM_ALL_ON)
-        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode_cur, UVM_ALL_ON)
-        `uvm_field_int(has_power_up, UVM_ALL_ON)
-        `uvm_field_int(has_initialized, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand int data_width_cur; // 当前应用的数据带宽
     rand bus_speed_mode_e bus_speed_mode_cur; // 当前应用的总线速度模式
@@ -27,6 +21,13 @@ class {{ class_prefix }}context extends {{ class_prefix }}base_item;
     function new(string name="{{ class_prefix }}context");
         super.new(name);
     endfunction
+
+    `uvm_object_utils_begin({{ class_prefix }}context)
+        `uvm_field_int(data_width_cur, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, bus_speed_mode_cur, UVM_ALL_ON)
+        `uvm_field_int(has_power_up, UVM_ALL_ON)
+        `uvm_field_int(has_initialized, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

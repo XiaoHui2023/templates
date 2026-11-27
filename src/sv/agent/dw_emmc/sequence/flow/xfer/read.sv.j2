@@ -3,10 +3,6 @@
 
 // EMMC 控制器读数据，分块发送读数据
 class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
-    `uvm_object_utils_begin({{ class_prefix }}xfer_read_seq)
-        `uvm_field_int(blocking, UVM_ALL_ON)
-        `uvm_field_queue_int(rdata, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit blocking; // 是否阻塞 (不立即结束，积攒起来一口气读)
     bit[7:0] rdata[$]; // 返回数据
@@ -131,6 +127,11 @@ class {{ class_prefix }}xfer_read_seq extends {{ class_prefix }}xfer_base_seq;
 
         rdata = cmd_response.data;
     endtask
+
+    `uvm_object_utils_begin({{ class_prefix }}xfer_read_seq)
+        `uvm_field_int(blocking, UVM_ALL_ON)
+        `uvm_field_queue_int(rdata, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

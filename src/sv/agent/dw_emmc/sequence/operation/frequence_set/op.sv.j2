@@ -2,9 +2,6 @@
 `define {{ class_prefix | upper }}FREQUENCE_SET_OP_SEQ
 
 class {{ class_prefix }}frequence_set_operation_seq extends {{ class_prefix }}base_operation_seq#({{ class_prefix }}frequence_set_response);
-    `uvm_object_utils_begin({{ class_prefix }}frequence_set_operation_seq)
-        `uvm_field_object(freq_set_request, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand {{ class_prefix }}frequence_set_request freq_set_request;
 
@@ -14,6 +11,10 @@ class {{ class_prefix }}frequence_set_operation_seq extends {{ class_prefix }}ba
 
     extern function void pre_randomize();
     extern task body();
+
+    `uvm_object_utils_begin({{ class_prefix }}frequence_set_operation_seq)
+        `uvm_field_object(freq_set_request, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 function void {{ class_prefix }}frequence_set_operation_seq::pre_randomize();

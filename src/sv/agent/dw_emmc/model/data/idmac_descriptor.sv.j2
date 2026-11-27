@@ -3,20 +3,6 @@
 `define {{ class_prefix | upper }}IDMAC_DESCRIPTOR_DATA
 
 class {{ class_prefix }}idmac_descriptor_data extends {{ class_prefix }}base_data;
-    `uvm_object_utils_begin({{ class_prefix }}idmac_descriptor_data)
-        `uvm_field_int(descriptor_addr, UVM_ALL_ON|UVM_NOPACK)
-        `uvm_field_int(data_addr, UVM_ALL_ON)
-        `uvm_field_int(next_descriptor_addr, UVM_ALL_ON)
-        `uvm_field_int(own, UVM_ALL_ON)
-        `uvm_field_int(end_of_ring, UVM_ALL_ON)
-        `uvm_field_int(second_address_chained, UVM_ALL_ON)
-        `uvm_field_int(first, UVM_ALL_ON)
-        `uvm_field_int(last, UVM_ALL_ON)
-        `uvm_field_int(dint, UVM_ALL_ON)
-        `uvm_field_int(dir, UVM_ALL_ON)
-        `uvm_field_int(buf1_size, UVM_ALL_ON)
-        `uvm_field_int(buf2_size, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     localparam int IDMAC_DESCRIPTOR_SIZE = 16;
     localparam int DES0_OWN_BIT = 31;
@@ -74,6 +60,21 @@ class {{ class_prefix }}idmac_descriptor_data extends {{ class_prefix }}base_dat
     extern function void to_bytes(ref {{ class_prefix }}base_data::bytes_t data);
     // 保持描述符大小固定为16字节。
     extern function void pre_randomize();
+
+    `uvm_object_utils_begin({{ class_prefix }}idmac_descriptor_data)
+        `uvm_field_int(descriptor_addr, UVM_ALL_ON|UVM_NOPACK)
+        `uvm_field_int(data_addr, UVM_ALL_ON)
+        `uvm_field_int(next_descriptor_addr, UVM_ALL_ON)
+        `uvm_field_int(own, UVM_ALL_ON)
+        `uvm_field_int(end_of_ring, UVM_ALL_ON)
+        `uvm_field_int(second_address_chained, UVM_ALL_ON)
+        `uvm_field_int(first, UVM_ALL_ON)
+        `uvm_field_int(last, UVM_ALL_ON)
+        `uvm_field_int(dint, UVM_ALL_ON)
+        `uvm_field_int(dir, UVM_ALL_ON)
+        `uvm_field_int(buf1_size, UVM_ALL_ON)
+        `uvm_field_int(buf2_size, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 function bit[31:0] {{ class_prefix }}idmac_descriptor_data::get_des0();

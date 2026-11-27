@@ -4,10 +4,6 @@
 
 // 发送CMD5，初始化
 class {{ class_prefix }}io_send_op_cond_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}io_send_op_cond_command_request)
-        `uvm_field_int(s18r, UVM_ALL_ON)
-        `uvm_field_int(ocr, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit s18r; // 切换到 1.8V查询
     rand bit[23:0] ocr; // OCR，等于0表示查询
@@ -26,6 +22,11 @@ class {{ class_prefix }}io_send_op_cond_command_request extends {{ class_prefix 
         chk_err_request.cmd_crc_err_en == 0;
         soft ocr == 'hff8000;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}io_send_op_cond_command_request)
+        `uvm_field_int(s18r, UVM_ALL_ON)
+        `uvm_field_int(ocr, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

@@ -8,7 +8,9 @@ import subprocess
 import tempfile
 
 from check_dw_emmc_read import FAMILY
+from check_dw_emmc_compile import compile_filelist, toolchain
 from check_sv_declaration_ownership import check_source, self_test
+from check_sv_filelist_order import check_type_order, self_test as order_self_test
 from check_template_pruning import ROOT, renderer
 
 
@@ -26,6 +28,7 @@ def verify(files, controller, card, dma, clock):
                          f"unbuilt={sorted(set(listed) - sources)}, repeated={len(listed) - len(set(listed))}")
     for path in sources:
         check_source(files[path], path)
+    check_type_order(files, listed)
     if any("clock_phase" in path or re.search(r"\b(?:calibrate_clock_phases|clock_phase_\w+)\b", files[path])
            for path in sources):
         raise ValueError("withdrawn clock phase adapter or calibrator is still generated")
@@ -72,7 +75,9 @@ def main():
     reports = {}
     rejected = 0
     self_test()
+    order_self_test()
     executable = renderer()
+    uvm = toolchain()
     with tempfile.TemporaryDirectory(prefix="dw-emmc-generation-") as temporary:
         work = Path(temporary)
         for (controller, card), dma, clock in product(CONTROLLERS, (False, True), (False, True)):
@@ -91,8 +96,23 @@ def main():
                 verify(files, controller, card, dma, clock)
             except ValueError as error:
                 raise ValueError(f"{name}: {error}") from error
+            compile_filelist(output, uvm, controller)
+            if (controller, card, dma, clock) == ("mshc", "emmc", False, False):
+                compile_filelist(output, uvm, controller, bad_order=True)
+                rejected += 1
             reports[name] = len(files)
             if not dma and not clock:
+                bad_order = files["all.f"].splitlines()
+                bad_order.remove("component/sequencer.sv")
+                bad_order.insert(bad_order.index("sequence/base.sv"), "component/sequencer.sv")
+                try:
+                    verify(files | {"all.f": "\n".join(bad_order)}, controller, card, dma, clock)
+                except ValueError as error:
+                    if "sequence/operation/base/req.sv" not in str(error) or "used before" not in str(error):
+                        raise
+                    rejected += 1
+                else:
+                    raise ValueError("generated filelist accepted request before sequencer")
                 controls = [("component/kit_sequencer.sv", "extern task dma_test();"),
                             ("top/interface.sv", f"input wire {CLOCK};")]
                 if card != "emmc":
@@ -125,7 +145,7 @@ def main():
     else:
         raise ValueError("package policy accepted a type-only package")
     print(json.dumps({"passed": True, "family": FAMILY.relative_to(ROOT).as_posix(),
-                      "profiles": reports, "rejected_controls": rejected}))
+                      "profiles": reports, "compiled_profiles": len(reports), "rejected_controls": rejected}))
 
 
 if __name__ == "__main__":

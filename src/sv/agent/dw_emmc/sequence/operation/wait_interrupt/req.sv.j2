@@ -2,26 +2,6 @@
 `define {{ class_prefix | upper }}WAIT_INTERRUPT_REQ
 
 class {{ class_prefix }}wait_interrupt_request extends {{ class_prefix }}base_request;
-    `uvm_object_utils_begin({{ class_prefix }}wait_interrupt_request)
-        `uvm_field_int(cmd_complete, UVM_ALL_ON|(cmd_complete?0:UVM_NOPRINT))
-        `uvm_field_int(xfer_complete, UVM_ALL_ON|(xfer_complete?0:UVM_NOPRINT))
-        `uvm_field_int(bgap_event, UVM_ALL_ON|(bgap_event?0:UVM_NOPRINT))
-{%- if enable_dma %}
-        `uvm_field_int(dma_interrupt, UVM_ALL_ON|(dma_interrupt?0:UVM_NOPRINT))
-{%- endif %}
-        `uvm_field_int(buf_wr_ready, UVM_ALL_ON|(buf_wr_ready?0:UVM_NOPRINT))
-        `uvm_field_int(buf_rd_ready, UVM_ALL_ON|(buf_rd_ready?0:UVM_NOPRINT))
-        `uvm_field_int(card_insertion, UVM_ALL_ON|(card_insertion?0:UVM_NOPRINT))
-        `uvm_field_int(card_removal, UVM_ALL_ON|(card_removal?0:UVM_NOPRINT))
-        `uvm_field_int(card_interrupt, UVM_ALL_ON|(card_interrupt?0:UVM_NOPRINT))
-        `uvm_field_int(int_a, UVM_ALL_ON|(int_a?0:UVM_NOPRINT))
-        `uvm_field_int(int_b, UVM_ALL_ON|(int_b?0:UVM_NOPRINT))
-        `uvm_field_int(int_c, UVM_ALL_ON|(int_c?0:UVM_NOPRINT))
-        `uvm_field_int(re_tune_event, UVM_ALL_ON|(re_tune_event?0:UVM_NOPRINT))
-        `uvm_field_int(fx_event, UVM_ALL_ON|(fx_event?0:UVM_NOPRINT))
-        `uvm_field_int(cqc_event, UVM_ALL_ON|(cqc_event?0:UVM_NOPRINT))
-        `uvm_field_int(timeout_us, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit cmd_complete;
     rand bit xfer_complete;
@@ -66,6 +46,27 @@ class {{ class_prefix }}wait_interrupt_request extends {{ class_prefix }}base_re
     function new(string name="{{ class_prefix }}wait_interrupt_request");
         super.new(name);
     endfunction
+
+    `uvm_object_utils_begin({{ class_prefix }}wait_interrupt_request)
+        `uvm_field_int(cmd_complete, UVM_ALL_ON|(cmd_complete?0:UVM_NOPRINT))
+        `uvm_field_int(xfer_complete, UVM_ALL_ON|(xfer_complete?0:UVM_NOPRINT))
+        `uvm_field_int(bgap_event, UVM_ALL_ON|(bgap_event?0:UVM_NOPRINT))
+{%- if enable_dma %}
+        `uvm_field_int(dma_interrupt, UVM_ALL_ON|(dma_interrupt?0:UVM_NOPRINT))
+{%- endif %}
+        `uvm_field_int(buf_wr_ready, UVM_ALL_ON|(buf_wr_ready?0:UVM_NOPRINT))
+        `uvm_field_int(buf_rd_ready, UVM_ALL_ON|(buf_rd_ready?0:UVM_NOPRINT))
+        `uvm_field_int(card_insertion, UVM_ALL_ON|(card_insertion?0:UVM_NOPRINT))
+        `uvm_field_int(card_removal, UVM_ALL_ON|(card_removal?0:UVM_NOPRINT))
+        `uvm_field_int(card_interrupt, UVM_ALL_ON|(card_interrupt?0:UVM_NOPRINT))
+        `uvm_field_int(int_a, UVM_ALL_ON|(int_a?0:UVM_NOPRINT))
+        `uvm_field_int(int_b, UVM_ALL_ON|(int_b?0:UVM_NOPRINT))
+        `uvm_field_int(int_c, UVM_ALL_ON|(int_c?0:UVM_NOPRINT))
+        `uvm_field_int(re_tune_event, UVM_ALL_ON|(re_tune_event?0:UVM_NOPRINT))
+        `uvm_field_int(fx_event, UVM_ALL_ON|(fx_event?0:UVM_NOPRINT))
+        `uvm_field_int(cqc_event, UVM_ALL_ON|(cqc_event?0:UVM_NOPRINT))
+        `uvm_field_int(timeout_us, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

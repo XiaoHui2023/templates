@@ -2,9 +2,6 @@
 `define {{ class_prefix | upper }}FREQUENCE_SET_REQ
 
 class {{ class_prefix }}frequence_set_request extends {{ class_prefix }}base_request;
-    `uvm_object_utils_begin({{ class_prefix }}frequence_set_request)
-        `uvm_field_int(frequence, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand int frequence;
 
@@ -31,6 +28,10 @@ class {{ class_prefix }}frequence_set_request extends {{ class_prefix }}base_req
         (ctx.bus_speed_mode_cur == SDR104)-> soft frequence == settings.boot_cfg.frequence_sdr104;
                                                                                             {%- endif %}
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}frequence_set_request)
+        `uvm_field_int(frequence, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

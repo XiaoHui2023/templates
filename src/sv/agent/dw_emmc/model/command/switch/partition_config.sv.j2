@@ -4,11 +4,6 @@
 
 //
 class {{ class_prefix }}switch_partition_config_command_request extends {{ class_prefix }}switch_command_request;
-    `uvm_object_utils_begin({{ class_prefix }}switch_partition_config_command_request)
-        `uvm_field_int(boot_ack,UVM_ALL_ON)
-        `uvm_field_enum(boot_partition_enable_e,boot_partition_enable,UVM_ALL_ON)
-        `uvm_field_enum(boot_partition_access_e,boot_partition_access,UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit boot_ack; // 启动操作期间是否发送启动应答
     rand boot_partition_enable_e boot_partition_enable; // 用户选择发送该梯卡机的启动数据服务
@@ -29,6 +24,12 @@ class {{ class_prefix }}switch_partition_config_command_request extends {{ class
         value[2:0] == boot_partition_access;
         index == 179; // 0xb3
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}switch_partition_config_command_request)
+        `uvm_field_int(boot_ack,UVM_ALL_ON)
+        `uvm_field_enum(boot_partition_enable_e,boot_partition_enable,UVM_ALL_ON)
+        `uvm_field_enum(boot_partition_access_e,boot_partition_access,UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

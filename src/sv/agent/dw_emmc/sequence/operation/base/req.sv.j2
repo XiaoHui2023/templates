@@ -2,9 +2,6 @@
 `define {{ class_prefix | upper }}BASE_REQ
 
 class {{ class_prefix }}base_request extends {{ class_prefix }}base_item;
-    `uvm_object_utils_begin({{ class_prefix }}base_request)
-        `uvm_field_int(randomize_lock, UVM_ALL_ON|UVM_NOPRINT)
-    `uvm_object_utils_end
     `uvm_declare_p_sequencer({{ class_prefix }}sequencer)
 
     {{ class_prefix }}settings settings;
@@ -20,6 +17,10 @@ class {{ class_prefix }}base_request extends {{ class_prefix }}base_item;
     endfunction
 
     extern function void pre_randomize();
+
+    `uvm_object_utils_begin({{ class_prefix }}base_request)
+        `uvm_field_int(randomize_lock, UVM_ALL_ON|UVM_NOPRINT)
+    `uvm_object_utils_end
 endclass
 
 function void {{ class_prefix }}base_request::pre_randomize();

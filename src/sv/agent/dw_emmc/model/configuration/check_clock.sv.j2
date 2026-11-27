@@ -2,19 +2,6 @@
 `define {{ class_prefix | upper }}CHECK_CLOCK_CONFIGURATION
 
 class {{ class_prefix }}check_clock_configuration extends {{ class_prefix }}base_item;
-    `uvm_object_utils_begin({{ class_prefix }}check_clock_configuration)
-                                            {%- for clk in monitored_clocks %}
-                                            {%- if clk.check_type == "presence" %}
-        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
-                                            {%- elif clk.check_type == "frequency" %}
-        `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
-        `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
-                                            {%- elif clk.check_type == "relation" %}
-        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
-        `uvm_field_int(relation_tolerance_{{ clk.name }}, UVM_ALL_ON)
-                                            {%- endif %}
-                                            {%- endfor %}
-    `uvm_object_utils_end
 
                                             {%- for clk in monitored_clocks %}
                                             {%- if clk.check_type == "presence" %}
@@ -45,5 +32,19 @@ class {{ class_prefix }}check_clock_configuration extends {{ class_prefix }}base
                                             {%- endif %}
                                             {%- endfor %}
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}check_clock_configuration)
+                                            {%- for clk in monitored_clocks %}
+                                            {%- if clk.check_type == "presence" %}
+        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- elif clk.check_type == "frequency" %}
+        `uvm_field_int(frequence_{{ clk.name }}, UVM_ALL_ON)
+        `uvm_field_int(tolerance_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- elif clk.check_type == "relation" %}
+        `uvm_field_int(min_frequence_{{ clk.name }}, UVM_ALL_ON)
+        `uvm_field_int(relation_tolerance_{{ clk.name }}, UVM_ALL_ON)
+                                            {%- endif %}
+                                            {%- endfor %}
+    `uvm_object_utils_end
 endclass
 `endif

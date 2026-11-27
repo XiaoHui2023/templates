@@ -4,9 +4,6 @@
 
 // ACMD6 设置总线宽度
 class {{ class_prefix }}set_bus_width_acmd_request extends {{ class_prefix }}base_acmd_request;
-    `uvm_object_utils_begin({{ class_prefix }}set_bus_width_acmd_request)
-        `uvm_field_int(bus_width, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand int bus_width; // 总线宽度
 
@@ -24,6 +21,10 @@ class {{ class_prefix }}set_bus_width_acmd_request extends {{ class_prefix }}bas
         bus_width inside {1,4};
         soft bus_width == settings.boot_cfg.default_data_width;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}set_bus_width_acmd_request)
+        `uvm_field_int(bus_width, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 `endif
 {% endif %}

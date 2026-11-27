@@ -13,6 +13,8 @@
 function automatic void {{ class_prefix }}load_memory_file(input string filename, output bit[7:0] data[$], input int dw = -1, input bit[31:0] start_addr = 0, input int len = -1);
     {{ class_prefix }}mem mem;
     string message;
+    longint extent;
+    longint remaining;
 
     if(dw != -1 && dw % 8 > 0)
         `uvm_fatal("", $psprintf("require data width align to byte, but dw=%0d", dw))
@@ -21,11 +23,16 @@ function automatic void {{ class_prefix }}load_memory_file(input string filename
     if(!mem.load_memh(filename))
         `uvm_fatal("", $psprintf("load memory file failed: %s", filename))
 
-    if(start_addr > mem.data.size())
-        `uvm_fatal("", $psprintf("start_addr 0x%0h exceeds memory size %0d", start_addr, mem.data.size()))
+    extent = mem.get_extent();
+    if(longint'(start_addr) > extent)
+        `uvm_fatal("", $psprintf("start_addr 0x%0h exceeds memory size %0d", start_addr, extent))
 
-    if(len <= 0)
-        len = mem.data.size() - start_addr;
+    if(len <= 0) begin
+        remaining = extent - longint'(start_addr);
+        if(remaining > 32'sh7fff_ffff)
+            `uvm_fatal("", $sformatf("read length %0d exceeds the queue length limit", remaining))
+        len = int'(remaining);
+    end
 
     if(!mem.read(start_addr, len, data, message))
         `uvm_fatal("", message)

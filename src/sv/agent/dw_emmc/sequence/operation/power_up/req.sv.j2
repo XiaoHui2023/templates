@@ -7,20 +7,6 @@ class {{ class_prefix }}power_up_request extends {{ class_prefix }}base_request;
         CLK_GEN_SELECT_CONST  // 确定数字，1/(N+1)
     } clk_gen_select_e;
 
-    `uvm_object_utils_begin({{ class_prefix }}power_up_request)
-        `uvm_field_int(freq_divide, UVM_ALL_ON)
-        `uvm_field_int(freq_sel, UVM_ALL_ON)
-        `uvm_field_enum(clk_gen_select_e, clk_gen_select, UVM_ALL_ON)
-        `uvm_field_int(sd_bus_pwr_vdd1, UVM_ALL_ON)
-        `uvm_field_int(sd_bus_pwr_vdd2, UVM_ALL_ON)
-        `uvm_field_int(sd_bus_vol_vdd1, UVM_ALL_ON)
-        `uvm_field_int(sd_bus_vol_vdd2, UVM_ALL_ON)
-        `uvm_field_int(signaling_en, UVM_ALL_ON)
-        `uvm_field_int(enable_soft_reset, UVM_ALL_ON)
-{%- if is_mobile_storage %}
-        `uvm_field_int(update_clock_timeout_us, UVM_ALL_ON)
-{%- endif %}
-    `uvm_object_utils_end
 
     rand int freq_divide; // 时钟分频系数
     rand bit[9:0] freq_sel; // 时钟分频参数 (取决于 freq_divide)
@@ -96,6 +82,21 @@ class {{ class_prefix }}power_up_request extends {{ class_prefix }}base_request;
             signaling_en == 1;
         }
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}power_up_request)
+        `uvm_field_int(freq_divide, UVM_ALL_ON)
+        `uvm_field_int(freq_sel, UVM_ALL_ON)
+        `uvm_field_enum(clk_gen_select_e, clk_gen_select, UVM_ALL_ON)
+        `uvm_field_int(sd_bus_pwr_vdd1, UVM_ALL_ON)
+        `uvm_field_int(sd_bus_pwr_vdd2, UVM_ALL_ON)
+        `uvm_field_int(sd_bus_vol_vdd1, UVM_ALL_ON)
+        `uvm_field_int(sd_bus_vol_vdd2, UVM_ALL_ON)
+        `uvm_field_int(signaling_en, UVM_ALL_ON)
+        `uvm_field_int(enable_soft_reset, UVM_ALL_ON)
+{%- if is_mobile_storage %}
+        `uvm_field_int(update_clock_timeout_us, UVM_ALL_ON)
+{%- endif %}
+    `uvm_object_utils_end
 endclass
 
 `endif

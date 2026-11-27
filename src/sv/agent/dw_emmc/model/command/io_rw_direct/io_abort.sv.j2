@@ -4,9 +4,6 @@
 
 // CCCM.I/O Abort
 class {{ class_prefix }}io_rw_direct_io_abort_command_request extends {{ class_prefix }}io_rw_direct_command_request;
-    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_io_abort_command_request)
-        `uvm_field_int(as, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[2:0] as; // Abort Select, 选择哪个function
 
@@ -19,6 +16,10 @@ class {{ class_prefix }}io_rw_direct_io_abort_command_request extends {{ class_p
         register_address == 'h06;
         write_data[2:0] == as;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_io_abort_command_request)
+        `uvm_field_int(as, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

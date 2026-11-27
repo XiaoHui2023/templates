@@ -16,6 +16,10 @@ model/configuration/boot.sv
 model/configuration/check_clock.sv
 model/settings.sv
 
+component/scoreboard.sv
+component/callback.sv
+component/sequencer.sv
+
 model/data/base.sv
                                         {%- if enable_dma and not is_mobile_storage %}
 model/data/adma_des.sv
@@ -87,10 +91,6 @@ model/command/sleep_awake.sv
 model/command/stop_transmission.sv
 model/command/write_block.sv
 model/command/write_multiple_block.sv
-
-component/scoreboard.sv
-component/callback.sv
-component/sequencer.sv
 
 sequence/base.sv
 sequence/operation/base/rsp.sv

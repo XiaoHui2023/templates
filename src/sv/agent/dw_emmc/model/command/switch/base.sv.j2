@@ -11,13 +11,6 @@ class {{ class_prefix }}switch_command_request extends {{ class_prefix }}command
         WRITE_BYTE // 直接写字节
     } access_e;
 
-    `uvm_object_utils_begin({{ class_prefix }}switch_command_request)
-        `uvm_field_enum(access_e, access, UVM_ALL_ON)
-        `uvm_field_int(index, UVM_ALL_ON)
-        `uvm_field_int(offset, UVM_ALL_ON)
-        `uvm_field_int(value, UVM_ALL_ON)
-        `uvm_field_int(cmd_set, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand access_e access; // 访问方式
     rand bit[7:0] index; // 索引
@@ -130,6 +123,14 @@ class {{ class_prefix }}switch_command_request extends {{ class_prefix }}command
     //    CMD_SET=191,
     //    INVALID_INDEX=192
     // } index_e;
+
+    `uvm_object_utils_begin({{ class_prefix }}switch_command_request)
+        `uvm_field_enum(access_e, access, UVM_ALL_ON)
+        `uvm_field_int(index, UVM_ALL_ON)
+        `uvm_field_int(offset, UVM_ALL_ON)
+        `uvm_field_int(value, UVM_ALL_ON)
+        `uvm_field_int(cmd_set, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

@@ -86,7 +86,9 @@ def validate_source(*, staged: bool = False) -> None:
     dw_emmc_paths = changed.splitlines()
     if outgoing.returncode == 0:
         dw_emmc_paths += outgoing.stdout.splitlines()
-    if ({b"tools/check_sv_declaration_ownership.py", b"tools/check_dw_emmc_generation.py"} & set(dw_emmc_paths)
+    if ({b"tools/check_sv_declaration_ownership.py", b"tools/check_sv_filelist_order.py",
+         b"tools/check_dw_emmc_compile.py", b"tools/dw_emmc_compile_ral.txt",
+         b"tools/check_dw_emmc_generation.py"} & set(dw_emmc_paths)
             and not any(path.startswith(b"src/sv/agent/dw_emmc/") and path.endswith((b".j2", b".py", b".yaml", b".json"))
                         for path in dw_emmc_paths)):
         run(sys.executable, "tools/check_template_pruning.py", "--family", "src/sv/agent/dw_emmc")

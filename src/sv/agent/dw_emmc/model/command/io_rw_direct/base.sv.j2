@@ -4,13 +4,6 @@
 
 // 发送CMD52，寄存器单个读写
 class {{ class_prefix }}io_rw_direct_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_command_request)
-        `uvm_field_int(rw_flag, UVM_ALL_ON)
-        `uvm_field_int(function_number, UVM_ALL_ON)
-        `uvm_field_int(raw_flag, UVM_ALL_ON)
-        `uvm_field_int(register_address, UVM_ALL_ON)
-        `uvm_field_int(write_data, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit rw_flag; // 0 : 读 1 : 写
     rand bit[2:0] function_number; // 选择要访问的功能的ID, 0 : CCCR, 1-7 : FBR
@@ -40,6 +33,14 @@ class {{ class_prefix }}io_rw_direct_command_request extends {{ class_prefix }}c
         foreach(write_data[j])
             soft write_data[j] == 0;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_command_request)
+        `uvm_field_int(rw_flag, UVM_ALL_ON)
+        `uvm_field_int(function_number, UVM_ALL_ON)
+        `uvm_field_int(raw_flag, UVM_ALL_ON)
+        `uvm_field_int(register_address, UVM_ALL_ON)
+        `uvm_field_int(write_data, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

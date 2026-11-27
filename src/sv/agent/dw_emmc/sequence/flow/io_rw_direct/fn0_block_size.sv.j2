@@ -4,10 +4,6 @@
 
 // CMD52, 设置块大小
 class {{ class_prefix }}io_rw_direct_fn0_block_size_seq extends {{ class_prefix }}base_seq;
-    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_fn0_block_size_seq)
-        `uvm_field_int(function_number, UVM_ALL_ON)
-        `uvm_field_int(block_length, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand int function_number; // 设置1-7中哪个功能
     rand bit[15:0] block_length; // 块的长度
@@ -30,6 +26,11 @@ class {{ class_prefix }}io_rw_direct_fn0_block_size_seq extends {{ class_prefix 
             cmd_request.local_function_number == local::function_number;
         })
     endtask
+
+    `uvm_object_utils_begin({{ class_prefix }}io_rw_direct_fn0_block_size_seq)
+        `uvm_field_int(function_number, UVM_ALL_ON)
+        `uvm_field_int(block_length, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 `endif
 {% endif %}

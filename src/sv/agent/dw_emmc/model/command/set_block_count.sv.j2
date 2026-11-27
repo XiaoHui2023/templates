@@ -3,12 +3,6 @@
 
 // 发送CMD23, 设置块数
 class {{ class_prefix }}set_block_count_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}set_block_count_command_request)
-        `uvm_field_int(tag_request, UVM_ALL_ON)
-        `uvm_field_int(context_id, UVM_ALL_ON)
-        `uvm_field_int(forced_programming, UVM_ALL_ON)
-        `uvm_field_int(number_of_blocks, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit tag_request; // tag 请求
     rand bit[3:0] context_id; // 上下文ID
@@ -43,6 +37,13 @@ class {{ class_prefix }}set_block_count_command_request extends {{ class_prefix 
 
                                                                                 {%- endif %}
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}set_block_count_command_request)
+        `uvm_field_int(tag_request, UVM_ALL_ON)
+        `uvm_field_int(context_id, UVM_ALL_ON)
+        `uvm_field_int(forced_programming, UVM_ALL_ON)
+        `uvm_field_int(number_of_blocks, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

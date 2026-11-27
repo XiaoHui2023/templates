@@ -3,9 +3,6 @@
 
 // 发送CMD18，读多块
 class {{ class_prefix }}read_multiple_block_command_request extends {{ class_prefix }}command_request;
-    `uvm_object_utils_begin({{ class_prefix }}read_multiple_block_command_request)
-        `uvm_field_int(data_address, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[31:0] data_address; // 地址，<=2GB，表示字节地址；> 2GB，表示块（512B）地址
 
@@ -22,6 +19,10 @@ class {{ class_prefix }}read_multiple_block_command_request extends {{ class_pre
         data_address == addr[31:0];
         data_address == argument;
     }
+
+    `uvm_object_utils_begin({{ class_prefix }}read_multiple_block_command_request)
+        `uvm_field_int(data_address, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 `endif

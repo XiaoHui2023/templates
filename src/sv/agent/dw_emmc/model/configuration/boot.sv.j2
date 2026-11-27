@@ -2,37 +2,6 @@
 `define {{ class_prefix | upper }}BOOT_CONFIGURATION
 
 class {{ class_prefix }}boot_configuration extends {{ class_prefix }}base_item;
-    `uvm_object_utils_begin({{ class_prefix }}boot_configuration)
-        `uvm_field_int(power_up_time_ns, UVM_ALL_ON)
-        `uvm_field_int(relative_addr, UVM_ALL_ON)
-        `uvm_field_enum(voltage_e, voltage, UVM_ALL_ON)
-        `uvm_field_int(voltage_switch_time_us, UVM_ALL_ON)
-        `uvm_field_int(default_data_width, UVM_ALL_ON)
-        `uvm_field_enum(bus_speed_mode_e, default_bus_speed_mode, UVM_ALL_ON)
-                                                                                                                                                {%- if is_sd %}
-        `uvm_field_enum(capacity_type_e, sd_capacity_type, UVM_ALL_ON)
-        `uvm_field_int(frequence_ds, UVM_ALL_ON)
-        `uvm_field_int(frequence_sdr12, UVM_ALL_ON)
-        `uvm_field_int(frequence_hs, UVM_ALL_ON)
-        `uvm_field_int(frequence_sdr25, UVM_ALL_ON)
-        `uvm_field_int(frequence_ddr50, UVM_ALL_ON)
-        `uvm_field_int(frequence_sdr50, UVM_ALL_ON)
-        `uvm_field_int(frequence_sdr104, UVM_ALL_ON)
-        `uvm_field_int(is_support_sdr12, UVM_ALL_ON)
-        `uvm_field_int(is_support_sdr25, UVM_ALL_ON)
-        `uvm_field_int(is_support_sdr50, UVM_ALL_ON)
-        `uvm_field_int(is_support_sdr104, UVM_ALL_ON)
-        `uvm_field_int(is_support_ddr50, UVM_ALL_ON)
-        `uvm_field_int(auto_card_insert, UVM_ALL_ON)
-                                                                                                                                                {%- endif %}
-                                                                                                                                                {%- if is_emmc %}
-        `uvm_field_int(frequence_legacy, UVM_ALL_ON)
-        `uvm_field_int(frequence_high_speed_sdr, UVM_ALL_ON)
-        `uvm_field_int(frequence_high_speed_ddr, UVM_ALL_ON)
-        `uvm_field_int(frequence_hs200, UVM_ALL_ON)
-        `uvm_field_int(frequence_hs400, UVM_ALL_ON)
-                                                                                                                                                {%- endif %}
-    `uvm_object_utils_end
 
     rand int power_up_time_ns; // 首次上电等待的时间（ns）。 首次上电等待至少 100000 ns 和 74个时钟周期
     rand bit[15:0] relative_addr; // 相对地址
@@ -113,6 +82,38 @@ class {{ class_prefix }}boot_configuration extends {{ class_prefix }}base_item;
   {%- endif %}
         relative_addr != 0;
       }
+
+    `uvm_object_utils_begin({{ class_prefix }}boot_configuration)
+        `uvm_field_int(power_up_time_ns, UVM_ALL_ON)
+        `uvm_field_int(relative_addr, UVM_ALL_ON)
+        `uvm_field_enum(voltage_e, voltage, UVM_ALL_ON)
+        `uvm_field_int(voltage_switch_time_us, UVM_ALL_ON)
+        `uvm_field_int(default_data_width, UVM_ALL_ON)
+        `uvm_field_enum(bus_speed_mode_e, default_bus_speed_mode, UVM_ALL_ON)
+                                                                                                                                                {%- if is_sd %}
+        `uvm_field_enum(capacity_type_e, sd_capacity_type, UVM_ALL_ON)
+        `uvm_field_int(frequence_ds, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr12, UVM_ALL_ON)
+        `uvm_field_int(frequence_hs, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr25, UVM_ALL_ON)
+        `uvm_field_int(frequence_ddr50, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr50, UVM_ALL_ON)
+        `uvm_field_int(frequence_sdr104, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr12, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr25, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr50, UVM_ALL_ON)
+        `uvm_field_int(is_support_sdr104, UVM_ALL_ON)
+        `uvm_field_int(is_support_ddr50, UVM_ALL_ON)
+        `uvm_field_int(auto_card_insert, UVM_ALL_ON)
+                                                                                                                                                {%- endif %}
+                                                                                                                                                {%- if is_emmc %}
+        `uvm_field_int(frequence_legacy, UVM_ALL_ON)
+        `uvm_field_int(frequence_high_speed_sdr, UVM_ALL_ON)
+        `uvm_field_int(frequence_high_speed_ddr, UVM_ALL_ON)
+        `uvm_field_int(frequence_hs200, UVM_ALL_ON)
+        `uvm_field_int(frequence_hs400, UVM_ALL_ON)
+                                                                                                                                                {%- endif %}
+    `uvm_object_utils_end
 endclass
 
 `endif

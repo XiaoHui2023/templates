@@ -2,30 +2,6 @@
 `define {{ class_prefix | upper }}XFER_BASE_SEQ
 
 class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
-    `uvm_object_utils_begin({{ class_prefix }}xfer_base_seq)
-        `uvm_field_int(addr,UVM_ALL_ON)
-        `uvm_field_int(count,UVM_ALL_ON)
-        `uvm_field_int(size,UVM_ALL_ON)
-        `uvm_field_int(len,UVM_ALL_ON)
-{%- if enable_dma %}
-        `uvm_field_int(dma_enable,UVM_ALL_ON)
-        if(dma_enable) begin
-            `uvm_field_enum(dma_sel_e,dma_sel,UVM_ALL_ON)
-{%- if is_mobile_storage %}
-            `uvm_field_object(idmac_descriptor,UVM_ALL_ON)
-{%- else %}
-            `uvm_field_object(adma_des,UVM_ALL_ON)
-{%- endif %}
-        end
-{%- endif %}
-                {%- if is_sdio %}
-        `uvm_field_int(function_number,UVM_ALL_ON)
-                {%- elif is_emmc or is_sdcard %}
-        `uvm_field_int(is_ddr,UVM_ALL_ON)
-                {%- endif %}
-        `uvm_field_int(abort,UVM_ALL_ON)
-        `uvm_field_enum(data_xfer_dir_e,data_xfer_dir,UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[31:0] addr; // 地址
     rand int count; // 读/写块
@@ -150,6 +126,30 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
     extern virtual task execute_sdio(bit[7:0] wdata[$]={});
         {%- endif %}
 
+    `uvm_object_utils_begin({{ class_prefix }}xfer_base_seq)
+        `uvm_field_int(addr,UVM_ALL_ON)
+        `uvm_field_int(count,UVM_ALL_ON)
+        `uvm_field_int(size,UVM_ALL_ON)
+        `uvm_field_int(len,UVM_ALL_ON)
+{%- if enable_dma %}
+        `uvm_field_int(dma_enable,UVM_ALL_ON)
+        if(dma_enable) begin
+            `uvm_field_enum(dma_sel_e,dma_sel,UVM_ALL_ON)
+{%- if is_mobile_storage %}
+            `uvm_field_object(idmac_descriptor,UVM_ALL_ON)
+{%- else %}
+            `uvm_field_object(adma_des,UVM_ALL_ON)
+{%- endif %}
+        end
+{%- endif %}
+                {%- if is_sdio %}
+        `uvm_field_int(function_number,UVM_ALL_ON)
+                {%- elif is_emmc or is_sdcard %}
+        `uvm_field_int(is_ddr,UVM_ALL_ON)
+                {%- endif %}
+        `uvm_field_int(abort,UVM_ALL_ON)
+        `uvm_field_enum(data_xfer_dir_e,data_xfer_dir,UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 
 function void {{ class_prefix }}xfer_base_seq::pre_randomize();

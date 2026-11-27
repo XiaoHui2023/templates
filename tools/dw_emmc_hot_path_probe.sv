@@ -1,6 +1,14 @@
-`define uvm_object_utils(T)
+`define uvm_object_utils(T) typedef fixture_factory#(T) type_id;
 `define uvm_info(ID, MESSAGE, LEVEL)
 `define uvm_error(ID, MESSAGE) $fatal(1, "%s: %s", ID, MESSAGE);
+`define uvm_fatal(ID, MESSAGE) $fatal(1, "%s: %s", ID, MESSAGE);
+
+class fixture_factory #(type T = int);
+    static function T create(string name);
+        T item = new(name);
+        return item;
+    endfunction
+endclass
 
 class Emmc_ctrl_base_object;
     function new(string name);
@@ -8,6 +16,7 @@ class Emmc_ctrl_base_object;
 endclass
 
 `include "core/mem.sv"
+`include "core/load_memory_file.sv"
 
 class fifo_model;
     int words;
@@ -46,6 +55,7 @@ module dw_emmc_hot_path_probe;
         bit [7:0] actual[$];
         bit [7:0] expected[$] = '{8'h7f, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
         string message;
+        int mem_file;
         localparam longint BOOT_BASE = 64'h1_0000_0000;
 
         if (!$test$plusargs("dense_only")) begin
@@ -64,6 +74,15 @@ module dw_emmc_hot_path_probe;
         model.clear();
         if (model.read(7, 1, actual, message))
             $fatal(1, "clear left stale data");
+
+        mem_file = $fopen("sparse.memh", "w");
+        if (!mem_file)
+            $fatal(1, "cannot write fixture memory file");
+        $fdisplay(mem_file, "@7 11 22 33");
+        $fclose(mem_file);
+        Emmc_ctrl_load_memory_file("sparse.memh", actual, 8, 6);
+        if (actual != with_gap)
+            $fatal(1, "MEMH tail must use address extent, not number of populated bytes");
 
         actual = '{8'h7f};
         command_seq.cmd_request.block_size = 4;

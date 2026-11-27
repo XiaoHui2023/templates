@@ -3,9 +3,6 @@
 
 // 调试 [CMD21], 需要先设置采样位置、速率，并切换到时钟频率
 class {{ class_prefix }}tune_seq extends {{ class_prefix }}base_seq;
-    `uvm_object_utils_begin({{ class_prefix }}tune_seq)
-        `uvm_field_int(phase, UVM_ALL_ON)
-    `uvm_object_utils_end
 
     rand bit[7:0] phase; // 相位
 
@@ -21,5 +18,9 @@ class {{ class_prefix }}tune_seq extends {{ class_prefix }}base_seq;
             cmd_request.block_count == 1;
         })
     endtask
+
+    `uvm_object_utils_begin({{ class_prefix }}tune_seq)
+        `uvm_field_int(phase, UVM_ALL_ON)
+    `uvm_object_utils_end
 endclass
 `endif

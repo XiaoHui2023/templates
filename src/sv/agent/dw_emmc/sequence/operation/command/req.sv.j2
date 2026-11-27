@@ -14,42 +14,6 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         R7
     } resp_e;
 
-    `uvm_object_utils_begin({{ class_prefix }}command_request)
-        `uvm_field_int(cmd_index, UVM_ALL_ON)
-        `uvm_field_int(argument, UVM_ALL_ON)
-        `uvm_field_enum(resp_e, resp, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_int(data_present_sel, UVM_ALL_ON)
-        if(data_present_sel) begin
-            `uvm_field_int(addr, UVM_ALL_ON)
-            `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
-            `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
-            `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
-            `uvm_field_int(block_count, UVM_ALL_ON)
-            `uvm_field_int(block_size, UVM_ALL_ON)
-            `uvm_field_int(len, UVM_ALL_ON)
-{%- if enable_dma %}
-            `uvm_field_int(dma_enable, UVM_ALL_ON)
-            if(dma_enable) begin
-                `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
-                `uvm_field_int(dma_addr, UVM_ALL_ON)
-            end
-            else begin
-{%- endif %}
-                `uvm_field_queue_int(wdata, UVM_ALL_ON)
-                `uvm_field_int(rd_blocking, UVM_ALL_ON)
-{%- if enable_dma %}
-            end
-{%- endif %}
-        end
-{%- if is_mobile_storage %}
-        `uvm_field_int(pio_read_timeout_us, UVM_ALL_ON)
-{%- endif %}
-        `uvm_field_object(access_request, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_object(chk_err_request, UVM_ALL_ON | UVM_NOPRINT)
-        `uvm_field_object(rst_request, UVM_ALL_ON | UVM_NOPRINT)
-    `uvm_object_utils_end
 
     rand bit[5:0] cmd_index; // 传输命令索引
     rand int argument; // 传输参数
@@ -208,6 +172,43 @@ class {{ class_prefix }}command_request extends {{ class_prefix }}base_request;
         set_child_context(chk_err_request);
         set_child_context(rst_request);
     endfunction
+
+    `uvm_object_utils_begin({{ class_prefix }}command_request)
+        `uvm_field_int(cmd_index, UVM_ALL_ON)
+        `uvm_field_int(argument, UVM_ALL_ON)
+        `uvm_field_enum(resp_e, resp, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(cmd_crc_chk_enable, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(cmd_idx_chk_enable, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_int(data_present_sel, UVM_ALL_ON)
+        if(data_present_sel) begin
+            `uvm_field_int(addr, UVM_ALL_ON)
+            `uvm_field_enum(auto_cmd_enable_e, auto_cmd_enable, UVM_ALL_ON)
+            `uvm_field_enum(data_xfer_dir_e, data_xfer_dir, UVM_ALL_ON)
+            `uvm_field_enum(multi_blk_sel_e, multi_blk_sel, UVM_ALL_ON)
+            `uvm_field_int(block_count, UVM_ALL_ON)
+            `uvm_field_int(block_size, UVM_ALL_ON)
+            `uvm_field_int(len, UVM_ALL_ON)
+{%- if enable_dma %}
+            `uvm_field_int(dma_enable, UVM_ALL_ON)
+            if(dma_enable) begin
+                `uvm_field_enum(dma_sel_e, dma_sel, UVM_ALL_ON)
+                `uvm_field_int(dma_addr, UVM_ALL_ON)
+            end
+            else begin
+{%- endif %}
+                `uvm_field_queue_int(wdata, UVM_ALL_ON)
+                `uvm_field_int(rd_blocking, UVM_ALL_ON)
+{%- if enable_dma %}
+            end
+{%- endif %}
+        end
+{%- if is_mobile_storage %}
+        `uvm_field_int(pio_read_timeout_us, UVM_ALL_ON)
+{%- endif %}
+        `uvm_field_object(access_request, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_object(chk_err_request, UVM_ALL_ON | UVM_NOPRINT)
+        `uvm_field_object(rst_request, UVM_ALL_ON | UVM_NOPRINT)
+    `uvm_object_utils_end
 endclass
 
 `endif
