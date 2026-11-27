@@ -25,7 +25,6 @@ endfunction
 
 task {{ class_prefix }}frequence_set_operation_seq::body();
     p_sequencer.set_frequence(freq_set_request.frequence);
-    p_sequencer.note_bus_frequency(freq_set_request.frequence);
 endtask
 
 `endif

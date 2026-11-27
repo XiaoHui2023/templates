@@ -121,13 +121,6 @@ class Models(BaseModel):
         root = self.regmodel_root
         return f"{root}_map_{root}_vendor1_block"
 
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def clock_frequency_modes(self) -> list[str]:
-        if self.is_emmc:
-            return ["LEGACY", "HIGH_SPEED_SDR", "HIGH_SPEED_DDR", "HS200", "HS400"]
-        return ["DS", "SDR12", "HS", "SDR25", "DDR50", "SDR50", "SDR104"]
-
     @computed_field(  # type: ignore[prop-decorator]
         description="由 card_type 推导；配置不可传入。",
     )

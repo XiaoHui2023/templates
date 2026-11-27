@@ -69,9 +69,9 @@ class {{ class_prefix }}idmac_descriptor_data extends {{ class_prefix }}base_dat
     // 获取DES1长度字。
     extern function bit[31:0] get_des1();
     // 追加一个小端word。
-    extern function void push_word(ref {{ class_prefix }}bytes data, input bit[31:0] word_data);
+    extern function void push_word(ref {{ class_prefix }}base_data::bytes_t data, input bit[31:0] word_data);
     // 构造16字节IDMAC描述符镜像。
-    extern function void to_bytes(ref {{ class_prefix }}bytes data);
+    extern function void to_bytes(ref {{ class_prefix }}base_data::bytes_t data);
     // 保持描述符大小固定为16字节。
     extern function void pre_randomize();
 endclass
@@ -99,14 +99,14 @@ function bit[31:0] {{ class_prefix }}idmac_descriptor_data::get_des1();
     return value;
 endfunction
 
-function void {{ class_prefix }}idmac_descriptor_data::push_word(ref {{ class_prefix }}bytes data, input bit[31:0] word_data);
+function void {{ class_prefix }}idmac_descriptor_data::push_word(ref {{ class_prefix }}base_data::bytes_t data, input bit[31:0] word_data);
     data.push_back(word_data[7:0]);
     data.push_back(word_data[15:8]);
     data.push_back(word_data[23:16]);
     data.push_back(word_data[31:24]);
 endfunction
 
-function void {{ class_prefix }}idmac_descriptor_data::to_bytes(ref {{ class_prefix }}bytes data);
+function void {{ class_prefix }}idmac_descriptor_data::to_bytes(ref {{ class_prefix }}base_data::bytes_t data);
     data.delete();
     push_word(data, get_des0());
     push_word(data, get_des1());

@@ -1,10 +1,6 @@
 `ifndef {{ class_prefix | upper }}BASE_ITEM
 `define {{ class_prefix | upper }}BASE_ITEM
 
-typedef class {{ class_prefix }}sequencer;
-typedef class {{ class_prefix }}settings;
-typedef class {{ class_prefix }}context;
-
 class {{ class_prefix }}base_item extends uvm_sequence_item;
     `uvm_object_utils({{ class_prefix }}base_item)
 

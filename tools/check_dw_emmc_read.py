@@ -7,7 +7,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
@@ -15,10 +14,6 @@ ROOT = Path(__file__).resolve().parents[1]
 FAMILY = ROOT / "src/sv/agent/dw_emmc"
 COMMAND = Path("sequence/operation/command/op.sv")
 RW_TEST = Path("sequence/test/rw.sv")
-SWITCH_BUS = Path("sequence/flow/switch_bus.sv")
-CALLBACK = "component/callback.sv"
-CALIBRATOR = "core/clock_phase_calibrator.sv"
-SEQUENCER = "component/sequencer.sv"
 TOOLS = Path(__file__).resolve().parent
 
 
@@ -99,46 +94,10 @@ def check_rw_test(source):
             raise ValueError(f"{mode} does not propagate read mode")
 
 
-def check_automatic_phase(output, *, emmc):
-    switch = (output / SWITCH_BUS).read_text(encoding="utf-8")
-    flow = method(switch, "body", "switch_bus_seq")
-    ordered(flow, "automatic_clock_phase_active();", "lock(p_sequencer);", "clock_phase_enabled(target);",
-            "clock_phase_can_keep(target)", "prepare_clock_phase(target);")
-    ordered(flow, "program_bus(bus_speed_mode,data_width);", "if(phase_enabled)begin",
-            "target.frequency_hz=freq_set_seq.freq_set_request.frequence;", "prepare_clock_phase(target);")
-    if emmc:
-        ordered(flow, "program_bus(HS200,data_width);", "prepare_clock_phase(training);",
-                "program_bus(bus_speed_mode,data_width);")
-    elif "prepare_clock_phase(training)" in flow or "PHASE_EMMC_HS200_CMD21" in switch:
-        raise ValueError("SD or SDIO generated the eMMC training stage")
-    rw = (output / RW_TEST).read_text(encoding="utf-8")
-    if "`uvm_do_with(switch_bus_seq" not in rw or "calibrate_clock_phases" in rw:
-        raise ValueError("read/write must use the shared automatic trigger")
-
-
-def check_phase_package(output):
-    files = ("core/clock_phase_types.sv", CALLBACK, CALIBRATOR,
-             SEQUENCER, "component/kit_sequencer.sv")
-    filelist = (output / "all.f").read_text(encoding="utf-8").splitlines()
-    if tuple(name for name in filelist if name in files) != files:
-        raise ValueError("missing, repeated or misordered clock-phase compile dependency")
-
-    callbacks = (output / CALLBACK).read_text(encoding="utf-8")
-    sequencer = (output / SEQUENCER).read_text(encoding="utf-8")
-    if "clock_phase_enabled()" not in callbacks or "uvm_callback_iter#" not in sequencer:
-        raise ValueError("clock phase hooks must use the normal UVM callback registration")
-    if "set_clock_phase_adapter" in sequencer or "component/clock_phase_adapter.sv" in filelist:
-        raise ValueError("clock phase hooks must not require a second registration path")
-
-
 def simulate(output, *flags):
-    timeout = 75 if "--automatic-phase" in flags else 40
-    auto_phase = "--automatic-phase" in flags
     if shutil.which("verilator"):
         args = [sys.executable, str(TOOLS / "run_dw_emmc_read_probe.py")]
         generated = output
-        if auto_phase:
-            uvm_src = os.environ.get("UVM_SRC", "/opt/uvm/src")
     elif os.name == "nt":
         docker = Path.home() / ".cursor/skills/docker-agent-environment/scripts/docker-safe-run.ps1"
         args = ["pwsh", "-NoProfile", "-File", str(docker), "run", "--rm", "--pull", "never",
@@ -146,14 +105,10 @@ def simulate(output, *flags):
                 "--mount", f"type=bind,source={TOOLS},target=/probe,readonly", "codex-sv-uvm:5.052",
                 "python3", "/probe/run_dw_emmc_read_probe.py"]
         generated = "/generated"
-        if auto_phase:
-            uvm_src = "/opt/uvm/src"
     else:
         raise RuntimeError("Verilator is required for the generated read operation probe")
-    target = generated if auto_phase or {"--clock-phase", "--hot-paths"}.intersection(flags) else f"{generated}/{COMMAND.as_posix()}"
-    if auto_phase:
-        flags = (*flags, "--uvm-src", uvm_src)
-    subprocess.run([*args, str(target), *flags], check=True, timeout=timeout)
+    target = generated if "--hot-paths" in flags else f"{generated}/{COMMAND.as_posix()}"
+    subprocess.run([*args, str(target), *flags], check=True, timeout=40)
 
 
 def jinja_builder():
@@ -188,20 +143,13 @@ def main():
             source = (output / COMMAND).read_text(encoding="utf-8")
             verify(source, mobile=controller == "mobile_storage", dma=dma)
             check_rw_test((output / RW_TEST).read_text(encoding="utf-8"))
-            check_automatic_phase(output, emmc=card == "emmc")
-            check_phase_package(output)
             if card == "emmc":
                 calibrate(source)
             print(f"PASS {name}: generated read structure and ordering", flush=True)
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            emmc = Path(temp) / "mshc-emmc"
-            automatic = executor.submit(simulate, emmc, "--automatic-phase")
-            for controller, card, dma in variants:
-                flags = (["--mobile"] if controller == "mobile_storage" else []) + (["--dma"] if dma else [])
-                simulate(Path(temp) / f"{controller}-{card}", *flags)
-            simulate(emmc, "--clock-phase")
-            simulate(emmc, "--hot-paths")
-            automatic.result()
+        for controller, card, dma in variants:
+            flags = (["--mobile"] if controller == "mobile_storage" else []) + (["--dma"] if dma else [])
+            simulate(Path(temp) / f"{controller}-{card}", *flags)
+        simulate(Path(temp) / "mshc-emmc", "--hot-paths")
 
 
 if __name__ == "__main__":

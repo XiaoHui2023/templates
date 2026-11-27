@@ -175,7 +175,7 @@ endtask
 
 {%- if enable_dma %}
 task {{ class_prefix }}xfer_base_seq::write_dma_descriptor();
-    {{ class_prefix }}bytes d;
+    {{ class_prefix }}base_data::bytes_t d;
 
     if(!dma_enable)
         return;

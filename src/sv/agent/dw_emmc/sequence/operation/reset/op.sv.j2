@@ -37,8 +37,6 @@ task {{ class_prefix }}reset_operation_seq::execute_reset();
     if (rst_request.sw_rst_cmd || rst_request.sw_rst_dat || rst_request.sw_rst_all)
         `uvm_info("", "skip software reset for mobile_storage", UVM_LOW)
 {%- else %}
-    if (rst_request.sw_rst_cmd || rst_request.sw_rst_dat || rst_request.sw_rst_all)
-        p_sequencer.invalidate_clock_phase();
     if(rst_request.sw_rst_cmd) begin
         // 复位CMD
         rm.SW_RST_R.SW_RST_ALL.set(0);

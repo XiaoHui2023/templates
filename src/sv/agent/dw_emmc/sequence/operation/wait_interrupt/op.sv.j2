@@ -75,6 +75,7 @@ task {{ class_prefix }}wait_interrupt_operation_seq::wait_interrupt();
     end
 {%- else %}
     rm.NORMAL_INT_STAT_EN_R.set('hffff_ffff);
+    rm.NORMAL_INT_STAT_EN_R.update(status);
     rm.NORMAL_INT_STAT_EN_R.write(status, rm.NORMAL_INT_STAT_EN_R.get());
 
     // 打开信号使能

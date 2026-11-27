@@ -6,18 +6,22 @@ class {{ class_prefix }}base_data extends {{ class_prefix }}base_item;
         `uvm_field_int(sizeof, UVM_ALL_ON | UVM_NOPACK | UVM_NOPRINT)
     `uvm_object_utils_end
 
+    typedef bit[7:0] bytes_t[$];
+
+    // Creates a data item for byte packing.
     function new(string name = "{{ class_prefix }}base_data");
         super.new(name);
     endfunction
 
     int sizeof; // 字节数
 
-    // 打包数据
-    extern function {{ class_prefix }}bytes unpack();
+    // Returns the packed bytes in little-endian order.
+    extern function bytes_t unpack();
+    // Records the packed size before randomization.
     extern function void pre_randomize();
 endclass
 
-function {{ class_prefix }}bytes {{ class_prefix }}base_data::unpack();
+function {{ class_prefix }}base_data::bytes_t {{ class_prefix }}base_data::unpack();
     uvm_packer pk;
     byte unsigned d[];
 

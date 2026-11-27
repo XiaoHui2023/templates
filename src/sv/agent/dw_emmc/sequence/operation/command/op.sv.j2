@@ -96,7 +96,7 @@ endfunction
 task {{ class_prefix }}command_operation_seq::pre_start();
     super.pre_start();
 
-    `uvm_info("", $psprintf("Enter:\n%s", cmd_request.sprint()), UVM_HIGH)
+    `uvm_info("", $psprintf("Enter:\n%s", cmd_request.sprint()), UVM_LOW)
 endtask
 
 task {{ class_prefix }}command_operation_seq::body();
@@ -344,27 +344,41 @@ endtask
 task {{ class_prefix }}command_operation_seq::read_buffer_one_block(ref bit [7:0] data[$]);
 {%- if is_mobile_storage %}
     bit [63:0] addr;
-{%- endif %}
     bit [31:0] dat;
-    int remaining;
+    int byte_idx;
+    int byte_pos;
+    int word_idx;
     int words;
 
-{%- if is_mobile_storage %}
     addr = fifo_port_addr();
-{%- endif %}
-    remaining = cmd_request.block_size;
-    words = remaining / 4 + (remaining % 4 != 0);
-    `uvm_info("", $psprintf("read buffer one block words=%0d", words), UVM_HIGH)
-    for (int word_idx = 0; word_idx < words; word_idx++) begin
-{%- if is_mobile_storage %}
+    words = (cmd_request.block_size + 3) / 4;
+    `uvm_info("", $psprintf("read buffer one block words=%0d", words), UVM_LOW)
+    for (word_idx = 0; word_idx < words; word_idx++) begin
         wait_read_fifo_not_empty(word_idx);
         p_sequencer.cpu_read(addr + word_idx * 4, dat, UVM_FRONTDOOR);
-{%- else %}
-        rm.BUF_DATA_R.read(status, dat);
-{%- endif %}
-        for (int lane = 0; lane < 4 && remaining > 0; lane++, remaining--)
-            data.push_back(dat[lane * 8 +: 8]);
+        for (byte_idx = 0; byte_idx < 4; byte_idx++) begin
+            byte_pos = word_idx * 4 + byte_idx;
+            if (byte_pos < cmd_request.block_size)
+                data.push_back(dat[byte_idx * 8 +: 8]);
+        end
     end
+{%- else %}
+    int words;
+
+    words = $ceil(cmd_request.block_size / 4.0);
+    `uvm_info("", $psprintf("read buffer one block words=%0d", words), UVM_LOW)
+    repeat (words) begin
+        bit [7:0] d[$];
+        bit [31:0] dat;
+
+        rm.BUF_DATA_R.read(status, dat);
+        d = {<<byte{dat}};
+        data = {data, d};
+    end
+    // 去掉多余的
+    repeat (words * 4 - cmd_request.block_size)
+        data.pop_back();
+{%- endif %}
 endtask
 
 task {{ class_prefix }}command_operation_seq::abort();

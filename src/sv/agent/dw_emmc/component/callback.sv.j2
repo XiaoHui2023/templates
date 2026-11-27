@@ -1,8 +1,6 @@
 `ifndef {{ class_prefix | upper }}CALLBACK
 `define {{ class_prefix | upper }}CALLBACK
 
-typedef class {{ class_prefix }}sequencer;
-
 class {{ class_prefix }}callback extends uvm_callback;
     `uvm_object_utils({{ class_prefix }}callback)
 
@@ -17,46 +15,6 @@ class {{ class_prefix }}callback extends uvm_callback;
     extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
     // Writes one 32-bit word through the external CPU path.
     extern virtual task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
-
-    // Checks whether the project supplies clock phase hooks.
-    virtual function bit clock_phase_enabled();
-        return 0;
-    endfunction
-
-    // Checks whether the project supports this operating point.
-    virtual function bit clock_phase_accepts(input {{ class_prefix }}clock_phase_types::operating_point_t point);
-        return 1;
-    endfunction
-
-    // Selects the project probe and register layout for the operating point.
-    virtual function void clock_phase_select(input {{ class_prefix }}clock_phase_types::operating_point_t point);
-    endfunction
-
-    // Returns the project revision used to invalidate measured taps.
-    virtual function int clock_phase_revision();
-        return 0;
-    endfunction
-
-    // Describes the adjustable axes in physical tap order.
-    virtual function void clock_phase_describe(output {{ class_prefix }}clock_phase_types::axes_t axes);
-        axes.delete();
-    endfunction
-
-    // Reads current taps before changing the hardware.
-    virtual task clock_phase_capture(output {{ class_prefix }}clock_phase_types::taps_t taps, output bit ok);
-        taps.delete();
-        ok = 0;
-    endtask
-
-    // Programs a complete tap vector and waits for stable clocks.
-    virtual task clock_phase_apply(input {{ class_prefix }}clock_phase_types::taps_t taps, output bit ok);
-        ok = 0;
-    endtask
-
-    // Tests one phase group or the joint selection.
-    virtual task clock_phase_probe(input int group_id, output {{ class_prefix }}clock_phase_types::probe_e outcome);
-        outcome = {{ class_prefix }}clock_phase_types::PROBE_FAILED;
-    endtask
 endclass
 
 task {{ class_prefix }}callback::set_frequence(int frequence);

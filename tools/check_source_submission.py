@@ -81,11 +81,14 @@ def validate_source(*, staged: bool = False) -> None:
     if any(path.startswith(b"src/c/pll_mini/") for path in changed.splitlines()):
         run(sys.executable, "src/c/pll_mini/tools/check_plugin_ownership.py")
     dw_emmc_gate = {b"tools/check_dw_emmc_read.py", b"tools/run_dw_emmc_read_probe.py",
-                    b"tools/dw_emmc_read_probe.sv", b"tools/dw_emmc_clock_phase_probe.sv",
-                    b"tools/dw_emmc_auto_phase_probe.sv", b"tools/dw_emmc_hot_path_probe.sv"}
+                    b"tools/dw_emmc_read_probe.sv", b"tools/dw_emmc_hot_path_probe.sv"}
     dw_emmc_paths = changed.splitlines()
     if outgoing.returncode == 0:
         dw_emmc_paths += outgoing.stdout.splitlines()
+    if ({b"tools/check_sv_declaration_ownership.py", b"tools/check_dw_emmc_generation.py"} & set(dw_emmc_paths)
+            and not any(path.startswith(b"src/sv/agent/dw_emmc/") and path.endswith((b".j2", b".py", b".yaml", b".json"))
+                        for path in dw_emmc_paths)):
+        run(sys.executable, "tools/check_template_pruning.py", "--family", "src/sv/agent/dw_emmc")
     if any(path.startswith(b"src/sv/agent/dw_emmc/") or path in dw_emmc_gate
            for path in dw_emmc_paths):
         run(sys.executable, "tools/check_dw_emmc_read.py")

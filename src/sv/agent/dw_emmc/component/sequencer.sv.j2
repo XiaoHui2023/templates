@@ -10,14 +10,6 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     {{ class_prefix }}scoreboard scoreboard;
     virtual {{ class_prefix }}interface vif;
 
-    typedef {{ class_prefix }}clock_phase_types::operating_point_t clock_point_t;
-    typedef {{ class_prefix }}clock_phase_types::taps_t clock_taps_t;
-    local {{ class_prefix }}callback phase_adapter;
-    local {{ class_prefix }}clock_phase_calibrator phase_calibrator = new;
-    local clock_taps_t phase_cache[clock_point_t];
-    local int phase_revision;
-    local int bus_frequency_hz;
-
     function new(string name = "{{ class_prefix }}sequencer", uvm_component parent = null);
         super.new(name, parent);
     endfunction
@@ -27,130 +19,13 @@ class {{ class_prefix }}sequencer extends uvm_sequencer;
     extern virtual task set_frequence(int frequence);
     extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
     extern virtual task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
-
-    // Finds the single registered callback that provides clock phase control.
-    extern local function {{ class_prefix }}callback get_clock_phase_callback();
-    // Forgets completed measurements after reset or a changed project configuration.
-    extern function void invalidate_clock_phase();
-    // Indicates whether bus reconfiguration must serialize with automatic calibration.
-    extern function bit automatic_clock_phase_active();
-    // Returns whether this stable operating point requires project calibration.
-    extern function bit clock_phase_enabled(input clock_point_t point);
-    // Checks whether the previously prepared mode is still active.
-    extern function bit clock_phase_can_keep(input clock_point_t point);
-    // Records the frequency requested by the completed clock operation.
-    extern function void note_bus_frequency(input int frequency_hz);
-    // Calibrates or verifies reusable taps before the bus setup sequence returns.
-    extern task prepare_clock_phase(input clock_point_t point);
-    // Runs a manual diagnostic without authorizing reuse by the automatic path.
-    extern task calibrate_clock_phases(
-        output {{ class_prefix }}clock_phase_types::result_t result,
-        input int max_probes = 256,
-        input int confirm_samples = 2,
-        input int scan_timeout_us = 10000,
-        input int restore_timeout_us = 1000
-    );
 endclass
 
 task {{ class_prefix }}sequencer::reset_phase(uvm_phase phase);
     super.reset_phase(phase);
 
     stop_sequences();
-    phase_calibrator = new;
-    invalidate_clock_phase();
-    bus_frequency_hz = 0;
     start_phase_sequence(phase);
-endtask
-
-function {{ class_prefix }}callback {{ class_prefix }}sequencer::get_clock_phase_callback();
-    uvm_callback_iter#({{ class_prefix }}sequencer, {{ class_prefix }}callback) callbacks;
-    {{ class_prefix }}callback selected;
-
-    callbacks = new(this);
-    for ({{ class_prefix }}callback candidate = callbacks.first(); candidate != null; candidate = callbacks.next()) begin
-        if (!candidate.clock_phase_enabled())
-            continue;
-        if (selected != null)
-            `uvm_fatal("CLOCK_PHASE", "Only one callback may enable clock phase control")
-        selected = candidate;
-    end
-    return selected;
-endfunction
-
-function void {{ class_prefix }}sequencer::invalidate_clock_phase();
-    phase_cache.delete();
-endfunction
-
-function bit {{ class_prefix }}sequencer::automatic_clock_phase_active();
-    {{ class_prefix }}callback selected;
-
-    if (settings != null && ctx != null && settings.clock_phase_auto_enable && ctx.has_initialized)
-        selected = get_clock_phase_callback();
-    if (selected != phase_adapter) begin
-        phase_adapter = selected;
-        invalidate_clock_phase();
-    end
-    return phase_adapter != null;
-endfunction
-
-function bit {{ class_prefix }}sequencer::clock_phase_enabled(input clock_point_t point);
-    return phase_adapter != null && phase_adapter.clock_phase_accepts(point);
-endfunction
-
-function bit {{ class_prefix }}sequencer::clock_phase_can_keep(input clock_point_t point);
-    if (!phase_cache.exists(point))
-        return 0;
-    return phase_revision == phase_adapter.clock_phase_revision() &&
-        int'(ctx.bus_speed_mode_cur) == point.speed_mode && ctx.data_width_cur == point.data_width &&
-        bus_frequency_hz == point.frequency_hz;
-endfunction
-
-function void {{ class_prefix }}sequencer::note_bus_frequency(input int frequency_hz);
-    bus_frequency_hz = frequency_hz;
-endfunction
-
-task {{ class_prefix }}sequencer::prepare_clock_phase(input clock_point_t point);
-    import {{ class_prefix }}clock_phase_types::*;
-    result_t result;
-    clock_taps_t cached;
-    int revision;
-
-    if (!clock_phase_enabled(point))
-        `uvm_fatal("CLOCK_PHASE", $sformatf("adapter does not accept the programmed working point: %p", point))
-    if (int'(ctx.bus_speed_mode_cur) != point.speed_mode || ctx.data_width_cur != point.data_width ||
-        bus_frequency_hz != point.frequency_hz)
-        `uvm_fatal("CLOCK_PHASE", $sformatf("calibration requires the programmed working point: %p", point))
-    phase_adapter.clock_phase_select(point);
-    revision = phase_adapter.clock_phase_revision();
-    if (phase_revision != revision) begin
-        invalidate_clock_phase();
-        phase_revision = revision;
-    end
-    if (phase_cache.exists(point))
-        cached = phase_cache[point];
-    phase_calibrator.run(phase_adapter, settings.clock_phase_max_probes, settings.clock_phase_confirm_samples,
-        settings.clock_phase_scan_timeout_us, settings.clock_phase_restore_timeout_us, result, cached);
-    if (result.status == PHASE_PASSED) begin
-        phase_cache[point] = result.selected;
-        if (result.probes != 0)
-            `uvm_info("CLOCK_PHASE", $sformatf("point=%p taps=%p probes=%0d", point, result.selected, result.probes), UVM_LOW)
-    end
-    else begin
-        phase_cache.delete(point);
-        `uvm_fatal("CLOCK_PHASE", $sformatf("point=%p status=%s cause=%s group=%0d probes=%0d",
-            point, result.status.name(), result.failure_before_restore.name(), result.failed_group, result.probes))
-    end
-endtask
-
-task {{ class_prefix }}sequencer::calibrate_clock_phases(
-    output {{ class_prefix }}clock_phase_types::result_t result,
-    input int max_probes,
-    input int confirm_samples,
-    input int scan_timeout_us,
-    input int restore_timeout_us
-);
-    invalidate_clock_phase();
-    phase_calibrator.run(get_clock_phase_callback(), max_probes, confirm_samples, scan_timeout_us, restore_timeout_us, result);
 endtask
 
 function void {{ class_prefix }}sequencer::start_of_simulation();

@@ -7,7 +7,8 @@ import re
 import subprocess
 import tempfile
 
-from check_dw_emmc_read import FAMILY, check_phase_package
+from check_dw_emmc_read import FAMILY
+from check_sv_declaration_ownership import check_source, self_test
 from check_template_pruning import ROOT, renderer
 
 
@@ -17,26 +18,17 @@ DMA_TEST = "sequence/test/dma.sv"
 CLOCK = "contract_clock"
 
 
-def check_timed_packages(files):
-    """Reject project packages used only as namespaces."""
-    for path, source in files.items():
-        if not path.endswith(".sv"):
-            continue
-        code = re.sub(r"//[^\n]*|/\*[\s\S]*?\*/", "", source)
-        for match in re.finditer(r"^\s*package\s+(\w+)\s*;(.*?)^\s*endpackage\b", code, re.M | re.S):
-            name, body = match.groups()
-            if (not re.search(r"\btimeunit\s+", body) or not re.search(r"\btimeprecision\s+", body)
-                    or not re.search(r"#\s*\([^;]*\d(?:fs|ps|ns|us|ms|s)\b", body)):
-                raise ValueError(f"{path}: {name} must own a timed procedure and declare its time scale")
-
-
 def verify(files, controller, dma, clock):
     listed = [name for name in files["all.f"].splitlines() if name]
     sources = {path for path in files if path.endswith(".sv")}
     if len(listed) != len(sources) or set(listed) != sources:
         raise ValueError(f"incorrect all.f: missing={sorted(sources - set(listed))}, "
                          f"unbuilt={sorted(set(listed) - sources)}, repeated={len(listed) - len(set(listed))}")
-    check_timed_packages(files)
+    for path in sources:
+        check_source(files[path], path)
+    if any("clock_phase" in path or re.search(r"\b(?:calibrate_clock_phases|clock_phase_\w+)\b", files[path])
+           for path in sources):
+        raise ValueError("withdrawn external clock phase code is still generated")
 
     dma_sources = {*DESCRIPTORS.values(), DMA_TEST}
     expected = {DESCRIPTORS[controller], DMA_TEST} if dma else set()
@@ -54,6 +46,7 @@ def verify(files, controller, dma, clock):
 def main():
     reports = {}
     rejected = 0
+    self_test()
     executable = renderer()
     with tempfile.TemporaryDirectory(prefix="dw-emmc-generation-") as temporary:
         work = Path(temporary)
@@ -69,7 +62,6 @@ def main():
                 raise RuntimeError(result.stderr.decode(errors="replace"))
             files = {p.relative_to(output).as_posix(): p.read_text(encoding="utf-8")
                      for p in output.rglob("*") if p.is_file()}
-            check_phase_package(output)
             try:
                 verify(files, controller, dma, clock)
             except ValueError as error:
@@ -85,7 +77,7 @@ def main():
                     else:
                         raise ValueError(f"pruning check accepted a disabled feature in {path}")
     try:
-        check_timed_packages({"invalid.sv": "package type_only;\ntypedef int status_t;\nendpackage"})
+        check_source("package type_only;\ntypedef int status_t;\nendpackage", "invalid.sv")
     except ValueError:
         rejected += 1
     else:

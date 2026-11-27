@@ -23,9 +23,11 @@ def check(root: Path, staged: bool) -> int:
         A nonzero status if coverage, review identity or a child check fails.
     """
     changes = run(root, 'diff', '--cached', '--name-only', '-z').split(b'\0')
+    deleted = set(run(root, 'diff', '--cached', '--diff-filter=D', '--name-only', '-z').split(b'\0'))
     if not staged:
         changes += run(root, 'diff', '--name-only', '-z').split(b'\0')
         changes += run(root, 'ls-files', '--others', '--exclude-standard', '-z').split(b'\0')
+        deleted.update(run(root, 'diff', '--diff-filter=D', '--name-only', '-z').split(b'\0'))
     names = {item.decode('utf-8') for item in changes if item}
     documents = {name for name in names if name.startswith('src/') and name.endswith('.md')}
     policy_path = root / '.cursor/skills/project-document-review/policy.json'
@@ -35,6 +37,11 @@ def check(root: Path, staged: bool) -> int:
             return 1
         return 0
     policy = json.loads(policy_path.read_text(encoding='utf-8'))
+    withdrawn = {name for name in documents if name.encode('utf-8') in deleted and not (root / name).exists()}
+    if still_registered := withdrawn & policy['documents'].keys():
+        print(f'deleted documents remain in review policy: {sorted(still_registered)}')
+        return 1
+    documents -= withdrawn
     missing = documents - policy['documents'].keys()
     if missing:
         print(f'documents without element reviews: {sorted(missing)}')
