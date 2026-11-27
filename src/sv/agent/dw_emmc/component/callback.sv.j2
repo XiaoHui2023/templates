@@ -17,15 +17,14 @@ class {{ class_prefix }}callback extends uvm_callback;
     extern virtual task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
 {%- if is_emmc %}
 
-    // Delays the TX clock by shift_fs; a negative value requests an advance.
-    // applied is zero if the original configuration was left intact.
-    virtual task adjust_tx_phase(input longint shift_fs, output bit applied);
-        applied = 0;
-    endtask
-
-    // Delays the HS200 RX sampling clock by shift_fs; a negative value requests an advance.
-    // applied is zero if the original configuration was left intact.
-    virtual task adjust_rx_phase(input longint shift_fs, output bit applied);
+    // Applies all applicable clock corrections using one set of link observations.
+    virtual task apply_link_phase(
+        input int bus_speed_mode,
+        input longint period_fs,
+        input real one_way_deg,
+        input real estimated_round_trip_deg,
+        output bit applied
+    );
         applied = 0;
     endtask
 {%- endif %}

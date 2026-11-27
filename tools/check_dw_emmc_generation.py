@@ -41,24 +41,29 @@ def verify(files, controller, card, dma, clock):
     for path in ("top/interface.sv", "top/monitor_interface.sv"):
         if bool(re.search(rf"\b{CLOCK}\b", files[path])) != clock:
             raise ValueError(f"monitor clock presence disagrees with enable: {path}")
-        for pin in ("phase_tx_ref", "phase_tx_clk", "phase_rx_ref", "phase_rx_clk"):
+        for pin in ("link_chip_clk", "link_card_clk"):
             if bool(re.search(rf"\binput wire {pin}\b", files[path])) != (card == "emmc"):
                 raise ValueError(f"phase clock port disagrees with card type: {path}:{pin}")
 
     phase_argument = re.search(r"extern task rw_test\([^\n]*, bit auto_clock_phase = 0\);", kit)
     phase_route = "auto_clock_phase == local::auto_clock_phase;"
-    expected_routes = 5 if card == "emmc" else 0
     if (bool(phase_argument) != (card == "emmc")
-        or kit.count(phase_route) != int(card == "emmc")
-        or files["sequence/test/rw.sv"].count(phase_route) != expected_routes):
+        or kit.count(phase_route) != int(card == "emmc")):
         raise ValueError("incorrect rw_test phase switch default or route")
-    phase_flow = files["sequence/flow/xfer/base.sv"]
+    phase_flow = files["sequence/test/rw.sv"]
     phase_before_io = re.search(
-        r"::body\(\);\s*if \(auto_clock_phase\)\s*adjust_clock_phase\(\);\s*"
-        r"(?:write_dma_descriptor\(\);\s*)?set_block_length\(\);\s*execute_command\(\);", phase_flow)
+        r"if \(auto_clock_phase\)\s*apply_measured_link_phase\(\);\s*if\(wr_single\)", phase_flow)
     if bool(phase_before_io) != (card == "emmc"):
-        raise ValueError("phase adjustment must be optional and before launching I/O")
-    if card != "emmc" and any(re.search(r"\b(?:auto_clock_phase|adjust_(?:clock|tx|rx)_phase)\b",
+        raise ValueError("link measurement must run once before the existing I/O branches")
+    if phase_flow.count("cb.apply_link_phase(") != int(card == "emmc"):
+        raise ValueError("link phase must be passed through exactly one callback")
+    if card == "emmc" and (
+        not re.search(r"one_way_deg = 360\.0 \* real'\(propagation_fs\) / real'\(period_fs\);\s*"
+                      r"cb\.apply_link_phase\([^;]*one_way_deg, 2\.0 \* one_way_deg, applied\);", phase_flow)
+        or re.search(r"\bforce\b", files["top/monitor_interface.sv"])
+    ):
+        raise ValueError("link phase must use the measured period and only estimate the round trip")
+    if card != "emmc" and any(re.search(r"\b(?:auto_clock_phase|apply_link_phase|measure_link_clock)\b",
                                        files[path]) for path in sources):
         raise ValueError("phase code leaked outside eMMC")
 
@@ -91,15 +96,21 @@ def main():
                 controls = [("component/kit_sequencer.sv", "extern task dma_test();"),
                             ("top/interface.sv", f"input wire {CLOCK};")]
                 if card != "emmc":
-                    controls.append(("top/monitor_interface.sv", "input wire phase_rx_clk;"))
+                    controls.append(("top/monitor_interface.sv", "input wire link_card_clk;"))
                 else:
-                    try:
-                        verify(files | {"component/kit_sequencer.sv": kit_without_opt_in(files)},
-                               controller, card, dma, clock)
-                    except ValueError:
-                        rejected += 1
-                    else:
-                        raise ValueError("generation check accepted opt-out phase adjustment")
+                    kit = "component/kit_sequencer.sv"
+                    rw = "sequence/test/rw.sv"
+                    mutations = (
+                        {kit: files[kit].replace("bit auto_clock_phase = 0", "bit auto_clock_phase = 1")},
+                        {rw: files[rw].replace("2.0 * one_way_deg", "one_way_deg")},
+                    )
+                    for mutation in mutations:
+                        try:
+                            verify(files | mutation, controller, card, dma, clock)
+                        except ValueError:
+                            rejected += 1
+                        else:
+                            raise ValueError("generation check accepted an invalid link phase contract")
                 for path, snippet in controls:
                     try:
                         verify(files | {path: files[path] + "\n" + snippet}, controller, card, dma, clock)
@@ -115,10 +126,6 @@ def main():
         raise ValueError("package policy accepted a type-only package")
     print(json.dumps({"passed": True, "family": FAMILY.relative_to(ROOT).as_posix(),
                       "profiles": reports, "rejected_controls": rejected}))
-
-
-def kit_without_opt_in(files):
-    return files["component/kit_sequencer.sv"].replace("bit auto_clock_phase = 0", "bit auto_clock_phase = 1")
 
 
 if __name__ == "__main__":

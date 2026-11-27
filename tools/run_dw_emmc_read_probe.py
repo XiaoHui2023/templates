@@ -110,21 +110,21 @@ def run_hot_path_probe(generated, expected_baseline):
 
 def run_inline_phase_probe(generated):
     monitor = (generated / "top/monitor_interface.sv").read_text(encoding="utf-8")
-    phase_methods = re.search(r"^function automatic longint wrap_phase\(.*?^endtask$", monitor, re.M | re.S)
+    phase_methods = re.search(r"^task automatic collect_link_clock\b.*?(?=^endinterface)", monitor, re.M | re.S)
     if phase_methods is None:
         raise ValueError("generated monitor has no inline phase measurement")
-    time_scope = monitor[monitor.index("timeunit "):monitor.index("timeprecision ")].strip()
-    time_scope += re.search(r"timeprecision [^;]+;", monitor)[0]
+    time_scope = re.search(r"^timeunit [^;]+;\s*timeprecision [^;]+;", monitor, re.M)[0]
+    ports = re.findall(r"^\s*input wire (link_\w+)", monitor, re.M)
     with tempfile.TemporaryDirectory(prefix="dw-emmc-inline-phase-") as temp:
         work = Path(temp)
         (work / "phase_monitor.svh").write_text(
-            "interface phase_monitor(input wire phase_tx_ref, phase_tx_clk, phase_rx_ref, phase_rx_clk);\n"
+            "interface phase_monitor(input wire " + ", ".join(ports) + ");\n"
             + time_scope + "\n" + phase_methods[0] + "\nendinterface\n", encoding="utf-8")
         binary = build_probe(work, "dw_emmc_inline_phase_probe", [f"-I{work}"])
         result = subprocess.run([binary], capture_output=True, text=True, timeout=5, cwd=work)
         if result.returncode or "INLINE_PHASE_PROBE_PASS" not in result.stdout:
             raise RuntimeError(result.stdout + result.stderr)
-        print("PASS inline phase measurement: signed TX/RX, mismatched clocks, duty distortion and stopped clock")
+        print("PASS one-way CLK measurement: known delay, reversed endpoints, bound, zero and stopped clock")
 
 
 if __name__ == "__main__":

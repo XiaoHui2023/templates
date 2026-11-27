@@ -12,6 +12,10 @@ class {{ class_prefix }}settings extends {{ class_prefix }}base_item;
     rand {{ class_prefix }}boot_configuration boot_cfg; // 启动配置
     rand {{ class_prefix }}check_clock_configuration chk_clk_cfg; // 时钟检查配置
     virtual {{ class_prefix }}interface vif; // 接口
+{%- if is_emmc %}
+    // Maximum one-way propagation in ps, established from the link model.
+    longint max_link_delay_ps;
+{%- endif %}
     {{ class_regmodel }} regmodel; // 寄存器模型虚拟句柄
     rand bit has_randomized; // 是否随机过
 

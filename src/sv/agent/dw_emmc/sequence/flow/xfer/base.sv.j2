@@ -49,9 +49,6 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
 
     rand bit abort; // 是否ABORT模式
     rand data_xfer_dir_e data_xfer_dir; // 读写类型
-{%- if is_emmc %}
-    rand bit auto_clock_phase;
-{%- endif %}
 
     function new(string name="{{ class_prefix }}xfer_base_seq");
         super.new(name);
@@ -84,9 +81,6 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
                 {%- endif %}
 
         soft abort == 0;
-{%- if is_emmc %}
-        soft auto_clock_phase == 0;
-{%- endif %}
 {%- if enable_dma %}
         soft dma_enable == 0;
         soft dma_sel == ADMA2;
@@ -132,10 +126,6 @@ class {{ class_prefix }}xfer_base_seq extends {{ class_prefix }}base_seq;
 
     extern function void pre_randomize();
     extern task body();
-{%- if is_emmc %}
-    // Measures and applies only the phase correction for this transfer.
-    extern local task adjust_clock_phase();
-{%- endif %}
 
 {%- if enable_dma %}
     // 写DMA描述符数据
@@ -175,10 +165,6 @@ function void {{ class_prefix }}xfer_base_seq::pre_randomize();
 endfunction
 
 task {{ class_prefix }}xfer_base_seq::body();
-{%- if is_emmc %}
-    if (auto_clock_phase)
-        adjust_clock_phase();
-{%- endif %}
 {%- if enable_dma %}
     write_dma_descriptor();
 {%- endif %}
@@ -186,57 +172,6 @@ task {{ class_prefix }}xfer_base_seq::body();
     execute_command();
     do_abort();
 endtask
-
-{%- if is_emmc %}
-
-task {{ class_prefix }}xfer_base_seq::adjust_clock_phase();
-    uvm_callback_iter#({{ class_prefix }}sequencer, {{ class_prefix }}callback) callbacks;
-    {{ class_prefix }}callback cb;
-    bit read_path;
-    bit both_edges;
-    bit applied;
-    longint shift_fs;
-    longint frequency_hz;
-    string problem;
-    string path_name;
-
-    read_path = data_xfer_dir == XFER_READ;
-    path_name = read_path ? "RX" : "TX";
-    both_edges = ctx.bus_speed_mode_cur == HS400;
-    if (!ctx.has_initialized || !(ctx.bus_speed_mode_cur inside {HS200, HS400}) || (read_path && both_edges)) begin
-        `uvm_error("CLOCK_PHASE", $sformatf("%s cannot be adjusted before I/O in mode %s",
-            path_name, ctx.bus_speed_mode_cur.name()))
-        return;
-    end
-    if (p_sequencer.vif == null) begin
-        `uvm_error("CLOCK_PHASE", "phase observation interface is not configured")
-        return;
-    end
-    p_sequencer.vif.monitor_if.measure_phase(read_path, both_edges, shift_fs, frequency_hz, problem);
-    if (problem != "") begin
-        `uvm_error("CLOCK_PHASE", $sformatf("%s: %s; no phase change", path_name, problem))
-        return;
-    end
-    if (shift_fs == 0)
-        return;
-
-    callbacks = new(p_sequencer);
-    for (cb = callbacks.first(); cb != null; cb = callbacks.next()) begin
-        if (read_path)
-            cb.adjust_rx_phase(shift_fs, applied);
-        else
-            cb.adjust_tx_phase(shift_fs, applied);
-        if (applied)
-            break;
-    end
-    if (!applied)
-        `uvm_error("CLOCK_PHASE", $sformatf("%s: no callback applied %0d fs at %0d Hz",
-            path_name, shift_fs, frequency_hz))
-    else
-        `uvm_info("CLOCK_PHASE", $sformatf("%s: applied correction requested at %0d fs (%0d Hz)",
-            path_name, shift_fs, frequency_hz), UVM_HIGH)
-endtask
-{%- endif %}
 
 {%- if enable_dma %}
 task {{ class_prefix }}xfer_base_seq::write_dma_descriptor();

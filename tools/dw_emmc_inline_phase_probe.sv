@@ -4,72 +4,44 @@ module dw_emmc_inline_phase_probe;
     timeunit 1fs;
     timeprecision 1fs;
 
-    logic ref_clk = 0;
-    logic tx_clk = 0;
-    logic rx_clk = 0;
-    logic fast_clk = 0;
-    logic distorted_clk = 0;
-    bit stop_rx;
-    bit use_fast;
-    bit use_distorted;
-    phase_monitor monitor_if(.phase_tx_ref(ref_clk),
-        .phase_tx_clk(use_distorted ? distorted_clk : tx_clk),
-        .phase_rx_ref(ref_clk), .phase_rx_clk(use_fast ? fast_clk : rx_clk));
+    bit chip_clk, stopped;
+    wire card_clk, late_clk;
+    assign #350ps card_clk = chip_clk;
+    assign #1100ps late_clk = chip_clk;
 
-    always begin
-        #1ns ref_clk = 1;
-        #3ns ref_clk = 0;
-        #1ns;
-    end
+    phase_monitor normal(.link_chip_clk(chip_clk), .link_card_clk(card_clk));
+    phase_monitor late(.link_chip_clk(chip_clk), .link_card_clk(late_clk));
+    phase_monitor reversed(.link_chip_clk(card_clk), .link_card_clk(chip_clk));
+    phase_monitor direct(.link_chip_clk(chip_clk), .link_card_clk(chip_clk));
+    phase_monitor no_edges(.link_chip_clk(stopped), .link_card_clk(stopped));
+
+    always #2500ps chip_clk = ~chip_clk;
+
     initial begin
-        #250ps;
-        forever begin
-            #1ns tx_clk = 1;
-            #3ns tx_clk = 0;
-            #1ns;
-        end
-    end
-    always begin
-        #750ps rx_clk = !stop_rx;
-        #3ns rx_clk = 0;
-        #1250ps;
-    end
-    always #2ns fast_clk = ~fast_clk;
-    always begin
-        #1250ps distorted_clk = 1;
-        #2ns distorted_clk = 0;
-        #1750ps;
-    end
-
-    task automatic check(input bit read_path, input bit both_edges,
-        input longint expected, input string expected_problem);
-        longint shift_fs, frequency_hz;
         string problem;
-        monitor_if.measure_phase(read_path, both_edges, shift_fs, frequency_hz, problem);
-        if (problem != expected_problem ||
-            (problem == "" && (shift_fs != expected || frequency_hz != 200_000_000)))
-            $fatal(1, "expected %0d fs (%s), got %0d fs at %0d Hz (%s)",
-                expected, expected_problem, shift_fs, frequency_hz, problem);
-    endtask
+        longint period_fs, delay_fs;
+        time started;
 
-    initial begin
-        time begin_measurement;
         #100ps;
-        check(0, 1, -250_000, "");
-        check(1, 0, 250_000, "");
-        use_distorted = 1;
-        #100ps;
-        check(0, 1, 0, "phase drifts or the selected edges require different corrections");
-        use_fast = 1;
-        #100ps;
-        check(1, 0, 0, "phase clock periods differ or are unstable");
-        use_fast = 0;
-        stop_rx = 1;
-        #10ns;
-        begin_measurement = $time;
-        check(1, 0, 0, "phase clock pair did not supply enough edges");
-        if ($time - begin_measurement != 10us)
-            $fatal(1, "stopped clock did not exit at the measurement limit");
+        normal.measure_link_clock(1000, period_fs, delay_fs, problem);
+        if (problem != "" || period_fs != 5_000_000 || delay_fs != 350_000)
+            $fatal(1, "incorrect link period/propagation: %0d %0d %s", period_fs, delay_fs, problem);
+        late.measure_link_clock(1000, period_fs, delay_fs, problem);
+        if (problem == "")
+            $fatal(1, "over-limit propagation was accepted");
+        reversed.measure_link_clock(1000, period_fs, delay_fs, problem);
+        if (problem == "")
+            $fatal(1, "reversed observation points were accepted");
+        direct.measure_link_clock(1000, period_fs, delay_fs, problem);
+        if (problem != "" || delay_fs != 0)
+            $fatal(1, "direct connection did not measure zero: %s", problem);
+        normal.measure_link_clock(0, period_fs, delay_fs, problem);
+        if (problem == "")
+            $fatal(1, "missing propagation bound was accepted");
+        started = $time;
+        no_edges.measure_link_clock(1000, period_fs, delay_fs, problem);
+        if (problem == "" || $time - started != 10us)
+            $fatal(1, "stopped clock did not return an observation error");
         $display("INLINE_PHASE_PROBE_PASS");
         $finish;
     end

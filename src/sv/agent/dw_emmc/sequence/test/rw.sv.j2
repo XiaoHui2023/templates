@@ -168,6 +168,10 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
 
     // Execute the selected write and read transfers.
     extern task body();
+{%- if is_emmc %}
+    // Measures one physical path and applies all project phase settings before I/O.
+    extern local task apply_measured_link_phase();
+{%- endif %}
     // Print randomized control fields before execution.
     extern function void post_randomize();
     // Compare read bytes against the expected memory.
@@ -201,6 +205,8 @@ task {{ class_prefix }}rw_test_seq::body();
             cmd_request.boot_partition_enable == local::boot_partition_enable;
             cmd_request.boot_partition_access == local::boot_partition_access;
         })
+    if (auto_clock_phase)
+        apply_measured_link_phase();
 {%- endif %}
 
     if(wr_single) begin
@@ -208,9 +214,6 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == 1;
             size == local::wr_block_size;
-{%- if is_emmc %}
-            auto_clock_phase == local::auto_clock_phase;
-{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -232,9 +235,6 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == local::wr_multi_block_count;
             size == local::wr_block_size;
-{%- if is_emmc %}
-            auto_clock_phase == local::auto_clock_phase;
-{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -256,9 +256,6 @@ task {{ class_prefix }}rw_test_seq::body();
             count == 2;
             size == local::wr_block_size;
             abort == 1;
-{%- if is_emmc %}
-            auto_clock_phase == local::auto_clock_phase;
-{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -280,9 +277,6 @@ task {{ class_prefix }}rw_test_seq::body();
             count == 1;
             size == local::rd_block_size;
             blocking == local::rd_blocking;
-{%- if is_emmc %}
-            auto_clock_phase == local::auto_clock_phase;
-{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -302,9 +296,6 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == local::rd_multi_block_count;
             size == local::rd_block_size;
-{%- if is_emmc %}
-            auto_clock_phase == local::auto_clock_phase;
-{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -340,6 +331,39 @@ task {{ class_prefix }}rw_test_seq::body();
     end
 {%- endif %}
 endtask
+
+{%- if is_emmc %}
+task {{ class_prefix }}rw_test_seq::apply_measured_link_phase();
+    uvm_callback_iter#({{ class_prefix }}sequencer, {{ class_prefix }}callback) callbacks;
+    {{ class_prefix }}callback cb;
+    longint period_fs, propagation_fs;
+    real one_way_deg;
+    string problem;
+    bit applied;
+
+    if (p_sequencer.vif == null) begin
+        `uvm_error("CLOCK_PHASE", "link observation interface is not configured")
+        return;
+    end
+    callbacks = new(p_sequencer);
+    cb = callbacks.first();
+    if (cb == null) begin
+        `uvm_error("CLOCK_PHASE", "no callback registered for joint phase adjustment")
+        return;
+    end
+    p_sequencer.vif.monitor_if.measure_link_clock(settings.max_link_delay_ps,
+        period_fs, propagation_fs, problem);
+    if (problem != "") begin
+        `uvm_error("CLOCK_PHASE", problem)
+        return;
+    end
+
+    one_way_deg = 360.0 * real'(propagation_fs) / real'(period_fs);
+    cb.apply_link_phase(int'(ctx.bus_speed_mode_cur), period_fs, one_way_deg, 2.0 * one_way_deg, applied);
+    if (!applied)
+        `uvm_error("CLOCK_PHASE", "callback did not apply the joint phase adjustment")
+endtask
+{%- endif %}
 
 task {{ class_prefix }}rw_test_seq::compare_result(bit[7:0] rw_data[$]);
     uvm_tlm_generic_payload payload;

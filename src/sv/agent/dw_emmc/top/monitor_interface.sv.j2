@@ -6,10 +6,8 @@ interface {{ class_prefix }}monitor_interface(
     input wire {{ clk.name }}{{ ',' if not loop.last or is_emmc }}
     {%- endfor %}
     {%- if is_emmc %}
-    input wire phase_tx_ref,
-    input wire phase_tx_clk,
-    input wire phase_rx_ref,
-    input wire phase_rx_clk
+    input wire link_chip_clk,
+    input wire link_card_clk
     {%- endif %}
 );
 
@@ -76,126 +74,145 @@ task automatic measure_clock_frequence(ref reg clk, input longint min_freq, outp
 endtask
 {%- if is_emmc %}
 
-// Returns the shortest signed shift between corresponding edges.
-function automatic longint wrap_phase(input longint delta_fs, input longint period_fs);
-    delta_fs %= period_fs;
-    if (delta_fs > period_fs / 2)
-        return delta_fs - period_fs;
-    if (delta_fs < -(period_fs / 2))
-        return delta_fs + period_fs;
-    return delta_fs;
-endfunction
-
-// Measures a continuous clock pair for one transfer direction.
-task automatic measure_phase(
-    input bit read_path,
-    input bit both_edges,
-    output longint shift_fs,
-    output longint frequency_hz,
+// Observe a directed copy of the same clock; do not wrap the time of flight.
+task automatic collect_link_clock(
+    input longint max_delay_fs,
+    output longint period_fs,
+    output longint propagation_fs,
     output string problem
 );
-    localparam int samples = 9;
-    logic [1:0] previous;
-    longint stamp[2][2][samples];
-    int count[2][2];
-    longint period_fs;
-    longint tolerance_fs;
-    longint total_shift_fs;
-    int polarities;
-    bit complete;
-    bit lost_clock;
+    localparam int samples = 6;
+    logic [1:0] previous, current;
+    longint source_fs, orphan_fs, rise_fs, now_fs;
+    longint delay_fs, delay_sum, delay_min, delay_max;
+    longint period_sample, period_sum, period_min, period_max;
+    int matched, periods;
+    bit pending, source_edge, sink_edge;
 
-    shift_fs = 0;
-    frequency_hz = 0;
+    period_fs = 0;
+    propagation_fs = 0;
     problem = "";
-    complete = 0;
-    lost_clock = 0;
-    total_shift_fs = 0;
-    foreach (count[i, j])
-        count[i][j] = 0;
-    previous = read_path ? {phase_rx_clk, phase_rx_ref} : {phase_tx_clk, phase_tx_ref};
+    previous = {link_chip_clk, link_card_clk};
     if ($isunknown(previous)) begin
-        problem = "phase clock pair is unconnected (Z) or unknown (X)";
+        problem = "CLK observation is X or unconnected";
         return;
     end
 
-    polarities = both_edges ? 2 : 1;
+    source_fs = -1;
+    orphan_fs = -1;
+    rise_fs = -1;
+    delay_sum = 0;
+    delay_min = 0;
+    delay_max = 0;
+    period_sum = 0;
+    period_min = 0;
+    period_max = 0;
+    matched = 0;
+    periods = 0;
+    pending = 0;
+    while (matched < samples) begin
+        @(link_chip_clk or link_card_clk);
+        current = {link_chip_clk, link_card_clk};
+        if ($isunknown(current)) begin
+            problem = "CLK observation became X or Z";
+            return;
+        end
+        source_edge = current[1] != previous[1];
+        sink_edge = current[0] != previous[0];
+        previous = current;
+        now_fs = longint'($time);
+
+        if (source_edge) begin
+            if (pending || (source_fs >= 0 && now_fs - source_fs <= max_delay_fs) ||
+                (matched != 0 && orphan_fs >= 0 && orphan_fs != now_fs)) begin
+                problem = "CLK transitions are missing or ambiguous within the one-way bound";
+                return;
+            end
+            if (current[1]) begin
+                if (rise_fs >= 0) begin
+                    period_sample = now_fs - rise_fs;
+                    if (periods == 0 || period_sample < period_min)
+                        period_min = period_sample;
+                    if (period_sample > period_max)
+                        period_max = period_sample;
+                    period_sum += period_sample;
+                    periods++;
+                end
+                rise_fs = now_fs;
+            end
+            source_fs = now_fs;
+            pending = 1;
+            if (orphan_fs == now_fs)
+                sink_edge = 1;
+            orphan_fs = -1;
+        end
+
+        if (sink_edge) begin
+            if (!pending) begin
+                // The first observed sink transition can already be in flight.
+                orphan_fs = now_fs;
+                continue;
+            end
+            delay_fs = now_fs - source_fs;
+            if (current[1] != current[0] || delay_fs > max_delay_fs) begin
+                problem = "CLK propagation is reversed, unmatched or exceeds the one-way bound";
+                return;
+            end
+            pending = 0;
+            if (matched == 0 || delay_fs < delay_min)
+                delay_min = delay_fs;
+            if (delay_fs > delay_max)
+                delay_max = delay_fs;
+            delay_sum += delay_fs;
+            matched++;
+        end
+    end
+
+    if (periods < 2 || period_min <= 2 * max_delay_fs ||
+        period_max - period_min > period_min / 100 || delay_max - delay_min > period_min / 100) begin
+        problem = "CLK period or one-way propagation is unstable";
+        return;
+    end
+    period_fs = period_sum / longint'(periods);
+    propagation_fs = delay_sum / longint'(samples);
+endtask
+
+// Bound observation only; this task never drives the bus or modifies transfer timeouts.
+task automatic measure_link_clock(
+    input longint max_delay_ps,
+    output longint period_fs,
+    output longint propagation_fs,
+    output string problem
+);
+    longint measured_period_fs, measured_propagation_fs;
+    string measurement_problem;
+    bit finished;
+
+    period_fs = 0;
+    propagation_fs = 0;
+    finished = 0;
+    if (max_delay_ps <= 0 || max_delay_ps > 1_000_000_000) begin
+        problem = "set max_link_delay_ps to the physical one-way limit";
+        return;
+    end
     fork begin
         fork
             #10us;
             begin
-                do begin
-                    logic [1:0] current;
-
-                    @(phase_tx_ref or phase_tx_clk or phase_rx_ref or phase_rx_clk);
-                    current = read_path ? {phase_rx_clk, phase_rx_ref} : {phase_tx_clk, phase_tx_ref};
-                    if ($isunknown(current)) begin
-                        lost_clock = 1;
-                        break;
-                    end
-                    for (int signal = 0; signal < 2; signal++) begin
-                        int edge_index;
-
-                        edge_index = current[signal] ? 0 : 1;
-                        if (current[signal] != previous[signal] && edge_index < polarities &&
-                            count[signal][edge_index] < samples) begin
-                            stamp[signal][edge_index][count[signal][edge_index]] = longint'($time);
-                            count[signal][edge_index]++;
-                        end
-                    end
-                    previous = current;
-                    complete = count[0][0] == samples && count[1][0] == samples &&
-                        (!both_edges || (count[0][1] == samples && count[1][1] == samples));
-                end while (!complete);
+                collect_link_clock(max_delay_ps * 1000, measured_period_fs,
+                    measured_propagation_fs, measurement_problem);
+                finished = 1;
             end
         join_any
         disable fork;
     end join
-    if (!complete) begin
-        problem = lost_clock ? "phase clock pair became X or Z" :
-            "phase clock pair did not supply enough edges";
+    if (!finished) begin
+        problem = "CLK did not provide enough edges";
         return;
     end
-
-    period_fs = (stamp[0][0][samples - 1] - stamp[0][0][0]) / longint'(samples - 1);
-    if (period_fs <= 0) begin
-        problem = "invalid phase reference period";
-        return;
-    end
-    frequency_hz = 64'sd1_000_000_000_000_000 / period_fs;
-    tolerance_fs = period_fs / 100;
-    for (int edge_index = 0; edge_index < polarities; edge_index++) begin
-        for (int sample = 0; sample < samples; sample++) begin
-            longint correction_fs;
-
-            if (sample != 0) begin
-                for (int signal = 0; signal < 2; signal++) begin
-                    longint error_fs;
-
-                    error_fs = stamp[signal][edge_index][sample] -
-                        stamp[signal][edge_index][sample - 1] - period_fs;
-                    if (error_fs > tolerance_fs || error_fs < -tolerance_fs) begin
-                        problem = "phase clock periods differ or are unstable";
-                        return;
-                    end
-                end
-            end
-            correction_fs = wrap_phase(stamp[0][edge_index][sample] - stamp[1][edge_index][sample], period_fs);
-            if (correction_fs >= period_fs / 2 - tolerance_fs ||
-                correction_fs <= -(period_fs / 2 - tolerance_fs)) begin
-                problem = "phase correction is ambiguous near a half period";
-                return;
-            end
-            if (edge_index == 0 && sample == 0)
-                shift_fs = correction_fs;
-            if (correction_fs > shift_fs + tolerance_fs || correction_fs < shift_fs - tolerance_fs) begin
-                problem = "phase drifts or the selected edges require different corrections";
-                return;
-            end
-            total_shift_fs += correction_fs;
-        end
-    end
-    shift_fs = total_shift_fs / (samples * polarities);
+    period_fs = measured_period_fs;
+    propagation_fs = measured_propagation_fs;
+    problem = measurement_problem;
 endtask
 {%- endif %}
 endinterface
