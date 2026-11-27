@@ -16,7 +16,10 @@
 | `function_number` | SDIO function number，默认 1 |
 | `is_ddr` | eMMC/SD DDR 传输标记 |
 
-按顺序准备 DMA 描述符（启用时）、设置块长、执行读写命令。SDIO 地址按 4 字节对齐，`function_number` 为 1 至 7；单块不写块长，提前停止时在 CMD53 后发 CMD52。eMMC DDR 或 HS400 使用 512 字节块且不发 CMD16；SDSC 只允许单块。
+1. eMMC 的 `rw_test` 开启自动调相时，先按传输方向测量并调用对应 callback。校准不可用时报告 `CLOCK_PHASE`，继续后续步骤。
+2. 准备 DMA 描述符（启用时）、设置块长、执行读写命令，并处理提前停止。
+
+SDIO 地址按 4 字节对齐，`function_number` 为 1 至 7；单块不写块长，提前停止时在 CMD53 后发 CMD52。eMMC DDR 或 HS400 使用 512 字节块且不发 CMD16；SDSC 只允许单块。
 
 ## Read
 

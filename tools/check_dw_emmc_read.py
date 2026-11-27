@@ -107,7 +107,7 @@ def simulate(output, *flags):
         generated = "/generated"
     else:
         raise RuntimeError("Verilator is required for the generated read operation probe")
-    target = generated if "--hot-paths" in flags else f"{generated}/{COMMAND.as_posix()}"
+    target = generated if {"--hot-paths", "--inline-phase"}.intersection(flags) else f"{generated}/{COMMAND.as_posix()}"
     subprocess.run([*args, str(target), *flags], check=True, timeout=40)
 
 
@@ -150,6 +150,7 @@ def main():
             flags = (["--mobile"] if controller == "mobile_storage" else []) + (["--dma"] if dma else [])
             simulate(Path(temp) / f"{controller}-{card}", *flags)
         simulate(Path(temp) / "mshc-emmc", "--hot-paths")
+        simulate(Path(temp) / "mshc-emmc", "--inline-phase")
 
 
 if __name__ == "__main__":

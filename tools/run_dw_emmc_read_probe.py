@@ -108,6 +108,25 @@ def run_hot_path_probe(generated, expected_baseline):
             print("PASS sparse boot address and FIFO byte ordering")
 
 
+def run_inline_phase_probe(generated):
+    monitor = (generated / "top/monitor_interface.sv").read_text(encoding="utf-8")
+    phase_methods = re.search(r"^function automatic longint wrap_phase\(.*?^endtask$", monitor, re.M | re.S)
+    if phase_methods is None:
+        raise ValueError("generated monitor has no inline phase measurement")
+    time_scope = monitor[monitor.index("timeunit "):monitor.index("timeprecision ")].strip()
+    time_scope += re.search(r"timeprecision [^;]+;", monitor)[0]
+    with tempfile.TemporaryDirectory(prefix="dw-emmc-inline-phase-") as temp:
+        work = Path(temp)
+        (work / "phase_monitor.svh").write_text(
+            "interface phase_monitor(input wire phase_tx_ref, phase_tx_clk, phase_rx_ref, phase_rx_clk);\n"
+            + time_scope + "\n" + phase_methods[0] + "\nendinterface\n", encoding="utf-8")
+        binary = build_probe(work, "dw_emmc_inline_phase_probe", [f"-I{work}"])
+        result = subprocess.run([binary], capture_output=True, text=True, timeout=5, cwd=work)
+        if result.returncode or "INLINE_PHASE_PROBE_PASS" not in result.stdout:
+            raise RuntimeError(result.stdout + result.stderr)
+        print("PASS inline phase measurement: signed TX/RX, mismatched clocks, duty distortion and stopped clock")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("generated", type=Path)
@@ -116,8 +135,11 @@ if __name__ == "__main__":
     parser.add_argument("--mobile", action="store_true")
     parser.add_argument("--dma", action="store_true")
     parser.add_argument("--hot-paths", action="store_true")
+    parser.add_argument("--inline-phase", action="store_true")
     arguments = parser.parse_args()
-    if arguments.hot_paths:
+    if arguments.inline_phase:
+        run_inline_phase_probe(arguments.generated)
+    elif arguments.hot_paths:
         run_hot_path_probe(arguments.generated, arguments.baseline)
     else:
         run_probe(arguments.generated, arguments.baseline, arguments.uvm_src, arguments.mobile, arguments.dma)

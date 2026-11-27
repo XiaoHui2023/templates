@@ -24,7 +24,7 @@ class {{ class_prefix }}kit_sequencer extends {{ class_prefix }}sequencer;
     extern task tune_phase(bit[7:0] phase);
 
     // test shortcuts
-    extern task rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %});
+    extern task rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %}{%- if is_emmc %}, bit auto_clock_phase = 0{%- endif %});
 {%- if enable_dma %}
     // Starts a read/write test with DMA enabled.
     extern task dma_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1);
@@ -189,7 +189,7 @@ task {{ class_prefix }}kit_sequencer::tune_phase(bit[7:0] phase);
     seq.start(this);
 endtask
 
-task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %});
+task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 1, bit write_enable = 1, bit read_enable = 1{%- if enable_dma %}, bit use_dma = 0{%- endif %}{%- if is_emmc %}, bit auto_clock_phase = 0{%- endif %});
     {{ class_prefix }}rw_test_seq seq;
 
     if(!write_enable && !read_enable)
@@ -208,6 +208,9 @@ task {{ class_prefix }}kit_sequencer::rw_test(bit[63:0] addr = 0, int count = 1,
         rd_multi_block_count == local::count;
         wr_multi_block_count == local::count;
         should_compare == (local::read_enable && local::write_enable);
+{%- if is_emmc %}
+        auto_clock_phase == local::auto_clock_phase;
+{%- endif %}
 {%- if enable_dma %}
         dma_enable == local::use_dma;
 {%- endif %}

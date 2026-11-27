@@ -15,6 +15,20 @@ class {{ class_prefix }}callback extends uvm_callback;
     extern virtual task cpu_read(input bit[63:0] addr, output bit[31:0] data, input uvm_path_e path);
     // Writes one 32-bit word through the external CPU path.
     extern virtual task cpu_write(input bit[63:0] addr, input bit[31:0] data, input uvm_path_e path);
+{%- if is_emmc %}
+
+    // Delays the TX clock by shift_fs; a negative value requests an advance.
+    // applied is zero if the original configuration was left intact.
+    virtual task adjust_tx_phase(input longint shift_fs, output bit applied);
+        applied = 0;
+    endtask
+
+    // Delays the HS200 RX sampling clock by shift_fs; a negative value requests an advance.
+    // applied is zero if the original configuration was left intact.
+    virtual task adjust_rx_phase(input longint shift_fs, output bit applied);
+        applied = 0;
+    endtask
+{%- endif %}
 endclass
 
 task {{ class_prefix }}callback::set_frequence(int frequence);

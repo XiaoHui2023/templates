@@ -44,6 +44,9 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
     rand dma_sel_e dma_sel;
 {%- endif %}
     rand bit rd_blocking;
+{%- if is_emmc %}
+    rand bit auto_clock_phase;
+{%- endif %}
     rand bit rd;
     rand bit wr;
     rand bit rd_single;
@@ -155,6 +158,9 @@ class {{ class_prefix }}rw_test_seq extends {{ class_prefix }}base_seq#({{ class
 {%- endif %}
 
         soft should_compare == (rd && wr);
+{%- if is_emmc %}
+        soft auto_clock_phase == 0;
+{%- endif %}
     }
 
     constraint cst_user {}
@@ -202,6 +208,9 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == 1;
             size == local::wr_block_size;
+{%- if is_emmc %}
+            auto_clock_phase == local::auto_clock_phase;
+{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -223,6 +232,9 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == local::wr_multi_block_count;
             size == local::wr_block_size;
+{%- if is_emmc %}
+            auto_clock_phase == local::auto_clock_phase;
+{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -244,6 +256,9 @@ task {{ class_prefix }}rw_test_seq::body();
             count == 2;
             size == local::wr_block_size;
             abort == 1;
+{%- if is_emmc %}
+            auto_clock_phase == local::auto_clock_phase;
+{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -265,6 +280,9 @@ task {{ class_prefix }}rw_test_seq::body();
             count == 1;
             size == local::rd_block_size;
             blocking == local::rd_blocking;
+{%- if is_emmc %}
+            auto_clock_phase == local::auto_clock_phase;
+{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
@@ -284,6 +302,9 @@ task {{ class_prefix }}rw_test_seq::body();
             addr == local::addr;
             count == local::rd_multi_block_count;
             size == local::rd_block_size;
+{%- if is_emmc %}
+            auto_clock_phase == local::auto_clock_phase;
+{%- endif %}
 {%- if enable_dma %}
             dma_enable == local::dma_enable;
             dma_sel == local::dma_sel;
